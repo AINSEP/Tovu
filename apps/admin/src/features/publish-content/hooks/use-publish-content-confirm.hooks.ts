@@ -105,13 +105,18 @@ export interface PublishContentConfirmView {
   /** The keys currently ticked "Overwrite on live" — a strict subset of every row's own key, never
    *  read for anything but rendering `checked`. */
   readonly overwriteKeys: ReadonlySet<string>;
+  /** The rows that carry an "Overwrite on live" box: every {@link PublishReportRow.overwritable} row,
+   *  plus every ticked one — a tick turns its row `forced`, and the box must stay to be unticked. */
+  readonly overwriteOfferKeys: ReadonlySet<string>;
+  /** Whether the overwrite column renders at all: the peer can honour it and some row offers a box. */
+  readonly showOverwriteColumn: boolean;
   /** Ticks or unticks one row's "Overwrite on live" box, then immediately re-plans against it (see
    *  this file's `applyOverwriteKeys`) — the report on screen updates to show the tick actually
    *  taking effect (the row turns `forced`) rather than promising something a later Confirm might
    *  refuse. */
   readonly onToggleOverwrite: (key: string) => void;
-  /** Ticks every {@link PublishReportRow.overwritable} row at once, or clears them all when every one
-   *  already is — the overwrite column's own header control, independent of {@link onToggleAll}. */
+  /** Ticks every {@link overwriteOfferKeys} row at once, or clears them all when every one already
+   *  is — the overwrite column's own header control, independent of {@link onToggleAll}. */
   readonly onToggleAllOverwrite: () => void;
   readonly allOverwriteTicked: boolean;
   readonly someOverwriteTicked: boolean;
@@ -239,7 +244,7 @@ function outcomeRowKey(row: Pick<PublishContentOutcomeRow, "entityType" | "entit
 
 /** Every key this report would actually write (`created`/`applied`/`forced`), minus `exclude` — the
  *  yardstick {@link overwriteReplanIsConsistent} uses twice, once per report, to compare "everything
- *  this run writes other than what was just ticked". */
+ *  this run writes other than what the operator is ticking or unticking". */
 function writingKeysExcluding(report: PublishContentReport, exclude: ReadonlySet<string>): ReadonlySet<string> {
   const keys = new Set<string>();
   for (const row of report.rows) {
@@ -252,15 +257,17 @@ function writingKeysExcluding(report: PublishContentReport, exclude: ReadonlySet
 
 /**
  * Whether re-planning with `tickedKeys` (publish-overwrite-live-plan §4/S9's "Overwrite on live"
- * boxes) landed on a report consistent with what the operator already reviewed in `base` — the plan
- * `requestPlan` first showed, before any tick.
+ * boxes) landed on a report consistent with `shown` — the report on screen when the operator
+ * clicked, i.e. the one they actually reviewed. Comparing against the screen rather than the first
+ * plan matters after a mismatch: the operator has been told to check the new list, and every later
+ * tick would otherwise re-report the same old drift forever (c7n-ow-review2, 2026-09-24).
  *
  * Two things must both hold:
  * 1. every ticked key is now `forced` in `next` — a peer that can honour the overwrite always
  *    answers this way; anything else means the tick did not take (e.g. the holder moved again).
- * 2. every OTHER writing row (created/applied/forced) names the exact same set of entity keys `base`
- *    already showed — a live edit landing between the first plan and this tick would show up here as
- *    a newly-written or newly-skipped row the operator never agreed to.
+ * 2. every writing row (created/applied/forced) outside `changing` — the keys ticked or unticked by
+ *    this click and any still in flight — names the exact same set in both reports: a live edit
+ *    landing in between shows up here as a newly-written or newly-skipped row.
  *
  * A `false` here is not a network error: the re-plan itself succeeded, it just disagrees with what
  * was on screen, and `applyOverwriteKeys` shows the new truth plus a sentence rather than silently
@@ -268,17 +275,34 @@ function writingKeysExcluding(report: PublishContentReport, exclude: ReadonlySet
  *
  * @complexity O(n) in the larger report's row count.
  */
-function overwriteReplanIsConsistent(base: PublishContentReport, next: PublishContentReport, tickedKeys: ReadonlySet<string>): boolean {
+function overwriteReplanIsConsistent(
+  shown: PublishContentReport,
+  next: PublishContentReport,
+  tickedKeys: ReadonlySet<string>,
+  changing: ReadonlySet<string>
+): boolean {
   const nextByKey = new Map(next.rows.map((row) => [outcomeRowKey(row), row]));
   for (const key of tickedKeys) {
     const row = nextByKey.get(key);
     if (!row || row.outcome !== "forced") return false;
   }
-  const baseOther = writingKeysExcluding(base, tickedKeys);
-  const nextOther = writingKeysExcluding(next, tickedKeys);
-  if (baseOther.size !== nextOther.size) return false;
-  for (const key of baseOther) if (!nextOther.has(key)) return false;
+  const shownOther = writingKeysExcluding(shown, changing);
+  const nextOther = writingKeysExcluding(next, changing);
+  if (shownOther.size !== nextOther.size) return false;
+  for (const key of shownOther) if (!nextOther.has(key)) return false;
   return true;
+}
+
+/** `{ overwriteEntityKeys }` narrowed to the keys in `keep`, or `{}` when none survive — spread into
+ *  a narrowing re-plan so an empty set is never sent as an explicit (and meaningless) empty array.
+ *  @complexity O(n + m). */
+function overwriteKeysWithin(
+  overwriteEntityKeys: readonly string[] | undefined,
+  keep: readonly string[]
+): { overwriteEntityKeys?: readonly string[] } {
+  const kept = new Set(keep);
+  const within = (overwriteEntityKeys ?? []).filter((key) => kept.has(key));
+  return within.length > 0 ? { overwriteEntityKeys: within } : {};
 }
 
 /**
@@ -325,15 +349,27 @@ export function usePublishContentConfirm(props: {
   // Set only when a ticking re-plan finds the live site moved since the plan the operator is looking
   // at — cleared the instant the ticked set changes again, since a fresh re-plan speaks for itself.
   const [overwriteMismatch, setOverwriteMismatch] = useState<string | null>(null);
-  // The plan `requestPlan` most recently landed for the CURRENT peer, before any overwrite tick — the
-  // fixed baseline every ticking re-plan is checked against (`overwriteReplanIsConsistent`), so
-  // ticking k1 then k2 always asks "does this match what the operator originally saw, plus k1 and k2"
-  // rather than drifting one re-plan at a time. Reset alongside `overwriteKeys` on every fresh plan.
+  // The plan `requestPlan` most recently landed for the CURRENT peer, before any overwrite tick —
+  // what unticking the last box goes back to without a network call. Reset alongside
+  // `overwriteKeys` on every fresh plan, and marked stale (`basePlanStaleRef`) the moment a ticking
+  // re-plan shows live moved since: from then on it no longer describes live, so unticking the last
+  // box asks live again instead of putting an out-of-date list back on screen.
   const basePlanRef = useRef<PublishContentPlanResult | null>(null);
+  const basePlanStaleRef = useRef(false);
   // The ticked set as of the MOST RECENT `applyOverwriteKeys` call, read synchronously inside that
   // call's own async continuation so a superseded tick's response never overwrites a newer one's —
   // the same shape as `planPeerRef`'s "answering for a peer we've left" guard, one level down.
   const overwriteKeysRef = useRef<ReadonlySet<string>>(new Set());
+  // Whether a ticking re-plan is still out. While it is, the plan on screen is not the one the ticks
+  // describe, so confirming it would publish WITHOUT the overwrite just asked for — and the late
+  // re-plan would then be dropped as answering a phase that has moved on. The ref is the synchronous
+  // guard `confirmPlan` reads; the state is what disables the button.
+  const overwriteReplanPendingRef = useRef(false);
+  const [overwriteReplanPending, setOverwriteReplanPending] = useState(false);
+  const setReplanPending = useCallback((pending: boolean): void => {
+    overwriteReplanPendingRef.current = pending;
+    setOverwriteReplanPending(pending);
+  }, []);
 
   const dismissible = !publishInFlight(phase);
   const onDismiss = (): void => {
@@ -428,56 +464,68 @@ export function usePublishContentConfirm(props: {
         // A fresh top-level plan is the new baseline every overwrite tick gets checked against, and
         // starts with nothing ticked — same reasoning as `deselectedKeys` resetting on a re-plan.
         basePlanRef.current = plan;
+        basePlanStaleRef.current = false;
         overwriteKeysRef.current = new Set();
         setOverwriteKeys(new Set());
         setOverwriteMismatch(null);
+        setReplanPending(false);
         setPhase({ kind: "planned", plan });
       } catch (error) {
         if (!live.current || planPeerRef.current !== peerId) return;
         setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
       }
     },
-    [port, t]
+    [port, setReplanPending, t]
   );
 
   /**
-   * The core of S9's "ticking re-plans" flow. Re-plans against `basePlanRef.current` with
-   * `nextOverwriteKeys` and, when the peer honoured every tick consistently with what the operator
-   * already reviewed (`overwriteReplanIsConsistent`), puts the result on screen. A `planned` phase is
-   * the only one this ever fires from — ticking is offered only while a report is up for review.
+   * The core of S9's "ticking re-plans" flow. Re-plans with `nextOverwriteKeys` and puts the result
+   * on screen; when it disagrees with the report the operator was looking at
+   * (`overwriteReplanIsConsistent`), it adds the mismatch sentence too. A `planned` phase is the only
+   * one this ever fires from — ticking is offered only while a report is up for review.
    *
-   * `nextOverwriteKeys.size === 0` (the operator unticked the last box) skips the network call
-   * entirely and goes straight back to `basePlanRef.current` — there is nothing to force, and the
-   * base plan is already the exact answer.
+   * `nextOverwriteKeys.size === 0` (the operator unticked the last box) goes straight back to
+   * `basePlanRef.current` with no network call — unless a mismatch has shown that plan no longer
+   * describes live, in which case live is asked again (with no keys).
    */
   const applyOverwriteKeys = useCallback(
     (nextOverwriteKeys: ReadonlySet<string>) => {
       const peerId = planPeerRef.current;
       const base = basePlanRef.current;
       if (!isChosenPeerId(peerId) || base === null || phase.kind !== "planned") return;
+      const shown = phase.plan;
+      // Keys ticked or unticked by this click, plus any still in flight from an earlier one: the
+      // consistency check compares everything ELSE between the screen and the answer.
+      const changing = new Set([...overwriteKeysRef.current, ...nextOverwriteKeys]);
       overwriteKeysRef.current = nextOverwriteKeys;
       setOverwriteKeys(nextOverwriteKeys);
       setOverwriteMismatch(null);
+      const useBase = nextOverwriteKeys.size === 0 && !basePlanStaleRef.current;
+      setReplanPending(!useBase);
       void (async () => {
         try {
-          const replanned =
-            nextOverwriteKeys.size === 0
-              ? base
-              : await port.planPublish({ peerId, overwriteEntityKeys: Array.from(nextOverwriteKeys) });
+          const replanned = useBase
+            ? base
+            : await port.planPublish(
+                nextOverwriteKeys.size === 0 ? { peerId } : { peerId, overwriteEntityKeys: Array.from(nextOverwriteKeys) }
+              );
           // Superseded by a newer tick, a peer switch, or an unmount while this was in flight.
           if (!live.current || planPeerRef.current !== peerId || overwriteKeysRef.current !== nextOverwriteKeys) return;
-          if (nextOverwriteKeys.size > 0 && !overwriteReplanIsConsistent(base.details, replanned.details, nextOverwriteKeys)) {
+          setReplanPending(false);
+          if (!useBase && !overwriteReplanIsConsistent(shown.details, replanned.details, nextOverwriteKeys, changing)) {
+            basePlanStaleRef.current = true;
             const peerLabel = peers.find((peer) => peer.id === peerId)?.label ?? t("the live site");
             setOverwriteMismatch(`${peerLabel} ${t("changed while you were deciding. Check the list again.")}`);
           }
           setPhase((current) => (current.kind === "planned" ? { kind: "planned", plan: replanned } : current));
         } catch (error) {
           if (!live.current || planPeerRef.current !== peerId || overwriteKeysRef.current !== nextOverwriteKeys) return;
+          setReplanPending(false);
           setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
         }
       })();
     },
-    [peers, phase.kind, port, t]
+    [peers, phase, port, setReplanPending, t]
   );
 
   const onToggleOverwrite = useCallback(
@@ -489,18 +537,6 @@ export function usePublishContentConfirm(props: {
     },
     [applyOverwriteKeys]
   );
-
-  // Reads the CURRENT phase's own plan rather than a closure over `rows` (computed further down,
-  // after this callback) — same information, no reordering of the rest of the function required.
-  const onToggleAllOverwrite = useCallback((): void => {
-    const visible = planOnScreen(phase);
-    if (visible === null) return;
-    const overwritableKeys = toPublishReportRows(visible.details)
-      .filter((row) => row.overwritable)
-      .map((row) => row.key);
-    const allTicked = overwritableKeys.length > 0 && overwritableKeys.every((key) => overwriteKeysRef.current.has(key));
-    applyOverwriteKeys(new Set(allTicked ? [] : overwritableKeys));
-  }, [applyOverwriteKeys, phase]);
 
   // The connect action behind the empty state — `destination.ts`'s header explains why it lives
   // here rather than on a settings screen. Success folds the newly connected site straight into
@@ -551,6 +587,8 @@ export function usePublishContentConfirm(props: {
   const confirmPlan = useCallback(async () => {
     const peerId = planPeerRef.current;
     if (!isChosenPeerId(peerId) || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
+    // The plan on screen is not yet the one the operator's latest tick describes.
+    if (overwriteReplanPendingRef.current) return;
     const { plan } = phase;
     const selectable = selectableRowKeys(toPublishReportRows(plan.details));
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
@@ -561,14 +599,14 @@ export function usePublishContentConfirm(props: {
         keep.length === selectable.length
           ? plan
           : // Carries `plan.overwriteEntityKeys` (already echoed onto `plan` by any ticking re-plan)
-            // into this narrowing re-plan too — deselecting a row must never silently drop an
-            // "Overwrite on live" tick the operator made moments earlier.
+            // into this narrowing re-plan too — deselecting an unrelated row must never silently
+            // drop an "Overwrite on live" tick. A ticked row the operator ALSO unchecked is not in
+            // `keep`, so its key is dropped here: an overwrite of something not being published
+            // would only ask live to force a row the bundle doesn't carry.
             await port.planPublish({
               peerId,
               selectedEntityKeys: keep,
-              ...(plan.overwriteEntityKeys && plan.overwriteEntityKeys.length > 0
-                ? { overwriteEntityKeys: plan.overwriteEntityKeys }
-                : {}),
+              ...overwriteKeysWithin(plan.overwriteEntityKeys, keep),
             });
       if (!live.current) return;
       if (!canConfirmPlan({ kind: "planned", plan: confirmed })) {
@@ -639,9 +677,19 @@ export function usePublishContentConfirm(props: {
   // is empty then too, so nothing reads this as "go ahead and offer a box".
   const liveCanOverwrite = visiblePlan?.liveCanOverwrite ?? true;
   const overwritableRows = rows.filter((row) => row.overwritable);
-  const overwritableKeys = overwritableRows.map((row) => row.key);
-  const allOverwriteTicked = overwritableKeys.length > 0 && overwritableKeys.every((key) => overwriteKeys.has(key));
+  // A ticked row keeps its box: once its re-plan lands it is `forced`, no longer `overwritable`, and
+  // dropping the box then would leave a tick the operator can neither see nor undo — and, for the
+  // only such row, take the whole column (and its header box) with it.
+  const overwriteOfferKeys: ReadonlySet<string> = new Set(
+    rows.filter((row) => row.overwritable || overwriteKeys.has(row.key)).map((row) => row.key)
+  );
+  const showOverwriteColumn = liveCanOverwrite && overwriteOfferKeys.size > 0;
+  const allOverwriteTicked = overwriteOfferKeys.size > 0 && [...overwriteOfferKeys].every((key) => overwriteKeys.has(key));
   const someOverwriteTicked = overwriteKeys.size > 0 && !allOverwriteTicked;
+  // Ticks every offered row — earlier ticks included — or clears them all when every one already is.
+  const onToggleAllOverwrite = (): void => {
+    applyOverwriteKeys(allOverwriteTicked ? new Set() : new Set(overwriteOfferKeys));
+  };
   const currentPeerLabel = peers.find((peer) => peer.id === selectedPeerId)?.label ?? t("the live site");
 
   const overwriteWarning =
@@ -699,6 +747,8 @@ export function usePublishContentConfirm(props: {
     setPhase({ kind: "idle" });
     setDeselectedKeys(new Set());
     basePlanRef.current = null;
+    basePlanStaleRef.current = false;
+    setReplanPending(false);
     overwriteKeysRef.current = new Set();
     setOverwriteKeys(new Set());
     setOverwriteMismatch(null);
@@ -741,6 +791,8 @@ export function usePublishContentConfirm(props: {
     someSelected,
     liveCanOverwrite,
     overwriteKeys,
+    overwriteOfferKeys,
+    showOverwriteColumn,
     onToggleOverwrite,
     onToggleAllOverwrite,
     allOverwriteTicked,
@@ -755,7 +807,7 @@ export function usePublishContentConfirm(props: {
         // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
         // plan with everything unchecked is disabled too — the button never promises a run that
         // would write nothing.
-        !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0)),
+        !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending)),
     onPrimary,
     errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
     refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,

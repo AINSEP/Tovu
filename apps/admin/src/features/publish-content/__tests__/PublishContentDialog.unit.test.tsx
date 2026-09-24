@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PublishContentReport } from "@tovu/publish-content-ui";
 
+import { ApiError } from "@/lib/api";
+
 import { PublishContentDialog } from "../PublishContentDialog";
 import { createFakePublishContentPort } from "../hooks/publish-content-dependencies.hooks";
 import { usePublishContentConfirm } from "../hooks/use-publish-content-confirm.hooks";
@@ -894,6 +896,201 @@ describe("PublishContentDialog — Overwrite on live", () => {
     expect(
       await screen.findByText("tovu.com (production) is on an older Tovu and can't overwrite these yet. Update it, then publish again.")
     ).toBeTruthy();
+  });
+});
+
+// c7n-ow-review2 (2026-09-24): the S9 review's defects, each RED against 6ed1e20fc before its fix.
+describe("PublishContentDialog — Overwrite on live, review fixes", () => {
+  const CLASH_REASON = "slug is already held by a different post";
+  const TWO_CLASH_REPORT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["post"],
+    rows: [
+      { entityType: "post", entityId: "post-new", outcome: "created", writes: true, reason: null },
+      { entityType: "post", entityId: "clash-a", outcome: "blocked", writes: false, reason: CLASH_REASON, canOverwrite: true },
+      { entityType: "post", entityId: "clash-b", outcome: "blocked", writes: false, reason: CLASH_REASON, canOverwrite: true },
+    ],
+  };
+  const MISMATCH = "tovu.com (production) changed while you were deciding. Check the list again.";
+
+  function overwriteCheckbox(entityId: string): HTMLInputElement | null {
+    return reportRow(entityId).querySelector("input[data-publish-row-overwrite]");
+  }
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  }
+
+  it("a ticked row keeps its checked box after the re-plan turns it forced, and unticking restores the skip", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await waitFor(() => expect(reportRow("clash-a").getAttribute("data-publish-disposition")).toBe("publish"));
+    expect(overwriteCheckbox("clash-a")?.checked).toBe(true);
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await waitFor(() => expect(reportRow("clash-a").getAttribute("data-publish-disposition")).toBe("skipped"));
+    expect(overwriteCheckbox("clash-a")?.checked).toBe(false);
+  });
+
+  it("the overwrite column stays when its only overwritable row has been ticked", async () => {
+    const report: PublishContentReport = { ...TWO_CLASH_REPORT, rows: TWO_CLASH_REPORT.rows.slice(0, 2) };
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report });
+    const user = await planFrom(port);
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await waitFor(() => expect(reportRow("clash-a").getAttribute("data-publish-disposition")).toBe("publish"));
+    expect(overwriteCheckbox("clash-a")?.checked).toBe(true);
+    expect(document.querySelector("thead th.publish-content-overwrite")).toBeTruthy();
+  });
+
+  it("the header box keeps an earlier tick when it ticks the rest", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await waitFor(() => expect(reportRow("clash-a").getAttribute("data-publish-disposition")).toBe("publish"));
+    const headerOverwrite = document.querySelector("thead th.publish-content-overwrite input") as HTMLInputElement;
+    await user.click(headerOverwrite);
+    await waitFor(() => expect(port.calls.planPublish).toHaveLength(3));
+
+    expect([...(port.calls.planPublish[2].overwriteEntityKeys ?? [])].sort()).toEqual(["post:clash-a", "post:clash-b"]);
+  });
+
+  it("an older tick re-plan answering after a newer one never replaces it", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+    const real = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const pending: Array<ReturnType<typeof deferred<Awaited<ReturnType<typeof real.planPublish>>>>> = [];
+    port.planPublish = (input) => {
+      port.calls.planPublish.push(input);
+      const d = deferred<Awaited<ReturnType<typeof real.planPublish>>>();
+      pending.push(d);
+      return d.promise;
+    };
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await user.click(overwriteCheckbox("clash-b")!);
+    expect(pending).toHaveLength(2);
+
+    // Newer ({a, b}) lands first, then the older ({a}) arrives late.
+    await act(async () => pending[1].resolve(await real.planPublish(port.calls.planPublish[2])));
+    await waitFor(() => expect(reportRow("clash-b").getAttribute("data-publish-disposition")).toBe("publish"));
+    await act(async () => pending[0].resolve(await real.planPublish(port.calls.planPublish[1])));
+
+    expect(reportRow("clash-b").getAttribute("data-publish-disposition")).toBe("publish");
+    expect(overwriteCheckbox("clash-b")?.checked).toBe(true);
+  });
+
+  it("Publish can't confirm the old plan while a tick's re-plan is still out", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const real = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+    await act(async () => result.current.onPrimary());
+    await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+
+    const d = deferred<Awaited<ReturnType<typeof real.planPublish>>>();
+    port.planPublish = (input) => {
+      port.calls.planPublish.push(input);
+      return d.promise;
+    };
+    act(() => result.current.onToggleOverwrite("post:clash-a"));
+    expect(result.current.primaryDisabled).toBe(true);
+    await act(async () => result.current.onPrimary());
+    expect(port.calls.confirmPublish).toHaveLength(0);
+
+    await act(async () => d.resolve(await real.planPublish(port.calls.planPublish[1])));
+    expect(result.current.primaryDisabled).toBe(false);
+    await act(async () => result.current.onPrimary());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+    expect(port.calls.executePublish[0].overwriteEntityKeys).toEqual(["post:clash-a"]);
+  });
+
+  it("unchecking a ticked row drops its overwrite key from the narrowed re-plan", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await user.click(overwriteCheckbox("clash-b")!);
+    await waitFor(() => expect(reportRow("clash-b").getAttribute("data-publish-disposition")).toBe("publish"));
+    await user.click(rowCheckbox("clash-a")!);
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+
+    const narrowed = port.calls.planPublish[port.calls.planPublish.length - 1];
+    expect(narrowed.selectedEntityKeys).toEqual(["post:post-new", "post:clash-b"]);
+    expect(narrowed.overwriteEntityKeys).toEqual(["post:clash-b"]);
+  });
+
+  it("after a mismatch, the next tick is checked against the list now on screen, not the stale first plan", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+    // From the first tick on, live has published `post-new` itself.
+    port.planPublish = async (input) => {
+      port.calls.planPublish.push(input);
+      const base = await createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT }).planPublish(input);
+      return { ...base, details: { ...base.details, rows: base.details.rows.filter((r) => r.entityId !== "post-new") } };
+    };
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await screen.findByText(MISMATCH);
+    await user.click(overwriteCheckbox("clash-b")!);
+    await waitFor(() => expect(reportRow("clash-b").getAttribute("data-publish-disposition")).toBe("publish"));
+    expect(screen.queryByText(MISMATCH)).toBeNull();
+  });
+
+  it("after a mismatch, unticking everything asks live again instead of showing the stale first plan", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+    port.planPublish = async (input) => {
+      port.calls.planPublish.push(input);
+      const base = await createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT }).planPublish(input);
+      return { ...base, details: { ...base.details, rows: base.details.rows.filter((r) => r.entityId !== "post-new") } };
+    };
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    await screen.findByText(MISMATCH);
+    await user.click(overwriteCheckbox("clash-a")!);
+    await waitFor(() => expect(port.calls.planPublish).toHaveLength(3));
+
+    expect(port.calls.planPublish[2]).toEqual({ peerId: "peer-prod" });
+    await waitFor(() => expect(document.querySelector('tr[data-entity-id="post-new"]')).toBeNull());
+  });
+
+  it("shows PEER_CANNOT_OVERWRITE's own sentence when a tick's re-plan is refused", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+    const refusal =
+      "https://tovu.com is on an older Tovu, so it can't overwrite these yet. Update https://tovu.com, then publish again.";
+    port.planPublish = async () => {
+      throw new ApiError(refusal, 502, "PEER_CANNOT_OVERWRITE", { error: refusal, code: "PEER_CANNOT_OVERWRITE" });
+    };
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal);
+  });
+
+  it("shows a 403 credential_kind_not_permitted refusal's own sentence", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
+    const user = await planFrom(port);
+    const refusal = "'overwriteEntityKeys' can only be sent from a signed-in admin session or a publishing instance";
+    port.planPublish = async () => {
+      throw new ApiError(refusal, 403, "FORBIDDEN", {
+        error: refusal,
+        code: "FORBIDDEN",
+        details: { permission: "publish_content.apply", reason: "credential_kind_not_permitted" },
+      });
+    };
+
+    await user.click(overwriteCheckbox("clash-a")!);
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal);
   });
 });
 

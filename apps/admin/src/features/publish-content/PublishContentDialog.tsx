@@ -88,9 +88,8 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
   const view = usePublishContentConfirm({ onCancel, t, port });
   const titleId = "dashboard-publish-content-confirm-title";
   // publish-overwrite-live-plan §4/S9. The column exists only while the peer this plan targets can
-  // honour a forced overwrite AND at least one row is offering one — an older live, or a plan with
-  // nothing overwritable, renders no column at all rather than one that is always empty.
-  const showOverwriteColumn = view.liveCanOverwrite && view.rows.some((row) => row.overwritable);
+  // honour a forced overwrite AND at least one row is offering one — decided in the hook.
+  const { showOverwriteColumn } = view;
 
   return (
     <div className="settings-dialog-backdrop" onClick={view.onDismiss}>
@@ -234,9 +233,10 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
                       <td className="publish-content-reason">{row.reason ?? ""}</td>
                       {showOverwriteColumn && (
                         <td className="publish-content-overwrite">
-                          {/* Only an `overwritable` row carries this control — same "no affordance at
-                              all on a row it doesn't apply to" rule the select column follows above. */}
-                          {row.overwritable && (
+                          {/* Only an offered row (overwritable, or already ticked) carries this
+                              control — same "no affordance at all on a row it doesn't apply to" rule
+                              the select column follows above. */}
+                          {view.overwriteOfferKeys.has(row.key) && (
                             <input
                               type="checkbox"
                               checked={view.overwriteKeys.has(row.key)}
