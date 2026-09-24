@@ -12,7 +12,9 @@
     "entityTypes": [
       "post",
       "page",
-      "media"
+      "media",
+      "redirect",
+      "menu"
     ],
     "capabilities": [
       "publish_content.read",

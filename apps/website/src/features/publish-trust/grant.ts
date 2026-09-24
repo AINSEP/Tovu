@@ -39,6 +39,8 @@ export type PublishingCapability = (typeof PUBLISHING_CAPABILITIES)[number];
  */
 export const PUBLISH_TRUST_ROUTES = [
   { method: "GET", path: "/api/admin/v1/workspaces/:workspaceId/publish-content/export" },
+  // S-F1: the push driver asks what this destination accepts before it stages anything.
+  { method: "GET", path: "/api/admin/v1/workspaces/:workspaceId/publish-content/capabilities" },
   { method: "POST", path: "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe" },
   { method: "PUT", path: "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha" },
   { method: "GET", path: "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha" },

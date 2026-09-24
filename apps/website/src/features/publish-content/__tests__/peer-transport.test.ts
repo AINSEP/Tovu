@@ -278,6 +278,32 @@ test("push probes capabilities BEFORE blobs/bundle/plan, trims to the legacy set
   assert.deepEqual(staged.entities.map((entity) => entity.entityType), ["post", "media"]);
 });
 
+test("an OLD build answers a publishing credential's capabilities probe with 401 (its route allowlist predates the route) — read as the legacy set, and the push proceeds", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, status: 401, json: { error: "unauthenticated", code: "UNAUTHENTICATED" } },
+    { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
+    { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
+  ]);
+
+  const result = await pushBundleToPeer(pushDeps(http), {
+    bundle: bundle({ entities: [packedEntity({ entityType: "post", id: "p1" }), packedEntity({ entityType: "menu", id: "menu-header-nav" })] }),
+  });
+
+  assert.deepEqual(result.notSupportedByLive, [{ entityType: "menu", count: 1 }]);
+  assert.equal(result.bundleId, "remote-bundle-1");
+});
+
+test("a 401 probe never masks a genuinely refused credential: the next leg's own 401 still aborts the push", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, status: 401, json: { error: "unauthenticated" } },
+    { match: /\/bundles$/, status: 401, json: { error: "unauthenticated" } },
+  ]);
+  await assert.rejects(
+    () => pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) }),
+    (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_REJECTED" && err.peerStatus === 401
+  );
+});
+
 test("a peer that names its own accepted types trims to exactly those, counting each excluded type separately", async () => {
   const http = new FakeHttpClient([
     { match: /\/capabilities$/, json: { entityTypes: ["post"] } },

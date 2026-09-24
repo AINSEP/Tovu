@@ -241,15 +241,23 @@ export interface PushBundleResult {
  *  support more, so the absence of the route is read as this fixed answer, not as a failure. */
 const LEGACY_PEER_ENTITY_TYPES: readonly string[] = ["post", "page", "media"];
 
+/** The probe answers an older peer gives: 404 to an API key (no such route), 401 to a publishing
+ *  credential (route not on its allowlist). See {@link probePeerCapabilities}. */
+const LEGACY_PROBE_STATUSES: ReadonlySet<number> = new Set([401, 404]);
+
 /**
  * Probes the peer's own `GET .../capabilities` route (`routes/publish-content/capabilities.ts`) for
  * what it currently accepts.
  *
  * A 404 — the shape Express gives an unmatched route, which is exactly what a peer built before
- * this route existed returns — is read as {@link LEGACY_PEER_ENTITY_TYPES}, not as an error: that
- * peer never claimed to accept anything else. Every OTHER failure (egress refusal, an unreachable
- * host, a non-2xx status that is not 404, a malformed body) propagates unchanged, the same
- * fail-closed posture every other call in this module already takes.
+ * this route existed returns to an API key — is read as {@link LEGACY_PEER_ENTITY_TYPES}, not as an
+ * error: that peer never claimed to accept anything else. A 401 is read the same way: an older
+ * peer's publishing-credential middleware (`publish-trust-auth.ts`) answers 401 for any route its
+ * own `PUBLISH_TRUST_ROUTES` predates, and this route is one. That fallback cannot hide a genuinely
+ * refused credential — the very next leg of the push is on that peer's allowlist and fails with
+ * its own 401. Every OTHER failure (egress refusal, an unreachable host, any other non-2xx status,
+ * a malformed body) propagates unchanged, the same fail-closed posture every other call in this
+ * module already takes.
  *
  * @complexity O(1) plus one network round trip.
  */
@@ -263,7 +271,7 @@ async function probePeerCapabilities(deps: PeerCallDeps): Promise<readonly strin
       credential.baseUrl
     );
   } catch (err) {
-    if (err instanceof PublishContentPeerTransportError && err.peerStatus === 404) {
+    if (err instanceof PublishContentPeerTransportError && LEGACY_PROBE_STATUSES.has(err.peerStatus ?? 0)) {
       return LEGACY_PEER_ENTITY_TYPES;
     }
     throw err;

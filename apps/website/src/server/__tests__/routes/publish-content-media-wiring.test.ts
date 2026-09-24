@@ -205,6 +205,10 @@ class CapturingPeerClient implements HttpClientPort {
   async send(request: HttpRequest): Promise<HttpResponse> {
     this.calls.push(request);
     const json = (value: unknown): HttpResponse => ({ status: 200, headers: {}, bodyText: JSON.stringify(value) });
+    // A new-build peer (S-F1): it advertises every type, so nothing is trimmed before staging.
+    if (request.url.endsWith("/publish-content/capabilities")) {
+      return json({ entityTypes: ["post", "page", "media", "redirect", "menu"], schemaVersions: {} });
+    }
     if (request.url.includes("/blobs/probe")) return json({ missing: [] });
     if (request.url.includes("/publish-content/blobs/")) return json({ stored: true });
     if (request.url.endsWith("/publish-content/bundles")) return json({ bundleId: "peer-bundle-1" });
