@@ -12,6 +12,8 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { createContentModule } from "../../runtime/composition/modules/content.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { buildWidgetInstanceFieldsJson } from "#src/features/widgets/entry-payload";
+import { WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
 import { bootAuthenticated, startTestServer } from "../helpers/http-test-server.js";
 
 /**
@@ -762,4 +764,50 @@ test("the page-shell fallback reads a closed vocabulary, NOT manifest position â
     "a Page must NEVER land on the theme's first template by position â€” this is the live bug the kind gate exists to prevent"
   );
   assert.ok(html.includes(DOC_PAGE_BODY_TEXT), "with no page shell to fall back to, the generic render still serves the body");
+});
+
+// Review fix (2026-09-23): a doc-format bare Page's inline widget must preview the way the live site
+// serves it. The live bare render resolves `widgetEmbed` nodes (`pages.ts`'s `renderBarePage`); the
+// preview's own `renderBarePreview` used to skip that, so every inline widget previewed as the
+// REQ-28 placeholder.
+test("a doc-format bare Page's inline widget previews resolved, matching the live bare page", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const now = new Date().toISOString();
+  await deps.entryRepo.save({
+    id: "bare-inline-widget",
+    workspaceId: WORKSPACE_ID,
+    type: WIDGET_CONTENT_TYPE,
+    slug: "bare-inline-widget",
+    status: "published",
+    title: "Inline text widget",
+    bodyJson: null,
+    fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "Hello from a bare inline widget" }, status: "active" }),
+    publishedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  });
+  const page = {
+    id: randomUUID(),
+    workspaceId: WORKSPACE_ID,
+    title: "Bare widget page",
+    slug: "bare-widget-page",
+    bodyJson: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "bare-inline-widget" } }] },
+    status: "published",
+    kind: "page",
+    bodyFormat: "doc",
+    bodyHtml: null,
+    updatedAt: now,
+    version: 1,
+    templateChoice: "",
+  } as unknown as PostRecord;
+  await deps.postRepo.save(page);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const liveHtml = await (await fetch(`${baseUrl}/bare-widget-page`)).text();
+  assert.match(liveHtml, /Hello from a bare inline widget/, "control: the live bare page resolves the inline widget");
+
+  const res = await fetch(previewUrl(baseUrl, page.id, ""), { headers: { cookie } });
+  assert.equal(res.status, 200);
+  assert.match(await res.text(), /Hello from a bare inline widget/);
 });

@@ -12,6 +12,7 @@ import {
   resolveMediaAssetMetadataForRender,
   resolveMediaTransformVersionsForRender,
   resolveStaticMenusForRender,
+  resolveWidgetsForRender,
 } from "#src/server/inbound/public-http/routes/site/pages";
 import { renderBareEntryDocument } from "../../../public-http/http/site/bare-page.js";
 import { resolveSiteTitle } from "#src/features/settings/site-title";
@@ -205,16 +206,16 @@ function buildPreviewPost(
 /**
  * Bare-page preview (owner ruling 2026-09-23, S5) — mirrors `pages.ts`'s own `renderBarePage`, but
  * built from `ContentRouteDeps`-compatible (Pick-typed) exports only, since this route's `deps` is
- * narrower than the full `RouteDeps` those two functions require. Deliberately skips widget-region
- * resolution (`resolveWidgetsForRender`, which needs a `theme`) — the Pages picker only ever produces
- * `""` for `bodyFormat: "html"` Pages (`PageEditor.tsx:560`), which never carry inline `widgetEmbed`
- * nodes, so there is nothing for it to resolve on every UI-reachable preview. Also skips the SEO
+ * narrower than the full `RouteDeps` those two functions require. Inline `widgetEmbed` nodes resolve
+ * through `resolveWidgetsForRender(deps, null, post)`, the same `theme: null` call the live bare
+ * render makes: a doc-format Page can be bare too (the `templateChoice` query/API, not only the Pages
+ * picker), and skipping it previewed every inline widget as the placeholder. Skips the SEO
  * `extraHead` fold (`buildExtraHead` is private to `pages.ts` and needs `originRegistry`, not in
  * `ContentRouteDeps`) — a disclosed, low-stakes trim: this is a never-indexed admin iframe, not the
  * public site S4 already covers.
  */
 async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Promise<string> {
-  const [siteTitle, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata] = await Promise.all([
+  const [siteTitle, widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata] = await Promise.all([
     resolveSiteTitle(
       {
         settingsRepo: deps.settingsRepo,
@@ -224,11 +225,19 @@ async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Prom
       },
       { workspaceId: deps.workspaceId }
     ),
+    resolveWidgetsForRender(deps, null, post),
     resolveHtmlEmbedsForRender(deps, post),
     resolveMediaTransformVersionsForRender(deps),
     resolveMediaAssetMetadataForRender(deps, post),
   ]);
-  return renderBareEntryDocument({ post, siteTitle, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata });
+  return renderBareEntryDocument({
+    post,
+    siteTitle,
+    pageHtmlEmbeds,
+    widgetInlineResolved: widgets.inlineResolved,
+    mediaTransformVersions,
+    mediaAssetMetadata,
+  });
 }
 
 export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
