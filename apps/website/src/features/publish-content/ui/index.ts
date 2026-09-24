@@ -44,6 +44,7 @@ export {
   applyPublishCriteria,
   decodePublishCriteriaFromQuery,
   encodePublishCriteriaToQuery,
+  parsePublishContentToolInput,
   PUBLISH_CONTENT_CAPABILITY,
   PUBLISH_CRITERIA_QUERY_PARAM,
 } from "./criteria.js";

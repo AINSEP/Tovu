@@ -9,7 +9,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentOutcomeRow, PublishContentReport } from "../contract.js";
-import { applyPublishCriteria, decodePublishCriteriaFromQuery, encodePublishCriteriaToQuery } from "../criteria.js";
+import {
+  applyPublishCriteria,
+  decodePublishCriteriaFromQuery,
+  encodePublishCriteriaToQuery,
+  parsePublishContentToolInput,
+} from "../criteria.js";
 import { toPublishReportRows } from "../report-rows.js";
 
 function row(over: Partial<PublishContentOutcomeRow> & { outcome: PublishContentOutcomeRow["outcome"] }): PublishContentOutcomeRow {
@@ -191,4 +196,44 @@ test("decode caps an oversized types/items array rather than rejecting it", () =
   const encoded = encodeURIComponent(JSON.stringify({ types: Array.from({ length: 60 }, (_, i) => `t${i}`) }));
   const decoded = decodePublishCriteriaFromQuery(encoded);
   assert.equal(decoded?.types?.length, 50);
+});
+
+// S3's `admin.publish_content` tool-call input parser — stricter than the query decoder above, since
+// nothing upstream validates a relayed chat call's shape (see `parsePublishContentToolInput`'s doc).
+test("parsePublishContentToolInput carries through valid types/items/overwrite", () => {
+  const criteria = parsePublishContentToolInput({ types: ["page", "menu"], items: ["About"], overwrite: true });
+  assert.deepEqual(criteria, { types: ["page", "menu"], items: ["About"], overwrite: true });
+});
+
+test("parsePublishContentToolInput treats an absent field as omitted, not an empty array/false", () => {
+  const criteria = parsePublishContentToolInput({});
+  assert.deepEqual(criteria, {});
+});
+
+test("parsePublishContentToolInput rejects a non-array types with the exact wire text", () => {
+  assert.throws(
+    () => parsePublishContentToolInput({ types: "page" }),
+    /^Error: admin\.publish_content: 'types' must be an array of strings$/
+  );
+});
+
+test("parsePublishContentToolInput rejects a types array with a non-string entry", () => {
+  assert.throws(
+    () => parsePublishContentToolInput({ types: ["page", 42] }),
+    /^Error: admin\.publish_content: 'types' must be an array of strings$/
+  );
+});
+
+test("parsePublishContentToolInput rejects a non-array items with the exact wire text", () => {
+  assert.throws(
+    () => parsePublishContentToolInput({ items: { title: "About" } }),
+    /^Error: admin\.publish_content: 'items' must be an array of strings$/
+  );
+});
+
+test("parsePublishContentToolInput rejects a non-boolean overwrite with the exact wire text", () => {
+  assert.throws(
+    () => parsePublishContentToolInput({ overwrite: "true" }),
+    /^Error: admin\.publish_content: 'overwrite' must be a boolean$/
+  );
 });

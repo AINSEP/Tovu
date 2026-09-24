@@ -127,10 +127,10 @@ export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria
 export const PUBLISH_CONTENT_CAPABILITY = {
   id: "admin.publish_content",
   description:
-    "Opens this site's Publish dialog with the things you name already chosen, and tells you what it " +
-    "would publish. Nothing is published until the person clicks Publish. You cannot click it for them. " +
-    "Use `types` for kinds of things (pages, posts, media, menus, redirects), `items` for specific ones " +
-    "by title, and `overwrite: true` only when the person asked to replace what's on the live site.",
+    "Opens this site's Publish dialog with the things you name already chosen and tells you what it " +
+    "would publish or overwrite. Use `types` for kinds of things (pages, posts, media, menus, redirects), " +
+    "`items` for specific ones by title, and `overwrite: true` only when the person asked to replace " +
+    "what's on the live site.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
@@ -143,6 +143,62 @@ export const PUBLISH_CONTENT_CAPABILITY = {
   risk: "write",
   surface: "session",
 } as const;
+
+/**
+ * Turns whatever a tool call actually sent for `admin.publish_content` into a `PublishCriteria`,
+ * rejecting a malformed field by name instead of silently dropping or coercing it.
+ *
+ * This is stricter, on purpose, than {@link decodePublishCriteriaFromQuery}: that decoder serves a
+ * URL a person may have hand-edited or an older build may have produced, where the best answer to
+ * garbage is "ignore it and open the dialog with nothing pre-filled" (see its own doc). A tool call
+ * has no such excuse — nothing upstream of this validates `ctx.input` against
+ * {@link PUBLISH_CONTENT_CAPABILITY.inputSchema} for the relayed chat path (`@jini-ai/daemon`'s
+ * `frontend-capability-tools.ts` only checks the input is a plain object, never its shape; only the
+ * WebMCP path in `toWebMcpTool` validates against the schema itself). A caller sending
+ * `types: "page"` instead of `types: ["page"]` almost certainly meant something specific, and a
+ * plan that silently ignored the typo would publish a different, unintended set of rows.
+ *
+ * @param input - The raw tool-call arguments, already confirmed to be a plain object by the caller
+ * (`frontend-capability-tools.ts`'s `toCapabilityInput`, or an MCP host's own JSON parse).
+ * @throws {Error} `"admin.publish_content: '<field>' must be an array of strings"` for a `types`/
+ * `items` that is present but not a string array, or `"admin.publish_content: 'overwrite' must be a
+ * boolean"` for a non-boolean `overwrite`. Each field is checked independently so the message names
+ * the one that is actually wrong.
+ * @complexity O(n) in the input's own `types`/`items` length.
+ */
+export function parsePublishContentToolInput(input: Record<string, unknown>): PublishCriteria {
+  const criteria: { types?: readonly string[]; items?: readonly string[]; overwrite?: boolean } = {};
+  const types = readOptionalStringArray(input, "types");
+  if (types !== undefined) criteria.types = types;
+  const items = readOptionalStringArray(input, "items");
+  if (items !== undefined) criteria.items = items;
+  const overwrite = readOptionalBoolean(input, "overwrite");
+  if (overwrite !== undefined) criteria.overwrite = overwrite;
+  return criteria;
+}
+
+/** One `types`/`items` field off a raw tool-call input — `undefined` when the field is absent
+ *  (criteria's own "omitted means everything" convention), thrown by name when present but not an
+ *  array of strings. @complexity O(n) in the array's own length. */
+function readOptionalStringArray(input: Record<string, unknown>, field: "types" | "items"): readonly string[] | undefined {
+  const value = input[field];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) {
+    throw new Error(`${PUBLISH_CONTENT_CAPABILITY.id}: '${field}' must be an array of strings`);
+  }
+  return value;
+}
+
+/** `overwrite` off a raw tool-call input — `undefined` when absent, thrown by name when present but
+ *  not a boolean. @complexity O(1). */
+function readOptionalBoolean(input: Record<string, unknown>, field: "overwrite"): boolean | undefined {
+  const value = input[field];
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") {
+    throw new Error(`${PUBLISH_CONTENT_CAPABILITY.id}: '${field}' must be a boolean`);
+  }
+  return value;
+}
 
 /**
  * What the tool returns to the model after `requestPublish` resolves (plan §2). `nextStep` is always
