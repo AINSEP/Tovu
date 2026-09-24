@@ -885,8 +885,11 @@ pre .code-copy-btn.copied .icon-check { display: block; }
    `.main-nav` and onto the <ul> the engine emits.
 
    Hover AND focus-within both open the submenu, so the dropdown is reachable by keyboard and not
-   only by pointer. On <=640px the whole nav is already a stacked drawer, so the submenu is
-   flattened into an indented list there instead of a floating panel a touch device cannot hover.
+   only by pointer. A depth-1 group can itself have children (e.g. Docs > Build > Pages): those
+   cascade as a depth-2 flyout to the right of the group, since a second panel can't also drop
+   down without overlapping the first. On <=640px the whole nav is already a stacked drawer, so
+   every depth is flattened into one indented list there instead of floating panels a touch
+   device cannot hover.
    --------------------------------------------------------------------------- */
 
 .main-nav > .menu-list {
@@ -951,8 +954,10 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 /* A transparent bridge across the gap between the parent item and the panel, so the submenu does
-   not close when the pointer crosses the dead space on its way down. */
-.main-nav .menu-item.has-children::after {
+   not close when the pointer crosses the dead space on its way down. Scoped to depth-0 only: a
+   depth-1 group's own children open sideways (see the depth-2 flyout below), where the dead
+   space to bridge is horizontal, not vertical. */
+.main-nav .menu-item.depth-0.has-children::after {
   content: '';
   position: absolute;
   top: 100%;
@@ -975,6 +980,60 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 .main-nav .menu-list.depth-1 .menu-item > a:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+/* Depth-2 flyout: a depth-1 group's own children cascade to the RIGHT of the group instead of
+   below it (two panels can't both drop down without overlapping). Same panel look as depth-1,
+   mirrored onto the horizontal axis — right-pointing caret instead of down, side bridge instead
+   of bottom. The caret and bridge selectors below are more specific than depth-0's so they win
+   over the shared `.has-children` rules above without needing to touch those rules. */
+.main-nav .menu-list.depth-1 .menu-item.has-children > a::after {
+  transform: rotate(-45deg);
+}
+
+.main-nav .menu-item.depth-1.has-children::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  bottom: 0;
+  width: 14px;
+}
+
+.main-nav .menu-list.depth-2 {
+  position: absolute;
+  top: -8px;
+  left: 100%;
+  min-width: 224px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
+
+.main-nav .menu-item.has-children:hover > .menu-list.depth-2,
+.main-nav .menu-item.has-children:focus-within > .menu-list.depth-2 {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+.main-nav .menu-list.depth-2 .menu-item > a {
+  padding: 8px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.main-nav .menu-list.depth-2 .menu-item > a:hover {
   color: var(--fg);
   background: var(--surface-2);
 }
@@ -1014,6 +1073,28 @@ pre .code-copy-btn.copied .icon-check { display: block; }
     font-size: 14px;
   }
 
-  .main-nav .menu-item.has-children::after { content: none; }
-  .main-nav .menu-item.has-children > a::after { display: none; }
+  /* Depth-2 flattens the same way depth-1 does: no floating flyout on a touch device. */
+  .main-nav .menu-list.depth-2 {
+    position: static;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    min-width: 0;
+    padding: 0 0 0 16px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .main-nav .menu-list.depth-2 .menu-item > a {
+    padding: 10px 0;
+    border-radius: 0;
+    font-size: 14px;
+  }
+
+  .main-nav .menu-item.has-children::after,
+  .main-nav .menu-item.depth-1.has-children::after { content: none; }
+  .main-nav .menu-item.has-children > a::after,
+  .main-nav .menu-list.depth-1 .menu-item.has-children > a::after { display: none; }
 }
