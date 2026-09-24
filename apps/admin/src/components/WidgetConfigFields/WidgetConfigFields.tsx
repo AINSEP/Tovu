@@ -168,6 +168,15 @@ function findContentType(collections: AdminContentType[] | null, key: string): A
   return collections.find((ct) => ct.key === key) ?? null;
 }
 
+/** A displayable field's name, reduced to what `agentHandle` actually accepts: lowercase letters
+ *  and digits joined by single hyphens (`@jini-ai/agentic`'s `HANDLE_PATTERN`). Content-type field
+ *  names are operator-chosen and commonly snake_case — `docs_page`, the very field this file's own
+ *  `tovu_feature` example collection carries — which `agentHandle` throws on verbatim. Used only
+ *  for the handle text; the visible label still goes through {@link humanizeFieldName}. */
+function fieldHandleSegment(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 /** The Collection `<select>` — its own component because the loading/error states from
  *  `useFetchedOptions` (mirrors `MenuConfigFields`) replace the whole field, label included, with
  *  a notice, the same shape `MenuConfigFields`/`ContactFormConfigFields` already use. */
@@ -251,7 +260,7 @@ function FieldsCheckboxes(props: {
             type="checkbox"
             checked={props.selected.includes(f.name)}
             onChange={(e) => props.onToggle(f.name, e.target.checked)}
-            {...(props.base ? agentHandle(`${props.base}-field-${f.name}`, { role: "field", label: `Show ${f.name}` }) : {})}
+            {...(props.base ? agentHandle(`${props.base}-field-${fieldHandleSegment(f.name)}`, { role: "field", label: `Show ${f.name}` }) : {})}
           />
           {humanizeFieldName(f.name)}
         </label>

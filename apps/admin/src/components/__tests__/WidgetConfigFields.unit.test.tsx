@@ -319,6 +319,27 @@ describe("RecentEntriesConfigFields", () => {
     expect(screen.getByLabelText("Filter")).toBeInTheDocument();
   });
 
+  // Regression: `agentHandle` throws on anything but lowercase-letters-and-hyphens (Jini
+  // `@jini-ai/agentic`'s HANDLE_PATTERN), and a content type's field names are operator-chosen —
+  // `docs_page` on this very fixture's `tovu_feature` type is snake_case. FieldsCheckboxes used to
+  // interpolate the raw field name straight into the handle, which threw and blanked the whole
+  // widget editor the moment a collection with an underscored field name was picked, for any
+  // caller that supplies `agentHandle` (the real widget editor route does).
+  it("does not throw when a chosen collection's field name is not already handle-safe", async () => {
+    expect(() =>
+      render(
+        <WidgetConfigFields
+          widgetType="recent-entries"
+          config={{ maxItems: 5, collection: "tovu_feature" }}
+          onChange={vi.fn()}
+          agentHandle="widget-instance-config"
+        />,
+      ),
+    ).not.toThrow();
+    const checkbox = await screen.findByRole("checkbox", { name: "Docs page" });
+    expect(checkbox.getAttribute("data-agent-element")).toBe("widget-instance-config-field-docs-page");
+  });
+
   it("checking a field writes it into config.fields; unchecking the last one removes the key", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
