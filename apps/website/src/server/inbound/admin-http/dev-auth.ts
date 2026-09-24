@@ -7,15 +7,18 @@ import {
   login,
   logout,
   validateSession,
+  type AuthServiceDeps,
   type IdentityRepos,
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
 import type { PrincipalKind } from "#src/contracts/core/gated-mutations/ports";
+import { parseAuthenticatedJsonBody } from "../shared/json-body-parsers.js";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { redeemBootSessionToken } from "#src/features/identity/boot-session-token";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
+import { callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
 
 /**
  * @file Real session auth for the admin origin (ADR-021 / SPEC-006).
@@ -310,7 +313,8 @@ export function rejectUnlessSessionCredential(
 }
 
 /**
- * Express middleware factory: reject unauthenticated /api/admin requests; attach the principal.
+ * Express middleware factory: reject unauthenticated /api/admin requests; attach the principal,
+ * then parse the JSON body at the authenticated limit (`json-body-parsers.ts`).
  *
  * Steps aside for a request `publish-trust-auth.ts`'s `requirePublishTrust` already resolved. That
  * gate mounts immediately before this one and only ever reaches `next()` with a credential
@@ -326,7 +330,7 @@ export function requireAdminSession(deps: SessionAuthDeps) {
     next: NextFunction
   ): Promise<void> {
     if (res.locals.authCredentialKind === "publish_key") {
-      next();
+      parseAuthenticatedJsonBody(req, res, next);
       return;
     }
 
@@ -337,7 +341,8 @@ export function requireAdminSession(deps: SessionAuthDeps) {
     }
     res.locals.principal = credential.principal;
     res.locals.authCredentialKind = credential.kind;
-    next();
+    // The app-level parser leaves gated paths unparsed, so an anonymous body is never read.
+    parseAuthenticatedJsonBody(req, res, next);
   };
 }
 
@@ -529,10 +534,32 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
       deps: identityReposFrom(deps),
       input: { workspaceId: deps.workspaceId, principalId: principal.id },
     });
+    // Delete-user plan v2 (2026-09-24), Slice 4 — the admin Users screen's row-menu Delete item
+    // needs to know, for the SIGNED-IN caller, whether they are actually allowed to trash/restore/
+    // purge users (the OWNER DECISION 2026-09-24 gate: owner or the built-in `admin` role — see
+    // `delete-user-service.ts`'s `callerMayManageUserTrash` for why that is NOT the same test as
+    // `effectivePermissions.includes("*")`: the built-in admin role deliberately holds no `user.
+    // manage`/`*` grant, so a permission-string check alone would hide a working affordance from an
+    // admin-role caller even though the DELETE route itself already lets them use it). Reuses the
+    // exact function the route layer and the Trash restore/purge override both gate on, so this
+    // affordance-hiding flag can never drift from the real boundary — see that function's own doc
+    // comment ("NOT A SECURITY BOUNDARY", `lib/permissions.ts`'s header on the admin side).
+    const authServiceDeps: AuthServiceDeps = {
+      repos: identityReposFrom(deps),
+      hasher: deps.passwordHasher,
+      clock: deps.clock,
+      idGen: deps.idGen,
+    };
+    const canManageUserTrash = await callerMayManageUserTrash({
+      deps: authServiceDeps,
+      workspaceId: deps.workspaceId,
+      callerPrincipalId: principal.id,
+    });
 
     res.json({
       user: { id: principal.id, username: userRow?.username ?? principal.displayName },
       effectivePermissions,
+      canManageUserTrash,
     });
   });
 

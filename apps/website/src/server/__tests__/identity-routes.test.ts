@@ -54,9 +54,17 @@ test("REQ-07: AUTH_ME returns the owner principal with '*' in its effective perm
   const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
   const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } });
   assert.equal(me.status, 200);
-  const body = (await me.json()) as { user: { id: string; username: string }; effectivePermissions: string[] };
+  const body = (await me.json()) as {
+    user: { id: string; username: string };
+    effectivePermissions: string[];
+    canManageUserTrash: boolean;
+  };
   assert.equal(body.user.username, "admin");
   assert.deepEqual(body.effectivePermissions, ["*"]);
+  // Delete-user plan v2 (2026-09-24), Slice 4: the seeded owner always passes
+  // `callerMayManageUserTrash` (the unconstrained `*` branch), independent of any role assignment —
+  // the admin Users screen's row-menu Delete item reads this to decide whether to render at all.
+  assert.equal(body.canManageUserTrash, true);
 });
 
 test("AC-03/AC-04: a viewer principal is denied content.write with a typed 403, and no post is created", async (t) => {
@@ -117,6 +125,72 @@ test("AC-03/AC-04: a viewer principal is denied content.write with a typed 403, 
   });
   const afterCount = ((await after.json()) as { posts: unknown[] }).posts.length;
   assert.equal(afterCount, beforeCount, "no post was created for the denied caller");
+});
+
+test("delete-user plan v2, Slice 4: AUTH_ME's canManageUserTrash is false for a plain viewer, true for the built-in admin role", async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+
+  const roles = await deps.roleRepo.list({ workspaceId: deps.workspaceId });
+  const viewerRole = roles.find((role) => role.name === "viewer");
+  const builtinAdminRole = roles.find((role) => role.name === "admin" && role.isBuiltin);
+  assert.ok(viewerRole, "seed created a built-in viewer role");
+  assert.ok(builtinAdminRole, "seed created a built-in admin role");
+
+  await deps.principalRepo.save({
+    id: "viewer-principal-2",
+    workspaceId: deps.workspaceId,
+    kind: "user",
+    displayName: "Viewer Two",
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId: "viewer-principal-2",
+    workspaceId: deps.workspaceId,
+    username: "viewer2",
+    passwordHash: await deps.passwordHasher.hash("viewer2-pw"),
+  });
+  await deps.principalRoleRepo.save({
+    id: "pr-viewer-2",
+    workspaceId: deps.workspaceId,
+    principalId: "viewer-principal-2",
+    roleId: viewerRole!.id,
+  });
+
+  await deps.principalRepo.save({
+    id: "admin-role-principal-1",
+    workspaceId: deps.workspaceId,
+    kind: "user",
+    displayName: "Admin Role Holder",
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId: "admin-role-principal-1",
+    workspaceId: deps.workspaceId,
+    username: "admin-role-1",
+    passwordHash: await deps.passwordHasher.hash("admin-role-pw"),
+  });
+  await deps.principalRoleRepo.save({
+    id: "pr-admin-role-1",
+    workspaceId: deps.workspaceId,
+    principalId: "admin-role-principal-1",
+    roleId: builtinAdminRole!.id,
+  });
+
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const viewerLogin = await loginAs(baseUrl, "viewer2", "viewer2-pw");
+  const viewerMe = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie: viewerLogin.cookie } });
+  const viewerBody = (await viewerMe.json()) as { canManageUserTrash: boolean };
+  assert.equal(viewerBody.canManageUserTrash, false, "a plain viewer may not manage the user Trash");
+
+  const adminRoleLogin = await loginAs(baseUrl, "admin-role-1", "admin-role-pw");
+  const adminRoleMe = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie: adminRoleLogin.cookie } });
+  const adminRoleBody = (await adminRoleMe.json()) as { canManageUserTrash: boolean };
+  assert.equal(adminRoleBody.canManageUserTrash, true, "the built-in admin role may manage the user Trash (OWNER DECISION 2026-09-24)");
 });
 
 test("AC-05/EC-02: disabling a principal mid-session invalidates its existing session on the next request", async (t) => {

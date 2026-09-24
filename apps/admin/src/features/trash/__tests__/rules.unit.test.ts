@@ -131,10 +131,15 @@ describe("entityTypeLabel", () => {
     expect(entityTypeLabel("en", "term")).toBe("Term");
     expect(entityTypeLabel("en", "taxonomy")).toBe("Taxonomy");
     expect(entityTypeLabel("en", "plugin")).toBe("Plugin");
+    expect(entityTypeLabel("en", "user")).toBe("User");
   });
 
   it("prints an unrecognized kind as itself rather than hiding the row", () => {
     expect(entityTypeLabel("en", "some_future_kind")).toBe("some_future_kind");
+  });
+
+  it("translates the user kind for a non-English locale (delete-user plan v2, Slice 4)", () => {
+    expect(entityTypeLabel("es", "user")).toBe("Usuario");
   });
 });
 

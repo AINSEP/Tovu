@@ -34,6 +34,10 @@ const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   FORBIDDEN: "You do not have permission to do that.",
   RESOURCE_CONFLICT: "That username is already in use.",
   OWNER_REQUIRED: "The workspace must keep at least one active owner.",
+  // Delete-user plan v2 (2026-09-24), Slice 3/decision 7 — the DELETE route's own 409s.
+  SELF_DELETE: "You cannot delete your own account.",
+  USER_IN_TRASH: "This user is in the Trash; restore them first.",
+  USERNAME_IN_TRASH: "A user with this username is in the Trash; restore or delete them permanently first.",
 };
 
 /** Server error `code` -> a plain-language prefix (SPEC-006 errors.spec.md §2), layered on the
@@ -68,13 +72,20 @@ export interface UserRowMenuHandlers {
   onEnable: (user: AdminIdentityUser) => void;
   onManage: (user: AdminIdentityUser) => void;
   onResetPassword: (user: AdminIdentityUser) => void;
+  /** Delete-user plan v2 (2026-09-24) — always opens the confirm dialog, never fires immediately:
+   *  unlike Enable, "Delete" moves the user to the Trash, a destructive-looking action even though
+   *  it is recoverable there for 60 days. Only asked for when `userRowMenuItems`'s own `canDelete`
+   *  is true — see that function's doc comment. */
+  onRequestDelete: (user: AdminIdentityUser) => void;
 }
 
 /**
- * `RowMenu` items for one user row — matches `Posts.tsx`/`Pages.tsx`'s three-dot menu shape, per
- * the corrected spec: Disable/Enable, Manage, Reset password (no Delete — there is no server-side
- * delete route for a user principal; `src/server/routes/admin/users/` has
- * `create`/`disable`/`enable`/`update`/`reset-password` plus role/policy grants, nothing else).
+ * `RowMenu` items for one user row — matches `Posts.tsx`/`Pages.tsx`'s three-dot menu shape:
+ * Disable/Enable, Manage, Reset password, and — delete-user plan v2 (2026-09-24) — Delete, appended
+ * only when `canDelete` is true. The server gate (owner or the built-in `admin` role,
+ * `delete-user-service.ts`'s `callerMayManageUserTrash`) is the real boundary; `canDelete` is this
+ * row's own affordance-hiding mirror of it, computed once per render from `/auth/me` by
+ * `use-users.hooks.ts` — see that hook's `canManageUserTrash` state for where it comes from.
  *
  * Disable/Enable share a single "toggle" item (label follows status, same shape as
  * `Redirects.tsx`'s own toggle item) — Disable confirms via the modal below; Enable fires
@@ -89,15 +100,19 @@ export interface UserRowMenuHandlers {
  * state the operator cannot see while the menu that shows it is open. A static label sidesteps that
  * without losing any capability.
  *
- * @complexity Time/space: O(1) — exactly three entries, no iteration.
+ * "Delete" always opens the confirm dialog (`onRequestDelete`), matching Disable's shape rather than
+ * Enable's immediate-fire one — see `UserRowMenuHandlers.onRequestDelete`'s own doc comment.
+ *
+ * @complexity Time/space: O(1) — at most four entries, no iteration.
  */
 export function userRowMenuItems(
   user: AdminIdentityUser,
   toggleSaving: boolean,
   handlers: UserRowMenuHandlers,
   locale: string,
+  canDelete: boolean,
 ): RowMenuItem[] {
-  return [
+  const items: RowMenuItem[] = [
     {
       key: "toggle",
       label: user.status === "active" ? t(locale, "Disable") : t(locale, "Enable"),
@@ -123,6 +138,15 @@ export function userRowMenuItems(
       onSelect: () => handlers.onResetPassword(user),
     },
   ];
+  if (canDelete) {
+    items.push({
+      key: "delete",
+      label: t(locale, "Delete"),
+      tone: "danger",
+      onSelect: () => handlers.onRequestDelete(user),
+    });
+  }
+  return items;
 }
 
 /**

@@ -114,23 +114,62 @@ describe("users-i18n — C4 keys", () => {
   }
 });
 
+// Delete-user plan v2 (2026-09-24), Slice 4 — same scoping as the C4 block above, for the keys this
+// pass added: the confirm dialog's title/body, the shared "Move to trash" confirm label, and the
+// hook's own failure fallback. `SELF_DELETE`/`USER_IN_TRASH`/`USERNAME_IN_TRASH`'s STATIC_ERROR_MESSAGES
+// values are already covered by this same key list (`describeApiError` looks them up the same way).
+describe("users-i18n — delete-user plan v2 keys", () => {
+  const LOCALES = [
+    "es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko",
+    "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn",
+  ];
+  const NEW_KEYS = [
+    "Delete this user?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.",
+    "Move to trash",
+    "You cannot delete your own account.",
+    "This user is in the Trash; restore them first.",
+    "A user with this username is in the Trash; restore or delete them permanently first.",
+    "failed to delete user",
+  ];
+
+  for (const key of NEW_KEYS) {
+    for (const locale of LOCALES) {
+      it(`t(${locale}, "${key}") is non-empty and translated`, () => {
+        const translated = t(locale, key);
+        expect(translated.length).toBeGreaterThan(0);
+        expect(translated).not.toBe(key);
+      });
+    }
+  }
+
+  it.each([
+    ["SELF_DELETE", "You cannot delete your own account."],
+    ["USER_IN_TRASH", "This user is in the Trash; restore them first."],
+    ["USERNAME_IN_TRASH", "A user with this username is in the Trash; restore or delete them permanently first."],
+  ])("describeApiError overrides code %s with a fixed message", (code, expected) => {
+    expect(describeApiError(new ApiError("raw", 409, code), "fallback", "en")).toBe(expected);
+  });
+});
+
 describe("userRowMenuItems", () => {
   const handlers = {
     onRequestDisable: vi.fn(),
     onEnable: vi.fn(),
     onManage: vi.fn(),
     onResetPassword: vi.fn(),
+    onRequestDelete: vi.fn(),
   };
 
-  it("always has exactly three items: toggle, manage, reset password", () => {
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en");
+  it("has exactly three items when canDelete is false: toggle, manage, reset password", () => {
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
     expect(items.map((i) => i.key)).toEqual(["toggle", "manage", "reset-password"]);
   });
 
   it("an active user's toggle item reads Disable and asks (onRequestDisable), not immediate", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en");
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
     const toggle = items.find((i) => i.key === "toggle")!;
     expect(toggle.label).toBe("Disable");
     expect(toggle.tone).toBe("warning");
@@ -142,7 +181,7 @@ describe("userRowMenuItems", () => {
   it("a disabled user's toggle item reads Enable and fires immediately, no confirm", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(DISABLED_USER, false, handlers, "en");
+    const items = userRowMenuItems(DISABLED_USER, false, handlers, "en", false);
     const toggle = items.find((i) => i.key === "toggle")!;
     expect(toggle.label).toBe("Enable");
     expect(toggle.tone).toBe("default");
@@ -154,7 +193,7 @@ describe("userRowMenuItems", () => {
   it("the toggle item no-ops while another row action is in flight (toggleSaving)", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, true, handlers, "en");
+    const items = userRowMenuItems(ACTIVE_USER, true, handlers, "en", false);
     items.find((i) => i.key === "toggle")!.onSelect();
     expect(handlers.onRequestDisable).not.toHaveBeenCalled();
     expect(handlers.onEnable).not.toHaveBeenCalled();
@@ -163,7 +202,7 @@ describe("userRowMenuItems", () => {
   it("manage and reset-password wire straight through to their handlers", () => {
     handlers.onManage.mockClear();
     handlers.onResetPassword.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en");
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
     items.find((i) => i.key === "manage")!.onSelect();
     items.find((i) => i.key === "reset-password")!.onSelect();
     expect(handlers.onManage).toHaveBeenCalledWith(ACTIVE_USER);
@@ -171,10 +210,40 @@ describe("userRowMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "es");
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "es", false);
     expect(items.map((i) => i.label)).toEqual(["Desactivar", "Administrar", "Restablecer contraseña"]);
-    const disabledItems = userRowMenuItems(DISABLED_USER, false, handlers, "es");
+    const disabledItems = userRowMenuItems(DISABLED_USER, false, handlers, "es", false);
     expect(disabledItems.find((i) => i.key === "toggle")?.label).toBe("Activar");
+  });
+
+  // Delete-user plan v2 (2026-09-24), Slice 4: the 4th item, appended only for a caller
+  // `userRowMenuItems` is told may delete (owner or the built-in admin role — see this function's
+  // own doc comment for why that decision lives outside this pure builder).
+  describe("the Delete item (canDelete)", () => {
+    it("is absent when canDelete is false", () => {
+      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
+      expect(items.find((i) => i.key === "delete")).toBeUndefined();
+    });
+
+    it("is the 4th item, tone danger, when canDelete is true", () => {
+      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", true);
+      expect(items.map((i) => i.key)).toEqual(["toggle", "manage", "reset-password", "delete"]);
+      const del = items.find((i) => i.key === "delete")!;
+      expect(del.label).toBe("Delete");
+      expect(del.tone).toBe("danger");
+    });
+
+    it("calls onRequestDelete, never firing immediately", () => {
+      handlers.onRequestDelete.mockClear();
+      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", true);
+      items.find((i) => i.key === "delete")!.onSelect();
+      expect(handlers.onRequestDelete).toHaveBeenCalledWith(ACTIVE_USER);
+    });
+
+    it("translates to Spanish (shares COMMON_I18N's Delete, not a users-i18n key)", () => {
+      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "es", true);
+      expect(items.find((i) => i.key === "delete")?.label).toBe("Eliminar");
+    });
   });
 });
 

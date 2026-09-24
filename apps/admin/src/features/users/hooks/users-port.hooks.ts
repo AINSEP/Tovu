@@ -21,8 +21,14 @@ export interface UsersPort {
   /** Password-banner plan (2026-09-24), Slice 3 deep-link half: the SIGNED-IN caller's own id, so
    *  `use-users.hooks.ts` can find their row and open the reset-password dialog on it without the
    *  operator having to pick themselves out of the table. Same shape as `api.me()`'s `user` field,
-   *  narrowed to the one field this screen actually needs. */
-  me(): Promise<{ user: { id: string } }>;
+   *  narrowed to the one field this screen actually needs.
+   *
+   *  `canManageUserTrash` (delete-user plan v2, 2026-09-24, Slice 4): whether THIS caller may
+   *  trash/restore/purge users at all (owner or the built-in `admin` role — the OWNER DECISION
+   *  2026-09-24 gate `/auth/me` computes server-side via `callerMayManageUserTrash`, the exact
+   *  function the DELETE route itself is gated on). Drives whether the row-menu Delete item renders
+   *  — affordance-hiding only, never the real boundary; see `lib/permissions.ts`'s header. */
+  me(): Promise<{ user: { id: string }; canManageUserTrash: boolean }>;
   listRoles(): Promise<{ roles: AdminRole[] }>;
   listPolicies(): Promise<{ policies: AdminPolicy[] }>;
   createUser(
@@ -38,4 +44,7 @@ export interface UsersPort {
   resetUserPassword(input: { principalId: string; password: string }): Promise<void>;
   assignRole(input: { principalId: string; roleId: string }): Promise<{ assignment: unknown }>;
   attachPolicy(input: { principalId: string; policyId: string }): Promise<{ attachment: unknown }>;
+  /** Delete-user plan v2 (2026-09-24), Slice 4: moves `principalId` to the Trash (204, no body) —
+   *  see `api.ts`'s `deleteUser` for why this is the same endpoint the v1 plan already reserved. */
+  deleteUser(principalId: string): Promise<void>;
 }

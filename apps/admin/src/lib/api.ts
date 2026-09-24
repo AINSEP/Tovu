@@ -2440,7 +2440,7 @@ export const api = {
       body: JSON.stringify({ token }),
     }),
   me: () =>
-    request<{ user: AdminUser; effectivePermissions?: string[] }>("/auth/me"),
+    request<{ user: AdminUser; effectivePermissions?: string[]; canManageUserTrash?: boolean }>("/auth/me"),
   /** Password-banner plan (2026-09-24), Slice 2: whether the SIGNED-IN caller's own stored
    *  credential still verifies against the default. Separate from `me()` since only the dashboard
    *  needs it and the server-side check costs a real argon2id verify. */
@@ -3062,6 +3062,13 @@ export const api = {
   enableUser: (principalId: string) =>
     request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/enable`, {
       method: "POST",
+    }),
+  // Delete-user plan v2 (2026-09-24): DELETE now moves the target to the Trash (disabled, sessions
+  // revoked, restorable there for 60 days) rather than hard-deleting it — same endpoint the v1
+  // plan's `deleteUser` used, just a different server-side outcome behind the same 204.
+  deleteUser: (principalId: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}`, {
+      method: "DELETE",
     }),
   resetUserPassword: (
     { principalId, password }: { principalId: string; password: string },

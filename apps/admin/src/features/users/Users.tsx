@@ -31,18 +31,21 @@ import { useResetPasswordFields } from "./hooks/use-reset-password-fields.hooks"
  *
  * Row actions (audit follow-up): all three of the above — Disable/Enable, Manage (opens the
  * expandable row), Reset password — now live behind a single three-dot `RowMenu`, matching
- * `Posts.tsx`/`Pages.tsx`'s row-action shape rather than a row of separate buttons. There is
- * intentionally no Delete item: no server-side route deletes a user principal
- * (`src/server/routes/admin/users/` has create/disable/enable/update/reset-password plus
- * role/policy grants, nothing else) — adding one is a product decision outside this pass.
+ * `Posts.tsx`/`Pages.tsx`'s row-action shape rather than a row of separate buttons.
+ *
+ * Delete-user plan v2 (2026-09-24): a fourth "Delete" item joins the menu, shown only when the
+ * signed-in caller may manage the user Trash (owner or the built-in `admin` role — OWNER DECISION
+ * 2026-09-24, `use-users.hooks.ts`'s `canManageUserTrash`). It moves the target to the Trash
+ * (disabled, sessions revoked, restorable there for 60 days) rather than hard-deleting it — see
+ * `UserDeleteDialog`'s own doc comment.
  *
  * Complexity-ceiling pass (2026-08-06): `Users` and its row-map closure both scored over the
  * ceiling (19/16 and 11/11 respectively). Split into four top-level, individually-testable
- * functions below — `NewUserForm`, `UsersTable`/`UserRow`, `UserDisableDialog`,
+ * functions below — `NewUserForm`, `UsersTable`/`UserRow`, `UserDisableDialog`/`UserDeleteDialog`,
  * `UserResetPasswordDialog` — following `Taxonomy.tsx`'s existing convention of sibling top-level
  * function components in the same file rather than nested closures (a nested `const` inside
  * `Users` would not have moved any branching out of `Users`' own scope). `Users` itself is now a
- * thin composition of those four; none of them are exported, so no test does anything `Users.tsx`
+ * thin composition of those, none of them exported, so no test does anything `Users.tsx`
  * didn't already support — see `__tests__/Users.unit.test.tsx`/`Users.crud.unit.test.tsx` for the
  * full-render tests these were extracted underneath (unchanged), plus new
  * `__tests__/users-components.unit.test.tsx` for direct component-level tests of each piece.
@@ -309,6 +312,10 @@ export interface UserRowActionsController {
   requestDisable: (user: AdminIdentityUser) => void;
   toggleStatus: (user: AdminIdentityUser) => Promise<void>;
   openResetPassword: (user: AdminIdentityUser) => void;
+  /** Delete-user plan v2 (2026-09-24): whether the row's `RowMenu` should carry a "Delete" item at
+   *  all — see `use-users.hooks.ts`'s `canManageUserTrash` doc comment for where this comes from. */
+  canDelete: boolean;
+  requestDelete: (user: AdminIdentityUser) => void;
 }
 
 export interface UserRowProps {
@@ -378,8 +385,10 @@ function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, lo
                 onEnable: (u) => void actions.toggleStatus(u),
                 onManage: actions.toggleExpanded,
                 onResetPassword: actions.openResetPassword,
+                onRequestDelete: actions.requestDelete,
               },
               locale,
+              actions.canDelete,
             )}
           />
         </td>
@@ -492,6 +501,42 @@ function UserDisableDialog({ confirmingDisable, setConfirmingDisable, toggleSavi
       pending={confirmingDisable !== null && toggleSavingId === confirmingDisable.principalId}
       onConfirm={confirmDisable}
       onCancel={() => setConfirmingDisable(null)}
+    />
+  );
+}
+
+interface UserDeleteDialogProps {
+  confirmingDelete: AdminIdentityUser | null;
+  setConfirmingDelete: Dispatch<SetStateAction<AdminIdentityUser | null>>;
+  deleteSaving: boolean;
+  confirmDelete: () => Promise<void>;
+  t: (key: string) => string;
+}
+
+/** The Delete confirm dialog (delete-user plan v2, 2026-09-24) — mirrors {@link UserDisableDialog}'s
+ *  shape exactly (own props, own state), naming the Trash rather than a permanent removal since
+ *  that is what "Delete" now does here (decisions 2/7 of the plan). */
+function UserDeleteDialog({ confirmingDelete, setConfirmingDelete, deleteSaving, confirmDelete, t }: UserDeleteDialogProps) {
+  return (
+    <ConfirmDialog
+      open={confirmingDelete !== null}
+      agentHandle="users-delete"
+      title={t("Delete this user?")}
+      body={
+        confirmingDelete ? (
+          <p>
+            {t("Delete")} &quot;{confirmingDelete.username}&quot;?{" "}
+            {t(
+              "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.",
+            )}
+          </p>
+        ) : null
+      }
+      confirmLabel={t("Move to trash")}
+      tone="danger"
+      pending={deleteSaving}
+      onConfirm={confirmDelete}
+      onCancel={() => setConfirmingDelete(null)}
     />
   );
 }
@@ -824,6 +869,13 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
     openResetPassword,
     confirmResetPassword,
 
+    canManageUserTrash,
+    confirmingDelete,
+    setConfirmingDelete,
+    requestDelete,
+    deleteSaving,
+    confirmDelete,
+
     t,
     locale,
   } = useUsersHook({ openOwnPasswordReset });
@@ -863,6 +915,8 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
           requestDisable,
           toggleStatus: onToggleStatus,
           openResetPassword,
+          canDelete: canManageUserTrash,
+          requestDelete,
         }}
         manage={{
           error: grantError,
@@ -890,6 +944,13 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
         setConfirmingDisable={setConfirmingDisable}
         toggleSavingId={toggleSavingId}
         confirmDisable={confirmDisable}
+        t={t}
+      />
+      <UserDeleteDialog
+        confirmingDelete={confirmingDelete}
+        setConfirmingDelete={setConfirmingDelete}
+        deleteSaving={deleteSaving}
+        confirmDelete={confirmDelete}
         t={t}
       />
       <UserResetPasswordDialog

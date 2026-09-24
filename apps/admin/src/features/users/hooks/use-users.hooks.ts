@@ -136,6 +136,27 @@ export interface UsersController {
   openResetPassword: (user: AdminIdentityUser) => void;
   confirmResetPassword: () => Promise<void>;
 
+  /** Delete-user plan v2 (2026-09-24), Slice 4: whether the SIGNED-IN caller may trash users at all
+   *  — from `port.me()`'s `canManageUserTrash`, resolved by the same one-shot effect that already
+   *  fetches `ownPrincipalId`. `false` until that call settles (or forever if it fails), the same
+   *  "unknown defaults to no affordance" convention `ownPrincipalId`'s doc comment describes. Drives
+   *  `rules.ts`'s `userRowMenuItems` `canDelete` param — see that function's own doc comment for why
+   *  the real boundary is server-side, not this flag. */
+  canManageUserTrash: boolean;
+  /** The user a `RowMenu` "Delete" selection is asking to confirm; `null` when the dialog is shut.
+   *  Mirrors `confirmingDisable` exactly (own state, own request/confirm pair) rather than sharing
+   *  it — Delete and Disable are two independent confirms an operator could otherwise not tell apart
+   *  if they shared one slot. */
+  confirmingDelete: AdminIdentityUser | null;
+  setConfirmingDelete: Dispatch<SetStateAction<AdminIdentityUser | null>>;
+  /** Opens the Delete confirm dialog for `user` — the `RowMenu` "Delete" item's `onSelect`. Never
+   *  fires immediately (see `rules.ts`'s `UserRowMenuHandlers.onRequestDelete` doc comment). */
+  requestDelete: (user: AdminIdentityUser) => void;
+  /** In flight while the delete mutation is pending — drives the confirm dialog's `pending` prop,
+   *  same role `toggleSavingId` plays for the Disable dialog. */
+  deleteSaving: boolean;
+  confirmDelete: () => Promise<void>;
+
   /** Bound translator — `key` already resolved against the caller's locale, so `Users.tsx` never
    *  imports `useAdminLocale`/`users-i18n` itself. See this file's header. */
   t: (key: string) => string;
@@ -313,16 +334,23 @@ export function useUsers(deps: UsersDependencies): UsersController {
    *  one opened via `/users/change-password`. One extra `me()` call per screen load is cheaper than
    *  threading two different notice code paths for what is, to the operator, the same event. */
   const [ownPrincipalId, setOwnPrincipalId] = useState<string | null>(null);
+  // `canManageUserTrash` (delete-user plan v2, Slice 4): resolved by this SAME one-shot `me()` call
+  // rather than a second request — see `UsersController.canManageUserTrash`'s own doc comment.
+  const [canManageUserTrash, setCanManageUserTrash] = useState(false);
   useEffect(() => {
     let cancelled = false;
     portRef.current
       .me()
       .then((res) => {
-        if (!cancelled) setOwnPrincipalId(res.user.id);
+        if (!cancelled) {
+          setOwnPrincipalId(res.user.id);
+          setCanManageUserTrash(res.canManageUserTrash);
+        }
       })
       .catch(() => {
         // Best-effort, see `ownPrincipalId`'s own doc comment above — a failure just means the
         // deep link can't auto-open and self-resets fall back to the per-username notice.
+        // `canManageUserTrash` stays `false`, the same "unknown means no affordance" default.
       });
     return () => {
       cancelled = true;
@@ -504,6 +532,38 @@ export function useUsers(deps: UsersDependencies): UsersController {
     setConfirmingDisable((current) => (current?.principalId === user.principalId ? null : current));
   }
 
+  // Delete-user plan v2 (2026-09-24), Slice 4 — mirrors Disable's request/confirm pair above with
+  // its OWN state (see `confirmingDelete`'s own doc comment for why not shared). `deleteUserMutation`
+  // invalidates `KEYS.list` like every other write on this screen; the route already filters a newly
+  // trashed principal out of `listUsers()`, so the row disappears on the next render with no extra
+  // client-side bookkeeping.
+  const deleteUserMutation = useFetchMutation({
+    run: (principalId: string) => port.deleteUser(principalId),
+    invalidates: [KEYS.list],
+  });
+  const [confirmingDelete, setConfirmingDelete] = useState<AdminIdentityUser | null>(null);
+
+  function requestDelete(user: AdminIdentityUser) {
+    setToggleError(null);
+    setConfirmingDelete(user);
+  }
+
+  /** Confirms the Delete that `RowMenu`'s "Delete" item asked about. Closes the dialog either way
+   *  (matching `confirmDisable`'s and Posts.tsx/Redirects.tsx's own Delete `ConfirmDialog`
+   *  convention) — a failure surfaces via `toggleError` above the table, not by leaving the modal
+   *  open. Same stale-call guard as `confirmDisable`: only clears `confirmingDelete` when it still
+   *  names the SAME user this call started for. */
+  async function confirmDelete() {
+    if (!confirmingDelete) return;
+    const user = confirmingDelete;
+    try {
+      await deleteUserMutation.mutate(user.principalId);
+    } catch (e) {
+      setToggleError(describeApiError(e, t(locale, "failed to delete user"), locale));
+    }
+    setConfirmingDelete((current) => (current?.principalId === user.principalId ? null : current));
+  }
+
   return {
     users,
     roles,
@@ -557,6 +617,13 @@ export function useUsers(deps: UsersDependencies): UsersController {
     setPasswordError: resetPassword.setError,
     openResetPassword,
     confirmResetPassword,
+
+    canManageUserTrash,
+    confirmingDelete,
+    setConfirmingDelete,
+    requestDelete,
+    deleteSaving: deleteUserMutation.status === "pending",
+    confirmDelete,
 
     t: boundT,
     locale,

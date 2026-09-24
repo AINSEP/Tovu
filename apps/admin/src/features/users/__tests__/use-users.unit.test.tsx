@@ -563,6 +563,65 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  // Delete-user plan v2 (2026-09-24), Slice 4.
+  describe("requestDelete / confirmDelete — ConfirmDialog gate", () => {
+    it("canManageUserTrash resolves from the injected port's me()", async () => {
+      const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY], canManageUserTrash: true });
+      const { result } = renderHook(() => useUsers({ port }), { wrapper });
+      await waitFor(() => expect(result.current.canManageUserTrash).toBe(true));
+    });
+
+    it("confirmDelete calls the fake deleteUser once and closes the dialog", async () => {
+      const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+      const spy = vi.spyOn(port, "deleteUser");
+      const { result } = renderHook(() => useUsers({ port }), { wrapper });
+      await waitFor(() => expect(result.current.users).not.toBeNull());
+
+      act(() => result.current.requestDelete(USER_A));
+      expect(result.current.confirmingDelete).toEqual(USER_A);
+
+      await act(async () => {
+        await result.current.confirmDelete();
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(USER_A.principalId);
+      expect(result.current.confirmingDelete).toBeNull();
+      await waitFor(() => expect(result.current.users).toEqual([]));
+    });
+
+    it("on failure, sets toggleError and still closes the dialog", async () => {
+      const port = createFakeUsersPort({
+        users: [USER_A],
+        roles: [ROLE],
+        policies: [POLICY],
+        deleteUserError: new Error("cannot delete"),
+      });
+      const { result } = renderHook(() => useUsers({ port }), { wrapper });
+      await waitFor(() => expect(result.current.users).not.toBeNull());
+
+      act(() => result.current.requestDelete(USER_A));
+      await act(async () => {
+        await result.current.confirmDelete();
+      });
+
+      expect(result.current.confirmingDelete).toBeNull();
+      expect(result.current.toggleError).toBe("cannot delete");
+    });
+
+    it("confirmDelete is a no-op with nothing pending", async () => {
+      const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+      const spy = vi.spyOn(port, "deleteUser");
+      const { result } = renderHook(() => useUsers({ port }), { wrapper });
+      await waitFor(() => expect(result.current.users).not.toBeNull());
+
+      await act(async () => {
+        await result.current.confirmDelete();
+      });
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
   // `onAssignRole`/`onAttachPolicy` (via the shared `runGrantMutation` helper) cleared
   // `pendingRoleId` unconditionally on success — nothing gates opening a DIFFERENT user's Manage
   // panel while a grant for the previously expanded one is still in flight. See

@@ -9,7 +9,13 @@ import type { UsersPort } from "./users-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultUsersPort: UsersPort = {
   listUsers: () => api.listUsers(),
-  me: () => api.me(),
+  // `canManageUserTrash` defaults to `false` against an older server build that predates the field
+  // (delete-user plan v2) — same "absent means not yet supported" convention `effectivePermissions`
+  // already uses elsewhere on this same response.
+  me: async () => {
+    const res = await api.me();
+    return { user: { id: res.user.id }, canManageUserTrash: res.canManageUserTrash ?? false };
+  },
   listRoles: () => api.listRoles(),
   listPolicies: () => api.listPolicies(),
   createUser: (input, options) => api.createUser(input, options),
@@ -19,6 +25,7 @@ export const defaultUsersPort: UsersPort = {
   resetUserPassword: (input) => api.resetUserPassword(input),
   assignRole: (input) => api.assignRole(input),
   attachPolicy: (input) => api.attachPolicy(input),
+  deleteUser: (principalId) => api.deleteUser(principalId),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";
@@ -45,6 +52,11 @@ export interface FakeUsersPortOptions {
    *  (password-banner plan, Slice 3). Defaults to the first seeded user's id, or a fixed fake id
    *  when no users were seeded, so a test that doesn't care about `me()` never has to pass this. */
   meId?: string;
+  /** What `me()`'s `canManageUserTrash` resolves to (delete-user plan v2, Slice 4). Defaults to
+   *  `true` — most existing tests render the Delete item as available and were written before this
+   *  flag existed; a test that specifically covers the "caller may not delete" case sets this to
+   *  `false`. */
+  canManageUserTrash?: boolean;
   /** When set, `createUser()` rejects with this instead of resolving. */
   createUserError?: Error;
   /** When set, `updateUser()` rejects with this instead of resolving. */
@@ -57,6 +69,8 @@ export interface FakeUsersPortOptions {
   assignRoleError?: Error;
   /** When set, `attachPolicy()` rejects with this instead of resolving. */
   attachPolicyError?: Error;
+  /** When set, `deleteUser()` rejects with this instead of resolving. */
+  deleteUserError?: Error;
 }
 
 /**
@@ -87,11 +101,12 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
   }
 
   const meId = options.meId ?? users[0]?.principalId ?? "fake-user-1";
+  const canManageUserTrash = options.canManageUserTrash ?? true;
 
   return {
     users,
     async me() {
-      return { user: { id: meId } };
+      return { user: { id: meId }, canManageUserTrash };
     },
     async listUsers() {
       return { users: [...users] };
@@ -141,6 +156,15 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
       const current = requireUser(input.principalId);
       replaceUser({ ...current, policyIds: [...current.policyIds, input.policyId] });
       return { attachment: {} };
+    },
+    async deleteUser(principalId) {
+      if (options.deleteUserError) throw options.deleteUserError;
+      requireUser(principalId);
+      // Mirrors the real DELETE route's effect on `listUsers()`: a trashed user no longer lists
+      // (`W/server/inbound/admin-http/routes/users/list.ts`'s `isInTrash` filter) — removing it from
+      // this fake's backing array reproduces that without modeling the Trash itself.
+      const index = users.findIndex((u) => u.principalId === principalId);
+      users.splice(index, 1);
     },
   };
 }

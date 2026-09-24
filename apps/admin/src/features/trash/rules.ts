@@ -58,6 +58,7 @@ export function entityTypeLabel(locale: string, entityType: string): string {
     term: "Term",
     taxonomy: "Taxonomy",
     plugin: "Plugin",
+    user: "User",
   };
   const label = known[entityType];
   return label ? t(locale, label) : entityType;

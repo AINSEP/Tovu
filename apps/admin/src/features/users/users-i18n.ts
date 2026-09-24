@@ -14,6 +14,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "No tienes permiso para hacer eso.",
     "That username is already in use.": "Ese nombre de usuario ya está en uso.",
     "The workspace must keep at least one active owner.": "El espacio de trabajo debe conservar al menos un propietario activo.",
+  "You cannot delete your own account.": "No puedes eliminar tu propia cuenta.",
+  "This user is in the Trash; restore them first.": "Este usuario está en la Papelera; restáuralo primero.",
+  "A user with this username is in the Trash; restore or delete them permanently first.": "Ya hay un usuario con ese nombre en la Papelera; restáuralo o elimínalo permanentemente primero.",
     "Please correct the highlighted fields.": "Corrige los campos resaltados.",
   People: "Personas",
   Users: "Usuarios",
@@ -47,6 +50,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
   "Disable this user?": "¿Desactivar este usuario?",
   "They will not be able to sign in until re-enabled.": "No podrán iniciar sesión hasta que se reactive su cuenta.",
+  "Delete this user?": "¿Eliminar este usuario?",
+  "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Se cerrará su sesión y se moverá a la Papelera. Puedes restaurarlo desde allí; se elimina permanentemente después de 60 días.",
+  "Move to trash": "Mover a la papelera",
   // rules.ts's userRowMenuItems row-menu labels — outside the original `.tsx`-only pass's scope.
   Manage: "Administrar",
 
@@ -68,6 +74,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
   "failed to update email": "no se pudo actualizar el correo electrónico",
   "failed to reset password": "no se pudo restablecer la contraseña",
   "failed to change status": "no se pudo cambiar el estado",
+  "failed to delete user": "no se pudo eliminar el usuario",
     "Password changed. Sign in again with your new password.": "Contraseña cambiada. Inicia sesión de nuevo con tu nueva contraseña.",
   },
   id: {
@@ -76,6 +83,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Anda tidak memiliki izin untuk melakukan itu.",
     "That username is already in use.": "Nama pengguna itu sudah digunakan.",
     "The workspace must keep at least one active owner.": "Ruang kerja harus mempertahankan setidaknya satu pemilik aktif.",
+    "You cannot delete your own account.": "Anda tidak dapat menghapus akun Anda sendiri.",
+    "This user is in the Trash; restore them first.": "Pengguna ini ada di Sampah; pulihkan terlebih dahulu.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Sudah ada pengguna dengan nama ini di Sampah; pulihkan atau hapus permanen terlebih dahulu.",
     "Please correct the highlighted fields.": "Perbaiki kolom yang ditandai.",
     People: "Orang",
     Users: "Pengguna",
@@ -109,6 +119,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Nonaktifkan pengguna ini?",
     "They will not be able to sign in until re-enabled.": "Mereka tidak akan bisa masuk sampai diaktifkan kembali.",
+    "Delete this user?": "Hapus pengguna ini?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Pengguna ini akan keluar dan dipindahkan ke Sampah. Anda dapat memulihkannya dari sana; akan dihapus permanen setelah 60 hari.",
+    "Move to trash": "Pindahkan ke Sampah",
     Manage: "Kelola",
 
     "Reset password?": "Atur ulang kata sandi?",
@@ -127,6 +140,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "gagal memperbarui email",
     "failed to reset password": "gagal mengatur ulang kata sandi",
     "failed to change status": "gagal mengubah status",
+    "failed to delete user": "gagal menghapus pengguna",
     "Password changed. Sign in again with your new password.": "Kata sandi telah diubah. Masuk lagi dengan kata sandi baru Anda.",
   },
   de: {
@@ -135,6 +149,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Sie haben keine Berechtigung dafür.",
     "That username is already in use.": "Dieser Benutzername wird bereits verwendet.",
     "The workspace must keep at least one active owner.": "Der Arbeitsbereich muss mindestens einen aktiven Inhaber behalten.",
+    "You cannot delete your own account.": "Sie können Ihr eigenes Konto nicht löschen.",
+    "This user is in the Trash; restore them first.": "Dieser Benutzer befindet sich im Papierkorb; stellen Sie ihn zuerst wieder her.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Ein Benutzer mit diesem Namen befindet sich bereits im Papierkorb; stellen Sie ihn wieder her oder löschen Sie ihn zuerst endgültig.",
     "Please correct the highlighted fields.": "Bitte korrigieren Sie die markierten Felder.",
     People: "Personen",
     Users: "Benutzer",
@@ -168,6 +185,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Diesen Benutzer deaktivieren?",
     "They will not be able to sign in until re-enabled.": "Er kann sich erst wieder anmelden, wenn das Konto reaktiviert wird.",
+    "Delete this user?": "Diesen Benutzer löschen?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Er wird abgemeldet und in den Papierkorb verschoben. Sie können ihn von dort wiederherstellen; nach 60 Tagen wird er endgültig gelöscht.",
+    "Move to trash": "In den Papierkorb verschieben",
     Manage: "Verwalten",
 
     "Reset password?": "Passwort zurücksetzen?",
@@ -186,6 +206,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "E-Mail konnte nicht aktualisiert werden",
     "failed to reset password": "Passwort konnte nicht zurückgesetzt werden",
     "failed to change status": "Status konnte nicht geändert werden",
+    "failed to delete user": "Benutzer konnte nicht gelöscht werden",
     "Password changed. Sign in again with your new password.": "Passwort geändert. Melden Sie sich erneut mit Ihrem neuen Passwort an.",
   },
   "zh-CN": {
@@ -194,6 +215,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "您没有执行此操作的权限。",
     "That username is already in use.": "该用户名已被使用。",
     "The workspace must keep at least one active owner.": "工作区必须保留至少一位活跃所有者。",
+    "You cannot delete your own account.": "您不能删除自己的账户。",
+    "This user is in the Trash; restore them first.": "该用户在回收站中；请先恢复。",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "已有同名用户在回收站中；请先恢复或永久删除。",
     "Please correct the highlighted fields.": "请更正高亮显示的字段。",
     People: "人员",
     Users: "用户",
@@ -227,6 +251,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "禁用此用户？",
     "They will not be able to sign in until re-enabled.": "在重新启用之前，该用户将无法登录。",
+    "Delete this user?": "删除此用户？",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "该用户将被登出并移至回收站。您可以从那里恢复；60 天后将被永久删除。",
+    "Move to trash": "移至回收站",
     Manage: "管理",
 
     "Reset password?": "重置密码？",
@@ -245,6 +272,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "更新邮箱失败",
     "failed to reset password": "重置密码失败",
     "failed to change status": "更改状态失败",
+    "failed to delete user": "删除用户失败",
     "Password changed. Sign in again with your new password.": "密码已更改。请使用新密码重新登录。",
   },
   "zh-TW": {
@@ -253,6 +281,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "您沒有執行此操作的權限。",
     "That username is already in use.": "該使用者名稱已被使用。",
     "The workspace must keep at least one active owner.": "工作區必須保留至少一位活躍擁有者。",
+    "You cannot delete your own account.": "您不能刪除自己的帳戶。",
+    "This user is in the Trash; restore them first.": "該使用者在垃圾桶中；請先還原。",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "已有相同名稱的使用者在垃圾桶中；請先還原或永久刪除。",
     "Please correct the highlighted fields.": "請更正醒目提示的欄位。",
     People: "人員",
     Users: "使用者",
@@ -286,6 +317,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "停用此使用者？",
     "They will not be able to sign in until re-enabled.": "在重新啟用之前，該使用者將無法登入。",
+    "Delete this user?": "刪除此使用者？",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "該使用者將被登出並移至垃圾桶。您可以從那裡還原；60 天後將被永久刪除。",
+    "Move to trash": "移至垃圾桶",
     Manage: "管理",
 
     "Reset password?": "重設密碼？",
@@ -304,6 +338,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "更新電子郵件失敗",
     "failed to reset password": "重設密碼失敗",
     "failed to change status": "變更狀態失敗",
+    "failed to delete user": "刪除使用者失敗",
     "Password changed. Sign in again with your new password.": "密碼已變更。請使用新密碼重新登入。",
   },
   "pt-BR": {
@@ -312,6 +347,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Você não tem permissão para fazer isso.",
     "That username is already in use.": "Esse nome de usuário já está em uso.",
     "The workspace must keep at least one active owner.": "O workspace deve manter pelo menos um proprietário ativo.",
+    "You cannot delete your own account.": "Você não pode excluir sua própria conta.",
+    "This user is in the Trash; restore them first.": "Este usuário está na Lixeira; restaure-o primeiro.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Já existe um usuário com este nome de usuário na Lixeira; restaure-o ou exclua-o permanentemente primeiro.",
     "Please correct the highlighted fields.": "Corrija os campos destacados.",
     People: "Pessoas",
     Users: "Usuários",
@@ -345,6 +383,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Desativar este usuário?",
     "They will not be able to sign in until re-enabled.": "Ele não poderá entrar até que a conta seja reativada.",
+    "Delete this user?": "Excluir este usuário?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Ele será desconectado e movido para a Lixeira. Você pode restaurá-lo de lá; é excluído permanentemente após 60 dias.",
+    "Move to trash": "Mover para a Lixeira",
     Manage: "Gerenciar",
 
     "Reset password?": "Redefinir senha?",
@@ -363,6 +404,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "não foi possível atualizar o e-mail",
     "failed to reset password": "não foi possível redefinir a senha",
     "failed to change status": "não foi possível alterar o status",
+    "failed to delete user": "não foi possível excluir o usuário",
     "Password changed. Sign in again with your new password.": "Senha alterada. Entre novamente com sua nova senha.",
   },
   ru: {
@@ -371,6 +413,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "У вас нет прав для этого действия.",
     "That username is already in use.": "Это имя пользователя уже используется.",
     "The workspace must keep at least one active owner.": "В рабочей области должен остаться хотя бы один активный владелец.",
+    "You cannot delete your own account.": "Вы не можете удалить собственную учётную запись.",
+    "This user is in the Trash; restore them first.": "Этот пользователь находится в Корзине; сначала восстановите его.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Пользователь с этим именем уже находится в Корзине; сначала восстановите его или удалите окончательно.",
     "Please correct the highlighted fields.": "Исправьте выделенные поля.",
     People: "Люди",
     Users: "Пользователи",
@@ -404,6 +449,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Отключить этого пользователя?",
     "They will not be able to sign in until re-enabled.": "Он не сможет войти в систему, пока учётная запись не будет снова включена.",
+    "Delete this user?": "Удалить этого пользователя?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Он будет выведен из системы и перемещён в Корзину. Вы можете восстановить его оттуда; он будет окончательно удалён через 60 дней.",
+    "Move to trash": "Переместить в Корзину",
     Manage: "Управлять",
 
     "Reset password?": "Сбросить пароль?",
@@ -422,6 +470,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "не удалось обновить email",
     "failed to reset password": "не удалось сбросить пароль",
     "failed to change status": "не удалось изменить статус",
+    "failed to delete user": "не удалось удалить пользователя",
     "Password changed. Sign in again with your new password.": "Пароль изменён. Войдите снова с новым паролем.",
   },
   fa: {
@@ -430,6 +479,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "شما مجوز انجام این کار را ندارید.",
     "That username is already in use.": "این نام کاربری قبلاً استفاده شده است.",
     "The workspace must keep at least one active owner.": "فضای کاری باید حداقل یک مالک فعال داشته باشد.",
+    "You cannot delete your own account.": "نمی‌توانید حساب خودتان را حذف کنید.",
+    "This user is in the Trash; restore them first.": "این کاربر در زباله‌دان است؛ ابتدا آن را بازیابی کنید.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "کاربری با این نام کاربری در حال حاضر در زباله‌دان است؛ ابتدا آن را بازیابی یا برای همیشه حذف کنید.",
     "Please correct the highlighted fields.": "لطفاً فیلدهای برجسته‌شده را اصلاح کنید.",
     People: "افراد",
     Users: "کاربران",
@@ -463,6 +515,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "این کاربر غیرفعال شود؟",
     "They will not be able to sign in until re-enabled.": "تا زمانی که دوباره فعال نشود، امکان ورود نخواهد داشت.",
+    "Delete this user?": "این کاربر حذف شود؟",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "او از سیستم خارج شده و به زباله‌دان منتقل می‌شود. می‌توانید از آنجا بازیابی کنید؛ پس از ۶۰ روز برای همیشه حذف می‌شود.",
+    "Move to trash": "انتقال به زباله‌دان",
     Manage: "مدیریت",
 
     "Reset password?": "رمز عبور بازنشانی شود؟",
@@ -481,6 +536,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "به‌روزرسانی ایمیل ناموفق بود",
     "failed to reset password": "بازنشانی رمز عبور ناموفق بود",
     "failed to change status": "تغییر وضعیت ناموفق بود",
+    "failed to delete user": "حذف کاربر ناموفق بود",
     "Password changed. Sign in again with your new password.": "رمز عبور تغییر کرد. با رمز عبور جدید خود دوباره وارد شوید.",
   },
   ar: {
@@ -489,6 +545,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "ليس لديك إذن للقيام بذلك.",
     "That username is already in use.": "اسم المستخدم هذا مستخدم بالفعل.",
     "The workspace must keep at least one active owner.": "يجب أن تحتفظ مساحة العمل بمالك نشط واحد على الأقل.",
+    "You cannot delete your own account.": "لا يمكنك حذف حسابك الخاص.",
+    "This user is in the Trash; restore them first.": "هذا المستخدم موجود في سلة المهملات؛ استعده أولاً.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "يوجد بالفعل مستخدم بهذا الاسم في سلة المهملات؛ استعده أو احذفه نهائيًا أولاً.",
     "Please correct the highlighted fields.": "يرجى تصحيح الحقول المميزة.",
     People: "الأشخاص",
     Users: "المستخدمون",
@@ -522,6 +581,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "تعطيل هذا المستخدم؟",
     "They will not be able to sign in until re-enabled.": "لن يتمكن من تسجيل الدخول حتى تتم إعادة تفعيل الحساب.",
+    "Delete this user?": "هل تريد حذف هذا المستخدم؟",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "سيتم تسجيل خروجه ونقله إلى سلة المهملات. يمكنك استعادته من هناك؛ يُحذف نهائيًا بعد 60 يومًا.",
+    "Move to trash": "نقل إلى سلة المهملات",
     Manage: "إدارة",
 
     "Reset password?": "إعادة تعيين كلمة المرور؟",
@@ -540,6 +602,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "تعذّر تحديث البريد الإلكتروني",
     "failed to reset password": "تعذّر إعادة تعيين كلمة المرور",
     "failed to change status": "تعذّر تغيير الحالة",
+    "failed to delete user": "تعذّر حذف المستخدم",
     "Password changed. Sign in again with your new password.": "تم تغيير كلمة المرور. سجّل الدخول مرة أخرى بكلمة المرور الجديدة.",
   },
   ja: {
@@ -548,6 +611,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "この操作を行う権限がありません。",
     "That username is already in use.": "そのユーザー名は既に使用されています。",
     "The workspace must keep at least one active owner.": "ワークスペースには少なくとも1人のアクティブなオーナーが必要です。",
+    "You cannot delete your own account.": "自分のアカウントは削除できません。",
+    "This user is in the Trash; restore them first.": "このユーザーはゴミ箱に入っています。先に復元してください。",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "同じユーザー名のユーザーがすでにゴミ箱にあります。先に復元するか完全に削除してください。",
     "Please correct the highlighted fields.": "強調表示されている項目を修正してください。",
     People: "アカウント",
     Users: "ユーザー",
@@ -581,6 +647,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "このユーザーを無効にしますか？",
     "They will not be able to sign in until re-enabled.": "再度有効にするまでサインインできなくなります。",
+    "Delete this user?": "このユーザーを削除しますか？",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "サインアウトされ、ゴミ箱に移動します。そこから復元できます。60日後に完全に削除されます。",
+    "Move to trash": "ゴミ箱に移動",
     Manage: "管理",
 
     "Reset password?": "パスワードをリセットしますか？",
@@ -599,6 +668,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "メールアドレスの更新に失敗しました",
     "failed to reset password": "パスワードのリセットに失敗しました",
     "failed to change status": "ステータスの変更に失敗しました",
+    "failed to delete user": "ユーザーの削除に失敗しました",
     "Password changed. Sign in again with your new password.": "パスワードを変更しました。新しいパスワードで再度サインインしてください。",
   },
   ko: {
@@ -607,6 +677,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "이 작업을 수행할 권한이 없습니다.",
     "That username is already in use.": "해당 사용자 이름은 이미 사용 중입니다.",
     "The workspace must keep at least one active owner.": "워크스페이스에는 활성 소유자가 최소 한 명 있어야 합니다.",
+    "You cannot delete your own account.": "자신의 계정은 삭제할 수 없습니다.",
+    "This user is in the Trash; restore them first.": "이 사용자는 휴지통에 있습니다. 먼저 복원하세요.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "이 사용자 이름을 가진 사용자가 이미 휴지통에 있습니다. 먼저 복원하거나 영구 삭제하세요.",
     "Please correct the highlighted fields.": "강조 표시된 항목을 수정해 주세요.",
     People: "계정",
     Users: "사용자",
@@ -640,6 +713,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "이 사용자를 비활성화하시겠습니까?",
     "They will not be able to sign in until re-enabled.": "다시 활성화될 때까지 로그인할 수 없습니다.",
+    "Delete this user?": "이 사용자를 삭제하시겠습니까?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "로그아웃되고 휴지통으로 이동됩니다. 그곳에서 복원할 수 있으며, 60일 후 영구적으로 삭제됩니다.",
+    "Move to trash": "휴지통으로 이동",
     Manage: "관리",
 
     "Reset password?": "비밀번호를 재설정하시겠습니까?",
@@ -658,6 +734,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "이메일을 업데이트하지 못했습니다",
     "failed to reset password": "비밀번호를 재설정하지 못했습니다",
     "failed to change status": "상태를 변경하지 못했습니다",
+    "failed to delete user": "사용자를 삭제하지 못했습니다",
     "Password changed. Sign in again with your new password.": "비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인하세요.",
   },
   pl: {
@@ -666,6 +743,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Nie masz uprawnień, aby to zrobić.",
     "That username is already in use.": "Ta nazwa użytkownika jest już zajęta.",
     "The workspace must keep at least one active owner.": "Przestrzeń robocza musi mieć co najmniej jednego aktywnego właściciela.",
+    "You cannot delete your own account.": "Nie możesz usunąć własnego konta.",
+    "This user is in the Trash; restore them first.": "Ten użytkownik znajduje się w Koszu; najpierw go przywróć.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Użytkownik o tej nazwie znajduje się już w Koszu; najpierw go przywróć lub usuń trwale.",
     "Please correct the highlighted fields.": "Popraw zaznaczone pola.",
     People: "Osoby",
     Users: "Użytkownicy",
@@ -699,6 +779,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Wyłączyć tego użytkownika?",
     "They will not be able to sign in until re-enabled.": "Nie będzie mógł się zalogować, dopóki konto nie zostanie ponownie włączone.",
+    "Delete this user?": "Usunąć tego użytkownika?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Zostanie wylogowany i przeniesiony do Kosza. Możesz go stamtąd przywrócić; zostanie trwale usunięty po 60 dniach.",
+    "Move to trash": "Przenieś do Kosza",
     Manage: "Zarządzaj",
 
     "Reset password?": "Zresetować hasło?",
@@ -717,6 +800,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "nie udało się zaktualizować adresu e-mail",
     "failed to reset password": "nie udało się zresetować hasła",
     "failed to change status": "nie udało się zmienić statusu",
+    "failed to delete user": "nie udało się usunąć użytkownika",
     "Password changed. Sign in again with your new password.": "Hasło zostało zmienione. Zaloguj się ponownie przy użyciu nowego hasła.",
   },
   hu: {
@@ -725,6 +809,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Nincs jogosultsága ehhez a művelethez.",
     "That username is already in use.": "Ez a felhasználónév már foglalt.",
     "The workspace must keep at least one active owner.": "A munkaterületnek legalább egy aktív tulajdonossal kell rendelkeznie.",
+    "You cannot delete your own account.": "A saját fiókodat nem törölheted.",
+    "This user is in the Trash; restore them first.": "Ez a felhasználó a Kukában van; előbb állítsd vissza.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Már van egy ilyen nevű felhasználó a Kukában; előbb állítsd vissza, vagy töröld véglegesen.",
     "Please correct the highlighted fields.": "Javítsa a kiemelt mezőket.",
     People: "Személyek",
     Users: "Felhasználók",
@@ -758,6 +845,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Letiltod ezt a felhasználót?",
     "They will not be able to sign in until re-enabled.": "Nem tud majd bejelentkezni, amíg újra nem engedélyezed.",
+    "Delete this user?": "Törlöd ezt a felhasználót?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Kijelentkezik, és a Kukába kerül. Onnan visszaállítható; 60 nap után véglegesen törlődik.",
+    "Move to trash": "Áthelyezés a Kukába",
     Manage: "Kezelés",
 
     "Reset password?": "Visszaállítod a jelszót?",
@@ -776,6 +866,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "az e-mail cím frissítése sikertelen",
     "failed to reset password": "a jelszó visszaállítása sikertelen",
     "failed to change status": "az állapot módosítása sikertelen",
+    "failed to delete user": "a felhasználó törlése sikertelen",
     "Password changed. Sign in again with your new password.": "A jelszó megváltozott. Jelentkezzen be újra az új jelszavával.",
   },
   fr: {
@@ -784,6 +875,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Vous n'avez pas la permission de faire cela.",
     "That username is already in use.": "Ce nom d'utilisateur est déjà utilisé.",
     "The workspace must keep at least one active owner.": "L'espace de travail doit conserver au moins un propriétaire actif.",
+    "You cannot delete your own account.": "Vous ne pouvez pas supprimer votre propre compte.",
+    "This user is in the Trash; restore them first.": "Cet utilisateur est dans la Corbeille ; restaurez-le d'abord.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Un utilisateur portant ce nom se trouve déjà dans la Corbeille ; restaurez-le ou supprimez-le définitivement d'abord.",
     "Please correct the highlighted fields.": "Veuillez corriger les champs mis en évidence.",
     People: "Personnes",
     Users: "Utilisateurs",
@@ -817,6 +911,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Désactiver cet utilisateur ?",
     "They will not be able to sign in until re-enabled.": "Il ne pourra pas se connecter tant que le compte ne sera pas réactivé.",
+    "Delete this user?": "Supprimer cet utilisateur ?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Il sera déconnecté et déplacé vers la Corbeille. Vous pouvez le restaurer depuis là ; il est supprimé définitivement après 60 jours.",
+    "Move to trash": "Déplacer vers la Corbeille",
     Manage: "Gérer",
 
     "Reset password?": "Réinitialiser le mot de passe ?",
@@ -835,6 +932,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "échec de la mise à jour de l'e-mail",
     "failed to reset password": "échec de la réinitialisation du mot de passe",
     "failed to change status": "échec de la modification du statut",
+    "failed to delete user": "échec de la suppression de l'utilisateur",
     "Password changed. Sign in again with your new password.": "Mot de passe modifié. Reconnectez-vous avec votre nouveau mot de passe.",
   },
   uk: {
@@ -843,6 +941,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "У вас немає прав для цієї дії.",
     "That username is already in use.": "Це ім'я користувача вже використовується.",
     "The workspace must keep at least one active owner.": "У робочій області має залишитися принаймні один активний власник.",
+    "You cannot delete your own account.": "Ви не можете видалити власний обліковий запис.",
+    "This user is in the Trash; restore them first.": "Цей користувач перебуває в Кошику; спочатку відновіть його.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Користувач із цим іменем вже перебуває в Кошику; спочатку відновіть або видаліть його остаточно.",
     "Please correct the highlighted fields.": "Виправте виділені поля.",
     People: "Люди",
     Users: "Користувачі",
@@ -876,6 +977,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Вимкнути цього користувача?",
     "They will not be able to sign in until re-enabled.": "Він не зможе увійти, доки обліковий запис не буде знову увімкнено.",
+    "Delete this user?": "Видалити цього користувача?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Його буде вилучено із сеансу та переміщено до Кошика. Ви можете відновити його звідти; він остаточно видаляється через 60 днів.",
+    "Move to trash": "Перемістити до Кошика",
     Manage: "Керувати",
 
     "Reset password?": "Скинути пароль?",
@@ -894,6 +998,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "не вдалося оновити ел. пошту",
     "failed to reset password": "не вдалося скинути пароль",
     "failed to change status": "не вдалося змінити статус",
+    "failed to delete user": "не вдалося видалити користувача",
     "Password changed. Sign in again with your new password.": "Пароль змінено. Увійдіть знову з новим паролем.",
   },
   tr: {
@@ -902,6 +1007,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Bunu yapmak için izniniz yok.",
     "That username is already in use.": "Bu kullanıcı adı zaten kullanımda.",
     "The workspace must keep at least one active owner.": "Çalışma alanının en az bir aktif sahibi olmalıdır.",
+    "You cannot delete your own account.": "Kendi hesabınızı silemezsiniz.",
+    "This user is in the Trash; restore them first.": "Bu kullanıcı Çöp Kutusu'nda; önce geri yükleyin.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Bu kullanıcı adına sahip bir kullanıcı zaten Çöp Kutusu'nda; önce geri yükleyin veya kalıcı olarak silin.",
     "Please correct the highlighted fields.": "Lütfen vurgulanan alanları düzeltin.",
     People: "Kişiler",
     Users: "Kullanıcılar",
@@ -935,6 +1043,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Bu kullanıcı devre dışı bırakılsın mı?",
     "They will not be able to sign in until re-enabled.": "Yeniden etkinleştirilene kadar oturum açamayacak.",
+    "Delete this user?": "Bu kullanıcı silinsin mi?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Oturumu kapatılıp Çöp Kutusu'na taşınacak. Oradan geri yükleyebilirsiniz; 60 gün sonra kalıcı olarak silinir.",
+    "Move to trash": "Çöp Kutusu'na taşı",
     Manage: "Yönet",
 
     "Reset password?": "Parola sıfırlansın mı?",
@@ -953,6 +1064,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "e-posta güncellenemedi",
     "failed to reset password": "parola sıfırlanamadı",
     "failed to change status": "durum değiştirilemedi",
+    "failed to delete user": "kullanıcı silinemedi",
     "Password changed. Sign in again with your new password.": "Parola değiştirildi. Yeni parolanızla tekrar oturum açın.",
   },
   th: {
@@ -961,6 +1073,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "คุณไม่มีสิทธิ์ทำสิ่งนี้",
     "That username is already in use.": "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว",
     "The workspace must keep at least one active owner.": "พื้นที่ทำงานต้องมีเจ้าของที่ใช้งานอยู่อย่างน้อยหนึ่งคน",
+    "You cannot delete your own account.": "คุณไม่สามารถลบบัญชีของคุณเองได้",
+    "This user is in the Trash; restore them first.": "ผู้ใช้รายนี้อยู่ในถังขยะ โปรดกู้คืนก่อน",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "มีผู้ใช้ที่ใช้ชื่อผู้ใช้นี้อยู่ในถังขยะแล้ว โปรดกู้คืนหรือลบถาวรก่อน",
     "Please correct the highlighted fields.": "โปรดแก้ไขช่องที่ไฮไลต์",
     People: "บุคคล",
     Users: "ผู้ใช้",
@@ -994,6 +1109,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "ปิดใช้งานผู้ใช้รายนี้หรือไม่?",
     "They will not be able to sign in until re-enabled.": "จะไม่สามารถลงชื่อเข้าใช้ได้จนกว่าจะเปิดใช้งานอีกครั้ง",
+    "Delete this user?": "ลบผู้ใช้รายนี้หรือไม่?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "ผู้ใช้จะถูกลงชื่อออกและย้ายไปที่ถังขยะ คุณสามารถกู้คืนได้จากที่นั่น และจะถูกลบถาวรหลังจาก 60 วัน",
+    "Move to trash": "ย้ายไปที่ถังขยะ",
     Manage: "จัดการ",
 
     "Reset password?": "รีเซ็ตรหัสผ่านหรือไม่?",
@@ -1012,6 +1130,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "อัปเดตอีเมลไม่สำเร็จ",
     "failed to reset password": "รีเซ็ตรหัสผ่านไม่สำเร็จ",
     "failed to change status": "เปลี่ยนสถานะไม่สำเร็จ",
+    "failed to delete user": "ลบผู้ใช้ไม่สำเร็จ",
     "Password changed. Sign in again with your new password.": "เปลี่ยนรหัสผ่านแล้ว โปรดลงชื่อเข้าใช้อีกครั้งด้วยรหัสผ่านใหม่ของคุณ",
   },
   it: {
@@ -1020,6 +1139,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "Non hai il permesso di farlo.",
     "That username is already in use.": "Questo nome utente è già in uso.",
     "The workspace must keep at least one active owner.": "L'area di lavoro deve mantenere almeno un proprietario attivo.",
+    "You cannot delete your own account.": "Non puoi eliminare il tuo stesso account.",
+    "This user is in the Trash; restore them first.": "Questo utente è nel Cestino; ripristinalo prima.",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "Un utente con questo nome utente è già nel Cestino; ripristinalo o eliminalo definitivamente prima.",
     "Please correct the highlighted fields.": "Correggi i campi evidenziati.",
     People: "Persone",
     Users: "Utenti",
@@ -1053,6 +1175,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "Disabilitare questo utente?",
     "They will not be able to sign in until re-enabled.": "Non potrà accedere finché l'account non verrà riattivato.",
+    "Delete this user?": "Eliminare questo utente?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "Verrà disconnesso e spostato nel Cestino. Puoi ripristinarlo da lì; viene eliminato definitivamente dopo 60 giorni.",
+    "Move to trash": "Sposta nel Cestino",
     Manage: "Gestisci",
 
     "Reset password?": "Reimpostare la password?",
@@ -1071,6 +1196,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "impossibile aggiornare l'email",
     "failed to reset password": "impossibile reimpostare la password",
     "failed to change status": "impossibile modificare lo stato",
+    "failed to delete user": "impossibile eliminare l'utente",
     "Password changed. Sign in again with your new password.": "Password modificata. Accedi di nuovo con la tua nuova password.",
   },
   hi: {
@@ -1079,6 +1205,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "आपके पास ऐसा करने की अनुमति नहीं है।",
     "That username is already in use.": "वह उपयोगकर्ता नाम पहले से उपयोग में है।",
     "The workspace must keep at least one active owner.": "वर्कस्पेस में कम से कम एक सक्रिय स्वामी होना आवश्यक है।",
+    "You cannot delete your own account.": "आप अपना स्वयं का खाता नहीं हटा सकते।",
+    "This user is in the Trash; restore them first.": "यह उपयोगकर्ता ट्रैश में है; पहले उसे पुनर्स्थापित करें।",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "इस उपयोगकर्ता नाम वाला एक उपयोगकर्ता पहले से ही ट्रैश में है; पहले उसे पुनर्स्थापित करें या स्थायी रूप से हटाएं।",
     "Please correct the highlighted fields.": "कृपया हाइलाइट किए गए फ़ील्ड ठीक करें।",
     People: "लोग",
     Users: "उपयोगकर्ता",
@@ -1112,6 +1241,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "इस उपयोगकर्ता को अक्षम करें?",
     "They will not be able to sign in until re-enabled.": "फिर से सक्षम होने तक वे साइन इन नहीं कर पाएंगे।",
+    "Delete this user?": "इस उपयोगकर्ता को हटाएं?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "उन्हें साइन आउट कर ट्रैश में ले जाया जाएगा। आप उन्हें वहां से पुनर्स्थापित कर सकते हैं; 60 दिनों के बाद वे स्थायी रूप से हटा दिए जाते हैं।",
+    "Move to trash": "ट्रैश में ले जाएँ",
     Manage: "प्रबंधित करें",
 
     "Reset password?": "पासवर्ड रीसेट करें?",
@@ -1130,6 +1262,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "ईमेल अपडेट नहीं हो सका",
     "failed to reset password": "पासवर्ड रीसेट नहीं हो सका",
     "failed to change status": "स्थिति नहीं बदली जा सकी",
+    "failed to delete user": "उपयोगकर्ता को हटाया नहीं जा सका",
     "Password changed. Sign in again with your new password.": "पासवर्ड बदल दिया गया है। अपने नए पासवर्ड से फिर से साइन इन करें।",
   },
   ur: {
@@ -1138,6 +1271,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "آپ کو یہ کرنے کی اجازت نہیں ہے۔",
     "That username is already in use.": "یہ صارف نام پہلے سے استعمال میں ہے۔",
     "The workspace must keep at least one active owner.": "ورک اسپیس میں کم از کم ایک فعال مالک کا ہونا ضروری ہے۔",
+    "You cannot delete your own account.": "آپ اپنا اکاؤنٹ حذف نہیں کر سکتے۔",
+    "This user is in the Trash; restore them first.": "یہ صارف ٹریش میں ہے؛ پہلے اسے بحال کریں۔",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "اس صارف نام والا ایک صارف پہلے ہی ٹریش میں موجود ہے؛ پہلے اسے بحال کریں یا مستقل طور پر حذف کریں۔",
     "Please correct the highlighted fields.": "براہ کرم نمایاں کردہ خانوں کو درست کریں۔",
     People: "افراد",
     Users: "صارفین",
@@ -1171,6 +1307,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "اس صارف کو غیرفعال کریں؟",
     "They will not be able to sign in until re-enabled.": "دوبارہ فعال ہونے تک وہ سائن ان نہیں کر سکیں گے۔",
+    "Delete this user?": "کیا اس صارف کو حذف کیا جائے؟",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "انہیں سائن آؤٹ کر کے ٹریش میں منتقل کر دیا جائے گا۔ آپ انہیں وہاں سے بحال کر سکتے ہیں؛ 60 دن بعد وہ مستقل طور پر حذف کر دیے جاتے ہیں۔",
+    "Move to trash": "ٹریش میں منتقل کریں",
     Manage: "منظم کریں",
 
     "Reset password?": "پاس ورڈ ری سیٹ کریں؟",
@@ -1189,6 +1328,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "ای میل اپ ڈیٹ نہ ہو سکی",
     "failed to reset password": "پاس ورڈ ری سیٹ نہ ہو سکا",
     "failed to change status": "حیثیت تبدیل نہ ہو سکی",
+    "failed to delete user": "صارف حذف نہ ہو سکا",
     "Password changed. Sign in again with your new password.": "پاس ورڈ تبدیل ہو گیا۔ اپنے نئے پاس ورڈ کے ساتھ دوبارہ سائن ان کریں۔",
   },
   bn: {
@@ -1197,6 +1337,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "You do not have permission to do that.": "আপনার এটি করার অনুমতি নেই।",
     "That username is already in use.": "সেই ব্যবহারকারীর নাম ইতিমধ্যে ব্যবহৃত হচ্ছে।",
     "The workspace must keep at least one active owner.": "ওয়ার্কস্পেসে কমপক্ষে একজন সক্রিয় মালিক থাকা আবশ্যক।",
+    "You cannot delete your own account.": "আপনি নিজের অ্যাকাউন্ট মুছতে পারবেন না।",
+    "This user is in the Trash; restore them first.": "এই ব্যবহারকারী ট্র্যাশে আছেন; প্রথমে পুনরুদ্ধার করুন।",
+    "A user with this username is in the Trash; restore or delete them permanently first.": "এই ব্যবহারকারী নামের একজন ব্যবহারকারী ইতিমধ্যে ট্র্যাশে আছেন; প্রথমে পুনরুদ্ধার করুন অথবা স্থায়ীভাবে মুছুন।",
     "Please correct the highlighted fields.": "অনুগ্রহ করে হাইলাইট করা ফিল্ডগুলো সংশোধন করুন।",
     People: "ব্যক্তি",
     Users: "ব্যবহারকারী",
@@ -1230,6 +1373,9 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
 
     "Disable this user?": "এই ব্যবহারকারীকে নিষ্ক্রিয় করবেন?",
     "They will not be able to sign in until re-enabled.": "পুনরায় সক্ষম না করা পর্যন্ত তিনি সাইন ইন করতে পারবেন না।",
+    "Delete this user?": "এই ব্যবহারকারীকে মুছবেন?",
+    "They will be signed out and moved to the Trash. You can restore them there; they are deleted permanently after 60 days.": "তাকে সাইন আউট করে ট্র্যাশে সরানো হবে। আপনি সেখান থেকে পুনরুদ্ধার করতে পারবেন; ৬০ দিন পর স্থায়ীভাবে মুছে ফেলা হয়।",
+    "Move to trash": "ট্র্যাশে সরান",
     Manage: "পরিচালনা করুন",
 
     "Reset password?": "পাসওয়ার্ড রিসেট করবেন?",
@@ -1248,6 +1394,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "ইমেইল আপডেট করা যায়নি",
     "failed to reset password": "পাসওয়ার্ড রিসেট করা যায়নি",
     "failed to change status": "অবস্থা পরিবর্তন করা যায়নি",
+    "failed to delete user": "ব্যবহারকারীকে মুছতে ব্যর্থ",
     "Password changed. Sign in again with your new password.": "পাসওয়ার্ড পরিবর্তন করা হয়েছে। আপনার নতুন পাসওয়ার্ড দিয়ে আবার সাইন ইন করুন।",
   },
 };
