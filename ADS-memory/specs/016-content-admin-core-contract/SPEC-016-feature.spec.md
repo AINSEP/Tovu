@@ -303,6 +303,8 @@ operation.
   expose a `{domain}_plan_{action}` tool as agent-callable and a `{domain}_execute_{action}` tool
   as agent-callable subject to the actor-class rule (REQ-13), and MUST NOT expose any
   agent-callable tool that performs the `confirm()` step.
+  Amended 2026-09-24 (owner-approved): the `{domain}_execute_{action}` tool MAY call `confirm()`
+  only after a redeemed human MCP-UI confirmation exchange, acting as that human (`kind='user'`).
 
 ---
 
