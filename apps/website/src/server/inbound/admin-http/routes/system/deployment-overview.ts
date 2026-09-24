@@ -9,6 +9,7 @@ import { defaultContentDbPath, mediaUploadsDir } from "#src/server/runtime/compo
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 import { inspectRootKeyMaterial, type RootKeyStatus } from "#src/features/webhooks/keyring.env";
+import { resolveSiteTokenSources } from "./site-token.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -23,10 +24,20 @@ import type { RouteDeps } from "#src/server/routes/types";
  * 403-on-denial), reusing the same permission — this is one more system-status read, not a new kind
  * of capability. `entityType: "deployment-status"` follows `recent-hits.ts`'s precedent of a
  * route-specific descriptive string rather than a shared literal across unrelated resources.
+ *
+ * ## Site-key plan §A3b — site-aware root-key row
+ *
+ * The `TOVU_INTEGRATIONS_ROOT_KEY` row resolves THIS site's own ordered source list
+ * ({@link resolveSiteTokenSources}, `site-token.ts`) instead of `inspectRootKeyMaterial()`'s
+ * module-level env-then-legacy-default precedence — the same seam the Site Token tab's own
+ * `GET`/`reveal`/`generate` verbs already use, so a site with a resolvable per-site key file
+ * (`~/.tovu/site-keys/<siteKeyId>.hex`) reports it as active here too, not only on that tab. A site
+ * with no readable `.site-meta.json` (or production, which has no per-site file at all) falls back
+ * to exactly today's behavior.
  */
 export type AdminDeploymentOverviewDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "identityReady" | "ownerPrincipalId" | "userRepo" | "passwordHasher"
+  "workspaceId" | "authorize" | "identityReady" | "ownerPrincipalId" | "userRepo" | "passwordHasher" | "siteBinding"
 >;
 
 /** One required-for-production env var's presence, never its value. */
@@ -222,7 +233,17 @@ export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDe
         return;
       }
 
-      res.status(200).json(buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: await isOwnerOnDefaultPassword(deps) }));
+      // Site-key plan §A3b: resolve THIS site's own source order (the same
+      // `resolveSiteTokenSources` seam `site-token.ts`'s GET/reveal/generate verbs use) rather than
+      // `buildDeploymentOverviewSnapshot`'s bare-default `inspectRootKeyMaterial()`, so a site with a
+      // resolvable per-site key file reports it here too, not just on the Site Token tab.
+      const { sources } = resolveSiteTokenSources(deps);
+      res.status(200).json(
+        buildDeploymentOverviewSnapshot({
+          defaultOwnerPasswordUnsafe: await isOwnerOnDefaultPassword(deps),
+          rootKey: inspectRootKeyMaterial({ sources }),
+        })
+      );
     } catch (err) {
       console.error("[system/deployment-overview] unexpected error", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
