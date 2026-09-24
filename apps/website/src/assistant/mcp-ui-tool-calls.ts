@@ -253,7 +253,6 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // can't be undone now ask first through `requireHumanConfirm` (`contracts/core/human-confirm.ts`),
   // which opens the same held-open exchange as every entry above. Without these entries every
   // Confirm/Cancel click would 403 with TOOL_NOT_ALLOWLISTED.
-  "sites_duplicate_site",
   "media_generate_asset",
   "identity_role_assign",
   "identity_policy_attach",

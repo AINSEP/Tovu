@@ -15,8 +15,6 @@ import {
 } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
-import { notConfirmedResult, requireHumanConfirm } from "#src/contracts/core/human-confirm";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
 import {
   InitDirNotEmptyError,
   SiteDirInvalidError,
@@ -51,8 +49,6 @@ import { resolveSitesDeps, type SitesToolDeps } from "./deps.js";
  */
 
 const CATALOG_BY_ID = indexCatalogById(sitesAgentToolCatalog);
-
-const SITES_DUPLICATE_TOOL_ID = "sites_duplicate_site";
 
 export type { SitesToolDeps } from "./deps.js";
 
@@ -140,10 +136,7 @@ function requireSiteFolderName(input: Record<string, unknown>, field: string): s
   return value;
 }
 
-export function buildSitesRegistrations(
-  routeDeps: SitesToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
-): ToolRegistration[] {
+export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistration[] {
   const resolved = resolveSitesDeps(routeDeps);
   // Falls back to `false` (disabled) rather than assuming enabled — matches
   // `isSiteSwitcherEnabled`'s own documented default-OFF safety posture. See `deps.ts`'s own
@@ -173,33 +166,15 @@ export function buildSitesRegistrations(
         entityType: "site-registry",
       });
 
-      return withSchemaOnRejection({ toolId: SITES_DUPLICATE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+      return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
         const source = resolved.listSites({ cwd: resolved.cwd }).find((site) => site.name === sourceName);
         if (!source) {
           throw new SourceSiteNotFoundError(sourceName);
         }
 
         const targetDir = path.join(resolved.cwd, "sites", targetName);
-        // The copy carries the whole content database — saved credentials included, still usable
-        // under the same root key — so the human approves it first (2026-09-24 tool-design audit, F3).
-        const outcome = await requireHumanConfirm(ctx, surfaces, {
-          toolId: SITES_DUPLICATE_TOOL_ID,
-          errorCode: "SITES",
-          title: "Copy this whole site into a new one?",
-          details: [
-            { label: "Copy from", value: `${source.displayName} (${sourceName})` },
-            { label: "New site folder", value: `sites/${targetName}` },
-            ...(displayName ? [{ label: "New site name", value: displayName }] : []),
-          ],
-          warning:
-            "Everything in the site's database is copied, including saved connections and access tokens. " +
-            "They will work in the new site too.",
-          confirmLabel: "Copy site",
-        });
-        if (!outcome.confirmed) return { duplicated: false, ...notConfirmedResult(outcome) };
-
         const result = resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
-        return { duplicated: true, name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
+        return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
       });
     },
   };

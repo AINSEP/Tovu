@@ -3,9 +3,6 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "#src/assistant/index";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
-
 import type { DuplicateSiteResult, SiteListEntry } from "#src/platform/site-dir/index";
 import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
 
@@ -40,20 +37,6 @@ function ctxFor(input: unknown): ToolExecutionContext {
     input,
     signal: new AbortController().signal,
   };
-}
-
-/** Runs the tool and clicks Confirm on its dialog — the gate itself is certified by
- *  `duplicate-site-confirmation.unit.test.ts`. */
-async function callConfirmed(routeDeps: SitesToolDeps, input: unknown): Promise<unknown> {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = registrationFor(buildSitesRegistrations(routeDeps, { surfaceExchanges }), "sites_duplicate_site");
-  const emitted: unknown[] = [];
-  const pending = tool.handler({ ...ctxFor(input), emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
-  surfaceExchanges.deliver({ exchangeId, toolId: "sites_duplicate_site", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
-  return pending;
 }
 
 function registrationFor(registrations: ToolRegistration[], id: string): ToolRegistration {
@@ -136,13 +119,14 @@ test("sites_duplicate_site: happy path resolves sourceName/targetName to real di
   const { routeDeps, duplicateSiteCalls } = fakeDeps({
     duplicateSiteResult: { siteId: "minted-id-9999", dir: "/tmp/fake-cwd/sites/new-client" },
   });
-  const result = await callConfirmed(routeDeps, { sourceName: "source-site", targetName: "new-client", displayName: "New Client" });
+  const handler = registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler;
+
+  const result = await handler(ctxFor({ sourceName: "source-site", targetName: "new-client", displayName: "New Client" }));
 
   assert.deepEqual(duplicateSiteCalls, [
     { sourceDir: "/tmp/fake-cwd/sites/source-site", targetDir: "/tmp/fake-cwd/sites/new-client", name: "New Client" },
   ]);
   assert.deepEqual(result, {
-    duplicated: true,
     name: "new-client",
     dir: "/tmp/fake-cwd/sites/new-client",
     siteId: "minted-id-9999",
@@ -152,7 +136,9 @@ test("sites_duplicate_site: happy path resolves sourceName/targetName to real di
 
 test("sites_duplicate_site: displayName is optional — omitting it passes undefined through, not a default string", async () => {
   const { routeDeps, duplicateSiteCalls } = fakeDeps();
-  await callConfirmed(routeDeps, { sourceName: "source-site", targetName: "new-client" });
+  const handler = registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler;
+
+  await handler(ctxFor({ sourceName: "source-site", targetName: "new-client" }));
 
   assert.equal(duplicateSiteCalls[0]?.name, undefined);
 });
