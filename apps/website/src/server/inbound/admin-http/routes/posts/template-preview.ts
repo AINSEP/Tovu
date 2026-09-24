@@ -4,10 +4,19 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/index";
-import { NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
-import { renderViaTemplate, resolveActiveTheme, resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages";
+import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
+import {
+  renderViaTemplate,
+  resolveActiveTheme,
+  resolveHtmlEmbedsForRender,
+  resolveMediaAssetMetadataForRender,
+  resolveMediaTransformVersionsForRender,
+  resolveStaticMenusForRender,
+} from "#src/server/inbound/public-http/routes/site/pages";
+import { renderBareEntryDocument } from "../../../public-http/http/site/bare-page.js";
+import { resolveSiteTitle } from "#src/features/settings/site-title";
 import { getAuthedPrincipal } from "../../dev-auth.js";
-import type { ContentRouteRegistrar } from "../content/deps.js";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * @file Template-preview fix (2026-08-11, extended 2026-08-12) — `ADS-memory/reports/implementation/
@@ -193,6 +202,35 @@ function buildPreviewPost(
   };
 }
 
+/**
+ * Bare-page preview (owner ruling 2026-09-23, S5) — mirrors `pages.ts`'s own `renderBarePage`, but
+ * built from `ContentRouteDeps`-compatible (Pick-typed) exports only, since this route's `deps` is
+ * narrower than the full `RouteDeps` those two functions require. Deliberately skips widget-region
+ * resolution (`resolveWidgetsForRender`, which needs a `theme`) — the Pages picker only ever produces
+ * `""` for `bodyFormat: "html"` Pages (`PageEditor.tsx:560`), which never carry inline `widgetEmbed`
+ * nodes, so there is nothing for it to resolve on every UI-reachable preview. Also skips the SEO
+ * `extraHead` fold (`buildExtraHead` is private to `pages.ts` and needs `originRegistry`, not in
+ * `ContentRouteDeps`) — a disclosed, low-stakes trim: this is a never-indexed admin iframe, not the
+ * public site S4 already covers.
+ */
+async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Promise<string> {
+  const [siteTitle, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata] = await Promise.all([
+    resolveSiteTitle(
+      {
+        settingsRepo: deps.settingsRepo,
+        preservationStore: deps.siteTitlePreservationStore,
+        workspaceRepo: deps.workspaceRepo,
+        siteDisplayName: deps.siteDisplayName,
+      },
+      { workspaceId: deps.workspaceId }
+    ),
+    resolveHtmlEmbedsForRender(deps, post),
+    resolveMediaTransformVersionsForRender(deps),
+    resolveMediaAssetMetadataForRender(deps, post),
+  ]);
+  return renderBareEntryDocument({ post, siteTitle, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata });
+}
+
 export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
   const handlePreviewRequest: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -216,6 +254,32 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
         deps: { repo: deps.postRepo },
         input: { workspaceId: deps.workspaceId, idOrSlug: String(req.params.postId ?? "") },
       });
+
+      const overrideTemplateChoice = resolveOverrideTemplateChoice(req.query.templateChoice);
+
+      // Pending body override (2026-08-12) — POST-only. `req.body` is parsed by whichever of
+      // `express.json()` (`app.ts`'s global mount) or this route's own `express.urlencoded()` (below)
+      // matched the request's `Content-Type`; a `GET` request never carries a body, so `req.body` is
+      // empty there and `pendingBodyJson` stays `undefined` — the exact "byte-identical to before this
+      // existed" behavior this file's header promises for `GET`.
+      const pendingBodyJson = extractPendingBodyJson(req.body);
+      const pendingBodyHtml = extractPendingBodyHtml(req.body);
+      // Only forwarded to the render pipeline when the FETCHED row is actually html-format (see
+      // `buildPreviewPost`'s own doc) — never applied to a `"doc"`-format post's render, even if a
+      // caller sent a `bodyHtml` field for one.
+      const pendingBodyHtmlOverride = post.bodyFormat === "html" ? pendingBodyHtml : undefined;
+
+      const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
+
+      // Bare-page preview (owner ruling 2026-09-23, S5) — checked BEFORE any theme resolution/409: a
+      // bare Page renders identically regardless of theme, mirroring `renderBarePage`'s own placement
+      // ahead of the `theme === null` check on the public site (`pages.ts`'s
+      // `renderTemplateBranchIfEligible`).
+      if (isBarePageChoice(previewPost)) {
+        const html = await renderBarePreview(deps, previewPost);
+        res.set("Cache-Control", "no-store").type("html").send(html);
+        return;
+      }
 
       const { settings } = await getPresentationSettings({
         deps: { repo: deps.presentationRepo },
@@ -244,20 +308,6 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       }
       const theme = resolved;
 
-      const overrideTemplateChoice = resolveOverrideTemplateChoice(req.query.templateChoice);
-
-      // Pending body override (2026-08-12) — POST-only. `req.body` is parsed by whichever of
-      // `express.json()` (`app.ts`'s global mount) or this route's own `express.urlencoded()` (below)
-      // matched the request's `Content-Type`; a `GET` request never carries a body, so `req.body` is
-      // empty there and `pendingBodyJson` stays `undefined` — the exact "byte-identical to before this
-      // existed" behavior this file's header promises for `GET`.
-      const pendingBodyJson = extractPendingBodyJson(req.body);
-      const pendingBodyHtml = extractPendingBodyHtml(req.body);
-      // Only forwarded to the render pipeline when the FETCHED row is actually html-format (see
-      // `buildPreviewPost`'s own doc) — never applied to a `"doc"`-format post's render, even if a
-      // caller sent a `bodyHtml` field for one.
-      const pendingBodyHtmlOverride = post.bodyFormat === "html" ? pendingBodyHtml : undefined;
-
       // 2026-09-16, owner: "it should render even in unpublished state." The template's own
       // `{"type":"content"}` slot resolves through a VISIBILITY-FILTERED resolver
       // (`resolver-service.ts`'s `findPublishedPostById`), which finds nothing for an unpublished
@@ -276,8 +326,6 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       const unpublished = post.status !== "published";
       const previewBodyJson = pendingBodyJson ?? (unpublished && post.bodyFormat === "doc" ? post.bodyJson : undefined);
       const previewBodyHtml = pendingBodyHtmlOverride ?? (unpublished && post.bodyFormat === "html" ? (post.bodyHtml ?? undefined) : undefined);
-
-      const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
 
       // 2026-09-16 fix. This route used to hand `previewPost` straight to `renderViaTemplate`, while
       // the PUBLIC route reaches that same function only through `renderTemplateBranchIfEligible`,
