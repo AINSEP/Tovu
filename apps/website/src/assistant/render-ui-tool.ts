@@ -124,7 +124,7 @@ export function buildRenderUiRegistrations(
       const components = (ctx.input as { components?: unknown[] }).components ?? [];
 
       const catalog = createLabCatalog();
-      const exchange = surfaces.surfaceExchanges.open({ toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
+      const exchange = surfaces.surfaceExchanges.open({ toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" }, emitSurface);
       const surfaceId = exchange.id;
 
       const emitA2ui = async (message: AgentToRendererMessage): Promise<{ ok: true } | { ok: false; reason: string }> => {

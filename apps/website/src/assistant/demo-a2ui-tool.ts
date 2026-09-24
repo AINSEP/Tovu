@@ -178,7 +178,7 @@ export function buildDemoA2uiRegistrations(
       // The exchange is opened BEFORE any message is sent, exactly like `demo-choices-tool.ts` —
       // opening requires the emitter, so waiting on an unsent message is unrepresentable.
       const exchange = surfaces.surfaceExchanges.open(
-        { toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id },
+        { toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" },
         emitSurface,
       );
       // A2UI correlates by its own `surfaceId`, not by a route-specific callback param the way

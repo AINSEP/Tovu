@@ -50,12 +50,15 @@ import type { Express, NextFunction, Request, Response } from "express";
 
 import {
   A2UI_ACTIONS_PATH,
+  a2uiNotPendingBody,
   AGENT_DAEMON_TOKEN_ENV_VAR,
+  deliverA2uiAction,
   getLiveClaudeModels,
   unionModels,
   isMcpUiToolCallAllowed,
   isTypedSurfaceAnswer,
   MCP_UI_TOOL_CALLS_PATH,
+  readA2uiAction,
   RUN_PRINCIPAL_HEADER,
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
@@ -293,6 +296,36 @@ function tryLocalMcpUiDelivery(
   return false;
 }
 
+/**
+ * `POST /api/admin/v1/a2ui/actions` — the browser relaying an A2UI renderer message (an action, or
+ * the renderer's refusal of a surface). BYOK-first, like {@link proxyMcpUiToolCall}: a BYOK run's
+ * A2UI exchange (`assistant_render_ui`, `assistant_demo_a2ui`) lives in `byokSurfaceExchanges`, in
+ * this process, and the daemon cannot see it. Forwarded blindly, the renderer's refusal got a 409,
+ * `assistant_render_ui` waited out its grace period, and reported a refused surface as rendered.
+ *
+ * Validated here with the daemon route's own `readA2uiAction`, so a malformed post is refused the
+ * same way whichever store would have held it. A `binding-mismatch` is final (the exchange is here,
+ * just not this caller's, or not an A2UI one); only `unknown-or-closed` falls through to the daemon.
+ */
+async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore): Promise<void> {
+  const action = readA2uiAction(req.body);
+  if (!action.ok) {
+    res.status(400).json(action.error);
+    return;
+  }
+  const principalId = getAuthedPrincipal(res).id;
+  const delivered = deliverA2uiAction(byokSurfaceExchanges, { exchangeId: action.exchangeId, principalId, message: action.message });
+  if (delivered.ok) {
+    res.status(202).json({ delivered: true });
+    return;
+  }
+  if (delivered.reason === "binding-mismatch") {
+    res.status(409).json(a2uiNotPendingBody(delivered.reason));
+    return;
+  }
+  await proxyPassthrough(req, res);
+}
+
 async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore): Promise<void> {
   const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
   const toolName = body.toolName;
@@ -517,15 +550,12 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
         proxyMcpUiToolCall(req, res, byokSurfaceExchanges).catch(next);
       });
 
-      // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — an ordinary forward, not
-      // `proxyMcpUiToolCall`'s dedicated function: there is no `toolName` on an A2UI action to
-      // pre-check against an allowlist (the daemon-side route has none either — see that file's own
-      // doc for why A2UI has no execution surface to allowlist in the first place), so
-      // `proxyPassthrough` is the correct, unmodified forward, same as `/api/frontend-sessions/*`
-      // just above.
+      // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — BYOK store first, then the daemon;
+      // see `proxyA2uiAction`'s doc. No allowlist: there is no `toolName` on an A2UI action (the
+      // daemon-side route has none either — A2UI has no execution surface to allowlist).
       app.use(A2UI_ACTIONS_PATH, requireAdminSession(routeDeps));
       app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyPassthrough(req, res).catch(next);
+        proxyA2uiAction(req, res, byokSurfaceExchanges).catch(next);
       });
     },
   };

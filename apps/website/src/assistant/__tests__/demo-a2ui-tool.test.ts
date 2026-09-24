@@ -78,6 +78,7 @@ test("the call stays open across two turns, and both actions become the call's r
   const firstDelivered = surfaceExchanges.deliver({
     exchangeId: surfaceId,
     principalId: "principal-1",
+    channel: "a2ui",
     params: { message: actionMessage(surfaceId, `${DEMO_A2UI_TOOL_ID}.continue`) },
   });
   assert.deepEqual(firstDelivered, { ok: true });
@@ -93,6 +94,7 @@ test("the call stays open across two turns, and both actions become the call's r
   const secondDelivered = surfaceExchanges.deliver({
     exchangeId: surfaceId,
     principalId: "principal-1",
+    channel: "a2ui",
     params: { message: actionMessage(surfaceId, `${DEMO_A2UI_TOOL_ID}.finish`) },
   });
   assert.deepEqual(secondDelivered, { ok: true });
@@ -116,7 +118,7 @@ test("the surface id doubles as the exchange id — a2ui-actions-route.ts needs 
 
   // Delivering under the surfaceId (not some other id) is what proves the two are the same value —
   // a wrong id would 409/leave the exchange untouched, per surface-exchanges.ts's own contract.
-  const delivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: {} } });
+  const delivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", channel: "a2ui", params: { message: {} } });
   assert.deepEqual(delivered, { ok: true });
 });
 

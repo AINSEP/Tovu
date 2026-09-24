@@ -28,10 +28,9 @@
  * its own SSE response and `server/modules/assistant.ts`'s redemption proxy tries THIS store first
  * (falling back to the daemon's only on `unknown-or-closed`) — see that module's own doc for the other
  * half. Scope actually verified end-to-end (`assistant-byok-routes.test.ts`): the MCP-UI channel only,
- * via `content_post_delete`, the one production tool that reads `ctx.emitSurface` today. A2UI's own
- * `demo-a2ui` tools and `/api/admin/v1/a2ui/actions` are untouched by this slice — that route still
- * only reaches the daemon's store, so an A2UI tool run through BYOK mode would park against a store no
- * redemption path for A2UI specifically has been wired to reach; not attempted here.
+ * via `content_post_delete`, the one production tool that reads `ctx.emitSurface` today. The A2UI
+ * route (`/api/admin/v1/a2ui/actions`) tries THIS store first as well (`proxyA2uiAction` in the same
+ * module), so `assistant_render_ui`'s renderer rejection reaches a BYOK run.
  */
 import {
   createToolRegistry,

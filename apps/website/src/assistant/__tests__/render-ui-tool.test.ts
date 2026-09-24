@@ -103,6 +103,7 @@ test("returns rendered: false with the real reason when the browser relays a cat
   const delivered = surfaceExchanges.deliver({
     exchangeId: surfaceId,
     principalId: "principal-1",
+    channel: "a2ui",
     params: {
       message: {
         version: "v1.0",
@@ -140,6 +141,7 @@ test("falls back to a generic detail string when the relayed refusal carries no 
   const delivered = surfaceExchanges.deliver({
     exchangeId: surfaceId,
     principalId: "principal-1",
+    channel: "a2ui",
     params: {
       message: {
         version: "v1.0",

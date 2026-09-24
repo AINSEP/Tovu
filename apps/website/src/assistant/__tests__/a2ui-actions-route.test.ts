@@ -80,7 +80,7 @@ test("rejects a message that fails A2UI's own renderer->agent schema — 400, wi
 
 test("rejects a message whose declared surfaceId disagrees with the route's exchangeId", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
   const answer = exchange.receive();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
@@ -97,7 +97,7 @@ test("rejects a message whose declared surfaceId disagrees with the route's exch
 
 test("delivers a matching action to the held-open exchange, and never needs a toolId", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
   const answer = exchange.receive();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
@@ -111,7 +111,7 @@ test("delivers a matching action to the held-open exchange, and never needs a to
 
 test("a functionResponse message (no surfaceId at all) delivers without tripping the cross-check", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
   const answer = exchange.receive();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
@@ -124,7 +124,7 @@ test("a functionResponse message (no surfaceId at all) delivers without tripping
 
 test("an error message carrying surfaceId is cross-checked against exchangeId, same as an action", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
   const answer = exchange.receive();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
@@ -137,7 +137,7 @@ test("an error message carrying surfaceId is cross-checked against exchangeId, s
 
 test("an error message declaring the WRONG surfaceId is rejected, just like a mismatched action", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: "some-other-surface", path: "/foo", message: "bad" } };
@@ -149,7 +149,7 @@ test("an error message declaring the WRONG surfaceId is rejected, just like a mi
 
 test("a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
   const answer = exchange.receive();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
@@ -176,7 +176,7 @@ test("an unknown, expired, or already-closed exchange is 409, not 404 or a silen
 
 test("an action from the wrong principal is refused and leaves the call still waiting", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "alice" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "alice", channel: "a2ui" }, async () => undefined);
   const answer = exchange.receive();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
@@ -185,5 +185,24 @@ test("an action from the wrong principal is refused and leaves the call still wa
 
   assert.equal(res.status, 409);
   assert.equal(surfaceExchanges.size(), 1, "alice's exchange must not be consumed by mallory's post");
+  assert.equal(await Promise.race([answer, Promise.resolve("still-waiting" as const)]), "still-waiting");
+});
+
+test("an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  // No channel: every MCP-UI tool opens this way, e.g. a delete confirmation.
+  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "principal-1" }, async () => undefined);
+  const answer = exchange.receive();
+  const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
+
+  const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
+  const res = await postAction(baseUrl, { exchangeId: exchange.id, message }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), {
+    error: "that surface is no longer waiting for an answer",
+    code: "SURFACE_NOT_PENDING",
+    reason: "binding-mismatch",
+  });
   assert.equal(await Promise.race([answer, Promise.resolve("still-waiting" as const)]), "still-waiting");
 });

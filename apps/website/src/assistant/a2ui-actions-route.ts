@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/agentic/a2ui";
 
 import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
-import type { SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
+import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The daemon-side inbound half of A2UI (a2ui-project/a2ui v1.0) — where a rendered surface's
@@ -100,6 +100,72 @@ function extractDeclaredSurfaceId(message: RendererToAgentMessage): string | und
   return undefined;
 }
 
+/** A validated A2UI post, or the 400 body that refuses it. */
+export type ReadA2uiActionResult =
+  | { ok: true; exchangeId: string; message: RendererToAgentMessage }
+  | { ok: false; error: { error: string; code: "VALIDATION_ERROR" } };
+
+/**
+ * Validates an A2UI post's body: a non-empty `exchangeId`, a schema-valid renderer message, and a
+ * declared `surfaceId` (when the message has one) equal to `exchangeId`. Shared by the daemon route
+ * below and the admin server's BYOK-first hop, so both refuse the same malformed posts.
+ *
+ * @complexity O(size of the message) for the schema parse.
+ */
+export function readA2uiAction(rawBody: unknown): ReadA2uiActionResult {
+  const body = (rawBody ?? {}) as { exchangeId?: unknown; message?: unknown };
+  const exchangeId = body.exchangeId;
+  if (typeof exchangeId !== "string" || exchangeId.length === 0) {
+    return { ok: false, error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" } };
+  }
+
+  // Real spec-conformance enforcement, not a rubber stamp — mirrors `daemon.ts`'s own `/a2ui-action`
+  // relay in Jini's reference app: a malformed envelope is refused at the network boundary, before
+  // it can ever reach a handler waiting on `exchange.receive()`.
+  const parsed = parseRendererToAgentMessage(body.message);
+  if (!parsed.ok) return { ok: false, error: { error: parsed.reason, code: "VALIDATION_ERROR" } };
+
+  const declaredSurfaceId = extractDeclaredSurfaceId(parsed.message);
+  if (declaredSurfaceId !== undefined && declaredSurfaceId !== exchangeId) {
+    return {
+      ok: false,
+      error: {
+        error: `message declares surfaceId "${declaredSurfaceId}", which does not match exchangeId "${exchangeId}"`,
+        code: "VALIDATION_ERROR",
+      },
+    };
+  }
+  return { ok: true, exchangeId, message: parsed.message };
+}
+
+/**
+ * Delivers a validated A2UI message into `store`. No `toolId` — see this module's doc for why A2UI
+ * has none to offer. `channel: "a2ui"` is what keeps it out of an MCP-UI confirmation's exchange.
+ *
+ * @complexity O(1).
+ */
+export function deliverA2uiAction(
+  store: SurfaceExchangeStore,
+  action: { exchangeId: string; principalId: string; message: RendererToAgentMessage },
+): DeliverResult {
+  return store.deliver({
+    exchangeId: action.exchangeId,
+    principalId: action.principalId,
+    channel: "a2ui",
+    params: { message: action.message },
+  });
+}
+
+/**
+ * The 409 body for an A2UI post whose surface is not waiting. 409, not 404: the same reasoning
+ * `mcp-ui-tool-calls-route.ts` gives for its own identical choice — from the browser's side, "no
+ * such exchange" and "already closed" both mean "this surface is no longer the one waiting on you",
+ * which the human cannot act on differently.
+ */
+export function a2uiNotPendingBody(reason: SurfaceDeliveryRejectionReason) {
+  return { error: "that surface is no longer waiting for an answer", code: "SURFACE_NOT_PENDING", reason } as const;
+}
+
 /**
  * Registers `POST {@link A2UI_ACTIONS_PATH}` on the daemon `app`.
  *
@@ -115,47 +181,15 @@ export function registerA2uiActionsRoute(app: Express, deps: A2uiActionsRouteDep
       return;
     }
 
-    const body = (req.body ?? {}) as { exchangeId?: unknown; message?: unknown };
-    const exchangeId = body.exchangeId;
-    if (typeof exchangeId !== "string" || exchangeId.length === 0) {
-      res.status(400).json({ error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" });
+    const action = readA2uiAction(req.body);
+    if (!action.ok) {
+      res.status(400).json(action.error);
       return;
     }
 
-    // Real spec-conformance enforcement, not a rubber stamp — mirrors `daemon.ts`'s own `/a2ui-action`
-    // relay in Jini's reference app: a malformed envelope is refused at the network boundary, before
-    // it can ever reach a handler waiting on `exchange.receive()`.
-    const parsed = parseRendererToAgentMessage(body.message);
-    if (!parsed.ok) {
-      res.status(400).json({ error: parsed.reason, code: "VALIDATION_ERROR" });
-      return;
-    }
-
-    const declaredSurfaceId = extractDeclaredSurfaceId(parsed.message);
-    if (declaredSurfaceId !== undefined && declaredSurfaceId !== exchangeId) {
-      res.status(400).json({
-        error: `message declares surfaceId "${declaredSurfaceId}", which does not match exchangeId "${exchangeId}"`,
-        code: "VALIDATION_ERROR",
-      });
-      return;
-    }
-
-    const delivered = deps.surfaceExchanges.deliver({
-      exchangeId,
-      principalId,
-      // No `toolId` — see this module's doc for why A2UI has none to offer, and
-      // `surface-exchanges.ts`'s `DeliverySpec` for why the store accepts that.
-      params: { message: parsed.message },
-    });
+    const delivered = deliverA2uiAction(deps.surfaceExchanges, { exchangeId: action.exchangeId, principalId, message: action.message });
     if (!delivered.ok) {
-      // 409, not 404: the same reasoning `mcp-ui-tool-calls-route.ts` gives for its own identical
-      // choice — from the browser's side, "no such exchange" and "already closed" both mean "this
-      // surface is no longer the one waiting on you", which the human cannot act on differently.
-      res.status(409).json({
-        error: "that surface is no longer waiting for an answer",
-        code: "SURFACE_NOT_PENDING",
-        reason: delivered.reason,
-      });
+      res.status(409).json(a2uiNotPendingBody(delivered.reason));
       return;
     }
 

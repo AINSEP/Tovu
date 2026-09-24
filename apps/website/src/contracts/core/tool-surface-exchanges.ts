@@ -143,12 +143,22 @@ export const DEFAULT_SURFACE_IDLE_TTL_MS = 5 * 60 * 1000;
  */
 export const DEFAULT_SURFACE_MAX_LIFETIME_MS = 5.5 * 60 * 1000;
 
+/**
+ * Which inbound route may answer an exchange. `"mcp-ui"` (the default) is a tool-call-shaped answer
+ * posted to the MCP-UI route; `"a2ui"` is a renderer message posted to the A2UI route. A2UI posts
+ * carry no `toolId`, so without this an A2UI message could land in, and cancel, a pending MCP-UI
+ * confirmation of the same principal.
+ */
+export type SurfaceAnswerChannel = "mcp-ui" | "a2ui";
+
 /** Who an exchange belongs to. Checked on every delivery; a mismatch is a rejection, not a warning. */
 export interface SurfaceExchangeBinding {
   /** The tool that opened it. A message for one tool cannot resolve another's exchange. */
   toolId: string;
   /** The principal whose run opened it — one human's answer must not land in another's call. */
   principalId: string;
+  /** The route allowed to answer it. Omitted means `"mcp-ui"`. */
+  channel?: SurfaceAnswerChannel;
 }
 
 /**
@@ -209,7 +219,14 @@ export interface SurfaceExchange {
  * relax the exchange's own binding, which `open()` still records honestly as whatever tool actually
  * opened it.
  */
-type DeliverySpec = { exchangeId: string; params: Record<string, unknown>; principalId: string; toolId?: string };
+type DeliverySpec = {
+  exchangeId: string;
+  params: Record<string, unknown>;
+  principalId: string;
+  toolId?: string;
+  /** The route this answer arrived on. Omitted means `"mcp-ui"`; it must match the exchange's own. */
+  channel?: SurfaceAnswerChannel;
+};
 
 export interface SurfaceExchangeStore {
   /**
@@ -511,7 +528,8 @@ export function createSurfaceExchangeStore(
       // why a channel that correlates purely by exchange id (A2UI, `surface_response`) has none to
       // offer, and why omitting the caller's obligation does not relax what `open()` recorded.
       const toolMismatch = spec.toolId !== undefined && entry.binding.toolId !== spec.toolId;
-      if (toolMismatch || entry.binding.principalId !== spec.principalId) {
+      const channelMismatch = (entry.binding.channel ?? "mcp-ui") !== (spec.channel ?? "mcp-ui");
+      if (toolMismatch || channelMismatch || entry.binding.principalId !== spec.principalId) {
         // Deliberately leaves the exchange open. A mismatched delivery is evidence about the
         // DELIVERY, not about the exchange — consuming it would let a wrong-binding post disrupt a
         // conversation the right human is still having.

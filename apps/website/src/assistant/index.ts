@@ -165,7 +165,7 @@ export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.j
 // files have exactly one external importer, this module) plus `src/index.ts` (the process entry
 // point, for daemon-lifecycle concerns).
 // ---------------------------------------------------------------------------------------------
-export { A2UI_ACTIONS_PATH } from "./a2ui-actions-route.js";
+export { A2UI_ACTIONS_PATH, a2uiNotPendingBody, deliverA2uiAction, readA2uiAction } from "./a2ui-actions-route.js";
 export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-auth.js";
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 // `startAssistantDaemon`/`restartAssistantDaemon`/`ensureAssistantDaemonStarted` moved to

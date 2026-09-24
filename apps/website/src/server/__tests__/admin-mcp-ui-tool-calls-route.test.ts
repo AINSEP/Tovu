@@ -6,7 +6,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
+import { A2UI_ACTIONS_PATH, AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 
@@ -265,4 +265,66 @@ test("a typed answer this process holds no exchange for still reaches the daemon
   // The owner's own case: the parked call lives in the DAEMON, so refusing here would strand it.
   assert.equal(recorded.length, forwardedBefore + 1);
   assert.equal(recorded.at(-1)!.url, MCP_UI_TOOL_CALLS_PATH);
+});
+
+/**
+ * A2UI in BYOK: `assistant_render_ui` holds its exchange in THIS process's store, so the browser's
+ * renderer rejection must be delivered here. Forwarded to the daemon it got a 409, the tool's grace
+ * period ran out, and it told the model a refused surface had rendered.
+ */
+test("BYOK: an A2UI renderer rejection reaches the locally-held render_ui exchange, with no daemon round trip", async (t) => {
+  const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
+  const principalId = await authedPrincipalId(baseUrl, cookie);
+  const exchange = surfaceExchanges.open({ toolId: "assistant_render_ui", principalId, channel: "a2ui" }, async () => undefined);
+  const waiting = exchange.receive();
+  const forwardedBefore = recorded.length;
+
+  const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: exchange.id, path: "/components/0", message: "bad prop" } };
+  const res = await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ exchangeId: exchange.id, message }),
+  });
+
+  assert.equal(res.status, 202);
+  assert.deepEqual(await res.json(), { delivered: true });
+  assert.deepEqual(await waiting, { status: "received", params: { message } });
+  assert.equal(recorded.length, forwardedBefore, "a locally-held surface must not be forwarded to the daemon");
+});
+
+test("BYOK: an A2UI post cannot answer or cancel a locally-held MCP-UI confirmation", async (t) => {
+  const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
+  const principalId = await authedPrincipalId(baseUrl, cookie);
+  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId }, async () => undefined);
+  const waiting = exchange.receive();
+
+  const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: exchange.id, path: "/", message: "x" } };
+  const res = await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ exchangeId: exchange.id, message }),
+  });
+
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), {
+    error: "that surface is no longer waiting for an answer",
+    code: "SURFACE_NOT_PENDING",
+    reason: "binding-mismatch",
+  });
+  assert.equal(await Promise.race([waiting, Promise.resolve("still-waiting" as const)]), "still-waiting");
+});
+
+test("BYOK: an A2UI post for an exchange this process does not hold still reaches the daemon", async (t) => {
+  const { baseUrl, cookie } = await bootWithStore(t);
+  const forwardedBefore = recorded.length;
+  const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: "daemon-ex", path: "/", message: "x" } };
+
+  await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ exchangeId: "daemon-ex", message }),
+  });
+
+  assert.equal(recorded.length, forwardedBefore + 1);
+  assert.equal(recorded.at(-1)!.url, A2UI_ACTIONS_PATH);
 });
