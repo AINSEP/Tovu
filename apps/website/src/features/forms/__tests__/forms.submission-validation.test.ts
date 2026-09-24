@@ -110,6 +110,25 @@ test("validateSubmissionPayload: accepts a boolean value for a checkbox field", 
   }
 });
 
+test("validateSubmissionPayload: accepts the HTML checkbox's default submitted value 'on' as true (a native form POST never sends a boolean)", () => {
+  const result = validateSubmissionPayload({
+    definition: definition(),
+    body: { name: "Ada", email: "ada@example.com", subscribe: "on" },
+  });
+  assert.equal(result.valid, true);
+  if (result.valid) {
+    assert.equal(result.data.subscribe, true);
+  }
+});
+
+test("validateSubmissionPayload: still rejects any other string for a checkbox field with the exact reason", () => {
+  const result = validateSubmissionPayload({
+    definition: definition(),
+    body: { name: "Ada", email: "ada@example.com", subscribe: "yes please" },
+  });
+  assert.deepEqual(result, { valid: false, fieldErrors: [{ field: "subscribe", reason: "must be a boolean" }] });
+});
+
 test("validateSubmissionPayload: rejects a non-string value for a text field", () => {
   const result = validateSubmissionPayload({
     definition: definition(),

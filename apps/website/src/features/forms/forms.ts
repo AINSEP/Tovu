@@ -272,6 +272,20 @@ function resolveTextValue(field: FieldDescriptor, value: unknown): SubmittedValu
   return { kind: "accepted", value };
 }
 
+/** The value a browser submits for a ticked `<input type="checkbox">` that has no `value` attribute
+ *  — exactly what `render.ts`'s contact-form widget emits. A native (JS-disabled) form POST is
+ *  urlencoded and can only ever send strings, so a boolean-only check rejected every ticked box. */
+const HTML_CHECKBOX_ON_VALUE = "on";
+
+/** A checkbox answer: a JSON `boolean`, or the HTML form's `"on"` (see {@link HTML_CHECKBOX_ON_VALUE}).
+ *  An unticked box sends nothing, which {@link resolveSubmittedValue} already treats as absence.
+ *  @complexity O(1). */
+function resolveCheckboxValue(value: unknown): SubmittedValue {
+  if (typeof value === "boolean") return { kind: "accepted", value };
+  if (value === HTML_CHECKBOX_ON_VALUE) return { kind: "accepted", value: true };
+  return { kind: "rejected", reason: "must be a boolean" };
+}
+
 /**
  * Resolves one declared field against the raw body.
  *
@@ -286,9 +300,7 @@ function resolveSubmittedValue(field: FieldDescriptor, value: unknown): Submitte
   if (value === undefined || value === null) {
     return field.required ? { kind: "rejected", reason: "required" } : { kind: "absent" };
   }
-  if (field.type === "checkbox") {
-    return typeof value === "boolean" ? { kind: "accepted", value } : { kind: "rejected", reason: "must be a boolean" };
-  }
+  if (field.type === "checkbox") return resolveCheckboxValue(value);
   return resolveTextValue(field, value);
 }
 

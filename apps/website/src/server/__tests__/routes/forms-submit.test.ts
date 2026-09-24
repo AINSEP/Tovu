@@ -227,6 +227,28 @@ test("POST /forms/:slug/submit: a real browser's application/x-www-form-urlencod
   assert.equal(res.status, 201, "the required 'name' field must have been parsed off the urlencoded body");
 });
 
+test("POST /forms/:slug/submit: a CHECKED checkbox on a real browser form POST (urlencoded `field=on`, the only value the rendered `<input type=\"checkbox\">` without a value attribute ever sends) is accepted and stored as true — not rejected as 'must be a boolean'", async (t) => {
+  const { server, baseUrl, definitionRepo, submissionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(
+    makeDefinition({
+      fields: [
+        { id: "name", label: "Name", type: "text", required: true },
+        { id: "consent", label: "I agree", type: "checkbox", required: true },
+      ],
+    })
+  );
+
+  const res = await fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: "name=Ada&consent=on",
+  });
+  assert.equal(res.status, 201, `expected 201, got ${res.status}: ${await res.clone().text()}`);
+  const page = await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
+  assert.deepEqual(page.items[0]?.data, { name: "Ada", consent: true });
+});
+
 test("POST /forms/:slug/submit: Accept: text/html + a validation failure redirects 303 with the field errors encoded, never the raw 400 JSON screen", async (t) => {
   const { server, baseUrl, definitionRepo } = await startTestApp();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
