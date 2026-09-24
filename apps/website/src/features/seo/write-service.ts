@@ -1,5 +1,5 @@
-import { ForbiddenError, type AuthorizeFn, type ClockPort } from "@jini-ai/cms/core";
-import type { PostRepoPort } from "../post/index.js";
+import { assertEntityLive, ForbiddenError, type AuthorizeFn, type ClockPort } from "@jini-ai/cms/core";
+import { isTrashed, type PostRepoPort } from "../post/index.js";
 import {
   SeoConcurrentWriteError,
   SeoEntryNotFoundError,
@@ -240,6 +240,9 @@ const MAX_MERGE_ATTEMPTS = 3;
  * revision per successful merge, atomically with the row write it describes.
  *
  * @throws SeoEntryNotFoundError when the entry does not exist (or is deleted mid-retry).
+ * @throws EntityNotLiveError (`@jini-ai/cms/core`, S6 web-high fix plan 2026-09-24) when the entry
+ * is in the Trash. Checked every attempt, inside the retry loop, so a row trashed between two
+ * attempts is refused on the next read rather than merged onto and resurrected.
  * @throws SeoConcurrentWriteError when {@link MAX_MERGE_ATTEMPTS} reads all lost the row.
  * @complexity O(attempts) queries, one read + one conditional write (+ one revision append on the
  * attempt that lands) each; one of each in the uncontended case.
@@ -254,6 +257,7 @@ async function mergeOverridesOntoCurrentRow(
     if (!existing) {
       throw new SeoEntryNotFoundError(`entry '${input.entryId}' was not found`);
     }
+    assertEntityLive({ entityType: existing.kind, entityId: input.entryId, state: isTrashed(existing) ? "trashed" : "live" });
 
     const currentOverrides: SeoExtFields = existing.seoExtJson ? JSON.parse(existing.seoExtJson) : {};
     const mergedOverrides: SeoExtFields = applyOverridesPatch(currentOverrides, input.patch);
@@ -294,7 +298,11 @@ async function mergeOverridesOntoCurrentRow(
   );
 }
 
-/** REQ-01/02/03 chokepoint write: authorize -> validate -> merge -> save -> conditional cache invalidation. */
+/**
+ * REQ-01/02/03 chokepoint write: authorize -> validate -> merge -> save -> conditional cache invalidation.
+ * @throws EntityNotLiveError (via {@link mergeOverridesOntoCurrentRow}, S6 web-high fix plan
+ * 2026-09-24) when the entry is in the Trash — no merge, no version bump, no revision.
+ */
 export async function setEntrySeoOverrides(
   required: SetEntrySeoOverridesRequired
 ): Promise<{ overrides: SeoExtFields }> {

@@ -9,11 +9,14 @@ import {
 import { invalidateSitemapCache } from "#src/features/seo/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import type { SeoRouteRegistrar } from "./deps.js";
 
 /** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
  *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */
 function seoPutEntryErrorResponse(err: unknown): { status: number; body: { error: string; code: string } } {
+  const live = entityNotLiveResponse(err);
+  if (live) return live;
   if (err instanceof SeoFieldValidationError) {
     return { status: 400, body: { error: err.message, code: "SEO_FIELD_VALIDATION_ERROR" } };
   }

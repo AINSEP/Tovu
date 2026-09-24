@@ -447,3 +447,28 @@ test("setEntrySeoOverrides: a null value alongside a set value in the same patch
   assert.equal(result.overrides.title, "New Title");
 });
 
+// ---------------------------------------------------------------------------
+// S6 (web-high fix plan, 2026-09-24) — a trashed entry must refuse the write, not merge onto it and
+// bump its version. `InMemoryPostRepo.findById` (like the real sqlite repo) returns trashed rows, so
+// seeding one directly with `deletedAt` set reproduces the same shape `deletePost` leaves behind.
+// ---------------------------------------------------------------------------
+
+test("setEntrySeoOverrides: a trashed post is refused with the entity-liveness message, unchanged version and seoExtJson", async () => {
+  const repo = new InMemoryPostRepo([
+    seedPost({ deletedAt: "2026-09-24T00:00:00.000Z", seoExtJson: JSON.stringify({ title: "Before" }), version: 4 }),
+  ]);
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: "After" }, callerPrincipalId: "p1" },
+      }),
+    { message: `ENTITY_IN_TRASH: post '${ENTRY_ID}' is in the Trash. Restore it from the Trash before changing it.` }
+  );
+
+  const after = await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID });
+  assert.equal(after?.version, 4, "a refused write must not bump the version");
+  assert.equal(after?.seoExtJson, JSON.stringify({ title: "Before" }), "a refused write must not touch seoExtJson");
+});
+
