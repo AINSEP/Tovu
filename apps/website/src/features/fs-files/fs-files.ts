@@ -228,7 +228,8 @@ export const FS_FILES_DENYLIST = {
  * @complexity O(p) in the fixed, tiny pattern count.
  */
 export function isDeniedFsFileName(fileName: string): boolean {
-  return FS_FILES_DENYLIST.filenamePatterns.some((pattern) => pattern.test(fileName));
+  const folded = foldFsNameForDenylist(fileName);
+  return FS_FILES_DENYLIST.filenamePatterns.some((pattern) => pattern.test(fileName) || pattern.test(folded));
 }
 
 /**
@@ -238,7 +239,26 @@ export function isDeniedFsFileName(fileName: string): boolean {
  * @complexity O(1).
  */
 export function isDeniedFsPathSegment(segmentName: string): boolean {
-  return FS_FILES_DENYLIST.segments.has(segmentName.toLowerCase());
+  return FS_FILES_DENYLIST.segments.has(segmentName.toLowerCase()) || FS_FILES_DENYLIST.segments.has(foldFsNameForDenylist(segmentName));
+}
+
+/**
+ * A name as the host file system would OPEN it, for the denylist comparison only — never for the path
+ * actually read. Two host behaviors let a spelling the denylist does not recognize open a denied file:
+ * - macOS's default case-insensitive APFS folds Unicode case, so `.ba\u017Fhrc` (LONG S) opens
+ *   `.bashrc` and `root-\u212Aey.hex` (KELVIN SIGN) opens `root-key.hex` — verified on the owner's
+ *   machine 2026-09-24. `toLowerCase()` leaves both characters alone and a non-`u` `/i` regex does not
+ *   fold them either; lower→upper→lower does (`\u017F` → `S` → `s`, `\u212A` → `k`).
+ * - Windows (a shipped desktop target) drops trailing dots and spaces from every path component and
+ *   reads `name::$DATA` as `name` itself, so `.env.`, `.tovu. ` and `.env::$DATA` all open the real file.
+ * Callers test the raw name AND this folded one, so folding can only ever add a denial, never remove one.
+ *
+ * @complexity O(n) in the name's length.
+ */
+function foldFsNameForDenylist(name: string): string {
+  const withoutStream = name.replace(/:[^]*$/, "");
+  const withoutTrailing = withoutStream.replace(/[. ]+$/, "");
+  return withoutTrailing.toLowerCase().toUpperCase().toLowerCase();
 }
 
 /**

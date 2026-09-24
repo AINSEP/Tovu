@@ -549,3 +549,42 @@ test("node_modules, .git, and dist are excluded from listFsFiles but not from fs
   const result = readFsFile({ rootPath: root, relativePath: "node_modules/noise.txt" });
   assert.equal(result.content, "noise");
 });
+
+// ---------------------------------------------------------------------------
+// 3e. Spellings the host file system folds onto a denied name (2026-09-24 review of 9060b6c26).
+//     macOS's default case-insensitive APFS opens `.baſhrc` (U+017F LONG S) as `.bashrc` and
+//     `root-Key.hex` (U+212A KELVIN SIGN) as `root-key.hex` — verified on this machine — yet neither
+//     `toLowerCase()` nor a non-`u` `/i` regex folds either character. Windows strips trailing dots
+//     and spaces from every path component and reads `name::$DATA` as `name` itself.
+// ---------------------------------------------------------------------------
+
+test("a Unicode case-fold spelling of a denied filename is refused before the file system can fold it", () => {
+  const { root } = makeAllowedRoot();
+  fs.writeFileSync(path.join(root, ".bashrc"), "export TOVU_INTEGRATIONS_ROOT_KEY=deadbeef", "utf8");
+  assert.throws(
+    () => readFsFile({ rootPath: root, relativePath: ".baſhrc" }),
+    { message: "path '.baſhrc' matches a denied filename pattern and cannot be accessed" },
+  );
+  assert.equal(isDeniedFsFileName("integrations-root-Key.hex"), true, "KELVIN SIGN spelling of the root key file");
+});
+
+test("a Unicode case-fold spelling of a denied path segment is refused", () => {
+  const { root } = makeAllowedRoot();
+  assert.throws(
+    () => resolveFsFilePath({ rootPath: root, relativePath: "ſecrets/token.txt" }),
+    { message: "path 'ſecrets/token.txt' contains a denied path segment ('ſecrets') and cannot be accessed" },
+  );
+});
+
+test("Windows trailing-dot, trailing-space, and ::$DATA spellings of denied names are refused", () => {
+  const { root } = makeAllowedRoot();
+  assert.throws(
+    () => resolveFsFilePath({ rootPath: root, relativePath: ".tovu./integrations-root-key.hex" }),
+    { message: "path '.tovu./integrations-root-key.hex' contains a denied path segment ('.tovu.') and cannot be accessed" },
+  );
+  for (const name of [".env.", ".env ", ".env::$DATA", "integrations-root-key.hex.", "integrations-root-key.hex::$DATA"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  assert.equal(isDeniedFsPathSegment(".tovu. "), true, "trailing dot and space together");
+  assert.equal(isDeniedFsFileName("notes.txt"), false, "an ordinary name must still pass");
+});
