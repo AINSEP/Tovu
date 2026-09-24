@@ -39,5 +39,8 @@ export {
   toPublishReportRows,
 } from "./report-rows.js";
 
+export type { CriteriaSelection, PublishCriteria, PublishRequestResult } from "./criteria.js";
+export { applyPublishCriteria, PUBLISH_CONTENT_CAPABILITY } from "./criteria.js";
+
 export type { PublishContentPhase } from "./phase.js";
 export { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen } from "./phase.js";
