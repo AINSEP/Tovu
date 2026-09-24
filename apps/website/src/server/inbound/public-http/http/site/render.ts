@@ -2823,6 +2823,8 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
 function siteProductRenderShape(p: SiteProduct): Record<string, unknown> {
   return {
     id: p.id,
+    // The `/products/<slug>` link key (readable-slugs S7) — a templated theme builds its own href.
+    slug: p.slug,
     title: p.title,
     price: p.price,
     priceFormatted: formatCents(p.price),

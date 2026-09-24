@@ -15,7 +15,7 @@
     <ul class="product-grid">
       {%- for product in products -%}
         <li class="product-card">
-          <a href="/products/{{ product.id }}">
+          <a href="/products/{{ product.slug }}">
             <div class="product-card__image" aria-hidden="true"></div>
             <h3 class="product-card__title">{{ product.title }}</h3>
             <p class="product-card__price">{{ product.priceFormatted }}</p>
