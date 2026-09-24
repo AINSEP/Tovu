@@ -4,6 +4,7 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { seedBundledAgentPlugins } from "#src/features/agent-plugins/seed-bundled";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
+import { startPluginActivationPolling } from "../composition/agent-daemon-deps.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
 /**
@@ -25,6 +26,8 @@ const noop = async (): Promise<void> => {};
 export interface BuildBootModulesOptions {
   useMemory: boolean;
   defaultContentDbPath: () => string;
+  /** Test seam for the `plugin-runtime-attach` module's activation poll; defaults to the poll's own 5 s. */
+  pluginActivationPollIntervalMs?: number;
 }
 
 /**
@@ -45,6 +48,7 @@ export interface BuildBootModulesOptions {
  * either.
  */
 export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule[] {
+  let pluginActivationPoll: { stop: () => void } | undefined;
   const modules: BootModule[] = [
     {
       name: "database-migration-reconciliation",
@@ -71,12 +75,27 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       // doc. OPTIONAL: `attachEnabledPluginsAtBoot()` already isolates per-plugin failures itself
       // (logs and continues), so this module's own promise realistically never rejects; optional
       // criticality is a defensive floor, not the primary safety net.
+      //
+      // `start` keeps this process's registry reconciled with the durable activation table after
+      // boot. `plugins_set_enabled` runs in the AGENT DAEMON process, so a chat-driven disable
+      // detached the hook only there; without this poll, every save served here kept running the
+      // disabled plugin's beforeSave hook until restart. Same poll the daemon runs for the reverse
+      // direction (`agent-daemon-deps.ts`).
       name: "plugin-runtime-attach",
       owner: "features/plugin-runtime",
       criticality: "optional",
       prepare: () => deps.pluginRuntimeReady,
-      start: noop,
-      stop: noop,
+      start: async () => {
+        pluginActivationPoll?.stop();
+        pluginActivationPoll = startPluginActivationPolling(
+          deps,
+          options.pluginActivationPollIntervalMs === undefined ? {} : { intervalMs: options.pluginActivationPollIntervalMs },
+        );
+      },
+      stop: async () => {
+        pluginActivationPoll?.stop();
+        pluginActivationPoll = undefined;
+      },
     },
     {
       // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and

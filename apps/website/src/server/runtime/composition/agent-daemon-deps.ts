@@ -57,7 +57,7 @@ export async function reconcilePluginActivationsOnce(deps: PluginActivationPollD
     } catch (error) {
       // eslint-disable-next-line no-console
       console.warn(
-        `[agent-daemon] plugin activation poll failed to attach '${pluginId}': ${error instanceof Error ? error.message : String(error)}`
+        `[plugin-runtime] plugin activation poll failed to attach '${pluginId}': ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
@@ -97,7 +97,7 @@ export function startPluginActivationPolling(
       .then(() => reconcilePluginActivationsOnce(deps, attachedIds))
       .catch((error: unknown) => {
         // eslint-disable-next-line no-console
-        console.warn(`[agent-daemon] plugin activation poll failed: ${error instanceof Error ? error.message : String(error)}`);
+        console.warn(`[plugin-runtime] plugin activation poll failed: ${error instanceof Error ? error.message : String(error)}`);
       });
   }, intervalMs);
   timer.unref();
