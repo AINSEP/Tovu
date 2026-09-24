@@ -102,7 +102,7 @@ describe("useDashboard — default-password banner (password-banner plan, 2026-0
     await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
   });
 
-  it("hides after dismiss, and persists the dismissal to localStorage", async () => {
+  it("hides after dismiss, and persists the dismissal to localStorage under the caller's own id", async () => {
     const port = createFakeDashboardPort({ usesDefaultPassword: true });
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
     await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
@@ -110,16 +110,30 @@ describe("useDashboard — default-password banner (password-banner plan, 2026-0
     result.current.dismissDefaultPasswordBanner();
 
     await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(false));
-    expect(localStorage.getItem(DISMISSED_KEY)).toBe("1");
+    expect(localStorage.getItem(DISMISSED_KEY)).toBe("fake-user-1");
   });
 
-  it("stays hidden on a fresh mount when the dismiss key is already set", async () => {
-    localStorage.setItem(DISMISSED_KEY, "1");
+  it("stays hidden on a fresh mount when the same user already dismissed it", async () => {
+    localStorage.setItem(DISMISSED_KEY, "fake-user-1");
     const port = createFakeDashboardPort({ usesDefaultPassword: true });
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
 
     await waitFor(() => expect(result.current.themeId).not.toBeNull());
     expect(result.current.showDefaultPasswordBanner).toBe(false);
+  });
+
+  it("re-appears for a different user signed in on the same browser", async () => {
+    const portA = createFakeDashboardPort({ usesDefaultPassword: true, principalId: "user-a" });
+    const first = renderHook(() => useDashboard({ port: portA, locale: "en", t: (key) => key }));
+    await waitFor(() => expect(first.result.current.showDefaultPasswordBanner).toBe(true));
+    first.result.current.dismissDefaultPasswordBanner();
+    await waitFor(() => expect(first.result.current.showDefaultPasswordBanner).toBe(false));
+    first.unmount();
+
+    const portB = createFakeDashboardPort({ usesDefaultPassword: true, principalId: "user-b" });
+    const { result } = renderHook(() => useDashboard({ port: portB, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
   });
 
   it("stays hidden when the status fetch rejects — advisory, swallowed, no error state", async () => {

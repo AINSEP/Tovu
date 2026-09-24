@@ -96,6 +96,9 @@ function successRoutes(): Record<string, () => Promise<Response>> {
     // Default false so every pre-existing test in this file (none of which are about the
     // password-banner plan) keeps rendering with no banner, unchanged.
     "password-status": () => Promise.resolve(jsonResponse({ usesDefaultPassword: false })),
+    // The banner's port pairs the status with the caller's id (per-user Dismiss). Listed after
+    // "password-status" because `routeFetch` matches by substring in insertion order.
+    "/auth/me": () => Promise.resolve(jsonResponse({ user: { id: "dash-test-user" } })),
   };
 }
 

@@ -10,7 +10,8 @@ import type { DashboardPort } from "./dashboard-port.hooks";
 
 /** Password-banner plan (2026-09-24), Slice 3 — per-browser dismiss for the default-password nag.
  *  Namespaced under `tovu.admin.` like `standing-draft-local-backup.ts`'s own keys, so it can never
- *  collide with an unrelated app key. */
+ *  collide with an unrelated app key. The stored value is the principal id that dismissed it, so a
+ *  different user signing in on the same browser still sees their own nag. */
 const DEFAULT_PASSWORD_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
 
 /** Best-effort read — `localStorage` throws outright in some privacy modes (same caveat
@@ -18,19 +19,19 @@ const DEFAULT_PASSWORD_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banne
  *  banner again, which is harmless: it is advisory and its truth is recomputed from the server on
  *  every load (see `rules.ts`'s `shouldShowDefaultPasswordBanner`).
  *  @complexity Time/space: O(1). */
-function readDefaultPasswordBannerDismissed(): boolean {
+function readDefaultPasswordBannerDismissedBy(): string | null {
   try {
-    return localStorage.getItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY) === "1";
+    return localStorage.getItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY);
   } catch {
-    return false;
+    return null;
   }
 }
 
 /** Best-effort write — silent no-op on any storage failure, for the same reason the read above is.
  *  @complexity Time/space: O(1). */
-function writeDefaultPasswordBannerDismissed(): void {
+function writeDefaultPasswordBannerDismissedBy(principalId: string): void {
   try {
-    localStorage.setItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY, "1");
+    localStorage.setItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY, principalId);
   } catch {
     // best-effort; see this file's header note on the Dismiss control.
   }
@@ -149,9 +150,9 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   // `null` until the status fetch settles (or forever, if it fails — swallowed below since the
   // banner is advisory) — `shouldShowDefaultPasswordBanner` treats `null` as "don't show", the same
   // fail-closed default a security nag should have.
-  const [usesDefaultPassword, setUsesDefaultPassword] = useState<boolean | null>(null);
+  const [passwordStatus, setPasswordStatus] = useState<{ usesDefaultPassword: boolean; principalId: string } | null>(null);
   // Lazy initializer: read once, at mount, not on every render.
-  const [dismissed, setDismissed] = useState<boolean>(readDefaultPasswordBannerDismissed);
+  const [dismissedBy, setDismissedBy] = useState<string | null>(readDefaultPasswordBannerDismissedBy);
 
   // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
   // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
@@ -196,9 +197,9 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
       .catch((e) => setThemeError(describeApiError(e, translate(locale, "failed to load the active theme"))));
 
     // No `.catch()` sets an error state here — a failed status read means no banner (see this
-    // file's `usesDefaultPassword` declaration), not a card showing an em-dash. It's advisory, not
+    // file's `passwordStatus` declaration), not a card showing an em-dash. It's advisory, not
     // a stat the operator came to this screen to see.
-    port.getPasswordStatus().then((r) => setUsesDefaultPassword(r.usesDefaultPassword)).catch(() => {});
+    port.getPasswordStatus().then(setPasswordStatus).catch(() => {});
   }, []);
 
   return {
@@ -216,10 +217,14 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
     openPublishDialog: () => setIsPublishDialogOpen(true),
     closePublishDialog: () => setIsPublishDialogOpen(false),
 
-    showDefaultPasswordBanner: shouldShowDefaultPasswordBanner(usesDefaultPassword, dismissed),
+    showDefaultPasswordBanner: shouldShowDefaultPasswordBanner(
+      passwordStatus?.usesDefaultPassword ?? null,
+      passwordStatus !== null && dismissedBy === passwordStatus.principalId,
+    ),
     dismissDefaultPasswordBanner: () => {
-      writeDefaultPasswordBannerDismissed();
-      setDismissed(true);
+      if (passwordStatus === null) return;
+      writeDefaultPasswordBannerDismissedBy(passwordStatus.principalId);
+      setDismissedBy(passwordStatus.principalId);
     },
   };
 }
