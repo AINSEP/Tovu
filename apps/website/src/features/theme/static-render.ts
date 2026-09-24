@@ -297,7 +297,8 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
  * kept as inert text so its available children are not deleted along with it. A trashed section
  * heading should not silently take its whole subtree off the page.
  */
-/** The `<li>` class list: structural hooks first, then the item's own authored `cssClass`. */
+/** The `<li>` class list: structural hooks first, then the item's own authored `cssClass`. Raw —
+ *  the caller escapes it, since authored `cssClass` is admin-controlled attribute text. */
 function menuItemClasses(item: StaticMenuItem, depth: number): string {
   return [
     "menu-item",
@@ -347,7 +348,7 @@ function renderMenuItem(item: StaticMenuItem, depth: number): string {
   const linkable = item.available && item.href !== null;
   const children = item.children.length > 0 ? renderMenuTree(item.children, depth + 1) : "";
   if (!linkable && children === "") return "";
-  return `<li class="${menuItemClasses(item, depth)}">${menuItemBody(item, linkable)}${children}</li>`;
+  return `<li class="${escapeHtml(menuItemClasses(item, depth))}">${menuItemBody(item, linkable)}${children}</li>`;
 }
 
 function renderMenuTree(items: readonly StaticMenuItem[], depth = 0): string {

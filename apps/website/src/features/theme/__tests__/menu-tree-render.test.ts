@@ -246,6 +246,27 @@ test("tree path (menuItemBody): label/description (body sinks) and href/icon/rel
 });
 
 /**
+ * `attrs.cssClass` is the one authored attribute-context sink the test above does not cover: it lands
+ * in the `<li class="...">` list, and the docs-prev-next pager (`pages.ts`) concatenates it onto its
+ * own `docs-pager-*` hook — so a `"` in it closed the class attribute and injected a live handler.
+ */
+test("tree path (menuItemClasses): authored cssClass is HTML-escaped inside the <li> class attribute", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({ label: "Docs", href: "/docs", attrs: { cssClass: 'x" onmouseover="alert(1)' } }),
+    },
+  });
+
+  assert.ok(!html?.includes('onmouseover="alert(1)"'), `cssClass must not break out of the class attribute, got:\n${html}`);
+  assert.ok(
+    html?.includes('<li class="menu-item depth-0 x&quot; onmouseover=&quot;alert(1)">'),
+    `expected the exact escaped class list, got:\n${html}`
+  );
+});
+
+/**
  * The flat and tree paths call the exact same `escapeHtml()` on the two fields they share (label,
  * href) — this proves it end to end rather than trusting the source read, since this repo has THREE
  * render paths that are documented to diverge elsewhere (`reference_tovu_three_render_paths_diverge`)
