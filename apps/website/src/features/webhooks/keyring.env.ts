@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import type { KeyringPort } from "./ports.js";
+import type { SiteKeySource } from "./site-key-sources.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
@@ -108,6 +109,20 @@ export interface EnvOrFileKeyringOptions {
    * `allowFileAutoGenerate` setting) while this instance still never mints one on its own.
    */
   allowFileAutoGenerate?: boolean;
+  /**
+   * Site-key plan A.1 slice 1 (`site-key-sources.ts`). When set, resolution walks this ordered
+   * list instead of the hardcoded env-then-file precedence above - the first source whose material
+   * parses (via {@link parseRootKeyHex}) wins. `envVarName`/`keyFilePath` above are ignored for
+   * resolution once `sources` is given.
+   *
+   * No caller passes this yet (site-key plan Stage A3a wires the real boot path); this option
+   * exists so `site-key-ensure.ts` and future callers have a seam without a second parallel
+   * resolver. A `sources` list NEVER triggers auto-generation, regardless of
+   * `allowFileAutoGenerate` - minting is `ensureSiteKey`'s job now (site-key plan A.3), and a
+   * reader stays a reader: exhausting every source throws the same "no root key" shape the
+   * unconfigured case always has.
+   */
+  sources?: readonly SiteKeySource[];
 }
 
 /**
@@ -123,6 +138,7 @@ export class EnvOrFileKeyring implements KeyringPort {
   private readonly keyId: string;
   private readonly allowFileFallback: boolean;
   private readonly allowFileAutoGenerate: boolean;
+  private readonly sources: readonly SiteKeySource[] | undefined;
   private cachedRootKey: Buffer | undefined;
 
   constructor(options: EnvOrFileKeyringOptions = {}) {
@@ -131,6 +147,7 @@ export class EnvOrFileKeyring implements KeyringPort {
     this.keyId = options.keyId ?? "v1";
     this.allowFileFallback = options.allowFileFallback ?? true;
     this.allowFileAutoGenerate = options.allowFileAutoGenerate ?? this.allowFileFallback;
+    this.sources = options.sources;
   }
 
   async activeKey(): Promise<{ readonly keyId: string }> {
@@ -174,6 +191,11 @@ export class EnvOrFileKeyring implements KeyringPort {
   private resolveRootKey(): Buffer {
     if (this.cachedRootKey) return this.cachedRootKey;
 
+    if (this.sources) {
+      this.cachedRootKey = this.resolveRootKeyFromSources(this.sources);
+      return this.cachedRootKey;
+    }
+
     const fromEnv = process.env[this.envVarName];
     if (fromEnv) {
       this.cachedRootKey = this.parseEnvRootKey(fromEnv);
@@ -202,6 +224,41 @@ export class EnvOrFileKeyring implements KeyringPort {
     writeFileSync(this.keyFilePath, generated.toString("hex"), { mode: 0o600 });
     this.cachedRootKey = generated;
     return this.cachedRootKey;
+  }
+
+  /**
+   * The `sources`-driven counterpart to {@link resolveRootKey}'s hardcoded precedence (site-key
+   * plan §A.1 slice 1). Tries each source in order; the first one whose material is PRESENT wins —
+   * present-but-invalid still wins (and throws), it does not fall through to the next source, for
+   * the same reason the hardcoded path never silently skips a malformed env var: silently trying
+   * the next source could seal data under a DIFFERENT key than the operator thinks is active.
+   *
+   * Never auto-generates — a `sources` list is read-only regardless of `allowFileAutoGenerate`
+   * (see that option's doc above: minting a site key is `ensureSiteKey`'s job now).
+   *
+   * @throws {UnusableRootKeyError} The first present source's material fails {@link parseRootKeyHex}.
+   * @throws {Error} No source in the list has any material at all.
+   * @complexity O(n) in `sources.length`, each step at most one file read.
+   */
+  private resolveRootKeyFromSources(sources: readonly SiteKeySource[]): Buffer {
+    for (const source of sources) {
+      const raw = readSiteKeySourceMaterial(source);
+      if (raw === undefined) continue;
+      const parsed = parseRootKeyHex(raw);
+      if (parsed.ok) return Buffer.from(parsed.hex, "hex");
+      throw new UnusableRootKeyError({
+        source: source.kind === "env" ? "env" : "file",
+        reason: parsed.reason,
+        message: unusableRootKeyMessage({
+          subject: describeSiteKeySource(source),
+          detail: describeRootKeyRejection(parsed),
+          sealedWarningSubject: parsed.reason === "too-short" ? "this value" : undefined,
+        }),
+      });
+    }
+    throw new Error(
+      `no root key: none of the configured sources resolved (${sources.map(describeSiteKeySource).join(", ")})`
+    );
   }
 
   /** The env branch of {@link resolveRootKey}. Only a too-short value can have been accepted
@@ -240,6 +297,23 @@ export class EnvOrFileKeyring implements KeyringPort {
   }
 }
 
+/** {@link EnvOrFileKeyring.resolveRootKeyFromSources}'s raw read for one {@link SiteKeySource} —
+ *  `undefined` when that source has no material at all (unset env var, or a file that does not
+ *  exist), never validated here. Module-level (not a method) because it needs no instance state:
+ *  a `SiteKeySource` already carries everything it takes to read it. */
+function readSiteKeySourceMaterial(source: SiteKeySource): string | undefined {
+  if (source.kind === "env") {
+    return source.envVarName === undefined ? undefined : process.env[source.envVarName];
+  }
+  return source.path !== undefined && existsSync(source.path) ? readFileSync(source.path, "utf8") : undefined;
+}
+
+/** A short, human-readable name for a {@link SiteKeySource} — error messages and the "none of the
+ *  configured sources resolved" list only, never the material itself. */
+function describeSiteKeySource(source: SiteKeySource): string {
+  return source.kind === "env" ? `env var ${source.envVarName}` : `${source.kind} at ${source.path}`;
+}
+
 const HEX_KEY_PATTERN = /^[0-9a-f]+$/i;
 
 /** Why present root-key material was refused. `"too-short"` means valid hex of fewer than
@@ -248,7 +322,10 @@ const HEX_KEY_PATTERN = /^[0-9a-f]+$/i;
  *  below its own size (a truncated copy or partial write lands here). */
 export type RootKeyRejection = "empty" | "not-hex" | "odd-length" | "too-short";
 
-type ParsedRootKeyHex =
+/** {@link parseRootKeyHex}'s result. Exported so `site-key-ensure.ts` (site-key plan §A.2) can
+ *  classify per-site/adoptable material through the SAME validator this module's own resolution
+ *  and status functions use, rather than a second, independently-reasoned hex check. */
+export type ParsedRootKeyHex =
   | { readonly ok: true; readonly hex: string }
   | { readonly ok: false; readonly reason: RootKeyRejection; readonly hexDigits: number };
 
@@ -260,7 +337,7 @@ type ParsedRootKeyHex =
  *
  * @complexity O(n) in the value's length.
  */
-function parseRootKeyHex(raw: string): ParsedRootKeyHex {
+export function parseRootKeyHex(raw: string): ParsedRootKeyHex {
   const hex = raw.trim();
   if (hex.length === 0) return { ok: false, reason: "empty", hexDigits: 0 };
   if (!HEX_KEY_PATTERN.test(hex)) return { ok: false, reason: "not-hex", hexDigits: hex.length };
@@ -325,8 +402,12 @@ export class UnusableRootKeyError extends Error {
  * HKDF (different salt, different purpose, different output length) — this must never be
  * confused with a real derived secret, it exists purely for a human to recognize "same key as
  * before" across a page reload.
+ *
+ * Exported so `site-key-ensure.ts` (site-key plan §A.2) stamps the SAME 12-hex fingerprint this
+ * module's own status/reveal functions compute — one algorithm, not two independently-reasoned
+ * ones that could silently diverge.
  */
-function fingerprintRootKeyHex(hex: string): string {
+export function fingerprintRootKeyHex(hex: string): string {
   return createHash("sha256").update(Buffer.from(hex, "hex")).digest("hex").slice(0, 12);
 }
 

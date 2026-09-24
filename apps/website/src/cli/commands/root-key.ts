@@ -1,8 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import Database from "better-sqlite3";
-
 import {
   DEFAULT_ROOT_KEY_ENV_VAR_NAME,
   RootKeyFileAlreadyExistsError,
@@ -11,7 +9,8 @@ import {
   inspectRootKeyMaterial,
   type RootKeyStatus,
 } from "../../features/webhooks/keyring.env.js";
-import { resolveRuntimeMode, type RuntimeMode } from "../../contracts/core/runtime-mode.js";
+import { findKeyDependentData, planRootKeyEnsure } from "../../features/webhooks/site-key-ensure.js";
+import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { resolveSiteRoot } from "../../platform/site-dir/site-root.js";
 
 /**
@@ -28,6 +27,13 @@ import { resolveSiteRoot } from "../../platform/site-dir/site-root.js";
  * env-var/file precedence or hex validation, only the decision of WHETHER to mint a file and what
  * to print about it.
  *
+ * `planRootKeyEnsure`/`findKeyDependentData` themselves now live in
+ * `features/webhooks/site-key-ensure.ts` (site-key plan §A.2 — that module is `ensureSiteKey`'s
+ * home too, and the shared place for both decision tables); re-exported here so this command's own
+ * existing test suite (`cli/__tests__/unit/root-key-ensure.unit.test.ts`) keeps importing them by
+ * name from this module unchanged. This command itself is deleted in Stage A3b once `ensureSiteKey`
+ * is wired into every boot path.
+ *
  * Architectural role:
  * `cli` layer. The decision itself ({@link planRootKeyEnsure}) is a pure function over an
  * already-computed {@link RootKeyStatus}, runtime mode, and one boolean — kept separate from
@@ -35,103 +41,10 @@ import { resolveSiteRoot } from "../../platform/site-dir/site-root.js";
  * table is testable without touching a filesystem or process env at all.
  */
 
+export { findKeyDependentData, planRootKeyEnsure };
+
 const KEY_DEPENDENT_DATA_REFUSAL =
   "tovu: this site has saved credentials but its security key is missing. Set TOVU_INTEGRATIONS_ROOT_KEY (in .env or your shell) to the key they were saved with.";
-
-export type RootKeyEnsureAction = "noop" | "generate" | "refuse" | "invalid";
-
-export interface RootKeyEnsurePlan {
-  readonly action: RootKeyEnsureAction;
-}
-
-export interface PlanRootKeyEnsureInput {
-  /** A fresh {@link inspectRootKeyMaterial} read — never cached across calls (see that function's
-   *  own doc for why). */
-  readonly status: RootKeyStatus;
-  readonly mode: RuntimeMode;
-  /** Whether any in-scope site DB holds data only the CURRENT key can decrypt/verify
-   *  ({@link findKeyDependentData}) — irrelevant to every branch except `generate`, so a caller may
-   *  pass `false` unconditionally when `status.active || status.invalid` already short-circuits it. */
-  readonly siteDbsWithKeyData: boolean;
-}
-
-/**
- * Pure decision table for `tovu root-key ensure` (npm-start-just-works-plan decision 2). Order is
- * significant and mirrors the decision's own prose exactly:
- *
- * 1. An unreadable existing source (`status.invalid`) is reported before anything else — an
- *    invalid env var or file is never silently treated as absent, and never overwritten.
- * 2. An already-active key (env or file) is always a no-op — this command only ever fills a GAP.
- * 3. Outside local mode, this command never mints a key — production keeps its own, separate gate
- *    (`composition/deps.ts`'s `allowFileAutoGenerate: false`); nothing to report either way.
- * 4. In local mode with nothing configured, existing key-dependent data blocks a fresh generate —
- *    minting a new key here would permanently orphan credentials already sealed under the old one.
- * 5. Only once all four checks pass does this command mint a file.
- *
- * @complexity O(1) — a fixed sequence of boolean checks over already-computed inputs.
- */
-export function planRootKeyEnsure(input: PlanRootKeyEnsureInput): RootKeyEnsurePlan {
-  if (input.status.invalid) return { action: "invalid" };
-  if (input.status.active) return { action: "noop" };
-  if (input.mode !== "local") return { action: "noop" };
-  if (input.siteDbsWithKeyData) return { action: "refuse" };
-  return { action: "generate" };
-}
-
-/**
- * Whether any database in `dbPaths` holds data that only the CURRENT root key can decrypt or
- * verify — decision 2(c)'s guard against silently minting a fresh key that would orphan
- * already-sealed credentials. Checks every table whose schema mentions `sealed_ciphertext` (the
- * column all 13 sealed tables share) for a non-null row, plus `webhook_subscriptions` (signing
- * secrets derived from the root key, not stored under a `sealed_ciphertext` column at all).
- *
- * Fails closed: a database this function cannot open or query at all counts as "has data" — a
- * database it never got to inspect could hold sealed rows.
- *
- * @param dbPaths - `content.db` paths to scan. Each is opened read-only and closed before the
- *   next; never mutates any of them.
- * @complexity O(t) sqlite statements per database, where t is that database's matching table
- *   count — one `sqlite_master` scan plus one bounded `LIMIT 1` probe per matching table.
- */
-export function findKeyDependentData(dbPaths: readonly string[]): boolean {
-  return dbPaths.some((dbPath) => databaseHasKeyDependentData(dbPath));
-}
-
-/** One database's contribution to {@link findKeyDependentData} — isolated so a failure opening or
- *  querying THIS database can be caught and turned into "has data" without aborting the scan of
- *  the others. */
-function databaseHasKeyDependentData(dbPath: string): boolean {
-  let db: Database.Database;
-  try {
-    db = new Database(dbPath, { readonly: true, fileMustExist: true });
-  } catch {
-    return true;
-  }
-  try {
-    const sealedTables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE '%sealed_ciphertext%'")
-      .all() as { name: string }[];
-    for (const { name } of sealedTables) {
-      // `name` is quoted as an identifier (never interpolated as a value) — it comes from
-      // `sqlite_master` itself, this database's own schema, not external input.
-      const row = db.prepare(`SELECT 1 FROM "${name}" WHERE sealed_ciphertext IS NOT NULL LIMIT 1`).get();
-      if (row !== undefined) return true;
-    }
-
-    const hasWebhookTable = db
-      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'webhook_subscriptions'")
-      .get();
-    if (hasWebhookTable !== undefined) {
-      const row = db.prepare("SELECT 1 FROM webhook_subscriptions LIMIT 1").get();
-      if (row !== undefined) return true;
-    }
-    return false;
-  } catch {
-    return true;
-  } finally {
-    db.close();
-  }
-}
 
 /** Every sibling site's `content.db` under this install's `sites/` root
  *  (`path.dirname(resolveSiteRoot())/*\/content.db`) — not just the currently-active site, since

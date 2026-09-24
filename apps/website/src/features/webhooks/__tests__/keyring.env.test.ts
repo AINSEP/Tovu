@@ -13,6 +13,7 @@ import {
   RootKeyFileAlreadyExistsError,
   UnusableRootKeyError,
 } from "../keyring.env.js";
+import type { SiteKeySource } from "../site-key-sources.js";
 
 const ENV_VAR = "TOVU_TEST_INTEGRATIONS_ROOT_KEY";
 
@@ -557,6 +558,83 @@ test("a valid key file with a trailing newline is still usable — trimming whit
     const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR_TRAILING_NL", keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
     const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
     assert.equal(secret.length, 32);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Site-key plan §A.1 slice 1: `sources` overrides the hardcoded env-then-file
+// precedence. No real caller passes this yet (Stage A3a wires the boot path) —
+// these tests exercise the seam directly.
+// ---------------------------------------------------------------------------
+
+test("sources: the first source with material wins, later sources are never even read", async () => {
+  await withTempDir(async (dir) => {
+    const winningFile = join(dir, "winning.hex");
+    const neverReadFile = join(dir, "should-not-be-touched.hex");
+    const winningHex = "11".repeat(32);
+    writeFileSync(winningFile, winningHex, { mode: 0o600 });
+    // deliberately no file at neverReadFile
+
+    const sources: SiteKeySource[] = [
+      { kind: "per-site-file", path: winningFile },
+      { kind: "legacy-shared-file", path: neverReadFile },
+    ];
+    const keyring = new EnvOrFileKeyring({ sources });
+    const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
+    assert.equal(secret.length, 32);
+  });
+});
+
+test("sources: an env-kind source reads the named env var", async () => {
+  const envVarName = "TOVU_TEST_SOURCES_ENV";
+  process.env[envVarName] = "22".repeat(32);
+  try {
+    const sources: SiteKeySource[] = [{ kind: "env", envVarName }];
+    const keyring = new EnvOrFileKeyring({ sources });
+    const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
+    assert.equal(secret.length, 32);
+  } finally {
+    delete process.env[envVarName];
+  }
+});
+
+test("sources: a present-but-invalid source throws immediately — it does not fall through to the next source", async () => {
+  await withTempDir(async (dir) => {
+    const invalidFile = join(dir, "invalid.hex");
+    const neverReadFile = join(dir, "never-read.hex");
+    writeFileSync(invalidFile, "not-hex-at-all", { mode: 0o600 });
+    writeFileSync(neverReadFile, "33".repeat(32), { mode: 0o600 });
+
+    const sources: SiteKeySource[] = [
+      { kind: "per-site-file", path: invalidFile },
+      { kind: "legacy-shared-file", path: neverReadFile },
+    ];
+    const keyring = new EnvOrFileKeyring({ sources });
+    await assert.rejects(
+      () => keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }),
+      (err: unknown) => {
+        assert.ok(err instanceof UnusableRootKeyError);
+        assert.equal(err.source, "file");
+        assert.equal(err.reason, "not-hex");
+        return true;
+      }
+    );
+  });
+});
+
+test("sources: exhausting every source throws, and never auto-generates a file — a sources-based keyring stays a reader", async () => {
+  await withTempDir(async (dir) => {
+    const neverCreatedFile = join(dir, "never-created.hex");
+    const sources: SiteKeySource[] = [{ kind: "per-site-file", path: neverCreatedFile }];
+    // allowFileAutoGenerate defaults to true (allowFileFallback also defaults true) — proves
+    // `sources` overrides that default rather than inheriting it.
+    const keyring = new EnvOrFileKeyring({ sources });
+
+    await assert.rejects(
+      () => keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }),
+      /no root key: none of the configured sources resolved/
+    );
+    assert.equal(existsSync(neverCreatedFile), false, "a sources-based keyring must never mint a file itself");
   });
 });
 
