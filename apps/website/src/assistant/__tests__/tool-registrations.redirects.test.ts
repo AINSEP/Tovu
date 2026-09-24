@@ -355,6 +355,29 @@ test("redirects_import: every created row is source:'import', distinguishable fr
   assert.equal(result.created[0]?.source, "import");
 });
 
+test("redirects_import: every row lands under the caller's real workspace and actor, not per-row input — mirrors redirects_create's attribution", async () => {
+  const { deps, redirectRepo } = fakeRouteDeps();
+  await wired(deps, "redirects_import").handler(
+    executionContext({
+      rules: [
+        { matchType: "exact", fromPattern: "/attrib-1", toTarget: "/t1", statusCode: 301 },
+        { matchType: "exact", fromPattern: "/attrib-2", toTarget: "/t2", statusCode: 302 },
+      ],
+    }),
+  );
+
+  // Assert against the REAL stored records (toRedirectToolView deliberately drops workspaceId/
+  // actor attribution from the model-facing response — see this file's own header comment), so
+  // this checks the domain write, not an echo of the tool's input.
+  const stored = await redirectRepo.list({ workspaceId: WORKSPACE_ID });
+  const imported = stored.filter((r) => r.fromPattern === "/attrib-1" || r.fromPattern === "/attrib-2");
+  assert.equal(imported.length, 2);
+  for (const rule of imported) {
+    assert.equal(rule.workspaceId, WORKSPACE_ID, "row must carry the caller's real workspace id, not an omitted/undefined one");
+    assert.equal(rule.createdByPrincipal, PRINCIPAL_ID, "row must carry the caller's real principal id as actor, not an omitted/undefined one");
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 5. Multi-tool workflow
 // ---------------------------------------------------------------------------

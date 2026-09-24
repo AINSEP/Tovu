@@ -323,12 +323,14 @@ export function buildRedirectsRegistrations(
       const rules: CreateRedirectInput[] = input.rules.map((rule, index) => {
         if (!isRecord(rule)) throw new ToolInputError(`rules[${index}] must be an object`);
         return {
+          workspaceId: routeDeps.workspaceId,
           matchType: requireString(rule, "matchType") as RedirectMatchType,
           fromPattern: requireString(rule, "fromPattern"),
           toTarget: requireString(rule, "toTarget"),
           statusCode: requireNumber(rule, "statusCode") as RedirectStatusCode,
           override: optionalBoolean(rule, "override"),
           priority: optionalNumber(rule, "priority"),
+          actorId: ctx.principal.id,
         };
       });
 
