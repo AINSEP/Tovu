@@ -32,9 +32,9 @@ import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/ad
  * Owns the one HTTP-listen side effect this feature introduces, isolated from `site-dir` (which
  * has zero Express awareness) — port precedence (BR-02), the legacy-env-var-ignored warning
  * (BR-04/EC-08), the one boot-line log (api.spec.md §5), and graceful shutdown (BR-07). Also owns
- * the bind HOST (LAN-bind plan, 2026-09-23): defaults to loopback-only via `resolveBindHost`/
- * `bind-host.ts`, opt-in-widened by `TOVU_HOST`, with a stderr warning when the resolved host is
- * not loopback.
+ * the bind HOST (LAN-bind plan, 2026-09-23, BR-02a): defaults to loopback-only via
+ * `resolveBindHost`/`bind-host.ts`, opt-in-widened by `--host` (this file's own flag, which wins)
+ * or `TOVU_HOST`, with a stderr warning when the resolved host is not loopback.
  *
  * Architectural role:
  * `cli` layer. Never maps errors to exit codes itself (`cli/errors.ts`'s job) — lets `site-dir`
@@ -115,6 +115,13 @@ export interface RunServeCommandInput {
   dir: string;
   port?: string;
   workspaceId?: string;
+  /**
+   * IP address to bind (LAN-bind plan, 2026-09-23). Wins over `TOVU_HOST` — same precedence shape
+   * as `--port` over the `PORT` env var, and the same reason: an explicit flag on THIS invocation is
+   * a stronger signal than an ambient env var that might be stale or inherited from a parent shell.
+   * Unset means "defer to `TOVU_HOST`, then `DEFAULT_LOCAL_BIND_HOST`" — see `resolveBindHost`.
+   */
+  host?: string;
   /**
    * Print a single-use loopback boot token on stdout once the listener is up, for a launching
    * process to exchange for an admin session (`features/identity/boot-session-token.ts`). Default
@@ -271,7 +278,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
   // than after `bootSiteDir`'s migrations/side effects have already run.
-  const host = resolveBindHost(process.env, DEFAULT_LOCAL_BIND_HOST);
+  const host = resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST);
 
   const dbPath = path.join(target, "content.db");
   const deps = createSqliteRouteDeps(dbPath, {
@@ -391,11 +398,12 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
       console.log(`tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${bootResult.workspaceId}`);
       // AFTER the documented startup line, same ordering reason as the boot token above — a parser
       // treating that line as the ready signal must see it exactly as documented, unwidened by a
-      // second line ahead of it. LAN-bind plan (2026-09-23): this is the one place `TOVU_HOST`
-      // widening a `tovu serve` instance beyond loopback becomes visible to whoever started it.
+      // second line ahead of it. LAN-bind plan (2026-09-23): this is the one place `--host`/
+      // `TOVU_HOST` widening a `tovu serve` instance beyond loopback becomes visible to whoever
+      // started it.
       if (!isLoopbackHost(host)) {
         process.stderr.write(
-          `tovu serve: warning: listening on ${host ?? "all interfaces"}; this site is reachable from other machines on your network (TOVU_HOST)\n`
+          `tovu serve: warning: listening on ${host ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`
         );
       }
       resolve();

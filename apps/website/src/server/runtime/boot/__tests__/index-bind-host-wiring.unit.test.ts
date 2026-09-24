@@ -22,13 +22,14 @@ function readSource(): string {
   return fs.readFileSync(INDEX_TS_PATH, "utf8");
 }
 
-test("index.ts resolves TOVU_HOST via resolveBindHost(process.env, undefined) -- undefined is its OWN existing all-interfaces default, unchanged", () => {
+test("index.ts resolves TOVU_HOST via resolveBindHost(process.env.TOVU_HOST, undefined) -- undefined is its OWN existing all-interfaces default, unchanged", () => {
   const source = readSource();
   assert.ok(
-    source.includes("resolveBindHost(process.env, undefined)"),
-    "index.ts no longer resolves TOVU_HOST with resolveBindHost(process.env, undefined) -- deleting or " +
+    source.includes("resolveBindHost(process.env.TOVU_HOST, undefined)"),
+    "index.ts no longer resolves TOVU_HOST with resolveBindHost(process.env.TOVU_HOST, undefined) -- deleting or " +
       "rewording that call silently reverts every container/server boot to ignoring TOVU_HOST entirely " +
-      "(see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md)."
+      "(see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md). index.ts has no --host flag, so it passes " +
+      "the env value directly, unlike serve.ts's input.host ?? process.env.TOVU_HOST."
   );
 });
 

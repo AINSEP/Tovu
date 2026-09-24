@@ -47,6 +47,7 @@ dir:    { type: path, required: true, notes: "must not exist, or must be an empt
 ```yaml
 dir:        { type: path, required: true, notes: "must be a completed install dir (REQ-04)" }
 --port:     { type: integer, required: false, range: 1..65535, notes: "precedence per BR-02" }
+--host:     { type: string, required: false, notes: "IP literal only (net.isIP); precedence per BR-02a (LAN-bind plan 2026-09-23); wins over TOVU_HOST" }
 --workspace: { type: string, required: false, notes: "workspace id to serve; default: the oldest workspace by createdAt (amended 2026-07-29, B1 fix); VALIDATION if the id matches no row" }
 ```
 

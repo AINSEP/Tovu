@@ -3,16 +3,23 @@ import net from "node:net";
 import { ValidationError } from "../../../platform/site-dir/index.js";
 
 /**
- * @file The `TOVU_HOST` resolver shared by `tovu serve` (`cli/commands/serve.ts`) and the
- * container entry point (`index.ts`) — see
+ * @file The pure `--host`/`TOVU_HOST` resolver shared by `tovu serve` (`cli/commands/serve.ts`) and
+ * the container entry point (`index.ts`) — see
  * `ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md`'s Decision.
  *
  * Purpose:
  * Both boot paths call `app.listen(port, host)` with a HOST that used to be implicit — Node's own
  * default when no host argument is passed is `::` (dual-stack, every interface), so every listener
  * in the product was LAN-reachable unless it opted out individually (see the plan's Findings
- * table). This is the one place that turns an operator's `TOVU_HOST` env value into the second
- * argument `.listen()` actually wants, so both entry points agree on what the env var means.
+ * table). This is the one place that turns an operator's already-picked raw value into the second
+ * argument `.listen()` actually wants, so both entry points agree on what that value means.
+ *
+ * Why this takes the already-picked `raw` value, not an env object: `serve.ts` has a `--host` flag
+ * that must win over `TOVU_HOST` (same precedence shape as `resolveServePort`'s `--port`), so it
+ * computes `input.host ?? process.env.TOVU_HOST` itself before calling in; `index.ts` has no
+ * `--host` flag, so it passes `process.env.TOVU_HOST` directly. Keeping that precedence decision at
+ * each call site — rather than inside this resolver — is what lets `index.ts` stay a one-input
+ * caller instead of also depending on a CLI flag it does not have.
  *
  * Why `"::"` resolves to `undefined`, not the literal string: Node's `.listen(port, host)` already
  * falls back to `::` (with an IPv4 fallback to `0.0.0.0` on hosts without IPv6) when `host` is
@@ -27,47 +34,47 @@ import { ValidationError } from "../../../platform/site-dir/index.js";
  * plan). A server bound to the IP literal `127.0.0.1` refuses a Node client that dials the hostname
  * `localhost` and gets `::1` first — browsers and curl fall back to IPv4 and never notice, but
  * every desktop and test client here already dials `127.0.0.1` literally. Accepting `localhost` as
- * a `TOVU_HOST` value would look like it works (a browser hitting it would connect fine) while
- * quietly breaking every one of those literal-IP clients. Restricting `TOVU_HOST` to `net.isIP`
+ * a `--host`/`TOVU_HOST` value would look like it works (a browser hitting it would connect fine)
+ * while quietly breaking every one of those literal-IP clients. Restricting this to `net.isIP`
  * literals makes that trap unreachable instead of documenting around it.
  *
  * Architectural role:
- * Pure — no `process.env` read inside the resolver itself, and no side effect. Both call sites pass
- * `process.env` explicitly, so this stays directly testable and never disagrees with a caller that
- * injects a different env (as `serve.ts`'s own `resolveServePort` already does for `PORT`).
+ * Pure — no `process.env` or `process.argv` read inside the resolver itself, and no side effect.
+ * Both call sites resolve their own raw value and pass it in explicitly, so this stays directly
+ * testable and never disagrees with a caller that injects a different value (as `serve.ts`'s own
+ * `resolveServePort` already does for `PORT`).
  */
 
 /** `tovu serve`'s own default: loopback-only, so a locally run or desktop-spawned site is never
- *  reachable from another machine on the network unless `TOVU_HOST` opts in. */
+ *  reachable from another machine on the network unless `--host`/`TOVU_HOST` opts in. */
 export const DEFAULT_LOCAL_BIND_HOST = "127.0.0.1";
 
 /**
- * Resolves the host argument for `.listen(port, host)` from `TOVU_HOST`, falling back to `fallback`
- * when the env var is unset or blank.
+ * Resolves the host argument for `.listen(port, host)` from the already-picked raw value, falling
+ * back to `fallback` when that value is absent or blank.
  *
- * @param env - the environment to read `TOVU_HOST` from (always `process.env` at the real call
- *   sites; injected so this stays testable without mutating the test runner's own environment).
- * @param fallback - what to return when `TOVU_HOST` is absent: `serve.ts` passes
- *   `DEFAULT_LOCAL_BIND_HOST`, `index.ts` passes `undefined` (its own existing all-interfaces
- *   default, unchanged).
- * @throws {ValidationError} when `TOVU_HOST` is set to something that is not an IP literal and not
- *   blank — exact wording: `TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got
- *   "<value>")`.
- * @complexity O(1) — one env read, one `net.isIP` check.
+ * @param raw - the `--host` flag value if present, else the `TOVU_HOST` env value, else `undefined`
+ *   — precedence is the caller's job (see this file's header). Always a plain string or `undefined`;
+ *   never an env object.
+ * @param fallback - what to return when `raw` is absent: `serve.ts` passes `DEFAULT_LOCAL_BIND_HOST`,
+ *   `index.ts` passes `undefined` (its own existing all-interfaces default, unchanged).
+ * @throws {ValidationError} when `raw` is set to something that is not an IP literal and not
+ *   blank — exact wording: `--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0
+ *   (got "<value>")`.
+ * @complexity O(1) — one `net.isIP` check.
  */
-export function resolveBindHost(env: NodeJS.ProcessEnv, fallback: string | undefined): string | undefined {
-  const raw = env.TOVU_HOST;
+export function resolveBindHost(raw: string | undefined, fallback: string | undefined): string | undefined {
   if (raw === undefined) return fallback;
 
   const trimmed = raw.trim();
   if (trimmed === "") return fallback;
 
   // Node's own `.listen()` default for "no host restriction" — see this file's header for why this
-  // collapses onto the same path as an unset TOVU_HOST rather than being passed through as a string.
+  // collapses onto the same path as an absent raw value rather than being passed through as a string.
   if (trimmed === "::") return undefined;
 
   if (net.isIP(trimmed) === 0) {
-    throw new ValidationError(`TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "${trimmed}")`);
+    throw new ValidationError(`--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "${trimmed}")`);
   }
 
   return trimmed;
@@ -76,8 +83,8 @@ export function resolveBindHost(env: NodeJS.ProcessEnv, fallback: string | undef
 /**
  * Whether a resolved bind host is loopback-only (never reachable from another machine).
  *
- * Backs the non-loopback stderr warning `tovu serve` prints when `TOVU_HOST` widens exposure —
- * every OTHER value, including `undefined` (all interfaces) and `0.0.0.0`, is treated as
+ * Backs the non-loopback stderr warning `tovu serve` prints when `--host`/`TOVU_HOST` widens
+ * exposure — every OTHER value, including `undefined` (all interfaces) and `0.0.0.0`, is treated as
  * network-reachable and worth warning about.
  *
  * @complexity O(1).

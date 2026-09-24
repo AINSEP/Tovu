@@ -38,7 +38,7 @@ const useMemory = process.env.TOVU_DB === "memory";
 // interface; Docker, compose, Fly and Render all run this file). `TOVU_HOST` now lets an operator
 // narrow it, the same resolver `tovu serve` uses (`cli/commands/serve.ts`) for its own, opposite,
 // default.
-const bindHost = resolveBindHost(process.env, undefined);
+const bindHost = resolveBindHost(process.env.TOVU_HOST, undefined);
 
 // Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — resolved from
 // `import.meta.dirname` (this file's own compiled/tsx-run location: `apps/website/src`), not
