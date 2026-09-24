@@ -465,6 +465,18 @@ describe("ceremony: idle -> planned -> confirmed -> done", () => {
     expect(screen.getByRole("button", { name: "Execute restore" })).toBeInTheDocument();
   });
 
+  // agent-proof-live-buttons pass (2026-09-24), same fix as a022eafaa (Publish confirm): Jini's
+  // `createDomPageDriver.click` clicks any `[data-agent-element]`, so this button carrying one let
+  // the chat assistant run a real, unrecoverable restore with no human click. Only a person may
+  // press Execute — the earlier "Continue to confirm"/"Confirm restore" steps keep their handles
+  // since neither one restores anything yet.
+  it("the Execute restore button carries no agent handle (an agent can't run the restore)", async () => {
+    await confirmed();
+    const executeButton = screen.getByRole("button", { name: "Execute restore" });
+    expect(executeButton.hasAttribute("data-agent-element")).toBe(false);
+    expect(document.querySelector('[data-agent-element="recovery-restore-execute"]')).toBeNull();
+  });
+
   it("disables the active step's button and shows its busy label while the request is in flight", async () => {
     const user = userEvent.setup();
     await renderFlowWithDisclosure();

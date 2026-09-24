@@ -362,7 +362,8 @@ function ConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => 
         className="btn-warning"
         onClick={props.onExecute}
         disabled={props.busy}
-        {...agentHandle("database-migrate-execute", { role: "button", label: "Execute the confirmed migration now" })}
+        // No agent handle: this runs the migration now; only a person may press it — see
+        // agent-proof-live-buttons pass, same as a022eafaa (Publish confirm).
       >
         {props.busy ? t(props.locale, "Migrating…") : t(props.locale, "Execute migration")}
       </button>

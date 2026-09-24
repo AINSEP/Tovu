@@ -384,6 +384,17 @@ describe("MigrateForwardSection — idle/planned/confirmed/done", () => {
     expect(c.migrateForward.doExecute).toHaveBeenCalledTimes(1);
   });
 
+  // agent-proof-live-buttons pass (2026-09-24), same fix as a022eafaa (Publish confirm): Jini's
+  // `createDomPageDriver.click` clicks any `[data-agent-element]`, so this button carrying one let
+  // the chat assistant run a real forward migration with no human click. Only a person may press
+  // Execute — Plan and Confirm keep their handles since neither one migrates anything yet.
+  it("the Execute migration button carries no agent handle (an agent can't run the migration)", () => {
+    renderDatabase({ migrateForward: { step: "confirmed", confirmationToken: "tok1" } });
+    const executeButton = screen.getByRole("button", { name: "Execute migration" });
+    expect(executeButton.hasAttribute("data-agent-element")).toBe(false);
+    expect(document.querySelector('[data-agent-element="database-migrate-execute"]')).toBeNull();
+  });
+
   it("done: shows the success status message only when done is also true", () => {
     renderDatabase({ migrateForward: { step: "done", done: true } });
     expect(screen.getByRole("status")).toHaveTextContent("Migration executed successfully.");

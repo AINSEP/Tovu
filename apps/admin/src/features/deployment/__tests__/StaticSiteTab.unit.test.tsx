@@ -975,13 +975,23 @@ describe("StaticSiteTab — AI agent tagging", () => {
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-repo"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-project-name"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-preview"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-publish-trigger"]')).toBeInTheDocument();
   });
 
   it("tags both cards' load-error notices for the AI agent", () => {
     renderTab({ exportController: { loadError: "x" }, publishController: { loadError: "y" } });
     expect(document.querySelector('[data-agent-element="deployment-static-site-export-load-error"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-load-error"]')).toBeInTheDocument();
+  });
+
+  // agent-proof-live-buttons pass (2026-09-24), same fix as a022eafaa (Publish confirm): Jini's
+  // `createDomPageDriver.click` clicks any `[data-agent-element]`, so this button carrying one let
+  // the chat assistant publish the site export live with no human click. Only a person may press
+  // Publish — Preview keeps its handle since previewing doesn't publish anything.
+  it("the Publish (trigger) button carries no agent handle (an agent can't publish the site)", () => {
+    renderTab();
+    const publishButton = screen.getByRole("button", { name: "Publish" });
+    expect(publishButton.hasAttribute("data-agent-element")).toBe(false);
+    expect(document.querySelector('[data-agent-element="deployment-static-site-publish-trigger"]')).toBeNull();
   });
 });
 

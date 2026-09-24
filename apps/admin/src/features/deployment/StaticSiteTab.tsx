@@ -1422,7 +1422,8 @@ function PublishTriggerAction({
         type="button"
         disabled={!canPublish || busy || credentialChangePending}
         onClick={() => void controller.publish(chosenCredentialId !== undefined ? { credentialId: chosenCredentialId } : {})}
-        {...agentHandle("deployment-static-site-publish-trigger", { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
+        // No agent handle: this publishes the site live with no draft/review step; only a person
+        // may press it — see agent-proof-live-buttons pass, same as a022eafaa (Publish confirm).
       >
         {busy ? translate("Publishing…") : translate("Publish")}
       </button>
