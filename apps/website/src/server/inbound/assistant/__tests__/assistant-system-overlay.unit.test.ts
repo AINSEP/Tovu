@@ -129,7 +129,7 @@ test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the se
 // production cwd that contains sites/.tovu, so its built-in Read/Grep/Glob would otherwise walk
 // straight past the fs-files denylist. Grep and Glob honour Read() deny rules; `//` is an absolute
 // pattern, so `//**/.tovu/**` covers the folder at any depth, cwd or home alike.
-test("ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, in home, on any *root-key*.hex, and on /proc", () => {
+test("ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, in home, on any *root-key*.hex, on /proc, and on the .env family", () => {
   assert.deepEqual(
     ASSISTANT_DISALLOWED_TOOLS.filter((rule) => rule.includes("(")).sort(),
     [
@@ -137,6 +137,8 @@ test("ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, i
       "Read(~/.tovu/**)",
       "Read(//**/*root-key*.hex)",
       "Read(//proc/**)",
+      "Read(//**/.env)",
+      "Read(//**/.env.*)",
     ].sort(),
   );
 });

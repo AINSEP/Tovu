@@ -97,6 +97,12 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "Read(~/.tovu/**)",
   "Read(//**/*root-key*.hex)",
   "Read(//proc/**)",
+  // Owner ruling 2026-09-24: no chat agent CLI may read the key file, and dev keeps the key in a
+  // repo-root `.env` line (`TOVU_INTEGRATIONS_ROOT_KEY=`) that IS the CLI's own cwd — a gap the
+  // three denies above never covered. `.env` and `.env.*` (`.env.local`, `.env.bak-before-forbid-
+  // bash`, etc.) are denied the same way: Read stays allowed everywhere else.
+  "Read(//**/.env)",
+  "Read(//**/.env.*)",
 ];
 
 /**
