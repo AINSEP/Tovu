@@ -36,3 +36,23 @@ test("taxonomy_assign_terms: a non-array 'termIds' is a ToolInputError (400), no
     },
   );
 });
+
+// Mirrors the assign-side fix above, same defect shape, same production wiring (`createRouteDeps()`
+// — the real `SqliteEntryTermRepo`, not an in-memory double) — see that test's own file comment.
+test("taxonomy_unassign_terms: a non-array 'termIds' is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const deps = createRouteDeps() as unknown as TaxonomyToolDeps;
+  const registration = buildTaxonomyRegistrations(deps).find((r) => r.descriptor.id === "taxonomy_unassign_terms");
+  assert.ok(registration, "expected taxonomy_unassign_terms to be wired");
+
+  await assert.rejects(
+    () =>
+      registration.handler(
+        ctxWithInput({ contentType: "post", contentId: "p1", termIds: "not-an-array" }),
+      ),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      assert.match((err as Error).message, /'termIds' \(string array\) is required/);
+      return true;
+    },
+  );
+});

@@ -1,9 +1,9 @@
 /**
- * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044): maps `agent-tools.ts`'s 7 catalog
+ * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044): maps `agent-tools.ts`'s 8 catalog
  * entries onto `write-service.ts`'s ordinary mutations, `list.ts`'s read, and `merge-term.ts`'s
  * plan-only slice of the gated-mutation ceremony, as `ToolRegistration`s.
  *
- * Scope: 6 of 7 catalog entries are wired. `taxonomy_execute_merge_term` is declared unwired — see
+ * Scope: 7 of 8 catalog entries are wired. `taxonomy_execute_merge_term` is declared unwired — see
  * `agent-tools.ts`'s own header for the full `mergeTerm` safety analysis (destructive, agent-cannot-
  * confirm by the gateway's own actor-class rule, no confirmation transport exists anyway).
  *
@@ -53,6 +53,7 @@ import {
   planMergeTerm,
   toTaxonomyOutbox,
   assignTerms,
+  unassignTerms,
   createTaxonomy,
   createTerm,
   renameTerm,
@@ -62,6 +63,7 @@ import {
   type TaxonomyRepoPort,
   type TaxonomyRevisionRepoPort,
   type TermRepoPort,
+  type UnassignableEntryTermRepoPort,
   type WriteServiceDeps,
 } from "./index.js";
 
@@ -83,7 +85,7 @@ export interface TaxonomyToolDeps {
   idGen: { newId(): string };
   taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort;
   termRepo: TermRepoPort & TermListPort;
-  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort;
+  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & UnassignableEntryTermRepoPort;
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /** Passed wholesale to `repo.memory.ts`'s `toTaxonomyOutbox` adapter, which reads this field plus
    * `clock`/`idGen` off the same bag rather than taking a pre-built outbox — see that function's own
@@ -126,6 +128,9 @@ export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   // -> assignTerms (write-service.ts): entryTerms.upsert per termId (INV-05: no revision row, see
   //    that function's own doc comment for the disclosed narrowing this implements).
   ["taxonomy_assign_terms", "mutates-durable-state"],
+  // -> unassignTerms (write-service.ts): entryTerms.remove per termId — same INV-05 no-revision-row
+  //    narrowing as assignTerms (that function's own doc comment discloses it applies equally here).
+  ["taxonomy_unassign_terms", "mutates-durable-state"],
   // -> gateway.ts's plan() via buildMergeTermHooks: authorizes, then recomputes a plan and returns
   //    it — verified directly against plan()'s own body, which persists nothing (AC-10).
   ["taxonomy_plan_merge_term", "none"],
@@ -201,6 +206,29 @@ export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolReg
 
       await assignTerms({ deps: taxonomyDeps(routeDeps), principalId: ctx.principal.id, contentType, contentId, termIds });
       return { contentType, contentId, assignedTermIds: termIds };
+    },
+
+    taxonomy_unassign_terms: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const contentType = requireString(input, "contentType");
+      const contentId = requireString(input, "contentId");
+      if (!Array.isArray(input.termIds) || !input.termIds.every((id: unknown) => typeof id === "string")) {
+        throw new ToolInputError("'termIds' (string array) is required");
+      }
+      const termIds = input.termIds as string[];
+
+      // `taxonomyDeps(routeDeps)` is typed as the base `WriteServiceDeps` (its `entryTerms` narrowed
+      // to plain `EntryTermRepoPort`), but `unassignTerms` needs the `UnassignableEntryTermRepoPort`
+      // capability too — override `entryTerms` back to `routeDeps.entryTermRepo`'s own wider type
+      // rather than widening `taxonomyDeps`'s return type for every OTHER handler that doesn't need it.
+      await unassignTerms({
+        deps: { ...taxonomyDeps(routeDeps), entryTerms: routeDeps.entryTermRepo },
+        principalId: ctx.principal.id,
+        contentType,
+        contentId,
+        termIds,
+      });
+      return { contentType, contentId, unassignedTermIds: termIds };
     },
 
     taxonomy_plan_merge_term: async (ctx) => {

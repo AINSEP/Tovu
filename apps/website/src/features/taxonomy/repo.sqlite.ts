@@ -15,6 +15,7 @@ import type {
   Term,
   TermListPort,
   TermRepoPort,
+  UnassignableEntryTermRepoPort,
 } from "./index.js";
 
 /**
@@ -354,7 +355,7 @@ export interface EntryTermReadPort {
   listForContent(params: { contentType: string; contentId: string }): Promise<readonly AssignedTermView[]>;
 }
 
-export class SqliteEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort {
+export class SqliteEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort, UnassignableEntryTermRepoPort {
   constructor(private readonly deps: { db: ContentDb; workspaceId: string }) {}
 
   /** Idempotent upsert keyed by `entry_terms_unique` (`workspaceId`, `contentType`, `contentId`,
@@ -383,6 +384,25 @@ export class SqliteEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort
           eq(entryTerms.workspaceId, params.workspaceId),
           eq(entryTerms.contentType, params.contentType),
           eq(entryTerms.contentId, params.contentId)
+        )
+      )
+      .run();
+    return Number(result.changes ?? 0);
+  }
+
+  /** `UnassignableEntryTermRepoPort` (`@jini-ai/cms/taxonomy`) — additive capability for
+   * `unassignTerms`. Returns the number of rows actually removed (0 or 1, given
+   * `entry_terms_unique`'s `(workspaceId, contentType, contentId, termId)` uniqueness) rather than
+   * throwing on a no-op — mirrors `deleteByContent`'s own "return the removed count" convention. */
+  async remove(row: { contentType: string; contentId: string; termId: string }): Promise<number> {
+    const result = this.deps.db
+      .delete(entryTerms)
+      .where(
+        and(
+          eq(entryTerms.workspaceId, this.deps.workspaceId),
+          eq(entryTerms.contentType, row.contentType),
+          eq(entryTerms.contentId, row.contentId),
+          eq(entryTerms.termId, row.termId)
         )
       )
       .run();
