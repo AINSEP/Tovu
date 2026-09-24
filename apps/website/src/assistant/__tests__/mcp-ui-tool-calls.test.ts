@@ -143,7 +143,6 @@ const EXPECTED_ALLOWLIST = [
   "identity_role_assign",
   "identity_role_delete",
   "identity_user_create",
-  "media_generate_asset",
   "media_trash_asset",
   "plugins_set_enabled",
   "plugins_uninstall",
