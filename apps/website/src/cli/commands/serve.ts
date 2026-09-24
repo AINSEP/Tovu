@@ -16,6 +16,7 @@ import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoRootKeyAtBoot } from "../../server/runtime/boot/root-key-boot-notice.js";
+import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
@@ -289,6 +290,12 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
   pinServedSiteDirIntoEnv(target);
   pinPlainHttpIntoEnv();
+  // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
+  // see `ensureSiteKeyForBoot`'s own header). Result is discarded — no caller here needs it, same
+  // "safe to call on every boot" framing `ensureSiteKey` itself documents. Must precede
+  // `createSqliteRouteDeps` below, which is what actually resolves the root key this may have just
+  // adopted or minted.
+  ensureSiteKeyForBoot({ siteDir: target });
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   const port = resolveServePort(input, bootResult.config);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot

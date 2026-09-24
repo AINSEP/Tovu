@@ -5,6 +5,7 @@ import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server
 import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoRootKeyAtBoot } from "./server/runtime/boot/root-key-boot-notice.js";
+import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "./server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js";
@@ -269,6 +270,11 @@ async function main(): Promise<void> {
   warnIfNoRootKeyAtBoot();
 
   if (!useMemory) guardContentDbSchemaOrExit(defaultContentDbPath());
+  // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
+  // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
+  // `createSqliteRouteDeps` below, which is what actually resolves the root key this may have just
+  // adopted or minted.
+  if (!useMemory) ensureSiteKeyForBoot({ siteDir: siteDir() });
 
   const deps = useMemory ? createRouteDeps() : createSqliteRouteDeps();
 

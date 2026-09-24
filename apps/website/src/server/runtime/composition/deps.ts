@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
@@ -99,6 +100,7 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navi
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
+import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
@@ -1430,6 +1432,23 @@ export function createSqliteRouteDeps(
   // returns, only when it is first read.
   const runtimeMode = resolveRuntimeMode();
 
+  // site-key plan §A3a: both root-key-backed keyrings below need this site's own ordered source
+  // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
+  // `site-key-sources.ts`). Computed once, here, rather than per-keyring: `dbPath !== ":memory:" ?
+  // dirname(dbPath) : undefined` is the SAME "every real boot path keeps content.db in its site
+  // directory" pattern `createSiteDisplayNameSource` above already relies on, so a `:memory:` boot
+  // (no site directory at all) correctly resolves no `siteKeyId` and therefore no per-site
+  // candidate, exactly like every other site-directory-derived read in this file.
+  const siteDirForKeyring = dbPath !== ":memory:" ? dirname(dbPath) : undefined;
+  const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
+  const siteKeySourcesList = siteKeySources({
+    mode: runtimeMode,
+    env: process.env,
+    home: homedir(),
+    cwd: process.cwd(),
+    siteKeyId: siteKeyIdForKeyring,
+  });
+
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
   // returned `memberRepo` field exposes, and `newsletterKeyring` is the ONE process-lifetime
@@ -1471,7 +1490,22 @@ export function createSqliteRouteDeps(
   // does, so no startup or first-run path depended on the mint. This instance still READS an
   // existing file; with no env var and no file, a local unsubscribe request now fails closed.
   const memberRepo = new SqliteMemberRepo(db);
-  const newsletterKeyring = new EnvOrFileKeyring({ allowFileFallback: runtimeMode !== "production", allowFileAutoGenerate: false });
+  // site-key plan §A3a: `sources` is threaded in ONLY outside production (`siteKeySourcesList` is
+  // computed once, above). Passing it unconditionally would make `resolveRootKey()` take the
+  // `sources`-driven early-return branch (`keyring.env.ts`'s own `if (this.sources)` check) and
+  // never consult `allowFileFallback` again — silently ADDING a file fallback for
+  // webhook-signing/newsletter-token material in production, which the `allowFileFallback:
+  // runtimeMode !== "production"` line immediately below exists specifically to deny. Kept as a
+  // separate `undefined`-in-production local (rather than a nested object literal inside the
+  // `EnvOrFileKeyring({...})` call below) so `production-readiness-boot.integration.test.ts`'s two
+  // source-text regression tests — which scan for `allowFileFallback`/`allowFileAutoGenerate` via a
+  // `[^}]*` pattern that cannot cross a nested `{`/`}` — keep matching this construction unchanged.
+  const newsletterKeyringSources = runtimeMode !== "production" ? siteKeySourcesList : undefined;
+  const newsletterKeyring = new EnvOrFileKeyring({
+    allowFileFallback: runtimeMode !== "production",
+    allowFileAutoGenerate: false,
+    sources: newsletterKeyringSources,
+  });
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
   const newsletterHooks = createHookRegistry();
 
@@ -1499,7 +1533,16 @@ export function createSqliteRouteDeps(
   // this change, not an oversight: it trades some of ADR-058's original defense-in-depth for the
   // ability to run without `fly secrets set` at all. See `ADS-memory/reports/
   // 2026-09-09-security-site-token.md` for the full tradeoff writeup.
-  const siteAssistantSecretKeyring = new EnvOrFileKeyring({ allowFileFallback: true, allowFileAutoGenerate: false });
+  // site-key plan §A3a: `sources` is threaded in UNCONDITIONALLY (both modes) — safe and
+  // behavior-preserving in production, since `siteKeySourcesList`'s production branch is exactly
+  // `[env, legacy-volume-file]`, the same env-then-`defaultRootKeyFilePath()` precedence this
+  // instance's own default (non-`sources`) resolution already used (`site-key-sources.ts`'s
+  // `legacyVolumeFilePath` doc: "the production durable-volume path ... reused here unchanged").
+  const siteAssistantSecretKeyring = new EnvOrFileKeyring({
+    allowFileFallback: true,
+    allowFileAutoGenerate: false,
+    sources: siteKeySourcesList,
+  });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one
