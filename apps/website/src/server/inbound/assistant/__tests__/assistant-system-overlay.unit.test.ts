@@ -108,7 +108,7 @@ test("neither overlay names a coverage percentage — a hardcoded retrieval numb
 // these pin its exact contents against silent drift, since a caller reads this array by reference.
 test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the security report flagged as dangerous and unused", () => {
   assert.deepEqual(
-    [...ASSISTANT_DISALLOWED_TOOLS].sort(),
+    ASSISTANT_DISALLOWED_TOOLS.filter((rule) => !rule.includes("(")).sort(),
     [
       "Bash",
       "CronCreate",
@@ -121,6 +121,22 @@ test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the se
       "Task",
       "Workflow",
       "Write",
+    ].sort(),
+  );
+});
+
+// Owner rule: the agent must never read the root key. The CLI runs under bypassPermissions with a
+// production cwd that contains sites/.tovu, so its built-in Read/Grep/Glob would otherwise walk
+// straight past the fs-files denylist. Grep and Glob honour Read() deny rules; `//` is an absolute
+// pattern, so `//**/.tovu/**` covers the folder at any depth, cwd or home alike.
+test("ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, in home, on any *root-key*.hex, and on /proc", () => {
+  assert.deepEqual(
+    ASSISTANT_DISALLOWED_TOOLS.filter((rule) => rule.includes("(")).sort(),
+    [
+      "Read(//**/.tovu/**)",
+      "Read(~/.tovu/**)",
+      "Read(//**/*root-key*.hex)",
+      "Read(//proc/**)",
     ].sort(),
   );
 });

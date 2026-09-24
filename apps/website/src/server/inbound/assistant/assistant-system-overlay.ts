@@ -87,6 +87,16 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "ExitWorktree",
   "RemoteTrigger",
   "Workflow",
+  // Owner rule: the agent never reads the root key. `Read` stays allowed everywhere else, but the
+  // CLI runs under bypassPermissions with a cwd that holds `sites/.tovu`, so these path denies are
+  // what keep its built-in Read/Grep/Glob off the key (Grep and Glob honour `Read()` denies). `//`
+  // anchors at the filesystem root, so `//**/.tovu/**` covers the folder at any depth; `/proc` is
+  // the Linux `/proc/<pid>/environ` route to the env-held key. Confirmed live on Claude Code
+  // 2.1.281 under bypassPermissions: Read refused, Grep/Glob return no match on the denied files.
+  "Read(//**/.tovu/**)",
+  "Read(~/.tovu/**)",
+  "Read(//**/*root-key*.hex)",
+  "Read(//proc/**)",
 ];
 
 /**
