@@ -19,6 +19,7 @@ import type { MarkerAttribute } from "#src/contracts/core/embeds/marker";
 import { parseEmbedHtmlAttributes } from "#src/contracts/core/embeds/html-attributes";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
 import { mediaPublicPath, mediaUrlKey } from "#src/features/media/index";
+import { safeAspectRatio, safeTextAlign } from "#src/platform/html/style-values";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
 import { FORM_BASELINE_STYLE, FORM_CLASS, renderFormSuccessSlot, renderFormErrorSlot } from "./form-render.js";
@@ -1006,10 +1007,17 @@ function dedupeHeadingIds(html: string): string {
  * omit rather than emit a no-op" convention {@link renderImageTag}'s width/height/class already
  * follow.
  *
+ * Goes through {@link safeTextAlign}'s fixed keyword allowlist, not `escapeHtml` — `escapeHtml`
+ * stops the value from breaking OUT of the `style="…"` attribute (a stray `"`), but a value that
+ * stays inside the quotes and smuggles a second declaration (`"center;position:fixed"`) passes
+ * `escapeHtml` completely unchanged. `architecture-p2-plan-2026-09-24.md` §D3.
+ *
  * @complexity O(1).
  */
 function styleForAlign(align: string | null): string {
-  return align && align !== "left" ? ` style="text-align:${escapeHtml(align)}"` : "";
+  if (align === null) return "";
+  const safe = safeTextAlign(align);
+  return safe ? ` style="text-align:${safe}"` : "";
 }
 
 /** {@link styleForAlign} read directly off a doc node's own `attrs.textAlign` — the `paragraph` and
@@ -1963,10 +1971,18 @@ function obj(value: JsonValue | undefined): JsonObject | undefined {
   return isObject(value) ? value : undefined;
 }
 
-/** A labelled aspect-ratio box standing in for an image (no asset pipeline yet). */
+/**
+ * A labelled aspect-ratio box standing in for an image (no asset pipeline yet).
+ *
+ * `ratio` goes through {@link safeAspectRatio}'s numeric-shape allowlist rather than `escapeHtml`:
+ * `escapeHtml` only stops the value from breaking out of the `style="…"` attribute, not from
+ * smuggling a second declaration while staying inside it (`"1;background:url(//evil.example)"`).
+ * An unrecognized shape falls back to the same `"16 / 9"` default an absent `ratio` already used.
+ * `architecture-p2-plan-2026-09-24.md` §D3.
+ */
 function mediaPlaceholder(props: JsonObject): string {
   const label = escapeHtml(str(props.label, "Image"));
-  const ratio = escapeHtml(str(props.ratio, "16 / 9"));
+  const ratio = safeAspectRatio(str(props.ratio, "")) ?? "16 / 9";
   return `<figure class="media-ph" style="aspect-ratio:${ratio}"><span class="media-ph__label">${label}</span></figure>`;
 }
 

@@ -2618,6 +2618,69 @@ test("renderDocNode: no textAlign attr at all renders exactly as before this fea
 });
 
 // ---------------------------------------------------------------------------
+// CSS injection via textAlign/ratio (architecture-p2-plan-2026-09-24 §D3) —
+// `escapeHtml` alone stops attribute BREAKOUT, not a value that stays inside
+// the `style="…"` quotes and smuggles a second declaration. `styleForAlign`
+// and `mediaPlaceholder` now allowlist through `safeTextAlign`/`safeAspectRatio`
+// (platform/html/style-values.ts) instead of escaping-and-emitting whatever a
+// doc node's attrs carry.
+// ---------------------------------------------------------------------------
+
+test("renderDocNode: a textAlign value that smuggles a second CSS declaration emits no style attribute at all, not an escaped copy of the payload", () => {
+  const centerPayload = renderDocNode({
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { textAlign: "center;position:fixed" }, content: [{ type: "text", text: "Hi" }] }],
+  });
+  assert.equal(centerPayload, "<p>Hi</p>");
+  assert.doesNotMatch(centerPayload, /position/);
+
+  const leftPayload = renderDocNode({
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { textAlign: "left;background:url(x)" }, content: [{ type: "text", text: "Hi" }] }],
+  });
+  assert.equal(leftPayload, "<p>Hi</p>");
+  assert.doesNotMatch(leftPayload, /background/);
+});
+
+test("renderDocNode: a legitimate textAlign still renders its inline style (regression guard for the allowlist fix)", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Hi" }] }],
+  });
+  assert.equal(html, '<p style="text-align:center">Hi</p>');
+});
+
+test("widget/declarative: media-placeholder's ratio prop is CSS-injection-safe — a payload that smuggles a second declaration falls back to the default 16/9 ratio, never emitting the payload", async () => {
+  const theme = declarativeTheme({
+    type: "doc",
+    content: [{ type: "component", id: "tovu/media-placeholder", props: { label: "Photo", ratio: "1;background:url(//evil.example)" } }],
+  });
+  const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+  assert.match(html, /style="aspect-ratio:16 \/ 9"/);
+  assert.doesNotMatch(html, /background/);
+  assert.doesNotMatch(html, /evil\.example/);
+});
+
+test("widget/declarative: media-placeholder ratio — a ratio-shaped prefix followed by a smuggled declaration is rejected whole, not truncated to the valid prefix", async () => {
+  const theme = declarativeTheme({
+    type: "doc",
+    content: [{ type: "component", id: "tovu/media-placeholder", props: { label: "Photo", ratio: "1/1;position:fixed" } }],
+  });
+  const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+  assert.match(html, /style="aspect-ratio:16 \/ 9"/);
+  assert.doesNotMatch(html, /position/);
+});
+
+test("widget/declarative: media-placeholder — a legitimate ratio still renders unchanged (regression guard for the allowlist fix)", async () => {
+  const theme = declarativeTheme({
+    type: "doc",
+    content: [{ type: "component", id: "tovu/media-placeholder", props: { label: "Photo", ratio: "4 / 3" } }],
+  });
+  const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+  assert.match(html, /style="aspect-ratio:4 \/ 3"/);
+});
+
+// ---------------------------------------------------------------------------
 // Post-title-in-document (apps/admin/src/lib/post-title-extension.ts, 2026-08-11)
 // ---------------------------------------------------------------------------
 
