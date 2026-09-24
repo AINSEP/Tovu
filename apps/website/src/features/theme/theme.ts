@@ -1184,6 +1184,7 @@ export function discoverThemes(
     .filter((name) => {
       if (exclude?.includes(name)) return false;
       if (name.startsWith(MIGRATION_STAGING_DIR_PREFIX)) return false;
+      if (name === PUBLISH_STAGING_DIR || name === PUBLISH_PREVIOUS_DIR) return false;
       const full = join(dir, name);
       return statSync(full).isDirectory();
     })
@@ -1247,6 +1248,15 @@ export const MARKETPLACE_CATALOG_DIR = "__marketplace__";
  * migrated manifest's `id`) before this constant existed to filter them out.
  */
 export const MIGRATION_STAGING_DIR_PREFIX = ".tovu-migrate-staging-";
+
+/**
+ * Publish's own scratch folders at the themes ROOT (`publish-files-plan-2026-09-24.md` §3):
+ * `theme-files` apply stages an incoming tree under {@link PUBLISH_STAGING_DIR} and moves the tree
+ * it replaces under {@link PUBLISH_PREVIOUS_DIR}, so the swap is two renames on one filesystem. Not
+ * tiers and not themes — {@link discoverThemes} skips both by name, as the site backup does.
+ */
+export const PUBLISH_STAGING_DIR = ".publish-staging";
+export const PUBLISH_PREVIOUS_DIR = ".publish-previous";
 
 /**
  * Discover every built-in theme across the top-level (declarative) folder plus every engine

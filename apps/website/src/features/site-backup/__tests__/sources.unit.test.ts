@@ -103,6 +103,18 @@ test("scope switches are independent: themes + settings alone picks up nothing e
   }
 });
 
+test("publish's own scratch folders under themes/ (.publish-staging, .publish-previous) are never backed up", async () => {
+  const site = makeSite();
+  try {
+    write(path.join(site.root, "themes", ".publish-staging", "k1", "theme.json"), "{}");
+    write(path.join(site.root, "themes", ".publish-previous", "k0", "static", "demo", "index.html"), "<old>");
+    const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } });
+    assert.deepEqual(paths(result.files), ["themes/static/demo/index.html"]);
+  } finally {
+    site.cleanup();
+  }
+});
+
 test("every file carries its size, and each scope is tagged", async () => {
   const site = makeSite();
   try {

@@ -95,8 +95,10 @@ export interface CollectedSiteBackupFiles {
   readonly scopeNotes: Partial<Record<SiteBackupScope, string>>;
 }
 
-/** Names never backed up wherever they appear. */
-const IGNORED_NAMES = new Set([".DS_Store", ".git"]);
+/** Names never backed up wherever they appear. `.publish-staging`/`.publish-previous` are
+ *  theme-files publish's own scratch and replaced-tree copies (`features/theme/publish-content.ts`) —
+ *  a backup must never capture a half-staged tree. */
+const IGNORED_NAMES = new Set([".DS_Store", ".git", ".publish-staging", ".publish-previous"]);
 
 const SYMLINK_REASON = "a symbolic link — never followed, so nothing outside the site can ride along";
 
