@@ -52,14 +52,15 @@ describe("useMediaRefField — picker visibility", () => {
 });
 
 describe("useMediaRefField — handleSelect", () => {
-  it("calls onChange with the EXACT '{assetId}:public' ref for the selected item", () => {
+  // readable-slugs S5b: writes the slug, not the id — buildMediaRef now prefers item.slug.
+  it("calls onChange with the EXACT '{slug}:public' ref for the selected item", () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useMediaRefField("", onChange, { port: createFakeMediaPickerPort() }));
 
-    act(() => result.current.handleSelect(mediaItem({ id: "asset-1" })));
+    act(() => result.current.handleSelect(mediaItem({ id: "asset-1", slug: "sunset" })));
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith("asset-1:public");
+    expect(onChange).toHaveBeenCalledWith("sunset:public");
   });
 
   it("closes the picker on selection", () => {

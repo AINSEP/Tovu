@@ -102,8 +102,15 @@ describe("actionLabel", () => {
 });
 
 describe("buildMediaRef", () => {
-  it("builds the exact '{assetId}:public' shape resolveSeoImageRef parses server-side", () => {
-    expect(buildMediaRef("asset-123")).toBe("asset-123:public");
+  // readable-slugs S5b: prefers the slug over the id, matching resolveSeoImageRef's own id-or-slug
+  // lookup (`apps/website/src/features/seo/media.ts`, S4) — a saved SEO image reference now reads
+  // as a slug in the field, not an opaque uuid.
+  it("prefers the slug over the id — '{slug}:public'", () => {
+    expect(buildMediaRef({ id: "asset-123", slug: "sunset-photo" })).toBe("sunset-photo:public");
+  });
+
+  it("falls back to the id when slug is empty (defensive — real assets always have one)", () => {
+    expect(buildMediaRef({ id: "asset-123", slug: "" })).toBe("asset-123:public");
   });
 });
 
