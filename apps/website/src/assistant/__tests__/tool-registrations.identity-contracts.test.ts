@@ -5,7 +5,9 @@ import test from "node:test";
  * so the host (or a test) always states the credential it is seeding. */
 const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { UIResource } from "#src/assistant/index";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
 
 import {
   identityAgentToolCatalog,
@@ -125,7 +127,7 @@ const COLLAPSED_IDENTITY_CONTENT_READ_IDS: ReadonlySet<string> = new Set([
 
 function identityRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES })
       .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id) || COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(registration.descriptor.id))
       .map((registration) => [registration.descriptor.id, registration]),
   );
@@ -144,8 +146,27 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 /** Every call in this file acts as the seeded owner unless a test is specifically about a weaker caller. */
+
+/** One store for every registration built here, so {@link autoAnswer} can answer its dialogs. */
+const SURFACE_EXCHANGES = createSurfaceExchangeStore();
+
+/**
+ * Answers every dialog a call raises the way a human saying yes would — Confirm, or, for
+ * `identity_user_create`'s form, the typed password. The gates themselves are certified by
+ * `features/identity/__tests__/tool-registrations.human-confirm.test.ts`.
+ */
+const autoAnswer: SurfaceEmitter = async (emission) => {
+  const html = (emission.payload as { resource: UIResource }).resource.resource.text;
+  const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
+  SURFACE_EXCHANGES.deliver({ exchangeId, principalId: CURRENT_CALLER.id, params: { decision: "confirm", password: "pw-valid-1234" } });
+};
+
+/** The principal of the call in flight — `deliver` must name the one that opened the exchange. */
+const CURRENT_CALLER = { id: "" };
+
 function asOwner(ownerPrincipalId: string, input: Record<string, unknown>): ToolExecutionContext {
-  return { executionId: "exec-1", principal: { id: ownerPrincipalId }, run: { id: "run-1" }, input, signal: new AbortController().signal };
+  CURRENT_CALLER.id = ownerPrincipalId;
+  return { executionId: "exec-1", principal: { id: ownerPrincipalId }, run: { id: "run-1" }, input, signal: new AbortController().signal, emitSurface: autoAnswer };
 }
 
 // ---------------------------------------------------------------------------
@@ -160,9 +181,18 @@ test("every wired registration publishes the inputSchema and description from it
   for (const [id, registration] of identityRegistrations(deps)) {
     if (COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(id)) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
+    // identity_user_create is the one deliberate exception: Tovu drops `password` from the model's
+    // schema (the human types it into the dialog) and says so in the description.
+    if (id === "identity_user_create") continue;
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
+  const create = identityRegistrations(deps).get("identity_user_create")!.descriptor;
+  const catalogSchema = catalogEntry("identity_user_create").inputSchema as { properties: Record<string, unknown> };
+  const { password: _password, ...withoutPassword } = catalogSchema.properties;
+  assert.deepEqual(create.inputSchema, { ...catalogSchema, required: ["username"], properties: withoutPassword });
+  assert.ok(create.description?.startsWith(catalogEntry("identity_user_create").description));
+  assert.match(create.description ?? "", /never pass a password/);
 });
 
 test("requiresConfirmation is unset on every identity tool — setting it with no ExecutionDelegate would park the execution forever", async () => {
@@ -191,11 +221,11 @@ test("the schema-bearing rejection names each tool's OWN schema, not a shared on
   const { deps, ownerPrincipalId } = await buildHarness();
 
   const error = await wired(deps, "identity_user_create")
-    .handler(asOwner(ownerPrincipalId, { username: "ed" }))
+    .handler(asOwner(ownerPrincipalId, {}))
     .then(() => null, (e: unknown) => e as Error);
 
   assert.ok(error);
-  assert.match(error.message, /'password' is required/);
+  assert.match(error.message, /'username' is required/);
   assert.match(error.message, /"username"/);
   assert.equal(/roleId/.test(error.message), false, "identity_user_create's schema must not mention another tool's keys");
 });
@@ -205,7 +235,7 @@ test("no rejection message echoes the offending value — a username or email is
   const secret = "s3cret-operator-content";
 
   const error = await wired(deps, "identity_user_create")
-    .handler(asOwner(ownerPrincipalId, { username: secret, password: 7 }))
+    .handler(asOwner(ownerPrincipalId, { username: secret, email: 7 }))
     .then(() => null, (e: unknown) => e as Error);
 
   assert.ok(error);
@@ -232,7 +262,7 @@ async function userReturningResults(harness: Harness): Promise<Array<{ toolId: s
   const { deps, ownerPrincipalId } = harness;
 
   const created = (await wired(deps, "identity_user_create").handler(
-    asOwner(ownerPrincipalId, { username: "projection-subject", password: "pw-valid-1234", email: "a@b.test" }),
+    asOwner(ownerPrincipalId, { username: "projection-subject", email: "a@b.test" }),
   )) as { user: { principalId: string } };
   const principalId = created.user.principalId;
 
@@ -269,13 +299,13 @@ test("a user view drops workspaceId — the agent is already scoped to one works
 test("a user view carries exactly the keys the model needs, and email only when set", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const withoutEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "no-email", password: "pw-valid-1234" }))) as {
+  const withoutEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "no-email" }))) as {
     user: Record<string, unknown>;
   };
   assert.deepEqual(Object.keys(withoutEmail.user).sort(), ["principalId", "roleIds", "status", "username"]);
   assert.equal("email" in withoutEmail.user, false, "a user without an email must carry no always-undefined key");
 
-  const withEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "with-email", password: "pw-valid-1234", email: "a@b.test" }))) as {
+  const withEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "with-email", email: "a@b.test" }))) as {
     user: Record<string, unknown>;
   };
   assert.equal(withEmail.user.email, "a@b.test");
@@ -418,7 +448,7 @@ test("END TO END: create a user, assign it a role, and see the assignment show u
   assert.equal(role.name, "Content Editor");
 
   // 2. The user. It comes back with no roles, which is what forces step 3 to exist.
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Ada", password: "pw-valid-1234", email: "ada@example.test" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Ada", email: "ada@example.test" }))) as {
     user: { principalId: string; username: string; roleIds: string[] };
   };
   assert.equal(user.username, "ada", "the username is normalized by the domain, and the tool reports what was actually stored");
@@ -462,7 +492,7 @@ test("END TO END: create a policy, see it in the list, attach it to a user, and 
   assert.ok(policies.some((candidate) => candidate.id === policy.id && candidate.name === "Reviewer Bundle"));
 
   // 3. The user.
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Reviewer", password: "pw-valid-1234" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Reviewer" }))) as {
     user: { principalId: string };
   };
 
@@ -494,7 +524,7 @@ test("END TO END: create a policy, see it in the list, attach it to a user, and 
 test("the email round-trips: set, changed, then cleared by omitting it", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "mailer", password: "pw-valid-1234", email: "first@example.test" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "mailer", email: "first@example.test" }))) as {
     user: { principalId: string; email?: string };
   };
   assert.equal(user.email, "first@example.test");
@@ -513,7 +543,7 @@ test("the email round-trips: set, changed, then cleared by omitting it", async (
 test("disable then enable round-trips, and the status change is visible through the list tool", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "temp", password: "pw-valid-1234" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "temp" }))) as {
     user: { principalId: string };
   };
 
@@ -538,7 +568,7 @@ test("a custom role can be renamed and then deleted while unassigned, but not on
   assert.equal(renamed.role.name, "Temp Renamed");
   assert.equal(renamed.role.isBuiltin, false);
 
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "holder", password: "pw-valid-1234" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "holder" }))) as {
     user: { principalId: string };
   };
   await wired(deps, "identity_role_assign").handler(asOwner(ownerPrincipalId, { principalId: user.principalId, roleId: role.id }));
@@ -560,10 +590,10 @@ test("a custom role can be renamed and then deleted while unassigned, but not on
 test("a duplicate username is refused, so a model cannot quietly create a second account under an existing name", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Dup", password: "pw-valid-1234" }));
+  await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Dup" }));
 
   await assert.rejects(
-    () => wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "dup", password: "pw-valid-1234" })),
+    () => wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "dup" })),
     /already in use/,
     "the domain compares usernames case-insensitively, and the tool inherits that rather than re-implementing it",
   );

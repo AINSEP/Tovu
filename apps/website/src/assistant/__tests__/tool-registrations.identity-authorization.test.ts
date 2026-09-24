@@ -5,7 +5,9 @@ import test from "node:test";
  * so the host (or a test) always states the credential it is seeding. */
 const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { UIResource } from "#src/assistant/index";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
 
 import {
   identityAgentToolCatalog,
@@ -152,15 +154,34 @@ async function grant(repos: IdentityRepos, principalId: string, permissions: rea
   await repos.principalPolicies.save({ id: `pa-${policyId}`, workspaceId: WORKSPACE_ID, principalId, policyId });
 }
 
+
+/** One store for every registration built here, so {@link autoAnswer} can answer its dialogs. */
+const SURFACE_EXCHANGES = createSurfaceExchangeStore();
+
+/**
+ * Answers every dialog a call raises the way a human saying yes would — Confirm, or, for
+ * `identity_user_create`'s form, the typed password. The gates themselves are certified by
+ * `features/identity/__tests__/tool-registrations.human-confirm.test.ts`.
+ */
+const autoAnswer: SurfaceEmitter = async (emission) => {
+  const html = (emission.payload as { resource: UIResource }).resource.resource.text;
+  const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
+  SURFACE_EXCHANGES.deliver({ exchangeId, principalId: CURRENT_CALLER.id, params: { decision: "confirm", password: "pw-valid-1234" } });
+};
+
+/** The principal of the call in flight — `deliver` must name the one that opened the exchange. */
+const CURRENT_CALLER = { id: "" };
+
 function executionContext(principalId: string, input: Record<string, unknown>): ToolExecutionContext {
-  return { executionId: "exec-1", principal: { id: principalId }, run: { id: "run-1" }, input, signal: new AbortController().signal };
+  CURRENT_CALLER.id = principalId;
+  return { executionId: "exec-1", principal: { id: principalId }, run: { id: "run-1" }, input, signal: new AbortController().signal, emitSurface: autoAnswer };
 }
 
 const IDENTITY_TOOL_IDS: ReadonlySet<string> = new Set(identityAgentToolCatalog.map((tool) => tool.name));
 
 function identityRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES })
       .filter(
         (registration) =>
           IDENTITY_TOOL_IDS.has(registration.descriptor.id) || Object.values(IDENTITY_COLLAPSED_ID).includes(registration.descriptor.id),
@@ -208,7 +229,7 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   identity_user_list: {},
   identity_role_list: {},
   identity_policy_list: {},
-  identity_user_create: { username: "newcomer", password: "pw-valid-1234" },
+  identity_user_create: { username: "newcomer" },
   identity_user_update_email: { principalId: "target-principal", email: "a@b.test" },
   identity_user_disable: { principalId: "target-principal" },
   identity_user_enable: { principalId: "target-principal" },

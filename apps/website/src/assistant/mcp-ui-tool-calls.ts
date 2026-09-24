@@ -256,6 +256,11 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "webhooks_create_subscription",
   "sites_duplicate_site",
   "media_generate_asset",
+  "identity_role_assign",
+  "identity_policy_attach",
+  "identity_role_delete",
+  "identity_policy_delete",
+  "identity_user_create",
 ]);
 
 /**
