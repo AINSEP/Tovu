@@ -113,3 +113,39 @@ test("BUG: two write() calls truly IN FLIGHT AT ONCE (not sequential) both succe
   const expectedBody = winnerWasA ? "<p>A's edit</p>" : "<p>B's edit</p>";
   assert.equal(finalRow?.bodyHtml, expectedBody, "the reported winner's content must be what is actually persisted");
 });
+
+// ---------------------------------------------------------------------------
+// S5 (web-high fix plan, 2026-09-24) — this twin must apply the same entity-liveness guard as the
+// real sqlite store (`html-document-store.sqlite.test.ts`'s own S5 block), using `isTrashed()` over
+// the row `repo.findById` returns.
+// ---------------------------------------------------------------------------
+
+const TRASH_MESSAGE = "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it.";
+
+test("read() rejects a trashed html-format page with the entity-liveness message", async () => {
+  const { repo } = await harness();
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  await store.ensureHtmlFormat("<p>base</p>");
+
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.ok(row);
+  await repo.softDelete({ workspaceId: WS, id: "page-1", deletedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z", version: row.version });
+
+  await assert.rejects(() => store.read(), { message: TRASH_MESSAGE });
+});
+
+test("write() rejects when the row was trashed between this instance's read() and write()", async () => {
+  const { repo } = await harness();
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  await store.ensureHtmlFormat("<p>base</p>");
+  await store.read();
+
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.ok(row);
+  await repo.softDelete({ workspaceId: WS, id: "page-1", deletedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z", version: row.version });
+
+  await assert.rejects(() => store.write("<p>should never land</p>"), { message: TRASH_MESSAGE });
+
+  const finalRow = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.equal(finalRow?.bodyHtml, "<p>base</p>", "the trashed row's body_html must be untouched");
+});

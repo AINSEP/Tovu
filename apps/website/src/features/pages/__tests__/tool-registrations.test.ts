@@ -101,6 +101,22 @@ test("pages_write_html writes the document, births the html row, and reports its
   assert.equal(saved?.bodyHtml, html);
 });
 
+// S5 (web-high fix plan, 2026-09-24) — `pages_write_html`'s catch only special-cases
+// `PageNotFoundError` (`tool-registrations.ts`'s own doc); `EntityNotLiveError` is a `ToolInputError`
+// and re-throws unmodified, so the model sees the Trash message.
+test("pages_write_html on a trashed page rejects with the entity-liveness message", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1", "Landing");
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.ok(row);
+  await repo.softDelete({ workspaceId: WS, id: "page-1", deletedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z", version: row.version });
+
+  await assert.rejects(
+    () => call("pages_write_html", { id: "page-1", html: `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` }),
+    { message: "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it." }
+  );
+});
+
 // Was "warns when the model tagged no editable regions", asserting `written: true` plus an advisory
 // `warning`. Changed 2026-09-09, deliberately and in the strict direction: an advisory on a
 // successful write is not feedback — both live landing pages carry zero handles across ~42KB, so the

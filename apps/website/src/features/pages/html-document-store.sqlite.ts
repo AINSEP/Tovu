@@ -1,5 +1,5 @@
-import type { ClockPort } from "@jini-ai/cms/core";
-import { and, eq } from "drizzle-orm";
+import { assertEntityLive, type ClockPort } from "@jini-ai/cms/core";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { posts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -198,19 +198,24 @@ export class PagesHtmlDocumentStore {
    * this id exists.
    *
    * @throws {PageNotFoundError} If no `"html"`-format row with this id exists in this workspace.
+   * @throws {EntityNotLiveError} If the row is in the Trash (`@jini-ai/cms/core`, S5 web-high fix
+   * plan 2026-09-24). Checked BEFORE the `bodyFormat` mismatch below, so a trashed row reports Trash
+   * even when its body is `"doc"`-format — the caller needs to know the row is trashed either way.
    * @complexity O(1) — one indexed row lookup.
    * @overallScore 100
    */
   async read(): Promise<string> {
     const rows = this.deps.db
-      .select({ bodyHtml: posts.bodyHtml, bodyFormat: posts.bodyFormat, version: posts.version })
+      .select({ bodyHtml: posts.bodyHtml, bodyFormat: posts.bodyFormat, version: posts.version, deletedAt: posts.deletedAt })
       .from(posts)
       .where(and(eq(posts.workspaceId, this.scope.workspaceId), eq(posts.id, this.scope.postId)))
       .limit(1)
       .all();
     const row = rows[0];
 
-    if (!row || row.bodyFormat !== "html" || row.bodyHtml === null) {
+    if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
+    assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: row.deletedAt ? "trashed" : "live" });
+    if (row.bodyFormat !== "html" || row.bodyHtml === null) {
       throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     }
 
@@ -240,13 +245,15 @@ export class PagesHtmlDocumentStore {
    * is the Pages editor acting on a freshly created, empty Page.
    *
    * @throws {PageNotFoundError} If no row with this id exists in this workspace.
+   * @throws {EntityNotLiveError} If the row is in the Trash (`@jini-ai/cms/core`, S5 web-high fix
+   * plan 2026-09-24). Checked BEFORE the `kind` mismatch below, matching {@link read}'s ordering.
    * @throws {PageKindMismatchError} If the row exists but is `kind: "post"` — Posts are Tiptap, full
    * stop (D-1), and no Post may be converted to bespoke HTML through this or any other path.
    * @complexity O(1) — one indexed row lookup plus, on a `doc` row, one indexed row update.
    */
   async ensureHtmlFormat(seedHtml: string): Promise<void> {
     const rows = this.deps.db
-      .select({ kind: posts.kind, bodyFormat: posts.bodyFormat, version: posts.version })
+      .select({ kind: posts.kind, bodyFormat: posts.bodyFormat, version: posts.version, deletedAt: posts.deletedAt })
       .from(posts)
       .where(and(eq(posts.workspaceId, this.scope.workspaceId), eq(posts.id, this.scope.postId)))
       .limit(1)
@@ -254,6 +261,7 @@ export class PagesHtmlDocumentStore {
     const row = rows[0];
 
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
+    assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: row.deletedAt ? "trashed" : "live" });
     if (row.kind !== "page") {
       throw new PageKindMismatchError(`'${this.scope.postId}' is a post, and a post is never bespoke HTML`);
     }
@@ -329,10 +337,14 @@ export class PagesHtmlDocumentStore {
    * conditioned on the version this store itself just produced, not a stale one.
    *
    * @throws {Error} If called before any {@link read} — there is no captured version to condition on.
-   * @throws {PageConcurrentEditError} If zero rows matched the compare-and-set — the row's version
-   * moved since the matching `read()` (another writer committed first). The caller must re-`read()`
-   * and retry; this method never falls back to an unconditional overwrite.
-   * @complexity O(1) — one indexed, version-conditioned row update.
+   * @throws {EntityNotLiveError} If the row was trashed since the matching `read()`
+   * (`@jini-ai/cms/core`, S5 web-high fix plan 2026-09-24) — checked only on a zero-row match, so the
+   * common case (still live) costs no extra query.
+   * @throws {PageConcurrentEditError} If zero rows matched the compare-and-set for any other reason —
+   * the row's version moved since the matching `read()` (another writer committed first). The caller
+   * must re-`read()` and retry; this method never falls back to an unconditional overwrite.
+   * @complexity O(1) — one indexed, version-conditioned row update, plus one indexed lookup only on
+   * the zero-match path.
    * @overallScore 100
    */
   async write(html: string): Promise<void> {
@@ -350,12 +362,27 @@ export class PagesHtmlDocumentStore {
           eq(posts.workspaceId, this.scope.workspaceId),
           eq(posts.id, this.scope.postId),
           eq(posts.bodyFormat, "html"),
-          eq(posts.version, expectedVersion)
+          eq(posts.version, expectedVersion),
+          isNull(posts.deletedAt)
         )
       )
       .run();
 
     if (result.changes === 0) {
+      // Disambiguate: the row can have moved off this exact predicate either because it was trashed
+      // (a state the model must be told about explicitly) or for the ordinary concurrent-edit reason
+      // this class has always guarded against. A trashed row does not get to masquerade as "someone
+      // else edited it" — the recovery action is different (restore from Trash vs. re-read and retry).
+      const stillHereRows = this.deps.db
+        .select({ deletedAt: posts.deletedAt })
+        .from(posts)
+        .where(and(eq(posts.workspaceId, this.scope.workspaceId), eq(posts.id, this.scope.postId)))
+        .limit(1)
+        .all();
+      const deletedAt = stillHereRows[0]?.deletedAt;
+      if (deletedAt) {
+        assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: "trashed" });
+      }
       throw new PageConcurrentEditError(
         `page '${this.scope.postId}' was edited elsewhere since this turn started — re-read and retry`
       );

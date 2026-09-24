@@ -7,6 +7,7 @@ import {
   PageKindMismatchError,
   PageNotFoundError,
 } from "#src/features/pages/index";
+import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import {
   CONTENT_ENTRY_MAX_BODY_BYTES,
@@ -47,8 +48,14 @@ async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<bo
 }
 
 /** Map a store-layer failure onto its HTTP shape. Extracted from the handler's `catch` for the same
- * complexity reason as {@link allowedToWrite}; behavior is unchanged. */
+ * complexity reason as {@link allowedToWrite}; behavior is unchanged except for the new
+ * `entityNotLiveResponse` arm (S5, web-high fix plan 2026-09-24). */
 function sendStoreError(res: Response, err: unknown): void {
+  const live = entityNotLiveResponse(err);
+  if (live) {
+    res.status(live.status).json(live.body);
+    return;
+  }
   if (err instanceof PageKindMismatchError) {
     res.status(400).json({ error: err.message, code: "KIND_MISMATCH" });
     return;

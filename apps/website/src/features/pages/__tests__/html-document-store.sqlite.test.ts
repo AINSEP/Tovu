@@ -282,3 +282,60 @@ test("ensureHtmlFormat() reindexes entry_refs on the seeding conversion (doc -> 
   assert.equal(refs.length, 1);
   assert.equal(refs[0]?.targetId, "cf-widget-1");
 });
+
+// ---------------------------------------------------------------------------
+// S5 (web-high fix plan, 2026-09-24) — the entity-liveness guard (row 5): none of read()/
+// ensureHtmlFormat()/write() checked `deleted_at`, so a trashed page's bespoke-HTML body was still
+// readable and writable through this store.
+// ---------------------------------------------------------------------------
+
+const TRASH_MESSAGE = "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it.";
+
+test("read() rejects a trashed html-format page with the entity-liveness message", async () => {
+  const { db } = harness();
+  insertHtmlPage(db, { id: "page-1", html: "<p>trashed</p>" });
+  db.$client.prepare("UPDATE posts SET deleted_at = '2026-09-24T00:00:00.000Z' WHERE id = 'page-1'").run();
+  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+
+  await assert.rejects(() => store.read(), { message: TRASH_MESSAGE });
+});
+
+test("ensureHtmlFormat() rejects a trashed page before the bodyFormat conversion — a trashed doc-format page also reports Trash, not not-found", async () => {
+  const { db } = harness();
+  db.$client
+    .prepare(
+      `INSERT INTO posts (id, workspace_id, title, slug, body_json, body_format, body_html, status, kind, updated_at, version, ext, deleted_at)
+       VALUES ('page-1', ?, 'New page', 'new-page', '{"type":"doc","content":[]}', 'doc', NULL, 'draft', 'page', '2026-08-01T00:00:00.000Z', 1, '{}', '2026-09-24T00:00:00.000Z')`
+    )
+    .run(WS);
+  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+
+  await assert.rejects(() => store.ensureHtmlFormat("<p>seed</p>"), { message: TRASH_MESSAGE });
+});
+
+test("write() rejects when the row was trashed between this instance's read() and write() — the row's body_html stays unchanged", async () => {
+  const { db } = harness();
+  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+
+  await store.read();
+  db.$client.prepare("UPDATE posts SET deleted_at = '2026-09-24T00:00:00.000Z' WHERE id = 'page-1'").run();
+
+  await assert.rejects(() => store.write("<p>should never land</p>"), { message: TRASH_MESSAGE });
+
+  const row = readRow(db, "page-1");
+  assert.equal(row.bodyHtml, "<p>base</p>", "the trashed row's body_html must be untouched");
+});
+
+test("write() still throws PageConcurrentEditError (not the Trash message) for an ordinary stale write on a LIVE row", async () => {
+  const { db } = harness();
+  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+  const writerA = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+  const writerB = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+
+  await writerA.read();
+  await writerB.read();
+  await writerA.write("<p>A's edit</p>");
+
+  await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
+});

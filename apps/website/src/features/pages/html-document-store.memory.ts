@@ -1,6 +1,6 @@
-import type { ClockPort } from "@jini-ai/cms/core";
+import { assertEntityLive, type ClockPort } from "@jini-ai/cms/core";
 
-import type { PostRecord, PostRepoPort } from "../post/index.js";
+import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import {
@@ -65,6 +65,7 @@ export class InMemoryPagesHtmlDocumentStore {
   async ensureHtmlFormat(seedHtml: string): Promise<void> {
     const row = await this.load();
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
+    assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: isTrashed(row) ? "trashed" : "live" });
     if (row.kind !== "page") {
       throw new PageKindMismatchError(`'${this.scope.postId}' is a post, and a post is never bespoke HTML`);
     }
@@ -89,7 +90,9 @@ export class InMemoryPagesHtmlDocumentStore {
   /** @see PagesHtmlDocumentStore.read */
   async read(): Promise<string> {
     const row = await this.load();
-    if (!row || row.bodyFormat !== "html" || row.bodyHtml === null) {
+    if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
+    assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: isTrashed(row) ? "trashed" : "live" });
+    if (row.bodyFormat !== "html" || row.bodyHtml === null) {
       throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     }
     this.lastReadVersion = row.version;
@@ -104,6 +107,11 @@ export class InMemoryPagesHtmlDocumentStore {
     const expectedVersion = this.lastReadVersion;
     const row = await this.load();
 
+    // Disambiguate on the mismatch path: a trashed row is not "someone else edited it" — see
+    // `PagesHtmlDocumentStore.write`'s own doc for why the two are distinct rejections.
+    if (row && isTrashed(row)) {
+      assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: "trashed" });
+    }
     if (!row || row.bodyFormat !== "html" || row.version !== expectedVersion) {
       throw new PageConcurrentEditError(
         `page '${this.scope.postId}' was edited elsewhere since this turn started — re-read and retry`
