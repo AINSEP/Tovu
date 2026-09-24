@@ -693,6 +693,166 @@ export async function deletePost(
   return { post, revisionId, previousRevisionId };
 }
 
+export interface RetirePostForReplacementInput {
+  workspaceId: UUID;
+  id: UUID;
+  /**
+   * The version this call believes `id` is at, the same optimistic-concurrency basis
+   * {@link UpdatePostInput.expectedVersion} is — REQUIRED here (not opt-in) because the only caller
+   * is a publish apply-loop re-planning against a holder it read moments earlier; there is no
+   * unversioned caller to stay backward-compatible with, the way `updatePost`'s opt-in exists for.
+   */
+  expectedVersion: number;
+  /**
+   * `yyyymmdd`, e.g. `"20260924"` — supplied by the caller rather than derived from
+   * `deps.clock.nowIso()`'s ISO format, so the renamed slug is a pure function of an explicit input
+   * instead of this function parsing a timestamp string it does not otherwise need to understand.
+   */
+  today: string;
+  actorId?: UUID;
+  delegatedByWorkspaceId?: UUID | null;
+  delegatedById?: UUID | null;
+}
+
+export interface RetirePostForReplacementDeps {
+  repo: PostRepoPort;
+  clock: ClockPort;
+  outbox: OutboxPort;
+  /** See {@link RemovePostFn}. Same trash primitive `deletePost` is handed. */
+  remove: RemovePostFn;
+}
+
+export interface RetirePostForReplacementRequired {
+  deps: RetirePostForReplacementDeps;
+  input: RetirePostForReplacementInput;
+}
+
+export interface RetirePostForReplacementOptional {}
+
+/**
+ * Frees `id`'s current slug and moves the row to the Trash under a renamed slug
+ * (`<slug>-replaced-<today>`, suffixed `-2`, `-3`, … on collision — the same disambiguation loop
+ * `createPost`'s derived-slug path uses at `:1037-1043`), so a different row can take the address.
+ *
+ * This is publish's "overwrite on live, address clash" primitive (`publish-overwrite-live-plan
+ * §4/§5 S3`): the live holder is RETIRED, not overwritten in place, because the incoming row is
+ * created under its own (local) id afterward — see the plan's §1 for why in-place replacement is
+ * wrong here (kind guard, header-nav id references, restore semantics).
+ *
+ * Two writes, one transaction: the row is saved under its new slug first (an `"update"` revision),
+ * then handed to {@link RetirePostForReplacementDeps.remove} exactly as {@link deletePost} does (a
+ * `"delete"` revision). If the holder is ALREADY trashed, only the rename happens — there is nothing
+ * left to remove, and a second `"delete"` revision for a row that never left the Trash would
+ * misrepresent the ledger.
+ *
+ * Refuses `ROOT_SLUG` (`/` has no other address to move to) and a stale `expectedVersion`
+ * (`PostVersionConflictError`, the same guard {@link assertExpectedVersion} applies to `updatePost`)
+ * — both checked before either write, so a refusal never leaves the row half-renamed.
+ *
+ * EVENT: emits `entry.unpublished` when a PUBLISHED row is retired, exactly like {@link deletePost}
+ * — retiring removes the row from the public site precisely like trashing it does.
+ *
+ * @complexity O(s) for the slug-disambiguation loop (s = colliding renamed slugs, bounded in
+ * practice by same-day retirements of the same address), O(1) otherwise.
+ * @overallScore 100
+ */
+export async function retirePostForReplacement(
+  required: RetirePostForReplacementRequired,
+  _optional: RetirePostForReplacementOptional = {}
+): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
+  const { deps, input } = required;
+  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
+  if (!existing) {
+    throw new PostNotFoundError(`post '${input.id}' was not found`);
+  }
+  if (existing.slug === ROOT_SLUG) {
+    throw new PostConflictError("the home page cannot be replaced by publishing");
+  }
+  if (existing.version !== input.expectedVersion) {
+    throw new PostVersionConflictError(
+      versionConflictMessage(existing.id, input.expectedVersion, existing.version),
+      input.expectedVersion,
+      existing.version
+    );
+  }
+
+  const alreadyTrashed = isTrashed(existing);
+
+  // Same disambiguation loop as `createPost`'s derived-slug path (`:1037-1043`): a trashed row keeps
+  // reserving its slug (see `deletePost`'s own doc), so a second same-day retirement of the same
+  // address collides with the first retirement's renamed slug and must suffix past it.
+  const base = `${existing.slug}-replaced-${input.today}`;
+  let slug = base;
+  let suffix = 1;
+  while (await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug })) {
+    suffix += 1;
+    slug = `${base}-${suffix}`;
+  }
+
+  const now = deps.clock.nowIso();
+  const renamed: PostRecord = { ...existing, slug, updatedAt: now, version: existing.version + 1 };
+
+  const { post, id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+    await deps.repo.save(renamed);
+    const renameRevision = await deps.repo.appendRevision({
+      postId: renamed.id,
+      workspaceId: renamed.workspaceId,
+      seq: renamed.version,
+      op: "update",
+      stateJson: renamed,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
+      recordedAt: renamed.updatedAt,
+    });
+
+    if (alreadyTrashed) {
+      return { post: renamed, id: renameRevision.id, previousId: renameRevision.previousId };
+    }
+
+    // `expectedVersion` here is the CAS basis `remove` compares against the row's version RIGHT NOW
+    // — which is `renamed.version`, since the rename above already landed inside this same
+    // transaction (mirrors `deletePost`'s own call, whose basis is likewise the row's current
+    // version at the moment of the call, not a target).
+    const removed = await deps.remove({
+      workspaceId: input.workspaceId,
+      id: input.id,
+      display: { title: existing.title, subtitle: `${existing.slug} (replaced by publish)` },
+      at: renamed.updatedAt,
+      expectedVersion: renamed.version,
+      actor: { principalId: input.actorId ?? SYSTEM_ACTOR_ID },
+    });
+    if (!removed.ok) {
+      // `not-found` can only mean the row was removed between the read above and this write.
+      if (removed.reason === "not-found") throw new PostNotFoundError(`post '${input.id}' was not found`);
+      throw new PostConflictError(`post '${input.id}' changed while it was being retired`);
+    }
+
+    const trashed: PostRecord = { ...renamed, deletedAt: renamed.updatedAt, version: renamed.version + 1 };
+    const deleteRevision = await deps.repo.appendRevision({
+      postId: trashed.id,
+      workspaceId: trashed.workspaceId,
+      seq: trashed.version,
+      op: "delete",
+      stateJson: trashed,
+      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
+      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+      delegatedById: input.delegatedById ?? null,
+      recordedAt: trashed.updatedAt,
+    });
+    return { post: trashed, id: deleteRevision.id, previousId: deleteRevision.previousId };
+  });
+
+  // An already-trashed holder was already off the public site before this call — only the rename
+  // happened, so re-emitting `entry.unpublished` here would be a duplicate of the one `deletePost`
+  // (or an earlier retire) already sent for the same transition.
+  if (!alreadyTrashed) {
+    await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
+  }
+
+  return { post, revisionId, previousRevisionId };
+}
+
 export interface GetPostByIdRequired {
   deps: { repo: PostRepoPort };
   input: { workspaceId: UUID; id: UUID };
