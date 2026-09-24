@@ -326,9 +326,12 @@ function EditMediaPanel(props: EditMediaPanelProps) {
     error,
     hashCopied,
     urlCopied,
-    originalUrl,
+    embedCopied,
+    publicUrl,
+    embedSnippet,
     copyHash,
     copyUrl,
+    copyEmbedCode,
     save,
   } = useEditMediaPanelHook({ item, onSaved, onCancel });
 
@@ -430,17 +433,33 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             was no answer to that anywhere in this panel. Same read-only+Copy shape as the sha256
             row below (this component's own established idiom for "show it, let it be copied, it
             isn't something you type into"), but a clickable `<a>` instead of `<code>` since this
-            value is a real, followable URL, not an opaque identifier. */}
+            value is a real, followable URL, not an opaque identifier.
+            `publicUrl` (readable-slugs S5a) can be `null` — trashed asset, or no public transform
+            registered yet — and the row is hidden rather than showing a dead link. */}
+        {publicUrl !== null && (
+          <MediaEditCopyRow
+            label={t("File URL")}
+            copied={urlCopied}
+            onCopy={copyUrl}
+            copyButtonHandle={agentHandle("media-edit-copy-url", { role: "button", label: "Copy this asset's file URL to the clipboard" })}
+            t={t}
+          >
+            <a className="field-mono field-readonly" href={publicUrl} target="_blank" rel="noreferrer">
+              {publicUrl}
+            </a>
+          </MediaEditCopyRow>
+        )}
+        {/* readable-slugs S5a: the embed marker other admin screens (posts/pages body HTML) would
+            reference this asset by. Always shown — `item.slug` is never empty, unlike `publicUrl`
+            above. */}
         <MediaEditCopyRow
-          label={t("File URL")}
-          copied={urlCopied}
-          onCopy={copyUrl}
-          copyButtonHandle={agentHandle("media-edit-copy-url", { role: "button", label: "Copy this asset's file URL to the clipboard" })}
+          label={t("Embed code")}
+          copied={embedCopied}
+          onCopy={copyEmbedCode}
+          copyButtonHandle={agentHandle("media-edit-copy-embed", { role: "button", label: "Copy this asset's embed code to the clipboard" })}
           t={t}
         >
-          <a className="field-mono field-readonly" href={originalUrl} target="_blank" rel="noreferrer">
-            {originalUrl}
-          </a>
+          <code className="field-mono field-readonly">{embedSnippet}</code>
         </MediaEditCopyRow>
         {/* Integrity/dedupe metadata, demoted out of the main view — genuinely useful when
             chasing a duplicate upload or verifying a file, noise the rest of the time. Read-only:

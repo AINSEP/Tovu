@@ -46,22 +46,90 @@ afterEach(() => {
 });
 
 describe("useEditMediaPanel — injected port (no fetch stub)", () => {
-  // Proof this landed on the injection seam, not just on matching URL shape — same pattern as
-  // `PageEditor.unit.test.tsx`'s "not one this component computed itself" test for
-  // `templatePreviewUrl`. `use-edit-media-panel.hooks.ts` no longer imports `lib/api`'s `api` value
-  // at all (see `media-port.hooks.ts`'s `mediaOriginalUrl`, added 2026-08-14); `originalUrl` is
-  // whatever the injected port hands back. A `fake://` URL the real `api.mediaOriginalUrl` could
-  // never produce still ends up as `originalUrl` verbatim, which is only possible if the hook reads
-  // it off `port` rather than calling `api.mediaOriginalUrl` itself.
-  it("originalUrl is exactly the injected port's mediaOriginalUrl, not one this hook computed itself", () => {
+  // `publicUrl` (readable-slugs S5a, UI half, 2026-09-23) reads straight off `item.publicUrl` — no
+  // port call at all, unlike the old `originalUrl` this replaces (that read
+  // `port.mediaOriginalUrl(item.id)`, the authenticated admin byte route `MediaPreview`'s `<img>`
+  // still uses — see `use-media-preview.hooks.ts`, untouched by this change). Proves the field is a
+  // plain pass-through of the server-computed value, not something this hook derives itself.
+  it("publicUrl is exactly item.publicUrl, not something this hook computes from the port", () => {
     const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
+    const item: AdminMedia = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+      wrapper,
+    });
+
+    expect(result.current.publicUrl).toBe("https://localhost:3000/m/old-title");
+    expect(mediaOriginalUrlSpy).not.toHaveBeenCalled();
+  });
+
+  it("publicUrl is null when the server has none to offer (trashed asset, or no public transform registered)", () => {
+    const item: AdminMedia = { ...ITEM, publicUrl: null };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+      wrapper,
+    });
+
+    expect(result.current.publicUrl).toBeNull();
+  });
+
+  it("copyUrl writes publicUrl to the clipboard and flips urlCopied", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const item: AdminMedia = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+      wrapper,
+    });
+
+    expect(result.current.urlCopied).toBe(false);
+    await act(async () => {
+      await result.current.copyUrl();
+    });
+
+    expect(writeText).toHaveBeenCalledWith("https://localhost:3000/m/old-title");
+    expect(result.current.urlCopied).toBe(true);
+  });
+
+  // `publicUrl === null` has no row shown at all (`Media.tsx` hides it) — `copyUrl` still needs its
+  // own guard so a stray call (e.g. a lingering event handler during the null-render window) never
+  // hands `writeText` a `null`, which is a type error `navigator.clipboard.writeText` isn't built to
+  // reject gracefully the way an empty string would.
+  it("copyUrl is a no-op when publicUrl is null", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const item: AdminMedia = { ...ITEM, publicUrl: null };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.copyUrl();
+    });
+
+    expect(writeText).not.toHaveBeenCalled();
+    expect(result.current.urlCopied).toBe(false);
+  });
+
+  // Embed code (readable-slugs S5b step 1 landed the shared helper, `d25f352a7`): always
+  // `slug`-keyed, never guarded on null the way `publicUrl` is — `item.slug` is always a non-empty
+  // string (uploads always derive one, `deriveUniqueMediaSlug`).
+  it("copyEmbedCode writes embedMarkerSnippet('media','slug', item.slug) to the clipboard and flips embedCopied", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const port = createFakeMediaPort({ media: [ITEM] });
     const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
       wrapper,
     });
 
-    expect(result.current.originalUrl).toBe(`fake://media-original/${ITEM.id}`);
-    expect(mediaOriginalUrlSpy).not.toHaveBeenCalled();
+    expect(result.current.embedCopied).toBe(false);
+    await act(async () => {
+      await result.current.copyEmbedCode();
+    });
+
+    expect(writeText).toHaveBeenCalledWith(`<div data-embed-config='{"type":"media","slug":"${ITEM.slug}"}'></div>`);
+    expect(result.current.embedCopied).toBe(true);
   });
 
   it("saves a changed title through the injected port and calls onSaved, never touching the real api client", async () => {
