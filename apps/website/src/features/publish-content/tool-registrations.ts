@@ -69,7 +69,9 @@ import {
   buildPublishConfirmationResource,
   countPublishChanges,
   describePublishChanges,
+  describePublishResult,
   publishWouldChangeNothing,
+  summarizeLeftAlone,
 } from "./publish-confirmation-ui.js";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "./publish-readiness.js";
 import { listPublishContentContributors } from "./type-registry.js";
@@ -473,13 +475,19 @@ export function buildPublishContentRegistrations(
         // Nothing here asserts a principal kind over the wire, so nothing here can weaken the rule
         // that an agent may not confirm on a person's behalf.
         const { confirmationToken } = await confirmPeerImport(peer, { planId, planHash });
+        // `executePeerImport`'s response is the destination's `/import/execute` body —
+        // `{ restorePointId, runId, changeSetIds }` (`gated-hooks.ts`'s `executeMutation`). It carries
+        // no per-outcome counts (`changeSetIds.length` is a total write count, not a
+        // created/replaced/unchanged split), so there is nothing truer to derive the success message
+        // from than the PLAN's own `counts` — computed above, before this call, from the same rows.
         await executePeerImport(peer, { bundleId: pushed.bundleId, confirmationToken });
 
         return {
           published: true,
-          message: `Published to ${destination.label}. ${describePublishChanges(counts, destination.label)}`,
+          message: describePublishResult(counts, destination.label),
           nextStep: null,
           counts,
+          leftAlone: summarizeLeftAlone(plan.rows),
         };
       } catch (err) {
         if (err instanceof PublishContentPeerTransportError) {

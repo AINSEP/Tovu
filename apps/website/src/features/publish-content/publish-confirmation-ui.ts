@@ -92,6 +92,13 @@ function things(count: number): string {
   return count === 1 ? "1 thing" : `${count} things`;
 }
 
+/** "was" for one thing, "were" for more — the verb {@link things}'s singular/plural split needs to
+ *  read as a sentence rather than a fragment.
+ *  @complexity O(1). */
+function wasWere(count: number): string {
+  return count === 1 ? "was" : "were";
+}
+
 /**
  * One sentence saying what publishing would do, for the assistant to say out loud.
  *
@@ -111,6 +118,165 @@ export function describePublishChanges(counts: PublishChangeCounts, siteLabel: s
   if (counts.replaced > 0) parts.push(`replace ${things(counts.replaced)}`);
   const tail = counts.skipped > 0 ? ` ${things(counts.skipped)} would be left alone.` : "";
   return `Publishing would ${parts.join(" and ")} on ${siteLabel}.${tail}`;
+}
+
+/**
+ * One sentence saying what publishing JUST DID, for the assistant to say out loud after a publish
+ * actually ran.
+ *
+ * `describePublishChanges` is plan-tense ("would add/replace") — right for the confirmation dialog,
+ * wrong for the sentence that follows a completed publish, where it used to be reused verbatim and
+ * left the success message reading "Published to site. Publishing would add…" after the write had
+ * already happened. This is that missing past-tense counterpart, and unlike the plan sentence it
+ * also names `counts.unchanged`: a person told "3 things were already up to date" learns something a
+ * dialog asking "publish?" does not need to say, but a person told what already happened does.
+ *
+ * @complexity O(1).
+ */
+export function describePublishResult(counts: PublishChangeCounts, siteLabel: string): string {
+  if (publishWouldChangeNothing(counts)) {
+    const tails: string[] = [];
+    if (counts.unchanged > 0) tails.push(`${things(counts.unchanged)} ${wasWere(counts.unchanged)} already up to date`);
+    if (counts.skipped > 0) tails.push(`${things(counts.skipped)} ${wasWere(counts.skipped)} left alone`);
+    if (tails.length === 0) return `${siteLabel} was already up to date.`;
+    return `Nothing changed on ${siteLabel}. ${tails.join(", and ")}.`;
+  }
+  const parts: string[] = [];
+  if (counts.added > 0) parts.push(`added ${things(counts.added)}`);
+  if (counts.replaced > 0) parts.push(`replaced ${things(counts.replaced)}`);
+  const tails: string[] = [];
+  if (counts.unchanged > 0) tails.push(`${things(counts.unchanged)} ${wasWere(counts.unchanged)} already up to date`);
+  if (counts.skipped > 0) tails.push(`${things(counts.skipped)} ${wasWere(counts.skipped)} left alone`);
+  const tail = tails.length > 0 ? ` ${tails.join(", and ")}.` : "";
+  return `Published to ${siteLabel}: ${parts.join(" and ")}.${tail}`;
+}
+
+/** Which of the five known reasons publishing leaves a row alone, derived from the row's `reason`
+ *  text — see {@link classifyLeftAloneReason}. `"other"` is the same conservative fallback
+ *  {@link countPublishChanges} uses for an outcome kind nobody named yet: grouped and shown, never
+ *  silently dropped. */
+export type LeftAloneReasonClass =
+  | "edited-on-live"
+  | "no-baseline"
+  | "body-format"
+  | "type-not-supported-by-live"
+  | "blob-missing"
+  | "other";
+
+/** One reason-class's rows, ready to show. */
+export interface LeftAloneGroup {
+  readonly reasonClass: LeftAloneReasonClass;
+  /** How many rows are in this group — may be larger than {@link entityLabels}.length. */
+  readonly count: number;
+  /** One plain sentence explaining this group, in a person's words. */
+  readonly sentence: string;
+  /** Up to 5 labels (falling back to the row's id — see `PublishContentOutcomeRow.entityLabel`'s own
+   *  doc for why that fallback is the one case it is allowed), so a dialog can name a few without
+   *  paying for every row in a large plan. */
+  readonly entityLabels: readonly string[];
+}
+
+/** Fixed display order for {@link summarizeLeftAlone}'s groups — the same order plan §4 of
+ *  `ADS-memory/.local-artifacts/publish-types-plan-2026-09-24.md` lists the five known reasons in,
+ *  so the groups a person sees are not reordered from one publish to the next by object-key or
+ *  Map-insertion happenstance. */
+const LEFT_ALONE_REASON_ORDER: readonly LeftAloneReasonClass[] = [
+  "edited-on-live",
+  "no-baseline",
+  "body-format",
+  "type-not-supported-by-live",
+  "blob-missing",
+  "other",
+];
+
+/** A group shows at most this many labels; {@link LeftAloneGroup.count} still carries the true
+ *  total. @complexity n/a — a display cap, not a computed value. */
+const MAX_LEFT_ALONE_LABELS = 5;
+
+/**
+ * Sentence templates, one per {@link LeftAloneReasonClass}, each taking the group's row count.
+ *
+ * Kept as a lookup rather than a `switch` so {@link LEFT_ALONE_REASON_ORDER} and this map are the
+ * only two places a new reason class has to be added — TypeScript's `Record` fails the file to
+ * compile if either one is missed.
+ */
+const LEFT_ALONE_REASON_SENTENCE: Record<LeftAloneReasonClass, (count: number) => string> = {
+  "edited-on-live": (n) =>
+    `${things(n)} ${wasWere(n)} edited on the live site since the last publish, so publishing left ${n === 1 ? "it" : "them"} alone.`,
+  "no-baseline": (n) =>
+    `${things(n)} on the live site ${wasWere(n)} never published from this computer before, so publishing left ${
+      n === 1 ? "it" : "them"
+    } alone rather than overwrite something already there.`,
+  "body-format": (n) =>
+    `${things(n)} ${wasWere(n)} edited in a different way locally than on the live site, so publishing cannot carry the change over yet.`,
+  "type-not-supported-by-live": (n) => `${things(n)} ${wasWere(n)} a kind of content the live site cannot receive yet.`,
+  "blob-missing": (n) => `${things(n)} ${wasWere(n)} missing a file this computer could not find to send.`,
+  other: (n) => `${things(n)} ${wasWere(n)} left alone.`,
+};
+
+/**
+ * Classifies one row's `reason` text into a {@link LeftAloneReasonClass}.
+ *
+ * Matches on the fixed English substrings `planner.ts`'s `planEntity` and `features/post/publish-
+ * content.ts`'s `precheck` actually emit today (this file may not import either — `reason` is
+ * already a plain string on {@link PublishContentOutcomeRow} by the time it gets here). A future
+ * reason nobody wrote a matcher for lands in `"other"` rather than throwing or vanishing, the same
+ * conservative default `countPublishChanges` uses for an unrecognised outcome kind.
+ *
+ * @complexity O(1) — a handful of substring checks, no regex backtracking risk.
+ */
+function classifyLeftAloneReason(reason: string | null): LeftAloneReasonClass {
+  if (reason === null) return "other";
+  if (reason.includes("has been edited on the destination since the last sync")) return "edited-on-live";
+  if (reason.includes("no prior sync baseline for")) return "no-baseline";
+  if (reason.includes("-format at this destination but")) return "body-format";
+  if (reason.includes("no registered publish-content handler for entity type")) return "type-not-supported-by-live";
+  if (reason.startsWith("required blob '") && reason.includes("is not available on this instance")) return "blob-missing";
+  return "other";
+}
+
+/** `true` for a row publishing leaves untouched — every `SKIPPED_OUTCOMES` kind, PLUS any outcome
+ *  kind this file does not recognise, mirroring {@link countPublishChanges}'s own "an unrecognised
+ *  kind counts as skipped, never silently dropped" rule so the two functions cannot drift apart on
+ *  what "left alone" means.
+ *  @complexity O(1). */
+function isLeftAlone(row: PublishContentOutcomeRow): boolean {
+  if (row.outcome === "created" || REPLACING_OUTCOMES.has(row.outcome) || row.outcome === "unchanged") return false;
+  return true;
+}
+
+/**
+ * Groups every row publishing left alone by why, for the "left alone" section of a publish result.
+ *
+ * Rows that were `created`/`applied`/`forced`/`unchanged` never appear in any group — see
+ * {@link isLeftAlone}. Groups are returned in {@link LEFT_ALONE_REASON_ORDER}, and a class with zero
+ * matching rows is omitted rather than shown empty.
+ *
+ * @complexity O(n) in `rows.length`, plus O(1) work per known reason class for the final ordering
+ * pass (`LEFT_ALONE_REASON_ORDER` has a fixed length of 6).
+ */
+export function summarizeLeftAlone(rows: readonly PublishContentOutcomeRow[]): readonly LeftAloneGroup[] {
+  const byClass = new Map<LeftAloneReasonClass, PublishContentOutcomeRow[]>();
+  for (const row of rows) {
+    if (!isLeftAlone(row)) continue;
+    const reasonClass = classifyLeftAloneReason(row.reason);
+    const bucket = byClass.get(reasonClass);
+    if (bucket) bucket.push(row);
+    else byClass.set(reasonClass, [row]);
+  }
+
+  const groups: LeftAloneGroup[] = [];
+  for (const reasonClass of LEFT_ALONE_REASON_ORDER) {
+    const bucket = byClass.get(reasonClass);
+    if (!bucket || bucket.length === 0) continue;
+    groups.push({
+      reasonClass,
+      count: bucket.length,
+      sentence: LEFT_ALONE_REASON_SENTENCE[reasonClass](bucket.length),
+      entityLabels: bucket.slice(0, MAX_LEFT_ALONE_LABELS).map((row) => row.entityLabel ?? row.entityId),
+    });
+  }
+  return groups;
 }
 
 /** The `ui://` URI for one publish confirmation. Keyed by the plan, so a dialog raised for an older
