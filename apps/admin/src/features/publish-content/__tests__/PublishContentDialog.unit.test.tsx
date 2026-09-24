@@ -899,6 +899,77 @@ describe("PublishContentDialog — Overwrite on live", () => {
   });
 });
 
+// plan-publish-repoint-menus-2026-09-24.md §2.7/R6 — the overwrite checkbox's tooltip names the live
+// menus that still point at the row being retired, and the done banner counts repointed menu links.
+describe("PublishContentDialog — menu-link repoint copy (R6)", () => {
+  const RETIRES = { entityType: "post", entityId: "post-about-old", entityLabel: "About", hash: "h1" } as const;
+  const CLASH_REASON = "slug 'about' is already held by a different post";
+
+  const REPOINT_REPORT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["post"],
+    rows: [
+      {
+        entityType: "post",
+        entityId: "post-clash",
+        entityLabel: "About (new)",
+        outcome: "blocked",
+        writes: false,
+        reason: CLASH_REASON,
+        canOverwrite: true,
+        retires: RETIRES,
+        referencedBy: [{ entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about-old" }],
+      },
+    ],
+  };
+
+  function overwriteCheckbox(entityId: string): HTMLInputElement | null {
+    return reportRow(entityId).querySelector("input[data-publish-row-overwrite]");
+  }
+
+  it("the overwrite checkbox's title names the menu the retired page still feeds", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: REPOINT_REPORT });
+    await planFrom(port);
+
+    expect(overwriteCheckbox("post-clash")?.title).toBe("About moves to Trash. Menu links follow: Header");
+  });
+
+  it("a row with no referencedBy keeps the plain retire tooltip, unchanged", async () => {
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: { ...REPOINT_REPORT, rows: [{ ...REPOINT_REPORT.rows[0], referencedBy: undefined }] },
+    });
+    await planFrom(port);
+
+    expect(overwriteCheckbox("post-clash")?.title).toBe("About moves to Trash");
+  });
+
+  it("the done banner reports repointed menu links only when the run actually repointed one", async () => {
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: MIXED_REPORT,
+      executeResult: { restorePointId: "rp-9", runId: "run-9", changeSetIds: ["cs-1"], menuLinksUpdated: 1 },
+    });
+    const user = await planFrom(port);
+
+    await user.click(primaryButton());
+    expect(await screen.findByText("Published 1 change. Menu links updated: 1.")).toBeTruthy();
+  });
+
+  it("the done banner says nothing about menus when nothing was repointed", async () => {
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: MIXED_REPORT,
+      executeResult: { restorePointId: "rp-9", runId: "run-9", changeSetIds: ["cs-1"], menuLinksUpdated: 0 },
+    });
+    const user = await planFrom(port);
+
+    await user.click(primaryButton());
+    expect(await screen.findByText("Published 1 change.")).toBeTruthy();
+  });
+});
+
 // c7n-ow-review2 (2026-09-24): the S9 review's defects, each RED against 6ed1e20fc before its fix.
 describe("PublishContentDialog — Overwrite on live, review fixes", () => {
   const CLASH_REASON = "slug is already held by a different post";

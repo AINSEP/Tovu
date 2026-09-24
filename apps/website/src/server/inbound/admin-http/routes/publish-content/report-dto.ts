@@ -22,6 +22,22 @@ export function toPublishContentReportDto(report: PublishContentReport): Publish
       // the "overwrite on live" tick without either reaching into the planner's own row shape.
       canOverwrite: row.canOverwrite,
       retires: row.retires,
+      // R6 (`plan-publish-repoint-menus-2026-09-24.md` §2.2) — `referencedBy` is OPTIONAL/absent on
+      // the planner's own row (never an explicit `undefined`), so this must add the key conditionally
+      // rather than copy it straight across: an unconditional `referencedBy: row.referencedBy` would
+      // put an explicit `referencedBy: undefined` on every row that never had one, which is a
+      // different wire shape (and fails a strict deep-equal against a pre-R6 fixture that never
+      // mentions the key at all).
+      ...(row.referencedBy !== undefined
+        ? {
+            referencedBy: row.referencedBy.map((holder) => ({
+              entityType: holder.entityType,
+              entityId: holder.entityId,
+              entityLabel: holder.entityLabel,
+              referencedId: holder.referencedId,
+            })),
+          }
+        : {}),
     })),
   };
 }

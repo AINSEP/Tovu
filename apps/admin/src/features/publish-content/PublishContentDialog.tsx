@@ -256,9 +256,14 @@ export function PublishContentDialog({ onCancel, t, port, criteria, onPlanned }:
                                   ? `${t("Overwrite on live")}: ${row.retiresLabel}`
                                   : t("Overwrite on live")
                               }
+                              // R6 (`plan-publish-repoint-menus-2026-09-24.md` §2.7) — when the
+                              // retired holder still feeds a live menu, the tooltip names it too, so
+                              // an operator ticking "overwrite" can see what else moves with it.
                               title={
                                 row.retiresLabel
-                                  ? `${row.retiresLabel} ${t("moves to")} ${t("Trash")}`
+                                  ? row.referencedByLabels.length > 0
+                                    ? `${row.retiresLabel} ${t("moves to")} ${t("Trash")}. ${t("Menu links follow:")} ${row.referencedByLabels.join(", ")}`
+                                    : `${row.retiresLabel} ${t("moves to")} ${t("Trash")}`
                                   : undefined
                               }
                             />

@@ -214,3 +214,29 @@ test("retiresLabel names the live row an overwrite would retire, falling back to
   const [none] = toPublishReportRows(report([row({ outcome: "created", entityId: "c" })]));
   assert.equal(none.retiresLabel, null);
 });
+
+// ---------------------------------------------------------------------------
+// referencedByLabels (plan-publish-repoint-menus-2026-09-24.md §2.2/R6)
+// ---------------------------------------------------------------------------
+
+test("referencedByLabels names every live holder of this row's retire target, falling back to a short id", () => {
+  const [withHolders] = toPublishReportRows(
+    report([
+      row({
+        outcome: "blocked",
+        entityId: "a",
+        reason: "slug taken",
+        referencedBy: [
+          { entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about-old" },
+          { entityType: "menu", entityId: "menu-footer-long-id", entityLabel: null, referencedId: "post-about-old" },
+        ],
+      }),
+    ])
+  );
+  assert.deepEqual(withHolders.referencedByLabels, ["Header", "menu-foo"]);
+});
+
+test("referencedByLabels is empty for a row with no referencedBy at all", () => {
+  const [none] = toPublishReportRows(report([row({ outcome: "created", entityId: "b" })]));
+  assert.deepEqual(none.referencedByLabels, []);
+});

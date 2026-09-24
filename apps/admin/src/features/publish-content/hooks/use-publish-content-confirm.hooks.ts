@@ -213,6 +213,28 @@ function peerSelectionOpen(phase: PublishContentPhase): boolean {
 }
 
 /**
+ * The confirmation banner shown once a publish executes: how many entities changed, plus how many
+ * live menu links were repointed to follow them (`plan-publish-repoint-menus-2026-09-24.md` §2.7/R6).
+ * `null` outside the `done` phase, same as the field this replaces.
+ *
+ * Counted copy is assembled from `t()`-resolved fragments for the same reason `primaryLabelFor` above
+ * is: this app's translator has no interpolation. The menu-links clause is appended only when
+ * `menuLinksUpdated` is greater than 0 — a run that repointed nothing says nothing about menus at
+ * all, rather than a confusing "Menu links updated: 0." `?? 0` covers a peer built before R5, whose
+ * `PublishContentExecuteResult` carries no `menuLinksUpdated` at all.
+ *
+ * @complexity O(1).
+ */
+function doneMessageFor(phase: PublishContentPhase, t: Translate): string | null {
+  if (phase.kind !== "done") return null;
+  const changeCount = phase.result.changeSetIds.length;
+  const base = `${t("Published")} ${changeCount} ${changeCount === 1 ? t("change") : t("changes")}.`;
+  const menuLinksUpdated = phase.result.menuLinksUpdated ?? 0;
+  if (menuLinksUpdated <= 0) return base;
+  return `${base} ${t("Menu links updated:")} ${menuLinksUpdated}.`;
+}
+
+/**
  * Whether a publish has been committed and has no outcome yet: confirm is on its way or answered,
  * or execute is running. From here the live site finishes the run whatever this dialog does (terra
  * review 2026-09-20, finding 3), so the dialog stays open until it can say how that went.
@@ -921,10 +943,7 @@ export function usePublishContentConfirm(props: {
     onPrimary,
     errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
     refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,
-    doneMessage:
-      phase.kind === "done"
-        ? `${t("Published")} ${phase.result.changeSetIds.length} ${phase.result.changeSetIds.length === 1 ? t("change") : t("changes")}.`
-        : null,
+    doneMessage: doneMessageFor(phase, t),
     connectOffer,
   };
 }

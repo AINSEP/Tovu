@@ -23,6 +23,16 @@ export interface PublishContentRetireTargetDto {
   readonly hash: string;
 }
 
+/** Wire twin of `type-registry.ts`'s `ReferenceHolder` — this module imports no planner or
+ *  type-registry code (this file's header), so the shape is repeated here rather than shared by
+ *  import. `plan-publish-repoint-menus-2026-09-24.md` §2.2/R6. */
+export interface PublishContentReferenceHolderDto {
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly entityLabel: string | null;
+  readonly referencedId: string;
+}
+
 export interface PublishContentOutcomeRowDto {
   readonly entityType: string;
   readonly entityId: string;
@@ -50,6 +60,14 @@ export interface PublishContentOutcomeRowDto {
    *  OPTIONAL/absent for the same pre-S2-peer reason as {@link canOverwrite}; a reader treats absent
    *  exactly like `null`. */
   readonly retires?: PublishContentRetireTargetDto | null;
+  /**
+   * `plan-publish-repoint-menus-2026-09-24.md` §2.2/R6 — live entities that still link to this row's
+   * {@link retires} holder by id, echoed from `planner.ts`'s own `referencedBy`. Present ONLY when
+   * non-empty, matching the planner's own row — absent for every row with no retire target and for a
+   * retire target with no live references at all — so an operator sees what still points at a holder
+   * before choosing to overwrite it.
+   */
+  readonly referencedBy?: readonly PublishContentReferenceHolderDto[];
 }
 
 /** The only report shape serialized for publish-content clients. */

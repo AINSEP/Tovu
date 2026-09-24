@@ -71,6 +71,13 @@ export interface PublishReportRow {
    *  `retires.entityLabel`, falling back to a short id the same way {@link entityLabel} does. `null`
    *  when this row retires nothing (every outcome but a resolvable slug clash). */
   readonly retiresLabel: string | null;
+  /**
+   * `plan-publish-repoint-menus-2026-09-24.md` §2.2/R6 — the live entities (e.g. menus) that still
+   * link to this row's {@link retires} holder, named for the dialog the same way {@link retiresLabel}
+   * is — the planner's own `referencedBy[].entityLabel`, falling back to a short id. Empty for every
+   * row that retires nothing, and for a retire target with no live references at all.
+   */
+  readonly referencedByLabels: readonly string[];
 }
 
 /** What the counts under the table add up to. */
@@ -127,6 +134,18 @@ function retiresLabelFor(row: PublishContentOutcomeRow): string | null {
   return labelOrShortId(target.entityLabel, target.entityId);
 }
 
+/**
+ * What the dialog names every live holder still linking to this row's retire target — empty when the
+ * row retires nothing, or when nothing live references it. Same fallback as {@link displayLabelFor}
+ * and {@link retiresLabelFor}, applied per holder.
+ *
+ * @complexity O(h) in the row's holder count.
+ */
+function referencedByLabelsFor(row: PublishContentOutcomeRow): readonly string[] {
+  const holders = row.referencedBy ?? [];
+  return holders.map((holder) => labelOrShortId(holder.entityLabel, holder.entityId));
+}
+
 const DISPOSITION_BY_OUTCOME: Readonly<Record<PublishContentOutcomeRow["outcome"], PublishRowDisposition>> = {
   created: "publish",
   applied: "publish",
@@ -181,6 +200,7 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
       appliesOnExecute: row.writes,
       overwritable: disposition === "skipped" && row.canOverwrite === true,
       retiresLabel: retiresLabelFor(row),
+      referencedByLabels: referencedByLabelsFor(row),
     };
   });
 }
