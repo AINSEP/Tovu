@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planStart, resolveStartHost } from "../start.mjs";
+import { clearBlankRootKeyEnv, planStart, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
 
 /**
  * @file `planStart` — the pure port/env decision `development/scripts/start.mjs`'s `main()` makes
@@ -22,7 +22,7 @@ function alwaysFree() {
   return true;
 }
 
-test("PORT unset, TOVU_PUBLIC_URL loopback:3000, port 3000 busy → picks 3001 and rewrites TOVU_PUBLIC_URL", async () => {
+test("PORT unset, TOVU_PUBLIC_URL loopback:3000, port 3000 busy → picks 3001 and drops TOVU_PUBLIC_URL", async () => {
   const calls = [];
   const isPortFree = async (port) => {
     calls.push(port);
@@ -36,7 +36,8 @@ test("PORT unset, TOVU_PUBLIC_URL loopback:3000, port 3000 busy → picks 3001 a
   });
 
   assert.equal(result.port, 3001);
-  assert.deepEqual(result.envOverrides, { PORT: "3001", TOVU_PUBLIC_URL: "https://localhost:3001" });
+  assert.deepEqual(result.envOverrides, { PORT: "3001" });
+  assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
   assert.deepEqual(calls, [3000, 3001]);
   assert.equal(result.refuse, undefined);
 });
@@ -94,7 +95,7 @@ test("PORT unset, TOVU_PUBLIC_URL unset, port 3000 free → no overrides at all 
   assert.deepEqual(result.envOverrides, {});
 });
 
-test("PORT unset, TOVU_PUBLIC_URL loopback at a port OTHER than 3000, 3000 busy → PORT overridden, TOVU_PUBLIC_URL left alone", async () => {
+test("PORT unset, TOVU_PUBLIC_URL loopback at a port OTHER than 3000, 3000 busy → PORT overridden, TOVU_PUBLIC_URL dropped", async () => {
   const isPortFree = async (port) => port !== 3000;
 
   const result = await planStart({
@@ -105,6 +106,65 @@ test("PORT unset, TOVU_PUBLIC_URL loopback at a port OTHER than 3000, 3000 busy 
 
   assert.equal(result.port, 3001);
   assert.deepEqual(result.envOverrides, { PORT: "3001" });
+  assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
+});
+
+/**
+ * A loopback `TOVU_PUBLIC_URL` (the repo's own `.env` ships `https://localhost:3000`) is dropped
+ * under `npm start`, whatever port is picked: the server refuses a loopback value as a public origin
+ * anyway (one noisy boot line), and without it the OAuth callback falls back to the request's own
+ * Host and protocol, which is always the port and scheme the browser actually used.
+ */
+test("PORT set, TOVU_PUBLIC_URL loopback → PORT untouched, TOVU_PUBLIC_URL still dropped", async () => {
+  const result = await planStart({
+    env: { PORT: "4321", TOVU_PUBLIC_URL: "https://localhost:3000" },
+    dotenvLoaded: true,
+    isPortFree: alwaysFree,
+  });
+
+  assert.equal(result.port, 4321);
+  assert.deepEqual(result.envOverrides, {});
+  assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
+});
+
+test("port 3000 free, TOVU_PUBLIC_URL loopback → no overrides, TOVU_PUBLIC_URL dropped", async () => {
+  const result = await planStart({ env: { TOVU_PUBLIC_URL: "http://127.0.0.1:3000" }, dotenvLoaded: true, isPortFree: alwaysFree });
+
+  assert.equal(result.port, 3000);
+  assert.deepEqual(result.envOverrides, {});
+  assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
+});
+
+test("non-loopback TOVU_PUBLIC_URL is never dropped", async () => {
+  const result = await planStart({ env: { TOVU_PUBLIC_URL: "https://tovu.example.com" }, dotenvLoaded: true, isPortFree: alwaysFree });
+
+  assert.deepEqual(result.envRemovals, []);
+});
+
+/**
+ * `clearBlankRootKeyEnv` runs BEFORE `.env` is loaded. `process.loadEnvFile` never overrides a
+ * variable already present, even an empty one, and the keyring treats an empty value as absent — so
+ * a blank shell `TOVU_INTEGRATIONS_ROOT_KEY` would hide `.env`'s real key and let
+ * `tovu root-key ensure` mint a second one.
+ */
+test("clearBlankRootKeyEnv: blank TOVU_INTEGRATIONS_ROOT_KEY is removed so .env can fill it", () => {
+  const env = { TOVU_INTEGRATIONS_ROOT_KEY: "" };
+  clearBlankRootKeyEnv(env);
+  assert.equal("TOVU_INTEGRATIONS_ROOT_KEY" in env, false);
+});
+
+test("clearBlankRootKeyEnv: a set TOVU_INTEGRATIONS_ROOT_KEY is left untouched", () => {
+  const env = { TOVU_INTEGRATIONS_ROOT_KEY: "abc" };
+  clearBlankRootKeyEnv(env);
+  assert.equal(env.TOVU_INTEGRATIONS_ROOT_KEY, "abc");
+});
+
+test("startQuietEnvDefaults: silences the root-key wall and daemon lifecycle lines by default", () => {
+  assert.deepEqual(startQuietEnvDefaults({}), { TOVU_ROOT_KEY_NOTICE: "off", TOVU_DAEMON_LIFECYCLE_LOG: "off" });
+});
+
+test("startQuietEnvDefaults: an operator's own TOVU_DAEMON_LIFECYCLE_LOG wins", () => {
+  assert.deepEqual(startQuietEnvDefaults({ TOVU_DAEMON_LIFECYCLE_LOG: "on" }), { TOVU_ROOT_KEY_NOTICE: "off" });
 });
 
 /**

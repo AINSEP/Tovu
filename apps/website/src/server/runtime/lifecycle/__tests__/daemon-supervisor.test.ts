@@ -455,3 +455,48 @@ test("ensureStarted() cooldown: a repeated call shortly after a re-arm does not 
   assert.deepEqual(third, { ok: true });
   assert.equal(spawnCount, 3, "once the cooldown elapses, the next request may re-arm again");
 });
+
+// `npm start` sets `TOVU_DAEMON_LIFECYCLE_LOG=off` so its whole output is the server's one URL line.
+// Quiet mode hides only the ROUTINE lines (first spawn, deliberate exit); a respawn and the
+// unexpected exit behind it still print, because those are exactly what an operator correlates a
+// dead chat against.
+test("quietRoutineLifecycle hides the first spawn and deliberate exit, but still logs an unexpected exit and its respawn", async () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const lines: string[] = [];
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy({ backoffScheduleMs: [5], crashLoopMaxFailures: 10 }),
+    quietRoutineLifecycle: true,
+    log: (line) => lines.push(line),
+  });
+
+  supervisor.start();
+  assert.deepEqual(lines, [], "the first spawn must print nothing in quiet mode");
+
+  children[0].emitExit(1, null);
+  await wait(40);
+  assert.equal(spawnCount, 2);
+  assert.equal(lines.length, 2, `expected the unexpected exit and the respawn, got ${JSON.stringify(lines)}`);
+  assert.match(lines[0], /\[daemon-supervisor\] .* agent daemon pid=987654321 exited \(code=1, signal=null, deliberate=false\) — any run in flight died with it$/);
+  assert.match(lines[1], /\[daemon-supervisor\] .* spawned agent daemon pid=987654321$/);
+
+  supervisor.shutdown();
+  children[1].emitExit(null, "SIGTERM");
+  assert.equal(lines.length, 2, "a deliberate exit must print nothing in quiet mode");
+});
+
+test("without quietRoutineLifecycle the first spawn is logged, as before", () => {
+  const child = createFakeDaemonProcess();
+  const lines: string[] = [];
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => child.handle,
+    quietRoutineLifecycle: false,
+    log: (line) => lines.push(line),
+  });
+
+  supervisor.start();
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /\[daemon-supervisor\] .* spawned agent daemon pid=987654321$/);
+  supervisor.shutdown();
+});
