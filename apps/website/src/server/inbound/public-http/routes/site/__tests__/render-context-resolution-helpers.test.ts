@@ -144,6 +144,7 @@ test(
       height: null,
       cssClass: null,
       htmlAttributes: null,
+      slug: "asset",
       contentType: "video/mp4",
     });
   }
@@ -165,6 +166,7 @@ test(
       height: null,
       cssClass: null,
       htmlAttributes: null,
+      slug: "asset",
       contentType: null,
     });
   }
