@@ -1172,7 +1172,9 @@ test("R5: a menu written by the same bundle keeps its own incoming tree — it i
       slug: "header-nav",
       title: "Header",
       status: "published",
-      doc: { type: "menu", version: 1, items: [menuEntryRefItem("item-1", "local-about")] },
+      // item-2 still names the holder: the source's own tree, which a skipped menu must keep as-is.
+      // Without it every assertion below also holds when the skip is ignored (nothing would match).
+      doc: { type: "menu", version: 1, items: [menuEntryRefItem("item-1", "local-about"), menuEntryRefItem("item-2", "post-about")] },
       locations: [],
     },
   };
@@ -1190,6 +1192,7 @@ test("R5: a menu written by the same bundle keeps its own incoming tree — it i
 
   const menu = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
   assert.equal((menu?.doc.items[0]?.target as { entryId: string }).entryId, "local-about", "the bundle's own incoming tree must stand, untouched by the repoint pass");
+  assert.equal((menu?.doc.items[1]?.target as { entryId: string }).entryId, "post-about", "a menu written this run is skipped even where its tree names the holder");
 
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "applied");
