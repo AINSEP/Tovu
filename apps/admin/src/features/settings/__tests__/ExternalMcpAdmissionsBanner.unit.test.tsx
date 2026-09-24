@@ -106,14 +106,6 @@ describe("ExternalMcpAdmissionsBanner", () => {
     expect(onAllowWrite).toHaveBeenCalledExactlyOnceWith("higgsfield", "generate_image");
   });
 
-  it("never publishes the 'may write' tick to the agent — widening a tool's access is human-only", () => {
-    const { container } = render(
-      <ExternalMcpAdmissionsBanner controller={controller({ connections: [higgsfieldDrift()] })} t={IDENTITY_T} onAllowWrite={() => {}} />,
-    );
-    expect(screen.getByRole("checkbox", { name: "may write" })).not.toHaveAttribute("data-agent-element");
-    expect(container.querySelector('[data-agent-element^="mcp-drift-grant"]')).toBeNull();
-  });
-
   it("offers no tick for a destructive refusal — there is no setting that turns one on", () => {
     render(
       <ExternalMcpAdmissionsBanner

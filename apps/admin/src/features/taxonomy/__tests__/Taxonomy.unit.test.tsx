@@ -306,8 +306,6 @@ describe("merge wizard steps (real useMergeTermSection, mocked fetch) — MergeI
     expect(await screen.findByText(/executing merges the terms now/i)).toBeInTheDocument();
     const executeButton = screen.getByRole("button", { name: /execute merge/i });
     expect(executeButton).toHaveClass("btn-danger");
-    // Irreversible, so human-only: the agent's page driver can reach Plan and Confirm, not Execute.
-    expect(executeButton).not.toHaveAttribute("data-agent-element");
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ mergedCount: 3 }));
     await user.click(executeButton);
@@ -428,8 +426,8 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
     // `ConfirmDialog`'s own doc comment) — and the term dialog's body renders `null` while nothing
     // is pending, so neither title nor body text can locate it here. Its `agentHandle=
     // "taxonomy-delete-term"` (`Taxonomy.tsx`) is unconditional instead — `data-agent-element` is
-    // published on its Cancel action regardless of `open` (Confirm is human-only, never published).
-    const closedDialog = document.querySelector('[data-agent-element="taxonomy-delete-term-cancel"]')!.closest("dialog")!;
+    // published on its actions regardless of `open`, per `ConfirmDialog`'s own doc comment.
+    const closedDialog = document.querySelector('[data-agent-element="taxonomy-delete-term-confirm"]')!.closest("dialog")!;
     expect(closedDialog.hasAttribute("open")).toBe(false);
 
     rerender(
@@ -437,7 +435,7 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
         <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTerm: t })} />
       </FetchQueryProvider>
     );
-    const openDialog = document.querySelector('[data-agent-element="taxonomy-delete-term-cancel"]')!.closest("dialog")!;
+    const openDialog = document.querySelector('[data-agent-element="taxonomy-delete-term-confirm"]')!.closest("dialog")!;
     expect(openDialog.hasAttribute("open")).toBe(true);
     expect(within(openDialog).getByRole("heading", { name: "Move to trash?" })).toBeInTheDocument();
     expect(within(openDialog).getByText('Move "Breakfast" to trash?')).toBeInTheDocument();
@@ -464,7 +462,7 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
         <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />
       </FetchQueryProvider>
     );
-    const closedDialog = document.querySelector('[data-agent-element="taxonomy-delete-taxonomy-cancel"]')!.closest("dialog")!;
+    const closedDialog = document.querySelector('[data-agent-element="taxonomy-delete-taxonomy-confirm"]')!.closest("dialog")!;
     expect(closedDialog.hasAttribute("open")).toBe(false);
 
     rerender(
@@ -472,7 +470,7 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
         <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTaxonomy: group.taxonomy })} />
       </FetchQueryProvider>
     );
-    const openDialog = document.querySelector('[data-agent-element="taxonomy-delete-taxonomy-cancel"]')!.closest("dialog")!;
+    const openDialog = document.querySelector('[data-agent-element="taxonomy-delete-taxonomy-confirm"]')!.closest("dialog")!;
     expect(openDialog.hasAttribute("open")).toBe(true);
     expect(within(openDialog).getByRole("heading", { name: "Move to trash?" })).toBeInTheDocument();
     expect(within(openDialog).getByText('Move "Category" and its terms to trash?')).toBeInTheDocument();

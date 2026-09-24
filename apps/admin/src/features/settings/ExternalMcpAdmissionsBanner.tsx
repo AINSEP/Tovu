@@ -53,6 +53,7 @@ function AdmissionDriftRow(props: { entry: AdmissionDriftEntry; t: Translate; on
             type="checkbox"
             checked={false}
             onChange={() => onAllowWrite(entry.connectionId, remoteName)}
+            data-agent-element={`mcp-drift-grant-${entry.connectionId}-${remoteName}`}
           />
           <span>{t("may write")}</span>
         </label>

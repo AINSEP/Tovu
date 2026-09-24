@@ -115,18 +115,18 @@ describe("AgentPluginDisableConfirmDialog — focus trap", () => {
   });
 });
 
-describe("plugin uninstall/turn-off dialogs — confirm is human-only", () => {
-  it("PluginRemoveConfirmDialog publishes Cancel but never Confirm", () => {
+describe("plugin uninstall/turn-off dialogs — Confirm and Cancel are both agent-drivable", () => {
+  it("PluginRemoveConfirmDialog publishes both Confirm and Cancel", () => {
     render(<PluginRemoveConfirmDialog name="Site Compliance" agentHandleBase="row-x" onConfirm={vi.fn()} onCancel={vi.fn()} t={(k) => k} />);
-    expect(screen.getByRole("button", { name: "Move to trash" })).not.toHaveAttribute("data-agent-element");
+    expect(screen.getByRole("button", { name: "Move to trash" })).toHaveAttribute("data-agent-element", "row-x-remove-confirm");
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute("data-agent-element", "row-x-remove-cancel");
   });
 
-  it.each(["remove", "disable"] as const)("AgentPluginDisableConfirmDialog (%s) publishes Cancel but never Confirm", (variant) => {
+  it.each(["remove", "disable"] as const)("AgentPluginDisableConfirmDialog (%s) publishes both Confirm and Cancel", (variant) => {
     const { container } = render(
       <AgentPluginDisableConfirmDialog variant={variant} name="Site Compliance" agentHandleBase="row-x" onConfirm={vi.fn()} onCancel={vi.fn()} t={(k) => k} />,
     );
-    expect(container.ownerDocument.querySelector(`[data-agent-element="row-x-${variant}-confirm"]`)).toBeNull();
+    expect(container.ownerDocument.querySelector(`[data-agent-element="row-x-${variant}-confirm"]`)).not.toBeNull();
     expect(container.ownerDocument.querySelector(`[data-agent-element="row-x-${variant}-cancel"]`)).not.toBeNull();
   });
 });

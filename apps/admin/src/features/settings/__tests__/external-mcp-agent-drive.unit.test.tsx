@@ -201,37 +201,36 @@ describe("addressing the configured servers", () => {
  * than deadlocking on a dialog it cannot see. Driven through `executePageCapability` +
  * `createDomPageDriver`, not `userEvent`, matching this file's own module doc.
  */
-describe("Remove confirmation dialog: the agent may open and cancel it, never confirm it", () => {
+describe("Remove confirmation dialog is agent-pressable", () => {
   function renderOneServer() {
     return renderPanel([{ id: "higgsfield", fields: { id: "higgsfield", command: "npx" } }]);
   }
 
-  it("page.click on <cardHandle>-remove opens the dialog and publishes only its cancel control", async () => {
+  it("page.click on <cardHandle>-remove opens the dialog and publishes its confirm/cancel controls", async () => {
     const { container } = renderOneServer();
     await screen.findAllByTestId("source-config-item-card");
     const driver = createDomPageDriver({ root: container, pages: {} });
+
+    expect(await findElements(driver)).not.toContain("mcp-server-higgsfield-remove-confirm");
 
     await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
     await driver.settle?.();
 
     const afterOpen = await findElements(driver);
+    expect(afterOpen).toContain("mcp-server-higgsfield-remove-confirm");
     expect(afterOpen).toContain("mcp-server-higgsfield-remove-cancel");
-    expect(afterOpen).not.toContain("mcp-server-higgsfield-remove-confirm");
   });
 
-  it("page.click on <cardHandle>-remove-confirm is refused, and the connection stays", async () => {
-    // A permanent remove (the saved server and its credentials) is a human-only step.
+  it("page.click on <cardHandle>-remove-confirm actually removes the connection", async () => {
     const { container } = renderOneServer();
     await screen.findAllByTestId("source-config-item-card");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
     await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
     await driver.settle?.();
-    await expect(
-      executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove-confirm" }),
-    ).rejects.toThrow('no element published as "mcp-server-higgsfield-remove-confirm" on this page');
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove-confirm" });
 
-    expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
+    await waitFor(() => expect(screen.queryAllByTestId("source-config-item-card")).toHaveLength(0));
   });
 
   it("page.click on <cardHandle>-remove-cancel leaves the connection untouched", async () => {

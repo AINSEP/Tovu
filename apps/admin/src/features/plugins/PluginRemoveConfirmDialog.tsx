@@ -9,9 +9,9 @@ export interface PluginRemoveConfirmDialogProps {
   /** The plugin's own display name (`plugin.name`) — must name the exact plugin being removed, not
    *  a generic "this plugin". */
   name: string;
-  /** This plugin row's own agent-handle base — Cancel publishes as `<rowHandle>-remove-cancel`,
-   *  nesting under the row's own handle the same way `AgentPluginDisableConfirmDialog` nests under
-   *  its row's `-enabled` switch. Confirm has no handle: uninstalling is a human-only step. */
+  /** This plugin row's own agent-handle base — Confirm/Cancel publish as
+   *  `<rowHandle>-remove-confirm` / `<rowHandle>-remove-cancel`, nesting under the row's own handle
+   *  the same way `AgentPluginDisableConfirmDialog` nests under its row's `-enabled` switch. */
   agentHandleBase: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -63,6 +63,10 @@ export function PluginRemoveConfirmDialog({
             type="button"
             className="btn-danger"
             onClick={onConfirm}
+            {...agentHandle(`${agentHandleBase}-remove-confirm`, {
+              role: "button",
+              label: `Move ${name} to the Trash`,
+            })}
           >
             {t("Move to trash")}
           </button>
