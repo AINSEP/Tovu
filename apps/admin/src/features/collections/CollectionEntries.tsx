@@ -37,10 +37,11 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   }
 
   const label = contentType.label;
-  // Entry ids are stable and unique (the server's own primary key for this resource), so they
-  // disambiguate one row's edit link from another's — same reasoning as every other list on this
-  // workstream. This screen has no `RowMenu` (no per-row actions beyond opening the editor), so
-  // unlike `Collections.tsx`/`FormsList.tsx` there is no dropdown-action gap to note here.
+  // Entry ids are stable and unique (the server's own primary key for this resource), so agent
+  // handles below key off `entry.id`, not the (readable-slugs S6b) slug the row's own edit link
+  // now uses — same reasoning as every other list on this workstream. This screen has no `RowMenu`
+  // (no per-row actions beyond opening the editor), so unlike `Collections.tsx`/`FormsList.tsx`
+  // there is no dropdown-action gap to note here.
   const rowHandles = buildAgentListHandles(
     "collection-entries-row",
     entries.map((entry) => entry.id),
@@ -104,7 +105,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
             header: t("Title"),
             cell: (entry, index) => (
               <a
-                href={`/admin/collections/${contentTypeKey}/${entry.id}`}
+                href={`/admin/collections/${contentTypeKey}/${entry.slug}`}
                 {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this entry's editor" })}
               >
                 {entry.title}

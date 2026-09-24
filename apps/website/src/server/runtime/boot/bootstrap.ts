@@ -66,6 +66,19 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
     { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
     { name: "comments", owner: "comments", criticality: "optional", prepare: () => deps.commentsReady, start: noop, stop: noop },
     {
+      // P0a fix (2026-09-23): re-attaches every durably-enabled plugin to this process's (fresh,
+      // empty) hook registry before the server starts serving — see `deps.pluginRuntimeReady`'s own
+      // doc. OPTIONAL: `attachEnabledPluginsAtBoot()` already isolates per-plugin failures itself
+      // (logs and continues), so this module's own promise realistically never rejects; optional
+      // criticality is a defensive floor, not the primary safety net.
+      name: "plugin-runtime-attach",
+      owner: "features/plugin-runtime",
+      criticality: "optional",
+      prepare: () => deps.pluginRuntimeReady,
+      start: noop,
+      stop: noop,
+    },
+    {
       // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
       // records each INACTIVE until an operator enables it (see
       // `features/agent-plugins/seed-bundled.ts` for why it re-runs every boot rather than once).

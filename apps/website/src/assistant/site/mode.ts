@@ -18,9 +18,10 @@
  * ## Why the gate is not "loopback only"
  *
  * The obvious gate — allow `cli` only when the server is bound to loopback — is **not available**,
- * and saying otherwise would be a false guarantee. `src/index.ts`'s `app.listen(port, callback)`
- * passes **no host argument**, so Express binds every interface; there is no `TOVU_HOST` and no
- * loopback-vs-public state to read. Measured, not assumed.
+ * and saying otherwise would be a false guarantee. `TOVU_HOST` now exists (LAN-bind plan,
+ * 2026-09-23), but `src/index.ts` — this gate's own entrypoint — still defaults to every interface
+ * unless an operator sets it, so there is still no reliable loopback-vs-public state to read here
+ * without duplicating that resolution. Measured, not assumed.
  *
  * So the gate is what can actually be enforced here: `cli` requires a **second, separate** opt-in
  * env var, and is refused outright under `NODE_ENV=production`. Two independent variables means a

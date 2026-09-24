@@ -5,6 +5,7 @@ import { runDeployConfigCommand } from "./commands/deploy-config.js";
 import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
 import { runIntrospectCommand } from "./commands/introspect.js";
+import { runRootKeyEnsureCommand } from "./commands/root-key.js";
 import { runServeCommand } from "./commands/serve.js";
 import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index.js";
 import { runThemeMigrateCommand } from "./commands/theme/migrate.js";
@@ -65,15 +66,32 @@ export function createProgram(): Command {
 
   program
     .command("serve")
-    .description("validate, migrate, and boot an install dir — serves site + admin")
+    .description(
+      "validate, migrate, and boot an install dir — serves site + admin; listens on 127.0.0.1 unless TOVU_HOST is set (e.g. TOVU_HOST=0.0.0.0 for a server or container)"
+    )
     .argument("<dir>", "install directory to serve")
     .option("--port <port>", "port to listen on (default: config.json.port, then PORT env, then 3000)")
+    .option("--host <ip>", "IP address to listen on (default: TOVU_HOST env, then 127.0.0.1 — this computer only; use 0.0.0.0 for a server or container)")
     .option("--workspace <id>", "workspace id to serve (default: the oldest workspace, if the install has more than one)")
     // Opt-in and off by default, so an operator running `tovu serve` by hand never sees a secret in
     // their terminal. See `boot-session-token.ts` for what the token is and what it cannot do.
     .option("--emit-boot-token", "print a single-use loopback token on stdout that a launching process can exchange once for an admin session")
-    .action(async (dir: string, options: { port?: string; workspace?: string; emitBootToken?: boolean }) => {
-      await runServeCommand({ dir, port: options.port, workspaceId: options.workspace, emitBootToken: options.emitBootToken === true });
+    .action(async (dir: string, options: { port?: string; host?: string; workspace?: string; emitBootToken?: boolean }) => {
+      await runServeCommand({ dir, port: options.port, host: options.host, workspaceId: options.workspace, emitBootToken: options.emitBootToken === true });
+    });
+
+  // Namespaced command group (mirrors `theme`'s own group above), next to `serve` deliberately —
+  // `development/scripts/start.mjs` (npm-start-just-works-plan Slice 2) spawns `root-key ensure`
+  // immediately before it spawns/imports the server itself.
+  const rootKeyProgram = program.command("root-key").description("root key (\"Site Token\") maintenance commands");
+  rootKeyProgram
+    .command("ensure")
+    .description(
+      "make sure a usable root key exists (env var, else an existing file, else — only when nothing already depends on the old one — a freshly generated file); never overwrites an existing key"
+    )
+    .option("--quiet", "print nothing on success or no-op; a refusal or an unreadable existing key still prints its one line")
+    .action(async (options: { quiet?: boolean }) => {
+      await runRootKeyEnsureCommand({ quiet: options.quiet === true });
     });
 
   program

@@ -2,7 +2,7 @@ name: Jini Published Typecheck
 
 # Narrow, fast, ENABLED gate -- deliberately its OWN workflow, not a change to ci.yml.
 # .github/workflows/ci.yml exists but is `disabled_manually` on GitHub (checked via
-# `gh api repos/leonaburime-ucla/Tovu/actions/workflows`) and carries a dozen gates, several
+# `gh api repos/AINSEP/Tovu/actions/workflows`) and carries a dozen gates, several
 # intentionally red-by-policy or report-only (check:architecture, check:inventory, the full
 # repo-wide test suite, etc.) -- turning that whole workflow back on would bury this signal in
 # pre-existing noise. This workflow does exactly one thing: prove Tovu still typechecks against

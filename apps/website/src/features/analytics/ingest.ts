@@ -232,8 +232,10 @@ function truncateIpv4(ip: string): string {
  * form, not run through the IPv6 group-expansion path — the mapped form's head is always six
  * zero groups + `"ffff"`, so slicing its first 3 expanded groups is always `["0","0","0"]`
  * regardless of the mapped address, collapsing every IPv4-mapped visitor into one bucket. This
- * matters in production: both entrypoints (`src/index.ts`, `src/cli/commands/serve.ts`) call
- * `app.listen(port, ...)` with no host, so Node binds dual-stack and every IPv4 peer arrives as
+ * matters in production: `src/index.ts` binds dual-stack by default (all interfaces, unless
+ * `TOVU_HOST` narrows it), while `src/cli/commands/serve.ts` binds `127.0.0.1` by default unless
+ * `TOVU_HOST` widens it (LAN-bind plan, 2026-09-23) — both forms are handled here, since either
+ * entrypoint can still end up dual-stack and every IPv4 peer on one then arrives as
  * `::ffff:a.b.c.d`.
  *
  * A bracketed address (`"[::1]"`, as seen in host:port contexts) has its brackets stripped before

@@ -23,7 +23,15 @@ import path from "node:path";
  *
  * Called from each dev entry point directly (never from `apps/website/src/index.ts`) on purpose: this
  * is the developer-machine boot path, and a `.env` that silently fed into a PRODUCTION boot would be a
- * different and much worse thing. Deployments set real env vars; `npm start` never imports this file.
+ * different and much worse thing. Deployments set real env vars, never a `.env` file, so they are
+ * unaffected either way.
+ *
+ * `npm start` DOES import this file now (`development/scripts/start.mjs`,
+ * npm-start-just-works-plan-2026-09-24) — the gap that comment used to describe was the actual
+ * defect this plan fixes: an owner's `TOVU_INTEGRATIONS_ROOT_KEY` in `.env` never reached a plain
+ * `npm start` boot. `start.mjs` is still not `apps/website/src/index.ts` itself, and still not the
+ * Dockerfile's own boot path (`CMD ["node","dist/src/index.js"]`, which never runs `start.mjs`) — so
+ * a container or `tovu serve`-packaged boot is exactly as unaffected as before.
  *
  * `existsSync`/`loadEnvFile` are injectable so a test can assert on the exists/load branch without
  * touching the real repo `.env`, or point this at a fixture file in a temp dir for an end-to-end check.

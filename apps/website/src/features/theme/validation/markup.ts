@@ -85,7 +85,7 @@ export function checkMarkupFile(
     if (!KNOWN_EMBED_TYPES.has(marker.type)) {
       issues.push({
         ruleId: "markup-embed-config-unknown-type",
-        message: `'${relativePath}': data-embed-config type '${marker.type}' is not a recognized embed type — expected one of ${[...KNOWN_EMBED_TYPES].join(", ")}${marker.type === "form" ? " ('form' was removed 2026-08-10 — embed a contact-form widget instead: {\"type\":\"widget\",\"id\":\"<contact-form widget entry id>\"})" : ""}`,
+        message: `'${relativePath}': data-embed-config type '${marker.type}' is not a recognized embed type — expected one of ${[...KNOWN_EMBED_TYPES].join(", ")}${marker.type === "form" ? " ('form' was removed 2026-08-10 — embed a contact-form widget instead: {\"type\":\"widget\",\"slug\":\"<contact-form widget slug>\"})" : ""}`,
         path: relativePath,
       });
     }

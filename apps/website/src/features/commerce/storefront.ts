@@ -54,6 +54,10 @@ import type { CommercePriceRecord, CommerceProductRecord, CommerceProductSpec } 
  * `SiteProduct` (`server/http/site/render.ts`), not imported from it. See file header. */
 export interface StorefrontSiteProduct {
   id: string;
+  /** Readable-slugs S7 (2026-09-23): the product's own unique slug — `render.ts`'s
+   *  `productEntryList` links a storefront card by this, not `id`, same rule posts/pages/menus
+   *  already follow. */
+  slug: string;
   title: string;
   /** Cents. */
   price: number;
@@ -95,6 +99,7 @@ export function toSiteProduct(input: {
 }): StorefrontSiteProduct {
   return {
     id: input.product.id,
+    slug: input.product.slug,
     title: input.product.name,
     price: input.price.unitAmountCents,
     compareAtPrice: input.price.compareAtAmountCents,

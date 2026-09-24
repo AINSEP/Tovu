@@ -71,7 +71,7 @@
       <ul class="product-grid">
         {%- for product in products -%}
           <li class="product-card">
-            <a href="/products/{{ product.id }}">
+            <a href="/products/{{ product.slug }}">
               <div class="product-card__media">
                 {%- if product.images.size > 0 -%}
                   <img src="{{ product.images[0].url }}" alt="{{ product.images[0].alt | default: product.title }}" loading="lazy">

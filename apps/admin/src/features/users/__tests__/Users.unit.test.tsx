@@ -69,6 +69,16 @@ beforeEach(() => {
         new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }),
       );
     }
+    // `useUsers` now also calls `port.me()` unconditionally on mount (password-banner plan,
+    // 2026-09-24 Slice 3 deep-link half — see `use-users.hooks.ts`'s `ownPrincipalId` doc comment
+    // for why it's unconditional, not gated on `openOwnPasswordReset`). Same routing-outside-the-
+    // queue treatment as the locale interceptor above. The id deliberately does not match any user
+    // seeded in this file, so every reset-password test below keeps getting the per-username notice
+    // it already asserts on, not the self-reset "sign in again" one — `.endsWith`, not `.includes`,
+    // so this cannot also swallow `/auth/me/password-status` (a different route, unused here).
+    if (String(url).endsWith("/auth/me")) {
+      return Promise.resolve(jsonResponse({ user: { id: "not-a-seeded-user" } }));
+    }
     return fetchMock(url, init);
   });
 });

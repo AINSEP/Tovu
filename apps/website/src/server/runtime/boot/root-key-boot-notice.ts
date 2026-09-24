@@ -45,6 +45,8 @@ export interface RootKeyBootNoticeDeps {
   mode?: () => "production" | "local";
   /** Defaults to `console.warn`. One call per line. */
   log?: (line: string) => void;
+  /** Source for the `TOVU_ROOT_KEY_NOTICE` switch below. Defaults to `process.env`. */
+  env?: NodeJS.ProcessEnv;
 }
 
 /**
@@ -58,6 +60,15 @@ export interface RootKeyBootNoticeDeps {
  * @complexity O(1) plus at most one small file read inside `inspect`.
  */
 export function warnIfNoRootKeyAtBoot(deps: RootKeyBootNoticeDeps = {}): void {
+  // npm-start-just-works-plan-2026-09-24 decision 6: `development/scripts/start.mjs` sets this
+  // to exactly `"off"` once it has either printed its own one-line key notice or confirmed a key
+  // is active, so this function never doubles that up with its own longer wall underneath it. Any
+  // OTHER value (including unset) leaves this function's own behavior untouched — this is a single
+  // exact-match switch, not a general "truthy" flag, so a stray `TOVU_ROOT_KEY_NOTICE=1` a future
+  // caller sets for some other reason can never accidentally silence this wall.
+  const env = deps.env ?? process.env;
+  if (env.TOVU_ROOT_KEY_NOTICE === "off") return;
+
   const mode = (deps.mode ?? resolveRuntimeMode)();
   if (mode === "production") return;
 

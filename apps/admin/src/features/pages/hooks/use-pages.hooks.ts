@@ -6,7 +6,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { t as translate } from "../pages-i18n";
-import { buildPageRowMenuHandleMap, PAGES_RESOURCE } from "../rules";
+import { buildPageRowMenuHandleMap, pageAdminPath, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -160,7 +160,9 @@ export function usePages(deps: PagesDependencies): PagesController {
       const { post } = await port.createPage("Untitled");
       // The Pages editor, not the Posts one. "New Page" and "ask the assistant to build me a page"
       // are two doors to the same destination — neither of them is a Tiptap screen.
-      navigate(`/pages/${post.id}`);
+      // `pageAdminPath` (`rules.ts`) — same slug-vs-id-vs-root-slug rule `Pages.tsx`'s own row
+      // navigation already uses for an existing page (readable-slugs S6a).
+      navigate(pageAdminPath(post));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to create page");
       setCreating(false);

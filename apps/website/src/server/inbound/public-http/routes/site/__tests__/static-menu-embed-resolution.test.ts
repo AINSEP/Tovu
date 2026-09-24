@@ -291,3 +291,313 @@ test("GET /doc-a: the docs-sidebar sentinel degrades to the theme's authored fal
   const res = await fetch(`${baseUrl}/doc-a`);
   assert.equal(res.status, 200, "an unauthored per-page sidebar menu must degrade to the fallback, not 500");
 });
+
+/**
+ * Coverage for the `docs-section` reserved marker id (2026-09-24 docs IA restructure) —
+ * `resolveStaticMenusForRender`'s second reserved id, distinct from the `docs-current-page-sidebar`
+ * sentinel above. It resolves to the Docs subtree of `menu-header-nav` (the item whose resolved href
+ * is `/docs`), never a stored menu of its own, and the returned items must carry real `isCurrent`/
+ * `isActive` state per the request's own `currentPath` — the same tree data feeding the top-nav
+ * flyout and mobile drawer, not a second authored copy.
+ */
+const DOCS_SECTION_SENTINEL_ID = "docs-section";
+
+/** The rendered `<a ...>Label</a>` tag for one menu item label, so a test can assert on its own
+ *  attributes (`aria-current`) without a brittle fixed-width slice around the label's text index. */
+function anchorTagFor(html: string, label: string): string {
+  const labelIndex = html.indexOf(`>${label}<`);
+  assert.ok(labelIndex !== -1, `expected to find a rendered menu item labeled "${label}"`);
+  const tagStart = html.lastIndexOf("<a ", labelIndex);
+  assert.ok(tagStart !== -1, `expected an <a> tag preceding "${label}"`);
+  return html.slice(tagStart, labelIndex + label.length + 1);
+}
+
+/** The rendered `<li class="...">` opening tag enclosing one menu item label — where
+ *  `menuItemClasses` puts structural hooks (`is-current`/`is-active`/an authored `cssClass` like
+ *  `docs-pager-prev`), as opposed to {@link anchorTagFor}'s `<a>`-only slice, which never carries them. */
+function liTagFor(html: string, label: string): string {
+  const labelIndex = html.indexOf(`>${label}<`);
+  assert.ok(labelIndex !== -1, `expected to find a rendered menu item labeled "${label}"`);
+  const tagStart = html.lastIndexOf("<li ", labelIndex);
+  assert.ok(tagStart !== -1, `expected an <li> tag preceding "${label}"`);
+  const tagEnd = html.indexOf(">", tagStart);
+  return html.slice(tagStart, tagEnd + 1);
+}
+
+function headerNavMenuWithDocsSubtree(): NavMenuEntry {
+  return {
+    id: "menu-header-nav-id",
+    workspaceId: WORKSPACE_ID,
+    slug: "menu-header-nav",
+    title: "Header Nav",
+    status: "published",
+    doc: {
+      type: NAV_DOC_TYPE,
+      version: 1,
+      items: [
+        { id: "item-pricing", label: "Pricing", target: { kind: "url", href: "/pricing" } },
+        {
+          id: "item-docs",
+          label: "Docs",
+          target: { kind: "url", href: "/docs" },
+          children: [
+            {
+              id: "group-get-started",
+              label: "Get started",
+              target: { kind: "url", href: "/docs#get-started" },
+              children: [
+                { id: "page-quickstart", label: "Quickstart", target: { kind: "url", href: "/quickstart" } },
+                { id: "page-install", label: "Install", target: { kind: "url", href: "/install" } },
+              ],
+            },
+            {
+              id: "group-build",
+              label: "Build your site",
+              target: { kind: "url", href: "/docs#build" },
+              children: [{ id: "page-pages", label: "Pages", target: { kind: "url", href: "/pages" } }],
+            },
+          ],
+        },
+        { id: "item-blog", label: "Blog", target: { kind: "url", href: "/blog" } },
+      ],
+    },
+    locations: [],
+    updatedAt: "2026-09-24T00:00:00.000Z",
+    version: 1,
+  } as unknown as NavMenuEntry;
+}
+
+function themeWithDocsSectionPages(): DiscoveredTheme {
+  const sectionMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_SECTION_SENTINEL_ID}","variant":"tree"}'></div>`;
+  return {
+    manifest: {
+      id: "static-docs-section-test-theme",
+      name: "Static Docs Section Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+      publishedPages: ["quickstart", "install"],
+    },
+    dir: "/nonexistent/docs-section-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      quickstart: `<html><body>${sectionMarker}<main>quickstart</main></body></html>`,
+      install: `<html><body>${sectionMarker}<main>install</main></body></html>`,
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /quickstart: docs-section resolves to the header nav's Docs subtree only, with the current page and its group marked", async (t) => {
+  const theme = themeWithDocsSectionPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/quickstart`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(html.includes("Get started"), "the current page's own group must be present");
+  assert.ok(html.includes("Build your site"), "sibling groups must also render (full tree, not just the active branch)");
+  assert.ok(!html.includes(">Docs<"), "the Docs item itself must NOT render — only its children (the groups)");
+  assert.ok(!html.includes(">Pricing<") && !html.includes(">Blog<"), "sibling top-level header items must NOT leak into the docs sidebar");
+
+  assert.ok(anchorTagFor(html, "Quickstart").includes('aria-current="page"'), "the current page's own link must carry aria-current");
+  assert.ok(!anchorTagFor(html, "Install").includes('aria-current="page"'), "the sibling page must NOT be marked current");
+});
+
+test("GET /install: docs-section marks Install (not Quickstart) as current on that page", async (t) => {
+  const theme = themeWithDocsSectionPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/install`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(anchorTagFor(html, "Install").includes('aria-current="page"'), "Install must be marked current on its own page");
+  assert.ok(!anchorTagFor(html, "Quickstart").includes('aria-current="page"'), "Quickstart must NOT be marked current on /install");
+});
+
+test("GET /quickstart: docs-section degrades to the theme's authored fallback when menu-header-nav has no item linking to /docs", async (t) => {
+  const theme = themeWithDocsSectionPages();
+  const headerNavWithoutDocs: NavMenuEntry = {
+    ...headerNavMenuWithDocsSubtree(),
+    doc: {
+      type: NAV_DOC_TYPE,
+      version: 1,
+      items: [{ id: "item-pricing", label: "Pricing", target: { kind: "url", href: "/pricing" } }],
+    },
+  };
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavWithoutDocs]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/quickstart`);
+  assert.equal(res.status, 200, "no /docs item on the header nav must degrade to the fallback, not 500");
+});
+
+test("GET /quickstart: docs-section degrades to the theme's authored fallback when menu-header-nav does not exist at all", async (t) => {
+  const theme = themeWithDocsSectionPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/quickstart`);
+  assert.equal(res.status, 200, "a missing menu-header-nav must degrade to the fallback, not 500");
+});
+
+/**
+ * Coverage for the `docs-prev-next` reserved marker id (2026-09-24 docs IA restructure) —
+ * Previous/Next pager links flattened across the Docs subtree's group boundaries, from the SAME
+ * `menu-header-nav` data `docs-section` reads, not a second lookup mechanism.
+ */
+const DOCS_PREV_NEXT_SENTINEL_ID = "docs-prev-next";
+
+function themeWithDocsPagerPages(): DiscoveredTheme {
+  const pagerMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_PREV_NEXT_SENTINEL_ID}","variant":"tree"}'></div>`;
+  return {
+    manifest: {
+      id: "static-docs-pager-test-theme",
+      name: "Static Docs Pager Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+      publishedPages: ["quickstart", "install", "not-a-doc-page"],
+    },
+    dir: "/nonexistent/docs-pager-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      quickstart: `<html><body>${pagerMarker}<main>quickstart</main></body></html>`,
+      install: `<html><body>${pagerMarker}<main>install</main></body></html>`,
+      // Carries the marker but is not itself a page in the Docs subtree — the "current page not
+      // found in the flattened list" degrade case.
+      "not-a-doc-page": `<html><body>${pagerMarker}<main>not-a-doc-page</main></body></html>`,
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /quickstart: docs-prev-next has no Previous (first page in the subtree) and Next is Install", async (t) => {
+  const theme = themeWithDocsPagerPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/quickstart`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(html.includes("docs-pager-next"), "Next must be present");
+  assert.ok(html.includes(">Install<"), "Next must be Install");
+  assert.ok(!html.includes("docs-pager-prev"), "Quickstart is the first page in the subtree — no Previous");
+});
+
+test("GET /install: docs-prev-next crosses the group boundary — Previous is Quickstart (same group), Next is Pages (next group)", async (t) => {
+  const theme = themeWithDocsPagerPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/install`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(liTagFor(html, "Quickstart").includes("docs-pager-prev"), "Previous must be Quickstart");
+  assert.ok(liTagFor(html, "Pages").includes("docs-pager-next"), "Next must cross into the next group (Pages, in Build your site)");
+});
+
+test("GET /not-a-doc-page: docs-prev-next degrades to the theme's authored fallback when the current page is not itself in the Docs subtree", async (t) => {
+  const theme = themeWithDocsPagerPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/not-a-doc-page`);
+  assert.equal(res.status, 200, "a page outside the Docs subtree must degrade to the fallback, not 500");
+});

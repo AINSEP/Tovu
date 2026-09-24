@@ -42,7 +42,7 @@ async function writeRealPluginFixture(installDir: string, id: string): Promise<v
       id,
       name: id,
       version: "1.0.0",
-      sdkRange: "^0.1.0",
+      sdkRange: "^0.1.0 || ^0.2.0",
       engine: 1,
       tier: "tier-3",
       capabilities: ["hooks.attach"],

@@ -335,7 +335,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
     });
 
     expect(port.posts).toHaveLength(2);
-    expect(navigate).toHaveBeenCalledWith(`/posts/${port.posts[1]!.id}`);
+    // readable-slugs S6a: navigates to the new post's slug, not its id.
+    expect(navigate).toHaveBeenCalledWith(`/posts/${port.posts[1]!.slug}`);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

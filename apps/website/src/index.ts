@@ -1,5 +1,4 @@
 import { createServer as createHttpsServer } from "node:https";
-import path from "node:path";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
@@ -17,6 +16,8 @@ import { startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
+import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
+import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 
 /**
  * @file Process entrypoint.
@@ -32,12 +33,19 @@ import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-
  */
 const port = Number(process.env.PORT ?? 3000);
 const useMemory = process.env.TOVU_DB === "memory";
+// LAN-bind plan (2026-09-23): `undefined` is this entry point's OWN existing default (Node's own
+// all-interfaces bind) — unchanged, per the plan's Decision (a container has to listen on every
+// interface; Docker, compose, Fly and Render all run this file). `TOVU_HOST` now lets an operator
+// narrow it, the same resolver `tovu serve` uses (`cli/commands/serve.ts`) for its own, opposite,
+// default.
+const bindHost = resolveBindHost(process.env.TOVU_HOST, undefined);
 
-// Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — resolved from
-// `import.meta.dirname` (this file's own compiled/tsx-run location: `apps/website/src`), not
-// `process.cwd()`, per the daemon-cwd trap already documented elsewhere in this codebase: a boot
-// launched from a different working directory must still find the same cert pair.
-const devTls = resolveDevTls(resolveDevTlsCertPaths(path.resolve(import.meta.dirname, "../../..")));
+// Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — found by walking up
+// from this module's own location (`resolveCheckoutRoot`), not `process.cwd()`, per the daemon-cwd
+// trap already documented elsewhere in this codebase: a boot launched from a different working
+// directory must still find the same cert pair. A fixed `../` count was right for tsx only; the
+// compiled `dist/src/index.js` sits two levels shallower, so `npm start` silently served plain HTTP.
+const devTls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot()));
 const devScheme = deriveDevScheme(devTls.active);
 
 /**
@@ -320,9 +328,19 @@ async function main(): Promise<void> {
   // a newer/older Node where this is fixed, or a non-`allowHTTP1`-compat approach (e.g. a real
   // HTTP/2-native framework in front, or `spdy`), verified under the same SSE-reconnect load before
   // it ships.
+  // Express's own `.listen()` overloads type `hostname` as a required `string`
+  // (`@types/express-serve-static-core`), not `string | undefined` — `bindHost === undefined` (no
+  // TOVU_HOST override, Node's own all-interfaces default) is routed to the callback-only overload
+  // explicitly, same reasoning and same pattern as `cli/commands/serve.ts`'s own `app.listen` call.
+  // `https.Server.listen` (inherited from `net.Server`) types `hostname` as optional, so its branch
+  // needs no such split — kept split anyway, for one uniform shape across both branches.
   const server = devTls.active && devTls.credentials
-    ? createHttpsServer(devTls.credentials, app).listen(port, onListening)
-    : app.listen(port, onListening);
+    ? bindHost !== undefined
+      ? createHttpsServer(devTls.credentials, app).listen(port, bindHost, onListening)
+      : createHttpsServer(devTls.credentials, app).listen(port, onListening)
+    : bindHost !== undefined
+      ? app.listen(port, bindHost, onListening)
+      : app.listen(port, onListening);
 
   // Forwards Vite's HMR WebSocket through this server's own `upgrade` event when
   // `TOVU_ADMIN_DEV_PROXY_URL` is set — the one thing `admin-static.ts`'s ordinary Express routing

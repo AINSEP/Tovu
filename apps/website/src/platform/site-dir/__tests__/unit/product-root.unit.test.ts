@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveProductRoot } from "../../product-root.js";
+import { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "../../product-root.js";
 
 /**
  * @file Regression coverage for the two path-offset bugs found in `read-template.ts`'s
@@ -99,4 +99,96 @@ test("resolveProductRoot(), called with no argument from a real file inside apps
   const repoRoot = resolveProductRoot();
   const pkg = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
   assert.equal(pkg.name, "tovu");
+});
+
+/**
+ * `resolveAppDistDir` — the admin/site-chat SPA counterpart. `app.ts` used a fixed six-`../` count
+ * that was right for `apps/website/src/server/runtime/composition` and one level too far for the
+ * compiled `dist/src/server/runtime/composition`, so `npm start` served "Admin shell not built" (503)
+ * at /admin even with `apps/admin/dist` built. The product root does not help here: in the compiled
+ * tree it is `dist/`, which has no `apps/`.
+ */
+function makeCheckout() {
+  const root = mkdtempSync(path.join(os.tmpdir(), "app-dist-test-"));
+  mkdirSync(path.join(root, "apps", "admin"), { recursive: true });
+  mkdirSync(path.join(root, "apps", "site-chat"), { recursive: true });
+  return root;
+}
+
+test("resolveAppDistDir finds apps/<app>/dist from BOTH the source and the compiled composition dirs", () => {
+  const root = makeCheckout();
+  try {
+    const sourceDir = path.join(root, "apps", "website", "src", "server", "runtime", "composition");
+    const distDir = path.join(root, "dist", "src", "server", "runtime", "composition");
+    mkdirSync(sourceDir, { recursive: true });
+    mkdirSync(distDir, { recursive: true });
+    assert.equal(resolveAppDistDir("admin", sourceDir), path.join(root, "apps", "admin", "dist"));
+    assert.equal(resolveAppDistDir("admin", distDir), path.join(root, "apps", "admin", "dist"));
+    assert.equal(resolveAppDistDir("site-chat", distDir), path.join(root, "apps", "site-chat", "dist"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAppDistDir does not need the dist folder to exist yet (an unbuilt app still resolves, so /admin can say 'not built')", () => {
+  const root = makeCheckout();
+  try {
+    const distDir = path.join(root, "dist", "src", "server", "runtime", "composition");
+    mkdirSync(distDir, { recursive: true });
+    assert.equal(resolveAppDistDir("admin", distDir), path.join(root, "apps", "admin", "dist"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAppDistDir never throws: with no apps/<app> ancestor it returns a path under fromDir that does not exist", () => {
+  const orphan = mkdtempSync(path.join(os.tmpdir(), "app-dist-orphan-"));
+  try {
+    const deep = path.join(orphan, "a", "b");
+    mkdirSync(deep, { recursive: true });
+    assert.equal(resolveAppDistDir("admin", deep), path.join(deep, "apps", "admin", "dist"));
+  } finally {
+    rmSync(orphan, { recursive: true, force: true });
+  }
+});
+
+test("resolveAppDistDir(), called with no fromDir from a real file inside apps/website/src, finds this checkout's apps/admin/dist", () => {
+  assert.equal(resolveAppDistDir("admin"), path.join(resolveProductRoot(), "apps", "admin", "dist"));
+});
+
+// `index.ts`, `deps.ts` and `app.ts` each looked for the repo-root `.certs/` pair with a fixed `../`
+// count sized for the tsx source tree. The compiled tree is two levels shallower (`dist/src/...`), so
+// every compiled boot (`npm start`) looked one directory ABOVE the checkout, found no certs, and
+// silently served plain HTTP.
+test("resolveCheckoutRoot finds the checkout from BOTH the source and the compiled entry/composition dirs", () => {
+  const root = makeCheckout();
+  try {
+    mkdirSync(path.join(root, "apps", "website", "src", "server", "runtime", "composition"), { recursive: true });
+    mkdirSync(path.join(root, "dist", "src", "server", "runtime", "composition"), { recursive: true });
+    for (const dir of [
+      path.join(root, "apps", "website", "src"),
+      path.join(root, "apps", "website", "src", "server", "runtime", "composition"),
+      path.join(root, "dist", "src"),
+      path.join(root, "dist", "src", "server", "runtime", "composition"),
+    ]) {
+      assert.equal(resolveCheckoutRoot(dir), root, dir);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveCheckoutRoot never throws: with no apps/website ancestor it returns fromDir itself", () => {
+  const orphan = mkdtempSync(path.join(os.tmpdir(), "checkout-orphan-"));
+  try {
+    const deep = path.join(orphan, "a", "b");
+    mkdirSync(deep, { recursive: true });
+    assert.equal(resolveCheckoutRoot(deep), deep);
+  } finally {
+    rmSync(orphan, { recursive: true, force: true });
+  }
+});
+
+test("resolveCheckoutRoot(), called with no fromDir from a real file inside apps/website/src, finds this checkout", () => {
+  assert.equal(resolveCheckoutRoot(), resolveProductRoot());
 });

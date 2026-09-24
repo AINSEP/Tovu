@@ -16,6 +16,10 @@ export const defaultDashboardPort: DashboardPort = {
   listMedia: () => api.listMedia(),
   listCommentsQueue: (options) => api.listCommentsQueue(options),
   getPresentation: () => api.getPresentation(),
+  getPasswordStatus: async () => {
+    const [status, me] = await Promise.all([api.getPasswordStatus(), api.me()]);
+    return { usesDefaultPassword: status.usesDefaultPassword, principalId: me.user.id };
+  },
 };
 
 /** Seed state for {@link createFakeDashboardPort}. Every field is independent — a test can seed
@@ -31,11 +35,16 @@ export interface FakeDashboardPortOptions {
    *  rows, matching the port's own `items: unknown[]` narrowing. */
   pendingCommentsCount?: number;
   activeThemeId?: string;
+  /** Defaults to `false` — a test seeds `true` to exercise the default-password banner. */
+  usesDefaultPassword?: boolean;
+  /** The caller's own id the fake reports. Defaults to `"fake-user-1"`. */
+  principalId?: string;
   listPostsError?: Error;
   listPagesError?: Error;
   listMediaError?: Error;
   listCommentsQueueError?: Error;
   getPresentationError?: Error;
+  getPasswordStatusError?: Error;
 }
 
 /**
@@ -65,6 +74,10 @@ export function createFakeDashboardPort(options: FakeDashboardPortOptions = {}):
     async getPresentation() {
       if (options.getPresentationError) throw options.getPresentationError;
       return { settings: { activeThemeId: options.activeThemeId ?? "fake-theme" } };
+    },
+    async getPasswordStatus() {
+      if (options.getPasswordStatusError) throw options.getPasswordStatusError;
+      return { usesDefaultPassword: options.usesDefaultPassword ?? false, principalId: options.principalId ?? "fake-user-1" };
     },
   };
 }

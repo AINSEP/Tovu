@@ -92,7 +92,7 @@ import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/rep
 import path from "node:path";
 import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
-import { describeSiteBinding } from "#src/platform/site-dir/index";
+import { describeSiteBinding, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
 import {
   seededPosts,
   seededPresentation,
@@ -803,11 +803,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const externalMcpOAuthDevices = createDeviceAuthorizationStore();
 
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
-  // (six `..` from `runtime/composition/` back to the repo root, same as this file's own
-  // `distDir`/`agent-icons` fallbacks a few hundred lines down) — this hermetic root backs the same
-  // live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its fallback origin must be derived
-  // the same way rather than silently differing.
-  const REPO_ROOT_FOR_ORIGIN = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..", "..");
+  // (`resolveCheckoutRoot`, a walk-up that is right from both the tsx and the compiled tree) — this
+  // hermetic root backs the same live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its
+  // fallback origin must be derived the same way rather than silently differing.
+  const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot();
   const derivedPublicOrigin = `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
 
   // Composio connectors, hermetic half. No boot `refresh()` here, unlike `deps.ts`: the in-memory
@@ -1117,6 +1116,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
+    // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —
+    // mirrors `commentsReady`'s identical hermetic-vs-real split.
+    pluginRuntimeReady: Promise.resolve(),
     // 2026-08-15 — hermetic double for `server/deps.ts`'s real `SqliteDeploymentsReadRepo`. Empty
     // by default; a test that needs seeded rows constructs its own `InMemoryDeploymentsReadRepo`
     // and overrides this field, the same way other tests override a single `createRouteDeps()`
@@ -1769,9 +1771,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
   mountRoutes(app, createSeoModule(routeDeps));
 
-  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
+  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
+  // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
   registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(import.meta.dirname, "../../../../../../apps/admin/dist"),
+    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
   });
 
   // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
@@ -1780,7 +1783,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../../../../../../content/public/agent-icons")));
+  app.use("/agent-icons", express.static(path.join(resolveProductRoot(), "content", "public", "agent-icons")));
 
   // MCP-UI sandbox proxy — `@mcp-ui/client`'s `AppFrame` points an iframe's `src` at this exact
   // root-relative path (see `mcp-ui-sandbox-proxy-route.ts`'s own module doc) and never falls back
@@ -1795,7 +1798,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
   registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(import.meta.dirname, "../../../../../../apps/site-chat/dist"),
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
   });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see

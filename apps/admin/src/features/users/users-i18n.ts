@@ -68,6 +68,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
   "failed to update email": "no se pudo actualizar el correo electrónico",
   "failed to reset password": "no se pudo restablecer la contraseña",
   "failed to change status": "no se pudo cambiar el estado",
+    "Password changed. Sign in again with your new password.": "Contraseña cambiada. Inicia sesión de nuevo con tu nueva contraseña.",
   },
   id: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -126,6 +127,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "gagal memperbarui email",
     "failed to reset password": "gagal mengatur ulang kata sandi",
     "failed to change status": "gagal mengubah status",
+    "Password changed. Sign in again with your new password.": "Kata sandi telah diubah. Masuk lagi dengan kata sandi baru Anda.",
   },
   de: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -184,6 +186,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "E-Mail konnte nicht aktualisiert werden",
     "failed to reset password": "Passwort konnte nicht zurückgesetzt werden",
     "failed to change status": "Status konnte nicht geändert werden",
+    "Password changed. Sign in again with your new password.": "Passwort geändert. Melden Sie sich erneut mit Ihrem neuen Passwort an.",
   },
   "zh-CN": {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -242,6 +245,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "更新邮箱失败",
     "failed to reset password": "重置密码失败",
     "failed to change status": "更改状态失败",
+    "Password changed. Sign in again with your new password.": "密码已更改。请使用新密码重新登录。",
   },
   "zh-TW": {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -300,6 +304,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "更新電子郵件失敗",
     "failed to reset password": "重設密碼失敗",
     "failed to change status": "變更狀態失敗",
+    "Password changed. Sign in again with your new password.": "密碼已變更。請使用新密碼重新登入。",
   },
   "pt-BR": {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -358,6 +363,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "não foi possível atualizar o e-mail",
     "failed to reset password": "não foi possível redefinir a senha",
     "failed to change status": "não foi possível alterar o status",
+    "Password changed. Sign in again with your new password.": "Senha alterada. Entre novamente com sua nova senha.",
   },
   ru: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -416,6 +422,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "не удалось обновить email",
     "failed to reset password": "не удалось сбросить пароль",
     "failed to change status": "не удалось изменить статус",
+    "Password changed. Sign in again with your new password.": "Пароль изменён. Войдите снова с новым паролем.",
   },
   fa: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -474,6 +481,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "به‌روزرسانی ایمیل ناموفق بود",
     "failed to reset password": "بازنشانی رمز عبور ناموفق بود",
     "failed to change status": "تغییر وضعیت ناموفق بود",
+    "Password changed. Sign in again with your new password.": "رمز عبور تغییر کرد. با رمز عبور جدید خود دوباره وارد شوید.",
   },
   ar: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -532,6 +540,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "تعذّر تحديث البريد الإلكتروني",
     "failed to reset password": "تعذّر إعادة تعيين كلمة المرور",
     "failed to change status": "تعذّر تغيير الحالة",
+    "Password changed. Sign in again with your new password.": "تم تغيير كلمة المرور. سجّل الدخول مرة أخرى بكلمة المرور الجديدة.",
   },
   ja: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -590,6 +599,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "メールアドレスの更新に失敗しました",
     "failed to reset password": "パスワードのリセットに失敗しました",
     "failed to change status": "ステータスの変更に失敗しました",
+    "Password changed. Sign in again with your new password.": "パスワードを変更しました。新しいパスワードで再度サインインしてください。",
   },
   ko: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -648,6 +658,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "이메일을 업데이트하지 못했습니다",
     "failed to reset password": "비밀번호를 재설정하지 못했습니다",
     "failed to change status": "상태를 변경하지 못했습니다",
+    "Password changed. Sign in again with your new password.": "비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인하세요.",
   },
   pl: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -706,6 +717,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "nie udało się zaktualizować adresu e-mail",
     "failed to reset password": "nie udało się zresetować hasła",
     "failed to change status": "nie udało się zmienić statusu",
+    "Password changed. Sign in again with your new password.": "Hasło zostało zmienione. Zaloguj się ponownie przy użyciu nowego hasła.",
   },
   hu: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -764,6 +776,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "az e-mail cím frissítése sikertelen",
     "failed to reset password": "a jelszó visszaállítása sikertelen",
     "failed to change status": "az állapot módosítása sikertelen",
+    "Password changed. Sign in again with your new password.": "A jelszó megváltozott. Jelentkezzen be újra az új jelszavával.",
   },
   fr: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -822,6 +835,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "échec de la mise à jour de l'e-mail",
     "failed to reset password": "échec de la réinitialisation du mot de passe",
     "failed to change status": "échec de la modification du statut",
+    "Password changed. Sign in again with your new password.": "Mot de passe modifié. Reconnectez-vous avec votre nouveau mot de passe.",
   },
   uk: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -880,6 +894,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "не вдалося оновити ел. пошту",
     "failed to reset password": "не вдалося скинути пароль",
     "failed to change status": "не вдалося змінити статус",
+    "Password changed. Sign in again with your new password.": "Пароль змінено. Увійдіть знову з новим паролем.",
   },
   tr: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -938,6 +953,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "e-posta güncellenemedi",
     "failed to reset password": "parola sıfırlanamadı",
     "failed to change status": "durum değiştirilemedi",
+    "Password changed. Sign in again with your new password.": "Parola değiştirildi. Yeni parolanızla tekrar oturum açın.",
   },
   th: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -996,6 +1012,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "อัปเดตอีเมลไม่สำเร็จ",
     "failed to reset password": "รีเซ็ตรหัสผ่านไม่สำเร็จ",
     "failed to change status": "เปลี่ยนสถานะไม่สำเร็จ",
+    "Password changed. Sign in again with your new password.": "เปลี่ยนรหัสผ่านแล้ว โปรดลงชื่อเข้าใช้อีกครั้งด้วยรหัสผ่านใหม่ของคุณ",
   },
   it: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -1054,6 +1071,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "impossibile aggiornare l'email",
     "failed to reset password": "impossibile reimpostare la password",
     "failed to change status": "impossibile modificare lo stato",
+    "Password changed. Sign in again with your new password.": "Password modificata. Accedi di nuovo con la tua nuova password.",
   },
   hi: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -1112,6 +1130,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "ईमेल अपडेट नहीं हो सका",
     "failed to reset password": "पासवर्ड रीसेट नहीं हो सका",
     "failed to change status": "स्थिति नहीं बदली जा सकी",
+    "Password changed. Sign in again with your new password.": "पासवर्ड बदल दिया गया है। अपने नए पासवर्ड से फिर से साइन इन करें।",
   },
   ur: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -1170,6 +1189,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "ای میل اپ ڈیٹ نہ ہو سکی",
     "failed to reset password": "پاس ورڈ ری سیٹ نہ ہو سکا",
     "failed to change status": "حیثیت تبدیل نہ ہو سکی",
+    "Password changed. Sign in again with your new password.": "پاس ورڈ تبدیل ہو گیا۔ اپنے نئے پاس ورڈ کے ساتھ دوبارہ سائن ان کریں۔",
   },
   bn: {
     // rules.ts's describeApiError overrides (C4) — untranslated until this pass.
@@ -1228,6 +1248,7 @@ const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "failed to update email": "ইমেইল আপডেট করা যায়নি",
     "failed to reset password": "পাসওয়ার্ড রিসেট করা যায়নি",
     "failed to change status": "অবস্থা পরিবর্তন করা যায়নি",
+    "Password changed. Sign in again with your new password.": "পাসওয়ার্ড পরিবর্তন করা হয়েছে। আপনার নতুন পাসওয়ার্ড দিয়ে আবার সাইন ইন করুন।",
   },
 };
 

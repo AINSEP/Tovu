@@ -221,9 +221,11 @@ describe("useThemePages", () => {
 // existed). Moved here (2026-09-03 relocation pass, moving derived-logic computations out of `.tsx`
 // files and into their hooks) alongside the rest of this file's row derivations.
 describe("themePageCollisionAdminPath", () => {
-  it("routes a colliding Post to /posts/:id", () => {
+  // readable-slugs S6a: a post collision now routes by slug, matching pageAdminPath's own
+  // slug-preferring convention below.
+  it("routes a colliding Post to /posts/:slug", () => {
     expect(themePageCollisionAdminPath({ id: "post-1", slug: "about", title: "About Us", kind: "post" })).toBe(
-      "/posts/post-1",
+      "/posts/about",
     );
   });
 

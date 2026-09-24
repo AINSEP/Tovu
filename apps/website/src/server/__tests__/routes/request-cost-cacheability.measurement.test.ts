@@ -145,7 +145,7 @@ test("A: GET /store — plugin wired — query-string-dependent (not visitor-dep
   // Minimal fake matching RouteDeps' own `store?` shape (types.ts:518) — exercises the flash-message
   // branch `req.query.msg` actually reads, which the no-plugin default above never reaches.
   deps.store = {
-    listProducts: () => [{ id: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
+    listProducts: () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
     checkout: () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }),
   };
   const app = express();
@@ -174,7 +174,7 @@ test("A: GET /store — plugin wired — query-string-dependent (not visitor-dep
 test("A: GET /store/buy — MUST NEVER get a cache header of any kind (it's a GET that mutates)", async (t) => {
   const deps: RouteDeps = createRouteDeps();
   deps.store = {
-    listProducts: () => [{ id: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
+    listProducts: () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
     checkout: () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }),
   };
   const app = express();
@@ -213,7 +213,7 @@ test("A: does the auto-generated ETag actually short-circuit a conditional GET t
 
 test("A: GET /products/:id (detail)", async (t) => {
   const deps: RouteDeps = createRouteDeps();
-  deps.store = { listProducts: () => [{ id: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }], checkout: () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }) };
+  deps.store = { listProducts: () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }], checkout: () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }) };
   const app = express();
   registerProductRoutes(app, deps);
   const baseUrl = await startTestServer(app, t);

@@ -132,4 +132,23 @@ describe("injected hook seam (useMenusHook)", () => {
     expect(screen.getByText("fake controller error")).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  // readable-slugs S6b (2026-09-23): the list row links by slug, not the raw id — same rule
+  // Posts/Pages/Widgets rows already follow.
+  it("links a menu row by its slug, not its id", () => {
+    const controller: MenusController = {
+      menus: [ACTIVE_MENU],
+      error: null,
+      pendingTrash: null,
+      trashing: false,
+      requestTrash: vi.fn(),
+      confirmTrash: vi.fn(async () => {}),
+      cancelTrash: vi.fn(),
+      t: (key) => key,
+    };
+    render(<Menus useMenusHook={() => controller} />);
+
+    const link = screen.getByRole("link", { name: "Primary nav" });
+    expect(link).toHaveAttribute("href", "/admin/menus/primary");
+  });
 });

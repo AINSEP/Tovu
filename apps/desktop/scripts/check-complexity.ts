@@ -75,6 +75,8 @@ function lintAtCeiling(): { status: number | null; stdout: string; stderr: strin
       "--no-error-on-unmatched-pattern",
       "--ignore-pattern",
       "**/*.test.{ts,tsx,js,mjs,cjs}",
+      "--ignore-pattern",
+      "apps/desktop/src/renderer/public/vendor/**",
       "--rule",
       RULE_OVERRIDE,
       "-f",

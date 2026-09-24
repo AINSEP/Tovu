@@ -63,6 +63,8 @@ for (const capabilities of allCapabilitySubsets()) {
     assert.equal(typeof sdk.content?.read, "function", `content.read must be a callable even when ungranted [${label}]`);
     assert.equal(typeof sdk.content?.extend, "function", `content.extend must be a callable even when ungranted [${label}]`);
     assert.equal(typeof sdk.addFilter, "function", `addFilter must be a callable even when ungranted [${label}]`);
+    assert.equal(typeof sdk.addAction, "function", `addAction must be a callable even when ungranted [${label}]`);
+    assert.equal(typeof sdk.addContribution, "function", `addContribution must be a callable even when ungranted [${label}]`);
   });
 
   test(`CIC U-003-B1 (ESCALATE_SECURITY) [${label}]: content.read() throws CapabilityDeniedError iff content.read is NOT granted`, () => {

@@ -7,6 +7,7 @@ import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.ho
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { readStandingDraftLocalBackup } from "@/lib/standing-draft-local-backup";
 import { PAGES_RESOURCE } from "../rules";
+import { prettifyHtml } from "../lib/prettify-html";
 
 /**
  * @file `usePageEditor` — regression coverage for a real data-loss bug found by external audit
@@ -421,6 +422,42 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
+  // readable-slugs S6a (2026-09-23): once the page has loaded, an old id-based bookmark quietly
+  // catches up to the slug URL — same `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule
+  // `use-widget-instance-editor.hooks.ts` already applies for widgets.
+  describe("slug redirect on load", () => {
+    const PAGE_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+
+    it("replace-navigates to the slug URL when routeSlug is the page's raw (UUID-shaped) id", async () => {
+      const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "landing" };
+      const deps = fakeDeps({ page });
+      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(deps.navigate).toHaveBeenCalledWith("/pages/landing", { replace: true });
+    });
+
+    it("does not navigate when routeSlug already IS the page's slug", async () => {
+      const deps = fakeDeps({ page: HTML_PAGE });
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(deps.navigate).not.toHaveBeenCalled();
+    });
+
+    // The root page's slug ("/") can never be a path segment — `pageAdminPath` (`rules.ts`) already
+    // links to it by id, so the id in the URL here is the CANONICAL address, not a stale bookmark.
+    // Must never "redirect" to the nonsensical `/pages//`.
+    it("does not navigate for the root page, whose slug is '/' and whose canonical URL is its id", async () => {
+      const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "/" };
+      const deps = fakeDeps({ page });
+      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(deps.navigate).not.toHaveBeenCalled();
+    });
+  });
+
   // Characterization (complexity-ceiling pass): the per-render values `usePageEditor` derives from
   // `page` directly, pinned on both sides of the load so moving them into pure helpers cannot drift.
   it("before the page loads, previewFormTarget and templatePreviewUrl are both empty", () => {
@@ -454,6 +491,147 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     } finally {
       confirmSpy.mockRestore();
     }
+  });
+
+  /**
+   * Interactive flush (2026-09-23 plan) — the last edit made while an RTE session is still open on
+   * the Interactive tab must never be lost to a save, publish, tab switch or template change. GrapesJS
+   * only syncs that session's text into its component model on `disableEditing`
+   * (`@jini-ai/ui/html-editor`'s `flush()`), so `usePageEditor` must call `flushInteractiveEdits()`
+   * (via `interactiveEditorRef`) at every one of those points BEFORE reading or changing `html`. A
+   * fake `interactiveEditorRef.current.flush` stands in for the real editor's imperative handle —
+   * `PageEditor.interactive-flush.unit.test.tsx` separately proves `PageEditorPane` actually wires the
+   * real ref onto `<InteractiveHtmlEditor>`.
+   */
+  describe("Interactive flush — the last RTE edit is never lost", () => {
+    /** Installs a `flush` that resolves immediately with `html`, recording `"flush"` into `order`. */
+    function installImmediateFlush(result: { current: PageEditorController }, order: string[], html: string) {
+      result.current.interactiveEditorRef.current = {
+        flush: vi.fn(async () => {
+          order.push("flush");
+          return html;
+        }),
+      };
+    }
+
+    /** Installs a `flush` the test resolves itself, later — proves a write/view/template change
+     *  genuinely WAITS for the flush rather than racing it. */
+    function installDeferredFlush(result: { current: PageEditorController }): {
+      resolve: (html: string) => void;
+      promise: Promise<string>;
+    } {
+      let resolve!: (html: string) => void;
+      const promise = new Promise<string>((r) => {
+        resolve = r;
+      });
+      result.current.interactiveEditorRef.current = { flush: vi.fn(() => promise) };
+      return { resolve, promise };
+    }
+
+    /** Wraps the fake port's `updatePageHtml` to also record `"write"` into `order`, so a test can
+     *  assert the flush-before-write ORDER, not just that both eventually happened. Delegates to the
+     *  fake port's own implementation so `updatePageHtmlCalls`/`current` still update normally. */
+    function recordWriteOrder(port: ReturnType<typeof createFakePageEditorPort>, order: string[]): void {
+      const original = port.updatePageHtml.bind(port);
+      port.updatePageHtml = async (id: string, html: string) => {
+        order.push("write");
+        return original(id, html);
+      };
+    }
+
+    it("save() flushes the Interactive editor first, and writes the flushed HTML", async () => {
+      const order: string[] = [];
+      const deps = fakeDeps({ page: HTML_PAGE });
+      recordWriteOrder(deps.port, order);
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      installImmediateFlush(result, order, "<p>typed</p>");
+      await act(async () => {
+        await result.current.save();
+      });
+
+      expect(deps.port.updatePageHtmlCalls).toEqual(["<p>typed</p>"]);
+      expect(order).toEqual(["flush", "write"]);
+      expect(result.current.html).toBe("<p>typed</p>");
+    });
+
+    it("save('published') also flushes first, and publishes the flushed HTML", async () => {
+      const order: string[] = [];
+      const deps = fakeDeps({ page: HTML_PAGE });
+      recordWriteOrder(deps.port, order);
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      installImmediateFlush(result, order, "<p>typed</p>");
+      await act(async () => {
+        await result.current.save("published");
+      });
+
+      expect(deps.port.updatePageHtmlCalls).toEqual(["<p>typed</p>"]);
+      expect(order).toEqual(["flush", "write"]);
+      expect(result.current.html).toBe("<p>typed</p>");
+      expect(result.current.status).toBe("published");
+    });
+
+    it("setView flushes before switching, and applies the flushed HTML once it resolves", async () => {
+      const deps = fakeDeps({ page: HTML_PAGE });
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      // No ref installed yet (null) — the flush resolves undefined immediately, and the switch still
+      // goes through.
+      act(() => result.current.setView("interactive"));
+      await waitFor(() => expect(result.current.view).toBe("interactive"));
+
+      const deferred = installDeferredFlush(result);
+      act(() => result.current.setView("html"));
+      // Still "interactive" — the flush hasn't resolved yet, so the view must not have switched.
+      expect(result.current.view).toBe("interactive");
+
+      act(() => deferred.resolve("<p>typed</p>"));
+      await waitFor(() => expect(result.current.view).toBe("html"));
+      expect(result.current.html).toBe("<p>typed</p>");
+      expect(result.current.draftHtml).toBe(prettifyHtml("<p>typed</p>"));
+    });
+
+    it("setTemplateChoice flushes before changing, and applies the flushed HTML once it resolves", async () => {
+      const deps = fakeDeps({ page: HTML_PAGE, activeThemeTemplates: ["x.html"] });
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      const deferred = installDeferredFlush(result);
+      act(() => result.current.setTemplateChoice("x.html"));
+      expect(result.current.templateChoice).toBeNull();
+
+      act(() => deferred.resolve("<p>typed</p>"));
+      await waitFor(() => expect(result.current.templateChoice).toBe("x.html"));
+      expect(result.current.html).toBe("<p>typed</p>");
+    });
+
+    it("a flush that resolves undefined leaves html unchanged, and save() writes the existing working copy", async () => {
+      const order: string[] = [];
+      const deps = fakeDeps({ page: HTML_PAGE });
+      recordWriteOrder(deps.port, order);
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+
+      act(() => result.current.setHtml("<p>already typed</p>"));
+      result.current.interactiveEditorRef.current = {
+        flush: vi.fn(async () => {
+          order.push("flush");
+          return undefined;
+        }),
+      };
+
+      await act(async () => {
+        await result.current.save();
+      });
+
+      expect(result.current.html).toBe("<p>already typed</p>");
+      expect(deps.port.updatePageHtmlCalls).toEqual(["<p>already typed</p>"]);
+      expect(order).toEqual(["flush", "write"]);
+    });
   });
 });
 
@@ -1462,6 +1640,29 @@ describe("save() guards against a concurrent save", () => {
     expect(deps.port.updatePageHtmlCalls).toEqual(["<p>mine</p>"]);
     // The replay keeps the Publish intent rather than quietly downgrading it to a draft save.
     expect(deps.port.current.status).toBe("published");
+  });
+
+  it("saveOverwritingConflict() flushes the Interactive editor first and writes the flushed HTML", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    deps.port.simulateConcurrentSave();
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.saveConflict).not.toBeNull();
+
+    // An RTE session opened on the Interactive tab after the conflict banner appeared.
+    result.current.interactiveEditorRef.current = { flush: vi.fn(async () => "<p>mine, then more</p>") };
+    await act(async () => {
+      await result.current.saveOverwritingConflict();
+    });
+
+    expect(result.current.saveConflict).toBeNull();
+    expect(deps.port.updatePageHtmlCalls).toEqual(["<p>mine, then more</p>"]);
+    expect(result.current.html).toBe("<p>mine, then more</p>");
   });
 
   it("dismissSaveConflict() hides the banner without writing anything", async () => {

@@ -11,6 +11,7 @@ import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "@/lib/router";
+import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionEntryEditorPort } from "./collection-entry-editor-dependencies.hooks";
@@ -94,7 +95,7 @@ export interface CollectionEntryEditorController {
 
 export interface CollectionEntryEditorDependencies {
   port: CollectionEntryEditorPort;
-  navigate: (path: string) => void;
+  navigate: (path: string, options?: { replace?: boolean }) => void;
   locale: string;
   t: (key: string) => string;
 }
@@ -156,7 +157,11 @@ export function useCollectionEntryEditor(
       ]);
       return {
         contentType: typesResult.items.find((type) => type.key === props.contentTypeKey) ?? null,
-        entry: props.entryId ? (entriesResult.items.find((e) => e.id === props.entryId) ?? null) : null,
+        // Id or slug (readable-slugs S6b) — id first, since entry slugs are only unique per content
+        // type while ids are globally unique; a slug is checked only when the id lookup misses.
+        entry: props.entryId
+          ? (entriesResult.items.find((e) => e.id === props.entryId || e.slug === props.entryId) ?? null)
+          : null,
         taxonomies: taxonomyResult.items,
       };
     },
@@ -191,6 +196,12 @@ export function useCollectionEntryEditor(
         })()
       );
       editor.commands.setContent((found.bodyJson ?? "") as never);
+      // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
+      // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets/menus already apply.
+      if (props.entryId) {
+        const redirectPath = slugRedirectPath(`/collections/${props.contentTypeKey}`, props.entryId, found);
+        if (redirectPath) navigate(redirectPath, { replace: true });
+      }
     } else {
       setTitle("");
       setSlug("");
@@ -254,7 +265,7 @@ export function useCollectionEntryEditor(
         });
         setEntry(created);
         setMessage(`Created · version ${created.version}`);
-        navigate(`/collections/${props.contentTypeKey}/${created.id}`);
+        navigate(`/collections/${props.contentTypeKey}/${created.slug}`);
       }
     } catch {
       // already surfaced through updateMutation.error/createMutation.error -> error below

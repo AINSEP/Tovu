@@ -44,7 +44,9 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
     },
 
     async getMenu(id) {
-      const menu = menus.find((m) => m.id === id);
+      // Id or slug, same fallback as the real server route (readable-slugs S6b) — a test that loads
+      // by slug shouldn't need to fake out a whole HTTP layer to see that behavior.
+      const menu = menus.find((m) => m.id === id || m.slug === id);
       if (!menu) throw new Error(`fake menu not found: ${id}`);
       return { menu };
     },

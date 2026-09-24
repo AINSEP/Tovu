@@ -50,6 +50,7 @@
  *   to the same worst-case frequency the internal backoff already accepts as safe — traffic-driven
  *   and time-driven retries end up governed by the same ceiling instead of two different ones.
  */
+import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
 import { spawn, execFileSync } from "node:child_process";
 import path from "node:path";
 
@@ -100,6 +101,13 @@ export interface DaemonSupervisorDeps {
    *  (`process.kill(-pid, "SIGTERM")`), which Windows has no equivalent for. Defaults to
    *  {@link taskkillTree} (`taskkill /pid <pid> /T /F`); never called on POSIX. */
   killTree?: (pid: number) => void;
+  /** When `true`, the ROUTINE lifecycle lines — the first spawn and a deliberate (shutdown/restart)
+   *  exit — are not printed; an unexpected exit and every respawn still are, since those are what an
+   *  operator correlates a dead chat against. Defaults to {@link isDaemonLifecycleLogQuiet} (`TOVU_DAEMON_LIFECYCLE_LOG=off`),
+   *  which `npm start` (`development/scripts/start.mjs`) sets so its output is one URL line. */
+  quietRoutineLifecycle?: boolean;
+  /** Where lifecycle breadcrumbs go. Defaults to `console.log`; injected in tests. */
+  log?: (line: string) => void;
 }
 
 /** Returned by both `restart()` and `ensureStarted()` — `reason` is present only when `ok` is
@@ -193,6 +201,9 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
   const onDemandCooldownMs = deps.onDemandCooldownMs ?? 30_000;
   const platform = deps.platform ?? process.platform;
   const killTree = deps.killTree ?? taskkillTree;
+  const quietRoutineLifecycle = deps.quietRoutineLifecycle ?? isDaemonLifecycleLogQuiet();
+  const log = deps.log ?? ((line: string) => console.log(line));
+  let spawnAttempts = 0;
 
   let currentChild: SpawnedDaemonProcess | undefined;
   let childHasExited = false;
@@ -246,7 +257,10 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     // after the fact there was no way to correlate a dead chat against a restart. `shuttingDown`
     // exits are deliberately still logged (below): a save under `apps/website/src` restarts the
     // whole API, which is precisely the correlation an operator needs to be able to make.
-    console.log(`[daemon-supervisor] ${new Date().toISOString()} spawned agent daemon pid=${child.pid ?? "unknown"}`);
+    spawnAttempts += 1;
+    if (!quietRoutineLifecycle || spawnAttempts > 1) {
+      log(`[daemon-supervisor] ${new Date().toISOString()} spawned agent daemon pid=${child.pid ?? "unknown"}`);
+    }
 
     child.on("error", (error) => {
       // Verified directly (not assumed): for a spawn-level failure like ENOENT, Node fires ONLY
@@ -268,9 +282,11 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     });
     child.on("exit", (code, signal) => {
       childHasExited = true;
-      console.log(
-        `[daemon-supervisor] ${new Date().toISOString()} agent daemon pid=${child.pid ?? "unknown"} exited (code=${String(code)}, signal=${String(signal)}, deliberate=${shuttingDown}) — any run in flight died with it`,
-      );
+      if (!quietRoutineLifecycle || !shuttingDown) {
+        log(
+          `[daemon-supervisor] ${new Date().toISOString()} agent daemon pid=${child.pid ?? "unknown"} exited (code=${String(code)}, signal=${String(signal)}, deliberate=${shuttingDown}) — any run in flight died with it`,
+        );
+      }
       if (shuttingDown) return;
       handleUnexpectedExit(code, signal);
     });

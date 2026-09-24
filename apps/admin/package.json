@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node ../../development/scripts/check-no-linked-jini.mjs && vite build",
+    "build:local": "vite build",
     "preview": "vite preview --port 5173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

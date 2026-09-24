@@ -267,6 +267,53 @@ function runSlugHistorySuite(label: string, makeRepo: () => VersionedMediaRepoPo
     const retired = await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" });
     assert.deepEqual([...retired].sort(), ["a", "b"]);
   });
+
+  // The two compare-and-set writers (the publish/import path) keep the same history rules as save().
+  test(`[${label}] saveIfVersion renames retire the old slug too`, async () => {
+    const repo = makeRepo();
+    await repo.insertIfAbsent(makeMedia({ slug: "old-slug", version: 1 }));
+    const outcome = await repo.saveIfVersion({ record: makeMedia({ slug: "new-slug", version: 2 }), ifVersion: 1 });
+
+    assert.deepEqual(outcome, { applied: true });
+    assert.equal((await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "old-slug" }))?.id, "media-1");
+    assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" }), ["old-slug"]);
+  });
+
+  test(`[${label}] a stale saveIfVersion leaves slug history untouched`, async () => {
+    const repo = makeRepo();
+    await repo.insertIfAbsent(makeMedia({ slug: "old-slug", version: 1 }));
+    const outcome = await repo.saveIfVersion({ record: makeMedia({ slug: "new-slug", version: 2 }), ifVersion: 7 });
+
+    assert.deepEqual(outcome, { applied: false });
+    assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" }), []);
+    assert.equal(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "new-slug" }), null);
+  });
+
+  test(`[${label}] insertIfAbsent of a DIFFERENT asset cannot claim a retired slug`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ id: "media-1", slug: "old-slug" }));
+    await repo.save(makeMedia({ id: "media-1", slug: "new-slug", version: 2 }));
+
+    await assert.rejects(
+      () => repo.insertIfAbsent(makeMedia({ id: "media-2", slug: "old-slug" })),
+      (err: unknown) => {
+        assert.ok(err instanceof MediaConflictError, `expected MediaConflictError, got ${err}`);
+        assert.equal((err as Error).message, "slug 'old-slug' is already used by another media asset in this workspace");
+        return true;
+      }
+    );
+    assert.equal((await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "old-slug" }))?.id, "media-1");
+  });
+
+  test(`[${label}] remove() frees a retired slug for a different asset, which then owns it`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia({ id: "media-1", slug: "old-slug" }));
+    await repo.save(makeMedia({ id: "media-1", slug: "new-slug", version: 2 }));
+    await repo.remove({ workspaceId: WORKSPACE_ID, id: "media-1" });
+
+    await repo.save(makeMedia({ id: "media-2", slug: "old-slug" }));
+    assert.equal((await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "old-slug" }))?.id, "media-2");
+  });
 }
 
 runSlugHistorySuite("memory-versioned", () => new InMemoryVersionedMediaRepo());

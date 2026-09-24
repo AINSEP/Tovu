@@ -67,6 +67,12 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
+      # Vendored Jini: unpublished Jini APIs Tovu needs (see vendor/jini/README.md). --no-save keeps
+      # the lockfile; installed after `npm ci` so the tarballs replace the registry copies. Without
+      # it the CLI build below fails. Same step as desktop-release.yml.
+      - name: Install vendored Jini
+        run: npm install --no-save --no-audit --no-fund ./vendor/jini/*.tgz
+
       # Tovu's own CLI, built: the suite's initSiteDir integration test spawns the real `bin.tovu`
       # (dist/src/cli/main.js), which a fresh checkout does not have. Same step as
       # desktop-release.yml's gates job.

@@ -45,6 +45,11 @@ beforeEach(() => {
     if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
       return Promise.resolve(new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }));
     }
+    // `useUsers` now also calls `port.me()` unconditionally on mount (password-banner plan,
+    // 2026-09-24 Slice 3 deep-link half) — same carve-out as `Users.unit.test.tsx`.
+    if (String(url).endsWith("/auth/me")) {
+      return Promise.resolve(jsonResponse({ user: { id: "not-a-seeded-user" } }));
+    }
     return fetchMock(url, init);
   });
 });

@@ -65,6 +65,7 @@ test("toSiteProduct: maps name -> title, unitAmountCents -> price, compareAtAmou
   });
   assert.deepEqual(result, {
     id: "product-1",
+    slug: "classic-boxy-tee",
     title: "Classic Boxy Tee",
     price: 3500,
     compareAtPrice: 4500,

@@ -130,12 +130,51 @@ test("GET /products/:id renders the single Commerce-sourced product's detail rou
   assert.match(await res.text(), /Classic Boxy Tee/);
 });
 
+function activeProduct(id: string, name: string, slug: string): CommerceProductRecord {
+  return { id, workspaceId: WORKSPACE_ID, name, slug, kind: "one_time", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 };
+}
+
+function activePrice(productId: string): CommercePriceRecord {
+  return { id: `price-${productId}`, workspaceId: WORKSPACE_ID, productId, unitAmountCents: 3500, currency: "usd", status: "active", createdAt: NOW, version: 1 };
+}
+
+// Readable-slugs S7: the grid links by slug, so the detail route must resolve that slug.
+test("GET /products/:slug resolves a Commerce product by its slug", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: fakeProductRepo([activeProduct("prod-1", "Classic Boxy Tee", "classic-boxy-tee")]),
+    commercePriceRepo: fakePriceRepo({ "prod-1": [activePrice("prod-1")] }),
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products/classic-boxy-tee`);
+  assert.equal(res.status, 200);
+  assert.match(await res.text(), /Classic Boxy Tee/);
+});
+
+// Id first, then slug: a product whose slug spells another product's id must not shadow it.
+test("GET /products/:id prefers an id match over another product's identical slug", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: fakeProductRepo([
+      activeProduct("prod-a", "Id Owner", "id-owner"),
+      activeProduct("prod-b", "Slug Squatter", "prod-a"),
+    ]),
+    commercePriceRepo: fakePriceRepo({ "prod-a": [activePrice("prod-a")], "prod-b": [activePrice("prod-b")] }),
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products/prod-a`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /Id Owner/);
+  assert.doesNotMatch(html, /Slug Squatter/);
+});
+
 test("GET /products falls back to the sample store plugin when Commerce has no active priced products", async (t) => {
   const { server, baseUrl } = await startServer({
     commerceProductRepo: fakeProductRepo([]),
     commercePriceRepo: fakePriceRepo({}),
     store: {
-      listProducts: () => [{ id: "store-prod-1", title: "Sample Teacup", price: 2800, stock: 5, version: 0 }],
+      listProducts: () => [{ id: "store-prod-1", slug: "store-prod-1", title: "Sample Teacup", price: 2800, stock: 5, version: 0 }],
       checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
   });
@@ -151,7 +190,7 @@ test("GET /products falls back to the sample store plugin when NEITHER Commerce 
     commerceProductRepo: undefined,
     commercePriceRepo: undefined,
     store: {
-      listProducts: () => [{ id: "store-prod-2", title: "No Commerce Wired", price: 1200, stock: 3, version: 0 }],
+      listProducts: () => [{ id: "store-prod-2", slug: "store-prod-2", title: "No Commerce Wired", price: 1200, stock: 3, version: 0 }],
       checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
   });

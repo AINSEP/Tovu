@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tovu's Microsoft Store (MSIX/APPX) manifest: electron-builder 26's own template
+  (app-builder-lib/templates/appx/appxmanifest.xml) plus ONE change, turning off AppData write
+  virtualization. electron-builder fills every ${...} macro; `appx:` in electron-builder.yml sets them.
+
+  Why: inside an MSIX, new files the app (and every process it spawns: `tovu serve`, the agent
+  daemon, agent CLIs, MCP children) create under AppData are silently redirected into a private
+  per-package folder that only the package can see. The `tovu-desktop` CLI, outside agents and the
+  user's own terminal would then read a different, empty `%APPDATA%\Tovu`. Disabling it keeps every
+  AppData write where every other process looks. It needs the restricted capability
+  `unvirtualizedResources` (appx.capabilities in electron-builder.yml), which the Store submission
+  must justify in the certification notes (see the owner checklist), and Windows 10 1903 or newer.
+  Docs: https://learn.microsoft.com/en-us/windows/msix/desktop/flexible-virtualization
+-->
+<!--suppress XmlUnusedNamespaceDeclaration -->
+<Package
+   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+   IgnorableNamespaces="desktop6 rescap">
+  <!-- use single quotes to avoid double quotes escaping in the publisher value  -->
+  <Identity Name="${identityName}"
+    ProcessorArchitecture="${arch}"
+    Publisher='${publisher}'
+    Version="${version}" />
+  <Properties>
+    <DisplayName>${displayName}</DisplayName>
+    <PublisherDisplayName>${publisherDisplayName}</PublisherDisplayName>
+    <Description>${description}</Description>
+    <Logo>${logo}</Logo>
+    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
+  </Properties>
+  <Resources>
+    ${resourceLanguages}
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="${minVersion}" MaxVersionTested="${maxVersionTested}" />
+  </Dependencies>
+  ${capabilities}
+  <Applications>
+    <Application Id="${applicationId}" Executable="${executable}" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+       BackgroundColor="${backgroundColor}"
+       DisplayName="${displayName}"
+       Square150x150Logo="${square150x150Logo}"
+       Square44x44Logo="${square44x44Logo}"
+       Description="${description}">
+        ${lockScreen}
+        ${defaultTile}
+        ${splashScreen}
+      </uap:VisualElements>
+      ${extensions}
+    </Application>
+  </Applications>
+</Package>

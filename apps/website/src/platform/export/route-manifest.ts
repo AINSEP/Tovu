@@ -97,11 +97,14 @@ export interface RouteManifestDeps {
  * of it: importing `SiteProduct` here would relocate this file's `RouteDeps` back-edge rather than
  * remove it (`SiteProduct` itself lives under `src/server/**`, same as `RouteDeps`). Return-type
  * covariance means the real `resolveStorefrontProducts` (which returns full `SiteProduct[]`, a
- * strict superset of these 2 fields) satisfies {@link RouteManifestDeps}'s narrower field with no
- * cast anywhere — every `SiteProduct` already has both `id` and `title`.
+ * strict superset of these 3 fields) satisfies {@link RouteManifestDeps}'s narrower field with no
+ * cast anywhere — every `SiteProduct` already has `id`, `slug`, and `title`.
  */
 export interface RouteManifestProduct {
   readonly id: string;
+  /** Readable-slugs S7 (2026-09-23): the exported route uses this, not `id` — see
+   *  `buildProductRoutes` below. */
+  readonly slug: string;
   readonly title: string;
 }
 
@@ -232,7 +235,7 @@ function buildProductRoutes(products: readonly RouteManifestProduct[]): Manifest
   if (products.length === 0) return [];
   const routes: ManifestRoute[] = [{ path: "/products", kind: "product-list", label: "products" }];
   for (const product of products) {
-    routes.push({ path: `/products/${product.id}`, kind: "product", label: product.title });
+    routes.push({ path: `/products/${product.slug}`, kind: "product", label: product.title });
   }
   return routes;
 }

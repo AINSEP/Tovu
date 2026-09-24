@@ -2765,7 +2765,7 @@ test("renderDocNode: worklist #5 regression — content above the bound still re
 // ---------------------------------------------------------------------------
 
 function sampleSiteProduct(overrides: Partial<SiteProduct> = {}): SiteProduct {
-  return { id: "prod-1", title: "Classic Boxy Tee", price: 3500, ...overrides };
+  return { id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, ...overrides };
 }
 
 test("renderSite (products route, no theme template): the fallback body lists real products, not an empty post list (regression)", async () => {
@@ -2786,6 +2786,21 @@ test("renderSite (products route, no theme template): an empty product list show
   const theme = declarativeTheme({ type: "doc", content: [] });
   const html = await renderSite({ theme, route: "products", siteTitle: "Fallback Demo", posts: [], products: [] });
   assert.match(html, /No products available yet/);
+});
+
+// readable-slugs S7 (2026-09-23): the product grid links by slug, not the raw id — same rule
+// posts/pages/menus already follow.
+test("renderSite (products route, no theme template): the grid links each product by its slug, not its id", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  const html = await renderSite({
+    theme,
+    route: "products",
+    siteTitle: "Fallback Demo",
+    posts: [],
+    products: [sampleSiteProduct({ id: "prod-1", slug: "classic-boxy-tee" })],
+  });
+  assert.match(html, /href="\/products\/classic-boxy-tee"/);
+  assert.doesNotMatch(html, /href="\/products\/prod-1"/);
 });
 
 test("renderSite (product route, no theme template): the fallback body shows the single product's own title, not an empty article (regression)", async () => {

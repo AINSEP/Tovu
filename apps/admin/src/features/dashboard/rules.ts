@@ -37,9 +37,12 @@ export function mergeRecent(prev: AdminPost[] | null, incoming: AdminPost[]): Ad
  * panel no detail view — only `posts` has a `post-editor`. Sending a page row to a route that does
  * not exist would trade a wrong-editor 404 for a routing dead end. When the pages-vibecoding
  * workstream lands a page editor, this is the one place that changes.
+ *
+ * Readable-slugs S6a (2026-09-23): a post row now hrefs its slug, not its id, matching every other
+ * post link in the admin (`/posts/:slug`, `use-posts.hooks.ts`'s `createPost`).
  */
-export function activityRowHref(row: Pick<AdminPost, "id" | "kind">): string {
-  return row.kind === "page" ? "/admin/pages" : `/admin/posts/${row.id}`;
+export function activityRowHref(row: Pick<AdminPost, "id" | "kind" | "slug">): string {
+  return row.kind === "page" ? "/admin/pages" : `/admin/posts/${row.slug}`;
 }
 
 /** The Posts stat card's meta line — blank while `published` is still pending (`null`). */
@@ -60,4 +63,19 @@ export function pagesStatMeta(drafts: number | null, t: Translate): string {
  *  queue of unknown size defaulting to "may need attention" is arguably the safer default anyway. */
 export function commentsStatMeta(pendingCount: number | null, t: Translate): string {
   return t(pendingCount === 0 ? "nothing to review" : "awaiting moderation");
+}
+
+/**
+ * Password-banner plan (2026-09-24), Slice 3. Whether the dashboard should show the default-
+ * password nag banner: the server says the caller is still on the default AND the operator hasn't
+ * dismissed it in this browser. `usesDefault === null` (status still loading, or the fetch failed
+ * and was swallowed — see `use-dashboard.hooks.ts`) reads as "don't show", the same fail-closed
+ * default an advisory nag should have: a transient fetch error must never be read as "you're on the
+ * default password" and a transient one must never be read as "you're safe" either, so the only
+ * state that shows the banner is an explicit, confirmed `true`.
+ *
+ * @complexity O(1).
+ */
+export function shouldShowDefaultPasswordBanner(usesDefault: boolean | null, dismissed: boolean): boolean {
+  return usesDefault === true && !dismissed;
 }

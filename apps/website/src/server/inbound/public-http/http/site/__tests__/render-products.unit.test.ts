@@ -26,8 +26,18 @@ function minimalContext(overrides: Partial<SiteRenderContext> = {}): SiteRenderC
 }
 
 function siteProduct(overrides: Partial<SiteProduct> = {}): SiteProduct {
-  return { id: "product-1", title: "Classic Boxy Tee", price: 3500, ...overrides };
+  return { id: "product-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, ...overrides };
 }
+
+// Readable-slugs S7: a templated theme builds its own `/products/...` link, so the slug must reach
+// the template data — otherwise the theme can only link by id, which the static export (keyed by
+// slug in `route-manifest.ts`) never writes a page for.
+test("buildTemplateRenderData: each product carries its slug, for the theme's own /products/<slug> link", () => {
+  const data = buildTemplateRenderData(minimalContext({ products: [siteProduct()], product: siteProduct() }));
+  const products = data.products as Array<Record<string, unknown>>;
+  assert.equal(products[0].slug, "classic-boxy-tee");
+  assert.equal((data.product as Record<string, unknown>).slug, "classic-boxy-tee");
+});
 
 test("buildTemplateRenderData: a product's compareAtPrice becomes compareAtPriceFormatted", () => {
   const data = buildTemplateRenderData(

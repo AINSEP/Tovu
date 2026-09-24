@@ -9,6 +9,7 @@ import type { UsersPort } from "./users-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultUsersPort: UsersPort = {
   listUsers: () => api.listUsers(),
+  me: () => api.me(),
   listRoles: () => api.listRoles(),
   listPolicies: () => api.listPolicies(),
   createUser: (input, options) => api.createUser(input, options),
@@ -40,6 +41,10 @@ export interface FakeUsersPortOptions {
   users?: AdminIdentityUser[];
   roles?: AdminRole[];
   policies?: AdminPolicy[];
+  /** What `me()` resolves to — the id of the signed-in caller's own row for the deep-link tests
+   *  (password-banner plan, Slice 3). Defaults to the first seeded user's id, or a fixed fake id
+   *  when no users were seeded, so a test that doesn't care about `me()` never has to pass this. */
+  meId?: string;
   /** When set, `createUser()` rejects with this instead of resolving. */
   createUserError?: Error;
   /** When set, `updateUser()` rejects with this instead of resolving. */
@@ -81,8 +86,13 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
     return updated;
   }
 
+  const meId = options.meId ?? users[0]?.principalId ?? "fake-user-1";
+
   return {
     users,
+    async me() {
+      return { user: { id: meId } };
+    },
     async listUsers() {
       return { users: [...users] };
     },

@@ -75,15 +75,17 @@ test("a quit attempt during the drain is held until the drain completes, not let
   const handler = beforeQuitHandler();
   assert.doesNotMatch(handler, /\|\| shuttingDown\) return;/, "a guard that returns mid-drain lets a second quit exit Electron");
   const decide = handler.indexOf("decideBeforeQuit({ phase: quitPhase,");
-  const proceed = handler.indexOf('if (action === "proceed") return;');
-  const prevent = handler.indexOf("event.preventDefault();");
+  // The proceed branch may itself hold the final quit for an update install (main-updater-wiring.test.ts);
+  // the preventDefault this test is about is the unconditional one after it.
+  const proceed = handler.indexOf('if (action === "proceed") {');
+  const prevent = handler.indexOf("\n  event.preventDefault();");
   const hold = handler.indexOf('if (action === "hold") return;');
   assert.notEqual(decide, -1, "before-quit must ask decideBeforeQuit with the current quitPhase");
   assert.ok(decide < proceed && proceed < prevent && prevent < hold, "a held attempt must be preventDefault()ed before it returns");
   assert.match(handler, /quitPhase = "draining";/);
   assert.match(
     handler,
-    /\.finally\(\(\) => \{\s*quitPhase = "drained";\s*app\.quit\(\);\s*\}\)/,
+    /\.finally\(\(\) => \{\s*clearTimeout\(drainDeadline\);\s*quitPhase = "drained";\s*app\.quit\(\);\s*\}\)/,
     "the drain's own closing app.quit() must be the one decideBeforeQuit lets through",
   );
 });
@@ -94,7 +96,7 @@ test("the drain arms the force-exit deadline itself, so a held quit cannot outli
   const handler = beforeQuitHandler();
   const draining = handler.indexOf('quitPhase = "draining";');
   assert.notEqual(draining, -1, "expected before-quit to enter the draining phase");
-  assert.match(handler.slice(draining), /setTimeout\(\(\) => app\.exit\(1\), QUIT_DEADLINE_MS\)\.unref\(\);/);
+  assert.match(handler.slice(draining), /const drainDeadline = setTimeout\(\(\) => app\.exit\(1\), QUIT_DEADLINE_MS\);\s*drainDeadline\.unref\(\);/);
   assert.match(source, /deadlineMs: QUIT_DEADLINE_MS,/, "a signal and a Cmd+Q must get the same bound");
 });
 

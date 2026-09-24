@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { type AdminMenu, type AdminMenuItem } from "@/lib/api";
 import { navigate as realNavigate } from "@/lib/router";
+import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../menus-i18n";
@@ -38,7 +39,7 @@ import type { Translate } from "@/lib/dictionary-translator";
 
 export interface MenuEditorDependencies {
   port: MenusPort;
-  navigate: (path: string) => void;
+  navigate: (path: string, options?: { replace?: boolean }) => void;
   t: Translate;
 }
 
@@ -208,6 +209,10 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
         setSlug(menu.slug);
         setItems(menu.items);
         setOriginal({ title: menu.title, slug: menu.slug, items: menu.items });
+        // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
+        // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets already apply.
+        const redirectPath = slugRedirectPath("/menus", menuId as string, menu);
+        if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => {
         if (cancelled) return;
@@ -273,7 +278,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
     try {
       if (isNew) {
         const { menu: created } = await port.createMenu({ title, slug }, { items });
-        navigate(`/menus/${created.id}`);
+        navigate(`/menus/${created.slug}`);
         return;
       }
       if (!menu) return;

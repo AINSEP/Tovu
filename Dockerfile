@@ -167,8 +167,14 @@ WORKDIR /workspace/Tovu
 # relative fallback does NOT land on the actual admin/site-chat build output. Setting them
 # explicitly sidesteps that entirely rather than relying on a path that happens to work in one
 # tree layout and not another.
+#
+# TOVU_DISABLE_DEV_TLS: `COPY . .` above has no .dockerignore, so a developer's local `.certs/`
+# (mkcert, localhost-only) can ride into the image. `index.ts` finds the checkout's `.certs/` by
+# walking up (`resolveCheckoutRoot`), so without this the container would terminate TLS itself with
+# those dev certs. The platform proxy (Fly) terminates TLS and forwards plain HTTP to this port.
 ENV TOVU_ADMIN_DIST=/workspace/Tovu/apps/admin/dist \
     TOVU_SITE_CHAT_DIST=/workspace/Tovu/apps/site-chat/dist \
+    TOVU_DISABLE_DEV_TLS=1 \
     PORT=3000 \
     JINI_AGENT_DAEMON_PORT=4319
 

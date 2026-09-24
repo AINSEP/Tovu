@@ -722,7 +722,8 @@ describe("Theme Pages tab", () => {
       await openDetails(user, "about");
       expect(screen.getByText(/A content record shares this page's URL: About Us\./)).toBeInTheDocument();
       const openLink = screen.getByRole("link", { name: "Open About Us" });
-      expect(openLink).toHaveAttribute("href", "/admin/posts/post-1");
+      // readable-slugs S6a: a post collision now links by slug, not id.
+      expect(openLink).toHaveAttribute("href", "/admin/posts/about");
     });
 
     it("links to the Pages editor by slug, not id, when the colliding record is a Page", async () => {

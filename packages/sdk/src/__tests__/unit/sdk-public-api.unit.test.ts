@@ -23,6 +23,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "CONTENT_EXTEND",
   "HOOKS_ATTACH",
   "HOOK_CONTENT_ENTRY_BEFORE_SAVE",
+  "HOOK_POINTS",
 ].sort();
 
 test("REQ-08/AC-10: @tovu/sdk's runtime export surface is exactly the certified set — no more, no less", () => {
@@ -43,6 +44,18 @@ test("REQ-04: the three v1 capability tokens are the exact, pinned literal strin
 
 test("REQ-05: the hook-point constant is the exact, pinned literal string", () => {
   assert.equal(sdk.HOOK_CONTENT_ENTRY_BEFORE_SAVE, "content.entry.beforeSave");
+});
+
+test("hooks v2 §3.1: HOOK_POINTS has exactly one entry, content.entry.beforeSave, kind filter, capability hooks.attach, since 0.1.0", () => {
+  assert.deepEqual(sdk.HOOK_POINTS, [
+    {
+      name: "content.entry.beforeSave",
+      kind: "filter",
+      capability: "hooks.attach",
+      since: "0.1.0",
+      description: "Runs before a content entry is saved; may write into the plugin's own ext.{pluginId} namespace.",
+    },
+  ]);
 });
 
 test("REQ-08/C-001: definePlugin is a function export", () => {

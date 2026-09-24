@@ -22,6 +22,23 @@ name: Desktop Release
 # `electron-builder.yml`'s `nsis.artifactName` resolves to `Tovu-windows-x64-setup.exe`, matching
 # both this matrix row's `out:` and the `release` job's fallback `gh release create` line.
 #
+# Auto-update (electron-updater, `apps/desktop/src/auto-update-controller.ts`): besides the
+# installers, each release carries the update payloads and manifests the app reads from the LATEST
+# PUBLISHED release (a draft is invisible to it):
+#   mac:  Tovu-mac-<arch>.zip (+ .blockmap) and ONE latest-mac.yml. The two mac jobs each write a
+#         latest-mac.yml naming only their own zip, so each uploads it as latest-mac-<arch>.yml and the
+#         release job merges both (`apps/desktop/scripts/merge-latest-mac.ts`, which refuses a merge
+#         that would let one arch update to the other's binary).
+#   win:  latest.yml and Tovu-windows-x64-setup.exe.blockmap.
+#
+# Microsoft Store (MSIX/APPX): the `win-x64-store` job builds `Tovu-windows-x64-store.appx` as a
+# WORKFLOW ARTIFACT only — never attached to the GitHub release; the owner uploads it to Partner
+# Center. It is its own job, not a `build` matrix row, so that it can never block or fail the
+# release: the `release` job does not wait for it. It runs only when the three Partner Center
+# identity secrets exist in the `desktop-release` environment (MS_STORE_IDENTITY_NAME,
+# MS_STORE_PUBLISHER, MS_STORE_PUBLISHER_DISPLAY_NAME; see electron-builder.yml's `appx:` block and
+# ADS-memory/.local-artifacts/ms-store-owner-checklist-2026-09-23.md). Unsigned: the Store signs it.
+#
 # `uses:` steps are pinned to commit SHAs (resolved from each action's `v4` tag on 2026-09-23),
 # not floating version tags.
 
@@ -149,21 +166,122 @@ jobs:
           7z x "release/${{ matrix.out }}" -o"$RUNNER_TEMP/nsis" -y
           7z x "$RUNNER_TEMP/nsis/\$PLUGINSDIR/app-64.7z" -o"$RUNNER_TEMP/app" -y
           node scripts/verify-package.ts --asar "$RUNNER_TEMP/app/resources/app.asar"
+      - if: runner.os == 'macOS'
+        name: The update zip holds the same signed, notarized, right-arch app
+        working-directory: apps/desktop
+        # Squirrel.Mac installs from this zip, not the dmg, and refuses an app whose signature does
+        # not match the running one's, so it gets the dmg's checks.
+        run: |
+          zip="release/Tovu-mac-${{ matrix.arch }}.zip"
+          test -s "$zip" && test -s "$zip.blockmap" && test -s release/latest-mac.yml
+          ditto -x -k "$zip" "$RUNNER_TEMP/zip"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/zip/Tovu.app"
+          xcrun stapler validate "$RUNNER_TEMP/zip/Tovu.app"
+          test "$(lipo -archs "$RUNNER_TEMP/zip/Tovu.app/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
+          node scripts/verify-package.ts --asar "$RUNNER_TEMP/zip/Tovu.app/Contents/Resources/app.asar"
+          grep -q "url: Tovu-mac-${{ matrix.arch }}.zip" release/latest-mac.yml
+          # Per-arch name: the release job merges both into the one latest-mac.yml.
+          mv release/latest-mac.yml "release/latest-mac-${{ matrix.arch }}.yml"
+      - if: runner.os == 'Windows'
+        name: Update manifest + blockmap exist
+        working-directory: apps/desktop/release
+        run: |
+          test -s latest.yml && test -s "${{ matrix.out }}.blockmap"
+          grep -q "url: ${{ matrix.out }}" latest.yml
       - name: Checksum
         working-directory: apps/desktop/release
         # Node, not shasum/sha256sum: the same tool and output format (`<hex>  <name>`) on all runners.
         run: >-
           node -e "const f=process.argv[1];const h=require('crypto').createHash('sha256').update(require('fs').readFileSync(f)).digest('hex');require('fs').writeFileSync(f+'.sha256',h+'  '+f+'\\n')" "${{ matrix.out }}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with: { name: "${{ matrix.id }}", path: "apps/desktop/release/${{ matrix.out }}*", retention-days: 7, if-no-files-found: error }
+        with:
+          name: "${{ matrix.id }}"
+          # `<out>*` also catches the installer's .sha256 and .blockmap.
+          path: |
+            apps/desktop/release/${{ matrix.out }}*
+            apps/desktop/release/Tovu-mac-*.zip
+            apps/desktop/release/Tovu-mac-*.zip.blockmap
+            apps/desktop/release/latest*.yml
+          retention-days: 7
+          if-no-files-found: error
+
+  store-identity:                           # is the Partner Center identity configured yet?
+    runs-on: ubuntu-latest
+    environment: desktop-release
+    outputs: { ready: "${{ steps.check.outputs.ready }}" }
+    steps:
+      - id: check
+        env: { ID: "${{ secrets.MS_STORE_IDENTITY_NAME }}", PUB: "${{ secrets.MS_STORE_PUBLISHER }}", DISP: "${{ secrets.MS_STORE_PUBLISHER_DISPLAY_NAME }}" }
+        run: |
+          if [ -n "$ID" ] && [ -n "$PUB" ] && [ -n "$DISP" ]; then echo "ready=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::Microsoft Store identity secrets not set; skipping the Store package"; echo "ready=false" >> "$GITHUB_OUTPUT"; fi
+
+  win-x64-store:                            # Store package; never part of the GitHub release
+    needs: [gates, store-identity]
+    if: needs.store-identity.outputs.ready == 'true'
+    runs-on: windows-2025
+    environment: desktop-release
+    defaults: { run: { shell: bash } }
+    env:
+      MS_STORE_IDENTITY_NAME: ${{ secrets.MS_STORE_IDENTITY_NAME }}
+      MS_STORE_PUBLISHER: ${{ secrets.MS_STORE_PUBLISHER }}
+      MS_STORE_PUBLISHER_DISPLAY_NAME: ${{ secrets.MS_STORE_PUBLISHER_DISPLAY_NAME }}
+    steps:
+      - run: git config --global core.longpaths true
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24 }
+      - run: npm config set script-shell "C:\\Program Files\\Git\\bin\\bash.exe"
+      - name: Build Tovu payload inputs
+        run: |
+          npm ci && npm install --no-save --no-audit --no-fund ./vendor/jini/*.tgz && npm run build   # vendored Jini
+          (cd apps/admin && npm ci && npm install --no-save --no-audit --no-fund ../../vendor/jini/*.tgz && npx vite build)
+          (cd apps/site-chat && npm ci && npx vite build)
+          npm ci --prefix apps/desktop
+      - name: Build + stage desktop
+        working-directory: apps/desktop
+        run: npm run build && TOVU_TARGET_ARCH=x64 npm run stage
+      - name: electron-builder (appx, identity from Partner Center)
+        working-directory: apps/desktop
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
+        run: >-
+          npx electron-builder --win appx --x64 --publish never
+          "-c.appx.identityName=$MS_STORE_IDENTITY_NAME"
+          "-c.appx.publisher=$MS_STORE_PUBLISHER"
+          "-c.appx.publisherDisplayName=$MS_STORE_PUBLISHER_DISPLAY_NAME"
+      - name: The package carries the real identity and unvirtualized AppData
+        working-directory: apps/desktop
+        run: |
+          7z x release/Tovu-windows-x64-store.appx -o"$RUNNER_TEMP/appx" -y
+          m="$RUNNER_TEMP/appx/AppxManifest.xml"
+          if grep -q Placeholder "$m"; then echo "a placeholder identity reached the package"; exit 1; fi
+          grep -qF "Name=\"$MS_STORE_IDENTITY_NAME\"" "$m"
+          grep -qF "$MS_STORE_PUBLISHER" "$m"
+          grep -q "<desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>" "$m"
+          grep -q 'Name="unvirtualizedResources"' "$m"
+          node scripts/verify-package.ts --asar "$RUNNER_TEMP/appx/app/resources/app.asar"
+      - name: Native-module smoke (runs the shipped binary on this CPU)
+        working-directory: apps/desktop
+        run: node scripts/smoke-native.ts --platform-dir release
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: { name: store-win-x64-appx, path: apps/desktop/release/Tovu-windows-x64-store.appx, retention-days: 30, if-no-files-found: error }
 
   release:                                  # one job creates ONE draft (no 3-way race)
     needs: build
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: apps/desktop/package-lock.json }
+      # Only for js-yaml (the parser electron-updater reads the manifest with), lockfile-pinned.
+      # --ignore-scripts: nothing here needs Electron's binary download or any other install script.
+      - run: npm ci --ignore-scripts --prefix apps/desktop
+      # Only the three release rows: the Store job's package goes to Partner Center, never here.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with: { path: dist, merge-multiple: true }
+        with: { path: dist, pattern: "{mac-arm64,mac-x64,win-x64}", merge-multiple: true }
+      - name: Merge the two mac update manifests into one latest-mac.yml
+        run: node apps/desktop/scripts/merge-latest-mac.ts dist/latest-mac.yml dist/latest-mac-arm64.yml dist/latest-mac-x64.yml
       - name: Draft release
         env: { GH_TOKEN: "${{ github.token }}", GH_REPO: "${{ github.repository }}" }
         # dist/Tovu-windows-x64-setup.exe now exists — the win-x64 matrix row builds it and
@@ -172,7 +290,9 @@ jobs:
         # stable `releases/latest/download/...` URLs already serve.
         run: |
           cat dist/*.sha256 > dist/SHA256SUMS.txt
-          assets=(dist/Tovu-mac-arm64.dmg dist/Tovu-mac-x64.dmg dist/Tovu-windows-x64-setup.exe dist/SHA256SUMS.txt)
+          assets=(dist/Tovu-mac-arm64.dmg dist/Tovu-mac-x64.dmg dist/Tovu-windows-x64-setup.exe dist/SHA256SUMS.txt
+            dist/Tovu-mac-arm64.zip dist/Tovu-mac-arm64.zip.blockmap dist/Tovu-mac-x64.zip dist/Tovu-mac-x64.zip.blockmap
+            dist/latest-mac.yml dist/latest.yml dist/Tovu-windows-x64-setup.exe.blockmap)
           if draft="$(gh release view "$TAG" --json isDraft -q .isDraft 2>/dev/null)"; then
             test "$draft" = "true" || { echo "release $TAG is already published; refusing to replace its assets"; exit 1; }
             gh release upload "$TAG" "${assets[@]}" --clobber

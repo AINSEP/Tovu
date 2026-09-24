@@ -103,7 +103,8 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
     try {
       const id = String(req.params.id ?? "");
       const products = await resolveStorefrontProducts(deps);
-      const product = products.find((p) => p.id === id);
+      // Id or slug (readable-slugs S7) — id first, same fallback contract as posts/pages/menus.
+      const product = products.find((p) => p.id === id) ?? products.find((p) => p.slug === id);
       if (!product) {
         res.status(404).type("html").send("<h1>404 — product not found</h1><p><a href='/products'>All products</a></p>");
         return;

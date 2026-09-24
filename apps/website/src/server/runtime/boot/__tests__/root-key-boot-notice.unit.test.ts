@@ -38,12 +38,14 @@ function run(over: {
   inspect?: () => RootKeyStatus;
   mode?: () => "production" | "local";
   log?: (line: string) => void;
+  env?: NodeJS.ProcessEnv;
 } = {}) {
   const lines: string[] = [];
   warnIfNoRootKeyAtBoot({
     mode: over.mode ?? (() => "local"),
     inspect: over.inspect ?? (() => status()),
     log: over.log ?? ((line) => lines.push(line)),
+    env: over.env,
   });
   return lines;
 }
@@ -94,6 +96,30 @@ test("a broken key FILE points at the file, not at the env var", () => {
 test("production is silent — the readiness gate has already refused the boot", () => {
   const lines = run({ mode: () => "production" });
   assert.deepEqual(lines, [], "warning immediately before process.exit(1) helps nobody");
+});
+
+test("TOVU_ROOT_KEY_NOTICE=off silences the wall even for an inactive status", () => {
+  const lines = run({ env: { TOVU_ROOT_KEY_NOTICE: "off" } });
+  assert.deepEqual(lines, [], "start.mjs already spoke — this function must not repeat it");
+});
+
+test("TOVU_ROOT_KEY_NOTICE=off does not even probe", () => {
+  let probed = false;
+  run({
+    env: { TOVU_ROOT_KEY_NOTICE: "off" },
+    inspect: () => {
+      probed = true;
+      return status();
+    },
+  });
+  assert.equal(probed, false);
+});
+
+test("any other TOVU_ROOT_KEY_NOTICE value leaves the wall unchanged", () => {
+  for (const value of ["on", "1", "", "OFF"]) {
+    const lines = run({ env: { TOVU_ROOT_KEY_NOTICE: value } });
+    assert.notEqual(lines.length, 0, `value ${JSON.stringify(value)} must not be treated as "off"`);
+  }
 });
 
 test("production does not even probe", () => {

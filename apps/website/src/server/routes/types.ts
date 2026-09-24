@@ -1282,7 +1282,8 @@ export interface CommerceCatalogDeps {
   /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
    * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
   store?: {
-    listProducts(): { id: string; title: string; price: number; stock: number; version: number }[];
+    /** `slug` (readable-slugs S7): the product-detail link key — the plugin's `Product.slug`. */
+    listProducts(): { id: string; slug: string; title: string; price: number; stock: number; version: number }[];
     checkout(
       productId: string,
       qty: number
@@ -1375,6 +1376,12 @@ export interface PluginRuntimeDeps {
   readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /** Fire-and-forget at boot (mirrors `commentsReady`) — resolves once every plugin durably marked
+   * `enabled` has been re-attached to THIS process's hook registry (P0a fix: a fresh process starts
+   * with an empty in-memory registry, so a plugin enabled before a restart would otherwise silently
+   * stop firing until an operator re-toggled it). Await (or, for the real server, go through the
+   * ADR-046 Phase 2 boot lifecycle) before relying on a previously-enabled plugin's hook running. */
+  pluginRuntimeReady: Promise<void>;
 }
 
 /**

@@ -46,7 +46,7 @@ async function writeSitePlugin(base: string, folder: string, manifestId: string)
   await mkdir(path.join(versionDir, "server"), { recursive: true });
   await writeFile(
     path.join(versionDir, "tovu.plugin.json"),
-    JSON.stringify({ id: manifestId, name: "Fixture", version: "1.0.0", sdkRange: "^0.1.0", engine: 1, tier: "tier-3", capabilities: [], hooks: [], fields: [], integrity: {} }),
+    JSON.stringify({ id: manifestId, name: "Fixture", version: "1.0.0", sdkRange: "^0.1.0 || ^0.2.0", engine: 1, tier: "tier-3", capabilities: [], hooks: [], fields: [], integrity: {} }),
     "utf8"
   );
   await writeFile(path.join(versionDir, "server", "index.mjs"), "export default {};\n", "utf8");

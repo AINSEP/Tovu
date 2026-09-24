@@ -65,9 +65,9 @@ function activityTitles(container: HTMLElement): (string | null)[] {
 
 const POSTS_RESPONSE = {
   posts: [
-    { post: { id: "post-1", kind: "post", title: "Post One", status: "published", updatedAt: "2026-07-30T09:00:00.000Z" } },
-    { post: { id: "post-2", kind: "post", title: "Post Two", status: "published", updatedAt: "2026-07-27T09:00:00.000Z" } },
-    { post: { id: "post-3", kind: "post", title: "Post Three", status: "draft", updatedAt: "2026-07-26T09:00:00.000Z" } },
+    { post: { id: "post-1", slug: "post-one", kind: "post", title: "Post One", status: "published", updatedAt: "2026-07-30T09:00:00.000Z" } },
+    { post: { id: "post-2", slug: "post-two", kind: "post", title: "Post Two", status: "published", updatedAt: "2026-07-27T09:00:00.000Z" } },
+    { post: { id: "post-3", slug: "post-three", kind: "post", title: "Post Three", status: "draft", updatedAt: "2026-07-26T09:00:00.000Z" } },
   ],
 };
 const PAGES_RESPONSE = {
@@ -93,6 +93,12 @@ function successRoutes(): Record<string, () => Promise<Response>> {
     "/media": () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)),
     "/comments/queue": () => Promise.resolve(jsonResponse(COMMENTS_RESPONSE)),
     "/presentation": () => Promise.resolve(jsonResponse(PRESENTATION_RESPONSE)),
+    // Default false so every pre-existing test in this file (none of which are about the
+    // password-banner plan) keeps rendering with no banner, unchanged.
+    "password-status": () => Promise.resolve(jsonResponse({ usesDefaultPassword: false })),
+    // The banner's port pairs the status with the caller's id (per-user Dismiss). Listed after
+    // "password-status" because `routeFetch` matches by substring in insertion order.
+    "/auth/me": () => Promise.resolve(jsonResponse({ user: { id: "dash-test-user" } })),
   };
 }
 
@@ -164,7 +170,8 @@ it("links post rows to the post editor and page rows to the Pages list, not to a
       .find((el) => el.textContent === title)
       ?.getAttribute("href");
 
-  expect(hrefFor("Post One")).toBe("/admin/posts/post-1");
+  // readable-slugs S6a: activityRowHref now reads the post's slug, not its id.
+  expect(hrefFor("Post One")).toBe("/admin/posts/post-one");
   expect(hrefFor("Page One")).toBe("/admin/pages");
   expect(hrefFor("Page Two")).toBe("/admin/pages");
   // No page id may appear under /admin/posts/ — that is the exact shape of the original defect.
@@ -360,5 +367,21 @@ describe("the activity panel's merge is correct regardless of which of posts/pag
     resolvePages(jsonResponse(PAGES_RESPONSE));
 
     await waitFor(() => expect(activityTitles(container)).toEqual(MERGED_TITLES));
+  });
+});
+
+describe("default-password banner (password-banner plan, 2026-09-24, Slice 3)", () => {
+  afterEach(() => {
+    localStorage.removeItem("tovu.admin.default-password-banner.dismissed");
+  });
+
+  it("the Change password link's href is the /admin/users/change-password deep link", async () => {
+    fetchMock.mockImplementation(
+      routeFetch({ ...successRoutes(), "password-status": () => Promise.resolve(jsonResponse({ usesDefaultPassword: true })) }),
+    );
+    render(<Dashboard />);
+
+    const link = await screen.findByRole("link", { name: "Change password" });
+    expect(link).toHaveAttribute("href", "/admin/users/change-password");
   });
 });

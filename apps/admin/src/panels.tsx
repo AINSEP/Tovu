@@ -375,13 +375,18 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- People ---
   {
     id: "users",
-    render: () => <Users />,
+    // `/change-password` (password-banner plan, 2026-09-24 Slice 3): the dashboard nag's "Change
+    // password" link (`adminHref("/users/change-password")`) lands here — same `ctx.view` switch
+    // shape as `pages`'s `page-editor` route above, just a boolean flag instead of a component swap,
+    // since it's still the same `Users` screen auto-opening its own reset dialog.
+    render: (ctx) => <Users openOwnPasswordReset={ctx.view === "change-password"} />,
     nav: {
       label: "Users",
       group: "People",
       icon: '<circle cx="9" cy="6" r="3"/><path d="M3 15c0-3.3 2.7-6 6-6s6 2.7 6 6"/>',
     },
     agentReachable: true,
+    routes: [{ pattern: "/change-password", view: "change-password" }],
   },
   {
     id: "authentication",

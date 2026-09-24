@@ -474,6 +474,11 @@ export default [
       'apps/desktop/release-verify/**',
       'apps/desktop/staging/**',
       'apps/desktop/src/speech/.build/**',
+      // Vendored third-party code (see src/renderer/public/vendor/kuinetic/LICENSE): our
+      // complexity ceiling is a rule for code this repo authors, not for an upstream library's
+      // bundled/minified output. This also keeps it out of scripts/check-complexity.ts's strict
+      // `--rule` re-lint, which globs the same `apps/desktop` target.
+      'apps/desktop/src/renderer/public/vendor/**',
     ],
     languageOptions: {
       parser: tseslint.parser,

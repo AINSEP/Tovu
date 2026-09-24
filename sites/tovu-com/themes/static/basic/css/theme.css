@@ -99,23 +99,25 @@ p { margin: 0; color: var(--muted); }
    as a partial embed (`posts-sidebar.html`'s
    `data-embed-config='{"type":"partial","id":"nav",...}'`) and ends up a SIBLING of `.docs-layout`
    under `<body>`, not its ancestor. Header height is the same at every breakpoint (`.nav-row` is
-   never resized in the `@media (max-width: 640px)` block below — the mobile `.main-nav.open` panel
-   is a `position: absolute` overlay under it, not part of its box), so one value covers desktop
-   and mobile alike.
+   never resized when the header goes compact — the mobile menu is a modal `<dialog>` in the top
+   layer, not part of its box), so one value covers desktop and mobile alike.
 
    NOT `--kui-pin-offset`: kUInetic's docs (https://kuinetic.com/docs/catalog.md) say a pinning
    effect's `offset-top:` defaults to `var(--kui-pin-offset, 0px)`, which reads as "answer the
    header offset once via that token." That default genuinely exists in the vendored bundle
    (`stickyParams`, `kuinetic.all.js`) — but only for the sticky/pin effects (`pin-section`/
-   `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. The
-   scroll-spy effect this theme DOES use (`data-kui="scroll-spy ..."` on `.docs-layout`,
-   `posts-sidebar.html`) is a different code path (`prepareScrollSpyContainer`) whose own
-   `offset-top` param defaults to a literal `"0px"` and is parsed by a plain JS regex
-   (`toPixels()`/`NUMBER_WITH_UNIT`) that cannot read `var()`/`calc()` at all — a CSS custom
-   property can never reach it. That effect's `offset-top:70px` is therefore authored directly on
-   the `data-kui` attribute instead (see the comment there). If this theme ever adds a real pin/
-   sticky effect, reintroduce `--kui-pin-offset: calc(var(--header-h) + 1px)` here for it to pick
-   up automatically; until then it would be a var nothing reads. */
+   `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. `posts-
+   sidebar.html` used to drive its docs sidebar with kUInetic's container-form scroll-spy
+   (`data-kui="scroll-spy ..."` on `.docs-layout`) — a different code path
+   (`prepareScrollSpyContainer`) whose own `offset-top` param defaults to a literal `"0px"` and is
+   parsed by a plain JS regex (`toPixels()`/`NUMBER_WITH_UNIT`) that cannot read `var()`/`calc()` at
+   all, so that effect's `offset-top:70px` had to be authored directly on the `data-kui` attribute
+   instead of this token. Retired 2026-09-24 (docs IA restructure) in favor of `docs-toc.js`'s own
+   `IntersectionObserver`, which needs no `--kui-pin-offset`-shaped token at all (its own
+   `rootMargin` is authored directly in the script) — kept here as the reason this theme has never
+   defined `--kui-pin-offset`. If this theme ever adds a real pin/sticky effect, define
+   `--kui-pin-offset: calc(var(--header-h) + 1px)` here for it to pick up automatically; until then
+   it would be a var nothing reads. */
 :root {
   --header-h: 69px;
 }
@@ -399,7 +401,6 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
   padding: 18px 20px; overflow-x: auto; font: 13px/1.6 var(--font-mono); color: var(--fg);
   white-space: pre-wrap; overflow-wrap: anywhere; position: relative;
 }
-.docs-main pre.has-copy-btn { padding-right: 48px; }
 .docs-main h2 { font-size: 20px; margin: 40px 0 14px; }
 .docs-main p { font-size: 15px; margin-bottom: 14px; max-width: 60ch; }
 
@@ -444,7 +445,6 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-body blockquote { border-left: 2px solid var(--border-strong); padding-left: 20px; margin: 24px 0; color: var(--muted); font-style: italic; }
 .post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre-wrap; overflow-wrap: anywhere; position: relative; }
-.post-detail-body pre.has-copy-btn { padding-right: 48px; }
 .post-detail-body pre code { border: none; background: none; padding: 0; }
 /* Live example frame (docs pages, 2026-09-23; white/gold made the default 2026-09-23 same day,
    owner approved the gold-frame prototype and asked to "update throughout") — wraps a rendered
@@ -510,16 +510,28 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .latest-posts .live-example::before { content: "Live example"; position: absolute; top: 10px; left: 16px; font: 11px/1 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 
 /* ---------- code block copy button ---------- */
-/* Shared by both `pre` contexts above (`.docs-main pre`, `.post-detail-body pre`) — the button is
-   injected as a child of the `pre` element itself by `scripts/main.js` (`setupCodeCopyButtons`), so
-   one unscoped `pre .code-copy-btn` selector covers it wherever a `pre` appears, docs or post body
-   alike, instead of duplicating the rule per ancestor class. `pre.has-copy-btn` (added by that same
-   script, only once a button actually lands) reserves room on the right so the button never sits
-   over wrapped code text now that `white-space: pre-wrap` above lets long lines (e.g. a long
-   `data-embed-config` marker) reach the block's right edge instead of scrolling under it. Tokens
-   only (`--surface`/`--border`/`--muted`/`--fg`/`--accent`) — no hard-coded colors — so the button
-   reads correctly in both the dark default and `:root[data-theme="light"]` without its own
-   light/dark branch. */
+/* Shared by every `pre` context (`.docs-main pre`, `.post-detail-body pre`, and a bare `<pre>` in a
+   custom page body — see below) — the button is injected as a child of the `pre` element itself by
+   `scripts/main.js` (`setupCodeCopyButtons`), so one unscoped `pre .code-copy-btn` selector covers it
+   wherever a `pre` appears, instead of duplicating the rule per ancestor class. Tokens only
+   (`--surface`/`--border`/`--muted`/`--fg`/`--accent`) — no hard-coded colors — so the button reads
+   correctly in both the dark default and `:root[data-theme="light"]` without its own light/dark
+   branch.
+   `setupCodeCopyButtons` itself is unscoped too (`document.querySelectorAll('pre')`, every `pre` on
+   the page, by design — its own comment says docs articles AND post/page body both qualify), but the
+   two rules below were originally declared per wrapper context only (`.docs-main pre`/
+   `.post-detail-body pre`), which broke two ways for a page whose body HTML isn't wrapped in either:
+   `pages-default.html` injects page body content straight into `.post-detail` — never
+   `.post-detail-body` — so a page (e.g. /install) with its own `<pre>` in custom body HTML got (a) no
+   `position: relative` on its `pre`, so the button's `top/right` resolved against the initial
+   containing block and rendered pinned near the top of the whole document, detached from the code
+   block it belonged to (fixed 8476795c0), and (b) no `padding-right`, so the button sat on top of any
+   code line long enough to reach the block's right edge once `white-space: pre-wrap` (above) lets long
+   lines wrap in place instead of scrolling under it, rather than clearing space for it. Both rules are
+   keyed off the same `has-copy-btn` marker class the script stamps on every `pre` it touches — once,
+   only after a button actually lands — so any current or future page body with a bare `<pre>` is
+   covered without relying on that page's own styles to remember either declaration. */
+pre.has-copy-btn { position: relative; padding-right: 48px; }
 pre .code-copy-btn {
   position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -673,54 +685,61 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   .post-card.featured { grid-column: span 1; flex-direction: column; }
   .post-card.featured .post-card-media { aspect-ratio: 16/10; }
 }
-@media (max-width: 640px) {
-  .site-header { position: sticky; }
-  .main-nav {
-    display: none;
-    position: absolute;
-    top: 100%; left: 0; right: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    padding: 4px 24px 12px;
-  }
-  .main-nav.open { display: flex; }
-  .main-nav a {
-    padding: 12px 0;
-    border-top: 1px solid var(--border);
-    font-size: 15px;
-  }
-  .nav-actions .nav-toggle { display: inline-flex; }
-}
 
 /* ---------------------------------------------------------------------------
-   Docs layout + sidebar menu (posts-sidebar.html)
+   Docs layout + sidebar/TOC/pager (posts-sidebar.html — the one docs template,
+   2026-09-24 docs IA restructure)
 
-   The .menu-list / .menu-item / is-current / is-active / has-children / depth-N
-   hooks are emitted by the engine's tree renderer (static-render.ts::renderMenuTree),
-   not authored here, so these rules work for ANY menu bound to a tree-variant
-   marker — that is the whole point of the sidebar being reusable.
+   Three grid areas (sidebar / content / toc) placed BY NAME, so the DOM can stay
+   in reading order (sidebar disclosure, TOC disclosure, article — see that
+   file's own comment) at every width instead of a source-order-dependent column
+   layout. `.docs-sidebar`'s `.menu-list`/`.menu-item`/`is-current`/`is-active`/
+   `has-children`/`depth-N` hooks are emitted by the engine's tree renderer
+   (static-render.ts::renderMenuTree) from the `docs-section` reserved marker —
+   these rules work for ANY tree-variant menu, not just this one. `.docs-toc`'s
+   `.toc-list`/`.toc-item` hooks are a DIFFERENT, smaller vocabulary: built
+   client-side by docs-toc.js from this page's own headings, not server-resolved,
+   and every entry is a real destination (no "section heading" treatment needed).
    --------------------------------------------------------------------------- */
 
 .docs-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 48px;
+  grid-template-columns: 220px minmax(0, 1fr) 200px;
+  grid-template-areas: "sidebar content toc";
+  gap: 40px;
   align-items: start;
   padding-top: 48px;
   padding-bottom: 96px;
 }
 
-.docs-sidebar {
+.docs-sidebar-toggle { grid-area: sidebar; }
+.docs-toc-toggle { grid-area: toc; }
+
+/* Desktop only (mobile re-enables the toggle below): both disclosures render as plain sticky
+   columns, not a collapsible control. Author CSS forcing a closed <details>'s content open is a
+   standard, supported override of the UA stylesheet — it does not touch the `open` attribute
+   itself, so mobile's native click-to-toggle (which DOES read `open`) is unaffected. */
+@media (min-width: 901px) {
+  .docs-sidebar-toggle > summary,
+  .docs-toc-toggle > summary {
+    display: none;
+  }
+  .docs-sidebar-toggle > *:not(summary),
+  .docs-toc-toggle > *:not(summary) {
+    display: block;
+  }
+}
+
+.docs-sidebar,
+.docs-toc {
   position: sticky;
   top: 88px;
   max-height: calc(100vh - 112px);
   overflow-y: auto;
 }
 
-/* The engine emits one <ul class="menu-list depth-0"> per tree; nested levels get depth-1, etc. */
+/* ---- sidebar (docs-section: groups + pages, server-resolved) ---- */
+
 .docs-nav .menu-list {
   list-style: none;
   margin: 0;
@@ -754,7 +773,7 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   background: var(--surface-2);
 }
 
-/* A top-level item with children is a section heading, not a destination. */
+/* A top-level item with children is a section heading (group), not a destination. */
 .docs-nav .menu-item.depth-0.has-children > a,
 .docs-nav .menu-item.depth-0.has-children > .menu-item-label {
   margin-top: 18px;
@@ -771,7 +790,7 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 /* is-current = this exact item. is-active = this item or a descendant, which is what keeps the
-   surrounding section visibly open while you read one of its pages. */
+   surrounding group's header visually distinct while you read one of its pages. */
 .docs-nav .menu-item.is-current > a,
 .docs-nav .menu-item > a[aria-current="page"] {
   color: var(--accent-text);
@@ -781,18 +800,6 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 
 .docs-nav .menu-item.is-active:not(.is-current) > a {
   color: var(--fg);
-}
-
-/* kUInetic scroll-spy (2026-08-31, `posts-sidebar.html`'s `data-kui="scroll-spy ..."`) sets
-   this attribute itself on both the in-view section and its paired sidebar link(s) — a boolean data
-   attribute, not a class (see this theme's NOTICE.md "Kuinetic vendored" section), so it needs its
-   own rule rather than reusing `.is-current` above, which the retired `docs-sidebar.js` toggled by a
-   different mechanism entirely. Same visual treatment as `.is-current` on purpose: one page reading
-   as "you are here," regardless of which of the two spies produced it. */
-.docs-nav .menu-item > a[data-kui-active="true"] {
-  color: var(--accent-text);
-  background: color-mix(in oklch, var(--accent) 12%, transparent);
-  font-weight: 500;
 }
 
 /* An unavailable branch renders as inert text so its children survive — dim it so it does not read
@@ -819,7 +826,70 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   vertical-align: -0.1em;
 }
 
+/* A section heading is a label, not a destination, so it takes the accent colour on its own rather
+   than the filled pill a real current page gets — the pill on an uppercase heading read as a
+   selected row and fought the content for attention. */
+.docs-nav .menu-item.depth-0.has-children.is-current > a,
+.docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
+  background: transparent;
+  color: var(--accent-text);
+}
+
+/* ---- "On this page" (docs-toc.js: built client-side from this page's own headings) ---- */
+
+.docs-toc-nav::before {
+  content: "On this page";
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg);
+  padding: 0 10px 10px;
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.toc-list.depth-1 {
+  margin: 2px 0 4px;
+  padding-left: 12px;
+}
+
+.toc-item {
+  margin: 0;
+}
+
+.toc-item > a {
+  display: block;
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  line-height: 1.4;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.toc-item > a:hover {
+  color: var(--fg);
+}
+
+.toc-item.is-current > a,
+.toc-item > a[aria-current="page"] {
+  color: var(--accent-text);
+  border-left-color: var(--accent-text);
+  font-weight: 500;
+}
+
+/* ---- content + prev/next pager ---- */
+
 .docs-content {
+  grid-area: content;
   min-width: 0;
 }
 
@@ -845,32 +915,122 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   margin: 0;
 }
 
-/* A section heading is a label, not a destination, so it takes the accent colour on its own rather
-   than the filled pill a real current page gets — the pill on an uppercase heading read as a
-   selected row and fought the content for attention. */
-.docs-nav .menu-item.depth-0.has-children.is-current > a,
-.docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
-  background: transparent;
-  color: var(--accent-text);
-}
-
 .docs-content h2[id],
 .docs-content h3[id] {
   scroll-margin-top: 96px;
 }
 
+/* `docs-prev-next` resolves 0-2 items — empty on the Docs landing page, or a page with no
+   neighbour on one side. An empty pager bar (just the top border, nothing in it) reads as a
+   layout bug, so hide it outright rather than show a bar with nothing in it. */
+.docs-pager {
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.docs-pager:has(.menu-list:empty) {
+  display: none;
+}
+
+.docs-pager .menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 16px;
+}
+
+.docs-pager .menu-item {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* `flex-direction: column-reverse` puts the eyebrow (`menu-item-desc`, "Previous"/"Next") visually
+   ABOVE the page title even though the shared renderer always emits label-then-description in DOM
+   order (menuItemInnerHtml, static-render.ts) — reordering visually here avoids a renderer change
+   for one caller's own layout preference. */
+.docs-pager .menu-item a {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.docs-pager .menu-item a:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.docs-pager .menu-item-desc {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.docs-pager-next {
+  text-align: right;
+}
+
+.docs-pager-next a {
+  align-items: flex-end;
+}
+
+/* ---- mobile: both nav aids collapse to a disclosure above the title ---- */
+
 @media (max-width: 900px) {
   .docs-layout {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+    grid-template-areas: "sidebar" "toc" "content";
+    gap: 20px;
     padding-top: 32px;
   }
 
-  .docs-sidebar {
+  .docs-mobile-toggle {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0 16px;
+  }
+
+  .docs-mobile-summary {
+    padding: 14px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .docs-mobile-summary::-webkit-details-marker { display: none; }
+  .docs-mobile-summary::after { content: '+'; font-size: 18px; color: var(--muted); }
+  .docs-mobile-toggle[open] .docs-mobile-summary::after { content: '\2212'; }
+  .docs-mobile-toggle[open] .docs-mobile-summary { padding-bottom: 6px; }
+
+  .docs-sidebar,
+  .docs-toc {
     position: static;
     max-height: none;
     padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
+  }
+
+  .docs-toc-nav::before { padding-top: 0; }
+
+  /* "the disclosure only shows the current group" (docs IA proposal) — the full tree is one tap
+     away in the site's own nav drawer already (fe79cabce), so repeating it here is redundant. */
+  .docs-sidebar-toggle .menu-item.depth-0.has-children:not(.is-active) {
+    display: none;
   }
 }
 
@@ -885,8 +1045,11 @@ pre .code-copy-btn.copied .icon-check { display: block; }
    `.main-nav` and onto the <ul> the engine emits.
 
    Hover AND focus-within both open the submenu, so the dropdown is reachable by keyboard and not
-   only by pointer. On <=640px the whole nav is already a stacked drawer, so the submenu is
-   flattened into an indented list there instead of a floating panel a touch device cannot hover.
+   only by pointer. A depth-1 group can itself have children (e.g. Docs > Build > Pages): those
+   cascade as a depth-2 flyout to the right of the group, since a second panel can't also drop
+   down without overlapping the first. None of this shows when the header is compact: there the
+   whole bar collapses into the hamburger and the `.mnav` drawer below renders the same tree as
+   accordions instead of floating panels a touch device cannot hover.
    --------------------------------------------------------------------------- */
 
 .main-nav > .menu-list {
@@ -899,6 +1062,10 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 .main-nav .menu-item { position: relative; }
+/* Top-level labels never wrap or shrink, so a bar with too many items overflows measurably and
+   main.js's `desktopNavFits()` can collapse it into the hamburger instead of squashing it. */
+.main-nav > .menu-list > .menu-item,
+.main-nav > a { flex-shrink: 0; white-space: nowrap; }
 
 .main-nav .menu-item > a,
 .main-nav .menu-item > .menu-item-label {
@@ -951,8 +1118,10 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 /* A transparent bridge across the gap between the parent item and the panel, so the submenu does
-   not close when the pointer crosses the dead space on its way down. */
-.main-nav .menu-item.has-children::after {
+   not close when the pointer crosses the dead space on its way down. Scoped to depth-0 only: a
+   depth-1 group's own children open sideways (see the depth-2 flyout below), where the dead
+   space to bridge is horizontal, not vertical. */
+.main-nav .menu-item.depth-0.has-children::after {
   content: '';
   position: absolute;
   top: 100%;
@@ -979,41 +1148,241 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   background: var(--surface-2);
 }
 
-@media (max-width: 640px) {
-  .main-nav > .menu-list {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    width: 100%;
-  }
+/* Depth-2 flyout: a depth-1 group's own children cascade to the RIGHT of the group instead of
+   below it (two panels can't both drop down without overlapping). Same panel look as depth-1,
+   mirrored onto the horizontal axis — right-pointing caret instead of down, side bridge instead
+   of bottom. The caret and bridge selectors below are more specific than depth-0's so they win
+   over the shared `.has-children` rules above without needing to touch those rules. */
+.main-nav .menu-list.depth-1 .menu-item.has-children > a::after {
+  transform: rotate(-45deg);
+}
 
-  .main-nav .menu-item > a,
-  .main-nav .menu-item > .menu-item-label {
-    padding: 12px 0;
-    border-top: 1px solid var(--border);
-    font-size: 15px;
-  }
+.main-nav .menu-item.depth-1.has-children::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  bottom: 0;
+  width: 14px;
+}
 
-  /* No hover on touch — the submenu is always open, indented, and inline. */
-  .main-nav .menu-list.depth-1 {
-    position: static;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    min-width: 0;
-    padding: 0 0 0 16px;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
+.main-nav .menu-list.depth-2 {
+  position: absolute;
+  top: -8px;
+  left: 100%;
+  min-width: 224px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
 
-  .main-nav .menu-list.depth-1 .menu-item > a {
-    padding: 10px 0;
-    border-radius: 0;
-    font-size: 14px;
-  }
+.main-nav .menu-item.has-children:hover > .menu-list.depth-2,
+.main-nav .menu-item.has-children:focus-within > .menu-list.depth-2 {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
 
-  .main-nav .menu-item.has-children::after { content: none; }
-  .main-nav .menu-item.has-children > a::after { display: none; }
+.main-nav .menu-list.depth-2 .menu-item > a {
+  padding: 8px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.main-nav .menu-list.depth-2 .menu-item > a:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+
+/* ---------------------------------------------------------------------------
+   Compact header + mobile menu drawer (nav.html's <dialog class="mnav">)
+
+   Compact = <=900px, or `.nav-compact`, which main.js sets whenever the desktop row does not fit
+   (so more menu items collapse the bar at any width instead of overflowing it). The two cases
+   can't share one selector (a media query is not a class), hence the small duplicated block.
+   The drawer's list is built by main.js from the rendered `.main-nav`; nesting is styled
+   recursively (`.mnav-list .mnav-list`), never per depth, so any menu depth renders.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .main-nav, .nav-actions .theme-toggle { display: none; }
+  .nav-actions .nav-toggle { display: inline-flex; }
+}
+.site-header.nav-compact .main-nav,
+.site-header.nav-compact .nav-actions .theme-toggle { display: none; }
+.site-header.nav-compact .nav-actions .nav-toggle { display: inline-flex; }
+.nav-actions .nav-toggle { width: 38px; padding: 0; justify-content: center; }
+
+/* The page behind the open drawer must not scroll. */
+html.mnav-open, html.mnav-open body { overflow: hidden; }
+
+.mnav {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(400px, 100vw);
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.3);
+}
+.mnav::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.mnav[open] { animation: mnav-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes mnav-in { from { transform: translateX(24px); opacity: 0; } }
+
+.mnav-panel { display: flex; flex-direction: column; height: 100%; }
+.mnav-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-h);
+  box-sizing: content-box;
+  padding: env(safe-area-inset-top, 0px) calc(12px + env(safe-area-inset-right, 0px)) 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+.mnav-title {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mnav-close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.mnav-close:hover { background: var(--surface-2); }
+
+/* The one scrolling region. `contain` stops a fling at either end from scrolling the page. */
+.mnav-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px calc(12px + env(safe-area-inset-right, 0px)) 24px 12px;
+}
+.mnav-list { list-style: none; margin: 0; padding: 0; }
+.mnav-list .mnav-list {
+  margin: 2px 0 6px 20px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+.mnav-list[hidden] { display: none; }
+.mnav-row { display: flex; align-items: center; gap: 4px; }
+
+.mnav-link,
+.mnav-disclose-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--fg);
+  text-align: left;
+}
+.mnav-list .mnav-list .mnav-link,
+.mnav-list .mnav-list .mnav-disclose-label {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.mnav-link:hover { background: var(--surface-2); color: var(--fg); }
+.mnav-inert { color: var(--muted); }
+.mnav-link[aria-current="page"],
+.mnav-list .mnav-list .mnav-link[aria-current="page"] {
+  color: var(--accent-text);
+  font-weight: 600;
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+}
+.mnav-link .menu-item-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.mnav-disclose {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+.mnav-disclose:hover { background: var(--surface-2); color: var(--fg); }
+.mnav-disclose.mnav-disclose-label {
+  width: auto;
+  flex-direction: row;
+  justify-content: space-between;
+}
+.mnav-disclose svg { width: 18px; height: 18px; flex: none; transition: transform 0.18s ease; }
+.mnav-disclose[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+.mnav-link:focus-visible,
+.mnav-disclose:focus-visible,
+.mnav-close:focus-visible,
+.mnav .theme-toggle:focus-visible,
+.mnav .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.mnav-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px calc(24px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.mnav-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--muted);
+}
+.mnav-theme .theme-toggle { margin-right: 0; width: 40px; height: 40px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mnav[open] { animation: none; }
+  .mnav-disclose svg { transition: none; }
 }

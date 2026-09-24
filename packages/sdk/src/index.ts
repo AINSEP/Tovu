@@ -38,12 +38,41 @@ export const CONTENT_READ = "content.read" as const;
 export const CONTENT_EXTEND = "content.extend" as const;
 export const HOOKS_ATTACH = "hooks.attach" as const;
 
-/** Union of every valid v1 capability token string. */
+/** Union of every valid capability token string. ADR-024 §6: the namespace SHAPE is frozen, but
+ * its CONTENTS may grow — this union widens as later hooks (hooks v2 plan) add their own tokens,
+ * additive-only, per the SDK's semver rule (ADR-005). */
 export type CapabilityToken = typeof CONTENT_READ | typeof CONTENT_EXTEND | typeof HOOKS_ATTACH;
 
-/** C-003 — the exactly-one v1 hook point (REQ-05). Declared points are enumerable via
- * `tovu hooks list` (AC-15); this is the single source of truth for the point's name string. */
+/** C-003 — the v1 hook point (REQ-05), kept forever (hooks v2 plan §3.3). Declared points are
+ * enumerable via `tovu hooks list` (AC-15) and, as of hooks v2, `HOOK_POINTS` (`./hooks.js`) — this
+ * constant is the single source of truth for the point's OWN name string; `HOOK_POINTS`'s entry
+ * for it must match. */
 export const HOOK_CONTENT_ENTRY_BEFORE_SAVE = "content.entry.beforeSave" as const;
+
+/** hooks v2 plan §3.1 — the one typed hook catalog (data) plus its companion type map, re-exported
+ * here so a plugin author imports everything from `@tovu/sdk`'s package root (ADR-005 rule 1: no
+ * other import surface exists). See `./hooks.ts`'s own file doc for why this is a value AND type
+ * export while `hooks.ts` itself only ever `import type`s from this file (no runtime cycle). */
+import {
+  HOOK_POINTS,
+  type HookKind,
+  type HookPointDescriptor,
+  type HookPointName,
+  type HookSignatures,
+  type FilterHookName,
+  type ActionHookName,
+  type ContributionHookName,
+} from "./hooks.js";
+export {
+  HOOK_POINTS,
+  type HookKind,
+  type HookPointDescriptor,
+  type HookPointName,
+  type HookSignatures,
+  type FilterHookName,
+  type ActionHookName,
+  type ContributionHookName,
+};
 
 /** The merged-into-`ext.{pluginId}` shape a `beforeSave` filter returns (state.spec.md §2
  * `SdkSurface.ExtPatch`). Values are restricted to the four JSON-primitive types BR-06's field
@@ -76,11 +105,37 @@ export interface HookContext {
 }
 
 /** REQ-05's literal filter signature: `(entry, ctx) => ExtPatch`. ADR-024 §3: always treated as
- * awaited by core, so a synchronous filter and an `async` filter are equally valid. */
+ * awaited by core, so a synchronous filter and an `async` filter are equally valid. Kept as its
+ * own named type (rather than inlining `FilterFn<"content.entry.beforeSave">`) because it predates
+ * `HookSignatures` and is part of the pinned public surface (ADR-005) — `FilterFn` below is
+ * structurally identical for this one hook. */
 export type BeforeSaveFilter = (
   entry: Readonly<ContentEntryDraft>,
   ctx: HookContext
 ) => ExtPatch | Promise<ExtPatch>;
+
+/** hooks v2 plan §3.3 — the generic filter/action/contribution function shapes, one family
+ * covering every hook `HookSignatures` declares for that kind, instead of one hand-written
+ * signature per hook. Every hook payload is always treated as possibly-async (ADR-024 §3), exactly
+ * like `BeforeSaveFilter`. */
+export type FilterFn<K extends FilterHookName> = (
+  input: Readonly<HookSignatures[K]["input"]>,
+  ctx: HookContext
+) => HookSignatures[K]["output"] | Promise<HookSignatures[K]["output"]>;
+export type ActionFn<K extends ActionHookName> = (
+  payload: Readonly<HookSignatures[K]["payload"]>,
+  ctx: HookContext
+) => void | Promise<void>;
+export type ContributionFn<K extends ContributionHookName> = (
+  ctx: Readonly<HookSignatures[K]["context"]> & HookContext
+) => HookSignatures[K]["contributes"] | Promise<HookSignatures[K]["contributes"]>;
+
+/** Options common to every `addFilter`/`addAction`/`addContribution` call (hooks v2 plan §3.3).
+ * Omitted ⇒ the registry's own default (ADR-024 §7: every hook has an explicit, deterministic
+ * order — "default" is this SDK's convenience, not an incidental ordering). */
+export interface HookAttachOptions {
+  readonly priority?: number;
+}
 
 /**
  * The capability-scoped handle passed to `PluginDefinition.setup`. Built fresh per plugin load
@@ -102,9 +157,20 @@ export interface PluginSdk {
     extend(field: string, value: string | number | boolean): void;
   };
   /** Gated by `hooks.attach` (REQ-04/REQ-05). Attaches a filter to a declared hook point.
-   * Attaching to any name other than `HOOK_CONTENT_ENTRY_BEFORE_SAVE` is rejected at validation
-   * time (`HOOK_UNKNOWN`, EC-05) before this method could ever be reached with a bad name. */
-  addFilter(hookName: typeof HOOK_CONTENT_ENTRY_BEFORE_SAVE, filter: BeforeSaveFilter): void;
+   * Attaching to any name other than one of `FilterHookName` is rejected at validation time
+   * (`HOOK_UNKNOWN`, EC-05) before this method could ever be reached with a bad name. Widened
+   * (hooks v2 plan §3.3) from the single `HOOK_CONTENT_ENTRY_BEFORE_SAVE` literal to a generic `K`
+   * — every existing call site (passing that one literal) still type-checks unchanged, since it
+   * remains the only `FilterHookName` member as of this SDK version. */
+  addFilter<K extends FilterHookName>(hookName: K, filter: FilterFn<K>, opts?: HookAttachOptions): void;
+  /** Gated by `hooks.attach` (hooks v2 plan §3.3). Always present on a real `PluginSdk` instance
+   * (CIC U-003) — an ungranted capability throws `CapabilityDeniedError` when actually CALLED, not
+   * by being absent. `ActionHookName` has no members yet (Wave 1's action hooks are a later slice
+   * in this same lane), so no name currently type-checks here — additive, not yet reachable. */
+  addAction<K extends ActionHookName>(hookName: K, action: ActionFn<K>, opts?: HookAttachOptions): void;
+  /** Gated by `hooks.attach`. Same "always present, stub throws when ungranted" contract as
+   * `addAction`. `ContributionHookName` has no members yet (Wave 2, out of this lane's scope). */
+  addContribution<K extends ContributionHookName>(hookName: K, contribution: ContributionFn<K>, opts?: HookAttachOptions): void;
 }
 
 /** A plugin author's registration entry point payload. */

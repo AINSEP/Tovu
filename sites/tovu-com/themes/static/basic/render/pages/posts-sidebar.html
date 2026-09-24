@@ -23,61 +23,53 @@
 <div data-embed-config='{"type":"partial","id":"nav","current":"docs"}'></div>
 
 <main>
-  <!-- `data-kui="scroll-spy ..."` (2026-08-31, replaces the hand-rolled `docs-sidebar.js` spy below)
-       — the container form of kUInetic's scroll-spy effect (vendored at `../scripts/vendor/
-       kuinetic.all.js`, self-initializing, no init call needed — see this theme's NOTICE.md "Kuinetic
-       vendored" section). `sections:`/`target:` are both quoted because each selector contains a
-       space (and `sections:` a comma), which kuinetic's own grammar would otherwise read as token/
-       effect separators — `sections:'.docs-content h2[id], .docs-content h3[id]'` is ONE quoted
-       value, not two. Placed on `.docs-layout`, the shared ancestor of both the sidebar
-       (`.docs-nav a`) and the content (`.docs-content h2[id]`/`h3[id]`) it pairs by matching each
-       section's `id` against a link's `href="#id"` — exactly what every heading in this template's
-       injected content and every sidebar-menu item already carry, so no extra markup was needed
-       beyond this one attribute. Kuinetic sets `data-kui-active="true"`/`"false"` on each section and
-       its paired link(s) itself; style that attribute in CSS (see `.docs-nav .menu-item > a[data-kui-
-       active="true"]` in theme.css) rather than adding JS here.
+  <!-- The ONE docs template every page in the header nav's Docs subtree renders through (2026-09-24
+       docs IA restructure). Three grid areas, placed by name (`grid-template-areas` below) so DOM
+       order can stay reading-order (sidebar disclosure, TOC disclosure, article) at every width
+       instead of fighting a source-order-dependent column layout:
 
-       `offset-top:70px` (2026-08-31, header-offset fix) — the sticky `.site-header` sits 70px tall
-       (`.nav-row`'s 69px content height + the header's own 1px border-bottom — see `--header-h` /
-       `--kui-pin-offset` in theme.css) and, without this, a heading was flagged "active" only once
-       it scrolled fully behind the header, invisible. `var(--kui-pin-offset, 0px)` is the token
-       `theme.css` sets for exactly this — and IS what this effect's own `offset-top` schema entry
-       defaults to for kUInetic's sticky/pin effects (`stickyParams`, `kuinetic.all.js`) — but this
-       is deliberately a LITERAL px number, not `var(--kui-pin-offset)`, because the container-form
-       scroll-spy (`prepareScrollSpyContainer`) reads its own `offset-top` param through
-       `toPixels()`, a plain JS regex parser (`NUMBER_WITH_UNIT`) that only accepts a bare
-       number+unit — it never asks the browser to resolve CSS, so a `var(...)`/`calc(...)` string
-       fails to match and silently falls back to 0, reproducing the exact bug this fixes. That
-       parser is also why this container form's `offset-top` param default is a hardcoded `"0px"`
-       (`kuinetic.all.js`'s `prepareScrollSpyContainer`), NOT `var(--kui-pin-offset, 0px)` — the
-       CSS-var default only applies to the separate sticky/pin effects, which set actual CSS `top`
-       and so can lean on the cascade to resolve it. If the header's height ever changes, update
-       both this number and `--header-h` in theme.css together — verified no other path connects
-       them. -->
-  <div class="docs-layout wrap" data-kui="scroll-spy sections:'.docs-content h2[id], .docs-content h3[id]' target:'.docs-nav a' offset-top:70px">
-    <!-- The sidebar is theme markup + CSS; the only thing resolved at request time is the menu
-         inside it. `data-embed-config='{"variant":"tree"}'` opts this one marker into nested
-         <ul>/<li> rendering (see static-render.ts::renderMenuTree) — the default flat <a> output is
-         what every other marker in this theme still gets, because .main-nav's flex layout depends
-         on it. (Marker-spine unification, 2026-08-10: this used to be a bare `data-embed-variant=
-         "tree"` attribute, retired in favor of config — see static-render.ts's own file header.)
+       - `sidebar` — `docs-section` (a RESERVED marker id, `pages.ts`'s `resolveStaticMenusForRender`):
+         the header nav's own Docs subtree, groups at depth 0, pages at depth 1, current group/page
+         marked via the ordinary `is-active`/`is-current` hooks every tree-variant menu already emits.
+         One source with the top-nav flyout and the mobile drawer — see that function's own doc.
+       - `content` — the page body, unchanged from before, plus the `docs-prev-next` pager at the
+         bottom (also a reserved id, same function).
+       - `toc` — "On this page," NOT server-resolved: `docs-toc.js` builds it client-side from this
+         page's own `h2[id]`/`h3[id]` (adding ids where missing) and drives its own scroll-spy. There
+         is no per-page authored menu for this anymore — see NOTICE.md/this file's own history for the
+         retired `docs-current-page-sidebar` convention this replaces.
 
-         `id="docs-current-page-sidebar"` is a RESERVED marker id (2026-08-31 docs-nav restructure,
-         `pages.ts`'s `resolveStaticMenusForRender`), not the name of one fixed stored menu: the route
-         layer resolves it per request to the menu at slug `docs-<current page's slug>-sidebar`, so
-         every page using this template gets its OWN sidebar just by having a menu at that convention
-         slug — no template duplication needed to add the next docs page.
+       Both `.docs-sidebar-toggle` and `.docs-toc-toggle` are real `<details>`, not JS-built: closed
+       (collapsible) by default is the correct MOBILE behavior already, and the desktop CSS below
+       forcibly keeps them open and hides the `<summary>` toggle — no separate desktop/mobile markup,
+       no JS needed to switch modes. -->
+  <div class="docs-layout wrap">
+    <!-- Mobile: "the disclosure only shows the current group" (docs IA proposal) — theme.css hides
+         every `.has-children:not(.is-active)` top-level group at the same breakpoint that collapses
+         this into a real disclosure; the full tree is still one tap away via the site's own nav
+         drawer (fe79cabce), so this doesn't need to repeat it. -->
+    <details class="docs-mobile-toggle docs-sidebar-toggle" open>
+      <summary class="docs-mobile-summary">In this section</summary>
+      <!-- The authored content below is a real fallback, not a placeholder: if `menu-header-nav` has
+           no item resolving to `/docs`, or that item has no children yet, this markup is left
+           exactly as-is rather than blanked (see `resolveStaticMenusForRender`'s own doc). -->
+      <aside class="docs-sidebar">
+        <nav class="docs-nav" aria-label="Documentation" data-embed-config='{"type":"menu","id":"docs-section","variant":"tree"}'>
+          <ul class="menu-list depth-0">
+            <li class="menu-item depth-0"><span class="menu-item-label">No docs menu bound yet</span></li>
+          </ul>
+        </nav>
+      </aside>
+    </details>
 
-         The authored content below is a real fallback, not a placeholder: if that per-page menu does
-         not exist yet, or resolves to zero renderable links, this markup is left exactly as-is rather
-         than blanked. -->
-    <aside class="docs-sidebar">
-      <nav class="docs-nav" aria-label="Documentation" data-embed-config='{"type":"menu","id":"docs-current-page-sidebar","variant":"tree"}'>
-        <ul class="menu-list depth-0">
-          <li class="menu-item depth-0"><span class="menu-item-label">No docs menu bound yet</span></li>
-        </ul>
-      </nav>
-    </aside>
+    <!-- On this page. Empty until `docs-toc.js` fills it; the script removes this whole `<details>`
+         when the page has no `h2`/`h3` to link to, rather than showing an empty disclosure. -->
+    <details class="docs-mobile-toggle docs-toc-toggle" open>
+      <summary class="docs-mobile-summary">On this page</summary>
+      <aside class="docs-toc">
+        <nav class="docs-toc-nav" aria-label="On this page"></nav>
+      </aside>
+    </details>
 
     <!-- Deliberately no `threshold:` token, and there must never be one again. kUInetic hands
          `threshold:` straight to IntersectionObserver, where it is a fraction of THIS element's OWN
@@ -90,6 +82,15 @@
          satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
     <article class="docs-content post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter">
       <div data-embed-config='{"type":"content"}'></div>
+
+      <!-- Previous/Next, crossing group boundaries — `docs-prev-next` (reserved id, same function as
+           `docs-section` above) resolves 0-2 synthetic items tagged `docs-pager-prev`/`docs-pager-next`
+           via `attrs.cssClass`, which the tree renderer already passes through onto each `<li>`.
+           Empty (no items) on the Docs landing page itself or a page with no neighbour on one side —
+           theme.css hides an empty `.docs-pager` entirely rather than showing an empty bar. -->
+      <nav class="docs-pager" aria-label="Previous and next page" data-embed-config='{"type":"menu","id":"docs-prev-next","variant":"tree"}'>
+        <ul class="menu-list depth-0"></ul>
+      </nav>
     </article>
   </div>
 </main>
@@ -97,12 +98,13 @@
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>
+<script src="../scripts/docs-toc.js"></script>
 <script src="../scripts/vendor/kuinetic.all.js"></script>
-<!-- `docs-sidebar.js` (hand-rolled scroll-spy) retired from this template 2026-08-31 — superseded by
-     the `data-kui="scroll-spy ..."` attribute above, which the just-loaded kuinetic bundle drives
-     itself. Left on disk (still used by `basic-2`, which does not vendor kuinetic) rather than
-     deleted, but no longer wired here: running both would toggle two independent, differently-
-     triggered "current section" mechanisms (`is-current`/`is-active` classes vs. `data-kui-active`)
-     against the same sidebar at once. -->
+<!-- `docs-sidebar.js` (hand-rolled scroll-spy over an AUTHORED per-page anchor menu) retired from
+     this template 2026-08-31, superseded first by kUInetic's own scroll-spy and now, as of the
+     2026-09-24 docs IA restructure, by `docs-toc.js` above — which owns both building the "On this
+     page" list from this page's own headings AND highlighting the current one, so neither
+     `docs-sidebar.js` nor a `data-kui="scroll-spy ..."` attribute belongs on this template anymore.
+     `docs-sidebar.js` is left on disk (still used by `basic-2`, which does not vendor kuinetic). -->
 </body>
 </html>

@@ -36,6 +36,7 @@
 |---|---|---|
 | site `name` (init) | directory basename | Zero-question init (`tovu init my-site` just works); `--name` overrides (BR-03) |
 | `port` (serve) | 3000 | Existing dev-server default; overridden per BR-02 |
+| `host` (serve) | `127.0.0.1` | `--host`, then `TOVU_HOST`; IP literal only; `::` = all interfaces |
 | `templateId` | `starter` | Only template in v1 (ADR-012 defers the gallery) |
 | `config.json.domain` / `config.json.port` | absent | Optional identity fields; absence means "unset", not null-serialized |
 | `siteId` | generated UUID at init | Host-level identity distinct from workspace id (OQ-04) |
@@ -54,6 +55,7 @@
 
 - BR-02 (port): WHEN resolving the serve port, the system shall evaluate `--port` flag, then `config.json.port`, then `PORT` env, then 3000 — first present value wins; a present-but-invalid value at any tier is an error (`VALIDATION`), not a fall-through.
 - BR-03 (name): WHEN resolving the site name at init, the system shall use `--name` (trimmed) when provided, else the directory basename; a provided-but-empty `--name` is `VALIDATION`, not a fall-through (EC-06).
+- BR-02a (bind host, LAN-bind plan 2026-09-23): WHEN resolving the serve bind host, the system shall evaluate `--host` flag, then `TOVU_HOST` env, then `127.0.0.1` — first present, non-blank value wins (an IP literal per `net.isIP`; `::` resolves to Node's own all-interfaces default). A non-IP-literal value (e.g. a hostname) at either tier is `VALIDATION`, exact text: `--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "<value>")`.
 
 ## 6. Tie-Break Logic
 

@@ -5,21 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tovu</title>
     <!--
-      kUInetic: declarative `data-kui="..."` animation attributes, available anywhere in the
-      app once loaded here. Pinned to 0.1.4 rather than the unversioned `/npm/kuinetic` — this
-      renderer exposes a privileged `window.tovuRunner` bridge (project create/start/stop, fleet
-      chat), so a third-party script here should not be able to change under us on a CDN release
-      with no corresponding change in this repo. Split bundle (CSS + JS separately, not
-      `kuinetic.all.js`) per the library's own recommendation: the CSS half keeps working even if
-      the JS is slow, blocked, or fails to load, since it's what `fade-up`-style effects reduce to
-      at the CSS level. Requires network access to the CDN — a fully offline launch loses the
-      animation layer, not the app.
+      This renderer exposes a privileged `window.tovuRunner` bridge (project create/start/stop,
+      fleet chat) in a window that runs with `sandbox: false` (see `openSitesHomeWindow` in
+      `main.ts`). `script-src 'self'` below means every script this page runs has to ship inside
+      the app — nothing may load from a remote origin, so there is no CDN or registry that can
+      swap code under this bridge on a release this repo never reviewed.
     -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/kuinetic@0.1.4/dist/kuinetic.css" />
-    <script src="https://cdn.jsdelivr.net/npm/kuinetic@0.1.4/dist/kuinetic.js"></script>
-    <script>
-      if (window.kuinetic) window.kuinetic.kuinetic({ observe: true }).start();
-    </script>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none';" />
+    <!--
+      kUInetic: declarative `data-kui="..."` animation attributes, available anywhere in the
+      app once loaded here. Vendored at 0.1.4 under `public/vendor/kuinetic/` (own LICENSE
+      alongside it) rather than fetched from `cdn.jsdelivr.net/npm/kuinetic@0.1.4` — a remote
+      script tag would (a) violate the `script-src 'self'` CSP above and (b) be exactly the
+      unreviewed-code-on-a-CDN risk that CSP line exists to close, for a bridge this privileged.
+      Split bundle (CSS + JS separately, not `kuinetic.all.js`) per the library's own
+      recommendation: the CSS half keeps working even if the JS is slow, blocked, or fails to
+      load, since it's what `fade-up`-style effects reduce to at the CSS level. Vendoring costs
+      the one thing the CDN gave for free — a `kuinetic` version bump lands only when someone in
+      this repo re-runs the vendoring step, not automatically on the next launch.
+    -->
+    <link rel="stylesheet" href="./vendor/kuinetic/kuinetic.css" />
+    <script src="./vendor/kuinetic/kuinetic.js"></script>
+    <!-- Own two-line bootstrap, kept in a local file (not inline) so no `'unsafe-inline'` is
+         needed in the `script-src` above. See kuinetic-init.js. -->
+    <script src="./kuinetic-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

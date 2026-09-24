@@ -24,4 +24,11 @@ export interface DashboardPort {
   listMedia(): Promise<{ media: Array<{ status: string }> }>;
   listCommentsQueue(options: { status: "pending" }): Promise<{ items: unknown[] }>;
   getPresentation(): Promise<{ settings: { activeThemeId: string } }>;
+  /** Password-banner plan (2026-09-24), Slice 3 — whether the SIGNED-IN caller's own stored
+   *  credential still verifies against the default password (`GET /auth/me/password-status`,
+   *  Slice 2). A sixth independent read, same "each source owns its own error slot" shape the rest
+   *  of this port already documents above. `principalId` is the caller's own id (from `/auth/me`),
+   *  so the per-browser Dismiss is remembered per user — another account signing in on the same
+   *  browser still gets its own nag. */
+  getPasswordStatus(): Promise<{ usesDefaultPassword: boolean; principalId: string }>;
 }

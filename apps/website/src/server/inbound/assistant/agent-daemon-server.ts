@@ -56,6 +56,7 @@
  * remains gated by `resolvePrincipal`'s fail-closed check that the posted `runId` is a live,
  * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
  */
+import { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -112,7 +113,7 @@ import {
 } from "./assistant-system-overlay.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { registerFederationReloadRoute } from "./federation-reload-route.js";
-import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daemon-deps.js";
+import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
 import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
@@ -351,6 +352,11 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 // delivered that the serving process never saw. The serving process's background drainer
 // (`serving-app.ts`) delivers them instead.
 const routeDeps = createAgentDaemonRouteDeps({ env: process.env });
+// P0b fix (hooks v2 plan, 2026-09-23): this process's hook registry is built once, here, from a
+// snapshot of the activation table — an enable/disable through the admin process afterwards never
+// reaches it on its own. See `agent-daemon-deps.ts`'s own header for why polling, not an outbox
+// event, is this lane's chosen mechanism.
+startPluginActivationPolling(routeDeps);
 
 const eventLog = createInMemoryEventLog();
 const lifecycle = createRunLifecycle({ eventLog });
@@ -1524,7 +1530,7 @@ async function start(): Promise<void> {
   );
 
   const server = app.listen(port, "127.0.0.1", () => {
-    console.log(`[agent-daemon] listening on ${daemonUrl}`);
+    if (!isDaemonLifecycleLogQuiet()) console.log(`[agent-daemon] listening on ${daemonUrl}`);
   });
 
   /**

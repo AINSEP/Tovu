@@ -37,7 +37,17 @@ const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
  *  change still loads the old path for every new window, so the old file stays until that app
  *  restarts — then delete it and empty this list. See `../src/js-backslide-guard.ts`'s header for
  *  why entries are exact paths rather than a directory or pattern. */
-const ALLOWLIST = ["apps/desktop/src/speech/preload-speech.cjs"];
+const ALLOWLIST = [
+  "apps/desktop/src/speech/preload-speech.cjs",
+  // Vendored third-party code, not authored here: kuinetic@0.1.4, MIT, sha512-verified against
+  // the npm registry tarball and byte-diffed against the CDN it replaced (see bfb37caf8). Vendor
+  // files aren't rewritten to TypeScript; they're shipped exactly as upstream publishes them.
+  "apps/desktop/src/renderer/public/vendor/kuinetic/kuinetic.js",
+  // Static public script for the sites-home renderer's kUInetic bootstrap. Must stay plain JS: a
+  // compiled/rewritten form would break the CSP's `script-src 'self'` (no bundler, no build step
+  // — index.html loads it as a plain <script src> next to the vendored library).
+  "apps/desktop/src/renderer/public/kuinetic-init.js",
+];
 
 /** Every path under `apps/desktop` git would include in a commit right now — tracked plus
  *  untracked-but-not-ignored, so build output and `node_modules` never appear.

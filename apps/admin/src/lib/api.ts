@@ -2421,8 +2421,26 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  /**
+   * Exchanges a single-use loopback boot token (the zip launcher's `#boot=<token>` sign-in link,
+   * run-from-zip plan S2) for a real admin session cookie — the SAME route the desktop shell already
+   * redeems (`server/inbound/admin-http/dev-auth.ts`'s `POST /auth/boot-session`; no new server
+   * route). `App.hooks.tsx`'s boot effect calls this with whatever `takeBootToken` read off the URL
+   * fragment, then runs its existing `api.me()` chain unchanged — a rejected redemption (invalid,
+   * spent, or absent) is swallowed by that caller and falls through to the normal `<Login>` screen.
+   */
+  redeemBootSession: (token: string) =>
+    request<{ user: { id: string } }>("/auth/boot-session", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
   me: () =>
     request<{ user: AdminUser; effectivePermissions?: string[] }>("/auth/me"),
+  /** Password-banner plan (2026-09-24), Slice 2: whether the SIGNED-IN caller's own stored
+   *  credential still verifies against the default. Separate from `me()` since only the dashboard
+   *  needs it and the server-side check costs a real argon2id verify. */
+  getPasswordStatus: () =>
+    request<{ usesDefaultPassword: boolean }>("/auth/me/password-status"),
   listPosts: () =>
     request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/posts`),
   createPost: (title: string) =>

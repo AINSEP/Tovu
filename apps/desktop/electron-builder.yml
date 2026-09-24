@@ -104,15 +104,32 @@ asarUnpack:
 # system-Node probe. Verified against this repo's actual dependency versions, not inherited.
 npmRebuild: false
 
+# The auto-updater's source (`electron-updater`, wired in `src/auto-update-controller.ts`). Setting
+# this is what makes electron-builder write `Resources/app-update.yml` into the app and the
+# `latest-mac.yml` / `latest.yml` update manifests next to the installers, even under the workflow's
+# `--publish never` (nothing here uploads; the release job does). The repo is public, so the app
+# reads releases without a token. Only PUBLISHED releases are visible to the updater: a draft is not.
+publish:
+  provider: github
+  owner: AINSEP
+  repo: Tovu
+  releaseType: release
+
 mac:
   category: public.app-category.developer-tools
   target:
     - dmg
+    # The auto-updater's payload: Squirrel.Mac installs from a zip, never from a dmg. Its blockmap
+    # lets the NEXT update download only the changed blocks.
+    - zip
     # Redundant in the strict sense — `release/mac*/Tovu.app` is the dmg target's own input and stays
     # on disk regardless — but declaring it makes the unpacked bundle a supported output rather than
     # an incidental leftover. That bundle is what `codesign --verify --deep --strict` and `spctl`
     # are actually run against when a signing question comes up, and it costs no extra build time.
     - dir
+  # Names the zip `Tovu-mac-<arch>.zip`, matching the dmg. The x64 name must never contain
+  # "arm64": electron-updater's MacUpdater picks the arch by looking for that substring.
+  artifactName: "Tovu-mac-${arch}.${ext}"
   entitlements: build/entitlements.mac.plist
   # Helpers get the same file, not a separate inherit variant: `com.apple.security.inherit` only
   # means anything for a sandboxed (MAS) build, and this is Developer ID. The renderer and GPU
@@ -167,4 +184,37 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Tovu
   deleteAppDataOnUninstall: false
-  differentialPackage: false # no auto-updater, so no .blockmap
+  # Writes `Tovu-windows-x64-setup.exe.blockmap`, which lets electron-updater download only the
+  # changed blocks of the next installer.
+  differentialPackage: true
+
+# Microsoft Store package (MSIX/APPX). Built ONLY by the release workflow's `win-x64-store` job
+# (`--win appx`), on Windows, and uploaded to Partner Center by hand — never attached to the GitHub
+# release. The Store re-signs it, so there is no certificate here, and the Store updates it, so the
+# auto-updater is off inside it (`update-policy.ts`, `process.windowsStore`).
+#
+# The three identity values below are PLACEHOLDERS. The Store job overrides all three from the
+# `MS_STORE_IDENTITY_NAME`, `MS_STORE_PUBLISHER` and `MS_STORE_PUBLISHER_DISPLAY_NAME` secrets, which
+# are Partner Center -> the Tovu app -> Product management -> Product identity: "Package/Identity/
+# Name", "Package/Identity/Publisher" (the whole `CN=...` string) and "Package/Properties/
+# PublisherDisplayName". The job refuses to finish if a placeholder survives into the package.
+# The placeholders exist so a sideload test build on a Windows machine works without them.
+appx:
+  identityName: Tovu.Placeholder
+  publisher: CN=00000000-0000-0000-0000-000000000000
+  publisherDisplayName: Tovu Placeholder
+  applicationId: Tovu
+  displayName: Tovu
+  backgroundColor: transparent
+  languages: [en-US]
+  # `Tovu-windows-x64-store.appx`.
+  artifactName: "Tovu-windows-${arch}-store.${ext}"
+  # electron-builder's template plus AppData write virtualization turned off — see the file's header.
+  customManifestPath: appx-manifest.xml
+  # Required by that manifest change (restricted: justified in the Store certification notes).
+  # `runFullTrust` is always added by electron-builder.
+  capabilities:
+    - unvirtualizedResources
+  # 2004: the desktop6 virtualization switch needs 1903+, and nothing older is supported by Microsoft.
+  minVersion: 10.0.19041.0
+  maxVersionTested: 10.0.26100.0

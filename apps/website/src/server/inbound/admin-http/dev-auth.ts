@@ -15,6 +15,7 @@ import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { redeemBootSessionToken } from "#src/features/identity/boot-session-token";
+import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 
 /**
  * @file Real session auth for the admin origin (ADR-021 / SPEC-006).
@@ -350,8 +351,10 @@ const LOOPBACK_PEERS = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 /**
  * Whether this request came from this machine.
  *
- * Proven from the SOCKET, not inferred from the bind address: `serve.ts` calls `app.listen(port)`
- * with no host, so the listener is on every interface and a remote client is perfectly possible.
+ * Proven from the SOCKET, not inferred from the bind address: `serve.ts` binds `127.0.0.1` by
+ * default (LAN-bind plan, 2026-09-23), but `TOVU_HOST` can widen that, and `index.ts` still binds
+ * every interface by default — so a remote client is possible on either boot path and this check
+ * stays regardless of what either one is currently bound to.
  * `req.ip`/`X-Forwarded-For` are deliberately not consulted — a header is attacker-controlled, and
  * this is the check that stands between a boot token and the network.
  *
@@ -531,5 +534,43 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
       user: { id: principal.id, username: userRow?.username ?? principal.displayName },
       effectivePermissions,
     });
+  });
+
+  // Password-banner plan (2026-09-24), Slice 2: tells the DASHBOARD (not deployment-overview,
+  // which is owner-only and `system.read`-gated) whether the SIGNED-IN CALLER's own stored
+  // credential still verifies against `DEFAULT_OWNER_PASSWORD`. No extra permission is needed —
+  // it's a check against your own row, so it can't be used to probe anyone else's password.
+  // Deliberately a separate route from `/auth/me` rather than a field on it: that route runs on
+  // every admin boot, and only the dashboard needs the ~tens-of-ms argon2id verify this adds.
+  //
+  // Results are memoized by the stored hash: argon2id is deliberately expensive, and a signed-in
+  // session could otherwise call this in a loop. A hash is salted per write, so any password change
+  // produces a new key and is re-verified — the cache can never report a stale answer. Capped and
+  // cleared wholesale; it only holds hashes already in the DB and booleans.
+  const defaultPasswordByHash = new Map<string, boolean>();
+  const usesDefaultPasswordFor = async (passwordHash: string): Promise<boolean> => {
+    const cached = defaultPasswordByHash.get(passwordHash);
+    if (cached !== undefined) return cached;
+    const result = await deps.passwordHasher.verify(passwordHash, DEFAULT_OWNER_PASSWORD);
+    if (defaultPasswordByHash.size >= 256) defaultPasswordByHash.clear();
+    defaultPasswordByHash.set(passwordHash, result);
+    return result;
+  };
+  app.get("/api/admin/v1/auth/me/password-status", async (req, res) => {
+    const principal = await currentPrincipal(deps, req);
+    if (!principal) {
+      res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
+      return;
+    }
+
+    const userRow = await deps.userRepo.findByPrincipalId({
+      workspaceId: deps.workspaceId,
+      principalId: principal.id,
+    });
+    const usesDefaultPassword = userRow
+      ? await usesDefaultPasswordFor(userRow.passwordHash)
+      : false;
+
+    res.json({ usesDefaultPassword });
   });
 }

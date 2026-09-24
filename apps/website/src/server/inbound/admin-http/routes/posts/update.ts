@@ -21,6 +21,7 @@ import {
   rejectOversizedJsonBody,
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /** This route's seven writable PUT fields, read off an untyped body in one place.
@@ -54,6 +55,7 @@ function parsePostUpdateBody(
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
 function sendPostUpdateError(res: Response, err: unknown): void {
+  if (sendPluginHookFailedError(res, err)) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;

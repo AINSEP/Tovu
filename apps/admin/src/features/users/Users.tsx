@@ -64,6 +64,10 @@ export interface UsersProps {
    * nothing and behave exactly as before.
    */
   useUsersHook?: typeof useWiredUsers;
+  /** Password-banner plan (2026-09-24), Slice 3: set by `panels.tsx` when the route is
+   *  `/users/change-password` (the dashboard nag's deep link). Forwarded to `useUsersHook` as-is —
+   *  `Users` itself has no opinion on what it means, see `use-users.hooks.ts` for the behavior. */
+  openOwnPasswordReset?: boolean;
 }
 
 interface NewUserFormProps {
@@ -748,7 +752,7 @@ function UsersNotices({ toggleError, notice }: UsersNoticesProps) {
   );
 }
 
-export function Users({ useUsersHook = useWiredUsers }: UsersProps = {}) {
+export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: UsersProps = {}) {
   const {
     users,
     roles,
@@ -805,7 +809,7 @@ export function Users({ useUsersHook = useWiredUsers }: UsersProps = {}) {
 
     t,
     locale,
-  } = useUsersHook();
+  } = useUsersHook({ openOwnPasswordReset });
 
   if (error) return <div className="notice error">{error}</div>;
   if (!users || !roles || !policies) return <div className="notice">{t("Loading users…")}</div>;
