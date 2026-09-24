@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -735,6 +735,76 @@ describe("sanity", () => {
   it("mounts the editor shell once a page is loaded", async () => {
     renderEditor();
     await waitFor(() => expect(screen.getByRole("heading", { name: /edit page/i })).toBeInTheDocument());
+  });
+});
+
+/** The template picker shares the `combobox` role with the status select, same collision
+ *  `PostEditor.unit.test.tsx`'s own `templateSelect()` documents for its picker. */
+function templateSelect(): HTMLSelectElement {
+  const el = document.querySelector('[data-agent-element="page-template-choice"]');
+  if (!(el instanceof HTMLSelectElement)) throw new Error("template picker not rendered");
+  return el;
+}
+
+/**
+ * Bare-page ruling (2026-09-23, S6) — `null` and `""` used to render and display identically ("No
+ * template chosen"). They now diverge: `null` still renders the theme's page shell ("Theme default"),
+ * `""` renders bare (only this Page's own HTML). This is genuinely new coverage — no pre-existing test
+ * in this file touched `page-template-choice` at all.
+ */
+describe("Template picker (bare-page ruling)", () => {
+  it("labels the bare option 'No template — HTML only', not the old 'No template chosen'", () => {
+    renderEditor({ templateChoice: "", availableTemplates: ["pages-default.html"] });
+    const select = templateSelect();
+    expect(select).toHaveDisplayValue("No template — HTML only");
+    expect(screen.queryByText("No template chosen")).not.toBeInTheDocument();
+  });
+
+  it("shows the bare hint only when templateChoice is '', not for null or a real filename", () => {
+    const hint = /serves only this page's html/i;
+
+    renderEditor({ templateChoice: "", availableTemplates: ["pages-default.html"] });
+    expect(screen.getByText(hint)).toBeInTheDocument();
+
+    cleanup();
+    renderEditor({ templateChoice: null, availableTemplates: ["pages-default.html"] });
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+
+    cleanup();
+    renderEditor({ templateChoice: "pages-default.html", availableTemplates: ["pages-default.html"] });
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+  });
+
+  // The exact regression `pagePickerValue` exists to prevent: a `null` Page (never chosen — "Theme
+  // default") must not display as the bare option just because the theme's shell name happens to be
+  // first/absent from the list.
+  it("a null Page whose theme ships a page-shell template shows that template selected, not bare or the sentinel", () => {
+    renderEditor({ templateChoice: null, availableTemplates: ["pages-default.html", "blog-post.html"] });
+    const select = templateSelect();
+    expect(select).toHaveValue("pages-default.html");
+    expect(select).not.toHaveValue("");
+  });
+
+  it("a null Page whose theme ships no page-shell template shows the 'Theme default' sentinel option", () => {
+    renderEditor({ templateChoice: null, availableTemplates: ["blog-post.html"] });
+    const select = templateSelect();
+    expect(select).toHaveDisplayValue("Theme default");
+  });
+
+  it("picking the bare option calls setTemplateChoice('')", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ templateChoice: "pages-default.html", availableTemplates: ["pages-default.html"] });
+    await user.selectOptions(templateSelect(), "");
+    expect(ctrl.setTemplateChoice).toHaveBeenCalledWith("");
+  });
+
+  it("picking 'Theme default' calls setTemplateChoice(null)", async () => {
+    // The sentinel option only renders when `pagePickerValue` needs it — a `null` Page whose theme
+    // ships no page-shell template (same fixture as the "shows the sentinel" test above).
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ templateChoice: null, availableTemplates: ["blog-post.html"] });
+    await user.selectOptions(templateSelect(), "__theme-default__");
+    expect(ctrl.setTemplateChoice).toHaveBeenCalledWith(null);
   });
 });
 

@@ -2431,8 +2431,10 @@ export const api = {
   // builds the string.
   //
   // `templateChoice`'s tri-state (see `resolveTemplate`'s doc) is preserved through the query string:
-  // `null` omits the param entirely ("never chosen"), `""` sends `?templateChoice=` (the explicit
-  // "No template chosen" opt-out), anything else sends that filename.
+  // `null` omits the param entirely ("never chosen" — the theme's page shell for a Page, or the
+  // theme's first template for a Post), `""` sends `?templateChoice=` (a Post's diagnostic page;
+  // since the bare-page ruling, 2026-09-23, a Page's explicit "No template" — bare, no theme styles/
+  // scripts/header/footer), anything else sends that filename.
   //
   // `siteUrl(...)` wrapping (2026-08-12, owner-reported bug — mention links inside this preview
   // navigated to a blank Vite dev-server error page): every OTHER `BASE`-prefixed path in this file
