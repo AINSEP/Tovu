@@ -25,8 +25,10 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
+import { isTrashed } from "#src/features/post/post";
 import type { PostRecord } from "#src/features/post/post";
 import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
+import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 
@@ -36,13 +38,13 @@ import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import type { PublishContentBaselineRepoPort } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
-import { planImport } from "../planner.js";
+import { entityKey, planImport } from "../planner.js";
 import type { PublishContentBundle, PublishContentReport } from "../planner.js";
 import {
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,
 } from "../type-registry.js";
-import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
+import type { PackedEntity, PublishContentDeps, PublishContentContributor, PublishContentHandler, RetireTarget } from "../type-registry.js";
 import { createPublishContentApplyPort, publishContentItemIdempotencyKey } from "../apply-loop.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
@@ -127,6 +129,10 @@ function makeHarness(
     // `restorePostForward`, which drops the Trash index row when the write it undoes was a trash.
     // An import never trashes, so this never fires here.
     forgetRemovedPost: async () => {},
+    // S5 — `retire()`'s own guard requires this too (mirrors `post/__tests__/publish-content.test.ts`'s
+    // `makeApplyDeps`), bound to the SAME repo instance every other test in this file already reads/
+    // writes through. Harmless for every test that never retires anything.
+    removePost: removeVia(postRepo),
   };
 
   const applyPort = createPublishContentApplyPort({
@@ -304,6 +310,217 @@ test("a destination row created by someone else between plan and apply downgrade
 
   const baseline = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "post", entityId: "post-new" });
   assert.equal(baseline, null, "a conflicted 'created' row must never gain a baseline");
+});
+
+// ---------------------------------------------------------------------------
+// S5 (publish-overwrite-live-plan-2026-09-24.md §4/§5) — the address-clash
+// overwrite: retire the live holder, then create the incoming row under its
+// own id. Every one of these was confirmed to FAIL with `applyOneRow`'s
+// `row.retires` branch commented out (falling through to the pre-S5 generic
+// guards) before being accepted, per this file's own falsification rule.
+// ---------------------------------------------------------------------------
+
+/** Builds a `PublishContentReport` for exactly one packed entity, using the REAL registry the
+ *  caller's `publishContentDeps` was built with — like {@link plan} above, but this file's own
+ *  `plan()` helper never threads `forcedEntityKeys`, and every S5 test needs one to reach `forced`. */
+async function planWithForce(
+  publishContentDeps: PublishContentDeps,
+  entities: readonly PackedEntity[],
+  forcedEntityKeys: ReadonlySet<string>
+): Promise<PublishContentReport> {
+  const bundle: PublishContentBundle = {
+    artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+    hashVersion: CONTENT_HASH_VERSION,
+    entities,
+  };
+  return planImport(bundle, {
+    publishContentDeps,
+    getBaseline: async () => null,
+    hasBlob: async () => true,
+    forcedEntityKeys,
+  });
+}
+
+test("address-clash overwrite: the live holder is retired to Trash and the incoming row is created under its own id, with the create's changeSetId and the retire's tracked separately", async () => {
+  const holder = makePost({ id: "post-about", slug: "about", kind: "post", version: 3, status: "published", title: "About (live)" });
+  const { postRepo, clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([holder]);
+
+  // Same entityType ("post") on both sides deliberately — the cross-kind (post-vs-page) version of
+  // this exact production scenario is S11's own scope, not S5's; this test isolates the retire+create
+  // mechanics apply-loop.ts itself owns.
+  const incoming = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu", createdByPrincipalId: "source-author-1" });
+  const entities = [packedFrom(incoming)];
+  const forcedKey = entityKey("post", "local-about");
+  const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
+
+  assert.equal(report.rows[0].outcome, "forced", "precondition: the slug clash must be offered and forced");
+  assert.equal(report.rows[0].retires?.entityId, "post-about", "precondition: the forced row must name the live holder");
+
+  const bundleId = await stage(bundleRepo, clock, entities);
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.equal(result.changeSetIds.length, 1, "the create is the only id this port's own changeSetIds surfaces — the retire's stays separate (this file's own doc)");
+
+  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  assert.equal(status?.retiredChangeSetIds.length, 1, "the retire must produce its own change set");
+  assert.notEqual(status?.retiredChangeSetIds[0], result.changeSetIds[0], "the retire and the create are two distinct change sets, never the same id twice");
+
+  const retiredHolder = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-about" });
+  assert.equal(isTrashed(retiredHolder!), true, "the live holder must be moved to Trash, never left live under a taken slug");
+  assert.equal(retiredHolder?.slug, "about-replaced-20260919", "the holder's own slug must be freed by renaming, never left colliding");
+
+  const created = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "local-about" });
+  assert.ok(created, "the incoming row must be created under its OWN id, never merged into the retired holder's id");
+  assert.equal(created?.slug, "about", "the incoming row takes the now-freed address");
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "applied", "the run itself must complete, not merely the row");
+});
+
+test("the live holder changing between plan and apply downgrades the retire-forced row to 'conflict' — nothing is retired, nothing is created", async () => {
+  const holder = makePost({ id: "post-about", slug: "about", kind: "post", version: 3, status: "published", title: "About (live)" });
+  const { postRepo, clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([holder]);
+
+  const incoming = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu" });
+  const entities = [packedFrom(incoming)];
+  const forcedKey = entityKey("post", "local-about");
+  const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
+  assert.equal(report.rows[0].outcome, "forced", "precondition");
+
+  const bundleId = await stage(bundleRepo, clock, entities);
+
+  // The race: the live holder is edited AFTER the plan above, BEFORE apply — its content hash (what
+  // a fresh planRetire() would report) no longer matches what `row.retires.hash` pinned at plan time.
+  await postRepo.save({ ...holder, title: "About (edited on live during the race)", version: holder.version + 1 });
+
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.deepEqual(result.changeSetIds, [], "no create must land while the retire target is stale");
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  const persistedReport = JSON.parse(run!.reportJson ?? "null") as PublishContentReport;
+  assert.equal(persistedReport.rows[0].outcome, "conflict");
+  assert.match(persistedReport.rows[0].reason ?? "", /changed after this run's plan was built/);
+
+  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  assert.deepEqual(status?.retiredChangeSetIds, [], "a stale retire target must never actually be retired");
+
+  const stillHolder = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-about" });
+  assert.equal(isTrashed(stillHolder!), false, "the holder must stay live — never retired on a target that already moved on");
+  assert.equal(stillHolder?.slug, "about");
+  assert.equal(stillHolder?.title, "About (edited on live during the race)", "the live edit itself must survive untouched");
+
+  const created = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "local-about" });
+  assert.equal(created, null, "nothing must be created while the address is still contested");
+});
+
+/** A minimal fake handler for the one property below that has nothing to do with `post`'s own
+ *  domain rules: apply-loop.ts's OWN try/catch/undo wiring when the create half of a retire+create
+ *  pair fails. A real `contributePostPublish()` handler cannot be made to fail `apply()` on demand
+ *  without also exercising unrelated post-domain validation, so this fake isolates the property. */
+function makeRetireFakeHandler(options: {
+  store: Map<string, { version: number; hash: string; retired: boolean }>;
+  holderId: string;
+  applyShouldThrow: boolean;
+}): PublishContentHandler {
+  let retireCount = 0;
+  return {
+    entityType: "widget",
+    schemaVersion: 1,
+    permission: "content.write",
+    dependsOn: [],
+    pack: async function* () {},
+    inspect: async (id: string) => {
+      const row = options.store.get(id);
+      if (!row || row.retired) return null;
+      return { version: row.version, hash: row.hash };
+    },
+    precheck: async (entity: PackedEntity) => (entity.id === "incoming-widget" ? "slug clash (fake)" : null),
+    apply: async () => {
+      if (options.applyShouldThrow) {
+        throw new Error("apply failed deliberately for the undo test");
+      }
+      options.store.set("incoming-widget", { version: 1, hash: "incoming-hash", retired: false });
+      return { changeSetId: "cs-create-1" };
+    },
+    planRetire: async (): Promise<RetireTarget | null> => {
+      const holder = options.store.get(options.holderId);
+      if (!holder || holder.retired) return null;
+      return { entityType: "widget", entityId: options.holderId, entityLabel: "Holder", hash: holder.hash };
+    },
+    retire: async (input: { target: RetireTarget; principalId: string; idempotencyKey: string }) => {
+      const holder = options.store.get(input.target.entityId)!;
+      options.store.set(input.target.entityId, { ...holder, retired: true });
+      retireCount += 1;
+      return {
+        changeSetId: `cs-retire-${retireCount}`,
+        undo: async () => {
+          const current = options.store.get(input.target.entityId)!;
+          options.store.set(input.target.entityId, { ...current, retired: false });
+        },
+      };
+    },
+  };
+}
+
+function fakeWidgetContributor(handler: PublishContentHandler): PublishContentContributor {
+  return { entityType: handler.entityType, dependsOn: handler.dependsOn, build: () => handler };
+}
+
+test("the create failing after a successful retire puts the holder back live — the retire is never left stranded", async () => {
+  const store = new Map<string, { version: number; hash: string; retired: boolean }>();
+  store.set("holder-widget", { version: 1, hash: "holder-hash", retired: false });
+
+  const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([]);
+  registerPublishContentContributor(
+    fakeWidgetContributor(makeRetireFakeHandler({ store, holderId: "holder-widget", applyShouldThrow: true }))
+  );
+
+  const incomingEntity: PackedEntity = {
+    entityType: "widget",
+    id: "incoming-widget",
+    schemaVersion: 1,
+    contentHash: "incoming-hash",
+    hashVersion: CONTENT_HASH_VERSION,
+    requiredBlobs: [],
+    state: { title: "Incoming Widget" },
+  };
+  const forcedKey = entityKey("widget", "incoming-widget");
+  const report = await planWithForce(publishContentDeps, [incomingEntity], new Set([forcedKey]));
+  assert.equal(report.rows[0].outcome, "forced", "precondition");
+  assert.equal(report.rows[0].retires?.entityId, "holder-widget", "precondition");
+
+  const bundleId = await stage(bundleRepo, clock, [incomingEntity]);
+
+  await assert.rejects(() =>
+    applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" })
+  );
+
+  assert.equal(store.get("holder-widget")?.retired, false, "undo() must have restored the holder live after the create threw");
+  assert.equal(store.has("incoming-widget"), false, "the create must never have actually landed");
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "failed", "a genuine (non-downgradeable) apply() throw must still fail the run, not silently swallow it");
+});
+
+test("a row without `retires` behaves exactly as before S5 — the generic created/removed guards still apply", async () => {
+  const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([]);
+
+  const incoming = makePost({ id: "post-plain", title: "Plain create", slug: "post-plain", createdByPrincipalId: "author-plain" });
+  const entities = [packedFrom(incoming)];
+  const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
+  assert.equal(report.rows[0].outcome, "created");
+  assert.equal(report.rows[0].retires, null, "precondition: an ordinary create carries no retire target");
+
+  const bundleId = await stage(bundleRepo, clock, entities);
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.equal(result.changeSetIds.length, 1);
+  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  assert.deepEqual(status?.retiredChangeSetIds, [], "a row with no retires must never produce a retiredChangeSetId");
+
+  const created = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-plain" });
+  assert.ok(created, "the plain create path must still work unchanged");
 });
 
 // ---------------------------------------------------------------------------

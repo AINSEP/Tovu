@@ -28,6 +28,12 @@ export interface PublishContentRunItemState {
   readonly writes: boolean;
   readonly reason: string | null;
   readonly changeSetId: string | null;
+  /** publish-overwrite-live-plan §4/S5 — the SEPARATE change set an address-clash overwrite's retire
+   *  half produced (`apply-loop.ts`'s `applyOneRow`), or `null` for every row that has no
+   *  `PublishContentOutcomeRow.retires` (the overwhelming majority) or that never reached a write.
+   *  Deliberately not folded into {@link changeSetId}/`PublishContentRunStatus.changeSetIds` — see
+   *  `apply-loop.ts`'s own doc on why a row that produced two change sets must not read as one. */
+  readonly retiredChangeSetId: string | null;
   readonly errorSummary: string | null;
   readonly updatedAt: string;
 }
@@ -79,6 +85,11 @@ export interface PublishContentRunStatus {
   readonly startedAt: string;
   readonly finishedAt: string | null;
   readonly changeSetIds: readonly string[];
+  /** Every non-null {@link PublishContentRunItemState.retiredChangeSetId} across {@link items},
+   *  derived here rather than stored as its own JSON column — a convenience read for a caller
+   *  building the execute response (publish-overwrite-live-plan §4) without re-deriving the filter
+   *  itself. Order follows {@link items}' own order, not insertion order into any set. */
+  readonly retiredChangeSetIds: readonly string[];
   readonly report: PublishContentReport | null;
   readonly items: readonly PublishContentRunItemState[];
 }
@@ -92,6 +103,7 @@ export async function getPublishContentRunStatus(
   if (!record) return null;
   const changeSetIds = record.changeSetIdsJson ? (JSON.parse(record.changeSetIdsJson) as unknown) : [];
   const items = record.itemsJson ? (JSON.parse(record.itemsJson) as unknown) : [];
+  const parsedItems: PublishContentRunItemState[] = Array.isArray(items) ? (items as PublishContentRunItemState[]) : [];
   return {
     id: record.id,
     workspaceId: record.workspaceId,
@@ -102,8 +114,11 @@ export async function getPublishContentRunStatus(
     startedAt: record.startedAt,
     finishedAt: record.finishedAt,
     changeSetIds: Array.isArray(changeSetIds) ? changeSetIds.filter((id): id is string => typeof id === "string") : [],
+    retiredChangeSetIds: parsedItems
+      .map((item) => item.retiredChangeSetId)
+      .filter((id): id is string => typeof id === "string"),
     report: record.reportJson ? (JSON.parse(record.reportJson) as PublishContentReport) : null,
-    items: Array.isArray(items) ? (items as PublishContentRunItemState[]) : [],
+    items: parsedItems,
   };
 }
 

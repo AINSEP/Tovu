@@ -211,15 +211,21 @@ function classifyApplyRowFailure(
 /**
  * Applies exactly one report row, mutating nothing — returns the row as it actually resolved (which
  * may differ from the plan's own prediction, see this file's header) plus the `changeSetId` a write
- * produced, or `null` for a row that wrote nothing.
+ * produced (or `null` for a row that wrote nothing), and `retiredChangeSetId` — the SEPARATE change
+ * set a {@link PublishContentOutcomeRow.retires} row's retire half produced (`null` for every other
+ * row, including a `retires` row that never reached the write, e.g. because it was downgraded to
+ * `conflict` before either write was attempted). It stays apart from `changeSetId` rather than
+ * collapsing into one list, so a caller counting "one change set per row" (`publish-confirmation-
+ * ui.ts`'s `describeApplyShortfall`) is never off by one for a row that produced two.
  *
- * @complexity O(1) plus whatever `handler.inspect`/`handler.apply`/`baselineRepo` I/O costs — no
- * loop; {@link createPublishContentApplyPort} is what iterates a report's rows.
+ * @complexity O(1) plus whatever `handler.inspect`/`handler.planRetire`/`handler.retire`/
+ * `handler.apply`/`baselineRepo` I/O costs — no loop; {@link createPublishContentApplyPort} is what
+ * iterates a report's rows.
  */
 async function applyOneRow(
   row: PublishContentOutcomeRow,
   ctx: ApplyRowContext
-): Promise<{ row: PublishContentOutcomeRow; changeSetId: string | null }> {
+): Promise<{ row: PublishContentOutcomeRow; changeSetId: string | null; retiredChangeSetId: string | null }> {
   const key = entityKey(row.entityType, row.entityId);
 
   if (!row.writes) {
@@ -243,7 +249,7 @@ async function applyOneRow(
         });
       }
     }
-    return { row, changeSetId: null };
+    return { row, changeSetId: null, retiredChangeSetId: null };
   }
 
   const entity = ctx.entityByKey.get(key);
@@ -259,10 +265,106 @@ async function applyOneRow(
         reason: `internal inconsistency: no packed entity/handler for ${row.entityType} '${row.entityId}' at apply time`,
       },
       changeSetId: null,
+      retiredChangeSetId: null,
     };
   }
 
   const current = await handler.inspect(entity.id);
+
+  if (row.retires) {
+    // publish-overwrite-live-plan §4/S5 — an address-clash overwrite. This row's own entity id must
+    // still be free at the destination (unlike a slug clash, "someone already holds THIS id" here
+    // would mean a genuine create race, not the live holder this row is about to retire), and the
+    // live row row.retires named at plan time must still be exactly what a FRESH planRetire() sees —
+    // closing the same plan/apply window this file's header requires for every other outcome, just
+    // applied to a target that lives outside this row's own id. Both checks run BEFORE either write,
+    // so a stale retire target never reaches handler.retire()/apply() at all.
+    if (current !== null) {
+      return {
+        row: {
+          ...row,
+          outcome: "conflict",
+          writes: false,
+          reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply`,
+        },
+        changeSetId: null,
+        retiredChangeSetId: null,
+      };
+    }
+    if (!handler.planRetire || !handler.retire) {
+      return {
+        row: {
+          ...row,
+          outcome: "blocked",
+          writes: false,
+          reason: `internal inconsistency: no planRetire()/retire() on the ${row.entityType} handler for a retire-offered row at apply time`,
+        },
+        changeSetId: null,
+        retiredChangeSetId: null,
+      };
+    }
+    const freshTarget = await handler.planRetire(entity);
+    if (!freshTarget || freshTarget.entityId !== row.retires.entityId || freshTarget.hash !== row.retires.hash) {
+      return {
+        row: {
+          ...row,
+          outcome: "conflict",
+          writes: false,
+          reason: `the live ${row.entityType} at this address changed after this run's plan was built`,
+        },
+        changeSetId: null,
+        retiredChangeSetId: null,
+      };
+    }
+
+    let retireResult: { changeSetId: string; undo(): Promise<void> } | undefined;
+    try {
+      retireResult = await handler.retire({
+        target: row.retires,
+        principalId: ctx.principalId,
+        idempotencyKey: `${key}:retire`,
+      });
+      const { changeSetId } = await handler.apply({
+        entity,
+        expectedVersion: undefined, // current === null (checked above) — this is always a create.
+        principalId: ctx.principalId, // always the operator — see this file's header.
+        idempotencyKey: publishContentItemIdempotencyKey({
+          workspaceId: ctx.workspaceId,
+          sourcePrincipalId: ctx.sourcePrincipalId,
+          entity,
+        }),
+      });
+      await ctx.recordContentApplied({ itemKey: key, changeSetId });
+      await ctx.baselineRepo.upsert({
+        workspaceId: ctx.workspaceId,
+        peerPrincipalId: ctx.sourcePrincipalId,
+        entityType: row.entityType,
+        entityId: row.entityId,
+        hashAtLastSync: entity.contentHash,
+        hashVersion: entity.hashVersion,
+        syncedAt: ctx.clock.nowIso(),
+        runId: ctx.runId,
+      });
+      return { row, changeSetId, retiredChangeSetId: retireResult.changeSetId };
+    } catch (error) {
+      // The retire already landed but the create it was clearing the address FOR did not — put the
+      // holder back rather than leaving it retired with nothing to show for it (this handler's own
+      // `retire()` doc: the apply loop is the one caller besides its own gateway rollback that calls
+      // `undo()` directly).
+      if (retireResult) {
+        await retireResult.undo();
+      }
+      const downgrade = classifyApplyRowFailure(error, row);
+      if (downgrade) {
+        return {
+          row: { ...row, outcome: downgrade.outcome, writes: false, reason: downgrade.reason },
+          changeSetId: null,
+          retiredChangeSetId: null,
+        };
+      }
+      throw error; // genuine failure — the caller's own try/catch persists a `failed` run row and rethrows.
+    }
+  }
 
   if (row.outcome === "created" && current !== null) {
     return {
@@ -273,6 +375,7 @@ async function applyOneRow(
         reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply`,
       },
       changeSetId: null,
+      retiredChangeSetId: null,
     };
   }
   if (row.outcome !== "created" && current === null) {
@@ -284,6 +387,7 @@ async function applyOneRow(
         reason: `${row.entityType} '${row.entityId}' was removed from the destination between plan and apply`,
       },
       changeSetId: null,
+      retiredChangeSetId: null,
     };
   }
   if (row.outcome === "applied" && current) {
@@ -311,6 +415,7 @@ async function applyOneRow(
           reason: `${row.entityType} '${row.entityId}' was edited on the destination again after this run's own plan was built`,
         },
         changeSetId: null,
+        retiredChangeSetId: null,
       };
     }
   }
@@ -339,13 +444,14 @@ async function applyOneRow(
       syncedAt: ctx.clock.nowIso(),
       runId: ctx.runId,
     });
-    return { row, changeSetId };
+    return { row, changeSetId, retiredChangeSetId: null };
   } catch (error) {
     const downgrade = classifyApplyRowFailure(error, row);
     if (downgrade) {
       return {
         row: { ...row, outcome: downgrade.outcome, writes: false, reason: downgrade.reason },
         changeSetId: null,
+        retiredChangeSetId: null,
       };
     }
     throw error; // genuine failure — the caller's own try/catch persists a `failed` run row and rethrows.
@@ -458,6 +564,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           writes: row.writes,
           reason: row.reason,
           changeSetId: null,
+          retiredChangeSetId: null,
           errorSummary: null,
           updatedAt: startedAt,
         });
@@ -532,6 +639,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
               writes: result.row.writes,
               reason: result.row.reason,
               changeSetId: result.changeSetId ?? item.changeSetId,
+              retiredChangeSetId: result.retiredChangeSetId ?? item.retiredChangeSetId,
               errorSummary: null,
               updatedAt: input.clock.nowIso(),
             });
