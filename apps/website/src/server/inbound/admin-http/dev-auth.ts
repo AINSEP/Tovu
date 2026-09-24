@@ -350,8 +350,10 @@ const LOOPBACK_PEERS = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 /**
  * Whether this request came from this machine.
  *
- * Proven from the SOCKET, not inferred from the bind address: `serve.ts` calls `app.listen(port)`
- * with no host, so the listener is on every interface and a remote client is perfectly possible.
+ * Proven from the SOCKET, not inferred from the bind address: `serve.ts` binds `127.0.0.1` by
+ * default (LAN-bind plan, 2026-09-23), but `TOVU_HOST` can widen that, and `index.ts` still binds
+ * every interface by default — so a remote client is possible on either boot path and this check
+ * stays regardless of what either one is currently bound to.
  * `req.ip`/`X-Forwarded-For` are deliberately not consulted — a header is attacker-controlled, and
  * this is the check that stands between a boot token and the network.
  *

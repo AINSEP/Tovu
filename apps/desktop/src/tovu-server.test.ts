@@ -186,6 +186,18 @@ test("buildServeEnv keeps an operator-set daemon token instead of replacing it",
   assert.equal(env.TOVU_AGENT_DAEMON_TOKEN, "operator-token");
 });
 
+// LAN-bind plan (2026-09-23): every desktop client dials 127.0.0.1 literally, so any other
+// TOVU_HOST value would break the desktop's own child, exactly like PORT above.
+test("buildServeEnv pins TOVU_HOST to 127.0.0.1, like the PORT drop", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
+  assert.equal(env.TOVU_HOST, "127.0.0.1");
+});
+
+test("buildServeEnv overwrites an inherited TOVU_HOST -- a developer's shell export must never put a desktop site on the LAN", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: { TOVU_HOST: "0.0.0.0" } });
+  assert.equal(env.TOVU_HOST, "127.0.0.1");
+});
+
 test("buildServeEnv drops inherited PORT, TOVU_DB and TOVU_CONTENT_DB", () => {
   const env = buildServeEnv({
     repoRoot: makeTempRepo(),

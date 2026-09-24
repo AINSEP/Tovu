@@ -65,7 +65,9 @@ export function createProgram(): Command {
 
   program
     .command("serve")
-    .description("validate, migrate, and boot an install dir — serves site + admin")
+    .description(
+      "validate, migrate, and boot an install dir — serves site + admin; listens on 127.0.0.1 unless TOVU_HOST is set (e.g. TOVU_HOST=0.0.0.0 for a server or container)"
+    )
     .argument("<dir>", "install directory to serve")
     .option("--port <port>", "port to listen on (default: config.json.port, then PORT env, then 3000)")
     .option("--workspace <id>", "workspace id to serve (default: the oldest workspace, if the install has more than one)")

@@ -360,7 +360,8 @@ interface BuildServeEnvInput {
  *
  * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
  * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and
- * `<dir>` are the only authority over those.
+ * `<dir>` are the only authority over those. `TOVU_HOST` is overwritten to `127.0.0.1` for the
+ * same reason — see the LAN-bind plan note above the identity-seeding paragraph.
  *
  * @param input.repoRoot repo root, used to locate `apps/admin/dist` and threaded into
  *   `TOVU_REPO_ROOT` for `features/publish-trust`'s committed-config resolution.
@@ -377,6 +378,15 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   if (!env.TOVU_AGENT_DAEMON_TOKEN) {
     env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");
   }
+
+  // LAN-bind plan (2026-09-23). Overwritten on purpose, like the PORT drop in `buildCliEnv` above —
+  // NOT merely defaulted like TOVU_AGENT_DAEMON_TOKEN above, whose inherited value wins. Every
+  // client of this child dials 127.0.0.1 literally (this file's own connect calls, `main.ts`, the
+  // integration tests), so a developer's shell export (or `--port`-style operator intent) must never
+  // put a desktop-spawned site on the LAN — this is what keeps it off, unconditionally. The literal
+  // string, not an import of `bind-host.ts`'s `DEFAULT_LOCAL_BIND_HOST`: this directory stays
+  // self-contained from `apps/website`, same reasoning as `desktop-auth.ts:62-65`.
+  env.TOVU_HOST = "127.0.0.1";
 
   // Seeds the desktop shell's OWN owner account so `desktop-auth.ts` can log in and the operator
   // never meets a login form for a server this app started. Omitted entirely when the caller passes

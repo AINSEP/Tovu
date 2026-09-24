@@ -60,6 +60,7 @@ dir:        { type: path, required: true, notes: "must be a completed install di
 PORT:             { type: integer, required: false, notes: "3rd in port precedence (BR-02)" }
 TOVU_DB:          { type: enum[memory], required: false, notes: "legacy dev boot only (REQ-10); ignored when a dir argument is present (EC-08)" }
 TOVU_CONTENT_DB:  { type: path, required: false, notes: "legacy flat-db boot only (REQ-10); ignored when a dir argument is present (EC-08)" }
+TOVU_HOST:        { type: string, required: false, notes: "bind host (LAN-bind plan 2026-09-23); IP literal only (net.isIP), non-IP hostname is VALIDATION; serve defaults to 127.0.0.1, index.ts (container entry) defaults to unset/all-interfaces; \"::\" resolves to all interfaces" }
 ```
 
 ## 5) Response Contracts (process outputs)
