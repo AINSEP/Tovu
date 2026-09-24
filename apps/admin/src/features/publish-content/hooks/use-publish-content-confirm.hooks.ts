@@ -145,6 +145,9 @@ export interface PublishContentConfirmView {
    *  error, and it gets its own sentence rather than being flattened into one. */
   readonly refusalReason: string | null;
   readonly doneMessage: string | null;
+  /** The server's own lines for each live menu the run could not repoint (plan §2.7) — reported,
+   *  never silent. Empty outside the `done` phase and for a live built before the repoint pass. */
+  readonly doneNotices: readonly string[];
   /** Set once peers have loaded empty and the destination check has resolved. `null` while peers
    *  exist, are still loading, or the destination check hasn't resolved yet — see this file's
    *  connect-offer effect. */
@@ -944,6 +947,8 @@ export function usePublishContentConfirm(props: {
     errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
     refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,
     doneMessage: doneMessageFor(phase, t),
+    // De-duplicated: a grant that doesn't cover menus refuses every menu with the same line.
+    doneNotices: phase.kind === "done" ? [...new Set(phase.result.menuLinksNotUpdated ?? [])] : [],
     connectOffer,
   };
 }

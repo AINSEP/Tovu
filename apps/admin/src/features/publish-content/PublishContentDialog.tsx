@@ -157,6 +157,11 @@ export function PublishContentDialog({ onCancel, t, port, criteria, onPlanned }:
             {view.doneMessage}
           </p>
         )}
+        {view.doneNotices.map((line) => (
+          <p key={line} className="notice">
+            {line}
+          </p>
+        ))}
 
         {view.rows.length > 0 && (
           <>

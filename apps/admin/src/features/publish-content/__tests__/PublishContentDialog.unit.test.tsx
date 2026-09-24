@@ -968,6 +968,28 @@ describe("PublishContentDialog — menu-link repoint copy (R6)", () => {
     await user.click(primaryButton());
     expect(await screen.findByText("Published 1 change.")).toBeTruthy();
   });
+
+  // Review 2026-09-24: plan §2.7 — a menu the run could NOT repoint is reported, never silent. The
+  // server's lines reached the client (`menuLinksNotUpdated`) but nothing rendered them.
+  it("shows each menu the run could not repoint under the done banner", async () => {
+    const NOT_UPDATED = "Menu links were not updated: this publishing grant doesn't cover menus.";
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: MIXED_REPORT,
+      executeResult: {
+        restorePointId: "rp-9",
+        runId: "run-9",
+        changeSetIds: ["cs-1"],
+        menuLinksUpdated: 0,
+        menuLinksNotUpdated: [NOT_UPDATED],
+      },
+    });
+    const user = await planFrom(port);
+
+    await user.click(primaryButton());
+    expect(await screen.findByText("Published 1 change.")).toBeTruthy();
+    expect(screen.getByText(NOT_UPDATED)).toBeTruthy();
+  });
 });
 
 // c7n-ow-review2 (2026-09-24): the S9 review's defects, each RED against 6ed1e20fc before its fix.
