@@ -29,6 +29,7 @@ import type {
   UserRepoPort,
 } from "@jini-ai/cms/identity";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
+import type { UserPurgePort } from "../../features/identity/user-purge-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
@@ -183,6 +184,9 @@ export interface IdentityDeps {
   /** SPEC-006 REQ-08 — the api-key secret hashing seam, deliberately separate from
    *  `passwordHasher`; see `identity/api-key-secret.ts`'s header for why the two are tuned apart. */
   apiKeySecretHasher: ApiKeySecretHasherPort;
+  /** Delete-user plan decision 2/7 — `DELETE_USER`'s purge port; see
+   *  `identity/wiring.ts`'s `IdentityRouteDepsSlice.userPurge` doc for why it lives in this repo. */
+  userPurge: UserPurgePort;
   /**
    * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
    * Seeding hashes the owner's password (async, argon2id), so

@@ -20,6 +20,9 @@ import {
 import { InMemoryApiKeyRepo } from "./repo.memory.js";
 import { ScryptApiKeySecretHasher } from "./api-key-secret.js";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api-key-types.js";
+import { InMemoryUserPurge } from "./user-purge-types.js";
+import { SqliteUserPurge } from "./user-purge.sqlite.js";
+import type { UserPurgePort } from "./user-purge-types.js";
 import {
   SqliteApiKeyRepo,
   SqlitePolicyPermissionRepo,
@@ -82,6 +85,10 @@ export interface IdentityRouteDepsSlice {
   /** Separate from `passwordHasher` on purpose — see `api-key-secret.ts`'s header for the tuning
    *  argument (256-bit machine secret verified per request vs. a human password verified per login). */
   apiKeySecretHasher: ApiKeySecretHasherPort;
+  /** Delete-user plan decision 2/7 — the `DELETE_USER` purge port (`user-purge-types.ts`). Declared
+   *  in this repo for the same reason `apiKeyRepo` above is: the transition it backs is Tovu-local,
+   *  not part of `@jini-ai/cms/identity`'s own nine repo ports. */
+  userPurge: UserPurgePort;
   identityReady: Promise<void>;
   authorize: AuthorizeFn;
   /**
@@ -108,6 +115,7 @@ export interface IdentityRouteDepsSlice {
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
   apiKeyRepo: ApiKeyRepoPort,
+  userPurge: UserPurgePort,
   required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort; reconcileGrantsOnBoot?: boolean }
 ): IdentityRouteDepsSlice {
   const passwordHasher = new Argon2PasswordHasher();
@@ -207,6 +215,7 @@ function buildIdentityRouteDeps(
     passwordHasher,
     apiKeyRepo,
     apiKeySecretHasher,
+    userPurge,
     identityReady,
     ownerPrincipalId,
     authorize,
@@ -243,7 +252,7 @@ export function createInMemoryIdentityRouteDeps(required: {
     principalRoles: new InMemoryPrincipalRoleRepo(),
     principalPolicies: new InMemoryPrincipalPolicyRepo(),
   };
-  return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), required);
+  return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), new InMemoryUserPurge(), required);
 }
 
 /**
@@ -282,5 +291,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return buildIdentityRouteDeps(repos, new SqliteApiKeyRepo(db), seedRequired);
+  return buildIdentityRouteDeps(repos, new SqliteApiKeyRepo(db), new SqliteUserPurge(db), seedRequired);
 }
