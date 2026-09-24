@@ -12,6 +12,7 @@ import { registerAdminUserUpdateRoute } from "#src/server/inbound/admin-http/rou
 import { registerAdminUserResetPasswordRoute } from "#src/server/inbound/admin-http/routes/users/reset-password";
 import { registerAdminRoleUpdateRoute } from "#src/server/inbound/admin-http/routes/users/update-role";
 import { registerAdminRoleDeleteRoute } from "#src/server/inbound/admin-http/routes/users/delete-role";
+import { registerAdminUserDeleteRoute } from "#src/server/inbound/admin-http/routes/users/delete";
 import { registerAdminPolicyUpdateRoute } from "#src/server/inbound/admin-http/routes/users/update-policy";
 import { registerAdminPolicyDeleteRoute } from "#src/server/inbound/admin-http/routes/users/delete-policy";
 import { registerAdminPolicyWritePermissionRoute } from "#src/server/inbound/admin-http/routes/users/write-policy-permission";
@@ -38,8 +39,9 @@ import type { ServerModuleHandle } from "./types.js";
  * `update`/`reset-password` (users), `update-role`/`delete-role` (roles), `update-policy`/
  * `delete-policy`/`write-policy-permission` (policies) — 17 registrations total.
  *
- * OQ-10 (2026-08-24) adds the last two: `list-policy-permissions`/`remove-policy-permission`,
- * which together make a policy's permission set editable rather than append-only — 19 total.
+ * OQ-10 (2026-08-24) adds `list-policy-permissions`/`remove-policy-permission`, which together make
+ * a policy's permission set editable rather than append-only — 19. The delete-user plan (2026-09-24)
+ * adds `delete` (`DELETE_USER`) — 20 total.
  */
 export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
   return {
@@ -51,6 +53,7 @@ export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
       registerAdminUserDisableRoute(app, deps);
       registerAdminUserEnableRoute(app, deps);
       registerAdminUserResetPasswordRoute(app, deps);
+      registerAdminUserDeleteRoute(app, deps);
       registerAdminUserAssignRoleRoute(app, deps);
       registerAdminUserAttachPolicyRoute(app, deps);
       registerAdminRoleListRoute(app, deps);

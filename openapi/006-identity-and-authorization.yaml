@@ -183,6 +183,20 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: delete_user
+      tags: [users]
+      summary: Hard-delete a human user
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
+      responses:
+        '204': { description: User deleted; no response body. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/SelfDeleteOrOwnerRequired' }
+        '501': { $ref: '#/components/responses/NotSupported' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/disable:
     post:
       operationId: disable_user
@@ -436,5 +450,7 @@ components:
     ValidationOrUnknownPermission: { description: Validation failure or an unregistered permission (PERMISSION_UNKNOWN)., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     OwnerRequired: { description: Disabling the seeded owner or final active owner wildcard principal is forbidden., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     Conflict: { description: Duplicate username or a still-referenced role/policy., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SelfDeleteOrOwnerRequired: { description: "Two distinct causes share this status, distinguished by code: the caller targeted their own principal (code SELF_DELETE), or the target is the seeded owner or the workspace's last active owner-`*` principal (code OWNER_REQUIRED).", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    NotSupported: { description: "The wired identity store has no delete support (code NOT_SUPPORTED) — DELETE_USER is SQLite-only; the in-memory identity store used by the hermetic test/dev composition root always refuses.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     RateLimited: { description: More than 10 login attempts in 60 seconds for one client IP., headers: { Retry-After: { schema: { type: integer } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
     InternalError: { description: "Internal error. Runtime body is {error: 'internal error'} with no code.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
