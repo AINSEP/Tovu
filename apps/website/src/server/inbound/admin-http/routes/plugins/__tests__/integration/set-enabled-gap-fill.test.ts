@@ -162,7 +162,7 @@ test("set-enabled: PATCH {enabled:false} disables a plugin and invokes onPluginD
   assert.deepEqual((pluginDeps as unknown as { onEnabledCalls: string[] }).onEnabledCalls, []);
 });
 
-test("set-enabled: an omitted request body coerces `enabled` to false (Boolean(req.body?.enabled) fallback), reachable through a real content-type-less PATCH", async (t) => {
+test("set-enabled: an omitted request body is 400 VALIDATION_ERROR and the activation row is untouched (api.spec.md: malformed body is 400, never a guess)", async (t) => {
   const { app, pluginDeps } = buildTestApp();
   await pluginDeps.pluginActivationRepo.save({
     pluginId: "word-count",
@@ -174,9 +174,27 @@ test("set-enabled: an omitted request body coerces `enabled` to false (Boolean(r
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}${BASE}/plugins/word-count`, { method: "PATCH", headers: { cookie } });
-  assert.equal(res.status, 200);
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" });
   const stored = await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "word-count" });
-  assert.equal(stored?.enabled, false, "an omitted body must be treated as enabled:false, never left ambiguous");
+  assert.equal(stored?.enabled, true);
+  assert.deepEqual((pluginDeps as unknown as { onDisabledCalls: string[] }).onDisabledCalls, []);
+});
+
+test("set-enabled: a string 'false' is 400 VALIDATION_ERROR and never ENABLES the plugin (Boolean('false') is true)", async (t) => {
+  const { app, pluginDeps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/plugins/word-count`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ enabled: "false" }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" });
+  const stored = await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "word-count" });
+  assert.equal(stored, null, "no activation row may be written for a malformed body");
+  assert.deepEqual((pluginDeps as unknown as { onEnabledCalls: string[] }).onEnabledCalls, [], "the enable hook must not run");
 });
 
 test("set-enabled: a record-persistence failure AFTER a successful first-time enable rolls the activation row back to deleted and re-invokes onPluginDisabled (INV-01: no mutation without a record)", async (t) => {

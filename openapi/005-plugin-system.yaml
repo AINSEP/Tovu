@@ -30,15 +30,14 @@ paths:
         - $ref: '#/components/parameters/WorkspaceId'
         - $ref: '#/components/parameters/PluginId'
         - $ref: '#/components/parameters/IdempotencyKey'
-      # Drift: api.spec.md declares { enabled: boolean } with malformed-body 400. Runtime instead
-      # coerces req.body?.enabled with Boolean(), so an absent or non-boolean value is accepted.
       requestBody:
-        required: false
-        content: { application/json: { schema: { type: object, additionalProperties: true, properties: { enabled: {} } }, example: { enabled: true } } }
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: true, required: [enabled], properties: { enabled: { type: boolean } } }, example: { enabled: true } } }
       responses:
         # Drift: api.spec.md's response is {id, version, enabled, updatedAt}; runtime returns the
         # full discovered-plugin envelope and never exposes activation.updatedAt.
         '200': { description: Applied plugin activation change set, content: { application/json: { schema: { $ref: '#/components/schemas/PluginSetEnabledResponse' }, example: { plugin: { id: word-count, name: Word Count, version: 1.0.0, source: built-in, tier: tier-3, status: valid, enabled: true, quarantine: null, errors: [] }, changeSetId: change-set-1 } } } }
+        '400': { description: "'enabled' is absent or not a boolean", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "'enabled' must be a boolean", code: VALIDATION_ERROR } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/PluginsEnableForbidden' }
         '404': { $ref: '#/components/responses/PluginOrWorkspaceNotFound' }

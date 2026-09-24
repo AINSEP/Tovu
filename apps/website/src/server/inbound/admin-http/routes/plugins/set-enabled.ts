@@ -98,7 +98,14 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
     }
 
     const pluginId = String(req.params.pluginId ?? "");
-    const enabled = Boolean(req.body?.enabled);
+    // Validated, not coerced (api.spec.md: malformed body is 400): `Boolean("false")` is `true`, so
+    // coercion let a malformed body ENABLE a plugin and run its enable hook. Same rule as
+    // `agent-plugins/set-enabled.ts`.
+    const enabled = (req.body as { enabled?: unknown } | undefined)?.enabled;
+    if (typeof enabled !== "boolean") {
+      res.status(400).json({ error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" });
+      return;
+    }
 
     // Full pre-transition activation row, captured in captureInverse and reused verbatim by
     // rollback — mirrors `admin/posts/update.ts`'s `priorPost` shape exactly (ADR API/Event
