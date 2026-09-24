@@ -76,9 +76,10 @@ import {
  * writes `needs_reauth` once — see that function's own comment). What is NOT durable, and needs its own
  * guard, is THIS tool opening two `SurfaceExchangeStore` exchanges for the same server: two open
  * dialogs would both be genuine, both answerable, and confusing about which one "counts." `activePrompts`
- * below is a per-process `Set<string>` of server ids with a notice currently open, checked and set
- * BEFORE `surfaceExchanges.open()` is ever called and cleared in a `finally` once the single exchange
- * this call opened settles (whatever the outcome) — so a second concurrent call for the same server
+ * below is a per-process `Set<string>` of (principal, server) pairs with a notice currently open,
+ * checked and set BEFORE `surfaceExchanges.open()` is ever called and cleared in a `finally` once the
+ * single exchange this call opened settles (whatever the outcome, including a cancelled run, which
+ * closes the exchange at once) — so a second concurrent call by the same admin for the same server
  * observes the guard and returns a plain "already showing" result instead of opening a second exchange.
  */
 
@@ -327,9 +328,10 @@ export function buildExternalMcpReauthRegistrations(
   routeDeps: ExternalMcpReauthToolDeps,
   surfaces: AssistantSurfaceDeps,
 ): ToolRegistration[] {
-  // See this file's header, "Idempotency under concurrent failures". Keyed by serverId (not by
-  // principal or exchange), because the property being protected is "at most one open notice per
-  // CONNECTION", regardless of which of several failing calls reacts to it first.
+  // See this file's header, "Idempotency under concurrent failures". Keyed by principal AND serverId:
+  // the property protected is "at most one open notice per connection PER ADMIN". A notice is only
+  // visible to the admin whose run raised it, so a guard shared across admins would tell admin B's
+  // run "already showing" about a dialog only admin A can see.
   const activePrompts = new Set<string>();
 
   const handlers: Record<string, ToolHandler> = {
@@ -344,13 +346,19 @@ export function buildExternalMcpReauthRegistrations(
       // still tell.
       if (!ctx.emitSurface) return buildReauthNoSurfaceResult({ serverId, label });
 
-      if (activePrompts.has(serverId)) return buildReauthAlreadyShowingResult({ serverId, label });
+      const promptKey = JSON.stringify([ctx.principal.id, serverId]);
+      if (activePrompts.has(promptKey)) return buildReauthAlreadyShowingResult({ serverId, label });
 
-      activePrompts.add(serverId);
+      activePrompts.add(promptKey);
       const exchange = surfaces.surfaceExchanges.open(
         { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: ctx.principal.id },
         ctx.emitSurface,
       );
+      // A cancelled run closes its notice at once, like every sibling exchange tool. Left open, the
+      // notice waited out its idle TTL and the guard above stayed set, silently suppressing every
+      // re-auth prompt for this server meanwhile.
+      const closeOnAbort = () => exchange.close();
+      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
         const ui = buildReauthSurface({ exchangeId: exchange.id, label, settingsLink: externalMcpSettingsDeepLink(serverId) });
         const answer = await resolveReauthAcknowledgement(exchange, ui);
@@ -362,7 +370,8 @@ export function buildExternalMcpReauthRegistrations(
 
         return buildReauthOutcome({ serverId, label, currentStatus, answer });
       } finally {
-        activePrompts.delete(serverId);
+        ctx.signal.removeEventListener("abort", closeOnAbort);
+        activePrompts.delete(promptKey);
       }
     },
   };

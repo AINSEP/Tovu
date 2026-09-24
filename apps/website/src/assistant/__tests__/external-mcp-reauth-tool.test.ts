@@ -281,6 +281,64 @@ test("idempotent under two concurrent failures for the SAME connection: only one
   await callA;
 });
 
+// A notice is visible only to the admin whose run raised it, so admin B's run must get its own
+// dialog instead of "already showing" for one only admin A can see.
+test("a second admin's run for the same connection raises its own notice, not 'already showing'", async () => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+
+  const emittedA: SurfaceEmission[] = [];
+  const emittedB: SurfaceEmission[] = [];
+  const callA = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-a" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+    emittedA.push(e);
+  });
+  const callB = toolExecutor.execute({ id: "principal-other-admin" }, { id: "run-b" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+    emittedB.push(e);
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(emittedA.length, 1);
+  assert.equal(emittedB.length, 1, "the other admin must see a notice of their own");
+  assert.equal(surfaceExchanges.size(), 2);
+
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedA[0]!), params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedB[0]!), params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: "principal-other-admin" });
+  await Promise.all([callA, callB]);
+});
+
+// A cancelled run must close its notice at once. Before, the exchange sat open for its idle TTL and
+// the guard stayed set, silently suppressing every re-auth prompt for that server meanwhile.
+test("cancelling the run closes the notice and clears the guard, so the next failure raises a fresh one", async () => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+
+  const controller = new AbortController();
+  const emittedA: SurfaceEmission[] = [];
+  const callA = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-a" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, controller.signal, async (e) => {
+    emittedA.push(e);
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(surfaceExchanges.size(), 1);
+  const staleExchangeId = exchangeIdFromEmission(emittedA[0]!);
+
+  controller.abort();
+  await callA;
+  assert.equal(surfaceExchanges.size(), 0, "the aborted run's notice must be closed, not left for its TTL");
+  const late = surfaceExchanges.deliver({ exchangeId: staleExchangeId, params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
+  assert.deepEqual(late, { ok: false, reason: "unknown-or-closed" });
+
+  const emittedB: SurfaceEmission[] = [];
+  const callB = toolExecutor.execute({ id: PRINCIPAL }, { id: "run-b" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, { id: SERVER_ID }, undefined, async (e) => {
+    emittedB.push(e);
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emittedB.length, 1, "the guard must be clear once the cancelled run's notice closed");
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedB[0]!), params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
+  await callB;
+});
+
 // ---------------------------------------------------------------------------
 // 500-redact defect (RED->GREEN): `parseReauthServerId` used to reject a missing/non-string `id`
 // with a bare `Error`, which `@jini-ai/daemon`'s `ToolExecutor` tags `errorKind: 'internal'` —
