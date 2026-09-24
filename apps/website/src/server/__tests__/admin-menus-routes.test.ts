@@ -263,6 +263,34 @@ test("admin menus routes: create -> list -> get -> update-tree -> assign -> dele
   assert.equal(secondDeleteRes.status, 404, "no more force ladder — a second delete on an already-trashed menu is just not-found");
 });
 
+test("admin menus routes: GET resolves by slug as well as id (readable-slugs S6b)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Footer Nav", slug: "footer-nav" }),
+  });
+  assert.equal(createRes.status, 201);
+  const created = (await createRes.json()) as { menu: { id: string; slug: string } };
+
+  const bySlug = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/footer-nav`, {
+    headers: { cookie },
+  });
+  assert.equal(bySlug.status, 200);
+  const fetchedBySlug = (await bySlug.json()) as { menu: { id: string } };
+  assert.equal(fetchedBySlug.menu.id, created.menu.id);
+
+  // The old id-based URL keeps working too — same fallback contract as posts/pages.
+  const byId = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${created.menu.id}`, {
+    headers: { cookie },
+  });
+  assert.equal(byId.status, 200);
+  const fetchedById = (await byId.json()) as { menu: { slug: string } };
+  assert.equal(fetchedById.menu.slug, "footer-nav");
+});
+
 test("admin menus routes: create rejects duplicate slug and invalid tree", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

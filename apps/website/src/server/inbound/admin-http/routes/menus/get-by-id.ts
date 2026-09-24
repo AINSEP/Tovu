@@ -34,7 +34,12 @@ export const registerAdminMenuGetRoute: MenuRouteRegistrar = (app, deps) => {
         return;
       }
 
-      const menu = await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId });
+      // Admin URLs use the slug when one resolves (readable-slugs S6b, 2026-09-23) — this route
+      // accepts either so an old id-based bookmark/link keeps working. Slug first, id second: same
+      // precedent and rationale as posts' `getAdminPostByIdOrSlug` (`features/post/post.ts`) — the
+      // slug is the handle a human typed into the URL; the id is the fallback for a stale link.
+      const bySlug = await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: menuId.trim().toLowerCase() });
+      const menu = bySlug ?? (await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId }));
       if (!menu) {
         res.status(404).json({ error: `menu '${menuId}' was not found` });
         return;

@@ -51,7 +51,7 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
           </div>
         }
         columns={[
-          { key: "title", header: t("Title"), cell: (menu) => <a href={`/admin/menus/${menu.id}`}>{menu.title}</a> },
+          { key: "title", header: t("Title"), cell: (menu) => <a href={`/admin/menus/${menu.slug}`}>{menu.title}</a> },
           { key: "slug", header: "Slug", cell: (menu) => menu.slug },
           {
             key: "status",

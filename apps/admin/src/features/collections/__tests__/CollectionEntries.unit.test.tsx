@@ -106,4 +106,34 @@ describe("injected hook seam (useCollectionEntriesHook)", () => {
     // possible because the fake bypassed `useWiredCollectionEntries` entirely.
     expect(screen.getByText('Unknown content type "does-not-matter".')).toBeInTheDocument();
   });
+
+  // readable-slugs S6b (2026-09-23): the list row links by slug, not the raw id — same rule
+  // Posts/Pages/Widgets/Menus rows already follow.
+  it("links an entry row by its slug, not its id", () => {
+    const controller: CollectionEntriesController = {
+      contentType: { workspaceId: "w1", key: "recipe", label: "Recipe", status: "active", version: 1, fields: [] },
+      entries: [
+        {
+          id: "e1",
+          workspaceId: "w1",
+          type: "recipe",
+          slug: "my-recipe",
+          status: "draft",
+          title: "My Recipe",
+          bodyJson: null,
+          fieldsJson: null,
+          publishedAt: null,
+          createdAt: "2026-08-01T00:00:00.000Z",
+          updatedAt: "2026-08-01T00:00:00.000Z",
+          version: 1,
+        },
+      ],
+      error: null,
+      t: (key) => key,
+    };
+    render(<CollectionEntries contentTypeKey="recipe" useCollectionEntriesHook={() => controller} />);
+
+    const link = screen.getByRole("link", { name: "My Recipe" });
+    expect(link).toHaveAttribute("href", "/admin/collections/recipe/my-recipe");
+  });
 });

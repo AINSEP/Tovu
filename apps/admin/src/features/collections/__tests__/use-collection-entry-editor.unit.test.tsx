@@ -212,7 +212,8 @@ describe("save — new entry", () => {
 
     expect(view.result.current.entry).toEqual({ ...ENTRY, id: "e9", version: 1 });
     expect(view.result.current.message).toBe("Created · version 1");
-    expect(navigate).toHaveBeenCalledWith("/collections/recipe/e9");
+    // readable-slugs S6b: address bar after "Create" reads the slug, not the raw id.
+    expect(navigate).toHaveBeenCalledWith("/collections/recipe/my-recipe");
   });
 
   it("sets saving=true during the request, false after", async () => {
@@ -441,7 +442,38 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
     expect(port.entries).toHaveLength(1);
     expect(port.entries[0]!.title).toBe("Brand New");
-    expect(navigateSpy).toHaveBeenCalledWith(`/collections/recipe/${port.entries[0]!.id}`);
+    // readable-slugs S6b: address bar after "Create" reads the slug, not the raw id.
+    expect(navigateSpy).toHaveBeenCalledWith(`/collections/recipe/${port.entries[0]!.slug}`);
+  });
+
+  // readable-slugs S6b (2026-09-23): an old id-based bookmark quietly catches up to the slug URL,
+  // same `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets/menus already
+  // apply, plus the id-or-slug lookup that makes the slug URL resolve in the first place.
+  it("resolves an entry by its slug too, and does not navigate when entryId already IS the slug", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    const navigateSpy = vi.fn();
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY.slug }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
+    , { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    expect(result.current.entry).toEqual(ENTRY);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it("replace-navigates to the slug URL when entryId is the entry's raw (UUID-shaped) id", async () => {
+    const ENTRY_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+    const port = createFakeCollectionEntryEditorPort({
+      types: [RECIPE_TYPE],
+      entries: [{ ...ENTRY, id: ENTRY_UUID, slug: "hello-recipe" }],
+    });
+    const navigateSpy = vi.fn();
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY_UUID }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
+    , { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    expect(navigateSpy).toHaveBeenCalledWith("/collections/recipe/hello-recipe", { replace: true });
   });
 
   it("sets the fallback error when the injected port's save call rejects", async () => {

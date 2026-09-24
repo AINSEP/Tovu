@@ -55,7 +55,8 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
 
     expect(port.menus).toHaveLength(1);
     expect(port.menus[0]?.title).toBe("New menu");
-    expect(fakeNavigate).toHaveBeenCalledWith(`/menus/${port.menus[0]?.id}`);
+    // readable-slugs S6b: address bar after "New menu" reads the slug, not the raw id.
+    expect(fakeNavigate).toHaveBeenCalledWith(`/menus/${port.menus[0]?.slug}`);
     expect(createSpy).not.toHaveBeenCalled();
   });
 
@@ -162,5 +163,29 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     });
 
     expect(result.current.saving).toBe(false);
+  });
+});
+
+// readable-slugs S6b (2026-09-23): an old id-based bookmark quietly catches up to the slug URL,
+// same `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets already apply.
+describe("useMenuEditor — slug redirect on load", () => {
+  const MENU_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+
+  it("replace-navigates to the slug URL when menuId is the menu's raw (UUID-shaped) id", async () => {
+    const port = createFakeMenusPort({ menus: [{ ...MENU, id: MENU_UUID, slug: "hello-menu" }] });
+    const navigate = vi.fn();
+    const { result } = renderHook(() => useMenuEditor(MENU_UUID, { port, navigate, t: (k) => k }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(navigate).toHaveBeenCalledWith("/menus/hello-menu", { replace: true });
+  });
+
+  it("does not navigate when menuId already IS the menu's slug", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    const navigate = vi.fn();
+    const { result } = renderHook(() => useMenuEditor(MENU.slug, { port, navigate, t: (k) => k }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(navigate).not.toHaveBeenCalled();
   });
 });
