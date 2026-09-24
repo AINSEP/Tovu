@@ -1,5 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 
+import type { PublishCriteria, PublishRequestResult } from "@tovu/publish-content-ui";
+
 import type { Translate } from "../../lib/dictionary-translator";
 import { usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
@@ -82,10 +84,16 @@ export interface PublishContentDialogProps {
   t: Translate;
   /** Dependency injection seam for tests — see `hooks/publish-content-port.hooks.ts`. */
   port?: PublishContentPort;
+  /** `publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2 — threaded straight through to
+   *  `usePublishContentConfirm`; see that hook's own `props.criteria` doc for what it does. */
+  criteria?: PublishCriteria;
+  /** Threaded straight through to `usePublishContentConfirm`; see that hook's own `props.onPlanned`
+   *  doc for when it fires. */
+  onPlanned?: (result: PublishRequestResult) => void;
 }
 
-export function PublishContentDialog({ onCancel, t, port }: PublishContentDialogProps) {
-  const view = usePublishContentConfirm({ onCancel, t, port });
+export function PublishContentDialog({ onCancel, t, port, criteria, onPlanned }: PublishContentDialogProps) {
+  const view = usePublishContentConfirm({ onCancel, t, port, criteria, onPlanned });
   const titleId = "dashboard-publish-content-confirm-title";
   // publish-overwrite-live-plan §4/S9. The column exists only while the peer this plan targets can
   // honour a forced overwrite AND at least one row is offering one — decided in the hook.

@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor, within } from "@testing-libra
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { PublishContentReport } from "@tovu/publish-content-ui";
+import type { PublishContentReport, PublishCriteria, PublishRequestResult } from "@tovu/publish-content-ui";
 
 import { ApiError } from "@/lib/api";
 
@@ -1159,5 +1159,61 @@ describe("PublishContentDialog — the primary action can't be doubled in one ti
     });
     await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
     expect(port.calls.connectDestination).toHaveLength(1);
+  });
+});
+
+// publish-criteria-tool-webmcp-plan-2026-09-24.md §4 S2. A caller with no button of its own (chat,
+// WebMCP, the admin's own `?publish=` deep link) hands the dialog a `PublishCriteria` instead of a
+// click: the dialog must plan on its own, apply the criteria as its starting selection, and report
+// back through `onPlanned` — all without the operator touching anything.
+describe("PublishContentDialog — criteria-driven open (publish-criteria plan §4 S2)", () => {
+  const CRITERIA_REPORT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["page", "post", "menu"],
+    rows: [
+      { entityType: "page", entityId: "page-home", entityLabel: "Home", outcome: "created", writes: true, reason: null },
+      { entityType: "post", entityId: "post-new", entityLabel: "Hello World", outcome: "created", writes: true, reason: null },
+      {
+        entityType: "menu",
+        entityId: "menu-main",
+        entityLabel: "Main Menu",
+        outcome: "blocked",
+        writes: false,
+        reason: "slug 'main' is already held by a different menu",
+        canOverwrite: true,
+        retires: { entityType: "menu", entityId: "menu-main-old", entityLabel: "Main Menu (old)", hash: "h1" },
+      },
+    ],
+  };
+
+  function overwriteCheckbox(entityId: string): HTMLInputElement | null {
+    return reportRow(entityId).querySelector("input[data-publish-row-overwrite]");
+  }
+
+  it("plans and applies criteria with no click, and reports what it planned via onPlanned", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: CRITERIA_REPORT });
+    const onPlanned = vi.fn<(result: PublishRequestResult) => void>();
+    const criteria: PublishCriteria = { types: ["page", "menu"], overwrite: true };
+
+    render(<PublishContentDialog onCancel={() => {}} t={t} port={port} criteria={criteria} onPlanned={onPlanned} />);
+
+    // No click anywhere in this test — the auto-plan effect stands in for the person's first click,
+    // since planning writes nothing (plan §3's gate is about confirm/execute only).
+    await waitFor(() => expect(port.calls.planPublish).toHaveLength(2));
+    expect(port.calls.planPublish).toEqual([
+      { peerId: "peer-prod" },
+      { peerId: "peer-prod", overwriteEntityKeys: ["menu:menu-main"] },
+    ]);
+
+    // "menu" and "page" match the criteria's `types`; "post" does not, so the post row (selectable,
+    // since it's a `publish` disposition) starts unchecked.
+    await waitFor(() => expect(rowCheckbox("post-new")?.checked).toBe(false));
+    // The menu row's tick took: the re-plan turned it `forced`, and its box stays checked.
+    await waitFor(() => expect(overwriteCheckbox("menu-main")?.checked).toBe(true));
+
+    await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
+    const result = onPlanned.mock.calls[0]?.[0] as PublishRequestResult;
+    expect(result.willPublish).toEqual(expect.arrayContaining(["Home", "Main Menu"]));
   });
 });
