@@ -5,6 +5,7 @@ import { resolveThemeLayout } from "@tovu/theme-layout";
 import { ApiError } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { THEME_FILES_RESOURCE } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
@@ -217,6 +218,11 @@ export interface ThemeExploreController {
   /** True when the source is loaded ({@link sourceLoaded}) and `source` differs from what was last
    *  loaded or saved. */
   dirty: boolean;
+  /** `useDirtyGuard`'s `confirmLeave` for `dirty` above — `select` already calls it before switching
+   *  files; `ThemeExplore.tsx` calls it itself for its own in-app navigations away from this screen
+   *  entirely (the "← All themes" back link, the slug-collision warning's link to the colliding
+   *  record) that `select` never sees. */
+  confirmLeave: (unsavedBeyondTracked?: boolean) => boolean;
   /**
    * True only while `source` holds the open file's text as last read, saved, or reset on the server.
    * False while that read is in flight, after it failed (a file past the 1 MB text-read limit), for a
@@ -1413,12 +1419,25 @@ export function useThemeExplore(
     }
   }, [themeId, deleteTarget, port, detail, files]);
 
+  // Unsaved-changes guard for the open file's buffer — `current` is `source`, `original` is
+  // `savedSource` while it is actually the loaded file's own text (`null` otherwise, matching the
+  // old inline `sourceLoaded && source !== savedSource` this replaces). Declared here, ABOVE
+  // `select`, because `select` calls `confirmLeave` before switching files; `dirty`/`confirmLeave`
+  // are returned to the controller below under their original names. `useDirtyGuard`'s own
+  // `beforeunload` listener also closes this screen's other gap from the same review finding: there
+  // was no warning at all for leaving the TAB with unsaved theme-file edits.
+  const { isDirty: dirty, confirmLeave } = useDirtyGuard(source, sourceLoaded ? savedSource : null);
+
   /**
    * Select a file, and mirror it into the address bar for shareability — `?page=<label>` for an
    * ordinary page, `?file=<path>` for anything else. See
    * {@link writeThemeExploreSelectionToUrl}'s own doc (`theme-explore-url.hooks.ts`) for why the
    * two forms differ and why that write is a plain `history.replaceState` rather than a round trip
    * through this app's `navigate()`.
+   *
+   * Switching away from a dirty buffer is confirmed first ({@link confirmLeave} — Opus themes+widgets
+   * review, OPEN item 1: this used to discard unsaved edits with no prompt at all, the moment another
+   * file was clicked). Reselecting the same path is not gated — there is nothing to leave.
    *
    * In the HTML view a readable file is not opened here: the click is held until its text is read (see
    * {@link shouldAwaitFileText}) and the file-read effect opens it. The address bar and
@@ -1429,6 +1448,7 @@ export function useThemeExplore(
    */
   const select = useCallback(
     (path: string) => {
+      if (path !== selected && !confirmLeave()) return;
       selectionGeneration.next();
       const file = files.find((f) => f.path === path);
       if (file) writeThemeExploreSelectionToUrl(file);
@@ -1439,7 +1459,7 @@ export function useThemeExplore(
       setPendingSelection(null);
       setSelected(path);
     },
-    [files, view, selected, sourceLoaded, themeId, selectionGeneration]
+    [files, view, selected, sourceLoaded, themeId, selectionGeneration, confirmLeave]
   );
 
   /**
@@ -1473,8 +1493,6 @@ export function useThemeExplore(
     },
     [themeId, selected, files, port]
   );
-
-  const dirty = sourceLoaded && source !== savedSource;
 
   /**
    * ⌘S / Ctrl+S saves the open file.
@@ -1510,6 +1528,7 @@ export function useThemeExplore(
     source,
     setSource,
     dirty,
+    confirmLeave,
     sourceLoaded,
     saving,
     error,

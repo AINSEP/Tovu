@@ -1016,9 +1016,14 @@ function ThemeExplorePublishToggle({
  */
 function ThemeExploreSlugCollisionWarning({
   collidingContent,
+  confirmLeave,
   t,
 }: {
   collidingContent: ThemeExploreSlugCollision | null;
+  /** Gate before navigating away to the colliding record — this screen's other in-app navigation
+   *  away from an open, possibly dirty file (see `ThemeExplore`'s "← All themes" button and
+   *  `useThemeExplore`'s own `select`, `confirmLeave`'s other two call sites). */
+  confirmLeave: (unsavedBeyondTracked?: boolean) => boolean;
   t: Translate;
 }) {
   if (!collidingContent) return null;
@@ -1047,7 +1052,7 @@ function ThemeExploreSlugCollisionWarning({
         href={`/admin${adminPath}`}
         onClick={(e) => {
           e.preventDefault();
-          navigate(adminPath);
+          if (confirmLeave()) navigate(adminPath);
         }}
         {...agentHandle("theme-explore-slug-collision-open-record", {
           role: "link",
@@ -1181,6 +1186,7 @@ export function ThemeExplore({
     source,
     setSource,
     dirty,
+    confirmLeave,
     sourceLoaded,
     saving,
     error,
@@ -1286,7 +1292,13 @@ export function ThemeExplore({
                 same row, not a bare link — so the fix here is to drop the redundant wrapping anchor
                 rather than the button; `navigate()` is a real client-side route change, same as
                 `ThemeGrid`'s own "Explore" button in `Themes.tsx` right above this file. */}
-            <button type="button" className="btn-secondary" onClick={() => navigate("/themes")}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                if (confirmLeave()) navigate("/themes");
+              }}
+            >
               {t("← All themes")}
             </button>
             <ThemeExploreToolbarButtons
@@ -1381,7 +1393,11 @@ export function ThemeExplore({
 
           {/* Slug-collision warning — see `ThemeExploreSlugCollisionWarning`'s own doc for why this
               is gated on `collidingContent` alone, independent of `selectedFile.published`. */}
-          <ThemeExploreSlugCollisionWarning collidingContent={resolveCollidingContent(selectedFile)} t={t} />
+          <ThemeExploreSlugCollisionWarning
+            collidingContent={resolveCollidingContent(selectedFile)}
+            confirmLeave={confirmLeave}
+            t={t}
+          />
 
           <ThemeExploreMainPane
             view={view}

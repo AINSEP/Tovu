@@ -433,6 +433,71 @@ describe("useThemeExplore — select writes the selection back to the address ba
 });
 
 /**
+ * `select` refuses to silently discard a dirty buffer (Opus themes+widgets review, OPEN item 1):
+ * clicking another file while the open one has unsaved edits used to drop them with no prompt at
+ * all. `confirmLeave` (from the shared `useDirtyGuard`) is now consulted first.
+ */
+describe("useThemeExplore — select guards a dirty buffer before switching files", () => {
+  const FILES = [
+    { path: "render/pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "render/pages/about.html", group: "page" as const, readable: true, editable: true, resettable: true },
+  ];
+  const CONTENTS = {
+    "render/pages/index.html": "<h1>Home</h1>",
+    "render/pages/about.html": "<h1>About</h1>",
+  };
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("prompts and stays on the dirty file when the operator declines", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    expect(result.current.dirty).toBe(true);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    act(() => result.current.select("render/pages/about.html"));
+
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(result.current.selected).toBe("render/pages/index.html");
+    expect(result.current.source).toBe("<h1>Changed</h1>");
+  });
+
+  it("switches files once the operator confirms leaving the dirty buffer", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    act(() => result.current.select("render/pages/about.html"));
+
+    await waitFor(() => expect(result.current.selected).toBe("render/pages/about.html"));
+    await waitFor(() => expect(result.current.source).toBe("<h1>About</h1>"));
+  });
+
+  it("never prompts when the buffer is clean", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    const confirmSpy = vi.spyOn(window, "confirm");
+    act(() => result.current.select("render/pages/about.html"));
+
+    await waitFor(() => expect(result.current.selected).toBe("render/pages/about.html"));
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+});
+
+/**
  * `setPagePublished` (2026-08-30 owner ask) — the real publish/unpublish mechanism. Acts on the
  * SELECTED file's page implicitly, matching `save`/`reset`'s own shape, and patches `files` locally
  * from the response rather than refetching the whole theme (see the hook's own doc comment for why a
@@ -1293,6 +1358,11 @@ describe("useThemeExplore — save", () => {
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Home</h1><p>unsaved</p>"));
+    // The buffer is dirty, so `select` now confirms leaving it first (Opus themes+widgets review,
+    // OPEN item 1) — the operator agreeing to leave is what this test is actually about (whether the
+    // still-in-flight destination read can end up saving the stale buffer into the wrong file), not
+    // the confirmation prompt itself.
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     act(() => result.current.select("pages/about.html"));
     await act(async () => {
       await result.current.save();

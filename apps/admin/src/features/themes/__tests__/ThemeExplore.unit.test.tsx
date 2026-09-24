@@ -82,6 +82,9 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     source: "<p>hi</p>",
     setSource: vi.fn(),
     dirty: false,
+    // Matches the real `useDirtyGuard`'s `confirmLeave` default: nothing dirty, so it's safe to leave
+    // without asking. Tests that need the prompt path override this directly.
+    confirmLeave: vi.fn(() => true),
     sourceLoaded: true,
     saving: false,
     error: null,
