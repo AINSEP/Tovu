@@ -3,30 +3,31 @@
  * (`prepare-start.mjs`) has already built whatever a fresh checkout was missing by the time this
  * runs.
  *
- * Five things, in order, so a fresh checkout with no manually-set `TOVU_INTEGRATIONS_ROOT_KEY`
+ * Four things, in order, so a fresh checkout with no manually-set `TOVU_INTEGRATIONS_ROOT_KEY`
  * "just works" (npm-start-just-works-plan-2026-09-24):
  *
  *   1. Load `.env` — `dev.mjs`/`dev-desktop.mjs` already did this; `npm start` never did, so an
- *      owner's key in `.env` never reached a plain `npm start` boot.
- *   2. Ensure a usable root key exists (`tovu root-key ensure --quiet`, the compiled CLI) — a
- *      dumb, idempotent step that never overwrites an existing key or a key-dependent database's
- *      only usable key (see `cli/commands/root-key.ts`'s own header). Runs regardless of exit
- *      code: this launcher never blocks a boot on it, same as today's "loud, not closed" posture.
- *   3. Default `TOVU_HOST` to loopback-only (`resolveStartHost` below) when the operator hasn't set
+ *      owner's key in `.env` never reached a plain `npm start` boot. (`clearBlankRootKeyEnv` below
+ *      runs first, before `.env` loads, so a blank shell-exported var never shadows `.env`'s real
+ *      value.)
+ *   2. Default `TOVU_HOST` to loopback-only (`resolveStartHost` below) when the operator hasn't set
  *      it — SECURITY: `index.ts` itself defaults an unset `TOVU_HOST` to Node's all-interfaces
  *      bind (correct for its OTHER caller, the container entrypoint), so without this step a plain
  *      `npm start` would be reachable from the whole LAN by default.
- *   4. Pick a free port (3000-3019) ONLY when nothing already pins one, drop a loopback
+ *   3. Pick a free port (3000-3019) ONLY when nothing already pins one, drop a loopback
  *      `TOVU_PUBLIC_URL` — see `planStart` below — and set the quiet-boot switches
  *      (`startQuietEnvDefaults`) so the server's one URL line is the whole output.
- *   5. `await import()` the compiled server IN-PROCESS — no extra child process, no signal
+ *   4. `await import()` the compiled server IN-PROCESS — no extra child process, no signal
  *      forwarding to build, and `index.ts`'s own `process.ppid` watchdog still sees `npm` as its
- *      parent exactly as it does today.
+ *      parent exactly as it does today. The imported `index.js` itself now ensures a usable root key
+ *      exists (`ensureSiteKeyForBoot`, site-key plan §A3a) before it starts listening — this
+ *      launcher no longer spawns a separate `tovu root-key ensure` step to do that (removed
+ *      2026-09-24: `ensureSiteKeyForBoot`'s boot-path wiring made the standalone CLI command and
+ *      this launcher's own spawn of it redundant).
  *
  * `index.ts` itself stays free of `.env`-loading or port-auto-pick logic: it is also the container
  * entrypoint (`Dockerfile`'s `CMD ["node","dist/src/index.js"]`), and neither belongs on that path.
  */
-import { spawnSync } from "node:child_process";
 import { connect, createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -45,7 +46,7 @@ function isLoopbackHostname(hostname) {
 }
 
 /**
- * Pure(ish) port/env decision (decision 4). Auto-picks a free port only when ALL of: `PORT` is
+ * Pure(ish) port/env decision (step 3 above). Auto-picks a free port only when ALL of: `PORT` is
  * unset in `env`, and `TOVU_PUBLIC_URL` is either unset or loopback. A non-loopback
  * `TOVU_PUBLIC_URL` or an explicit `PORT` is left completely alone — including never probing —
  * because today's `index.ts` `EADDRINUSE` refusal already covers that case correctly, and this
@@ -65,7 +66,7 @@ function isLoopbackHostname(hostname) {
  *   from — see this file's own header).
  * @param {boolean} input.dotenvLoaded - accepted for parity with the object `main()` builds once;
  *   not read by this function itself (see this file's own header for why the merged `env` above
- *   already carries everything decision 4 needs).
+ *   already carries everything step 3 needs).
  * @param {(port: number) => boolean | Promise<boolean>} input.isPortFree - probes one port.
  *   Injected so this function never touches a real socket directly; `main()` supplies a real one.
  * @returns {Promise<{ port: number, envOverrides: Record<string, string>, envRemovals: string[], refuse?: string }>}
@@ -116,7 +117,8 @@ function classifyPublicUrl(raw) {
  * `process.loadEnvFile` never overrides a variable that is already present, even an empty one, and
  * the keyring (`keyring.env.ts`'s `readActiveRootKeyMaterial`) treats an empty value as absent. So a
  * blank shell value (an `export VAR=$UNSET` in a profile is enough) would hide `.env`'s real key,
- * and `tovu root-key ensure` would then mint a second key file — two keys for one install's data.
+ * and the boot path's own `ensureSiteKeyForBoot` (site-key plan §A3a) would then mint a second key
+ * file — two keys for one install's data.
  *
  * @param {NodeJS.ProcessEnv} env - mutated in place.
  * @complexity O(1).
@@ -127,7 +129,9 @@ export function clearBlankRootKeyEnv(env) {
 
 /**
  * The quiet-boot switches `npm start` sets so its whole output is the server's one URL line:
- * `TOVU_ROOT_KEY_NOTICE=off` (this launcher's own `root-key ensure` already spoke — see
+ * `TOVU_ROOT_KEY_NOTICE=off` (silences `root-key-boot-notice.ts`'s local-mode "no usable root key"
+ * wall unconditionally — `npm start`'s whole point is a one-line boot, and the imported `index.js`
+ * already ensures a key via `ensureSiteKeyForBoot` before that notice would ever fire; see
  * `root-key-boot-notice.ts`'s exact-match contract) and `TOVU_DAEMON_LIFECYCLE_LOG=off` (hides the
  * agent daemon's first-spawn and deliberate-exit lines; respawns and crashes still print — see
  * `daemon-supervisor.ts`). An operator's own `TOVU_DAEMON_LIFECYCLE_LOG` (e.g. `on`) wins.
@@ -206,24 +210,11 @@ async function probePortFree(port, host) {
   });
 }
 
-/** Runs `tovu root-key ensure --quiet` via the compiled CLI. Never throws — this launcher's own
- *  posture is "loud, not closed": a failure here still lets the server attempt to boot, the same
- *  way an unset key always has. `stdio: "inherit"` lets the command's own single refusal/unreadable
- *  line (if any) reach the terminal directly; a clean run prints nothing at all. */
-function ensureRootKey(repoRoot) {
-  spawnSync(process.execPath, [path.join(repoRoot, "dist", "src", "cli", "main.js"), "root-key", "ensure", "--quiet"], {
-    cwd: repoRoot,
-    stdio: "inherit",
-  });
-}
-
 async function main() {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
   clearBlankRootKeyEnv(process.env);
   const dotenvLoaded = loadRepoRootEnvFile(repoRoot);
-
-  ensureRootKey(repoRoot);
 
   const host = resolveStartHost(process.env);
   // Security-critical: `dist/src/index.js` (imported below) reads `process.env.TOVU_HOST` itself
