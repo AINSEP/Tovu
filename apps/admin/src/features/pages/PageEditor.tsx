@@ -741,7 +741,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
             />
           </label>
           <a
-            href={siteUrl(pagePublicPath(slug))}
+            href={siteUrl(pagePublicPath(page.slug))}
             target="_blank"
             rel="noreferrer"
             {...agentHandle("page-view-live", { role: "link", label: "Open this page on the public site in a new tab" })}

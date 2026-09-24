@@ -361,10 +361,13 @@ describe("title and slug fields", () => {
     expect(ctrl.setSlug).toHaveBeenCalledWith("y");
   });
 
-  it("the 'view live' link is built from the working-copy slug, not the last-saved one", () => {
+  // Flipped 2026-09-24 (was a characterisation test pinning the working-copy slug). The link opens
+  // the PUBLIC site, which only knows the saved slug, so an unsaved slug edit made it a 404. Posts
+  // already build theirs from `post.slug`.
+  it("the 'view live' link is built from the last-saved slug, not an unsaved slug edit", () => {
     renderEditor({ slug: "draft-slug", page: { ...BASE_PAGE, slug: "saved-slug" } });
     const link = screen.getByRole("link", { name: /view/i });
-    expect(link.getAttribute("href")).toContain("/draft-slug");
+    expect(link.getAttribute("href")).toMatch(/\/saved-slug$/);
   });
 
   // Regression (2026-09-03): a Page can now claim the literal root slug "/" (post.ts's ROOT_SLUG,
@@ -372,7 +375,7 @@ describe("title and slug fields", () => {
   // router can never match ("Cannot GET //", confirmed live in a browser before this fix). Asserts
   // the href ends in a single trailing slash, not two.
   it("the 'view live' link renders a single '/' for the root-slug page, not '//'", () => {
-    renderEditor({ slug: "/" });
+    renderEditor({ slug: "/", page: { ...BASE_PAGE, slug: "/" } });
     const link = screen.getByRole("link", { name: /view/i });
     expect(link.getAttribute("href")).toMatch(/\/$/);
     expect(link.getAttribute("href")).not.toMatch(/\/\/$/);
