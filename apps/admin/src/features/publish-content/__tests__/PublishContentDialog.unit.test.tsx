@@ -804,6 +804,99 @@ describe("PublishContentDialog — a committed publish can't be closed out from 
 // terra review 2026-09-20, finding 5's sibling. The primary button is disabled from render-time
 // phase, which two calls in one tick (an agent's scripted double click, say) both read as
 // `planned` — so both confirmed, and each confirmed phase fired its own execute at the live site.
+// publish-overwrite-live-plan-2026-09-24.md §4/S9.
+describe("PublishContentDialog — Overwrite on live", () => {
+  const RETIRES = { entityType: "post", entityId: "post-about", entityLabel: "About", hash: "h1" } as const;
+  const CLASH_REASON = "slug 'about' is already held by a different post";
+
+  const OVERWRITE_REPORT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["post"],
+    rows: [
+      { entityType: "post", entityId: "post-new", outcome: "created", writes: true, reason: null },
+      {
+        entityType: "post",
+        entityId: "post-clash",
+        entityLabel: "About (new)",
+        outcome: "blocked",
+        writes: false,
+        reason: CLASH_REASON,
+        canOverwrite: true,
+        retires: RETIRES,
+      },
+    ],
+  };
+
+  function overwriteCheckbox(entityId: string): HTMLInputElement | null {
+    return reportRow(entityId).querySelector("input[data-publish-row-overwrite]");
+  }
+
+  it("renders one unchecked box on the overwritable row, and none on the rest", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: OVERWRITE_REPORT });
+    await planFrom(port);
+
+    expect(overwriteCheckbox("post-clash")?.checked).toBe(false);
+    expect(overwriteCheckbox("post-new")).toBeNull();
+  });
+
+  it("ticking re-plans with overwriteEntityKeys and leaves selectedEntityKeys unset", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: OVERWRITE_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(overwriteCheckbox("post-clash")!);
+    await waitFor(() => expect(port.calls.planPublish).toHaveLength(2));
+
+    expect(port.calls.planPublish[1]).toEqual({ peerId: "peer-prod", overwriteEntityKeys: ["post:post-clash"] });
+    // The row the peer now answers `forced` for moves out of `skipped` — the re-plan actually landed.
+    await waitFor(() => expect(reportRow("post-clash").getAttribute("data-publish-disposition")).toBe("publish"));
+  });
+
+  it("a re-plan that leaves live's OTHER writing rows different lands on planned with the exact mismatch line", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: OVERWRITE_REPORT });
+    const user = await planFrom(port);
+
+    // Once ticked, live also (for this test) drops `post-new` from what it would write — as if
+    // someone had published it there directly in the meantime.
+    port.planPublish = async (input) => {
+      const base = await createFakePublishContentPort({ peers: ONE_PEER, report: OVERWRITE_REPORT }).planPublish(input);
+      if (input.overwriteEntityKeys === undefined) return base;
+      return { ...base, details: { ...base.details, rows: base.details.rows.filter((r) => r.entityId !== "post-new") } };
+    };
+
+    await user.click(overwriteCheckbox("post-clash")!);
+    await screen.findByText("tovu.com (production) changed while you were deciding. Check the list again.");
+    expect(screen.queryByRole("table")).toBeTruthy();
+  });
+
+  it("execute carries the plan's own overwriteEntityKeys", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: OVERWRITE_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(overwriteCheckbox("post-clash")!);
+    await waitFor(() => expect(reportRow("post-clash").getAttribute("data-publish-disposition")).toBe("publish"));
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+
+    expect(port.calls.executePublish[0]).toEqual({
+      peerId: "peer-prod",
+      bundleId: "fake-bundle-overwrite",
+      confirmationToken: "fake-token",
+      overwriteEntityKeys: ["post:post-clash"],
+    });
+  });
+
+  it("shows no checkbox and a plain notice when the live peer can't overwrite yet", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: OVERWRITE_REPORT, liveCanOverwrite: false });
+    await planFrom(port);
+
+    expect(overwriteCheckbox("post-clash")).toBeNull();
+    expect(
+      await screen.findByText("tovu.com (production) is on an older Tovu and can't overwrite these yet. Update it, then publish again.")
+    ).toBeTruthy();
+  });
+});
+
 describe("PublishContentDialog — the primary action can't be doubled in one tick (terra #5)", () => {
   it("two confirms from the same render send one confirm and one execute", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });

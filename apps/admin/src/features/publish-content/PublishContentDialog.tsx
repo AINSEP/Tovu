@@ -45,6 +45,18 @@ import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
  * Enter fires by accident, matching every other confirm dialog's own reasoning even though this one
  * isn't destructive.
  *
+ * ## "Overwrite on live" (publish-overwrite-live-plan-2026-09-24.md §4/S9)
+ *
+ * A skipped row whose planner said it COULD be resolved by overwriting live (`row.overwritable`,
+ * `@tovu/publish-content-ui`'s `report-rows.ts`) gets its own checkbox in a column this file adds
+ * only while there is at least one such row AND the peer this plan targets can actually honour it
+ * (`view.liveCanOverwrite`). Ticking one is not itself what overwrites anything — it re-plans through
+ * `hooks/use-publish-content-confirm.hooks.ts`'s `onToggleOverwrite`, and the row only leaves
+ * `skipped` once that re-plan comes back `forced`. An older live gets one sentence under the table
+ * instead of any checkbox at all (`view.overwriteUnavailable`); a live that moved between the first
+ * plan and a later tick gets `view.overwriteMismatch` alongside the freshly re-planned rows, never a
+ * silently stale table.
+ *
  * ## The empty state is the connect action, not a dead end
  *
  * When `view.connectOffer` is set (no peer configured yet), the SAME primary button below becomes
@@ -75,6 +87,10 @@ export interface PublishContentDialogProps {
 export function PublishContentDialog({ onCancel, t, port }: PublishContentDialogProps) {
   const view = usePublishContentConfirm({ onCancel, t, port });
   const titleId = "dashboard-publish-content-confirm-title";
+  // publish-overwrite-live-plan §4/S9. The column exists only while the peer this plan targets can
+  // honour a forced overwrite AND at least one row is offering one — an older live, or a plan with
+  // nothing overwritable, renders no column at all rather than one that is always empty.
+  const showOverwriteColumn = view.liveCanOverwrite && view.rows.some((row) => row.overwritable);
 
   return (
     <div className="settings-dialog-backdrop" onClick={view.onDismiss}>
@@ -163,6 +179,27 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
                     <th>{t("Entity")}</th>
                     <th>{t("What happens")}</th>
                     <th>{t("Why")}</th>
+                    {showOverwriteColumn && (
+                      <th className="publish-content-overwrite">
+                        <input
+                          type="checkbox"
+                          checked={view.allOverwriteTicked}
+                          // Same DOM-only indeterminate handling as the select-all box above — React
+                          // has no prop for it.
+                          ref={(node) => {
+                            if (node) node.indeterminate = view.someOverwriteTicked;
+                          }}
+                          disabled={!view.selectionEnabled}
+                          onChange={view.onToggleAllOverwrite}
+                          aria-label={t("Overwrite every item that can replace something on live")}
+                          {...agentHandle("dashboard-publish-content-overwrite-all", {
+                            role: "field",
+                            label: "Check or uncheck every 'Overwrite on live' row at once",
+                          })}
+                        />{" "}
+                        {t("Overwrite on live")}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -195,6 +232,31 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
                         <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
                       </td>
                       <td className="publish-content-reason">{row.reason ?? ""}</td>
+                      {showOverwriteColumn && (
+                        <td className="publish-content-overwrite">
+                          {/* Only an `overwritable` row carries this control — same "no affordance at
+                              all on a row it doesn't apply to" rule the select column follows above. */}
+                          {row.overwritable && (
+                            <input
+                              type="checkbox"
+                              checked={view.overwriteKeys.has(row.key)}
+                              disabled={!view.selectionEnabled}
+                              onChange={() => view.onToggleOverwrite(row.key)}
+                              data-publish-row-overwrite=""
+                              aria-label={
+                                row.retiresLabel
+                                  ? `${t("Overwrite on live")}: ${row.retiresLabel}`
+                                  : t("Overwrite on live")
+                              }
+                              title={
+                                row.retiresLabel
+                                  ? `${row.retiresLabel} ${t("moves to")} ${t("Trash")}`
+                                  : undefined
+                              }
+                            />
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -205,6 +267,19 @@ export function PublishContentDialog({ onCancel, t, port }: PublishContentDialog
                 {view.summary.publishing} {t("to publish")} · {view.summary.unchanged} {t("unchanged")} ·{" "}
                 {view.summary.skipped} {t("skipped")}
               </p>
+            )}
+            {view.overwriteWarning && (
+              <p className="notice publish-content-overwrite-warning" role="status">
+                {view.overwriteWarning}
+              </p>
+            )}
+            {view.overwriteMismatch && (
+              <p className="notice error" role="alert">
+                {view.overwriteMismatch}
+              </p>
+            )}
+            {view.overwriteUnavailable && (
+              <p className="notice publish-content-overwrite-unavailable">{view.overwriteUnavailable}</p>
             )}
           </>
         )}
