@@ -658,8 +658,10 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   // and that ordering is the defect: it is a spawn argument, so there is no server to ask yet, and
   // a wrong guess could never be revised: no token had been minted, so a cookie the server no
   // longer honoured dropped the operator onto a login form for a password this shell never issued
-  // (it passes no `desktopCredential` — the SITE's own identity seeding decides, and its default is
-  // what actually works, but nothing in this app has ever shown it to them). An unnecessary token is inert (single-use, process-scoped, never
+  // (it passes no `desktopCredential` — the shell now seeds a random `TOVU_ADMIN_PASSWORD` into
+  // every spawn it makes, LAN-bind plan 2026-09-23 Slice 3, `buildCliEnv` in `tovu-server.ts` — never
+  // shown to the operator anywhere, and never a password they could type in even if they wanted to).
+  // An unnecessary token is inert (single-use, process-scoped, never
   // written to disk); an unnecessary REDEEM is the 30-day-session pile-up, and that is what
   // `ensureSiteSession` still keeps conditional.
 

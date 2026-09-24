@@ -257,10 +257,25 @@ function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
  * folder — which calls `initSiteDir`, `buildCliEnv`'s own caller, never `buildServeEnv` — consistent
  * with `buildServeEnv`'s own doc for `serve`. See that doc for the full trace.
  *
+ * `TOVU_ADMIN_USER`/`TOVU_ADMIN_PASSWORD` are seeded here too (LAN-bind plan, 2026-09-23, Slice 3),
+ * as a PAIR — overwriting any inherited value, the same shape as the `TOVU_HOST` pin in
+ * `buildServeEnv` below, not merely defaulted like `TOVU_AGENT_DAEMON_TOKEN`. Without this, a
+ * brand-new site's owner is `admin`/`DEFAULT_OWNER_PASSWORD` ("tovu-dev",
+ * `apps/website/src/features/identity/wiring.ts`) — a password baked into this repo's own docs and
+ * test fixtures, so ANY process on the machine (not just another machine on the LAN) can log in as
+ * owner the instant this shell seeds a new site. Set in `buildCliEnv`, not only `buildServeEnv`, so
+ * BOTH the `init` spawn (`site-dir-store.ts`'s `initSiteDir`, which calls this function directly)
+ * and the `serve` spawn (`buildServeEnv` below, which calls this function first) seed the same
+ * random password before `seedIdentity` ever runs — `init` is what actually creates the owner row
+ * on a brand-new site dir, so seeding only in `buildServeEnv` would have missed the one call site
+ * that matters most. Never printed, logged, or written to disk anywhere in this file. Inert on a
+ * site that has already been seeded, because `seedIdentity` seeds exactly once, idempotently — this
+ * only changes what a genuinely NEW site's first owner credential is.
+ *
  * @param siteDir the site dir the child will operate on (`init`'s target dir, or `serve`'s), set
  *   into `TOVU_SITE_DIR` unless the operator already pinned one. Optional so a caller with no
  *   specific site in mind (none exists today) still gets a valid env.
- * @complexity O(n) in the number of inherited environment variables.
+ * @complexity O(n) in the number of inherited environment variables, plus one `randomBytes` call.
  */
 function buildCliEnv(baseEnv: NodeJS.ProcessEnv | undefined, siteDir: string | undefined): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...(baseEnv ?? process.env) };
@@ -274,6 +289,13 @@ function buildCliEnv(baseEnv: NodeJS.ProcessEnv | undefined, siteDir: string | u
   delete env.PORT;
   delete env.TOVU_CONTENT_DB;
   delete env.TOVU_DB;
+
+  // LAN-bind plan (2026-09-23), Slice 3 — see this function's own doc above. Overwritten as a PAIR:
+  // an inherited half of either variable (this machine's own shell exports `TOVU_ADMIN_PASSWORD`
+  // ambiently — see `buildServeEnv`'s own `desktopCredential` comment on the identical trap) must
+  // never combine with the other half to seed an account nobody can log into.
+  env.TOVU_ADMIN_USER = "admin";
+  env.TOVU_ADMIN_PASSWORD = randomBytes(32).toString("hex");
 
   return env;
 }
@@ -361,7 +383,12 @@ interface BuildServeEnvInput {
  * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
  * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and
  * `<dir>` are the only authority over those. `TOVU_HOST` is overwritten to `127.0.0.1` for the
- * same reason — see the LAN-bind plan note above the identity-seeding paragraph.
+ * same reason — see the LAN-bind plan note above the identity-seeding paragraph. `TOVU_ADMIN_USER`/
+ * `TOVU_ADMIN_PASSWORD` are ALREADY a random, never-shown pair by the time this function runs —
+ * {@link buildCliEnv} above seeds them unconditionally — so a caller that passes no
+ * `desktopCredential` (every existing caller before this dispatch) no longer leaves a brand-new
+ * site on the default `admin`/`tovu-dev` password; a caller that DOES pass one still overrides that
+ * pair below, unchanged.
  *
  * @param input.repoRoot repo root, used to locate `apps/admin/dist` and threaded into
  *   `TOVU_REPO_ROOT` for `features/publish-trust`'s committed-config resolution.

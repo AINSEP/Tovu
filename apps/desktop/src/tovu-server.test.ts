@@ -21,7 +21,17 @@ import { PassThrough } from "node:stream";
 import { createRequire } from "node:module";
 import type { SpawnOptions } from "node:child_process";
 
-import { parseBootLine, parseCliErrorLine, resolveCliEntry, resolveDevCliEntry, buildCliSpawnPlan, buildServeEnv, allocatePort, startTovuServer } from "./tovu-server.ts";
+import {
+  parseBootLine,
+  parseCliErrorLine,
+  resolveCliEntry,
+  resolveDevCliEntry,
+  buildCliSpawnPlan,
+  buildCliEnv,
+  buildServeEnv,
+  allocatePort,
+  startTovuServer,
+} from "./tovu-server.ts";
 
 // The same CommonJS resolution `tovu-server.ts` uses, from the same directory, so the expected
 // loader path below is derived exactly the way the code under test derives it.
@@ -196,6 +206,47 @@ test("buildServeEnv pins TOVU_HOST to 127.0.0.1, like the PORT drop", () => {
 test("buildServeEnv overwrites an inherited TOVU_HOST -- a developer's shell export must never put a desktop site on the LAN", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: { TOVU_HOST: "0.0.0.0" } });
   assert.equal(env.TOVU_HOST, "127.0.0.1");
+});
+
+// LAN-bind plan (2026-09-23) Slice 3: a desktop-spawned site must never keep the default owner
+// account `admin`/`tovu-dev` -- see buildCliEnv's own doc for the full incident (that default is
+// LAN-reachable once Slices 1-2 aren't in play, and even loopback-only it is reachable to any other
+// local process). Set in buildCliEnv (not buildServeEnv) so BOTH the `init` spawn
+// (site-dir-store.ts's initSiteDir) and the `serve` spawn (buildServeEnv, below) get it.
+test("buildCliEnv seeds TOVU_ADMIN_USER=admin and a random 64-hex TOVU_ADMIN_PASSWORD", () => {
+  const env = buildCliEnv({}, "/s");
+  assert.equal(env.TOVU_ADMIN_USER, "admin");
+  assert.match(env.TOVU_ADMIN_PASSWORD!, /^[0-9a-f]{64}$/);
+});
+
+test("buildCliEnv overwrites an inherited TOVU_ADMIN_USER/TOVU_ADMIN_PASSWORD pair, including the default tovu-dev password -- a PAIR, like TOVU_HOST above, not merely defaulted like the daemon token", () => {
+  const env = buildCliEnv({ TOVU_ADMIN_PASSWORD: "tovu-dev", TOVU_ADMIN_USER: "x" }, "/s");
+  assert.equal(env.TOVU_ADMIN_USER, "admin");
+  assert.notEqual(env.TOVU_ADMIN_PASSWORD, "tovu-dev");
+  assert.match(env.TOVU_ADMIN_PASSWORD!, /^[0-9a-f]{64}$/);
+});
+
+test("buildCliEnv gives two calls two different random passwords", () => {
+  const a = buildCliEnv({}, "/s");
+  const b = buildCliEnv({}, "/s");
+  assert.notEqual(a.TOVU_ADMIN_PASSWORD, b.TOVU_ADMIN_PASSWORD);
+});
+
+test("buildServeEnv's explicit desktopCredential still wins over buildCliEnv's own random pair -- the existing override below buildCliEnv's call", () => {
+  const env = buildServeEnv({
+    repoRoot: makeTempRepo(),
+    baseEnv: {},
+    desktopCredential: { username: "tovu-desktop", password: "explicit-shell-password" },
+  });
+  assert.equal(env.TOVU_ADMIN_USER, "tovu-desktop");
+  assert.equal(env.TOVU_ADMIN_PASSWORD, "explicit-shell-password");
+});
+
+test("buildServeEnv with no desktopCredential still gets buildCliEnv's random TOVU_ADMIN_PASSWORD, never the default tovu-dev", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
+  assert.equal(env.TOVU_ADMIN_USER, "admin");
+  assert.notEqual(env.TOVU_ADMIN_PASSWORD, "tovu-dev");
+  assert.match(env.TOVU_ADMIN_PASSWORD!, /^[0-9a-f]{64}$/);
 });
 
 test("buildServeEnv drops inherited PORT, TOVU_DB and TOVU_CONTENT_DB", () => {
