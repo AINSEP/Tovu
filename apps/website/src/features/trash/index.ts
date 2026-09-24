@@ -103,3 +103,5 @@ export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "./adapters/r
 export { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "./adapters/directory.js";
 export type { DirectoryTrashAdapterDeps, DirectoryTrashLocation } from "./adapters/directory.js";
 export { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
+export { createUserTrashAdapter, USER_ENTITY_TYPE } from "./adapters/user.js";
+export type { UserTrashAdapterDeps } from "./adapters/user.js";

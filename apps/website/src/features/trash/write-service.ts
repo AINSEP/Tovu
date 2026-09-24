@@ -129,6 +129,7 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
           entityId: required.entityId,
           at: required.at,
           expectedVersion: required.expectedVersion,
+          actor: required.actor,
         });
         if (!marker.ok) return marker;
 
@@ -181,6 +182,10 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
           at: required.at,
           expectedVersion: row.entityVersion,
           priorMarker: row.priorMarker,
+          // Only when stated, so every existing caller's `restore()` call — none of which pass an
+          // actor — keeps producing the exact same argument object it always has (same convention
+          // as `priorMarker` on `TrashPort.trash`, see `ports.ts`).
+          ...(required.actor !== undefined ? { actor: required.actor } : {}),
         });
         if (!marker.ok) return marker.reason === "not-found" ? "not-found" : "version-changed";
         await deps.repo.deleteById({ workspaceId: required.workspaceId, id: row.id });
@@ -237,6 +242,7 @@ export function createTrashService(deps: TrashServiceDeps): TrashPort {
             workspaceId: row.workspaceId,
             entityId: row.entityId,
             expectedVersion: row.entityVersion,
+            actor: required.actor,
           });
           // `version-changed` means someone restored or edited it since; leave the index row alone
           // so the safe outcome (the item survives) is what a race produces.

@@ -18,9 +18,15 @@ import type { DomainEvent, UUID } from "@jini-ai/cms/core";
  * in the Slice 2 handoff): the event's payload must report exactly which rows were removed
  * (`PurgeCounts`), and those counts are only known once the deletes have actually run — which, for
  * the atomicity guarantee above, has to happen inside the SAME transaction as the outbox insert.
- * The caller (`delete-user-service.ts`) still owns every other event field (id, name, timestamps,
- * actor, aggregate, payload shape) — it just receives the counts as the callback's argument instead
- * of guessing them up front.
+ * The caller (`delete-user-service.ts`, and delete-user plan v2's `adapters/user.ts`) still owns
+ * every other event field (id, name, timestamps, actor, aggregate, payload shape) — it just
+ * receives the counts as the callback's argument instead of guessing them up front.
+ *
+ * `reason` (delete-user plan v2, decision 6) is optional and additive: a caller purging through the
+ * Trash states whether this was a hand-triggered permanent delete (`"manual"`) or the retention
+ * sweeper's automatic purge (`"retention"`), and that same value is handed back to `buildEvent` so
+ * the event payload can report it. `delete-user-service.ts`'s existing call site passes neither and
+ * its `buildEvent` callback ignores the second argument, so its behavior is unchanged.
  *
  * Architectural role:
  * Interfaces and types only — no logic, mirroring `api-key-types.ts`'s own split. The two adapters
@@ -40,17 +46,22 @@ export interface PurgeCounts {
   userSettings: number;
 }
 
+/** Why a purge happened — see this file's header for why it exists and why it is optional. */
+export type UserPurgeReason = "manual" | "retention";
+
 export interface UserPurgePort {
   /**
    * Hard-deletes `principalId`'s identity rows in `workspaceId`, then calls `buildEvent` with the
-   * exact counts just removed and appends the returned event to the outbox — all inside the same
-   * atomic unit as the deletes. `buildEvent` must be a pure, synchronous, side-effect-free function
-   * of its `removed` argument (the real adapter calls it mid-transaction).
+   * exact counts just removed (and `reason`, verbatim) and appends the returned event to the
+   * outbox — all inside the same atomic unit as the deletes. `buildEvent` must be a pure,
+   * synchronous, side-effect-free function of its arguments (the real adapter calls it
+   * mid-transaction).
    */
   purgeUser(required: {
     workspaceId: UUID;
     principalId: UUID;
-    buildEvent: (removed: PurgeCounts) => DomainEvent;
+    buildEvent: (removed: PurgeCounts, reason?: UserPurgeReason) => DomainEvent;
+    reason?: UserPurgeReason;
   }): Promise<PurgeCounts>;
 }
 

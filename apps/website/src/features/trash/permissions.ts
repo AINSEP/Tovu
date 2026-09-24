@@ -23,6 +23,7 @@ import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
+import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashEntityType, TrashItem } from "./ports.js";
 import type { TrashRegistry } from "./registry.js";
 
@@ -34,7 +35,10 @@ export const TRASH_READ_PERMISSION = "content.read";
  *
  * `content_post_delete` and `posts/delete.ts` gate on `content.write` (this codebase grants no
  * `content.delete` anywhere); comments moderation on `comments.moderate`; `media/trash.ts` on
- * `media.delete`; `redirects_tombstone` on `admin.redirects.manage`.
+ * `media.delete`; `redirects_tombstone` on `admin.redirects.manage`; users on the literal `"*"`
+ * (delete-user plan v2 decision 1) — `user.manage` is not enough on its own, since `role.manage`
+ * can grant it to a non-owner custom role, and `"*"` is not a catalog permission any such role can
+ * ever hold (`Jini` `permissions.ts:638`).
  *
  * A kind absent from BOTH this map and `TRASHABLE` is neither listable nor restorable nor
  * purgeable. That is the conservative default on purpose: a phase-2 domain has to opt in
@@ -46,6 +50,7 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
   [MEDIA_ENTITY_TYPE, "media.delete"],
   [REDIRECT_ENTITY_TYPE, "admin.redirects.manage"],
   [PLUGIN_ENTITY_TYPE, "admin.plugins.enable"],
+  [USER_ENTITY_TYPE, "*"],
 ]);
 
 /**

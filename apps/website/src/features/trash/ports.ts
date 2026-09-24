@@ -103,6 +103,9 @@ export interface TrashAdapter {
     entityId: string;
     at: string;
     expectedVersion: number | null;
+    /** Who performed the trash, so an adapter that records its own audit event (the user adapter)
+     *  can attribute it. Optional and additive — every other adapter ignores it. */
+    actor?: TrashActor;
   }): Promise<TrashMarkerResult>;
 
   /**
@@ -119,6 +122,8 @@ export interface TrashAdapter {
     at: string;
     expectedVersion: number | null;
     priorMarker?: string | null;
+    /** See {@link TrashAdapter.hide}'s `actor`. */
+    actor?: TrashActor;
   }): Promise<TrashMarkerResult>;
 
   /** Physically remove the row. Compare-and-delete on `expectedVersion`. */
@@ -126,6 +131,8 @@ export interface TrashAdapter {
     workspaceId: string;
     entityId: string;
     expectedVersion: number | null;
+    /** See {@link TrashAdapter.hide}'s `actor`. */
+    actor?: TrashActor;
   }): Promise<TrashPurgeOutcome>;
 }
 
@@ -214,6 +221,10 @@ export interface TrashPort {
     entityType: TrashEntityType;
     entityId: string;
     at: string;
+    /** See {@link TrashAdapter.hide}'s `actor`. Optional — a caller that omits it (every existing
+     *  call site until the trash restore route) gets the exact same behavior as before this field
+     *  existed. */
+    actor?: TrashActor;
   }): Promise<RestoreOutcome>;
 
   list(required: {

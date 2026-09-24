@@ -14,7 +14,7 @@ import {
 import { outboxRowFor } from "../../platform/db/sqlite/outbox-repo.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { DomainEvent, UUID } from "@jini-ai/cms/core";
-import type { PurgeCounts, UserPurgePort } from "./user-purge-types.js";
+import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "./user-purge-types.js";
 
 /**
  * @file `UserPurgePort`'s real adapter (delete-user plan decision 2/7) — the only one that can
@@ -49,9 +49,10 @@ export class SqliteUserPurge implements UserPurgePort {
   async purgeUser(required: {
     workspaceId: UUID;
     principalId: UUID;
-    buildEvent: (removed: PurgeCounts) => DomainEvent;
+    buildEvent: (removed: PurgeCounts, reason?: UserPurgeReason) => DomainEvent;
+    reason?: UserPurgeReason;
   }): Promise<PurgeCounts> {
-    const { workspaceId, principalId, buildEvent } = required;
+    const { workspaceId, principalId, buildEvent, reason } = required;
 
     return this.db.transaction((tx) => {
       const roles = tx
@@ -88,7 +89,7 @@ export class SqliteUserPurge implements UserPurgePort {
       tx.delete(principals).where(and(eq(principals.workspaceId, workspaceId), eq(principals.id, principalId))).run();
 
       const removed: PurgeCounts = { roles, policies, sessions: sessionCount, apiKeys: apiKeyCount, userSettings };
-      tx.insert(outboxEvents).values(outboxRowFor(buildEvent(removed))).run();
+      tx.insert(outboxEvents).values(outboxRowFor(buildEvent(removed, reason))).run();
 
       return removed;
     });

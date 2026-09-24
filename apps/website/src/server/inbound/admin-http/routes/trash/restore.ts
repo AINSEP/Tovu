@@ -69,6 +69,7 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = (app, deps) =
             entityType: item.entityType,
             entityId: item.entityId,
             at,
+            actor: { principalId: principal.id },
           }),
         });
       }
