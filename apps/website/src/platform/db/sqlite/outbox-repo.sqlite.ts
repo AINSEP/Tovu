@@ -48,6 +48,25 @@ function toRecord(row: typeof outboxEvents.$inferSelect): OutboxRecord {
 /** Statuses `claimPending` may take: never claimed, or claimed under a lease that may have expired. */
 const CLAIMABLE_STATUSES = ["pending", "processing"];
 
+/**
+ * Builds the `outbox_events` insert row for a freshly-produced `event`, factored out of
+ * `SqliteOutboxAdapter.enqueue()` below so a caller that inserts the row as part of its OWN
+ * transaction (e.g. `SqliteUserPurge.purgeUser()`, which must enqueue its audit event atomically
+ * with the purge deletes rather than through this adapter's own single-row `enqueue()`) can reuse
+ * the identical row shape instead of hand-rolling a second copy that could drift out of sync.
+ */
+export function outboxRowFor(event: DomainEvent): typeof outboxEvents.$inferInsert {
+  return {
+    id: event.id,
+    workspaceId: event.workspaceId,
+    eventJson: JSON.stringify(event),
+    status: "pending",
+    attempts: 0,
+    nextAttemptAt: event.occurredAt,
+    createdAt: event.occurredAt,
+  };
+}
+
 export class SqliteOutboxAdapter implements OutboxPort {
   private readonly claimLeaseMs: number;
 
@@ -63,18 +82,7 @@ export class SqliteOutboxAdapter implements OutboxPort {
   }
 
   async enqueue(event: DomainEvent): Promise<void> {
-    this.db
-      .insert(outboxEvents)
-      .values({
-        id: event.id,
-        workspaceId: event.workspaceId,
-        eventJson: JSON.stringify(event),
-        status: "pending",
-        attempts: 0,
-        nextAttemptAt: event.occurredAt,
-        createdAt: event.occurredAt,
-      })
-      .run();
+    this.db.insert(outboxEvents).values(outboxRowFor(event)).run();
   }
 
   /** Selects due rows (pending, or processing under an expired claim lease) and marks them
