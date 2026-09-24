@@ -474,6 +474,79 @@ const HEADER_NAV_MENU_SLUG = "menu-header-nav";
  */
 const DOCS_LANDING_PATH = "/docs";
 
+/**
+ * The third reserved `data-embed-id` (2026-09-24, docs IA restructure) — Previous/Next pager links
+ * at the bottom of a doc page, derived from the SAME Docs subtree {@link DOCS_SECTION_MENU_ID}
+ * renders, crossing group boundaries (the last page of one group's neighbour is the first page of
+ * the next). Resolves to 0-2 synthetic items (not real `NavItemNode`s — there is nothing to look up
+ * by id for "the page before this one"), tagged via `attrs.cssClass` so the theme can style/order
+ * them as a two-up row without a second marker type.
+ */
+const DOCS_PREV_NEXT_MENU_ID = "docs-prev-next";
+
+/** `attrs.cssClass` hooks {@link DOCS_PREV_NEXT_MENU_ID}'s synthetic items carry — theme-facing,
+ *  mirrors the convention every other authored `cssClass` already uses. */
+const DOCS_PAGER_PREV_CLASS = "docs-pager-prev";
+const DOCS_PAGER_NEXT_CLASS = "docs-pager-next";
+
+/**
+ * Shared lookup both docs reserved ids need: resolve `menu-header-nav`, then the top-level item
+ * whose resolved href is `/docs`. `null` covers both "no header nav menu exists" and "the header nav
+ * has no item linking to /docs" — both degrade the same way at each call site (an unresolved marker,
+ * left as the theme's own authored fallback).
+ */
+async function resolveDocsSectionItem(
+  deps: TemplateRenderDeps,
+  context: { workspaceId: string; currentPath: string },
+  resolveTargetHref: ResolveTargetHrefFn
+): Promise<StaticMenuItem | null> {
+  const headerMenu = await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: HEADER_NAV_MENU_SLUG });
+  if (!headerMenu) return null;
+  const headerItems = await resolveMenuDoc({ doc: headerMenu.doc, context, resolveTargetHref });
+  return headerItems.find((item) => item.href === DOCS_LANDING_PATH) ?? null;
+}
+
+/**
+ * Flattens the Docs subtree's groups into one ordered list of pages (depth-2 items only — the
+ * groups themselves, depth-1, are not page destinations), preserving group order then within-group
+ * order. This IS the "crossing group boundaries" behavior: the last page of group N and the first
+ * page of group N+1 end up adjacent, with no group-boundary special case needed at the call site.
+ *
+ * @complexity O(n) over the subtree's total page count.
+ */
+function flattenDocsPages(groups: readonly StaticMenuItem[]): readonly StaticMenuItem[] {
+  return groups.flatMap((group) => group.children);
+}
+
+/**
+ * Builds the 0-2 synthetic pager items for the page at `currentIndex` in `flatPages` — the item
+ * immediately before (if any) tagged `docs-pager-prev`, the one immediately after (if any) tagged
+ * `docs-pager-next`. A page whose neighbour is unavailable (deleted/unpublished target) still gets a
+ * synthetic item here; `renderMenuTree` already drops an unavailable, childless leaf on its own, so
+ * this function does not need to duplicate that filtering.
+ *
+ * @complexity O(1).
+ */
+function buildDocsPagerItems(
+  flatPages: readonly StaticMenuItem[],
+  currentIndex: number
+): readonly StaticMenuItem[] {
+  const pagerItem = (item: StaticMenuItem, cssClass: string): StaticMenuItem => ({
+    ...item,
+    isCurrent: false,
+    isActive: false,
+    children: [],
+    attrs: { ...item.attrs, cssClass: [cssClass, item.attrs?.cssClass].filter(Boolean).join(" ") },
+  });
+
+  const items: StaticMenuItem[] = [];
+  const prev = flatPages[currentIndex - 1];
+  const next = flatPages[currentIndex + 1];
+  if (prev) items.push(pagerItem(prev, DOCS_PAGER_PREV_CLASS));
+  if (next) items.push(pagerItem(next, DOCS_PAGER_NEXT_CLASS));
+  return items;
+}
+
 export async function resolveStaticMenusForRender(
   deps: TemplateRenderDeps,
   /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
@@ -528,15 +601,24 @@ export async function resolveStaticMenusForRender(
       // all) degrades to the theme's authored fallback, same "not authored yet" posture as every
       // other reserved-id miss in this function.
       if (menuId === DOCS_SECTION_MENU_ID) {
-        const headerMenu = await deps.menuRepo.findBySlug({
-          workspaceId: deps.workspaceId,
-          slug: HEADER_NAV_MENU_SLUG,
-        });
-        if (!headerMenu) return undefined;
-        const headerItems = await resolveMenuDoc({ doc: headerMenu.doc, context, resolveTargetHref });
-        const docsItem = headerItems.find((item) => item.href === DOCS_LANDING_PATH);
+        const docsItem = await resolveDocsSectionItem(deps, context, resolveTargetHref);
         if (!docsItem) return undefined;
         return [menuId, docsItem.children] as const;
+      }
+
+      // `DOCS_PREV_NEXT_MENU_ID` is the third reserved exception (2026-09-24): same Docs-subtree
+      // lookup as `DOCS_SECTION_MENU_ID` above, flattened across group boundaries and reduced to the
+      // 0-2 neighbours of whichever page in that flattened order is `isCurrent`. A current page not
+      // found in the flattened list (the requesting page is not itself a page in the Docs subtree —
+      // e.g. a non-doc page that happens to carry this marker) degrades the same way as no `/docs`
+      // item at all: the theme's authored fallback, not a crash or an empty-but-present pager.
+      if (menuId === DOCS_PREV_NEXT_MENU_ID) {
+        const docsItem = await resolveDocsSectionItem(deps, context, resolveTargetHref);
+        if (!docsItem) return undefined;
+        const flatPages = flattenDocsPages(docsItem.children);
+        const currentIndex = flatPages.findIndex((page) => page.isCurrent);
+        if (currentIndex === -1) return undefined;
+        return [menuId, buildDocsPagerItems(flatPages, currentIndex)] as const;
       }
 
       // Every other id resolves by SLUG first, id second. A theme marker is authored once and

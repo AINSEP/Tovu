@@ -312,6 +312,18 @@ function anchorTagFor(html: string, label: string): string {
   return html.slice(tagStart, labelIndex + label.length + 1);
 }
 
+/** The rendered `<li class="...">` opening tag enclosing one menu item label — where
+ *  `menuItemClasses` puts structural hooks (`is-current`/`is-active`/an authored `cssClass` like
+ *  `docs-pager-prev`), as opposed to {@link anchorTagFor}'s `<a>`-only slice, which never carries them. */
+function liTagFor(html: string, label: string): string {
+  const labelIndex = html.indexOf(`>${label}<`);
+  assert.ok(labelIndex !== -1, `expected to find a rendered menu item labeled "${label}"`);
+  const tagStart = html.lastIndexOf("<li ", labelIndex);
+  assert.ok(tagStart !== -1, `expected an <li> tag preceding "${label}"`);
+  const tagEnd = html.indexOf(">", tagStart);
+  return html.slice(tagStart, tagEnd + 1);
+}
+
 function headerNavMenuWithDocsSubtree(): NavMenuEntry {
   return {
     id: "menu-header-nav-id",
@@ -481,4 +493,111 @@ test("GET /quickstart: docs-section degrades to the theme's authored fallback wh
 
   const res = await fetch(`${baseUrl}/quickstart`);
   assert.equal(res.status, 200, "a missing menu-header-nav must degrade to the fallback, not 500");
+});
+
+/**
+ * Coverage for the `docs-prev-next` reserved marker id (2026-09-24 docs IA restructure) —
+ * Previous/Next pager links flattened across the Docs subtree's group boundaries, from the SAME
+ * `menu-header-nav` data `docs-section` reads, not a second lookup mechanism.
+ */
+const DOCS_PREV_NEXT_SENTINEL_ID = "docs-prev-next";
+
+function themeWithDocsPagerPages(): DiscoveredTheme {
+  const pagerMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_PREV_NEXT_SENTINEL_ID}","variant":"tree"}'></div>`;
+  return {
+    manifest: {
+      id: "static-docs-pager-test-theme",
+      name: "Static Docs Pager Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+      publishedPages: ["quickstart", "install", "not-a-doc-page"],
+    },
+    dir: "/nonexistent/docs-pager-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      quickstart: `<html><body>${pagerMarker}<main>quickstart</main></body></html>`,
+      install: `<html><body>${pagerMarker}<main>install</main></body></html>`,
+      // Carries the marker but is not itself a page in the Docs subtree — the "current page not
+      // found in the flattened list" degrade case.
+      "not-a-doc-page": `<html><body>${pagerMarker}<main>not-a-doc-page</main></body></html>`,
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /quickstart: docs-prev-next has no Previous (first page in the subtree) and Next is Install", async (t) => {
+  const theme = themeWithDocsPagerPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/quickstart`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(html.includes("docs-pager-next"), "Next must be present");
+  assert.ok(html.includes(">Install<"), "Next must be Install");
+  assert.ok(!html.includes("docs-pager-prev"), "Quickstart is the first page in the subtree — no Previous");
+});
+
+test("GET /install: docs-prev-next crosses the group boundary — Previous is Quickstart (same group), Next is Pages (next group)", async (t) => {
+  const theme = themeWithDocsPagerPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/install`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(liTagFor(html, "Quickstart").includes("docs-pager-prev"), "Previous must be Quickstart");
+  assert.ok(liTagFor(html, "Pages").includes("docs-pager-next"), "Next must cross into the next group (Pages, in Build your site)");
+});
+
+test("GET /not-a-doc-page: docs-prev-next degrades to the theme's authored fallback when the current page is not itself in the Docs subtree", async (t) => {
+  const theme = themeWithDocsPagerPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([headerNavMenuWithDocsSubtree()]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/not-a-doc-page`);
+  assert.equal(res.status, 200, "a page outside the Docs subtree must degrade to the fallback, not 500");
 });
