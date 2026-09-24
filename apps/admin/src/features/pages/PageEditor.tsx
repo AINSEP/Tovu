@@ -91,8 +91,9 @@ const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
  *
  * That move took this component's branching with it, so the extraction note this doc used to carry
  * now belongs to `PageEditorActions` instead — see there. What is left here is inert markup plus
- * the one unsaved-work guard on the back link, which is why `confirmLeave` is the only prop that
- * stayed.
+ * the one unsaved-work guard on the back link, which is why `onBackLinkClick` is the only prop that
+ * stayed (was `confirmLeave` until 2026-09-24, when the guard also had to flush the Interactive tab
+ * first — see `PageEditorController.onBackLinkClick`).
  *
  * `confirmLeave` (2026-09-06, standing-draft autosave dispatch) replaces what used to be an inline
  * `dirty && !window.confirm(...)` check written directly in this component — the exact
@@ -101,7 +102,13 @@ const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
  * consumed this same way). The comparison and the `window.confirm` call both now live in
  * `use-dirty-guard.hooks.ts`, tested once there rather than re-verified per screen.
  */
-function PageEditorHeader({ confirmLeave, t }: { confirmLeave: () => boolean; t: Translate }) {
+function PageEditorHeader({
+  onBackLinkClick,
+  t,
+}: {
+  onBackLinkClick: (event: { preventDefault: () => void }) => Promise<void>;
+  t: Translate;
+}) {
   return (
     // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
     // 2026-09-06 layout experiment: back link alone at the far left, title block centred, and the
@@ -135,9 +142,7 @@ function PageEditorHeader({ confirmLeave, t }: { confirmLeave: () => boolean; t:
         <a
           className="btn-secondary"
           href="/admin/pages"
-          onClick={(e) => {
-            if (!confirmLeave()) e.preventDefault();
-          }}
+          onClick={(e) => void onBackLinkClick(e)}
           aria-label={`${t("Back")}: ${t("Pages")}`}
           {...agentHandle("page-back-to-list", { role: "link", label: "Back to the list of all pages" })}
         >
@@ -667,7 +672,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     confirmingDelete,
     setConfirmingDelete,
     deleting,
-    confirmLeave,
+    onBackLinkClick,
     recoverableDraft,
     restoreRecoveredDraft,
     discardRecoveredDraft,
@@ -689,7 +694,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
 
   return (
     <div className="page">
-      <PageEditorHeader confirmLeave={confirmLeave} t={t} />
+      <PageEditorHeader onBackLinkClick={onBackLinkClick} t={t} />
 
       <PageEditorNotices
         recoverableDraft={recoverableDraft}

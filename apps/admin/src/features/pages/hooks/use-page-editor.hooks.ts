@@ -236,6 +236,15 @@ export interface PageEditorController {
    *  autosave since both exist to protect the same at-risk work. */
   confirmLeave: () => boolean;
   /**
+   * The back link's `onClick`. With no Interactive editor mounted this is exactly
+   * {@link confirmLeave}: cancel means `preventDefault()`, otherwise the link's own navigation runs.
+   * With one mounted, an edit still open in an RTE session is not in `html` yet, so `dirty` cannot
+   * see it (GrapesJS syncs it only when the session closes). Then this always takes over the
+   * navigation: it flushes the editor, asks if the flush produced unsaved HTML, and navigates to
+   * the list itself only if the operator agrees.
+   */
+  onBackLinkClick: (event: { preventDefault: () => void }) => Promise<void>;
+  /**
    * Standing-draft autosave (2026-09-06) — non-null once the mount-time recovery check finds a
    * draft parked from a previous session. Never auto-applied; `PageEditor.tsx` renders an explicit
    * "restore or discard" banner and calls {@link restoreRecoveredDraft}/{@link discardRecoveredDraft}
@@ -993,6 +1002,19 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     pageDirtyGuardBaseline(page, savedHtml, savedTemplateChoice)
   );
 
+  const onBackLinkClick = useCallback(
+    async (event: { preventDefault: () => void }) => {
+      if (!interactiveEditorRef.current) {
+        if (!confirmLeave()) event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      const flushed = await flushInteractiveEdits();
+      if (confirmLeave(flushed !== undefined && flushed !== savedHtml)) navigate("/pages");
+    },
+    [confirmLeave, flushInteractiveEdits, savedHtml, navigate]
+  );
+
   // Standing-draft autosave scheduling — fires a debounced write whenever the working copy actually
   // differs from what's saved. Deliberately does NOT clear the draft when `contentDirty` goes back
   // to `false` on its own (e.g. the operator edits back to the original value): only a real
@@ -1167,6 +1189,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setConfirmingDelete,
     deleting,
     confirmLeave,
+    onBackLinkClick,
     recoverableDraft: autosave.recoverableDraft,
     restoreRecoveredDraft,
     discardRecoveredDraft,

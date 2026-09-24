@@ -30,8 +30,11 @@ export interface DirtyGuard {
   isDirty: boolean;
   /** Call before an in-app navigation the operator triggered (e.g. a back-link's `onClick`).
    *  Returns `true` when it's safe to proceed — either nothing is dirty, or the operator confirmed
-   *  the native "leave without saving?" prompt. Returns `false` when the operator chose to stay. */
-  confirmLeave: () => boolean;
+   *  the native "leave without saving?" prompt. Returns `false` when the operator chose to stay.
+   *  `unsavedBeyondTracked` covers work `current` cannot see yet (the Page editor's Interactive tab
+   *  holds an open edit outside `current` until it is flushed): `true` prompts even when `isDirty`
+   *  is `false`. */
+  confirmLeave: (unsavedBeyondTracked?: boolean) => boolean;
 }
 
 /**
@@ -65,8 +68,8 @@ export function useDirtyGuard<T>(current: T, original: T | null): DirtyGuard {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  function confirmLeave(): boolean {
-    if (!isDirty) return true;
+  function confirmLeave(unsavedBeyondTracked = false): boolean {
+    if (!isDirty && !unsavedBeyondTracked) return true;
     return window.confirm("You have unsaved changes. Leave without saving?");
   }
 

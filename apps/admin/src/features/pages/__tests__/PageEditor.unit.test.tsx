@@ -124,6 +124,10 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // hook does, rather than a fixed stub that would stop proving the component actually reads
     // `confirmLeave` off the controller.
     confirmLeave: () => !(overrides.dirty ?? false) || window.confirm("You have unsaved changes. Leave without saving?"),
+    // The real hook's no-Interactive-editor branch of `onBackLinkClick`: exactly `confirmLeave`.
+    onBackLinkClick: async (event) => {
+      if (!(!(overrides.dirty ?? false) || window.confirm("You have unsaved changes. Leave without saving?"))) event.preventDefault();
+    },
     recoverableDraft: null,
     restoreRecoveredDraft: vi.fn(),
     discardRecoveredDraft: vi.fn(),

@@ -97,6 +97,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setConfirmingDelete: vi.fn(),
     deleting: false,
     confirmLeave: () => true,
+    onBackLinkClick: vi.fn(async () => {}),
     recoverableDraft: null,
     restoreRecoveredDraft: vi.fn(),
     discardRecoveredDraft: vi.fn(),

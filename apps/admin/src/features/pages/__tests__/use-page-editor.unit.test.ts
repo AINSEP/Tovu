@@ -967,6 +967,48 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     }
   });
 
+  // GrapesJS syncs an open RTE session into `html` only when the session closes, so an edit still
+  // being typed on the Interactive tab leaves `dirty` false. The back link consulted `dirty` alone,
+  // so it left without asking and the edit was lost. It now flushes the editor first.
+  it("the back link flushes an open Interactive edit, then asks before leaving and stays if the operator cancels", async () => {
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    expect(result.current.dirty).toBe(false);
+    result.current.interactiveEditorRef.current = { flush: vi.fn(async () => "<p>typed in an open RTE session</p>") };
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const preventDefault = vi.fn();
+    try {
+      await act(async () => {
+        await result.current.onBackLinkClick({ preventDefault });
+      });
+      expect(preventDefault).toHaveBeenCalledTimes(1);
+      expect(confirmSpy).toHaveBeenCalledWith("You have unsaved changes. Leave without saving?");
+      expect(deps.navigate).not.toHaveBeenCalled();
+      expect(result.current.html).toBe("<p>typed in an open RTE session</p>");
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it("the back link navigates to the list after flushing when the Interactive editor has nothing unsaved", async () => {
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    result.current.interactiveEditorRef.current = { flush: vi.fn(async () => undefined) };
+    const confirmSpy = vi.spyOn(window, "confirm");
+    const preventDefault = vi.fn();
+    try {
+      await act(async () => {
+        await result.current.onBackLinkClick({ preventDefault });
+      });
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(deps.navigate).toHaveBeenCalledWith("/pages");
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
   it("confirmLeave is true when nothing is dirty, and defers to window.confirm once the operator has edited something", async () => {
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
     const { result } = renderHook(() => usePageEditor("landing", deps));
