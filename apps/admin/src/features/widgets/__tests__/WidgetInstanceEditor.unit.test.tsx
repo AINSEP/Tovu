@@ -94,6 +94,7 @@ describe("WidgetConfigFields wiring (Batch D2 i18n — components/shared-compone
         saving: false,
         widgetType: "text" as const,
         save: vi.fn(),
+        confirmLeave: vi.fn(() => true),
         t: (key: string) => key,
         locale: "es",
       };

@@ -112,6 +112,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
     saving,
     widgetType,
     save,
+    confirmLeave,
     t,
     locale,
   } = useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
@@ -157,6 +158,12 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
           <a
             className="btn-secondary"
             href="/admin/widgets"
+            onClick={(e) => {
+              // Same shape as `PostEditor.tsx`'s back link: `preventDefault` here also stops
+              // `router.ts`'s document-level click interceptor from firing `navigate()`, since that
+              // listener's first check is `event.defaultPrevented`.
+              if (!confirmLeave()) e.preventDefault();
+            }}
             aria-label={`${t("Back")}: ${t("Widgets")}`}
             {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}
           >

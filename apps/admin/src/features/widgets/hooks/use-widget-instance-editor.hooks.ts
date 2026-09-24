@@ -5,6 +5,7 @@ import { navigate as realNavigate } from "@/lib/router";
 import { defaultWidgetConfig } from "@/components/WidgetConfigFields/WidgetConfigFields";
 import { resolveEditorWidgetType, resolveWidgetSaveError, widgetSlugRedirectPath } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { t as translate } from "../widgets-i18n";
 import { interpolate } from "@/lib/template-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -82,6 +83,13 @@ export interface WidgetInstanceEditorController {
    *  widget's own type once one exists. `null` when neither is available. */
   widgetType: AdminWidgetType | null;
   save: () => Promise<void>;
+  /** `useDirtyGuard`'s `confirmLeave` for the title/config pair — `WidgetInstanceEditor.tsx`'s back
+   *  link calls it before leaving (Opus themes+widgets review, OPEN item 2: this editor previously
+   *  had no unsaved-changes guard at all, unlike Posts/Pages). Always `true` with no prompt while
+   *  `widget` is `null` (a brand-new, not-yet-saved widget) — same "nothing loaded to compare
+   *  against yet" contract `useDirtyGuard`'s own doc describes; matches every other editor's
+   *  identical carve-out. */
+  confirmLeave: (unsavedBeyondTracked?: boolean) => boolean;
   /** Bound translator — `WidgetInstanceEditor.tsx`'s only source of UI copy; see this file's own
    *  header. */
   t: Translate;
@@ -177,6 +185,15 @@ export function useWidgetInstanceEditor(
   const activeEntityRef = useRef(widgetEntityKey(props.widgetId, props.widgetType, isNew));
   activeEntityRef.current = widgetEntityKey(props.widgetId, props.widgetType, isNew);
 
+  // Unsaved-changes guard (Opus themes+widgets review, OPEN item 2) — same shape
+  // `use-post-editor.hooks.ts` already wires: `original` is `null` until a real widget is loaded, so
+  // a brand-new/not-yet-saved widget has nothing to compare against yet and `confirmLeave` stays a
+  // silent no-op for it, same as every other editor.
+  const { confirmLeave } = useDirtyGuard(
+    { title, config },
+    widget ? { title: widget.title, config: widget.config } : null
+  );
+
   async function save() {
     if (!widgetType) return;
     const savingForEntity = widgetEntityKey(props.widgetId, props.widgetType, isNew);
@@ -225,6 +242,7 @@ export function useWidgetInstanceEditor(
     saving,
     widgetType,
     save,
+    confirmLeave,
     t,
     locale,
   };

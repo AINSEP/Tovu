@@ -353,6 +353,56 @@ describe("save — update (existing widget)", () => {
 });
 
 /**
+ * `confirmLeave` — unsaved-changes guard (Opus themes+widgets review, OPEN item 2): this editor had
+ * no protection against navigating away from an unsaved title/config edit at all. Wires the shared
+ * `useDirtyGuard` the same way `use-post-editor.hooks.ts` already does for Posts/Pages.
+ */
+describe("confirmLeave — unsaved-changes guard", () => {
+  it("prompts and returns the operator's answer once the title has changed", async () => {
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: EXISTING_WIDGET, whereUsed: WHERE_USED });
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.setTitle("Edited"));
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    expect(result.current.confirmLeave()).toBe(false);
+    expect(confirmSpy).toHaveBeenCalledOnce();
+  });
+
+  it("prompts once the config has changed, even with the title untouched", async () => {
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: EXISTING_WIDGET, whereUsed: WHERE_USED });
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.setConfig({ body: "edited" }));
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    expect(result.current.confirmLeave()).toBe(true);
+    expect(confirmSpy).toHaveBeenCalledOnce();
+  });
+
+  it("does not prompt when nothing has changed since load", async () => {
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: EXISTING_WIDGET, whereUsed: WHERE_USED });
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const confirmSpy = vi.spyOn(window, "confirm");
+    expect(result.current.confirmLeave()).toBe(true);
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not prompt for a brand-new, not-yet-saved widget — nothing loaded to compare against", () => {
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
+    act(() => result.current.setTitle("Draft"));
+
+    const confirmSpy = vi.spyOn(window, "confirm");
+    expect(result.current.confirmLeave()).toBe(true);
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+});
+
+/**
  * The "injected port" half — every test above drives `useWiredWidgetInstanceEditor` and proves
  * behavior via `vi.spyOn(api, ...)`, which is real coverage but doesn't itself prove the DEPENDENCY
  * is injected rather than reached for (a spy on the module intercepts either way). These call
