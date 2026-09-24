@@ -6,7 +6,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { ExternalMcpValidationError } from "../external-mcp-store.js";
+import { ExternalMcpValidationError, openExternalMcpOAuthPayload } from "../external-mcp-store.js";
 import type { ExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { externalMcpAgentToolCatalog, type AgentToolDefinition as ExternalMcpAgentToolDefinition, EXTERNAL_MCP_MANAGE_PERMISSION } from "../../features/external-mcp/agent-tools.js";
@@ -59,7 +59,7 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
     ...(options.externalMcpOAuth ? { externalMcpOAuth: options.externalMcpOAuth } : {}),
   };
 
-  return { deps, authorizeCalls, repo };
+  return { deps, authorizeCalls, repo, sealer };
 }
 
 function externalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRegistration> {
@@ -659,4 +659,90 @@ test("external_mcp_oauth_poll_device: delegates to the wired OAuth service", asy
 
   assert.deepEqual(out, { status: "connected" });
   assert.deepEqual(pollCalls, [{ serverId: "higgsfield" }]);
+});
+
+// ---------------------------------------------------------------------------
+// 9. external_mcp_save — a blank re-save must not wipe stored secrets
+// ---------------------------------------------------------------------------
+//
+// fix-plan-web-high-2026-09-24.md rows 3/4: `save-form.ts`'s own field hints tell the human "Leave
+// blank to keep the stored values"/"...stored secret" for `env` and the OAuth client secret, because
+// neither field is ever prefilled back with the real value. Before this fix, a blank resubmission of
+// either field reached the store as `""`, which the store's OWN contract treats as "clear" — so
+// re-saving a connection with those two fields left untouched (as the hint promises is safe) silently
+// deleted the stored env vars / client secret.
+
+test("external_mcp_save: re-saving with a blank env field keeps the previously stored env, not wipes it", async () => {
+  const { deps, repo } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const saveTool = registrations.get("external_mcp_save")!;
+
+  const first = await raiseSaveForm(saveTool, { id: "envkeep", transport: "stdio" });
+  exchanges.deliver({
+    exchangeId: first.exchangeId,
+    toolId: "external_mcp_save",
+    principalId: PRINCIPAL_ID,
+    params: { id: "envkeep", transport: "stdio", command: "node", args: "server.js", env: "API_KEY=abc" },
+  });
+  assert.equal((await (first.pending as Promise<{ saved: true }>)).saved, true);
+
+  const second = await raiseSaveForm(saveTool, { id: "envkeep", transport: "stdio" });
+  exchanges.deliver({
+    exchangeId: second.exchangeId,
+    toolId: "external_mcp_save",
+    principalId: PRINCIPAL_ID,
+    params: { id: "envkeep", transport: "stdio", command: "node", args: "server.js", env: "" },
+  });
+  assert.equal((await (second.pending as Promise<{ saved: true }>)).saved, true);
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "envkeep" });
+  assert.equal(record?.envNames, '["API_KEY"]', "a blank env resubmission must not clear the stored env names");
+  assert.notEqual(record?.sealedEnv, null, "the sealed env blob must survive a blank resubmission");
+});
+
+test("external_mcp_save: re-saving with a blank OAuth client secret field keeps the previously stored secret, not wipes it", async () => {
+  const { deps, repo, sealer } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const saveTool = registrations.get("external_mcp_save")!;
+
+  const first = await raiseSaveForm(saveTool, { id: "oauthkeep", transport: "streamable_http" });
+  exchanges.deliver({
+    exchangeId: first.exchangeId,
+    toolId: "external_mcp_save",
+    principalId: PRINCIPAL_ID,
+    params: {
+      id: "oauthkeep",
+      transport: "streamable_http",
+      url: "https://oauthkeep.example/mcp",
+      authMode: "oauth",
+      oauthGrant: "authorization_code",
+      oauthClientId: "cid",
+      oauthClientSecret: "s3cret",
+    },
+  });
+  assert.equal((await (first.pending as Promise<{ saved: true }>)).saved, true);
+
+  const second = await raiseSaveForm(saveTool, { id: "oauthkeep", transport: "streamable_http" });
+  exchanges.deliver({
+    exchangeId: second.exchangeId,
+    toolId: "external_mcp_save",
+    principalId: PRINCIPAL_ID,
+    params: {
+      id: "oauthkeep",
+      transport: "streamable_http",
+      url: "https://oauthkeep.example/mcp",
+      authMode: "oauth",
+      oauthGrant: "authorization_code",
+      oauthClientId: "cid",
+      oauthClientSecret: "",
+    },
+  });
+  assert.equal((await (second.pending as Promise<{ saved: true }>)).saved, true);
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "oauthkeep" });
+  assert.ok(record, "the row must exist");
+  const payload = await openExternalMcpOAuthPayload(sealer, record!);
+  assert.equal(payload.clientSecret, "s3cret", "a blank client-secret resubmission must not clear the stored secret");
 });

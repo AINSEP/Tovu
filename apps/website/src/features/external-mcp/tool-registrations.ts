@@ -204,6 +204,20 @@ function optionalStringField(input: Record<string, unknown>, key: string): strin
   return typeof input[key] === "string" ? (input[key] as string) : undefined;
 }
 
+/** Reads `input[key]` as a string, treating a blank (empty-after-trim) value the same as absent:
+ *  `undefined`. For the handful of fields this form never prefills back with the stored secret —
+ *  `env` (`save-form.ts:164`) and the OAuth client secret (`save-form.ts:212`) — the field hint tells
+ *  the human "leave blank to keep the stored value", so a blank submission must carry forward what is
+ *  already saved, not `optionalStringField`'s ordinary `""`. The store's own PUT contract still lets
+ *  `""` mean "clear" ({@link resolveExternalMcpSealedEnv}, `resolveSealedOAuthBlob` in
+ *  `external-mcp-store.ts`) for callers that DO round-trip the current value — that contract is
+ *  unchanged; only this form's blank-means-absent mapping is fixed here.
+ *  @complexity O(1). */
+function optionalSecretField(input: Record<string, unknown>, key: string): string | undefined {
+  const value = optionalStringField(input, key);
+  return value === undefined || value.trim() === "" ? undefined : value;
+}
+
 /** The model's own {@link ExternalMcpSaveInput} fields beyond `id`/`transport` — every one of
  *  `SAVE_INPUT_SCHEMA`'s optional string properties (`agent-tools.ts`), read the same tri-state way
  *  the submitted form's own params are read below. */
@@ -263,7 +277,10 @@ const OAUTH_FORM_FIELD_MAP = [
 function buildOAuthSaveInputFromFormParams(params: Record<string, unknown>): SaveExternalMcpOAuthInput | undefined {
   let oauth: SaveExternalMcpOAuthInput = {};
   for (const [formKey, oauthKey] of OAUTH_FORM_FIELD_MAP) {
-    const value = optionalStringField(params, formKey);
+    // `oauthClientSecret` is the one OAuth field this form never prefills back with the stored value
+    // (`save-form.ts:212`'s hint: "Leave blank to keep the stored secret") — every other OAuth field
+    // IS prefilled from the existing row, so a blank one there is a genuine, intentional clear.
+    const value = formKey === "oauthClientSecret" ? optionalSecretField(params, formKey) : optionalStringField(params, formKey);
     if (value !== undefined) oauth = { ...oauth, [oauthKey]: value };
   }
   return Object.keys(oauth).length === 0 ? undefined : oauth;
@@ -295,7 +312,7 @@ function buildSaveExternalMcpServerInputFromFormParams(
   const label = optionalStringField(params, "label");
   const url = optionalStringField(params, "url");
   const authMode = optionalStringField(params, "authMode");
-  const env = optionalStringField(params, "env");
+  const env = optionalSecretField(params, "env");
   const oauth = buildOAuthSaveInputFromFormParams(params);
 
   const serverIdRaw = params.id;
