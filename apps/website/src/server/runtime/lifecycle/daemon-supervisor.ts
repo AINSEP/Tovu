@@ -50,6 +50,7 @@
  *   to the same worst-case frequency the internal backoff already accepts as safe — traffic-driven
  *   and time-driven retries end up governed by the same ceiling instead of two different ones.
  */
+import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
 import { spawn, execFileSync } from "node:child_process";
 import path from "node:path";
 
@@ -102,7 +103,7 @@ export interface DaemonSupervisorDeps {
   killTree?: (pid: number) => void;
   /** When `true`, the ROUTINE lifecycle lines — the first spawn and a deliberate (shutdown/restart)
    *  exit — are not printed; an unexpected exit and every respawn still are, since those are what an
-   *  operator correlates a dead chat against. Defaults to `TOVU_DAEMON_LIFECYCLE_LOG === "off"`,
+   *  operator correlates a dead chat against. Defaults to {@link isDaemonLifecycleLogQuiet} (`TOVU_DAEMON_LIFECYCLE_LOG=off`),
    *  which `npm start` (`development/scripts/start.mjs`) sets so its output is one URL line. */
   quietRoutineLifecycle?: boolean;
   /** Where lifecycle breadcrumbs go. Defaults to `console.log`; injected in tests. */
@@ -200,7 +201,7 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
   const onDemandCooldownMs = deps.onDemandCooldownMs ?? 30_000;
   const platform = deps.platform ?? process.platform;
   const killTree = deps.killTree ?? taskkillTree;
-  const quietRoutineLifecycle = deps.quietRoutineLifecycle ?? process.env.TOVU_DAEMON_LIFECYCLE_LOG === "off";
+  const quietRoutineLifecycle = deps.quietRoutineLifecycle ?? isDaemonLifecycleLogQuiet();
   const log = deps.log ?? ((line: string) => console.log(line));
   let spawnAttempts = 0;
 

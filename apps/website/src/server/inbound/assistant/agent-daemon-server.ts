@@ -56,6 +56,7 @@
  * remains gated by `resolvePrincipal`'s fail-closed check that the posted `runId` is a live,
  * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
  */
+import { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -1529,7 +1530,7 @@ async function start(): Promise<void> {
   );
 
   const server = app.listen(port, "127.0.0.1", () => {
-    console.log(`[agent-daemon] listening on ${daemonUrl}`);
+    if (!isDaemonLifecycleLogQuiet()) console.log(`[agent-daemon] listening on ${daemonUrl}`);
   });
 
   /**
