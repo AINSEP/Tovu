@@ -187,3 +187,34 @@ nsis:
   # Writes `Tovu-windows-x64-setup.exe.blockmap`, which lets electron-updater download only the
   # changed blocks of the next installer.
   differentialPackage: true
+
+# Microsoft Store package (MSIX/APPX). Built ONLY by the release workflow's `win-x64-store` job
+# (`--win appx`), on Windows, and uploaded to Partner Center by hand — never attached to the GitHub
+# release. The Store re-signs it, so there is no certificate here, and the Store updates it, so the
+# auto-updater is off inside it (`update-policy.ts`, `process.windowsStore`).
+#
+# The three identity values below are PLACEHOLDERS. The Store job overrides all three from the
+# `MS_STORE_IDENTITY_NAME`, `MS_STORE_PUBLISHER` and `MS_STORE_PUBLISHER_DISPLAY_NAME` secrets, which
+# are Partner Center -> the Tovu app -> Product management -> Product identity: "Package/Identity/
+# Name", "Package/Identity/Publisher" (the whole `CN=...` string) and "Package/Properties/
+# PublisherDisplayName". The job refuses to finish if a placeholder survives into the package.
+# The placeholders exist so a sideload test build on a Windows machine works without them.
+appx:
+  identityName: Tovu.Placeholder
+  publisher: CN=00000000-0000-0000-0000-000000000000
+  publisherDisplayName: Tovu Placeholder
+  applicationId: Tovu
+  displayName: Tovu
+  backgroundColor: transparent
+  languages: [en-US]
+  # `Tovu-windows-x64-store.appx`.
+  artifactName: "Tovu-windows-${arch}-store.${ext}"
+  # electron-builder's template plus AppData write virtualization turned off — see the file's header.
+  customManifestPath: appx-manifest.xml
+  # Required by that manifest change (restricted: justified in the Store certification notes).
+  # `runFullTrust` is always added by electron-builder.
+  capabilities:
+    - unvirtualizedResources
+  # 2004: the desktop6 virtualization switch needs 1903+, and nothing older is supported by Microsoft.
+  minVersion: 10.0.19041.0
+  maxVersionTested: 10.0.26100.0
