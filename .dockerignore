@@ -1,0 +1,47 @@
+# Backstop for a LEGACY (non-BuildKit) `docker build`. `Dockerfile.dockerignore` next to this file
+# is the ignore-file that actually governs a real build: BuildKit's per-Dockerfile convention takes
+# FULL precedence over this one and is what `docker/build-push-action` (CI, `publish-image.yml`)
+# and a modern `docker build` (BuildKit is the default builder since Docker 23, per this repo's own
+# `Dockerfile` header) both read. This file only matters if BuildKit is somehow off
+# (`DOCKER_BUILDKIT=0`, or a pre-23 Docker) — a plain legacy `docker build` has no notion that
+# `Dockerfile.dockerignore` exists at all and falls back to this file alone, read from the context
+# root exactly the way any other `.dockerignore` is.
+#
+# Deliberately short: only the patterns whose absence would leak a secret or a developer's live
+# database into an image. `Dockerfile.dockerignore` carries the full exclusion list (build output,
+# node_modules, test artifacts, ...) with the fuller reasoning for each; this file mirrors only its
+# security-relevant subset so there's one obvious place to keep both in sync, not two independent
+# lists that can quietly drift apart.
+
+.env
+.env.*
+!.env.example
+
+.certs
+.certs.disabled
+**/*.pem
+**/*.key
+
+sites/*/content.db
+sites/*/content.db-wal
+sites/*/content.db-shm
+sites/*/content.db.bak-*
+sites/*/restore-point-*.db
+chat.db
+chat.db-wal
+chat.db-shm
+chat.db.bak-*
+content.db
+content.db-wal
+content.db-shm
+content.db.bak-*
+apps/website/sites
+
+.git
+.claude
+
+# Host-built dependencies (macOS/arm64 binaries for better-sqlite3, argon2, sharp — same reason
+# `Dockerfile.dockerignore` excludes these). Not a secret, but a legacy builder with no exclusion
+# at all would otherwise bake a contributor's entire host `node_modules` into the image.
+node_modules
+apps/*/node_modules

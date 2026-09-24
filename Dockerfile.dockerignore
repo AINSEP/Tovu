@@ -74,3 +74,33 @@ development/e2e
 # this file is Docker's own ignore list and is read independently.
 .certs
 .certs.disabled
+
+# Any other private key or cert a contributor might have lying around outside `.certs/` (e.g. a
+# one-off key generated for local testing). Bare/unanchored so it catches these at any depth, not
+# just at the repo root.
+**/*.pem
+**/*.key
+
+# Stray/duplicate site data outside the tracked repo-root `sites/` tree, and root-level dev
+# databases — found 2026-09-24 while auditing this file for the TOVU_INTEGRATIONS_ROOT_KEY leak
+# risk: `apps/website/sites/tovu-com/content.db` (a real, non-empty content.db + WAL/shm sidecars,
+# left behind by running a dev server from an unusual cwd) is NOT reached by the `sites/*/content.db`
+# block above, because it isn't under the repo-root `sites/` this Dockerfile's `RUN rm -rf sites`
+# cleans up — that rule is anchored to `sites/`, this one isn't. Same "never ship live data"
+# reasoning, just unanchored so it also catches a root-level `chat.db`/`content.db` (both real files
+# this checkout has had from local dev) and any other nested copy, without touching
+# `content.seed.db` (a different filename — the build still needs that one, see below).
+chat.db
+chat.db-wal
+chat.db-shm
+chat.db.bak-*
+content.db
+content.db-wal
+content.db-shm
+content.db.bak-*
+apps/website/sites
+
+# Claude Code's own local state (settings, harness scratch dirs). Never something a runtime image
+# needs; bare so it's caught wherever it appears, matching the `AI-Dev-Shop`/`ADS-memory` exclusions
+# above.
+.claude
