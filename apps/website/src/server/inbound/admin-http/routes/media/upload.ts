@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 
-import { MediaValidationError, sniffContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
+import { MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -133,6 +133,11 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         return;
       }
 
+      // What the bytes ACTUALLY are, not the `contentType` the client declared: SVG/HTML/unknown
+      // bytes declared as an image are rejected here; an allowed type mislabeled as another is
+      // stored as what it really is.
+      const verifiedContentType = resolveUploadContentType({ bytes, declaredContentType: contentType });
+
       const { media } = await uploadMedia({
         deps: {
           clock: deps.clock,
@@ -146,7 +151,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
           workspaceId: deps.workspaceId,
           bytes,
           filename,
-          contentType,
+          contentType: verifiedContentType,
           alt,
           caption,
           credit,
@@ -154,21 +159,17 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         },
       }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
-      // Record what the bytes ACTUALLY are, not the `contentType` the client declared. Both
-      // `uploadMedia`'s allowlist check above and `original.ts`'s serving path already treat that
-      // declared string as untrusted (see this repo's `original.ts` file header: "`Content-Type`
-      // is NEVER the client's upload-time string"), so the admin's type filter must agree with the
-      // sniffed answer or an operator's "Images" tab would disagree with what their browser is
-      // served. Written AFTER `uploadMedia` because the blob row it updates is created there.
-      const sniffedContentType = sniffContentType(bytes);
+      // Record the sniffed type so the admin's type filter agrees with what `original.ts` serves
+      // (it never trusts the upload-time string either). Written AFTER `uploadMedia` because the
+      // blob row it updates is created there.
       await deps.mediaContentTypeStore.set({
         workspaceId: deps.workspaceId,
         sha256: media.source.sha256,
-        contentType: sniffedContentType,
+        contentType: verifiedContentType,
       });
 
       const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
-      res.status(201).json({ media: toAdminMediaResponse(media, sniffedContentType, publicUrl) });
+      res.status(201).json({ media: toAdminMediaResponse(media, verifiedContentType, publicUrl) });
     } catch (err) {
       if (err instanceof MediaValidationError) {
         res.status(400).json({ error: err.message });

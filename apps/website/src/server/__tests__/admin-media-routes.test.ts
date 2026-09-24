@@ -44,6 +44,12 @@ function base64Of(text: string): string {
   return Buffer.from(text, "utf8").toString("base64");
 }
 
+/** A PNG signature followed by `tag`: sniffs as image/png (the upload route checks the bytes), and
+ *  distinct tags give distinct blobs. */
+function pngBase64Of(tag: string): string {
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from(tag, "utf8")]).toString("base64");
+}
+
 /**
  * Registers a principal with a login but no role/policy grants at all — `authorize()` returns
  * `no_grant` for any permission it's checked against. Used to prove the denied side of each
@@ -149,7 +155,7 @@ async function uploadAsOwner(baseUrl: string, ownerCookie: string): Promise<stri
     body: JSON.stringify({
       filename: "hero.png",
       contentType: "image/png",
-      dataBase64: base64Of("fake-png-bytes"),
+      dataBase64: pngBase64Of("fake-png-bytes"),
       alt: "a hero image",
     }),
   });
@@ -227,7 +233,7 @@ test("admin media routes: upload/list/update/trash responses all include publicU
   const uploadRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ filename: "hero-shot.png", contentType: "image/png", dataBase64: base64Of("fake-png-bytes") }),
+    body: JSON.stringify({ filename: "hero-shot.png", contentType: "image/png", dataBase64: pngBase64Of("fake-png-bytes") }),
   });
   assert.equal(uploadRes.status, 201);
   const uploadPayload = (await uploadRes.json()) as { media: { id: string; slug: string; publicUrl: string | null } };
@@ -426,7 +432,7 @@ test("SPEC-021 REQ-39/OQ-01: a principal with zero grants is denied 403 with the
   const uploadRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: bareCookie },
-    body: JSON.stringify({ filename: "x.png", contentType: "image/png", dataBase64: base64Of("x") }),
+    body: JSON.stringify({ filename: "x.png", contentType: "image/png", dataBase64: pngBase64Of("x") }),
   });
   assert.equal(uploadRes.status, 403);
   const uploadBody = (await uploadRes.json()) as { code: string; details: { permission: string } };
@@ -481,7 +487,7 @@ test("T-media-upload: upload.ts is gated by media.upload specifically — that g
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ filename: "hero.png", contentType: "image/png", dataBase64: base64Of("bytes") }),
+    body: JSON.stringify({ filename: "hero.png", contentType: "image/png", dataBase64: pngBase64Of("bytes") }),
   });
   assert.equal(res.status, 201);
 });

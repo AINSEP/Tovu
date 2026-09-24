@@ -28,6 +28,9 @@ const WORKSPACE_ID = "workspace-local";
 const ONE_PIXEL_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
+/** The leading ISO-BMFF `ftyp` box of an MP4 (`isom` brand) — what the sniffer reads as video/mp4. */
+const MP4_FTYP_HEADER = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+
 function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express {
   const base = createRouteDeps();
   const deps: MediaRouteDeps = {
@@ -130,12 +133,12 @@ test("upload: a normal alt string value is stored trimmed", async (t) => {
   assert.equal(json.media.alt, "A single pixel");
 });
 
-// Owner-directed 2026-09-21: the Tovu media-upload cap is 50 MiB.
-// `contentType: "image/png"` is enough to pass uploadMedia's allowlist check without real PNG
-// bytes — that check reads the declared `contentType` field, never sniffs the body.
+// Owner-directed 2026-09-21: the Tovu media-upload cap is 50 MiB. The bytes start with an MP4
+// `ftyp` box so they pass the route's content sniff and reach uploadMedia's own size check.
 test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected with the new cap in the message", async (t) => {
   const app = buildApp();
   const oversized = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1);
+  MP4_FTYP_HEADER.copy(oversized);
   const { status, json } = await upload(t, app, {
     filename: "clip.mp4",
     contentType: "video/mp4",
@@ -144,4 +147,51 @@ test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected wi
   assert.equal(status, 400);
   // Jini's uploadMedia states the cap in MB (Jini 754b0ff9), e.g. "50 MB" for 50 MiB.
   assert.equal(json.error, `uploaded file exceeds the ${TOVU_MAX_UPLOAD_BYTES / (1024 * 1024)} MB size cap`);
+});
+
+test("upload: SVG markup declared as image/png is rejected with 400 and nothing is stored", async (t) => {
+  const { mediaRepo } = createRouteDeps();
+  const app = buildApp({ mediaRepo });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>';
+  const { status, json } = await upload(t, app, {
+    filename: "pixel.png",
+    contentType: "image/png",
+    dataBase64: Buffer.from(svg, "utf8").toString("base64"),
+  });
+  assert.equal(status, 400);
+  assert.deepEqual(json, { error: "the file's content (image/svg+xml) is not an allowed media type" });
+  assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("upload: HTML declared as image/jpeg is rejected with 400", async (t) => {
+  const app = buildApp();
+  const { status, json } = await upload(t, app, {
+    filename: "photo.jpg",
+    contentType: "image/jpeg",
+    dataBase64: Buffer.from("<!doctype html><script>alert(1)</script>", "utf8").toString("base64"),
+  });
+  assert.equal(status, 400);
+  assert.deepEqual(json, { error: "the file's content (text/html) is not an allowed media type" });
+});
+
+test("upload: unrecognized bytes declared as image/png are rejected with 400", async (t) => {
+  const app = buildApp();
+  const { status, json } = await upload(t, app, {
+    filename: "pixel.png",
+    contentType: "image/png",
+    dataBase64: Buffer.from("fake png", "utf8").toString("base64"),
+  });
+  assert.equal(status, 400);
+  assert.deepEqual(json, { error: "the file's content (application/octet-stream) is not an allowed media type" });
+});
+
+test("upload: a real PNG mislabeled image/jpeg is stored as what its bytes are (image/png)", async (t) => {
+  const app = buildApp();
+  const { status, json } = await upload(t, app, {
+    filename: "pixel.jpg",
+    contentType: "image/jpeg",
+    dataBase64: ONE_PIXEL_PNG_BASE64,
+  });
+  assert.equal(status, 201);
+  assert.equal(json.media.contentType, "image/png");
 });

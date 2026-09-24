@@ -128,13 +128,29 @@ test("admin media list: the stored content type comes from the BYTES, never the 
 });
 
 test("admin media list: unrecognized bytes are reported as application/octet-stream, not as an absent type", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const mediaId = await uploadRawBytes(baseUrl, cookie, {
-    filename: "mystery.png",
-    bytes: new TextEncoder().encode("not a format this sniffer recognizes"),
+  // The upload route now rejects unrecognized bytes, so this stands in for a row stored before
+  // that check: written straight through `uploadMedia`, its type is sniffed when the list backfills.
+  const { media } = await uploadMedia({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      mediaRepo: deps.mediaRepo,
+      blobRepo: deps.assetBlobRepo,
+      renditionRepo: deps.assetRenditionRepo,
+      blobStore: deps.blobStore,
+    },
+    input: {
+      workspaceId: deps.workspaceId,
+      bytes: new TextEncoder().encode("not a format this sniffer recognizes"),
+      filename: "mystery.png",
+      contentType: "image/png",
+      createdByPrincipal: "seed-principal",
+    },
   });
+  const mediaId = media.id;
 
   const types = await listMediaContentTypes(baseUrl, cookie);
   assert.equal(

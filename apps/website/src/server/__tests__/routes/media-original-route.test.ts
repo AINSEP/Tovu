@@ -18,10 +18,10 @@ import { uploadMedia } from "#src/features/media/index";
  * that lets the admin UI actually render `<img>`/`<video>` previews (the admin Media screen
  * previously had no byte-serving HTTP route at all).
  *
- * Deliberately proves the security properties named in this route's own file header by UPLOADING
- * real HTML/SVG/video bytes through the ordinary JSON `contentType` field declaring an allowed
- * image type (`uploadMedia` only validates that STRING, never the bytes — see
- * `media-service.ts`'s file header) and then asserting the serving route ignores that declared
+ * Deliberately proves the security properties named in this route's own file header by storing
+ * real HTML/SVG bytes under a declared image type (straight through `uploadMedia`, which validates
+ * only that STRING — the upload route now rejects such bytes, but rows stored before that check,
+ * or by another path, still exist) and then asserting the serving route ignores that declared
  * string entirely and serves based on what the bytes actually are.
  */
 
@@ -62,6 +62,33 @@ async function uploadRawBytes(
   const payload = (await res.json()) as { media: { id: string } };
   return payload.media.id;
 }
+
+/** Stores `bytes` straight through the domain function, bypassing the upload route's content
+ * sniff — the only way to get HTML/SVG/unrecognized bytes stored now that the route rejects them.
+ * Stands in for rows stored before that check, which this serving route must still defuse. */
+async function storeRawBytes(deps: RouteDeps, input: { filename: string; bytes: Uint8Array }): Promise<string> {
+  const { media } = await uploadMedia({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      mediaRepo: deps.mediaRepo,
+      blobRepo: deps.assetBlobRepo,
+      renditionRepo: deps.assetRenditionRepo,
+      blobStore: deps.blobStore,
+    },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      bytes: input.bytes,
+      filename: input.filename,
+      contentType: "image/png",
+      createdByPrincipal: "test-principal",
+    },
+  });
+  return media.id;
+}
+
+/** A PNG signature plus a few bytes: enough for the upload route's sniff to accept it. */
+const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 
 function originalUrl(baseUrl: string, mediaId: string): string {
   return `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media/${mediaId}/original`;
@@ -125,11 +152,11 @@ test("media original route: sniffs each supported format from real bytes, indepe
 });
 
 test("media original route: an HTML payload declared as image/png at upload is served as application/octet-stream with Content-Disposition: attachment, never as text/html", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const htmlBytes = new TextEncoder().encode("<!DOCTYPE html><html><body><script>alert(document.cookie)</script></body></html>");
-  const mediaId = await uploadRawBytes(baseUrl, cookie, { filename: "totally-a-photo.png", bytes: htmlBytes });
+  const mediaId = await storeRawBytes(deps, { filename: "totally-a-photo.png", bytes: htmlBytes });
 
   const res = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie } });
   assert.equal(res.status, 200);
@@ -141,11 +168,11 @@ test("media original route: an HTML payload declared as image/png at upload is s
 });
 
 test("media original route: an SVG payload declared as image/png at upload is served as application/octet-stream with Content-Disposition: attachment, never as image/svg+xml", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const svgBytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
-  const mediaId = await uploadRawBytes(baseUrl, cookie, { filename: "totally-a-photo-2.png", bytes: svgBytes });
+  const mediaId = await storeRawBytes(deps, { filename: "totally-a-photo-2.png", bytes: svgBytes });
 
   const res = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie } });
   assert.equal(res.status, 200);
@@ -154,12 +181,12 @@ test("media original route: an SVG payload declared as image/png at upload is se
 });
 
 test("media original route: Range requests — full body without a Range header, exact slices with one, 416 when unsatisfiable, and full body for malformed/multi-range headers", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const content = "0123456789ABCDEFGHIJ"; // 20 bytes, indices 0-19
   const bytes = new TextEncoder().encode(content);
-  const mediaId = await uploadRawBytes(baseUrl, cookie, { filename: "seekable.bin", bytes });
+  const mediaId = await storeRawBytes(deps, { filename: "seekable.bin", bytes });
 
   const full = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie } });
   assert.equal(full.status, 200);
@@ -196,7 +223,7 @@ test("media original route: Range requests — full body without a Range header,
 test("media original route: no session cookie -> 401, never revealing whether the asset exists", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const mediaId = await uploadRawBytes(baseUrl, cookie, { filename: "x.png", bytes: new Uint8Array([1, 2, 3]) });
+  const mediaId = await uploadRawBytes(baseUrl, cookie, { filename: "x.png", bytes: PNG_BYTES });
 
   const res = await fetch(originalUrl(baseUrl, mediaId));
   assert.equal(res.status, 401);
@@ -237,7 +264,7 @@ test("media original route: a media id belonging to a different workspace 404s �
 test("media original route: a trashed asset responds 410 no-store, mirroring the public rendition route's gone mapping", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const mediaId = await uploadRawBytes(baseUrl, cookie, { filename: "goner.png", bytes: new Uint8Array([1, 2, 3]) });
+  const mediaId = await uploadRawBytes(baseUrl, cookie, { filename: "goner.png", bytes: PNG_BYTES });
 
   const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media/${mediaId}/trash`, {
     method: "POST",
@@ -271,7 +298,7 @@ test("media original route: an unknown workspace id in the URL 404s before any a
 test("media original route: an authenticated principal with zero grants is denied 403 naming media.read, before any media/blob lookup runs", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
-  const mediaId = await uploadRawBytes(baseUrl, ownerCookie, { filename: "gated.png", bytes: new Uint8Array([1, 2, 3]) });
+  const mediaId = await uploadRawBytes(baseUrl, ownerCookie, { filename: "gated.png", bytes: PNG_BYTES });
 
   await deps.identityReady;
   await deps.principalRepo.save({
