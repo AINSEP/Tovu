@@ -144,6 +144,7 @@ const EXPECTED_ALLOWLIST = [
   "publish_content_publish",
   "redirects_tombstone",
   "site_backup_push",
+  "sites_duplicate_site",
   "source_control_execute_commit",
   "supabase_set_access_token",
   "supabase_set_project_scope",
