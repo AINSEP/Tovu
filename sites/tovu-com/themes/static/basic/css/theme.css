@@ -106,15 +106,18 @@ p { margin: 0; color: var(--muted); }
    effect's `offset-top:` defaults to `var(--kui-pin-offset, 0px)`, which reads as "answer the
    header offset once via that token." That default genuinely exists in the vendored bundle
    (`stickyParams`, `kuinetic.all.js`) — but only for the sticky/pin effects (`pin-section`/
-   `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. The
-   scroll-spy effect this theme DOES use (`data-kui="scroll-spy ..."` on `.docs-layout`,
-   `posts-sidebar.html`) is a different code path (`prepareScrollSpyContainer`) whose own
-   `offset-top` param defaults to a literal `"0px"` and is parsed by a plain JS regex
-   (`toPixels()`/`NUMBER_WITH_UNIT`) that cannot read `var()`/`calc()` at all — a CSS custom
-   property can never reach it. That effect's `offset-top:70px` is therefore authored directly on
-   the `data-kui` attribute instead (see the comment there). If this theme ever adds a real pin/
-   sticky effect, reintroduce `--kui-pin-offset: calc(var(--header-h) + 1px)` here for it to pick
-   up automatically; until then it would be a var nothing reads. */
+   `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. `posts-
+   sidebar.html` used to drive its docs sidebar with kUInetic's container-form scroll-spy
+   (`data-kui="scroll-spy ..."` on `.docs-layout`) — a different code path
+   (`prepareScrollSpyContainer`) whose own `offset-top` param defaults to a literal `"0px"` and is
+   parsed by a plain JS regex (`toPixels()`/`NUMBER_WITH_UNIT`) that cannot read `var()`/`calc()` at
+   all, so that effect's `offset-top:70px` had to be authored directly on the `data-kui` attribute
+   instead of this token. Retired 2026-09-24 (docs IA restructure) in favor of `docs-toc.js`'s own
+   `IntersectionObserver`, which needs no `--kui-pin-offset`-shaped token at all (its own
+   `rootMargin` is authored directly in the script) — kept here as the reason this theme has never
+   defined `--kui-pin-offset`. If this theme ever adds a real pin/sticky effect, define
+   `--kui-pin-offset: calc(var(--header-h) + 1px)` here for it to pick up automatically; until then
+   it would be a var nothing reads. */
 :root {
   --header-h: 69px;
 }
@@ -684,31 +687,59 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 /* ---------------------------------------------------------------------------
-   Docs layout + sidebar menu (posts-sidebar.html)
+   Docs layout + sidebar/TOC/pager (posts-sidebar.html — the one docs template,
+   2026-09-24 docs IA restructure)
 
-   The .menu-list / .menu-item / is-current / is-active / has-children / depth-N
-   hooks are emitted by the engine's tree renderer (static-render.ts::renderMenuTree),
-   not authored here, so these rules work for ANY menu bound to a tree-variant
-   marker — that is the whole point of the sidebar being reusable.
+   Three grid areas (sidebar / content / toc) placed BY NAME, so the DOM can stay
+   in reading order (sidebar disclosure, TOC disclosure, article — see that
+   file's own comment) at every width instead of a source-order-dependent column
+   layout. `.docs-sidebar`'s `.menu-list`/`.menu-item`/`is-current`/`is-active`/
+   `has-children`/`depth-N` hooks are emitted by the engine's tree renderer
+   (static-render.ts::renderMenuTree) from the `docs-section` reserved marker —
+   these rules work for ANY tree-variant menu, not just this one. `.docs-toc`'s
+   `.toc-list`/`.toc-item` hooks are a DIFFERENT, smaller vocabulary: built
+   client-side by docs-toc.js from this page's own headings, not server-resolved,
+   and every entry is a real destination (no "section heading" treatment needed).
    --------------------------------------------------------------------------- */
 
 .docs-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 48px;
+  grid-template-columns: 220px minmax(0, 1fr) 200px;
+  grid-template-areas: "sidebar content toc";
+  gap: 40px;
   align-items: start;
   padding-top: 48px;
   padding-bottom: 96px;
 }
 
-.docs-sidebar {
+.docs-sidebar-toggle { grid-area: sidebar; }
+.docs-toc-toggle { grid-area: toc; }
+
+/* Desktop only (mobile re-enables the toggle below): both disclosures render as plain sticky
+   columns, not a collapsible control. Author CSS forcing a closed <details>'s content open is a
+   standard, supported override of the UA stylesheet — it does not touch the `open` attribute
+   itself, so mobile's native click-to-toggle (which DOES read `open`) is unaffected. */
+@media (min-width: 901px) {
+  .docs-sidebar-toggle > summary,
+  .docs-toc-toggle > summary {
+    display: none;
+  }
+  .docs-sidebar-toggle > *:not(summary),
+  .docs-toc-toggle > *:not(summary) {
+    display: block;
+  }
+}
+
+.docs-sidebar,
+.docs-toc {
   position: sticky;
   top: 88px;
   max-height: calc(100vh - 112px);
   overflow-y: auto;
 }
 
-/* The engine emits one <ul class="menu-list depth-0"> per tree; nested levels get depth-1, etc. */
+/* ---- sidebar (docs-section: groups + pages, server-resolved) ---- */
+
 .docs-nav .menu-list {
   list-style: none;
   margin: 0;
@@ -742,7 +773,7 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   background: var(--surface-2);
 }
 
-/* A top-level item with children is a section heading, not a destination. */
+/* A top-level item with children is a section heading (group), not a destination. */
 .docs-nav .menu-item.depth-0.has-children > a,
 .docs-nav .menu-item.depth-0.has-children > .menu-item-label {
   margin-top: 18px;
@@ -759,7 +790,7 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 }
 
 /* is-current = this exact item. is-active = this item or a descendant, which is what keeps the
-   surrounding section visibly open while you read one of its pages. */
+   surrounding group's header visually distinct while you read one of its pages. */
 .docs-nav .menu-item.is-current > a,
 .docs-nav .menu-item > a[aria-current="page"] {
   color: var(--accent-text);
@@ -769,18 +800,6 @@ pre .code-copy-btn.copied .icon-check { display: block; }
 
 .docs-nav .menu-item.is-active:not(.is-current) > a {
   color: var(--fg);
-}
-
-/* kUInetic scroll-spy (2026-08-31, `posts-sidebar.html`'s `data-kui="scroll-spy ..."`) sets
-   this attribute itself on both the in-view section and its paired sidebar link(s) — a boolean data
-   attribute, not a class (see this theme's NOTICE.md "Kuinetic vendored" section), so it needs its
-   own rule rather than reusing `.is-current` above, which the retired `docs-sidebar.js` toggled by a
-   different mechanism entirely. Same visual treatment as `.is-current` on purpose: one page reading
-   as "you are here," regardless of which of the two spies produced it. */
-.docs-nav .menu-item > a[data-kui-active="true"] {
-  color: var(--accent-text);
-  background: color-mix(in oklch, var(--accent) 12%, transparent);
-  font-weight: 500;
 }
 
 /* An unavailable branch renders as inert text so its children survive — dim it so it does not read
@@ -807,7 +826,70 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   vertical-align: -0.1em;
 }
 
+/* A section heading is a label, not a destination, so it takes the accent colour on its own rather
+   than the filled pill a real current page gets — the pill on an uppercase heading read as a
+   selected row and fought the content for attention. */
+.docs-nav .menu-item.depth-0.has-children.is-current > a,
+.docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
+  background: transparent;
+  color: var(--accent-text);
+}
+
+/* ---- "On this page" (docs-toc.js: built client-side from this page's own headings) ---- */
+
+.docs-toc-nav::before {
+  content: "On this page";
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg);
+  padding: 0 10px 10px;
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.toc-list.depth-1 {
+  margin: 2px 0 4px;
+  padding-left: 12px;
+}
+
+.toc-item {
+  margin: 0;
+}
+
+.toc-item > a {
+  display: block;
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  line-height: 1.4;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.toc-item > a:hover {
+  color: var(--fg);
+}
+
+.toc-item.is-current > a,
+.toc-item > a[aria-current="page"] {
+  color: var(--accent-text);
+  border-left-color: var(--accent-text);
+  font-weight: 500;
+}
+
+/* ---- content + prev/next pager ---- */
+
 .docs-content {
+  grid-area: content;
   min-width: 0;
 }
 
@@ -833,32 +915,122 @@ pre .code-copy-btn.copied .icon-check { display: block; }
   margin: 0;
 }
 
-/* A section heading is a label, not a destination, so it takes the accent colour on its own rather
-   than the filled pill a real current page gets — the pill on an uppercase heading read as a
-   selected row and fought the content for attention. */
-.docs-nav .menu-item.depth-0.has-children.is-current > a,
-.docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
-  background: transparent;
-  color: var(--accent-text);
-}
-
 .docs-content h2[id],
 .docs-content h3[id] {
   scroll-margin-top: 96px;
 }
 
+/* `docs-prev-next` resolves 0-2 items — empty on the Docs landing page, or a page with no
+   neighbour on one side. An empty pager bar (just the top border, nothing in it) reads as a
+   layout bug, so hide it outright rather than show a bar with nothing in it. */
+.docs-pager {
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.docs-pager:has(.menu-list:empty) {
+  display: none;
+}
+
+.docs-pager .menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 16px;
+}
+
+.docs-pager .menu-item {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* `flex-direction: column-reverse` puts the eyebrow (`menu-item-desc`, "Previous"/"Next") visually
+   ABOVE the page title even though the shared renderer always emits label-then-description in DOM
+   order (menuItemInnerHtml, static-render.ts) — reordering visually here avoids a renderer change
+   for one caller's own layout preference. */
+.docs-pager .menu-item a {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.docs-pager .menu-item a:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.docs-pager .menu-item-desc {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.docs-pager-next {
+  text-align: right;
+}
+
+.docs-pager-next a {
+  align-items: flex-end;
+}
+
+/* ---- mobile: both nav aids collapse to a disclosure above the title ---- */
+
 @media (max-width: 900px) {
   .docs-layout {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+    grid-template-areas: "sidebar" "toc" "content";
+    gap: 20px;
     padding-top: 32px;
   }
 
-  .docs-sidebar {
+  .docs-mobile-toggle {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0 16px;
+  }
+
+  .docs-mobile-summary {
+    padding: 14px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .docs-mobile-summary::-webkit-details-marker { display: none; }
+  .docs-mobile-summary::after { content: '+'; font-size: 18px; color: var(--muted); }
+  .docs-mobile-toggle[open] .docs-mobile-summary::after { content: '\2212'; }
+  .docs-mobile-toggle[open] .docs-mobile-summary { padding-bottom: 6px; }
+
+  .docs-sidebar,
+  .docs-toc {
     position: static;
     max-height: none;
     padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
+  }
+
+  .docs-toc-nav::before { padding-top: 0; }
+
+  /* "the disclosure only shows the current group" (docs IA proposal) — the full tree is one tap
+     away in the site's own nav drawer already (fe79cabce), so repeating it here is redundant. */
+  .docs-sidebar-toggle .menu-item.depth-0.has-children:not(.is-active) {
+    display: none;
   }
 }
 
