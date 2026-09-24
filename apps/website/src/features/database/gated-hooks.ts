@@ -50,7 +50,7 @@ export interface BuildMigrateForwardHooksInput {
   clock: ClockPort;
   idGen: IdGeneratorPort;
   dbOps: MigrateForwardDbOpsPort;
-  restorePointsRepo: { save(row: { restorePointId: string; idempotencyKey: string; trigger: string; createdAt: string; createdBy: string; costClass?: string; kind?: string; watermarkAtCapture?: number | null }): Promise<void> };
+  restorePointsRepo: { save(row: { restorePointId: string; idempotencyKey: string; trigger: string; createdAt: string; createdBy: string; costClass?: string; kind?: string; watermarkAtCapture?: number | null; artifactRef?: string }): Promise<void> };
   databaseLedgerRepo: LedgerAppendPort;
 }
 
@@ -105,6 +105,9 @@ export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput): 
       return { planHash: planHashOf(details), details };
     },
     executeMutation: async () => {
+      // Read fresh, not the `computePlan()` value — CIC U-003: a capability check cached across the
+      // plan/execute boundary can go stale, and the saved row must reflect what was ACTUALLY captured.
+      const capabilities = await input.dbOps.getCapabilities();
       const captured = await input.dbOps.captureRestorePoint({ scopeId: input.workspaceId });
       const restorePointId = input.idGen.newId();
       const now = input.clock.nowIso();
@@ -114,9 +117,10 @@ export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput): 
         trigger: "migrate-forward",
         createdAt: now,
         createdBy: input.actorId,
-        costClass: "cheap",
-        kind: "file-snapshot",
+        costClass: capabilities.restorePoint.costClass,
+        kind: capabilities.restorePoint.kind,
         watermarkAtCapture: captured.watermarkAtCapture,
+        artifactRef: captured.artifactRef,
       });
       await input.databaseLedgerRepo.append({
         id: input.idGen.newId(),
