@@ -576,12 +576,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const settlement = useSettlementGeneration();
 
   // Standing-draft autosave (2026-09-06) — see `use-standing-draft-autosave.hooks.ts`'s own header
-  // for the ordering guarantee `clearStandingDraft` relies on. `postId` (the URL param) is very
-  // often actually the post's SLUG, not its id (`Posts.tsx`'s row links build `/admin/posts/{slug}`)
-  // — same as `save()`'s own `port.updatePost({ id: postId }, ...)` just below, this relies on the
-  // server route resolving id-or-slug itself (`getAdminPostByIdOrSlug`, mirroring `posts/update.ts`)
-  // rather than waiting for `post.id` to load first.
-  const autosave = useStandingDraftAutosave({ port, entryId: postId, enabled: post !== null });
+  // for the ordering guarantee `clearStandingDraft` relies on. Keyed on the loaded row's real id, not
+  // `postId`: `postId` is the URL segment, usually the post's SLUG, and it names nothing once the
+  // operator renames the slug and saves — see `entryId` below.
+  const autosave = useStandingDraftAutosave({ port, entryId: post?.id ?? null, enabled: post !== null });
+  // What every write after load targets. `postId` resolves the row once, on load (the server accepts
+  // id or slug); after that the real id is the only handle that survives a slug rename. Before this,
+  // the second save after a rename — and every overwrite, autosave, and delete — 404'd on the old slug.
+  const entryId = post?.id ?? postId;
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
@@ -938,7 +940,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     try {
       const bodyJson = editor.getJSON() as Record<string, unknown>;
       const { post: saved } = await port.updatePost(
-        { id: postId },
+        { id: entryId },
         // `expectedVersion` is the optimistic-concurrency basis, not content — see
         // `post-editor-port.hooks.ts`. `undefined` (only reachable before `post` has loaded, when
         // there is no basis to claim) sends an unguarded save, exactly the pre-2026-09-06 behavior.
@@ -998,7 +1000,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    */
   async function saveOverwritingConflict(): Promise<void> {
     const attemptedStatus = saveConflict?.attemptedStatus;
-    const fresh = await port.getPost(postId).then(({ post: p }) => p, () => null);
+    const fresh = await port.getPost(entryId).then(({ post: p }) => p, () => null);
     if (!fresh) {
       setError("could not re-read the current version — your changes are still here, try again");
       return;
@@ -1044,7 +1046,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setError(null);
     setDeleting(true);
     try {
-      await port.deletePost(postId);
+      await port.deletePost(entryId);
       navigate(post.kind === "page" ? "/pages" : "/posts");
     } catch (e) {
       setError(e instanceof Error ? e.message : "delete failed");

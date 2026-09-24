@@ -716,6 +716,37 @@ describe("usePostEditor — save", () => {
   });
 });
 
+describe("usePostEditor — writes target the loaded row's id, not the route slug", () => {
+  // Since readable-slugs S6a the route segment is the post's SLUG. The server resolves a slug up
+  // front, so the first save happens to work — but once the operator renames the slug and saves,
+  // the route segment names nothing, and every later save, overwrite, autosave, and delete 404'd
+  // ("post '<old-slug>' was not found"). The fake resolves by id only, so it fails on the slug at once.
+  it("saves, autosaves, and deletes by post.id when the editor was opened by slug and the slug is renamed", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate, t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    act(() => result.current.setSlug("renamed-once"));
+    await act(async () => {
+      await result.current.save();
+    });
+    act(() => result.current.setSlug("renamed-twice"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(port.post.slug).toBe("renamed-twice");
+
+    await act(async () => {
+      await result.current.remove();
+    });
+    expect(result.current.error).toBeNull();
+    expect(navigate).toHaveBeenCalledWith("/posts");
+  });
+});
+
 describe("usePostEditor — delete", () => {
   it("removes a POST and navigates to /posts", async () => {
     const port = createFakePostEditorPort({ post: POST });
