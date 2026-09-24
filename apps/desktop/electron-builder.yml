@@ -111,7 +111,7 @@ npmRebuild: false
 # reads releases without a token. Only PUBLISHED releases are visible to the updater: a draft is not.
 publish:
   provider: github
-  owner: leonaburime-ucla
+  owner: AINSEP
   repo: Tovu
   releaseType: release
 

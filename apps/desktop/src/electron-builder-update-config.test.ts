@@ -25,7 +25,7 @@ interface BuilderConfig {
 const config = yaml.load(fs.readFileSync(path.join(DESKTOP_ROOT, "electron-builder.yml"), "utf8")) as BuilderConfig;
 
 test("the updater reads the public GitHub repo's published releases", () => {
-  assert.deepEqual(config.publish, { provider: "github", owner: "leonaburime-ucla", repo: "Tovu", releaseType: "release" });
+  assert.deepEqual(config.publish, { provider: "github", owner: "AINSEP", repo: "Tovu", releaseType: "release" });
 });
 
 test("macOS builds a zip (Squirrel.Mac installs only from a zip), named per arch like the dmg", () => {
