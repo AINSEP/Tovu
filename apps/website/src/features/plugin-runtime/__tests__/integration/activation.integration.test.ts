@@ -499,6 +499,85 @@ test("auto-quarantine end to end: repeated hook failures persist disabled metada
 });
 
 /**
+ * P0a (hooks v2 plan, 2026-09-23): before `attachEnabledPluginsAtBoot()` existed, nothing replayed
+ * `activationRepo`'s durable `enabled:true` rows into a freshly-constructed (empty)
+ * `hookRegistry` — the only thing that ever populated the registry was a live `onPluginEnabled`
+ * call, which only the enable HTTP/tool path invoked. So a plugin enabled in one process, once
+ * that process restarted, looked enabled everywhere (admin UI, `listAll()`) but its filter never
+ * fired again until an operator disabled and re-enabled it. This test builds a SECOND
+ * `composePluginRuntime` over the SAME durable `repo` (simulating a restart) and calls
+ * `beforeSaveHook` WITHOUT ever calling `onPluginEnabled` on the new instance — proving re-attach
+ * happens from durable state alone.
+ */
+test("P0a: a plugin enabled in a prior process is re-attached at boot, without any onPluginEnabled call, on process restart", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const source: PluginRuntimeSource = {
+    source: "built-in",
+    entryPath: "built-in:reattach-plugin",
+    manifest: {
+      id: "reattach-plugin",
+      name: "Reattach Plugin",
+      version: "1.0.0",
+      sdkRange: "^0.1.0",
+      engine: 1,
+      tier: "tier-3",
+      capabilities: ["hooks.attach"],
+      hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE],
+      fields: [{ path: "ext.reattach-plugin.seen", type: "boolean", queryable: false }],
+      integrity: {},
+    },
+    importModule: async () => ({
+      default: definePlugin({
+        setup(sdk) {
+          sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async () => ({ seen: true }));
+        },
+      }),
+    }),
+  };
+
+  // "Process 1": enable normally, through the real onPluginEnabled path.
+  const firstProcess = composePluginRuntime({
+    workspaceId: WORKSPACE,
+    clock: clock(),
+    activationRepo: repo,
+    sources: [source],
+  });
+  await firstProcess.onPluginEnabled("reattach-plugin");
+  await repo.save({
+    pluginId: "reattach-plugin",
+    workspaceId: WORKSPACE,
+    version: "1.0.0",
+    enabled: true,
+    updatedAt: "2026-09-23T00:00:00.000Z",
+  });
+
+  // "Process 2" (restart): a brand-new registry, same durable repo. No onPluginEnabled call here —
+  // only the boot fix should be able to make the filter fire.
+  const secondProcess = composePluginRuntime({
+    workspaceId: WORKSPACE,
+    clock: clock(),
+    activationRepo: repo,
+    sources: [source],
+  });
+  await secondProcess.attachEnabledPluginsAtBoot();
+
+  const entry = {
+    id: "entry-1",
+    workspaceId: WORKSPACE,
+    title: "Entry",
+    slug: "entry",
+    status: "draft" as const,
+    bodyJson: {},
+    ext: {},
+  };
+  assert.deepEqual(
+    await secondProcess.beforeSaveHook(entry),
+    { "reattach-plugin": { seen: true } },
+    "attachEnabledPluginsAtBoot must re-attach every durably-enabled plugin without a live onPluginEnabled call"
+  );
+});
+
+/**
  * REACHABILITY (Milestone 1 dispatch, 2026-08-20): before this slice, `composePluginRuntime` never
  * forwarded `installDir` to `discoverPluginRuntimePlugins()` — every real composition root
  * (`server/deps.ts`, `server/app.ts`) called it with `sources: [WORD_COUNT_RUNTIME_SOURCE]` and

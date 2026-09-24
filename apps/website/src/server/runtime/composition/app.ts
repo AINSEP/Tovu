@@ -1117,6 +1117,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
+    // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —
+    // mirrors `commentsReady`'s identical hermetic-vs-real split.
+    pluginRuntimeReady: Promise.resolve(),
     // 2026-08-15 — hermetic double for `server/deps.ts`'s real `SqliteDeploymentsReadRepo`. Empty
     // by default; a test that needs seeded rows constructs its own `InMemoryDeploymentsReadRepo`
     // and overrides this field, the same way other tests override a single `createRouteDeps()`

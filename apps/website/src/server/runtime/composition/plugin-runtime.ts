@@ -191,6 +191,17 @@ export interface PluginRuntimeBindings {
    * unsafe id/version or a directory that resolves outside its container. */
   readonly readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   readonly beforeSaveHook: HookRegistry["runBeforeSave"];
+  /**
+   * P0a fix (2026-09-23): re-runs `onPluginEnabled` for every plugin `activationRepo` durably
+   * marks `enabled` for THIS composition's `workspaceId`. Before this existed, nothing replayed
+   * that durable state into a freshly-constructed (empty) `hookRegistry` — a plugin enabled in a
+   * prior process looked enabled in the admin UI and in `listAll()`, but its filter/action/
+   * contribution never fired again until an operator disabled and re-enabled it. Best-effort: one
+   * plugin failing to re-attach (e.g. its package was removed from disk) is logged and skipped, not
+   * thrown, so it can never block the rest of boot (mirrors `seedBundledAgentPlugins`'s own
+   * per-package isolation).
+   */
+  readonly attachEnabledPluginsAtBoot: () => Promise<void>;
 }
 
 /**
@@ -295,6 +306,25 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     hookRegistry.detach(pluginId);
   }
 
+  async function attachEnabledPluginsAtBoot(): Promise<void> {
+    const records = await activationRepo.listAll();
+    const enabledHere = records.filter(
+      (record) => record.workspaceId === required.workspaceId && record.enabled
+    );
+    for (const record of enabledHere) {
+      try {
+        await onPluginEnabled(record.pluginId);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[plugin-runtime] boot re-attach failed for '${record.pluginId}': ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+  }
+
   async function locatePluginPackageDirs(pluginId: string): Promise<{
     liveParent: string;
     liveNames: readonly string[];
@@ -340,5 +370,6 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     locatePluginPackageDirs,
     readPluginPackageFiles,
     beforeSaveHook: (entry) => hookRegistry.runBeforeSave(entry),
+    attachEnabledPluginsAtBoot,
   };
 }

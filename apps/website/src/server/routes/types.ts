@@ -1375,6 +1375,12 @@ export interface PluginRuntimeDeps {
   readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /** Fire-and-forget at boot (mirrors `commentsReady`) — resolves once every plugin durably marked
+   * `enabled` has been re-attached to THIS process's hook registry (P0a fix: a fresh process starts
+   * with an empty in-memory registry, so a plugin enabled before a restart would otherwise silently
+   * stop firing until an operator re-toggled it). Await (or, for the real server, go through the
+   * ADR-046 Phase 2 boot lifecycle) before relying on a previously-enabled plugin's hook running. */
+  pluginRuntimeReady: Promise<void>;
 }
 
 /**

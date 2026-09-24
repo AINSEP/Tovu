@@ -843,6 +843,11 @@ export function createSqliteRouteDeps(
     installDir: pluginsInstallDir(),
     ...pluginFailureThresholdOverride(overrides),
   });
+  // P0a fix (2026-09-23) — fire-and-forget at boot, mirrors `commentsReady`/`newsletterReady`: a
+  // fresh process's `pluginRuntime.hookRegistry` starts empty, so without this, a plugin durably
+  // marked `enabled` before a restart would silently stop firing until an operator re-toggled it.
+  // `buildBootModules` awaits this (as `deps.pluginRuntimeReady`) before the server starts serving.
+  const pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
   const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen });
@@ -1900,6 +1905,7 @@ export function createSqliteRouteDeps(
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
+    pluginRuntimeReady,
     // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
     // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.
     deploymentsReadRepo: new SqliteDeploymentsReadRepo(db),
