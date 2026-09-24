@@ -519,7 +519,19 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    `data-embed-config` marker) reach the block's right edge instead of scrolling under it. Tokens
    only (`--surface`/`--border`/`--muted`/`--fg`/`--accent`) — no hard-coded colors — so the button
    reads correctly in both the dark default and `:root[data-theme="light"]` without its own
-   light/dark branch. */
+   light/dark branch.
+   `setupCodeCopyButtons` itself is unscoped too (`document.querySelectorAll('pre')`, every `pre` on
+   the page, by design — its own comment says docs articles AND post/page body both qualify), but the
+   `position: relative` that makes `.code-copy-btn`'s `position: absolute` stay pinned to its own
+   `pre` was only ever declared on the two known wrapper contexts above. `pages-default.html` injects
+   page body content straight into `.post-detail` — never `.post-detail-body` — so a page (e.g.
+   /install) with its own `<pre>` in custom body HTML got a `pre` with no positioned ancestor at all;
+   the button's `top/right` then resolved against the initial containing block and rendered pinned
+   near the top of the whole document, detached from the code block it belonged to. This rule closes
+   that gap generically, keyed off the same `has-copy-btn` marker class the script already stamps on
+   every `pre` it touches, so any current or future page body with a bare `<pre>` is covered without
+   relying on that page's own styles to remember `position: relative`. */
+pre.has-copy-btn { position: relative; }
 pre .code-copy-btn {
   position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
