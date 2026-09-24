@@ -17,8 +17,8 @@ import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceC
  * @file `tool-registrations.ts` wiring proof — modelled on `deployments/__tests__/
  * publish-agent-tools.unit.test.ts`'s own shape: the same MCP-UI held-open exchange mechanism, so
  * the same certification shape applies. `source_control_execute_commit`'s gate is exercised with a
- * FAKE `gitAdapter` (never real GitHub `fetch` — the real adapter lands in a follow-up commit, per
- * this dispatch's own checkpoint: gate first, network path after).
+ * FAKE `gitAdapter`; the one test that proves the real adapter is the default stubs `fetch` for
+ * `api.github.com` only.
  */
 
 const PRINCIPAL_ID = "principal-under-test";
@@ -510,17 +510,33 @@ test("confirm: a NETWORK_UNREACHABLE result is distinct from a PROVIDER_ERROR re
   assert.notEqual(unreachableResult.code, rejectedResult.code);
 });
 
-test("with no gitAdapter configured at all, a confirmed commit fails safe with an explicit wiring-bug message — never crashes, never silently succeeds", async () => {
-  const { deps } = fakeDeps(); // no gitAdapter override — production has none yet, per this file's header.
-  await seedGithubCredential(deps);
+// Regression (2026-09-24): production never passes `gitAdapter`, and the tool used to forward only an
+// injected one, so every confirmed commit answered "no GitHub commit adapter is configured — this is
+// a wiring bug". With no override, the confirmed call must reach the real GitHub adapter.
+test("with no gitAdapter override, a confirmed commit reaches the real GitHub adapter", async () => {
+  const { deps } = fakeDeps();
+  await seedGithubCredential(deps, "ghp_wiring_probe");
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const requested: { url: string; authorization: string | null }[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    // The export step crawls the local site over real HTTP first; only GitHub is intercepted.
+    if (!String(input).startsWith("https://api.github.com/")) return originalFetch(input, init);
+    requested.push({ url: String(input), authorization: new Headers(init?.headers).get("authorization") });
+    return new Response(JSON.stringify({ message: "Not Found" }), { status: 404, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
+    surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
 
-  const result = (await pending) as { committed: boolean; code: string; message: string };
-  assert.equal(result.committed, false);
-  assert.equal(result.code, "PROVIDER_ERROR");
-  assert.match(result.message, /wiring bug/);
+    const result = (await pending) as { committed: boolean; code: string; message: string };
+    assert.equal(result.committed, false);
+    assert.equal(result.code, "REPOSITORY_NOT_FOUND");
+    assert.equal(result.message, "no repository 'octo/demo' is reachable with this token — it may not exist, or the token cannot see it");
+    assert.deepEqual(requested, [{ url: "https://api.github.com/repos/octo/demo", authorization: "Bearer ghp_wiring_probe" }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

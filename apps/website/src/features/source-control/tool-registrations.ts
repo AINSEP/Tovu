@@ -22,6 +22,7 @@ import type { SecretSealerPort } from "../webhooks/index.js";
 import { resolveConfirmationDecision, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter, type SourceControlCommitOutcome } from "./commit-site.js";
+import { createGitHubCommitAdapter } from "./github-git-provider.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
@@ -59,13 +60,10 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  *   touch would require decrypting the credential before a human has agreed to anything, which no
  *   MCP-UI-gated write tool in this codebase does.
  *
- * `gitAdapter` (`SourceControlToolDeps`) has NO production default yet — this dispatch's checkpoint is
- * "the gate works" before "the real GitHub network path is wired" (`github-git-provider.ts`, a
- * follow-up commit). Until that lands, a confirmed commit call fails safe with an explicit
- * `PROVIDER_ERROR` ("no GitHub commit adapter is configured — this is a wiring bug") rather than
- * crashing or silently no-op'ing — see `commit-site.ts`'s own guard for that branch. This is reachable
- * only if a real github credential exists, and none does in this environment yet (`source_control_credential_sets`
- * is empty — the owner will save a real PAT through the admin UI).
+ * `gitAdapter` (`SourceControlToolDeps`) defaults to the real GitHub adapter (`github-git-provider.ts`)
+ * when a caller does not inject one; tests inject a fake. Until 2026-09-24 there was no default and
+ * no production caller passed one, so every confirmed commit failed with `commit-site.ts`'s
+ * "no GitHub commit adapter is configured — this is a wiring bug".
  *
  * Architectural role:
  * `features/source-control` domain logic (agent-tool layer). No dependency on
@@ -195,8 +193,8 @@ export interface SourceControlToolDeps {
   /** See `commit-site.ts`'s `ExportSiteBoundFn` doc for what this is and why it replaces the
    *  `routeDeps: RouteDeps` field `commitSiteToSourceControl`'s input used to carry. */
   readonly exportSiteBound: ExportSiteBoundFn;
-  /** The real GitHub Git Data API adapter when set (`github-git-provider.ts`, wired in a follow-up
-   *  commit — see this file's header). Tests inject a fake here; production has no default yet. */
+  /** Overrides the real GitHub Git Data API adapter (`github-git-provider.ts`), which is the default
+   *  when this is omitted. Tests inject a fake here. */
   readonly gitAdapter?: GitHubCommitAdapter;
 }
 
@@ -456,7 +454,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
         if (!decision.confirmed) return decision.result;
 
         const outcome = await commitSiteToSourceControl(
-          { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, ...(deps.gitAdapter ? { gitAdapter: deps.gitAdapter } : {}) },
+          { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: deps.gitAdapter ?? createGitHubCommitAdapter() },
           {
             workspaceId: deps.workspaceId,
             sourceControlExportRootDir: deps.sourceControlExportRootDir,
