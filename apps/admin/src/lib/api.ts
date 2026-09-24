@@ -2436,6 +2436,11 @@ export const api = {
     }),
   me: () =>
     request<{ user: AdminUser; effectivePermissions?: string[] }>("/auth/me"),
+  /** Password-banner plan (2026-09-24), Slice 2: whether the SIGNED-IN caller's own stored
+   *  credential still verifies against the default. Separate from `me()` since only the dashboard
+   *  needs it and the server-side check costs a real argon2id verify. */
+  getPasswordStatus: () =>
+    request<{ usesDefaultPassword: boolean }>("/auth/me/password-status"),
   listPosts: () =>
     request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/posts`),
   createPost: (title: string) =>

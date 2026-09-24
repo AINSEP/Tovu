@@ -15,6 +15,7 @@ import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { redeemBootSessionToken } from "#src/features/identity/boot-session-token";
+import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 
 /**
  * @file Real session auth for the admin origin (ADR-021 / SPEC-006).
@@ -533,5 +534,29 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
       user: { id: principal.id, username: userRow?.username ?? principal.displayName },
       effectivePermissions,
     });
+  });
+
+  // Password-banner plan (2026-09-24), Slice 2: tells the DASHBOARD (not deployment-overview,
+  // which is owner-only and `system.read`-gated) whether the SIGNED-IN CALLER's own stored
+  // credential still verifies against `DEFAULT_OWNER_PASSWORD`. No extra permission is needed —
+  // it's a check against your own row, so it can't be used to probe anyone else's password.
+  // Deliberately a separate route from `/auth/me` rather than a field on it: that route runs on
+  // every admin boot, and only the dashboard needs the ~tens-of-ms argon2id verify this adds.
+  app.get("/api/admin/v1/auth/me/password-status", async (req, res) => {
+    const principal = await currentPrincipal(deps, req);
+    if (!principal) {
+      res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
+      return;
+    }
+
+    const userRow = await deps.userRepo.findByPrincipalId({
+      workspaceId: deps.workspaceId,
+      principalId: principal.id,
+    });
+    const usesDefaultPassword = userRow
+      ? await deps.passwordHasher.verify(userRow.passwordHash, DEFAULT_OWNER_PASSWORD)
+      : false;
+
+    res.json({ usesDefaultPassword });
   });
 }
