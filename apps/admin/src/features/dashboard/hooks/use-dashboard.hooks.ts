@@ -1,12 +1,40 @@
 import { useEffect, useState } from "react";
 
 import { describeApiError, type AdminPost } from "@/lib/api";
-import { mergeRecent } from "../rules";
+import { mergeRecent, shouldShowDefaultPasswordBanner } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
 import type { DashboardPort } from "./dashboard-port.hooks";
+
+/** Password-banner plan (2026-09-24), Slice 3 — per-browser dismiss for the default-password nag.
+ *  Namespaced under `tovu.admin.` like `standing-draft-local-backup.ts`'s own keys, so it can never
+ *  collide with an unrelated app key. */
+const DEFAULT_PASSWORD_BANNER_DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
+
+/** Best-effort read — `localStorage` throws outright in some privacy modes (same caveat
+ *  `standing-draft-local-backup.ts`'s header documents at length). A read that fails just shows the
+ *  banner again, which is harmless: it is advisory and its truth is recomputed from the server on
+ *  every load (see `rules.ts`'s `shouldShowDefaultPasswordBanner`).
+ *  @complexity Time/space: O(1). */
+function readDefaultPasswordBannerDismissed(): boolean {
+  try {
+    return localStorage.getItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Best-effort write — silent no-op on any storage failure, for the same reason the read above is.
+ *  @complexity Time/space: O(1). */
+function writeDefaultPasswordBannerDismissed(): void {
+  try {
+    localStorage.setItem(DEFAULT_PASSWORD_BANNER_DISMISSED_KEY, "1");
+  } catch {
+    // best-effort; see this file's header note on the Dismiss control.
+  }
+}
 
 /**
  * @file Everything the Dashboard screen loads, so `Dashboard.tsx` is only markup.
@@ -82,6 +110,13 @@ export interface DashboardController {
   isPublishDialogOpen: boolean;
   openPublishDialog: () => void;
   closePublishDialog: () => void;
+
+  /** Password-banner plan (2026-09-24), Slice 3 — whether the default-password nag should render.
+   *  `rules.ts`'s `shouldShowDefaultPasswordBanner`, applied to this hook's own fetched status and
+   *  dismissed flag. */
+  showDefaultPasswordBanner: boolean;
+  /** Hides the banner for this browser and persists that choice (best-effort). */
+  dismissDefaultPasswordBanner: () => void;
 }
 
 export interface DashboardDependencies {
@@ -111,6 +146,12 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   const [themeError, setThemeError] = useState<string | null>(null);
   const [recent, setRecent] = useState<AdminPost[] | null>(null);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  // `null` until the status fetch settles (or forever, if it fails — swallowed below since the
+  // banner is advisory) — `shouldShowDefaultPasswordBanner` treats `null` as "don't show", the same
+  // fail-closed default a security nag should have.
+  const [usesDefaultPassword, setUsesDefaultPassword] = useState<boolean | null>(null);
+  // Lazy initializer: read once, at mount, not on every render.
+  const [dismissed, setDismissed] = useState<boolean>(readDefaultPasswordBannerDismissed);
 
   // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
   // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
@@ -153,6 +194,11 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
       .getPresentation()
       .then((r) => setThemeId(r.settings.activeThemeId))
       .catch((e) => setThemeError(describeApiError(e, translate(locale, "failed to load the active theme"))));
+
+    // No `.catch()` sets an error state here — a failed status read means no banner (see this
+    // file's `usesDefaultPassword` declaration), not a card showing an em-dash. It's advisory, not
+    // a stat the operator came to this screen to see.
+    port.getPasswordStatus().then((r) => setUsesDefaultPassword(r.usesDefaultPassword)).catch(() => {});
   }, []);
 
   return {
@@ -169,6 +215,12 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
     isPublishDialogOpen,
     openPublishDialog: () => setIsPublishDialogOpen(true),
     closePublishDialog: () => setIsPublishDialogOpen(false),
+
+    showDefaultPasswordBanner: shouldShowDefaultPasswordBanner(usesDefaultPassword, dismissed),
+    dismissDefaultPasswordBanner: () => {
+      writeDefaultPasswordBannerDismissed();
+      setDismissed(true);
+    },
   };
 }
 

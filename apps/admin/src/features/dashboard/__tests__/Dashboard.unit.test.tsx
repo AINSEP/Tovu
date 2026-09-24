@@ -93,6 +93,9 @@ function successRoutes(): Record<string, () => Promise<Response>> {
     "/media": () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)),
     "/comments/queue": () => Promise.resolve(jsonResponse(COMMENTS_RESPONSE)),
     "/presentation": () => Promise.resolve(jsonResponse(PRESENTATION_RESPONSE)),
+    // Default false so every pre-existing test in this file (none of which are about the
+    // password-banner plan) keeps rendering with no banner, unchanged.
+    "password-status": () => Promise.resolve(jsonResponse({ usesDefaultPassword: false })),
   };
 }
 
@@ -361,5 +364,21 @@ describe("the activity panel's merge is correct regardless of which of posts/pag
     resolvePages(jsonResponse(PAGES_RESPONSE));
 
     await waitFor(() => expect(activityTitles(container)).toEqual(MERGED_TITLES));
+  });
+});
+
+describe("default-password banner (password-banner plan, 2026-09-24, Slice 3)", () => {
+  afterEach(() => {
+    localStorage.removeItem("tovu.admin.default-password-banner.dismissed");
+  });
+
+  it("the Change password link's href is the /admin/users/change-password deep link", async () => {
+    fetchMock.mockImplementation(
+      routeFetch({ ...successRoutes(), "password-status": () => Promise.resolve(jsonResponse({ usesDefaultPassword: true })) }),
+    );
+    render(<Dashboard />);
+
+    const link = await screen.findByRole("link", { name: "Change password" });
+    expect(link).toHaveAttribute("href", "/admin/users/change-password");
   });
 });

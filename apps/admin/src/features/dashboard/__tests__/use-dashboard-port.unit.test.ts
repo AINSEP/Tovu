@@ -1,9 +1,11 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useDashboard } from "../hooks/use-dashboard.hooks";
 import { createFakeDashboardPort } from "../hooks/dashboard-dependencies.hooks";
 import type { AdminPost } from "@/lib/api";
+
+const DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
 
 /**
  * @file `useDashboard`'s injected-port seam (2026-08-14, closes the port-conversion gap
@@ -85,5 +87,61 @@ describe("useDashboard — injected port", () => {
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t }));
 
     expect(result.current.t("Dashboard")).toBe("[Dashboard]");
+  });
+});
+
+describe("useDashboard — default-password banner (password-banner plan, 2026-09-24, Slice 3)", () => {
+  afterEach(() => {
+    localStorage.removeItem(DISMISSED_KEY);
+  });
+
+  it("shows once the port reports usesDefaultPassword: true", async () => {
+    const port = createFakeDashboardPort({ usesDefaultPassword: true });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
+  });
+
+  it("hides after dismiss, and persists the dismissal to localStorage", async () => {
+    const port = createFakeDashboardPort({ usesDefaultPassword: true });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+    await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
+
+    result.current.dismissDefaultPasswordBanner();
+
+    await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(false));
+    expect(localStorage.getItem(DISMISSED_KEY)).toBe("1");
+  });
+
+  it("stays hidden on a fresh mount when the dismiss key is already set", async () => {
+    localStorage.setItem(DISMISSED_KEY, "1");
+    const port = createFakeDashboardPort({ usesDefaultPassword: true });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeId).not.toBeNull());
+    expect(result.current.showDefaultPasswordBanner).toBe(false);
+  });
+
+  it("stays hidden when the status fetch rejects — advisory, swallowed, no error state", async () => {
+    const port = createFakeDashboardPort({ getPasswordStatusError: new Error("boom") });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeId).not.toBeNull());
+    expect(result.current.showDefaultPasswordBanner).toBe(false);
+  });
+
+  it("still renders when localStorage throws on read", async () => {
+    const realGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = () => {
+      throw new Error("storage disabled");
+    };
+    try {
+      const port = createFakeDashboardPort({ usesDefaultPassword: true });
+      const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+      await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
+    } finally {
+      Storage.prototype.getItem = realGetItem;
+    }
   });
 });

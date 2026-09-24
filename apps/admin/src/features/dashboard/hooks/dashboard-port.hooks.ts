@@ -24,4 +24,9 @@ export interface DashboardPort {
   listMedia(): Promise<{ media: Array<{ status: string }> }>;
   listCommentsQueue(options: { status: "pending" }): Promise<{ items: unknown[] }>;
   getPresentation(): Promise<{ settings: { activeThemeId: string } }>;
+  /** Password-banner plan (2026-09-24), Slice 3 — whether the SIGNED-IN caller's own stored
+   *  credential still verifies against the default password (`GET /auth/me/password-status`,
+   *  Slice 2). A sixth independent read, same "each source owns its own error slot" shape the rest
+   *  of this port already documents above. */
+  getPasswordStatus(): Promise<{ usesDefaultPassword: boolean }>;
 }

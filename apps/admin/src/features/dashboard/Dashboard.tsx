@@ -1,5 +1,6 @@
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
+import { adminHref } from "../../lib/router";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
 import { agentHandle } from "@jini-ai/agentic";
@@ -114,6 +115,34 @@ function AppearanceBody(props: { themeError: string | null; themeId: string | nu
   );
 }
 
+/** The default-password nag — password-banner plan (2026-09-24), Slice 3. `.notice.warning` is this
+ *  admin's current dismissable-nag idiom (`Sites.tsx`'s `SiteDirOverrideNotice`, `Themes.tsx`'s
+ *  missing-theme notice, etc. — grepped live for this pass, since `.notice.error`/`.notice.warning`
+ *  is the still-current full-border variant, not the retired left-accent one `styles.css:1187-1189`
+ *  documents). `role="status"`: this renders on load rather than in response to an action, matching
+ *  `SiteDirOverrideNotice`'s own `agentHandle` role. */
+function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Translate }) {
+  return (
+    <div className="notice warning dash-password-banner" {...agentHandle("dashboard-password-banner", { role: "status", label: "Nag that the account is still on the default password" })}>
+      <p>{t("It is recommended to change your password before deploying")}</p>
+      <a
+        href={adminHref("/users/change-password")}
+        {...agentHandle("dashboard-password-banner-change", { role: "link", label: "Go change your own password" })}
+      >
+        {t("Change password")}
+      </a>{" "}
+      <button
+        type="button"
+        className="btn-ghost"
+        onClick={onDismiss}
+        {...agentHandle("dashboard-password-banner-dismiss", { role: "button", label: "Dismiss this nag for this browser" })}
+      >
+        {t("Dismiss")}
+      </button>
+    </div>
+  );
+}
+
 export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardProps = {}) {
   const {
     posts,
@@ -129,6 +158,8 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
     isPublishDialogOpen,
     openPublishDialog,
     closePublishDialog,
+    showDefaultPasswordBanner,
+    dismissDefaultPasswordBanner,
   } = useDashboardHook();
 
   return (
@@ -173,6 +204,8 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
         // Dashboard's to own, since it owns `isPublishDialogOpen`.
         <PublishContentDialog onCancel={closePublishDialog} t={t} />
       ) : null}
+
+      {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 
       <div className="dash-stats">
         <Stat

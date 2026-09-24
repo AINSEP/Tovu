@@ -64,3 +64,18 @@ export function pagesStatMeta(drafts: number | null, t: Translate): string {
 export function commentsStatMeta(pendingCount: number | null, t: Translate): string {
   return t(pendingCount === 0 ? "nothing to review" : "awaiting moderation");
 }
+
+/**
+ * Password-banner plan (2026-09-24), Slice 3. Whether the dashboard should show the default-
+ * password nag banner: the server says the caller is still on the default AND the operator hasn't
+ * dismissed it in this browser. `usesDefault === null` (status still loading, or the fetch failed
+ * and was swallowed — see `use-dashboard.hooks.ts`) reads as "don't show", the same fail-closed
+ * default an advisory nag should have: a transient fetch error must never be read as "you're on the
+ * default password" and a transient one must never be read as "you're safe" either, so the only
+ * state that shows the banner is an explicit, confirmed `true`.
+ *
+ * @complexity O(1).
+ */
+export function shouldShowDefaultPasswordBanner(usesDefault: boolean | null, dismissed: boolean): boolean {
+  return usesDefault === true && !dismissed;
+}

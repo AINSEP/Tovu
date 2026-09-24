@@ -48,6 +48,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} borradores",
     "nothing to review": "nada que revisar",
     "awaiting moderation": "esperando moderación",
+    "It is recommended to change your password before deploying": "Se recomienda cambiar tu contraseña antes de desplegar",
+    "Change password": "Cambiar contraseña",
+    Dismiss: "Descartar",
   },
   id: {
     Overview: "Ringkasan",
@@ -81,6 +84,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} draf",
     "nothing to review": "tidak ada yang perlu ditinjau",
     "awaiting moderation": "menunggu moderasi",
+    "It is recommended to change your password before deploying": "Sebaiknya ganti kata sandi Anda sebelum melakukan deployment",
+    "Change password": "Ganti kata sandi",
+    Dismiss: "Tutup",
   },
   de: {
     Overview: "Übersicht",
@@ -114,6 +120,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} Entwürfe",
     "nothing to review": "nichts zu überprüfen",
     "awaiting moderation": "wartet auf Moderation",
+    "It is recommended to change your password before deploying": "Es wird empfohlen, Ihr Passwort vor dem Deployment zu ändern",
+    "Change password": "Passwort ändern",
+    Dismiss: "Verwerfen",
   },
   "zh-CN": {
     Overview: "概览",
@@ -147,6 +156,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} 篇草稿",
     "nothing to review": "没有需要审核的内容",
     "awaiting moderation": "等待审核",
+    "It is recommended to change your password before deploying": "建议在部署之前更改您的密码",
+    "Change password": "更改密码",
+    Dismiss: "关闭",
   },
   "zh-TW": {
     Overview: "總覽",
@@ -180,6 +192,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} 篇草稿",
     "nothing to review": "沒有需要審核的內容",
     "awaiting moderation": "等待審核",
+    "It is recommended to change your password before deploying": "建議在部署之前變更您的密碼",
+    "Change password": "變更密碼",
+    Dismiss: "關閉",
   },
   "pt-BR": {
     Overview: "Visão geral",
@@ -213,6 +228,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} rascunhos",
     "nothing to review": "nada para revisar",
     "awaiting moderation": "aguardando moderação",
+    "It is recommended to change your password before deploying": "Recomendamos alterar sua senha antes de fazer o deploy",
+    "Change password": "Alterar senha",
+    Dismiss: "Dispensar",
   },
   ru: {
     Overview: "Обзор",
@@ -246,6 +264,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} черновиков",
     "nothing to review": "нечего проверять",
     "awaiting moderation": "ожидает модерации",
+    "It is recommended to change your password before deploying": "Рекомендуется сменить пароль перед развёртыванием",
+    "Change password": "Изменить пароль",
+    Dismiss: "Скрыть",
   },
   fa: {
     Overview: "نمای کلی",
@@ -279,6 +300,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} پیش‌نویس",
     "nothing to review": "چیزی برای بررسی نیست",
     "awaiting moderation": "در انتظار بررسی",
+    "It is recommended to change your password before deploying": "توصیه می‌شود پیش از استقرار، رمز عبور خود را تغییر دهید",
+    "Change password": "تغییر رمز عبور",
+    Dismiss: "نادیده گرفتن",
   },
   ar: {
     Overview: "نظرة عامة",
@@ -312,6 +336,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} مسودات",
     "nothing to review": "لا شيء للمراجعة",
     "awaiting moderation": "بانتظار المراجعة",
+    "It is recommended to change your password before deploying": "يُوصى بتغيير كلمة المرور قبل النشر",
+    "Change password": "تغيير كلمة المرور",
+    Dismiss: "تجاهل",
   },
   ja: {
     Overview: "概要",
@@ -345,6 +372,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} 件の下書き",
     "nothing to review": "確認が必要な項目はありません",
     "awaiting moderation": "承認待ち",
+    "It is recommended to change your password before deploying": "デプロイする前にパスワードを変更することをお勧めします",
+    "Change password": "パスワードを変更",
+    Dismiss: "閉じる",
   },
   ko: {
     Overview: "개요",
@@ -378,6 +408,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count}개의 임시글",
     "nothing to review": "검토할 항목 없음",
     "awaiting moderation": "승인 대기 중",
+    "It is recommended to change your password before deploying": "배포하기 전에 비밀번호를 변경하는 것이 좋습니다",
+    "Change password": "비밀번호 변경",
+    Dismiss: "닫기",
   },
   pl: {
     Overview: "Przegląd",
@@ -411,6 +444,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} szkiców",
     "nothing to review": "nic do sprawdzenia",
     "awaiting moderation": "oczekuje na moderację",
+    "It is recommended to change your password before deploying": "Zaleca się zmianę hasła przed wdrożeniem",
+    "Change password": "Zmień hasło",
+    Dismiss: "Odrzuć",
   },
   hu: {
     Overview: "Áttekintés",
@@ -444,6 +480,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} piszkozat",
     "nothing to review": "nincs mit ellenőrizni",
     "awaiting moderation": "moderálásra vár",
+    "It is recommended to change your password before deploying": "Javasoljuk, hogy a telepítés előtt változtassa meg a jelszavát",
+    "Change password": "Jelszó módosítása",
+    Dismiss: "Elvetés",
   },
   fr: {
     Overview: "Vue d'ensemble",
@@ -477,6 +516,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} brouillons",
     "nothing to review": "rien à examiner",
     "awaiting moderation": "en attente de modération",
+    "It is recommended to change your password before deploying": "Il est recommandé de changer votre mot de passe avant le déploiement",
+    "Change password": "Changer le mot de passe",
+    Dismiss: "Ignorer",
   },
   uk: {
     Overview: "Огляд",
@@ -510,6 +552,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} чернеток",
     "nothing to review": "нічого перевіряти",
     "awaiting moderation": "очікує модерації",
+    "It is recommended to change your password before deploying": "Рекомендується змінити пароль перед розгортанням",
+    "Change password": "Змінити пароль",
+    Dismiss: "Приховати",
   },
   tr: {
     Overview: "Genel Bakış",
@@ -543,6 +588,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} taslak",
     "nothing to review": "incelenecek bir şey yok",
     "awaiting moderation": "onay bekliyor",
+    "It is recommended to change your password before deploying": "Dağıtımdan önce parolanızı değiştirmeniz önerilir",
+    "Change password": "Parolayı değiştir",
+    Dismiss: "Kapat",
   },
   th: {
     Overview: "ภาพรวม",
@@ -576,6 +624,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} ฉบับร่าง",
     "nothing to review": "ไม่มีสิ่งที่ต้องตรวจสอบ",
     "awaiting moderation": "รอการตรวจสอบ",
+    "It is recommended to change your password before deploying": "ขอแนะนำให้เปลี่ยนรหัสผ่านของคุณก่อนดีพลอย",
+    "Change password": "เปลี่ยนรหัสผ่าน",
+    Dismiss: "ปิด",
   },
   it: {
     Overview: "Panoramica",
@@ -609,6 +660,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} bozze",
     "nothing to review": "niente da controllare",
     "awaiting moderation": "in attesa di moderazione",
+    "It is recommended to change your password before deploying": "Si consiglia di cambiare la password prima della distribuzione",
+    "Change password": "Cambia password",
+    Dismiss: "Ignora",
   },
   hi: {
     Overview: "अवलोकन",
@@ -642,6 +696,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} ड्राफ़्ट",
     "nothing to review": "समीक्षा के लिए कुछ नहीं",
     "awaiting moderation": "मॉडरेशन की प्रतीक्षा में",
+    "It is recommended to change your password before deploying": "डिप्लॉय करने से पहले अपना पासवर्ड बदलने की सलाह दी जाती है",
+    "Change password": "पासवर्ड बदलें",
+    Dismiss: "खारिज करें",
   },
   ur: {
     Overview: "جائزہ",
@@ -675,6 +732,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} ڈرافٹ",
     "nothing to review": "جائزے کے لیے کچھ نہیں",
     "awaiting moderation": "منظوری کے منتظر",
+    "It is recommended to change your password before deploying": "ڈیپلائے کرنے سے پہلے اپنا پاس ورڈ تبدیل کرنے کی سفارش کی جاتی ہے",
+    "Change password": "پاس ورڈ تبدیل کریں",
+    Dismiss: "مسترد کریں",
   },
   bn: {
     Overview: "সংক্ষিপ্ত বিবরণ",
@@ -708,6 +768,9 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} খসড়া",
     "nothing to review": "পর্যালোচনার জন্য কিছু নেই",
     "awaiting moderation": "মডারেশনের অপেক্ষায়",
+    "It is recommended to change your password before deploying": "ডিপ্লয় করার আগে আপনার পাসওয়ার্ড পরিবর্তন করার পরামর্শ দেওয়া হচ্ছে",
+    "Change password": "পাসওয়ার্ড পরিবর্তন করুন",
+    Dismiss: "খারিজ করুন",
   },
 };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { commentsStatMeta, pagesStatMeta, postsStatMeta } from "../rules";
+import { commentsStatMeta, pagesStatMeta, postsStatMeta, shouldShowDefaultPasswordBanner } from "../rules";
 
 /**
  * @file Direct coverage for the stat-card meta formatters extracted out of `Dashboard`'s own body
@@ -52,5 +52,23 @@ describe("commentsStatMeta", () => {
 
   it("reads 'awaiting moderation' while still pending (null) — preserved, not fixed, by this extraction", () => {
     expect(commentsStatMeta(null, identityT)).toBe("awaiting moderation");
+  });
+});
+
+describe("shouldShowDefaultPasswordBanner", () => {
+  it("shows when the caller is on the default and hasn't dismissed", () => {
+    expect(shouldShowDefaultPasswordBanner(true, false)).toBe(true);
+  });
+
+  it("hides once dismissed, even if still on the default", () => {
+    expect(shouldShowDefaultPasswordBanner(true, true)).toBe(false);
+  });
+
+  it("hides when the caller is not on the default", () => {
+    expect(shouldShowDefaultPasswordBanner(false, false)).toBe(false);
+  });
+
+  it("hides while the status is unknown (null) — fail closed, not open", () => {
+    expect(shouldShowDefaultPasswordBanner(null, false)).toBe(false);
   });
 });
