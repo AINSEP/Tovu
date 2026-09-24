@@ -4,6 +4,7 @@ import { describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } fro
 import { buildDraftPlacement, movePlacement, resolveWidgetRegionSaveError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../widgets-i18n";
+import { interpolate } from "@/lib/template-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
@@ -146,7 +147,7 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
       stale = loadRequestIdRef.current !== requestId;
       if (stale) return;
       setArea(saved);
-      setMessage(`Saved · version ${saved.version}`);
+      setMessage(interpolate(translate(locale, "Saved · version {version}"), { version: saved.version }));
       load();
     } catch (e) {
       stale = loadRequestIdRef.current !== requestId;

@@ -6,6 +6,7 @@ import { defaultWidgetConfig } from "@/components/WidgetConfigFields/WidgetConfi
 import { resolveEditorWidgetType, resolveWidgetSaveError, widgetSlugRedirectPath } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../widgets-i18n";
+import { interpolate } from "@/lib/template-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
 import type { WidgetsPort } from "./widgets-port.hooks";
@@ -198,7 +199,7 @@ export function useWidgetInstanceEditor(
       setWidget(saved);
       setTitle(saved.title);
       setConfig(saved.config);
-      setMessage(`Saved · version ${saved.version}`);
+      setMessage(interpolate(translate(locale, "Saved · version {version}"), { version: saved.version }));
     } catch (e) {
       if (activeEntityRef.current !== savingForEntity) return;
       const outcome = resolveWidgetSaveError(e, locale, staleVersionMessage);

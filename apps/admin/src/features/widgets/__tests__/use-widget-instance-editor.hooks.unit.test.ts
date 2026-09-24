@@ -360,6 +360,20 @@ describe("save — update (existing widget)", () => {
  * spy, no `vi.mock("../../../lib/router")` — so a real network/router touch has nothing to land on.
  */
 describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)", () => {
+  it("translates the post-save 'Saved · version N' notice into the operator's locale", async () => {
+    const port = createFakeWidgetsPort({ widgets: [EXISTING_WIDGET] });
+    const { result } = renderHook(() =>
+      useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }, { port, locale: "de", navigate: vi.fn(), t: (key: string) => key })
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.message).toBe("Gespeichert · Version 3");
+  });
+
   it("loads from the injected port and never touches the real api client", async () => {
     const getWidgetSpy = vi.spyOn(api, "getWidget");
     const port = createFakeWidgetsPort({ widgets: [EXISTING_WIDGET] });

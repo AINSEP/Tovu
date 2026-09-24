@@ -46,6 +46,18 @@ describe("useWidgetRegionEditor — injected port (no fetch stub, no api spy)", 
     expect(mutateSpy).not.toHaveBeenCalled();
   });
 
+  it("translates the post-save 'Saved · version N' notice into the operator's locale", async () => {
+    const port = createFakeWidgetRegionsPort({ areas: { footer: { area: AREA, placements: [PLACEMENT] } } });
+    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "de", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.message).toBe("Gespeichert · Version 2");
+  });
+
   /**
    * Negative verification (per this refactor's own required check): temporarily replacing
    * `port.getWidgetRegion(...)`/`port.mutateWidgetRegionPlacements(...)` in
