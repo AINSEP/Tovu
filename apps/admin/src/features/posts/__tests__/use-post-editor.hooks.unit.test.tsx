@@ -167,6 +167,32 @@ describe("usePostEditor — load", () => {
   });
 });
 
+// readable-slugs S6a (2026-09-23): an old id-based bookmark quietly catches up to the slug URL, same
+// `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule `use-widget-instance-editor.hooks.ts` and
+// `use-page-editor.hooks.ts` already apply. Posts have no root-slug exception (that's a Pages-only
+// concept — every post's slug is always a real path segment), so this is the plain case.
+describe("usePostEditor — slug redirect on load", () => {
+  const POST_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+
+  it("replace-navigates to the slug URL when postId is the post's raw (UUID-shaped) id", async () => {
+    const port = createFakePostEditorPort({ post: { ...POST, id: POST_UUID, slug: "hello-world" } });
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor(POST_UUID, { port, navigate, t: fakeT }));
+
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    expect(navigate).toHaveBeenCalledWith("/posts/hello-world", { replace: true });
+  });
+
+  it("does not navigate when postId already IS the post's slug", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate, t: fakeT }));
+
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
 describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, moved out of PostEditor.tsx/PostPreview)", () => {
   it("is empty before the post loads, then reflects the INJECTED port's templatePreviewUrl once loaded", async () => {
     const port = createFakePostEditorPort({ post: POST });

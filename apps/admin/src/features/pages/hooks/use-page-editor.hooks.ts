@@ -9,6 +9,7 @@ import {
   type DevicePreviewDevice,
 } from "@/components/DevicePreview/DevicePreview.hooks";
 import { navigate as defaultNavigate } from "@/lib/router";
+import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
@@ -547,7 +548,10 @@ export interface PageEditorDependencies {
   /** Separate from `port` because it reaches a different surface entirely — a theme's static asset
    *  files, not the JSON admin API. See `theme-canvas-port.hooks.ts`. */
   themeCanvasPort: ThemeCanvasPort;
-  navigate: (path: string) => void;
+  /** `options.replace` (readable-slugs S6a, 2026-09-23): the load effect below replace-navigates a
+   *  URL that resolved by raw id to that same page's slug — same shape
+   *  `use-widget-instance-editor.hooks.ts`'s own `navigate` dependency already documents. */
+  navigate: (path: string, options?: { replace?: boolean }) => void;
   t: (locale: string, key: string) => string;
   locale: string;
 }
@@ -652,6 +656,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         setActiveThemeId(themeId);
         setActiveThemeApiVersion(themeApiVersion);
         applyLoadedPage(post, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
+        // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same rule
+        // `use-widget-instance-editor.hooks.ts` applies for widgets. Skipped for the root page
+        // (`slug === "/"`) — its canonical URL IS its id (`pageAdminPath`'s own fallback, `rules.ts`),
+        // so `routeSlug` there is never a stale bookmark to redirect away from.
+        if (post.slug !== "/") {
+          const redirectPath = slugRedirectPath("/pages", routeSlug, post);
+          if (redirectPath) navigate(redirectPath, { replace: true });
+        }
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : t(locale, "failed to load page"));

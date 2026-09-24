@@ -37,9 +37,12 @@ export function mergeRecent(prev: AdminPost[] | null, incoming: AdminPost[]): Ad
  * panel no detail view — only `posts` has a `post-editor`. Sending a page row to a route that does
  * not exist would trade a wrong-editor 404 for a routing dead end. When the pages-vibecoding
  * workstream lands a page editor, this is the one place that changes.
+ *
+ * Readable-slugs S6a (2026-09-23): a post row now hrefs its slug, not its id, matching every other
+ * post link in the admin (`/posts/:slug`, `use-posts.hooks.ts`'s `createPost`).
  */
-export function activityRowHref(row: Pick<AdminPost, "id" | "kind">): string {
-  return row.kind === "page" ? "/admin/pages" : `/admin/posts/${row.id}`;
+export function activityRowHref(row: Pick<AdminPost, "id" | "kind" | "slug">): string {
+  return row.kind === "page" ? "/admin/pages" : `/admin/posts/${row.slug}`;
 }
 
 /** The Posts stat card's meta line — blank while `published` is still pending (`null`). */

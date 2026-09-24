@@ -65,9 +65,9 @@ function activityTitles(container: HTMLElement): (string | null)[] {
 
 const POSTS_RESPONSE = {
   posts: [
-    { post: { id: "post-1", kind: "post", title: "Post One", status: "published", updatedAt: "2026-07-30T09:00:00.000Z" } },
-    { post: { id: "post-2", kind: "post", title: "Post Two", status: "published", updatedAt: "2026-07-27T09:00:00.000Z" } },
-    { post: { id: "post-3", kind: "post", title: "Post Three", status: "draft", updatedAt: "2026-07-26T09:00:00.000Z" } },
+    { post: { id: "post-1", slug: "post-one", kind: "post", title: "Post One", status: "published", updatedAt: "2026-07-30T09:00:00.000Z" } },
+    { post: { id: "post-2", slug: "post-two", kind: "post", title: "Post Two", status: "published", updatedAt: "2026-07-27T09:00:00.000Z" } },
+    { post: { id: "post-3", slug: "post-three", kind: "post", title: "Post Three", status: "draft", updatedAt: "2026-07-26T09:00:00.000Z" } },
   ],
 };
 const PAGES_RESPONSE = {
@@ -164,7 +164,8 @@ it("links post rows to the post editor and page rows to the Pages list, not to a
       .find((el) => el.textContent === title)
       ?.getAttribute("href");
 
-  expect(hrefFor("Post One")).toBe("/admin/posts/post-1");
+  // readable-slugs S6a: activityRowHref now reads the post's slug, not its id.
+  expect(hrefFor("Post One")).toBe("/admin/posts/post-one");
   expect(hrefFor("Page One")).toBe("/admin/pages");
   expect(hrefFor("Page Two")).toBe("/admin/pages");
   // No page id may appear under /admin/posts/ — that is the exact shape of the original defect.

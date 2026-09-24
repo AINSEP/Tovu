@@ -104,9 +104,10 @@ function pageIdFromPath(path: string): string {
 /**
  * Where a colliding content record's own admin editor lives — also called directly by
  * `ThemeExploreSlugCollisionWarning` (`ThemeExplore.tsx`), which used to duplicate this derivation
- * inline before importing it (2026-09-05): a Post's editor route is keyed by id (`/posts/:postId`); a
- * Page's goes through {@link pageAdminPath} (`rules.ts`), which prefers the slug and falls back to the
- * id only for the root-slug page. `ThemeExplore.tsx`'s own `ThemeExploreSlugCollision` and this file's
+ * inline before importing it (2026-09-05): a Post's editor route is keyed by slug (`/posts/:slug`,
+ * readable-slugs S6a); a Page's goes through {@link pageAdminPath} (`rules.ts`), which prefers the
+ * slug and falls back to the id only for the root-slug page. `ThemeExplore.tsx`'s own
+ * `ThemeExploreSlugCollision` and this file's
  * `ThemePageSlugCollision` are independently declared, identically-shaped `{ id, slug, title, kind }`
  * port types (see `pages/rules.ts`'s own doc on this structural-typing convention), so that call needs
  * no cast.
@@ -114,7 +115,7 @@ function pageIdFromPath(path: string): string {
  * @complexity O(1).
  */
 export function themePageCollisionAdminPath(collision: ThemePageSlugCollision): string {
-  return collision.kind === "post" ? `/posts/${collision.id}` : pageAdminPath(collision);
+  return collision.kind === "post" ? `/posts/${collision.slug}` : pageAdminPath(collision);
 }
 
 /**

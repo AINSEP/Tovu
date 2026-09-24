@@ -421,6 +421,42 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
+  // readable-slugs S6a (2026-09-23): once the page has loaded, an old id-based bookmark quietly
+  // catches up to the slug URL — same `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule
+  // `use-widget-instance-editor.hooks.ts` already applies for widgets.
+  describe("slug redirect on load", () => {
+    const PAGE_UUID = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+
+    it("replace-navigates to the slug URL when routeSlug is the page's raw (UUID-shaped) id", async () => {
+      const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "landing" };
+      const deps = fakeDeps({ page });
+      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(deps.navigate).toHaveBeenCalledWith("/pages/landing", { replace: true });
+    });
+
+    it("does not navigate when routeSlug already IS the page's slug", async () => {
+      const deps = fakeDeps({ page: HTML_PAGE });
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(deps.navigate).not.toHaveBeenCalled();
+    });
+
+    // The root page's slug ("/") can never be a path segment — `pageAdminPath` (`rules.ts`) already
+    // links to it by id, so the id in the URL here is the CANONICAL address, not a stale bookmark.
+    // Must never "redirect" to the nonsensical `/pages//`.
+    it("does not navigate for the root page, whose slug is '/' and whose canonical URL is its id", async () => {
+      const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "/" };
+      const deps = fakeDeps({ page });
+      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(deps.navigate).not.toHaveBeenCalled();
+    });
+  });
+
   // Characterization (complexity-ceiling pass): the per-render values `usePageEditor` derives from
   // `page` directly, pinned on both sides of the load so moving them into pure helpers cannot drift.
   it("before the page loads, previewFormTarget and templatePreviewUrl are both empty", () => {

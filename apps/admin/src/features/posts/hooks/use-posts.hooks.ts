@@ -146,7 +146,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     setError(null);
     try {
       const { post } = await port.createPost("Untitled");
-      navigate(`/posts/${post.id}`);
+      navigate(`/posts/${post.slug}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to create post");
       setCreating(false);

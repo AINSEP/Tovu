@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
 import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
-import { PAGES_RESOURCE } from "../rules";
+import { PAGES_RESOURCE, pageAdminPath } from "../rules";
 
 /**
  * @file `usePages` — everything the Pages LIST screen does, extracted so it is reachable from
@@ -422,7 +422,9 @@ describe("injected port (useWiredX conversion coverage)", () => {
       });
 
       expect(port.pages).toHaveLength(2);
-      expect(navigate).toHaveBeenCalledWith(`/pages/${port.pages[1]!.id}`);
+      // readable-slugs S6a: same slug-vs-id-vs-root-slug rule Pages.tsx's own row navigation
+      // already uses for an existing page, not a bare `/pages/${id}` template.
+      expect(navigate).toHaveBeenCalledWith(pageAdminPath(port.pages[1]!));
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();

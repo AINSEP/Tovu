@@ -25,6 +25,7 @@ import { Media } from "@/lib/media-embed-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
+import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
@@ -298,7 +299,10 @@ export interface PostEditorController extends PostEditorUiController {
 /** {@link usePostEditor}'s injected second parameter — see this file's header for the conversion this belongs to. */
 export interface PostEditorDependencies {
   port: PostEditorPort;
-  navigate: (path: string) => void;
+  /** `options.replace` (readable-slugs S6a, 2026-09-23): the load effect below replace-navigates a
+   *  URL that resolved by raw id to that same post's slug — same shape
+   *  `use-widget-instance-editor.hooks.ts`'s own `navigate` dependency already documents. */
+  navigate: (path: string, options?: { replace?: boolean }) => void;
   t: Translate;
 }
 
@@ -793,6 +797,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
             overridesThemePage: post.overridesThemePage ?? null,
           });
         }
+        // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same
+        // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule `use-widget-instance-editor.hooks.ts`
+        // and `use-page-editor.hooks.ts` already apply. No root-slug exception here — unlike Pages,
+        // every post's slug is always a real path segment.
+        const redirectPath = slugRedirectPath("/posts", postId, post);
+        if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load post"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
