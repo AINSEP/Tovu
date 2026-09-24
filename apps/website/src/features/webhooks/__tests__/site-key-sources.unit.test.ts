@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   SITE_KEY_ENV_VAR_NAME,
   findKeyDependentData,
+  resolveSiteKeyFingerprint,
   resolveSiteKeyId,
   siteKeyFilePathFrom,
   siteKeySources,
@@ -161,6 +162,50 @@ test("resolveSiteKeyId: undefined when siteId is present but not a non-empty str
 test("siteKeyFilePathFrom: the per-site-file candidate's path when one is present in sources", () => {
   const sources = siteKeySources({ mode: "local", env: {}, home: HOME, cwd: CWD, siteKeyId: "site-abc" });
   assert.equal(siteKeyFilePathFrom(sources, "/fallback/path.hex"), join(HOME, ".tovu", "site-keys", "site-abc.hex"));
+});
+
+/**
+ * §A.6 — `resolveSiteKeyFingerprint`: the read-only sibling of `resolveSiteKeyId`, backing the
+ * admin Site Token route's `"mismatch"` state (a resolved key whose fingerprint differs from
+ * `.site-meta.json`'s own stamped `siteKeyFingerprint`).
+ */
+test("resolveSiteKeyFingerprint: reads .site-meta.json's stamped siteKeyFingerprint", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-fingerprint-"));
+  try {
+    writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-xyz", siteKeyFingerprint: "abc123abc123" }));
+    assert.equal(resolveSiteKeyFingerprint({ siteDir: dir }), "abc123abc123");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyFingerprint: undefined (never throws) when .site-meta.json is missing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-fingerprint-"));
+  try {
+    assert.equal(resolveSiteKeyFingerprint({ siteDir: dir }), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyFingerprint: undefined (never throws) when .site-meta.json is not valid JSON", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-fingerprint-"));
+  try {
+    writeFileSync(join(dir, ".site-meta.json"), "{not json");
+    assert.equal(resolveSiteKeyFingerprint({ siteDir: dir }), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyFingerprint: undefined when the field is present but not a non-empty string", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-fingerprint-"));
+  try {
+    writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-xyz", siteKeyFingerprint: 12345 }));
+    assert.equal(resolveSiteKeyFingerprint({ siteDir: dir }), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // ---------------------------------------------------------------------------

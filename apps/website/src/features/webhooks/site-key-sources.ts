@@ -162,6 +162,28 @@ export function resolveSiteKeyId(input: ResolveSiteKeyIdInput): string | undefin
   return undefined;
 }
 
+export interface ResolveSiteKeyFingerprintInput {
+  readonly siteDir: string;
+}
+
+/**
+ * This site's stamped `siteKeyFingerprint` from `.site-meta.json` (site-key plan §A.4/§A.6) — a
+ * READ-ONLY sibling of {@link resolveSiteKeyId}, same never-throws contract and same shared parse
+ * ({@link readSiteMetaJson}). Backs the admin Site Token route's `"mismatch"` state: a valid key
+ * resolving to a DIFFERENT fingerprint than this one means the physical key file was substituted
+ * after the stamp was written (`site-key-ensure.ts`'s `ensureSiteKey` derives the identical
+ * `"mismatch"` outcome for the write path from the same two values, via its own
+ * `withFingerprintReconciliation` — this function is the read-only counterpart for a caller, like
+ * the admin route, that must never write).
+ *
+ * @complexity O(1) — one small, bounded-size file read (via {@link readSiteMetaJson}).
+ */
+export function resolveSiteKeyFingerprint(input: ResolveSiteKeyFingerprintInput): string | undefined {
+  const meta = readSiteMetaJson(input.siteDir);
+  if (meta === undefined) return undefined;
+  return typeof meta.siteKeyFingerprint === "string" && meta.siteKeyFingerprint.length > 0 ? meta.siteKeyFingerprint : undefined;
+}
+
 /**
  * Whether any database in `dbPaths` holds data that only the CURRENT root/site key can decrypt or
  * verify. Checks every table whose schema mentions `sealed_ciphertext` (the column all sealed
