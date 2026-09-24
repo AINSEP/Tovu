@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminWidgetType } from "../../lib/api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
@@ -165,7 +165,31 @@ describe("SocialLinksConfigFields", () => {
   });
 });
 
+const COLLECTIONS = [
+  {
+    workspaceId: "ws1",
+    key: "tovu_feature",
+    label: "Features",
+    status: "active" as const,
+    version: 1,
+    fields: [
+      { name: "docs_page", kind: "text" as const, required: false, queryable: true },
+      { name: "featured", kind: "boolean" as const, required: false, queryable: true },
+      { name: "related", kind: "relation" as const, required: false, queryable: false },
+    ],
+  },
+  { workspaceId: "ws1", key: "docs_page", label: "Docs page", status: "active" as const, version: 1, fields: [] },
+  { workspaceId: "ws1", key: "widget", label: "widget", status: "active" as const, version: 1, fields: [] },
+];
+
 describe("RecentEntriesConfigFields", () => {
+  beforeEach(() => {
+    // Every case below fetches the content-type registry for the Collection select on mount (same
+    // `useFetchedOptions` seam `MenuConfigFields`/`ContactFormConfigFields` use) — stub it here so
+    // tests that don't care about that fetch don't see a real network call.
+    vi.spyOn(api, "listContentTypes").mockResolvedValue({ items: COLLECTIONS });
+  });
+
   it("defaults maxItems to 5 when the config value is missing or not a number", () => {
     render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: "5" }} onChange={vi.fn()} />);
     expect(screen.getByLabelText("Max items")).toHaveValue(5);
@@ -212,6 +236,108 @@ describe("RecentEntriesConfigFields", () => {
     await user.clear(screen.getByLabelText("Category term id (optional)"));
 
     expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, categoryTermId: undefined });
+  });
+
+  it("shows an error notice when api.listContentTypes rejects with an Error", async () => {
+    vi.spyOn(api, "listContentTypes").mockRejectedValue(new Error("collections down"));
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5 }} onChange={vi.fn()} />);
+
+    expect(await screen.findByText("collections down")).toBeInTheDocument();
+  });
+
+  it("lists user collections in the Collection select, excluding system types (isUserCollection, A2)", async () => {
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5 }} onChange={vi.fn()} />);
+
+    expect(await screen.findByRole("option", { name: "Features" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Docs page" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "All collections" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "widget" })).not.toBeInTheDocument();
+  });
+
+  it("choosing a collection writes config.collection", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5 }} onChange={onChange} />);
+
+    await screen.findByRole("option", { name: "Features" });
+    await user.selectOptions(screen.getByLabelText("Collection"), "tovu_feature");
+
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature" });
+  });
+
+  it("clearing the collection back to \"All collections\" removes collection (and any fields/where authored against it)", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <WidgetConfigFields
+        widgetType="recent-entries"
+        config={{ maxItems: 5, collection: "tovu_feature", fields: ["docs_page"], where: { featured: true } }}
+        onChange={onChange}
+      />,
+    );
+
+    await screen.findByRole("option", { name: "Features" });
+    await user.selectOptions(screen.getByLabelText("Collection"), "");
+
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5 });
+  });
+
+  it("columns are hidden for list layout and shown for cards layout", async () => {
+    const { rerender } = render(
+      <WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, layout: "cards" }} onChange={vi.fn()} />,
+    );
+    expect(screen.getByLabelText("Columns")).toBeInTheDocument();
+
+    rerender(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, layout: "list" }} onChange={vi.fn()} />);
+    expect(screen.queryByLabelText("Columns")).not.toBeInTheDocument();
+  });
+
+  it("switching to list layout drops any authored columns value", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, layout: "cards", columns: 4 }} onChange={onChange} />);
+
+    await user.selectOptions(screen.getByLabelText("Layout"), "list");
+
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, layout: "list" });
+  });
+
+  it("Fields checkboxes and the filter row are hidden when no specific collection is chosen", async () => {
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5 }} onChange={vi.fn()} />);
+    await screen.findByRole("option", { name: "Features" }); // wait for the collections fetch to settle
+    expect(screen.queryByText("Fields to show")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Filter")).not.toBeInTheDocument();
+  });
+
+  it("Fields checkboxes appear for a chosen collection's displayable fields only (never relation/json)", async () => {
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, collection: "tovu_feature" }} onChange={vi.fn()} />);
+
+    expect(await screen.findByText("Fields to show")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Docs page" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Featured" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Related" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Filter")).toBeInTheDocument();
+  });
+
+  it("checking a field writes it into config.fields; unchecking the last one removes the key", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, collection: "tovu_feature" }} onChange={onChange} />);
+
+    const checkbox = await screen.findByRole("checkbox", { name: "Docs page" });
+    await user.click(checkbox);
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature", fields: ["docs_page"] });
+  });
+
+  it("the filter row writes a single where clause, coercing a boolean field's value", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5, collection: "tovu_feature" }} onChange={onChange} />);
+
+    await user.selectOptions(await screen.findByLabelText("Filter"), "featured");
+    fireEvent.change(screen.getByLabelText("Filter value"), { target: { value: "true" } });
+
+    expect(onChange).toHaveBeenLastCalledWith({ maxItems: 5, collection: "tovu_feature", where: { featured: true } });
   });
 });
 
@@ -318,7 +444,7 @@ describe("WIDGET_TYPE_OPTIONS", () => {
     expect(WIDGET_TYPE_OPTIONS).toEqual([
       { value: "text", label: "Text" },
       { value: "social-links", label: "Social Links" },
-      { value: "recent-entries", label: "Recent Entries" },
+      { value: "recent-entries", label: "Collection list" },
       { value: "menu", label: "Menu" },
       { value: "contact-form", label: "Contact Form" },
     ]);

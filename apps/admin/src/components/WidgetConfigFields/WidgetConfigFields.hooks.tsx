@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import type { ContentTypeFieldKind } from "../../lib/api";
 import { isAbortError } from "../../lib/retry-unreachable";
 
 /**
@@ -20,6 +21,13 @@ import { isAbortError } from "../../lib/retry-unreachable";
  * `updateLink`/`removeLink`/`addLink` (admin TSX-logic-sweep, 2026-09-03) — pure array edits over
  * the `config.links` prop, previously defined inline in that component's body. Extracted verbatim:
  * same 20-link cap, same `{ ...props.config, links: next }` shape passed to `onChange`.
+ *
+ * `useRecentEntriesConfig` (Collections plan A1, 2026-09-23) is `RecentEntriesConfigFields`'s own
+ * config-mutation logic — Collection/Sort/Layout/Columns/Fields/Filter — plus the two hand-copies
+ * (`COLLECTION_DISPLAYABLE_FIELD_KINDS`, `humanizeFieldName`) it and the component share, copied
+ * from `apps/website/src/features/entries/public-list.ts` for the same reason `lib/api.ts`'s
+ * `CONTENT_TYPE_FIELD_KINDS` is hand-copied: that module is server-only and cannot be imported
+ * into this browser bundle.
  */
 
 /**
@@ -80,6 +88,214 @@ export function useSocialLinksConfig(
   }
 
   return { links, updateLink, removeLink, addLink };
+}
+
+/**
+ * Field kinds the "Collection list" widget's Sort/Fields/Filter controls offer — mirrors
+ * `apps/website/src/features/entries/public-list.ts`'s (unexported)
+ * `DEFAULT_DISPLAYABLE_FIELD_KINDS`. Hand-copied on purpose, same precedent as `lib/api.ts`'s own
+ * `CONTENT_TYPE_FIELD_KINDS` doc: this admin package cannot import that server-only website code.
+ * `relation`/`json` fields are left out — C3's renderer doesn't show them by default either.
+ */
+export const COLLECTION_DISPLAYABLE_FIELD_KINDS: ReadonlySet<ContentTypeFieldKind> = new Set([
+  "text",
+  "integer",
+  "real",
+  "boolean",
+  "datetime",
+]);
+
+/**
+ * `apps/website/src/features/entries/public-list.ts`'s `humanizeFieldName`, hand-copied for the
+ * same reason as {@link COLLECTION_DISPLAYABLE_FIELD_KINDS} — turns a declared field name
+ * (`"docs_page"`, `"publishedAt"`) into a label (`"Docs page"`, `"Published at"`) for the
+ * Fields/Sort/Filter controls.
+ */
+export function humanizeFieldName(name: string): string {
+  const words = name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[_-\s]+/)
+    .filter((word) => word.length > 0)
+    .map((word) => word.toLowerCase());
+
+  if (words.length === 0) return "";
+  const [first, ...rest] = words;
+  const capitalizedFirst = first.charAt(0).toUpperCase() + first.slice(1);
+  return rest.length > 0 ? `${capitalizedFirst} ${rest.join(" ")}` : capitalizedFirst;
+}
+
+/** A `where` value coerced from the filter row's raw text input, per the target field's kind —
+ *  booleans and numbers travel as their real JS type (matches `CollectionWhereClause.value`'s
+ *  `string | number | boolean` shape server-side), everything else stays a string. */
+function coerceFilterValue(raw: string, kind: ContentTypeFieldKind | undefined): string | number | boolean {
+  if (kind === "boolean") return raw === "true";
+  if (kind === "integer" || kind === "real") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : raw;
+  }
+  return raw;
+}
+
+type Scalar = string | number | boolean;
+
+function isScalar(value: unknown): value is Scalar {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+function stringifyScalar(value: Scalar): string {
+  if (typeof value !== "boolean") return String(value);
+  return value ? "true" : "false";
+}
+
+/** The one `[field, value]` pair of a plain, single-key object, or `null` for anything else
+ *  (missing, multi-key, an array, …) — split out so {@link readFilterClause} reads as one
+ *  straight-line sequence of early returns instead of one compound condition. */
+function singleEntry(value: unknown): [string, unknown] | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const keys = Object.keys(value as Record<string, unknown>);
+  return keys.length === 1 ? [keys[0], (value as Record<string, unknown>)[keys[0]]] : null;
+}
+
+/** Reads the Collection list widget's single supported `where` clause (plan A1: "one filter row")
+ *  back out of `config.where`, tolerating anything not shaped like `{ [field]: scalar }`. */
+function readFilterClause(config: Record<string, unknown>): { field: string; value: string } | null {
+  const entry = singleEntry(config.where);
+  if (entry === null) return null;
+  const [field, value] = entry;
+  if (!isScalar(value)) return null;
+  return { field, value: stringifyScalar(value) };
+}
+
+function stringConfigValue(config: Record<string, unknown>, key: string): string {
+  const value = config[key];
+  return typeof value === "string" ? value : "";
+}
+
+function numberConfigValue(config: Record<string, unknown>, key: string): number | "" {
+  const value = config[key];
+  return typeof value === "number" ? value : "";
+}
+
+function stringArrayConfigValue(config: Record<string, unknown>, key: string): string[] {
+  const value = config[key];
+  return Array.isArray(value) ? (value as string[]) : [];
+}
+
+function resolveFilterField(draft: string | null, clause: { field: string } | null): string {
+  if (draft !== null) return draft;
+  return clause !== null ? clause.field : "";
+}
+
+/**
+ * `RecentEntriesConfigFields`'s config-mutation logic (Collections plan A1) — everything the
+ * Collection/Sort/Layout/Columns/Fields/Filter controls read and write, so the component itself
+ * stays markup (this workspace's "no `.tsx` logic" rule). Unset controls are removed from
+ * `config` entirely, never written as `""` (plan A1's own rule), so a never-touched widget config
+ * still validates against `RECENT_ENTRIES_REGISTRATION`'s schema exactly as it did before this
+ * pass. Choosing a new collection (or clearing it) drops `fields`/`where` too — both are authored
+ * against the PREVIOUS collection's field names and mean nothing (or, worse, silently filter by a
+ * same-named field on the new type) once the collection changes.
+ *
+ * The filter field name is also tracked in local `useState`: `config.where` only exists once a
+ * value has been typed (an empty value is not a real filter, so it is never written), but the
+ * operator picking a field before typing its value still needs that choice to stick across
+ * re-renders — `config` alone can't hold "a field is chosen, no value yet".
+ */
+export function useRecentEntriesConfig(
+  config: Record<string, unknown>,
+  onChange: (config: Record<string, unknown>) => void,
+) {
+  const [filterFieldDraft, setFilterFieldDraft] = useState<string | null>(null);
+
+  const clause = readFilterClause(config);
+  const collection = stringConfigValue(config, "collection");
+  const sort = stringConfigValue(config, "sort");
+  const layout = stringConfigValue(config, "layout");
+  const columns = numberConfigValue(config, "columns");
+  const fields = stringArrayConfigValue(config, "fields");
+  const filterField = resolveFilterField(filterFieldDraft, clause);
+  const filterValue = clause !== null ? clause.value : "";
+
+  function patch(mutate: (next: Record<string, unknown>) => void): void {
+    const next = { ...config };
+    mutate(next);
+    onChange(next);
+  }
+
+  function setCollection(value: string): void {
+    setFilterFieldDraft(null);
+    patch((next) => {
+      if (value) next.collection = value;
+      else delete next.collection;
+      delete next.fields;
+      delete next.where;
+    });
+  }
+
+  function setSort(value: string): void {
+    patch((next) => {
+      if (value) next.sort = value;
+      else delete next.sort;
+    });
+  }
+
+  function setLayout(value: string): void {
+    patch((next) => {
+      if (value) next.layout = value;
+      else delete next.layout;
+      if (value !== "cards") delete next.columns;
+    });
+  }
+
+  function setColumns(value: string): void {
+    patch((next) => {
+      if (value === "") delete next.columns;
+      else next.columns = Number(value);
+    });
+  }
+
+  function toggleField(name: string, checked: boolean): void {
+    patch((next) => {
+      const current = Array.isArray(next.fields) ? (next.fields as string[]) : [];
+      const nextFields = checked ? [...current, name] : current.filter((f) => f !== name);
+      if (nextFields.length > 0) next.fields = nextFields;
+      else delete next.fields;
+    });
+  }
+
+  function setFilterField(name: string): void {
+    setFilterFieldDraft(name || null);
+    patch((next) => {
+      delete next.where;
+    });
+  }
+
+  function setFilterValue(raw: string, kind: ContentTypeFieldKind | undefined): void {
+    patch((next) => {
+      if (!filterField || raw === "") {
+        delete next.where;
+        return;
+      }
+      next.where = { [filterField]: coerceFilterValue(raw, kind) };
+    });
+  }
+
+  return {
+    collection,
+    sort,
+    layout,
+    columns,
+    fields,
+    filterField,
+    filterValue,
+    setCollection,
+    setSort,
+    setLayout,
+    setColumns,
+    toggleField,
+    setFilterField,
+    setFilterValue,
+  };
 }
 
 export function useFetchedOptions<T>(fetchList: () => Promise<T[]>, errorFallback: string) {

@@ -1,8 +1,15 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { AdminFormDefinition, AdminMenu, AdminWidgetType } from "../../lib/api";
+import { isUserCollection } from "../../features/collections/rules";
+import type { AdminContentType, AdminFormDefinition, AdminMenu, AdminWidgetType, ContentTypeFieldKind } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { interpolate } from "../../lib/template-i18n";
-import { useFetchedOptions, useSocialLinksConfig } from "./WidgetConfigFields.hooks";
+import {
+  COLLECTION_DISPLAYABLE_FIELD_KINDS,
+  humanizeFieldName,
+  useFetchedOptions,
+  useRecentEntriesConfig,
+  useSocialLinksConfig,
+} from "./WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 
 /**
@@ -46,7 +53,7 @@ import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependenci
  * |---|---|
  * | `text` | `<base>-body` |
  * | `social-links` | per row `i` (0-based): `<base>-link-<i>-platform`, `<base>-link-<i>-url`, `<base>-link-<i>-remove`; plus `<base>-add` |
- * | `recent-entries` | `<base>-max-items`, `<base>-category-term-id` |
+ * | `recent-entries` (labeled "Collection list") | `<base>-max-items`, `<base>-collection`, `<base>-sort`, `<base>-layout`, `<base>-columns` (cards layout only), `<base>-field-<fieldName>` per checkbox, `<base>-filter-field`, `<base>-filter-value` (filter row, shown only once a collection is chosen), `<base>-category-term-id` |
  * | `menu` | `<base>-menu-ref` (a real `<select>` — `page.select_option` resolves it) |
  * | `contact-form` | `<base>-form-definition-id` (a real `<select>`), `<base>-success-message` |
  *
@@ -142,16 +149,196 @@ function SocialLinksConfigFields(props: {
   );
 }
 
-/** `recent-entries` (RECENT_ENTRIES_REGISTRATION: `{ maxItems: 1-20, categoryTermId? }`). */
-function RecentEntriesConfigFields(props: {
+/** A displayable field of the chosen collection's content type (never `relation`/`json` — see
+ *  `COLLECTION_DISPLAYABLE_FIELD_KINDS`), as the four sub-controls below need it. */
+type DisplayableField = AdminContentType["fields"][number];
+
+/** `base ? agentHandle(...) : {}`, factored out so `RecentEntriesConfigFields` (four fields of its
+ *  own, on top of its four sub-components) doesn't count one branch per field for this — every
+ *  other sub-component in this file still writes the ternary inline, since none of them repeats it
+ *  often enough to threaten the complexity ceiling. */
+function maybeAgentHandle(base: string | undefined, suffix: string, opts: { role: "field" | "button"; label: string }) {
+  return base ? agentHandle(`${base}-${suffix}`, opts) : {};
+}
+
+/** `collections?.find((ct) => ct.key === key) ?? null`, pulled out for the same reason as
+ *  {@link maybeAgentHandle} — one call site, not two branches, in `RecentEntriesConfigFields`. */
+function findContentType(collections: AdminContentType[] | null, key: string): AdminContentType | null {
+  if (collections === null) return null;
+  return collections.find((ct) => ct.key === key) ?? null;
+}
+
+/** The Collection `<select>` — its own component because the loading/error states from
+ *  `useFetchedOptions` (mirrors `MenuConfigFields`) replace the whole field, label included, with
+ *  a notice, the same shape `MenuConfigFields`/`ContactFormConfigFields` already use. */
+function CollectionSelect(props: {
+  collections: AdminContentType[] | null;
+  error: string | null;
+  value: string;
+  onChange: (value: string) => void;
+  base?: string;
+  t: Translate;
+}) {
+  if (props.error) return <div className="notice error">{props.error}</div>;
+  return (
+    <>
+      <label htmlFor="widget-field-collection">{props.t("Collection")}</label>
+      <select
+        id="widget-field-collection"
+        value={props.value}
+        disabled={!props.collections}
+        onChange={(e) => props.onChange(e.target.value)}
+        {...(props.base ? agentHandle(`${props.base}-collection`, { role: "field", label: "Collection" }) : {})}
+      >
+        <option value="">{props.t("All collections")}</option>
+        {(props.collections ?? []).map((ct) => (
+          <option key={ct.key} value={ct.key}>
+            {ct.label}
+          </option>
+        ))}
+      </select>
+    </>
+  );
+}
+
+/** Sort — the three built-in options plus ascending/descending per displayable field (empty
+ *  before a collection is chosen, so it degrades to just the built-ins). */
+function SortSelect(props: { value: string; fields: readonly DisplayableField[]; onChange: (value: string) => void; base?: string; t: Translate }) {
+  return (
+    <>
+      <label htmlFor="widget-field-sort">{props.t("Sort")}</label>
+      <select
+        id="widget-field-sort"
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        {...(props.base ? agentHandle(`${props.base}-sort`, { role: "field", label: "Sort" }) : {})}
+      >
+        <option value="">{props.t("Default (recently updated)")}</option>
+        <option value="newest">{props.t("Newest first")}</option>
+        <option value="oldest">{props.t("Oldest first")}</option>
+        <option value="title">{props.t("Title (A–Z)")}</option>
+        {props.fields.map((f) => (
+          <option key={f.name} value={f.name}>
+            {interpolate(props.t("{field} (ascending)"), { field: humanizeFieldName(f.name) })}
+          </option>
+        ))}
+        {props.fields.map((f) => (
+          <option key={`-${f.name}`} value={`-${f.name}`}>
+            {interpolate(props.t("{field} (descending)"), { field: humanizeFieldName(f.name) })}
+          </option>
+        ))}
+      </select>
+    </>
+  );
+}
+
+/** One checkbox per displayable field of the chosen collection, only rendered once one is chosen
+ *  (there is no single field list to check boxes against for "All collections"). */
+function FieldsCheckboxes(props: {
+  fields: readonly DisplayableField[];
+  selected: readonly string[];
+  onToggle: (name: string, checked: boolean) => void;
+  base?: string;
+  t: Translate;
+}) {
+  return (
+    <fieldset className="widget-config-fields-checkboxes">
+      <legend>{props.t("Fields to show")}</legend>
+      {props.fields.map((f) => (
+        <label key={f.name} htmlFor={`widget-field-field-${f.name}`}>
+          <input
+            id={`widget-field-field-${f.name}`}
+            type="checkbox"
+            checked={props.selected.includes(f.name)}
+            onChange={(e) => props.onToggle(f.name, e.target.checked)}
+            {...(props.base ? agentHandle(`${props.base}-field-${f.name}`, { role: "field", label: `Show ${f.name}` }) : {})}
+          />
+          {humanizeFieldName(f.name)}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+/** The one supported filter row (field + value, plan A1) — the value input only appears once a
+ *  field is picked, and its raw text is coerced against that field's own kind (boolean/number). */
+function FilterRow(props: {
+  fields: readonly DisplayableField[];
+  field: string;
+  value: string;
+  onFieldChange: (name: string) => void;
+  onValueChange: (raw: string, kind: ContentTypeFieldKind | undefined) => void;
+  base?: string;
+  t: Translate;
+}) {
+  const kind = props.fields.find((f) => f.name === props.field)?.kind;
+  return (
+    <div className="widget-config-filter-row">
+      <label htmlFor="widget-field-filter-field">{props.t("Filter")}</label>
+      <select
+        id="widget-field-filter-field"
+        value={props.field}
+        onChange={(e) => props.onFieldChange(e.target.value)}
+        {...(props.base ? agentHandle(`${props.base}-filter-field`, { role: "field", label: "Filter field" }) : {})}
+      >
+        <option value="">{props.t("No filter")}</option>
+        {props.fields.map((f) => (
+          <option key={f.name} value={f.name}>
+            {humanizeFieldName(f.name)}
+          </option>
+        ))}
+      </select>
+      {props.field && (
+        <>
+          <label htmlFor="widget-field-filter-value">{props.t("Filter value")}</label>
+          <input
+            id="widget-field-filter-value"
+            value={props.value}
+            placeholder={props.t("Value")}
+            onChange={(e) => props.onValueChange(e.target.value, kind)}
+            {...(props.base ? agentHandle(`${props.base}-filter-value`, { role: "field", label: "Filter value" }) : {})}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * `recent-entries` (RECENT_ENTRIES_REGISTRATION), labeled "Collection list" in this UI (R1 renamed
+ * the widget's behavior, not its type key — `widgetType`/stored config are unaffected). Fetches
+ * the content-type registry itself, the same `useFetchedOptions` seam `MenuConfigFields`/
+ * `ContactFormConfigFields` use, filtered to `isUserCollection` (system types never appear here —
+ * A2's own rule). All config mutation lives in `useRecentEntriesConfig`
+ * (`WidgetConfigFields.hooks.tsx`); the Collection/Sort/Fields/Filter controls each live in their
+ * own small component above (this function was over the complexity ceiling as one block) — this
+ * function only assembles them.
+ *
+ * "All collections" (an empty `collection`) keeps today's behavior: every user content type,
+ * newest-updated first (D7). Fields/Filter are per-content-type, so both are hidden until a
+ * specific collection is chosen — there is no single field list to check boxes against otherwise.
+ */
+function RecentEntriesConfigFields({
+  useFetchedOptions: useOptions = useFetchedOptions,
+  t,
+  ...props
+}: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
   t: Translate;
-}) {
+} & FetchedOptionsSeam) {
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
-  const { t } = props;
+  const { items: collections, error: collectionsError } = useOptions<AdminContentType>(
+    () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection(ct.key))),
+    t("failed to load collections"),
+  );
+  const c = useRecentEntriesConfig(props.config, props.onChange);
+  const selectedType = findContentType(collections, c.collection);
+  const displayableFields = selectedType ? selectedType.fields.filter((f) => COLLECTION_DISPLAYABLE_FIELD_KINDS.has(f.kind)) : [];
+  const showFieldsAndFilter = selectedType !== null && displayableFields.length > 0;
+
   return (
     <div className="widget-config-fields">
       <label htmlFor="widget-field-maxItems">{t("Max items")}</label>
@@ -163,15 +350,54 @@ function RecentEntriesConfigFields(props: {
         step={1}
         value={maxItems}
         onChange={(e) => props.onChange({ ...props.config, maxItems: e.target.value === "" ? undefined : Number(e.target.value) })}
-        {...(base ? agentHandle(`${base}-max-items`, { role: "field", label: "Max items" }) : {})}
+        {...maybeAgentHandle(base, "max-items", { role: "field", label: "Max items" })}
       />
+
+      <CollectionSelect collections={collections} error={collectionsError} value={c.collection} onChange={c.setCollection} base={base} t={t} />
+
+      <SortSelect value={c.sort} fields={displayableFields} onChange={c.setSort} base={base} t={t} />
+
+      <label htmlFor="widget-field-layout">{t("Layout")}</label>
+      <select
+        id="widget-field-layout"
+        value={c.layout}
+        onChange={(e) => c.setLayout(e.target.value)}
+        {...maybeAgentHandle(base, "layout", { role: "field", label: "Layout" })}
+      >
+        <option value="">{t("Default (cards)")}</option>
+        <option value="cards">{t("Cards")}</option>
+        <option value="list">{t("List")}</option>
+      </select>
+
+      {c.layout !== "list" && (
+        <>
+          <label htmlFor="widget-field-columns">{t("Columns")}</label>
+          <input
+            id="widget-field-columns"
+            type="number"
+            min={1}
+            max={6}
+            step={1}
+            value={c.columns}
+            onChange={(e) => c.setColumns(e.target.value)}
+            {...maybeAgentHandle(base, "columns", { role: "field", label: "Columns" })}
+          />
+        </>
+      )}
+
+      {showFieldsAndFilter && <FieldsCheckboxes fields={displayableFields} selected={c.fields} onToggle={c.toggleField} base={base} t={t} />}
+
+      {showFieldsAndFilter && (
+        <FilterRow fields={displayableFields} field={c.filterField} value={c.filterValue} onFieldChange={c.setFilterField} onValueChange={c.setFilterValue} base={base} t={t} />
+      )}
+
       {/* REQ-32/EC-03: a documented soft reference — plain text input, no taxonomy-term picker exists yet in this admin app. */}
       <label htmlFor="widget-field-categoryTermId">{t("Category term id (optional)")}</label>
       <input
         id="widget-field-categoryTermId"
         value={textValue(props.config, "categoryTermId")}
         onChange={(e) => props.onChange({ ...props.config, categoryTermId: e.target.value || undefined })}
-        {...(base ? agentHandle(`${base}-category-term-id`, { role: "field", label: "Category term id" }) : {})}
+        {...maybeAgentHandle(base, "category-term-id", { role: "field", label: "Category term id" })}
       />
     </div>
   );
@@ -311,7 +537,15 @@ export function WidgetConfigFields(
     case "social-links":
       return <SocialLinksConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} t={t} />;
     case "recent-entries":
-      return <RecentEntriesConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} t={t} />;
+      return (
+        <RecentEntriesConfigFields
+          config={props.config}
+          onChange={props.onChange}
+          agentHandle={props.agentHandle}
+          useFetchedOptions={props.useFetchedOptions}
+          t={t}
+        />
+      );
     case "menu":
       return (
         <MenuConfigFields
@@ -343,7 +577,7 @@ export function WidgetConfigFields(
 export const WIDGET_TYPE_OPTIONS: Array<{ value: AdminWidgetType; label: string }> = [
   { value: "text", label: "Text" },
   { value: "social-links", label: "Social Links" },
-  { value: "recent-entries", label: "Recent Entries" },
+  { value: "recent-entries", label: "Collection list" },
   { value: "menu", label: "Menu" },
   { value: "contact-form", label: "Contact Form" },
 ];

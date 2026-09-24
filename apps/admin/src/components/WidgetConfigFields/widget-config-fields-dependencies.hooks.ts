@@ -1,4 +1,4 @@
-import { api, type AdminFormDefinition, type AdminMenu } from "../../lib/api";
+import { api, type AdminContentType, type AdminFormDefinition, type AdminMenu } from "../../lib/api";
 import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 
 /**
@@ -11,16 +11,21 @@ import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 export const defaultWidgetConfigFieldsPort: WidgetConfigFieldsPort = {
   listMenus: () => api.listMenus(),
   listForms: () => api.listForms(),
+  listContentTypes: () => api.listContentTypes(),
 };
 
 /** Seed state for {@link createFakeWidgetConfigFieldsPort}. */
 export interface FakeWidgetConfigFieldsPortOptions {
   menus?: AdminMenu[];
   forms?: AdminFormDefinition[];
+  contentTypes?: AdminContentType[];
   /** When set, `listMenus()` rejects with this instead of resolving — for load-failure tests. */
   listMenusError?: Error;
   /** When set, `listForms()` rejects with this instead of resolving — for load-failure tests. */
   listFormsError?: Error;
+  /** When set, `listContentTypes()` rejects with this instead of resolving — for load-failure
+   *  tests. */
+  listContentTypesError?: Error;
 }
 
 /**
@@ -36,6 +41,10 @@ export function createFakeWidgetConfigFieldsPort(options: FakeWidgetConfigFields
     async listForms() {
       if (options.listFormsError) throw options.listFormsError;
       return { data: options.forms ?? [] };
+    },
+    async listContentTypes() {
+      if (options.listContentTypesError) throw options.listContentTypesError;
+      return { items: options.contentTypes ?? [] };
     },
   };
 }

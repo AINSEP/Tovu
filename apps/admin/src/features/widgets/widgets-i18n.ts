@@ -5,11 +5,17 @@
  * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  *
  * Also covers `rules.ts`'s `widgetTypeLabel` — the five v1 widget type display names
- * ("Text"/"Social Links"/"Recent Entries"/"Menu"/"Contact Form", read off `WIDGET_TYPE_OPTIONS` in
+ * ("Text"/"Social Links"/"Collection list"/"Menu"/"Contact Form", read off `WIDGET_TYPE_OPTIONS` in
  * `components/WidgetConfigFields/WidgetConfigFields.tsx`). That constant itself stays untouched
  * (shared with the config-form dispatch, out of this pass's scope) — `widgetTypeLabel` resolves
  * the English label first, then looks up its Spanish translation here by that resolved text, same
  * "translate the resolved display string" shape `lib/admin-nav-i18n.ts`'s `translateAdminNavLabel`
+ *
+ * Collections plan A1 (2026-09-23): `recent-entries`'s label changed from "Recent Entries" to
+ * "Collection list" (the type key itself is unchanged). The dictionary KEY below was renamed to
+ * match so the lookup still resolves — the translated VALUES were not re-translated (they still
+ * literally say "recent entries" in each language), a known gap left for a real localization pass,
+ * not invented English-only copy in the meantime.
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
@@ -21,7 +27,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     // rules.ts's widgetTypeLabel — WIDGET_TYPE_OPTIONS's five known v1 type names.
     Text: "Texto",
     "Social Links": "Enlaces sociales",
-    "Recent Entries": "Entradas recientes",
+    "Collection list": "Entradas recientes",
     Menu: "Menú",
     "Contact Form": "Formulario de contacto",
     // WidgetRegions.tsx
@@ -98,7 +104,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Konten",
     Text: "Teks",
     "Social Links": "Tautan Sosial",
-    "Recent Entries": "Entri Terbaru",
+    "Collection list": "Entri Terbaru",
     Menu: "Menu",
     "Contact Form": "Formulir Kontak",
     Widgets: "Widget",
@@ -162,7 +168,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Inhalt",
     Text: "Text",
     "Social Links": "Soziale Links",
-    "Recent Entries": "Neueste Einträge",
+    "Collection list": "Neueste Einträge",
     Menu: "Menü",
     "Contact Form": "Kontaktformular",
     Widgets: "Widgets",
@@ -226,7 +232,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "内容",
     Text: "文本",
     "Social Links": "社交链接",
-    "Recent Entries": "最新条目",
+    "Collection list": "最新条目",
     Menu: "菜单",
     "Contact Form": "联系表单",
     Widgets: "小组件",
@@ -287,7 +293,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "內容",
     Text: "文字",
     "Social Links": "社群連結",
-    "Recent Entries": "最新項目",
+    "Collection list": "最新項目",
     Menu: "選單",
     "Contact Form": "聯絡表單",
     Widgets: "小工具",
@@ -348,7 +354,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Conteúdo",
     Text: "Texto",
     "Social Links": "Links Sociais",
-    "Recent Entries": "Entradas Recentes",
+    "Collection list": "Entradas Recentes",
     Menu: "Menu",
     "Contact Form": "Formulário de Contato",
     Widgets: "Widgets",
@@ -412,7 +418,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Контент",
     Text: "Текст",
     "Social Links": "Социальные ссылки",
-    "Recent Entries": "Последние записи",
+    "Collection list": "Последние записи",
     Menu: "Меню",
     "Contact Form": "Контактная форма",
     Widgets: "Виджеты",
@@ -476,7 +482,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "محتوا",
     Text: "متن",
     "Social Links": "لینک‌های اجتماعی",
-    "Recent Entries": "ورودی‌های اخیر",
+    "Collection list": "ورودی‌های اخیر",
     Menu: "منو",
     "Contact Form": "فرم تماس",
     Widgets: "ابزارک‌ها",
@@ -540,7 +546,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "المحتوى",
     Text: "نص",
     "Social Links": "روابط التواصل الاجتماعي",
-    "Recent Entries": "أحدث الإدخالات",
+    "Collection list": "أحدث الإدخالات",
     Menu: "قائمة",
     "Contact Form": "نموذج التواصل",
     Widgets: "الودجات",
@@ -603,7 +609,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "コンテンツ",
     Text: "テキスト",
     "Social Links": "ソーシャルリンク",
-    "Recent Entries": "最近のエントリ",
+    "Collection list": "最近のエントリ",
     Menu: "メニュー",
     "Contact Form": "お問い合わせフォーム",
     Widgets: "ウィジェット",
@@ -666,7 +672,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "콘텐츠",
     Text: "텍스트",
     "Social Links": "소셜 링크",
-    "Recent Entries": "최근 항목",
+    "Collection list": "최근 항목",
     Menu: "메뉴",
     "Contact Form": "문의 양식",
     Widgets: "위젯",
@@ -729,7 +735,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Treść",
     Text: "Tekst",
     "Social Links": "Linki społecznościowe",
-    "Recent Entries": "Najnowsze wpisy",
+    "Collection list": "Najnowsze wpisy",
     Menu: "Menu",
     "Contact Form": "Formularz kontaktowy",
     Widgets: "Widżety",
@@ -793,7 +799,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Tartalom",
     Text: "Szöveg",
     "Social Links": "Közösségimédia-linkek",
-    "Recent Entries": "Legutóbbi bejegyzések",
+    "Collection list": "Legutóbbi bejegyzések",
     Menu: "Menü",
     "Contact Form": "Kapcsolatfelvételi űrlap",
     Widgets: "Modulok",
@@ -857,7 +863,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Contenu",
     Text: "Texte",
     "Social Links": "Liens sociaux",
-    "Recent Entries": "Entrées récentes",
+    "Collection list": "Entrées récentes",
     Menu: "Menu",
     "Contact Form": "Formulaire de contact",
     Widgets: "Widgets",
@@ -921,7 +927,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Вміст",
     Text: "Текст",
     "Social Links": "Соціальні посилання",
-    "Recent Entries": "Останні записи",
+    "Collection list": "Останні записи",
     Menu: "Меню",
     "Contact Form": "Контактна форма",
     Widgets: "Віджети",
@@ -985,7 +991,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "İçerik",
     Text: "Metin",
     "Social Links": "Sosyal Bağlantılar",
-    "Recent Entries": "Son Girişler",
+    "Collection list": "Son Girişler",
     Menu: "Menü",
     "Contact Form": "İletişim Formu",
     Widgets: "Widget'lar",
@@ -1049,7 +1055,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "เนื้อหา",
     Text: "ข้อความ",
     "Social Links": "ลิงก์โซเชียล",
-    "Recent Entries": "รายการล่าสุด",
+    "Collection list": "รายการล่าสุด",
     Menu: "เมนู",
     "Contact Form": "แบบฟอร์มติดต่อ",
     Widgets: "วิดเจ็ต",
@@ -1112,7 +1118,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "Contenuto",
     Text: "Testo",
     "Social Links": "Link social",
-    "Recent Entries": "Voci recenti",
+    "Collection list": "Voci recenti",
     Menu: "Menu",
     "Contact Form": "Modulo di contatto",
     Widgets: "Widget",
@@ -1176,7 +1182,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "कंटेंट",
     Text: "टेक्स्ट",
     "Social Links": "सोशल लिंक",
-    "Recent Entries": "हाल की एंट्री",
+    "Collection list": "हाल की एंट्री",
     Menu: "मेन्यू",
     "Contact Form": "संपर्क फ़ॉर्म",
     Widgets: "विजेट",
@@ -1240,7 +1246,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "کنٹینٹ",
     Text: "ٹیکسٹ",
     "Social Links": "سوشل لنکس",
-    "Recent Entries": "حالیہ اندراجات",
+    "Collection list": "حالیہ اندراجات",
     Menu: "مینو",
     "Contact Form": "رابطہ فارم",
     Widgets: "ویجٹس",
@@ -1304,7 +1310,7 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     Content: "কন্টেন্ট",
     Text: "টেক্সট",
     "Social Links": "সোশ্যাল লিংক",
-    "Recent Entries": "সাম্প্রতিক এন্ট্রি",
+    "Collection list": "সাম্প্রতিক এন্ট্রি",
     Menu: "মেনু",
     "Contact Form": "যোগাযোগ ফর্ম",
     Widgets: "উইজেট",
