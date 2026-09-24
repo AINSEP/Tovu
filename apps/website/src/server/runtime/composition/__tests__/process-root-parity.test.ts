@@ -49,32 +49,35 @@ import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
  * existing registration seams.
  */
 
-const KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS: ReadonlySet<string> = new Set([
-  // `skill_incident_response` — the fixture this file installs below, standing in for the daemon's
-  // real `registerInstalledSkillTools` call (`agent-daemon-server.ts:1408-1414`). Proven here with a
-  // real installed-skill fixture rather than asserted from source reading: with zero skills installed
-  // the daemon and BYOK builds would coincidentally agree, which would hide exactly the drift this
-  // file exists to catch.
-  "skill_incident_response",
-]);
+// Empty as of the F4a fix (`ADS-memory/.local-artifacts/fix-plan-tool-design-2026-09-24.md`, S1):
+// `createAssistantByokModule`'s surface now calls the identical `registerInstalledExtensionTools`
+// pass (`assistant/installed-extension-tools.ts`) the daemon does — see `buildByokRole`'s own
+// `await byok.toolSurface.ready` below — so the agent-plugin/skill/capability families that used to
+// be daemon-only are no longer a documented gap. Kept as a named, typed allow-list (rather than
+// deleted outright) so a REAL future daemon-only id has somewhere to be recorded with a reason,
+// exactly like the one entry it used to hold.
+const KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS: ReadonlySet<string> = new Set([]);
 
 /**
- * TODO(owner ruling, architecture pass P1 finding C1): `assistant-byok.ts`'s `createAssistantByokModule`
- * (and therefore `createApp`, which builds its BYOK surface through it) calls none of
- * `registerInstalledAgentPluginTools` (`agent-daemon-server.ts:1386`), `registerInstalledSkillTools`
- * (`:1409`), `registerEnabledPluginCapabilityTools` (`:1433`), or federated MCP tools attached via
- * `attachFederatedMcpTools`/`registerSupabaseMcpPreset` (`:1260`/`:1290`) — every one of those is a
- * daemon-only call. A BYOK chat therefore cannot see an installed Agent Plugin's tool, an installed
- * Agent Skill's tool, an enabled plugin-runtime capability tool, or a federated (e.g. Supabase MCP)
- * tool, even though the spawned-CLI/daemon path can. `KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS` above proves
- * the agent-plugin/skill half of this with a real fixture; the plugin-capability half is exercised
- * below with zero enabled plugins (so it contributes no ids today — see that test's own comment); the
- * federated-MCP half needs a live subprocess to attach a tool and is out of scope for a unit test, so
- * it is disclosed here rather than reproduced. This test does NOT fix the gap — an owner decides
- * whether BYOK should have these categories (SUSPECTED live gap, not yet reproduced against a live
- * BYOK chat — see the architecture pass's own "Not done / caveats" section). If that decision changes
- * `createAssistantByokModule` to call one of these registrars, this file's allow-list must shrink to
- * match, which is exactly the "fails on any NEW drift" property this test is for.
+ * TODO(owner ruling, architecture pass P1 finding C1 — partially closed 2026-09-24, S1 above):
+ * `assistant-byok.ts`'s `createAssistantByokModule` (and therefore `createApp`, which builds its BYOK
+ * surface through it) now calls `registerInstalledAgentPluginTools`, `registerInstalledSkillTools`,
+ * and `registerEnabledPluginCapabilityTools` through the shared `registerInstalledExtensionTools`
+ * pass, the same three the daemon calls (`agent-daemon-server.ts`'s own call into that function) — a
+ * BYOK chat can now see an installed Agent Plugin's tool, an installed Agent Skill's tool, and an
+ * enabled plugin-runtime capability tool, proven below with a real installed-skill fixture (with zero
+ * skills installed the two builds would coincidentally agree either way, which would hide exactly the
+ * drift this file exists to catch) and, for `search_tools` specifically, the dedicated "BYOK's
+ * search_tools catalog finds an installed skill" test further down.
+ *
+ * The one remaining daemon-only category is federated MCP tools, attached via
+ * `attachFederatedMcpTools`/`registerSupabaseMcpPreset` (`agent-daemon-server.ts:1260`/`:1290`): BYOK
+ * has no equivalent connection lifecycle (admission, reload, auth-failure reporting) at all, so a
+ * BYOK chat still cannot reach the owner's connected external MCP servers or the Supabase preset. That
+ * needs its own architect pass (F4b in the fix plan above) and is disclosed here rather than
+ * reproduced — it needs a live subprocess to attach a tool, out of scope for a unit test. If that
+ * decision changes `createAssistantByokModule` to also cover federated MCP, this file's allow-list
+ * must shrink to match, which is exactly the "fails on any NEW drift" property this test is for.
  */
 
 async function withEmptyAgentPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
@@ -100,6 +103,30 @@ description: Use when handling production incidents, defining severity and escal
 
 Use this for production outages, degraded services, rollback decisions, runbooks, and post-mortems.
 `;
+
+/**
+ * Isolates `TOVU_SKILLS_DIR` to a fresh, empty temp dir — the skills-side counterpart to
+ * {@link withEmptyAgentPluginsDir}. Needed as of S1 (`registerInstalledExtensionTools`, F4a): BYOK now
+ * reads BOTH the real agent-plugins tree AND the real skills tree for `routeDeps.workspaceId`, and
+ * this repo's dev checkout has real installed content for that workspace on disk
+ * (`sites/tovu-com/skills/ws/workspace-local/incident-response/` — the SAME id this file's own
+ * `withOneInstalledSkill` fixture uses, confirmed empirically, not assumed). Without this, the
+ * "identical sets" test below would pick up that real skill (and the daemon-only replay's real
+ * agent-plugins) as spurious BYOK-only ids that `buildBaseRole` never had, failing for a reason that
+ * has nothing to do with this file's own fixtures.
+ */
+async function withEmptySkillsDir<T>(fn: () => Promise<T>): Promise<T> {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-process-root-parity-skills-empty-"));
+  const previous = process.env.TOVU_SKILLS_DIR;
+  process.env.TOVU_SKILLS_DIR = dir;
+  try {
+    return await fn();
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_SKILLS_DIR;
+    else process.env.TOVU_SKILLS_DIR = previous;
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
 async function withOneInstalledSkill<T>(workspaceId: string, fn: () => Promise<T>): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-process-root-parity-skills-"));
@@ -147,12 +174,16 @@ function buildBaseRole(routeDeps: NewsletterRouteDeps): RoleSnapshot {
 }
 
 /** (b) The real `createAssistantByokModule` surface — the exact object `createApp` builds at
- *  `app.ts:1724` and hands to both the admin BYOK route and the daemon-proxy's redemption store. */
-function buildByokRole(routeDeps: NewsletterRouteDeps): RoleSnapshot {
+ *  `app.ts:1724` and hands to both the admin BYOK route and the daemon-proxy's redemption store.
+ *  Awaits `toolSurface.ready` before reading the registry, so the installed-extension-tools pass
+ *  (S1's fix) has already been applied — the same wait `modules/assistant-byok.ts`'s real turn route
+ *  performs once per boot; see `ByokToolSurface.ready`'s own doc. */
+async function buildByokRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapshot> {
   resetToolContributorsForTests();
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
   const byok = createAssistantByokModule(routeDeps); // calls installFirstPartyToolContributors() itself
+  await byok.toolSurface.ready;
   const ids = new Set(byok.toolSurface.registry.list().map((d) => d.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
@@ -201,7 +232,12 @@ test("the shared base (installFirstPartyToolContributors + buildAssistantToolReg
   await routeDeps.identityReady;
 
   const base = buildBaseRole(routeDeps);
-  const byok = buildByokRole(routeDeps);
+  // `base` never calls the installed-extension-tools registrars, so it can never see this dev
+  // checkout's own real installed agent-plugins/skills for `routeDeps.workspaceId` — `byok` now does
+  // (S1's fix), so it needs the same "nothing installed" isolation the daemon-replay tests below
+  // already use, or this comparison would fail on THIS repo's own real dev-site fixtures rather than
+  // on anything this test is actually meant to catch.
+  const byok = await withEmptyAgentPluginsDir(() => withEmptySkillsDir(() => buildByokRole(routeDeps)));
 
   assert.deepEqual([...byok.ids].sort(), [...base.ids].sort());
   assert.deepEqual(byok.publishContentTypes, base.publishContentTypes);
@@ -213,9 +249,16 @@ test("the daemon's replayed registry is a strict superset of the real BYOK modul
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
-  const byok = buildByokRole(routeDeps);
-  const daemon = await withEmptyAgentPluginsDir(() =>
-    withOneInstalledSkill(routeDeps.workspaceId, () => buildDaemonRole(routeDeps))
+  // Both roles are built under the SAME fixture — an empty Agent Plugins tree and one real installed
+  // skill — so this proves BYOK now picks up the installed skill too (S1's fix), not merely that both
+  // sides agree when neither has one. Building `byok` outside this wrapper (as before the fix, when
+  // BYOK never read either tree at all) would have been harmless; after the fix it would silently
+  // stop proving anything, since BYOK's own disk read would see no installed skill either.
+  const { byok, daemon } = await withEmptyAgentPluginsDir(() =>
+    withOneInstalledSkill(routeDeps.workspaceId, async () => ({
+      byok: await buildByokRole(routeDeps),
+      daemon: await buildDaemonRole(routeDeps),
+    }))
   );
 
   const missingFromDaemon = [...byok.ids].filter((id) => !daemon.ids.has(id));
@@ -233,4 +276,32 @@ test("the daemon's replayed registry is a strict superset of the real BYOK modul
   // handlers, so these must still agree exactly.
   assert.deepEqual(daemon.publishContentTypes, byok.publishContentTypes);
   assert.deepEqual(daemon.duplicateResources, byok.duplicateResources);
+});
+
+test("BYOK's search_tools catalog finds an installed skill's tool once ready resolves — proving the catalog rebuild, not just the registry, picks it up", async () => {
+  const routeDeps = createRouteDeps();
+  await routeDeps.identityReady;
+
+  await withEmptyAgentPluginsDir(() =>
+    withOneInstalledSkill(routeDeps.workspaceId, async () => {
+      resetToolContributorsForTests();
+      resetPublishContentContributorsForTests();
+      resetDuplicateResourceHandlersForTests();
+      const byok = createAssistantByokModule(routeDeps); // calls installFirstPartyToolContributors() itself
+      await byok.toolSurface.ready;
+
+      const result = await byok.toolSurface.executeMetaTool(
+        { id: "principal-process-root-parity" },
+        { id: "run-process-root-parity" },
+        { name: "search_tools", input: { query: "incident response runbook severity escalation" } },
+      );
+
+      assert.notEqual(result.isError, true, `search_tools itself failed: ${result.content}`);
+      const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
+      assert.ok(
+        hits.some((hit) => hit.id === "skill_incident_response"),
+        `expected "skill_incident_response" among search_tools hits, got: ${hits.map((hit) => hit.id).join(", ") || "(none)"}`,
+      );
+    }),
+  );
 });

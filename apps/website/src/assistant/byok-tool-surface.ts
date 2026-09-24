@@ -47,6 +47,7 @@ import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rat
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-catalog-audit.js";
+import { registerInstalledExtensionTools } from "./installed-extension-tools.js";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-executor-stack.js";
@@ -87,6 +88,18 @@ export interface ByokToolSurface {
     signal?: AbortSignal,
     emitSurface?: SurfaceEmitter,
   ) => Promise<ByokMetaToolResult>;
+  /**
+   * Resolves once the installed-extension-tools pass (`installed-extension-tools.ts` — Agent
+   * Plugins, Agent Skills, enabled plugin-capability tools) has finished applying to `registry` and
+   * this surface's `search_tools`/`describe_tool` catalog has been rebuilt to include whatever it
+   * added. Never rejects, since that pass is fail-open by construction. A turn started before this
+   * resolves would still be able to EXECUTE a just-installed extension tool via
+   * `execute_delegated_tool` (the registry already has it), but could not yet DISCOVER it via
+   * `search_tools`/`describe_tool` — `modules/assistant-byok.ts`'s turn route awaits this once before
+   * dispatching, so only the very first turn after boot ever pays that gap. Resolves immediately (no
+   * disk read) when the surface was built with `installExtensions: false`.
+   */
+  readonly ready: Promise<void>;
 }
 
 /** Bounds `search_tools`' `limit`, mirroring `@jini-ai/http-kit`'s `tool-catalog.ts`
@@ -407,6 +420,15 @@ export function createByokToolSurface(
      * supplies this.
      */
     readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
+    /**
+     * Whether this surface also registers installed Agent Plugin, Agent Skill, and enabled
+     * plugin-capability tools (`installed-extension-tools.ts`) onto its own registry. Defaults to
+     * `true` — every real caller wants these. Set `false` only for a `routeDeps` stub that does not
+     * carry `discoverPlugins`/`postRepo`/`pluginActivationRepo` (a bare `AssistantToolRegistryDeps`
+     * unit-test double): the registrar is fail-open either way, so a missing field there would only
+     * cost a swallowed `console.warn` per call, not a test failure, but there is no reason to pay it.
+     */
+    readonly installExtensions?: boolean;
   } = {},
 ): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
@@ -464,7 +486,19 @@ export function createByokToolSurface(
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
   // that non-drift property as the reason it takes the registry rather than a separate catalog.
-  const catalog = buildToolCatalogQuery(registry);
+  // `let`, not `const`: `ready` below rebuilds it once the installed-extension-tools pass finishes,
+  // so a tool that pass adds is findable, not just executable — see `ready`'s own doc.
+  let catalog = buildToolCatalogQuery(registry);
+
+  // See `ByokToolSurface.ready`'s own doc. `registerInstalledExtensionTools` is fail-open by
+  // construction (each of its three sub-registrations catches its own error), so this `.then()` is
+  // reached unconditionally and `ready` never rejects.
+  const ready: Promise<void> =
+    options.installExtensions === false
+      ? Promise.resolve()
+      : registerInstalledExtensionTools(registry, deps, "[assistant-byok]").then(() => {
+          catalog = buildToolCatalogQuery(registry);
+        });
 
   async function executeMetaTool(
     principal: Principal,
@@ -500,5 +534,5 @@ export function createByokToolSurface(
     return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
   }
 
-  return { registry, executor, metaTools: META_TOOL_DESCRIPTORS, surfaceExchanges, executeMetaTool };
+  return { registry, executor, metaTools: META_TOOL_DESCRIPTORS, surfaceExchanges, executeMetaTool, ready };
 }

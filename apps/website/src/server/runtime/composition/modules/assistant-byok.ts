@@ -362,6 +362,15 @@ export function createAssistantByokModule(
     const { messages, principal, credential } = inputs;
     const system = await resolveByokSystemPrompt(routeDeps);
 
+    // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
+    // plugin-capability tools) has been applied to `resolvedToolSurface`'s registry AND its
+    // `search_tools`/`describe_tool` catalog rebuilt to include them — see `ByokToolSurface.ready`'s
+    // own doc. Awaited here, once per turn, so `search_tools` can find a just-registered extension
+    // tool before the model's first tool call this turn, not only after it. Resolves instantly for
+    // every turn after the first (the promise is already settled) and for a caller-supplied
+    // `toolSurface` that predates this field, which has no `ready` to wait on at all.
+    await (resolvedToolSurface.ready ?? Promise.resolve());
+
     const run = { id: randomUUID() };
 
     beginStream(req, res);

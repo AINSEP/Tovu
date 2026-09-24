@@ -86,9 +86,7 @@ import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunS
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
-import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
-import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
-import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
+import { registerInstalledExtensionTools } from "#src/assistant/installed-extension-tools";
 import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
@@ -1372,83 +1370,26 @@ async function start(): Promise<void> {
   registerFederationReloadRoute(app, { reload: reloadFederatedConnections });
 
   /**
-   * Registers every installed Agent Plugin as a real tool, so a plain `search_tools` reaches it the
-   * same way it already reaches the 147 native tools — the structural half of the capability-discovery
-   * work, complementing the prompt-side `TOVU_CAPABILITY_MANIFEST_ARM` affordance rather than
-   * replacing it. Bench measurement: #1 for 6 of 7 held-out design queries, and it FREED native tools
-   * rather than crowding them (`theme_read_file` #10 -> #4 on "design guidance").
+   * Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
+   * capability tool (Word Count today) as real tools, so a plain `search_tools` reaches them the same
+   * way it already reaches the native tools — the structural half of the capability-discovery work,
+   * complementing the prompt-side `TOVU_CAPABILITY_MANIFEST_ARM` affordance rather than replacing it.
+   * Bench measurement (agent plugins): #1 for 6 of 7 held-out design queries, and it FREED native
+   * tools rather than crowding them (`theme_read_file` #10 -> #4 on "design guidance"). Capability
+   * tools are the fix for the 2026-08-26 registration-gap audit: Word Count was live, valid, and
+   * computing real data, but no tool anywhere ever exposed it.
    *
-   * Placed here — inside `start()`, immediately before `buildToolCatalogQuery` — for exactly the
-   * ordering reason the block below records: that call snapshots `registry.list()` into a one-shot
-   * FTS index, so a tool registered after it is executable but INVISIBLE to `search_tools`, which is
-   * the half-wired state `tool-catalog-query.ts`'s header documents finding on 2026-07-30. Awaited
-   * for the same reason: `loadInstalledAgentPluginToolSources` reads the plugin tree off disk, and an
-   * un-awaited promise would let the snapshot win the race on a cold cache.
-   *
-   * Fail-open, matching `attachFederatedMcpTools` above: a workspace with no plugins installed, or an
-   * unreadable plugin tree, must not stop the daemon booting — the native catalog does not depend on
-   * this, and a boot failure here would take down the whole assistant over an optional extension.
+   * Moved into `registerInstalledExtensionTools` (`assistant/installed-extension-tools.ts`), which
+   * `byok-tool-surface.ts` now calls too, so BYOK mode sees the identical three families through the
+   * identical ordering/fail-open registrar rather than a second hand-written copy — see that
+   * function's own header for the full ordering/fail-open rationale, unchanged from the three blocks
+   * this call replaces. Placed here — inside `start()`, immediately before `buildToolCatalogQuery` —
+   * because that call snapshots `registry.list()` into a one-shot FTS index: a tool registered after
+   * it is executable but INVISIBLE to `search_tools`. Awaited for the same reason: each family reads
+   * its own tree off disk, and an un-awaited promise would let the snapshot win the race on a cold
+   * cache.
    */
-  try {
-    await registerInstalledAgentPluginTools(registry, { workspaceId: routeDeps.workspaceId });
-  } catch (error) {
-    console.warn(
-      `[agent-daemon] agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  /**
-   * Registers every installed standalone Agent Skill (`infra/skills/ws/<workspaceId>/<dir>/SKILL.md`
-   * — `features/skills/`) as a real tool, one skill per tool (`skill_<name>`), the same way the block
-   * immediately above does for installed Agent Plugins. The two features are deliberately separate
-   * (owner decision: "they are different things... a skills/ and a separate agent-plugins/
-   * directory") but share this file's same ordering constraint, so the call sits right next to its
-   * agent-plugin counterpart rather than elsewhere in `start()`: placed here, immediately before
-   * `buildToolCatalogQuery`, because that call snapshots `registry.list()` into a one-shot FTS index
-   * — a tool registered after it is executable but INVISIBLE to `search_tools`. Awaited for the same
-   * reason `registerInstalledAgentPluginTools` is: `loadInstalledSkillToolSources` reads the skills
-   * tree off disk, and an un-awaited promise would let the snapshot win the race on a cold cache.
-   *
-   * Fail-open, matching every other optional-extension registrar in this function: a workspace with
-   * no skills installed, or an unreadable skills tree, must not stop the daemon booting.
-   */
-  try {
-    await registerInstalledSkillTools(registry, { workspaceId: routeDeps.workspaceId });
-  } catch (error) {
-    console.warn(
-      `[agent-daemon] skill tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  /**
-   * Registers one real tool per ENABLED plugin-runtime plugin that declares a readable field (v1:
-   * the built-in Word Count plugin) — the fix for the 2026-08-26 registration-gap audit: Word Count
-   * was live, valid, and computing real data, but no tool anywhere ever exposed it, so a plain
-   * `search_tools` query for "compute word count or reading time statistics for post content"
-   * correctly found nothing. See `features/plugin-runtime/capability-tool-registrations.ts`'s own
-   * header for why this is a read-the-stored-output tool rather than a bigger "plugins declare
-   * invocable tools" contract change.
-   *
-   * Same placement/ordering/fail-open rationale as the two registrars immediately above: placed
-   * before `buildToolCatalogQuery`'s one-shot FTS snapshot (a tool registered after it is executable
-   * but invisible to `search_tools`), awaited for the same reason (`loadEnabledPluginCapabilityToolSources`
-   * reads discovery + activation state, and an un-awaited promise would let the snapshot win the
-   * race), and fail-open so a workspace with no enabled plugin-runtime plugins — or an unreadable
-   * plugin tree — does not stop the daemon booting over an optional extension.
-   */
-  try {
-    await registerEnabledPluginCapabilityTools(registry, {
-      authorize: routeDeps.authorize,
-      workspaceId: routeDeps.workspaceId,
-      postRepo: routeDeps.postRepo,
-      discoverPlugins: routeDeps.discoverPlugins,
-      pluginActivationRepo: routeDeps.pluginActivationRepo,
-    });
-  } catch (error) {
-    console.warn(
-      `[agent-daemon] plugin capability tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  await registerInstalledExtensionTools(registry, routeDeps, "[agent-daemon]");
 
   // Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,
   // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
