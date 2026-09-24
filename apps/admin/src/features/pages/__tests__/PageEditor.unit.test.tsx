@@ -141,6 +141,10 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // Bug A / interactive-bugs plan Slice A3 — no pre-existing test drives the Interactive surface's
     // placeholder card, so an inert stub is enough; a test that needs a real descriptor overrides it.
     embedPlaceholderDescriber: () => undefined,
+    // Interactive flush (2026-09-23 plan) — `usePageEditor`'s ref onto `<InteractiveHtmlEditor>`. No
+    // pre-existing test here drives it; `PageEditor.interactive-flush.unit.test.tsx` overrides it to
+    // prove `PageEditorPane` wires it onto the real component.
+    interactiveEditorRef: { current: null },
     ...overrides,
   };
 }

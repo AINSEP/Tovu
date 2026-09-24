@@ -1,7 +1,11 @@
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { InteractiveHtmlEditor, type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
+import {
+  InteractiveHtmlEditor,
+  type CanvasEmbedPlaceholderDescriptor,
+  type InteractiveHtmlEditorHandle,
+} from "@jini-ai/ui/html-editor";
 
 import { isProtectedEmbedElement } from "./lib/embed-placeholder";
 
@@ -674,6 +678,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     contentRevision,
     t,
     embedPlaceholderDescriber,
+    interactiveEditorRef,
   } = usePageEditorHook(routeSlug);
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
@@ -817,6 +822,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         onTogglePreviewExpanded={togglePreviewExpanded}
         t={t}
         embedPlaceholderDescriber={embedPlaceholderDescriber}
+        interactiveEditorRef={interactiveEditorRef}
       />
 
       <ConfirmDialog
@@ -855,6 +861,11 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
  * contract: `usePageEditor` rebuilds it whenever the bound translator changes, but
  * `InteractiveHtmlEditor` only reads `describeEmbedPlaceholder` at construction, so a later identity
  * change (a locale switch mid-session) takes effect on the NEXT Interactive-tab mount, not live.
+ *
+ * `interactiveEditorRef` (Interactive flush, 2026-09-23 plan) is attached to `<InteractiveHtmlEditor>`
+ * below so `usePageEditor`'s `flushInteractiveEdits` can close an open RTE session and sync its edit
+ * before a save, publish, tab switch, or template change — see `PageEditorController
+ * .interactiveEditorRef`'s own doc.
  */
 function PageEditorPane({
   view,
@@ -882,6 +893,7 @@ function PageEditorPane({
   onTogglePreviewExpanded,
   t,
   embedPlaceholderDescriber,
+  interactiveEditorRef,
 }: {
   view: PageEditorView;
   canvasStyling: ThemeCanvasStylingState;
@@ -922,6 +934,9 @@ function PageEditorPane({
   /** Bug A / interactive-bugs plan Slice A3 — see `PageEditorController.embedPlaceholderDescriber`'s
    *  own doc. Passed straight through to the `interactive` surface below. */
   embedPlaceholderDescriber: (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined;
+  /** Interactive flush (2026-09-23 plan) — see `PageEditorController.interactiveEditorRef`'s own
+   *  doc. Attached to the `interactive` surface's `<InteractiveHtmlEditor>` below. */
+  interactiveEditorRef: RefObject<InteractiveHtmlEditorHandle | null>;
 }) {
   const surface = pageEditorSurface(view, canvasStyling);
   // Bug B, Slice B3 (dev-only instrumentation, pages-redo plan): logs which surface this pane renders,
@@ -983,6 +998,7 @@ function PageEditorPane({
   return (
     <InteractiveHtmlEditor
       key={contentRevision}
+      ref={interactiveEditorRef}
       html={html}
       onChange={setHtml}
       canvasStyling={surface.styling}

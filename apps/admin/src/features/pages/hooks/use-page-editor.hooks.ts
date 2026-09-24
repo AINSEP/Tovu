@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
-import type { CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
+import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
 
 import type { AdminPost } from "@/lib/api";
 import {
@@ -25,6 +25,7 @@ import {
 import { t as defaultT } from "../page-editor-i18n";
 import { createEmbedPlaceholderDescriber } from "../lib/embed-placeholder";
 import { prettifyHtml } from "../lib/prettify-html";
+import { useInteractiveEditorFlush } from "./use-interactive-flush.hooks";
 import {
   buildPageAutosaveDraft,
   buildPageSavePlan,
@@ -153,6 +154,16 @@ export interface PageEditorController {
    * `@tovu/embed-marker` target rule, instead of the id-only label Jini's own adapter produced.
    */
   embedPlaceholderDescriber: (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined;
+  /**
+   * Interactive flush (2026-09-23 plan) — `PageEditorPane` attaches this to
+   * `<InteractiveHtmlEditor ref={...}>`. GrapesJS only syncs an open RTE session's text into its
+   * component model when that session closes, never on every keystroke, so `save`,
+   * `saveOverwritingConflict`, `setView`, and `setTemplateChoice` all flush through it (via
+   * `flushInteractiveEdits`, `use-interactive-flush.hooks.ts`) before reading or changing `html` —
+   * otherwise a still-open edit is silently lost. `null` until `<InteractiveHtmlEditor>` mounts (not
+   * on the Interactive tab, or not yet rendered).
+   */
+  interactiveEditorRef: RefObject<InteractiveHtmlEditorHandle | null>;
   /**
    * Whether the working copy differs from what was last loaded or saved.
    *
@@ -609,6 +620,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [html, setHtml] = useState("");
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
+  // Interactive flush (2026-09-23 plan) — see `PageEditorController.interactiveEditorRef`'s own doc.
+  const { interactiveEditorRef, flushInteractiveEdits } = useInteractiveEditorFlush(setHtml);
   const { device, setDevice } = useDevicePreviewDevice();
   // Preview fullscreen (2026-09-16) — see `PageEditorController.previewExpanded`'s own doc for why
   // this lives here instead of `App.tsx` or a bus. `false` by default: opening a Page must never
@@ -779,14 +792,23 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
    * `setPage` to commit — the same shape `usePostEditor`'s `runSave(statusOverride, expectedVersion)`
    * uses, one step wider because a Page's save plan needs the whole row, not just its version.
    *
+   * `htmlOverride` (Interactive flush, 2026-09-23 plan): the just-flushed HTML from
+   * `flushInteractiveEdits`, when its caller has one. Threaded explicitly rather than read off the
+   * `html` state closed over here — `save`/`saveOverwritingConflict` await the flush BEFORE calling
+   * this, but this callback's own `html` closure was captured at render time and can still be one
+   * render behind that state update, the same stale-closure trap `usePostEditor`'s equivalent avoids
+   * by never needing an async step in between. Falls back to `html` when omitted (undefined — nothing
+   * was flushed, or there was nothing to flush).
+   *
    * @complexity Time O(1) plus one or two requests; space O(1).
    */
   const runSave = useCallback(
-    async (nextStatus: "draft" | "published" | undefined, basis: AdminPost) => {
+    async (nextStatus: "draft" | "published" | undefined, basis: AdminPost, htmlOverride?: string) => {
       // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
       // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
       // see the other's claim.
       const generation = settlement.next();
+      const bodyHtml = htmlOverride ?? html;
       setSaving(true);
       setError(null);
       setMessage(null);
@@ -805,16 +827,16 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // unchanged satisfies the requirement without touching it — the alternative (omitting it)
       // throws "bodyJson must be a JSON object" and leaves title/slug/status stuck un-editable for
       // every doc-format Page.
-      const plan = buildPageSavePlan(basis, { title, slug, status, templateChoice, html }, nextStatus);
+      const plan = buildPageSavePlan(basis, { title, slug, status, templateChoice, html: bodyHtml }, nextStatus);
       try {
-        const updated = await writePage(port, basis.id, plan, html);
+        const updated = await writePage(port, basis.id, plan, bodyHtml);
         // A newer save/publish claimed a later generation while this call was awaiting — that call
         // owns the outcome now, so this stale response must not paint over it (2026-09-05
         // stale-settlement sweep: "last-to-settle wins" rather than "last-clicked wins").
         if (!settlement.isCurrent(generation)) return;
         applySavedPage(
           updated,
-          { templateChoice, html, nextStatus },
+          { templateChoice, html: bodyHtml, nextStatus },
           plan.canSaveHtml,
           { setPage, setSlug, setStatus, setSavedTemplateChoice, setSavedHtml, setMessage },
           t,
@@ -854,9 +876,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const save = useCallback(
     async (nextStatus?: "draft" | "published") => {
       if (!page) return;
-      await runSave(nextStatus, page);
+      // Interactive flush (2026-09-23 plan) — closes any RTE session still open on the Interactive
+      // tab so its pending edit is part of this save, not lost. See `runSave`'s `htmlOverride` doc for
+      // why the result is threaded through explicitly rather than left to `runSave`'s own `html`
+      // closure.
+      const flushed = await flushInteractiveEdits();
+      await runSave(nextStatus, page, flushed);
     },
-    [page, runSave]
+    [page, runSave, flushInteractiveEdits]
   );
 
   /**
@@ -878,8 +905,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       return;
     }
     setPage(fresh);
-    await runSave(attemptedStatus, fresh);
-  }, [page, port, runSave, saveConflict, t, locale]);
+    // Interactive flush (2026-09-23 plan) — same reasoning as `save`'s own call.
+    const flushed = await flushInteractiveEdits();
+    await runSave(attemptedStatus, fresh, flushed);
+  }, [page, port, runSave, saveConflict, t, locale, flushInteractiveEdits]);
 
   /** Hides the conflict banner without saving — see
    *  {@link PageEditorController.dismissSaveConflict}. */
@@ -1014,6 +1043,40 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     await autosave.clearStandingDraft();
   }, [autosave.clearStandingDraft]);
 
+  // Interactive flush (2026-09-23 plan) — "flush, then set" wrappers around the raw `setView`/
+  // `setTemplateChoice` state setters (declared above, at `useState`). Leaving Interactive without
+  // flushing first is exactly the same edit-loss bug a save without flushing is: switching tabs or
+  // templates remounts/restyles the canvas, and GrapesJS never got the chance to sync a still-open
+  // RTE session first. `PageEditorController` exposes THESE, not the raw setters, so every caller
+  // (`PageEditor.tsx`'s tab bar and template picker) gets the flush for free; the raw setters stay
+  // internal (`applyLoadedPage`'s callers below still use them directly — loading a row is not an
+  // edit to flush anything against).
+  //
+  // `interactiveEditorRef.current` is checked SYNCHRONOUSLY first: with nothing mounted (not on the
+  // Interactive tab, or the tab never visited this session — the overwhelmingly common case for
+  // every OTHER tab's own setView/setTemplateChoice call), there is nothing to flush, so this applies
+  // immediately rather than forcing every caller through an async microtask for no reason.
+  const setViewAfterFlush = useCallback(
+    (next: PageEditorView) => {
+      if (!interactiveEditorRef.current) {
+        setView(next);
+        return;
+      }
+      void flushInteractiveEdits().then(() => setView(next));
+    },
+    [flushInteractiveEdits]
+  );
+  const setTemplateChoiceAfterFlush = useCallback(
+    (next: string | null) => {
+      if (!interactiveEditorRef.current) {
+        setTemplateChoice(next);
+        return;
+      }
+      void flushInteractiveEdits().then(() => setTemplateChoice(next));
+    },
+    [flushInteractiveEdits]
+  );
+
   // See `templatePreviewUrl`'s own doc on `PageEditorController` for why this is a plain per-render
   // expression rather than state or a `useMemo`.
   const templatePreviewUrl = page ? port.templatePreviewUrl(page.id, templateChoice) : "";
@@ -1053,7 +1116,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     status,
     setStatus,
     templateChoice,
-    setTemplateChoice,
+    setTemplateChoice: setTemplateChoiceAfterFlush,
     availableTemplates,
     html,
     setHtml,
@@ -1063,7 +1126,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     onHtmlScroll,
     onPreviewFrameLoad,
     view,
-    setView,
+    setView: setViewAfterFlush,
     device,
     setDevice,
     previewExpanded,
@@ -1073,6 +1136,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     saving,
     t: boundT,
     embedPlaceholderDescriber,
+    interactiveEditorRef,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
     // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`
     // would report edits as dirty (or, worse, as clean) independent of anything actually saveable.
