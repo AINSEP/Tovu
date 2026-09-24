@@ -132,6 +132,10 @@ import { resolveDesktopRoots } from "./src/packaged-paths.ts";
 import { sitesHomeMenuTemplate } from "./src/site-history-menu.ts";
 import { windowBoundsFilePath, readWindowBounds, writeWindowBounds, resolveWindowBounds } from "./src/window-bounds-store.ts";
 import { registerSpellCheckContextMenu } from "./src/spellcheck-menu.ts";
+import { updaterSkipReason } from "./src/update-policy.ts";
+import { createAutoUpdateController } from "./src/auto-update-controller.ts";
+import { presenceDirPath } from "./src/instance-presence.ts";
+import type { AutoUpdateController } from "./src/auto-update-controller.ts";
 import type { MenuItemConstructorOptions } from "electron";
 import type { QuitPhase } from "./src/quit-drain-gate.ts";
 import type { SelftestTracker } from "./src/selftest-tracker.ts";
@@ -338,6 +342,10 @@ const pendingTeardowns = createShutdownTracker();
  *  through). `decideBeforeQuit` reads it — see `quit-drain-gate.ts` for why an attempt mid-drain is
  *  held rather than let through. */
 let quitPhase: QuitPhase = "idle";
+
+/** The auto-updater, or `null` when this launch does not run one (dev, the Microsoft Store build, a
+ *  self-test). `before-quit` asks it whether the final quit installs an update. */
+let autoUpdate: AutoUpdateController | null = null;
 
 /**
  * How long a graceful quit gets before `app.exit(1)`. The first termination signal arms it
@@ -1333,6 +1341,62 @@ async function bootOwnServerMode(): Promise<void> {
   });
 }
 
+/**
+ * Starts the auto-updater (`electron-updater`, GitHub releases of this repo) unless this launch must
+ * not run one — see `update-policy.ts`'s `updaterSkipReason`. `electron-updater` is imported here,
+ * not at the top, so a dev launch never loads it.
+ */
+async function startAutoUpdater(): Promise<void> {
+  const skip = updaterSkipReason({
+    isPackaged: app.isPackaged,
+    windowsStore: process.windowsStore === true,
+    platform: process.platform,
+    disabledByEnv: process.env.TOVU_DESKTOP_DISABLE_UPDATER === "1",
+    selftest: SELFTEST,
+  });
+  if (skip !== null) {
+    console.log(`[tovu-desktop] auto-update off: ${skip}`);
+    return;
+  }
+  const { autoUpdater } = (await import("electron-updater")).default;
+  autoUpdate = createAutoUpdateController({
+    updater: autoUpdater,
+    platform: process.platform,
+    pid: process.pid,
+    presenceDir: presenceDirPath(app.getPath("userData")),
+    now: Date.now,
+    promptUpdateReady,
+    explainOthersOpen,
+    quit: () => app.quit(),
+    log: (message) => console.log(`[tovu-desktop] ${message}`),
+  });
+  autoUpdate.start();
+}
+
+/** The "Update ready" prompt, as a sheet on the focused window. Resolves `true` for Restart. */
+async function promptUpdateReady(version: string): Promise<boolean> {
+  const options = {
+    type: "info" as const,
+    buttons: ["Restart to update", "Later"],
+    defaultId: 0,
+    cancelId: 1,
+    message: "Update ready",
+    detail: `Tovu ${version} is downloaded. Restart now, or it installs when you quit Tovu.`,
+  };
+  const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
+  return response === 0;
+}
+
+/** Restart to update was chosen while other copies of the app are open. */
+function explainOthersOpen(count: number): void {
+  void dialog.showMessageBox({
+    type: "info",
+    message: "Close the other copies of Tovu first",
+    detail: `${count} other copy${count === 1 ? " is" : "s are"} open. The update installs when the last one quits.`,
+  });
+}
+
 app
   .whenReady()
   .then(async () => {
@@ -1371,6 +1435,9 @@ app
     // running to go fix it.
     installRootKeyBootGuard({ ipcMain });
     applyDockIcon();
+    // Not awaited: the updater's first check waits on its own timer, and a failure to load it must
+    // never block or fail the boot.
+    startAutoUpdater().catch((error: Error) => console.error(`[tovu-desktop] auto-update not started: ${error.message}`));
 
     // ABOVE the mode split, deliberately: the sites home UI writes crash-safety rows (every project tab's
     // first open goes through `openSiteServer`) but used to read none back, so a hard kill leaked
@@ -1527,22 +1594,43 @@ app.on("before-quit", (event) => {
   // window left this reading "nothing open" while a `tovu serve` was still alive — and it is spawned
   // `detached`, so it outlives the app. See `shutdown-tracker.ts`'s own header.
   const action = decideBeforeQuit({ phase: quitPhase, nothingToDrain: openSites.size === 0 && pendingTeardowns.size === 0 });
-  if (action === "proceed") return;
+  if (action === "proceed") {
+    if (finalQuitHeldForUpdate()) event.preventDefault();
+    return;
+  }
   event.preventDefault();
   // A second Cmd+Q, menu Quit, signal or `app.quit()` during the drain: prevented and dropped, so
   // only the drain's own closing `app.quit()` below ends the app. See `quit-drain-gate.ts`.
   if (action === "hold") return;
   quitPhase = "draining";
   // Holding removed a repeat quit's escape from a hung drain, so every route gets the deadline here,
-  // not only a termination signal. See `QUIT_DEADLINE_MS`.
-  setTimeout(() => app.exit(1), QUIT_DEADLINE_MS).unref();
+  // not only a termination signal. See `QUIT_DEADLINE_MS`. Cleared once the drain is done: it bounds
+  // the DRAIN, and must not cut off a macOS update being handed to Squirrel after it (the updater
+  // bounds that step itself, `auto-update-controller.ts`'s `STAGE_TIMEOUT_MS`).
+  const drainDeadline = setTimeout(() => app.exit(1), QUIT_DEADLINE_MS);
+  drainDeadline.unref();
   const stops = [...openSites.values()].map((entry) => entry.server.stop().catch(() => {}));
   Promise.all(stops)
     .then(() => pendingTeardowns.drain())
     .finally(() => {
+      clearTimeout(drainDeadline);
       quitPhase = "drained";
       app.quit();
     });
+});
+
+/**
+ * The quit that actually ends the app, once nothing is left to drain. A downloaded update installs
+ * here, and only when no other instance of the app is running (`update-policy.ts`'s
+ * `decideFinalQuit`). When the install takes over (macOS staging, or Restart to update) it quits the
+ * app itself, so this quit is held.
+ */
+function finalQuitHeldForUpdate(): boolean {
+  return autoUpdate?.beforeFinalQuit() ?? false;
+}
+
+app.on("will-quit", () => {
+  autoUpdate?.willQuit();
 });
 
 app.on("window-all-closed", () => {
