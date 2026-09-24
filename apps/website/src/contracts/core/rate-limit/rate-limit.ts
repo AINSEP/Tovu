@@ -334,17 +334,20 @@ export function createRateLimiter(
 export interface ClientIpSource {
   socket: { remoteAddress?: string };
   headers: Record<string, string | string[] | undefined>;
+  /** Express's `req.ip`: the socket peer, or — only when `trust proxy` trusts that peer — the
+   *  address the trusted proxy recorded in X-Forwarded-For. */
+  ip?: string;
 }
 
 /**
  * Resolve the client IP for `LOGIN_STRICT` per api.spec §3's "Client-IP
  * resolution" rule: the immediate socket peer address is the source of
  * truth; a `X-Forwarded-For` header is only honored when that immediate peer
- * appears on `trustedProxies`. An untrusted peer's forwarded-for header is
- * ignored outright (no partial trust), and when `trustedProxies` is empty —
- * this repo has no trusted-proxy config surface today (confirmed: no
- * `app.set('trust proxy', ...)` anywhere) — the socket peer address is always
- * used, matching the spec's explicit fallback.
+ * is a trusted proxy. With an explicit `trustedProxies` list, that list
+ * decides. Otherwise Express's `req.ip` is used, which honors X-Forwarded-For
+ * only as far as the app's `trust proxy` setting allows
+ * (`inbound/shared/trust-proxy.ts`: Fly's one edge hop, a TOVU_TRUST_PROXY
+ * override, or none) and is otherwise the socket peer.
  *
  * @complexity O(1).
  * @overallScore 100
@@ -359,5 +362,5 @@ export function resolveClientIp(req: ClientIpSource, trustedProxies: readonly st
     if (firstHop) return firstHop;
   }
 
-  return socketPeer;
+  return req.ip || socketPeer;
 }

@@ -208,6 +208,7 @@ import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/rou
 import { applyDevCors } from "../../inbound/shared/dev-cors.js";
 import { applyRequestTracking } from "../../inbound/shared/observability-middleware.js";
 import { parsePublicJsonBody, respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
+import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
@@ -1417,6 +1418,8 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `routing.ts`'s `registerResolvePhase` doc and `redirects/phase-handler.ts`'s file header).
   resetPageHeadRegistry();
   const app = express();
+  // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
+  applyTrustProxy(app);
   applyDevCors(app);
   // Registered as early as possible — ahead of the serving gate below and every route module — so
   // a request the gate rejects, or a 404 that matches no route at all, is still measured. See

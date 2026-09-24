@@ -55,7 +55,7 @@ function boundBody(body: unknown): Record<string, unknown> {
 }
 
 function resolveSourceIp(req: Request): string {
-  return resolveClientIp({ socket: req.socket, headers: req.headers });
+  return resolveClientIp(req);
 }
 
 /** True for a real browser's form-POST navigation (`Accept: text/html,...`); false for the
