@@ -14,10 +14,10 @@
     "test": "node --import tsx --test ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} \"src/**/*.test.ts\""
   },
   "dependencies": {
-    "@jini-ai/agentic": "^0.3.6",
-    "@jini-ai/chat": "^0.3.7",
+    "@jini-ai/agentic": "^0.3.7",
+    "@jini-ai/chat": "^0.3.9",
     "@jini-ai/protocol": "^0.3.0",
-    "@jini-ai/ui": "^0.3.11",
+    "@jini-ai/ui": "^0.3.12",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
