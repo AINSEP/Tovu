@@ -22,6 +22,7 @@ import {
   withReadOnlyToolConstraint,
 } from "../read-only-tool-constraint.js";
 import { createAssistantToolExecutor } from "../tool-executor-stack.js";
+import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 
 /**
  * @file The test the previous read-only-gateway work did not have: it drives the REAL decorator
@@ -267,7 +268,7 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
       calls.push({ toolId: "probe_read", input: ctx.input });
       originalCalls += 1;
       return originalCalls === 1
-        ? { ok: false, hint: "a region is needed to read this", remedyToolId: "probe_pick_region" }
+        ? issueToolFailureDiagnostic({ ok: false, hint: "a region is needed to read this", remedyToolId: "probe_pick_region" })
         : { ok: true };
     },
   });

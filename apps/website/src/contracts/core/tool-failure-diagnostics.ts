@@ -94,3 +94,33 @@ export interface ToolFailureDiagnostic {
    */
   readonly remedyToolId?: string;
 }
+
+/**
+ * Every diagnostic a tool has issued, by identity. Membership is the proof that a `{hint,
+ * remedyToolId}` object came from tool code reporting a failure, not from data the tool merely
+ * returned: stored content (a post's `bodyJson`, a widget's props) is plain JSON and can carry the
+ * same two fields, and the recovery loop turns them into a dialog that runs `remedyToolId`. A parsed
+ * or stored object can never be a member. Weak, so an issued diagnostic is collected with its result.
+ */
+const issuedDiagnostics = new WeakSet<object>();
+
+/**
+ * Marks `diagnostic` as issued by the calling tool for a real failure, so the recovery loop
+ * (`assistant/tool-failure-recovery.ts`) may act on it. Returns the same object. Call it where the
+ * diagnostic is built, and return that object itself: a copy (spread, JSON round trip) is not issued.
+ *
+ * @complexity O(1).
+ */
+export function issueToolFailureDiagnostic<T extends ToolFailureDiagnostic>(diagnostic: T): T {
+  issuedDiagnostics.add(diagnostic);
+  return diagnostic;
+}
+
+/**
+ * True only for an object {@link issueToolFailureDiagnostic} marked.
+ *
+ * @complexity O(1).
+ */
+export function isIssuedToolFailureDiagnostic(value: unknown): boolean {
+  return typeof value === "object" && value !== null && issuedDiagnostics.has(value);
+}

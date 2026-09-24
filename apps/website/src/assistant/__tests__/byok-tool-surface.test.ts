@@ -28,6 +28,7 @@ import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.
 import { TOOL_ERROR_ID_PATTERN } from "../tool-failure-redaction.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 
 // `surface()` below calls `createByokToolSurface` directly (not through `createAssistantByokModule`,
 // which installs first-party contributors itself) — so this file must, or the `comments`/
@@ -448,7 +449,7 @@ test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through a
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_original", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return { executed: false, hint: "needs a value", remedyToolId: "fake_recoverable_remedy" };
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ executed: false, hint: "needs a value", remedyToolId: "fake_recoverable_remedy" });
       return { fixed: true };
     }),
   );
@@ -521,9 +522,9 @@ test("WIRING: no second recovery cycle — a retry whose OWN result also carries
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_original_double", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return { hint: "first problem", remedyToolId: "fake_recoverable_remedy_double" };
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ hint: "first problem", remedyToolId: "fake_recoverable_remedy_double" });
       // The retry's own output ALSO looks diagnostic-shaped — this must not trigger a second ask.
-      return { hint: "second problem", remedyToolId: "fake_recoverable_remedy_double" };
+      return issueToolFailureDiagnostic({ hint: "second problem", remedyToolId: "fake_recoverable_remedy_double" });
     }),
   );
   s.registry.register(
@@ -562,7 +563,7 @@ test("WIRING: declining the recovery surface returns the ORIGINAL failure untouc
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_decline", async () => {
       originalCallCount += 1;
-      return { executed: false, status: 401, hint: "needs a value", remedyToolId: "fake_recoverable_decline_remedy" };
+      return issueToolFailureDiagnostic({ executed: false, status: 401, hint: "needs a value", remedyToolId: "fake_recoverable_decline_remedy" });
     }),
   );
   s.registry.register(
@@ -603,7 +604,7 @@ test("WIRING: declining the recovery surface returns the ORIGINAL failure untouc
 test("WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging", async () => {
   const s = surface();
   s.registry.register(
-    fakeAllowedRegistration("fake_recoverable_headless", async () => ({ hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" })),
+    fakeAllowedRegistration("fake_recoverable_headless", async () => issueToolFailureDiagnostic({ hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" })),
   );
 
   // No emitSurface passed — the synthetic/headless caller shape this loop's own doc says must never guess.
@@ -619,7 +620,7 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_retry_fails", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return { hint: "needs a value", remedyToolId: "fake_recoverable_retry_fails_remedy" };
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ hint: "needs a value", remedyToolId: "fake_recoverable_retry_fails_remedy" });
       throw new Error("still broken after the fix");
     }),
   );
@@ -668,7 +669,7 @@ test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry ar
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_audited", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return { hint: "needs a value", remedyToolId: "fake_recoverable_audited_remedy" };
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ hint: "needs a value", remedyToolId: "fake_recoverable_audited_remedy" });
       return { fixed: true };
     }),
   );

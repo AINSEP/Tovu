@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { ToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+import { issueToolFailureDiagnostic, type ToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { detectSelfDescribingAuthScheme } from "./providers/index.js";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
@@ -619,7 +619,7 @@ function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, s
     // would be a false lead, not a hedge.
     return { schemeSent, usernameStored };
   }
-  return {
+  return issueToolFailureDiagnostic({
     schemeSent,
     usernameStored,
     hint:
@@ -627,7 +627,7 @@ function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, s
       "authenticate a token against an account username via HTTP Basic) may reject a Bearer-only request " +
       "for that reason — this credential has no username saved. If that's the cause, saving one may fix it.",
     remedyToolId: SET_USERNAME_TOOL_ID,
-  };
+  });
 }
 
 /** One audited call outcome — see this file's header, "Audit, never the secret", for exactly why

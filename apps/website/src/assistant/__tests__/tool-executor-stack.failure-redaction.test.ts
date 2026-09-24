@@ -18,6 +18,7 @@ import { constrainPrincipalToReadOnlyTools, readOnlyRemedyRefusalMessage, refuse
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { createAssistantToolExecutor } from "../tool-executor-stack.js";
 import { readToolErrorId, TOOL_ERROR_ID_PATTERN, type ToolFailureRecord } from "../tool-failure-redaction.js";
+import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 
 /**
  * @file Drives `createAssistantToolExecutor` — the REAL, production-composed decorator stack — end
@@ -212,7 +213,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
     policy: { authorize: () => "allow" },
     handler: () => {
       reads += 1;
-      return { hint: "needs a write", remedyToolId: "ro_probe_write" };
+      return issueToolFailureDiagnostic({ hint: "needs a write", remedyToolId: "ro_probe_write" });
     },
   });
   registry.register({

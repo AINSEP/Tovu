@@ -2,7 +2,7 @@ import type { Principal, RunRef, SurfaceEmitter, ToolDescriptor, ToolRegistry } 
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { buildFormSurface, type SurfaceField, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import type { ToolFailureDiagnostic } from "../contracts/core/tool-failure-diagnostics.js";
+import { isIssuedToolFailureDiagnostic, type ToolFailureDiagnostic } from "../contracts/core/tool-failure-diagnostics.js";
 import {
   askOnce,
   SURFACE_DISMISSED_PARAM,
@@ -44,7 +44,8 @@ import { readOnlyRemedyRefusalMessage, refuseNonReadOnlyDispatch } from "./read-
  * Only a `status: 'completed'` execution (a handler that returned normally) is even inspected — a
  * thrown error has no structured output to carry a diagnostic in, and `ToolFailureDiagnostic` was
  * never meant to model that case (see that file's own header, facet 1). The completed output is
- * walked (bounded, see {@link findActionableDiagnostic}) for the first plain object carrying BOTH a
+ * walked (bounded, see {@link findActionableDiagnostic}) for the first plain object the tool ISSUED
+ * (`issueToolFailureDiagnostic` — so stored content shaped like a diagnostic never counts) carrying BOTH a
  * string `hint` AND a string `remedyToolId`. `hint` with no `remedyToolId` is deliberately NOT
  * actionable here — the general contract's own header says as much ("no registered tool can supply
  * the fix yet ... still worth surfacing to a human who can act on it by hand"): a human reading the
@@ -184,7 +185,12 @@ function walkForDiagnostic(value: unknown, depth: number, scanState: DiagnosticS
   if (diagnosticScanLimitReached(depth, scanState)) return undefined;
   scanState.visited += 1;
 
-  if (isPlainObject(value) && isActionableDiagnostic(value)) return { hint: value.hint, remedyToolId: value.remedyToolId };
+  // Issued, not merely shaped like one: stored content a tool returns (a post's `bodyJson`, a
+  // widget's props) is plain JSON and can carry `{hint, remedyToolId}` too. Only a diagnostic the
+  // tool itself issued for a failure may raise the recovery dialog — see `issueToolFailureDiagnostic`.
+  if (isPlainObject(value) && isIssuedToolFailureDiagnostic(value) && isActionableDiagnostic(value)) {
+    return { hint: value.hint, remedyToolId: value.remedyToolId };
+  }
 
   const children = diagnosticScanChildren(value);
   if (!children) return undefined;
