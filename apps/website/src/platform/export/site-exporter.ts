@@ -876,7 +876,11 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
   // all, lazy or otherwise. Nullary as of 2026-08-20 (RouteDeps-narrowing pass 2) — already closed
   // over its own `routeDeps` at composition-root construction time, so no argument is passed here.
   const server = createServer(routeDeps.createSiteApp());
-  server.listen(0);
+  // LAN-bind plan (2026-09-23): this temporary server previously bound every interface (Node's own
+  // default) for the length of an export. Its own client below always dials `127.0.0.1` anyway
+  // (`baseUrl`), so restricting the bind to `127.0.0.1` costs nothing and closes a brief
+  // LAN-reachable window.
+  server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${address.port}`;

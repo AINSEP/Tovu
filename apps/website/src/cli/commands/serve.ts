@@ -19,6 +19,7 @@ import { warnIfNoRootKeyAtBoot } from "../../server/runtime/boot/root-key-boot-n
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
+import { resolveBindHost, isLoopbackHost, DEFAULT_LOCAL_BIND_HOST } from "../../server/runtime/boot/bind-host.js";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/admin-dev-proxy.js";
 
@@ -30,7 +31,10 @@ import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/ad
  * Purpose:
  * Owns the one HTTP-listen side effect this feature introduces, isolated from `site-dir` (which
  * has zero Express awareness) — port precedence (BR-02), the legacy-env-var-ignored warning
- * (BR-04/EC-08), the one boot-line log (api.spec.md §5), and graceful shutdown (BR-07).
+ * (BR-04/EC-08), the one boot-line log (api.spec.md §5), and graceful shutdown (BR-07). Also owns
+ * the bind HOST (LAN-bind plan, 2026-09-23): defaults to loopback-only via `resolveBindHost`/
+ * `bind-host.ts`, opt-in-widened by `TOVU_HOST`, with a stderr warning when the resolved host is
+ * not loopback.
  *
  * Architectural role:
  * `cli` layer. Never maps errors to exit codes itself (`cli/errors.ts`'s job) — lets `site-dir`
@@ -264,6 +268,10 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   pinServedSiteDirIntoEnv(target);
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   const port = resolveServePort(input, bootResult.config);
+  // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
+  // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
+  // than after `bootSiteDir`'s migrations/side effects have already run.
+  const host = resolveBindHost(process.env, DEFAULT_LOCAL_BIND_HOST);
 
   const dbPath = path.join(target, "content.db");
   const deps = createSqliteRouteDeps(dbPath, {
@@ -332,7 +340,11 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   const { app, outboxDrainer, trashSweeper } = createServingApp(deps);
 
   await new Promise<void>((resolve, reject) => {
-    const server = app.listen(port);
+    // Express's own `.listen()` overloads type `hostname` as a required `string`, not
+    // `string | undefined` (`@types/express-serve-static-core`) — so `host === undefined` (the
+    // "no TOVU_HOST override, use Node's own all-interfaces default" case) is routed to the
+    // callback-only overload explicitly, rather than widening the type with a cast.
+    const server = host !== undefined ? app.listen(port, host) : app.listen(port);
 
     // Forwards Vite's HMR WebSocket when `TOVU_ADMIN_DEV_PROXY_URL` is set. `registerAdminStatic`
     // (reached via `createApp` above) already proxies ordinary `/admin/*` REQUESTS on this path, but
@@ -377,6 +389,15 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
       // api.spec.md §5: "one startup line including: dir, resolved port, schemaVersion, workspace id".
       // eslint-disable-next-line no-console
       console.log(`tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${bootResult.workspaceId}`);
+      // AFTER the documented startup line, same ordering reason as the boot token above — a parser
+      // treating that line as the ready signal must see it exactly as documented, unwidened by a
+      // second line ahead of it. LAN-bind plan (2026-09-23): this is the one place `TOVU_HOST`
+      // widening a `tovu serve` instance beyond loopback becomes visible to whoever started it.
+      if (!isLoopbackHost(host)) {
+        process.stderr.write(
+          `tovu serve: warning: listening on ${host ?? "all interfaces"}; this site is reachable from other machines on your network (TOVU_HOST)\n`
+        );
+      }
       resolve();
 
       // Same readiness-await-then-spawn ordering as `index.ts`'s own `app.listen()` callback, and

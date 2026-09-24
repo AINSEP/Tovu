@@ -85,3 +85,30 @@ test("sanity: the exact call-site text is not also the primitive's own declarati
       "-- note the `: string` after `target`, which is why it does not also match this literal string."
   );
 });
+
+/**
+ * LAN-bind plan (2026-09-23), Slice 1: same "correct primitive, unwired call site" gap as
+ * `pinServedSiteDirIntoEnv` above, for `resolveBindHost`/`app.listen(port, host)`. The banned
+ * `serve-command*.integration.test.ts` family is the only suite that would exercise a real bound
+ * listener's actual interface, so a source-text check is the only net available here too.
+ */
+test("runServeCommand's body resolves TOVU_HOST via resolveBindHost(process.env, DEFAULT_LOCAL_BIND_HOST)", () => {
+  const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
+  const body = readRunServeCommandBody(source);
+  assert.ok(
+    body.includes("resolveBindHost(process.env, DEFAULT_LOCAL_BIND_HOST)"),
+    "runServeCommand no longer resolves TOVU_HOST with resolveBindHost(process.env, DEFAULT_LOCAL_BIND_HOST) -- " +
+      "deleting or rewording that call silently reintroduces the all-interfaces default for tovu serve " +
+      "(see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md)."
+  );
+});
+
+test("runServeCommand's body passes the resolved host into app.listen(port, host)", () => {
+  const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
+  const body = readRunServeCommandBody(source);
+  assert.ok(
+    body.includes("app.listen(port, host)"),
+    "runServeCommand no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts " +
+      "to Node's own all-interfaces default, undoing the TOVU_HOST loopback default."
+  );
+});

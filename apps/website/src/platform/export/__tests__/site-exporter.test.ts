@@ -86,6 +86,39 @@ test("exportSite: --base-path unset leaves every written byte identical to a pla
   assert.match(robots, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
 });
 
+/**
+ * LAN-bind plan (2026-09-23), Slice 1: the exporter's own temporary server (`site-exporter.ts:879`,
+ * `server.listen(0)`) was bound to every interface for the length of an export — briefly
+ * LAN-reachable on a machine without a firewall. Its own client already dials `127.0.0.1`
+ * (`:882`), so binding the listener to `127.0.0.1` too costs nothing and closes the gap. Reuses the
+ * `base.createSiteApp` seam the CSS-url-following test above already established: a first
+ * middleware records `req.socket.localAddress` for every request the crawl makes, which is exactly
+ * the peer-visible bind surface a LAN client vs. a loopback client would differ on.
+ */
+test("exportSite: the exporter's own temporary server is bound to 127.0.0.1, not every interface", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const base = createRouteDeps();
+  const recordedLocalAddresses: string[] = [];
+  base.createSiteApp = () => {
+    const wrapper = express();
+    wrapper.use((req, _res, next) => {
+      recordedLocalAddresses.push(req.socket.localAddress ?? "");
+      next();
+    });
+    wrapper.use(createApp(base));
+    return wrapper;
+  };
+
+  await exportSite({ routeDeps: base, outputDir });
+
+  assert.ok(recordedLocalAddresses.length > 0, "the crawl must have made at least one request for this assertion to mean anything");
+  for (const addr of recordedLocalAddresses) {
+    assert.equal(addr, "127.0.0.1", "every request the export crawl makes must land on a listener bound to 127.0.0.1, not an every-interface bind");
+  }
+});
+
 test("exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute sitemap <loc> entries and robots.txt's Sitemap line untouched, and never double-prefixes anything already prefixed", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
