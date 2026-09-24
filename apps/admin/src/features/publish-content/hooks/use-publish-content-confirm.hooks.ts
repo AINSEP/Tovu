@@ -238,6 +238,25 @@ function doneMessageFor(phase: PublishContentPhase, t: Translate): string | null
 }
 
 /**
+ * The overwrite checkbox's `title` — `plan-publish-repoint-menus-2026-09-24.md` §2.7/R6: when the
+ * retired holder still feeds a live menu, the tooltip names it too, so an operator ticking
+ * "overwrite" can see what else moves with it. `undefined` for a row with no `retires` target at all
+ * (`PublishContentDialog.tsx` only renders this control for an offered row in the first place, but
+ * the function stays defensive rather than assuming that holds).
+ *
+ * @complexity O(n) in `referencedByLabels.length` for the join; O(1) otherwise.
+ */
+export function overwriteTooltipFor(
+  row: Pick<PublishReportRow, "retiresLabel" | "referencedByLabels">,
+  t: Translate
+): string | undefined {
+  if (!row.retiresLabel) return undefined;
+  const base = `${row.retiresLabel} ${t("moves to")} ${t("Trash")}`;
+  if (row.referencedByLabels.length === 0) return base;
+  return `${base}. ${t("Menu links follow:")} ${row.referencedByLabels.join(", ")}`;
+}
+
+/**
  * Whether a publish has been committed and has no outcome yet: confirm is on its way or answered,
  * or execute is running. From here the live site finishes the run whatever this dialog does (terra
  * review 2026-09-20, finding 3), so the dialog stays open until it can say how that went.

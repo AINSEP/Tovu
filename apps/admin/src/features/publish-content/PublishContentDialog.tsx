@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { PublishCriteria, PublishRequestResult } from "@tovu/publish-content-ui";
 
 import type { Translate } from "../../lib/dictionary-translator";
-import { usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
+import { overwriteTooltipFor, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
 
 /**
@@ -263,14 +263,10 @@ export function PublishContentDialog({ onCancel, t, port, criteria, onPlanned }:
                               }
                               // R6 (`plan-publish-repoint-menus-2026-09-24.md` §2.7) — when the
                               // retired holder still feeds a live menu, the tooltip names it too, so
-                              // an operator ticking "overwrite" can see what else moves with it.
-                              title={
-                                row.retiresLabel
-                                  ? row.referencedByLabels.length > 0
-                                    ? `${row.retiresLabel} ${t("moves to")} ${t("Trash")}. ${t("Menu links follow:")} ${row.referencedByLabels.join(", ")}`
-                                    : `${row.retiresLabel} ${t("moves to")} ${t("Trash")}`
-                                  : undefined
-                              }
+                              // an operator ticking "overwrite" can see what else moves with it. The
+                              // copy itself is built in the hooks file, not here — see
+                              // `overwriteTooltipFor`'s own doc.
+                              title={overwriteTooltipFor(row, t)}
                             />
                           )}
                         </td>
