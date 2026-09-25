@@ -9,6 +9,7 @@ import {
   FormDefinitionNotFoundError,
 } from "../errors.js";
 import { InMemoryFormDefinitionRepo } from "../repo.memory.js";
+import type { NotifyConfig } from "../types.js";
 import {
   createFormDefinition,
   setFormDefinitionStatus,
@@ -183,6 +184,52 @@ test("createFormDefinition: rejects a malformed notify recipient email", async (
     (err: unknown) => {
       assert.ok(err instanceof FormFieldValidationError);
       assert.equal(err.message, "'not-an-email' is not a valid email address");
+      return true;
+    }
+  );
+});
+
+test("createFormDefinition: rejects a notify.recipients that isn't an array", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () =>
+      createFormDefinition({
+        deps,
+        input: {
+          workspaceId: WORKSPACE_ID,
+          actor: ACTOR,
+          name: "Contact",
+          slug: "contact",
+          fields: [{ id: "name", label: "Name", type: "text", required: true }],
+          notify: { enabled: true } as unknown as NotifyConfig,
+        },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof FormFieldValidationError);
+      assert.equal(err.message, "notify.recipients must be an array");
+      return true;
+    }
+  );
+});
+
+test("createFormDefinition: rejects a non-boolean notify.enabled", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () =>
+      createFormDefinition({
+        deps,
+        input: {
+          workspaceId: WORKSPACE_ID,
+          actor: ACTOR,
+          name: "Contact",
+          slug: "contact",
+          fields: [{ id: "name", label: "Name", type: "text", required: true }],
+          notify: { enabled: "false", recipients: [] } as unknown as NotifyConfig,
+        },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof FormFieldValidationError);
+      assert.equal(err.message, "notify.enabled must be a boolean");
       return true;
     }
   );

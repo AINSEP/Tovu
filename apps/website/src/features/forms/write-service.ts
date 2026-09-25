@@ -64,6 +64,16 @@ function defaultNotify(): NotifyConfig {
 
 function validateNotify(notify: NotifyConfig | undefined): NotifyConfig {
   const resolved = notify ?? defaultNotify();
+  if (!Array.isArray(resolved.recipients)) {
+    throw new FormFieldValidationError("notify.recipients must be an array", [
+      { field: "notify.recipients", reason: "must be an array" },
+    ]);
+  }
+  if (typeof resolved.enabled !== "boolean") {
+    throw new FormFieldValidationError("notify.enabled must be a boolean", [
+      { field: "notify.enabled", reason: "must be a boolean" },
+    ]);
+  }
   if (resolved.recipients.length > MAX_NOTIFY_RECIPIENTS) {
     throw new FormFieldValidationError(
       `notify.recipients may not exceed ${MAX_NOTIFY_RECIPIENTS} addresses`,
