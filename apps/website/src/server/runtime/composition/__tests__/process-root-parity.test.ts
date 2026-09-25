@@ -16,9 +16,8 @@ import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,
 } from "#src/features/publish-content/type-registry";
-import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
-import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
-import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
+import { attachAssistantToolExtensions } from "#src/assistant/installed-extension-tools";
+import { buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
 
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 
@@ -59,25 +58,31 @@ import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 const KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS: ReadonlySet<string> = new Set([]);
 
 /**
- * TODO(owner ruling, architecture pass P1 finding C1 — partially closed 2026-09-24, S1 above):
- * `assistant-byok.ts`'s `createAssistantByokModule` (and therefore `createApp`, which builds its BYOK
- * surface through it) now calls `registerInstalledAgentPluginTools`, `registerInstalledSkillTools`,
- * and `registerEnabledPluginCapabilityTools` through the shared `registerInstalledExtensionTools`
- * pass, the same three the daemon calls (`agent-daemon-server.ts`'s own call into that function) — a
- * BYOK chat can now see an installed Agent Plugin's tool, an installed Agent Skill's tool, and an
- * enabled plugin-runtime capability tool, proven below with a real installed-skill fixture (with zero
- * skills installed the two builds would coincidentally agree either way, which would hide exactly the
- * drift this file exists to catch) and, for `search_tools` specifically, the dedicated "BYOK's
- * search_tools catalog finds an installed skill" test further down.
+ * RESOLVED (owner ruling, architecture pass P1 finding C1 — closed 2026-09-24, S1 above closed the
+ * installed-extension-tools third of this gap; `design-byok-external-mcp-2026-09-24.md`'s S1-S6
+ * closed the rest): `assistant-byok.ts`'s `createAssistantByokModule` (and therefore `createApp`,
+ * which builds its BYOK surface through it) now calls the SAME `attachAssistantToolExtensions`
+ * (`assistant/installed-extension-tools.ts`) the daemon calls (`agent-daemon-server.ts`'s own
+ * `start()`), which in turn calls `registerInstalledAgentPluginTools`, `registerInstalledSkillTools`,
+ * and `registerEnabledPluginCapabilityTools`, THEN builds (but does not start) a `FederationRuntime` —
+ * a BYOK chat can now see an installed Agent Plugin's tool, an installed Agent Skill's tool, an
+ * enabled plugin-runtime capability tool (proven below with a real installed-skill fixture — with
+ * zero skills installed the two builds would coincidentally agree either way, which would hide
+ * exactly the drift this file exists to catch — and, for `search_tools` specifically, the dedicated
+ * "BYOK's search_tools catalog finds an installed skill" test further down), and, once a turn awaits
+ * `ByokToolSurface.awaitFederation`, the owner's connected external MCP servers and the Supabase
+ * preset too. `federation.started === false` immediately after construction (proven in the
+ * dedicated federation test below) is what makes this free at boot: BYOK starts federation lazily
+ * on the first API-mode turn instead of the daemon's eager `start()`-time admission, per
+ * `installed-extension-tools.ts`'s own header.
  *
- * The one remaining daemon-only category is federated MCP tools, attached via
- * `attachFederatedMcpTools`/`registerSupabaseMcpPreset` (`agent-daemon-server.ts:1260`/`:1290`): BYOK
- * has no equivalent connection lifecycle (admission, reload, auth-failure reporting) at all, so a
- * BYOK chat still cannot reach the owner's connected external MCP servers or the Supabase preset. That
- * needs its own architect pass (F4b in the fix plan above) and is disclosed here rather than
- * reproduced — it needs a live subprocess to attach a tool, out of scope for a unit test. If that
- * decision changes `createAssistantByokModule` to also cover federated MCP, this file's allow-list
- * must shrink to match, which is exactly the "fails on any NEW drift" property this test is for.
+ * `KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS` stays empty, but for a narrower reason than before: this file's
+ * `buildByokRole`/`buildDaemonRole` replays never call `federation.start()` on either side (a real
+ * admission needs a live MCP subprocess, out of scope for a unit test), so no `mcp__`-prefixed
+ * federated id is ever contributed to either role's snapshot here today — there is no live gap left
+ * to allow-list, only an untested one. If this file ever grows an in-memory federation fixture that
+ * admits a connection on one side and not the other, any resulting id must be resolved here the same
+ * way any other drift would be, not added to this allow-list by default.
  */
 
 async function withEmptyAgentPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
@@ -188,11 +193,22 @@ async function buildByokRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapsh
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 
-/** (c) A faithful replay of the daemon's own boot order (`agent-daemon-server.ts:390-444`): the same
- *  base, PLUS the three optional, workspace-scoped registrars the daemon calls directly on its
- *  registry that no BYOK/createApp path calls at all. Fail-open on the two disk-backed registrars,
- *  mirroring the daemon's own try/catch around each (":1385-1391", ":1408-1414") — an unreadable tree
- *  must not fail this test any more than it fails a real boot. */
+/** (c) A faithful replay of the daemon's own boot order (`agent-daemon-server.ts`'s `start()`, the
+ *  `attachAssistantToolExtensions` call around `:1227-1255`): the same base, PLUS the SAME shared
+ *  registrar `buildByokRole` above awaits through `toolSurface.ready` — not a second, hand-copied
+ *  call to the three families it wraps. That is the point of this change: before, this function
+ *  called `registerInstalledAgentPluginTools`/`registerInstalledSkillTools`/
+ *  `registerEnabledPluginCapabilityTools` directly, with its OWN fail-open try/catch around each,
+ *  which could silently drift from the daemon's real call the moment that call's own
+ *  ordering/fail-open behavior changed; now both sides call `attachAssistantToolExtensions`, whose
+ *  `installed` promise (`registerInstalledExtensionTools`) owns that fail-open behavior once, for
+ *  every caller. `federation` is built here (a required part of that call's deps) but deliberately
+ *  never started — no `.start()` — so `resolveConnections` below is structurally required but never
+ *  actually invoked: a real admission needs a live MCP subprocess, out of scope for a unit test, and
+ *  is exactly the documented non-gap the rewritten TODO above explains. Real in-memory deps
+ *  (`createRouteDeps()`'s `composePluginRuntime`), not disk-backed, for the plugin-capability family
+ *  — no fixture needed, and no plugin-runtime plugin is enabled by default, so it contributes zero
+ *  ids today; exercised anyway so a future enabled capability plugin is covered by this same replay. */
 async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapshot> {
   resetToolContributorsForTests();
   resetPublishContentContributorsForTests();
@@ -201,27 +217,24 @@ async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnap
   const registry = createToolRegistry();
   for (const registration of buildAssistantToolRegistrations(routeDeps)) registry.register(registration);
 
-  try {
-    await registerInstalledAgentPluginTools(registry, { workspaceId: routeDeps.workspaceId });
-  } catch {
-    // fail-open, matching agent-daemon-server.ts:1385-1391
-  }
-  try {
-    await registerInstalledSkillTools(registry, { workspaceId: routeDeps.workspaceId });
-  } catch {
-    // fail-open, matching agent-daemon-server.ts:1408-1414
-  }
-  // Real in-memory deps (createRouteDeps()'s composePluginRuntime), not disk-backed — no fixture
-  // needed, and no plugin-runtime plugin is enabled by default, so this contributes zero ids today.
-  // Exercised anyway so a future enabled capability plugin is covered by the same replay, not a gap
-  // this file's allow-list has to grow to cover later.
-  await registerEnabledPluginCapabilityTools(registry, {
-    authorize: routeDeps.authorize,
-    workspaceId: routeDeps.workspaceId,
-    postRepo: routeDeps.postRepo,
-    discoverPlugins: routeDeps.discoverPlugins,
-    pluginActivationRepo: routeDeps.pluginActivationRepo,
-  });
+  const extensions = attachAssistantToolExtensions(
+    registry,
+    {
+      ...routeDeps,
+      federation: {
+        deps: buildExternalMcpFederationDeps({
+          authorize: routeDeps.authorize,
+          workspaceId: routeDeps.workspaceId,
+          repo: routeDeps.externalMcpServerRepo,
+        }),
+        // Never invoked: `federation.start()`/`.reload()` are the only callers, and neither is
+        // called in this replay — see this function's own doc.
+        resolveConnections: () => Promise.resolve([]),
+      },
+    },
+    "[agent-daemon]",
+  );
+  await extensions.installed;
 
   const ids = new Set(registry.list().map((d) => d.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
@@ -304,4 +317,25 @@ test("BYOK's search_tools catalog finds an installed skill's tool once ready res
       );
     }),
   );
+});
+
+test("BYOK's federation is a real, non-stubbed FederationRuntime that boots lazily — built but not started before any turn", async () => {
+  const routeDeps = createRouteDeps();
+  await routeDeps.identityReady;
+
+  resetToolContributorsForTests();
+  resetPublishContentContributorsForTests();
+  resetDuplicateResourceHandlersForTests();
+  const { toolSurface } = createAssistantByokModule(routeDeps);
+
+  // Proves federation is attached at all (S1-S6 above wired it into `createByokToolSurface` itself
+  // — see that file's own header — not merely typed as optional and left `undefined` for every real
+  // caller) without waiting on `toolSurface.ready` or `awaitFederation` first: this assertion is
+  // ABOUT the state before either of those would start it.
+  assert.ok(toolSurface.federation, "createAssistantByokModule's real surface must carry a federation runtime, not undefined");
+  // Proves the boot pass is lazy, not eager: constructing the module (and therefore `createApp`)
+  // must cost nothing beyond building the object — no connection, no subprocess, no I/O — until a
+  // turn actually calls `awaitFederation`. An eager `start()` here (the daemon's own timing, wrongly
+  // copied onto BYOK) would flip this to `true` before this assertion ever runs.
+  assert.equal(toolSurface.federation?.started, false, "federation must not be started at construction — BYOK starts it lazily on the first turn, not at boot");
 });
