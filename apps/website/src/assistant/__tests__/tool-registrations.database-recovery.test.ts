@@ -529,6 +529,15 @@ test("backup_plan_restore: authorize() is checked twice — once defensively by 
   assert.ok(authorizeCalls.every((call) => call.permission === "backup.read"));
 });
 
+test("backup_plan_restore: an unknown restorePointId is rejected with a ToolInputError naming it, not passed through to planRestore", async () => {
+  const { deps } = fakeRouteDeps();
+
+  await assert.rejects(
+    () => wired(combinedRegistrations(deps), "backup_plan_restore").handler(executionContext({ restorePointId: "nope" })),
+    { message: "restore point 'nope' was not found — call backup_list_restore_points for valid ids" },
+  );
+});
+
 // ---------------------------------------------------------------------------
 // 4b. The three DatabaseIntrospectionPort-backed tools (this dispatch) are pure passthroughs
 // ---------------------------------------------------------------------------

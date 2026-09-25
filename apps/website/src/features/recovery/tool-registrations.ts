@@ -261,6 +261,14 @@ export function buildRecoveryRegistrations(
       // conservative than that route by never skipping the check, rather than reproducing the gap.
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "backup.read", entityType: "restore-point" });
 
+      // An unknown id is a caller mistake, not a planning question — reject it here rather than
+      // letting it reach `planRestore()`/the gateway, which have no reason to name a nonexistent
+      // restore point in a way that points the caller back to the list tool.
+      const points = await routeDeps.restorePointsRepo.list();
+      if (!points.some((point) => point.id === restorePointId)) {
+        throw new ToolInputError(`restore point '${restorePointId}' was not found — call backup_list_restore_points for valid ids`);
+      }
+
       // Folds in the discarded-write-window disclosure, matching this tool's own catalog
       // description ("including the discarded-write-window disclosure") — the human admin UI reads
       // this from a separate `/recovery/disclosure` request; a tool call composes both in one turn.
