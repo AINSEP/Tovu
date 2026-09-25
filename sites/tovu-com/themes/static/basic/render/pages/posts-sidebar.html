@@ -19,7 +19,20 @@
 <script src="../scripts/theme-toggle.js"></script>
 </head>
 <body>
+<!-- How this template works, in plain words. Every element with data-embed-config is a MARKER:
+     Tovu fills it in (or swaps it out) with real content when the page is served. The JSON says
+     what goes there: "type" = what kind of thing, "id" = which one. Anything written inside a
+     marker is FALLBACK, shown only when there is nothing to fill it with.
+     This page uses:
+       partial nav / partial footer: the shared header and footer files.
+       menu docs-section: the docs sidebar, from the header menu's Docs item in Admin > Menus.
+       content: this page's own body.
+       menu docs-prev-next: previous/next page links.
+     "variant":"tree" means "render the menu as nested lists", which a sidebar needs. Without it
+     a menu renders as one flat row of links and drops every child item.
+     Full guide: /theme-markers on the docs site. -->
 
+<!-- Marker: shared header (render/partials/nav.html) replaces this line. "current":"docs" highlights the fallback nav link with data-nav-id="docs". -->
 <div data-embed-config='{"type":"partial","id":"nav","current":"docs"}'></div>
 
 <main>
@@ -58,6 +71,7 @@
            no item resolving to `/docs`, or that item has no children yet, this markup is left
            exactly as-is rather than blanked (see `resolveStaticMenusForRender`'s own doc). -->
       <aside class="docs-sidebar">
+        <!-- Marker: docs sidebar, built from the header menu's Docs item (Admin > Menus). "tree" keeps groups nested. What is inside is the fallback. -->
         <nav class="docs-nav" aria-label="Documentation" data-embed-config='{"type":"menu","id":"docs-section","variant":"tree"}'>
           <ul class="menu-list depth-0">
             <li class="menu-item depth-0"><span class="menu-item-label">No docs menu bound yet</span></li>
@@ -85,6 +99,7 @@
          content, so its height is unbounded and 0 (an unset threshold) is the only value that is
          satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
     <article class="docs-content post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+      <!-- Marker: the body of the page or post at this URL goes inside this element. -->
       <div data-embed-config='{"type":"content"}'></div>
 
       <!-- Previous/Next, crossing group boundaries — `docs-prev-next` (reserved id, same function as
@@ -92,6 +107,7 @@
            via `attrs.cssClass`, which the tree renderer already passes through onto each `<li>`.
            Empty (no items) on the Docs landing page itself or a page with no neighbour on one side —
            theme.css hides an empty `.docs-pager` entirely rather than showing an empty bar. -->
+      <!-- Marker: previous/next docs page links, from the same Docs menu. Empty when there is no neighbour. -->
       <nav class="docs-pager" aria-label="Previous and next page" data-embed-config='{"type":"menu","id":"docs-prev-next","variant":"tree"}'>
         <ul class="menu-list depth-0"></ul>
       </nav>
@@ -99,6 +115,7 @@
   </div>
 </main>
 
+<!-- Marker: shared footer (render/partials/footer.html) replaces this line. -->
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>

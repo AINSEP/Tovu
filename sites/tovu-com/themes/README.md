@@ -1,6 +1,6 @@
 # `src/themes/`
 
-Built-in themes, discovered once at server boot from this directory (`builtInThemesDir()`, `src/server/deps.ts`). The full authoring guide — schema reference, request-path trace, slots/embeds/regions, worked example, and known gaps — lives at **`development/docs/themes/theme-authoring-guide.md`**. Read that before building or editing a theme; this file is just an orientation map.
+Built-in themes, discovered once at server boot from this directory (`builtInThemesDir()`, `src/server/deps.ts`). The themes guide (layout, creating a theme, every `data-embed-config` marker, styling, common mistakes) lives at **`development/docs/themes/themes-guide.md`**. Read that before building or editing a theme; this file is just an orientation map.
 
 ## Layout
 
@@ -25,4 +25,4 @@ Not every field in an existing theme's `theme.json` is read by the loader. `page
 
 Static-theme navs render only top-level menu items by default (`static-render.ts`'s `renderMenuLinks`). A menu marker can opt into nested rendering instead via `{"variant":"tree"}` in its `data-embed-config` (`renderMenuTree`, since `77f567d`) — basic's docs sidebar is the one theme using it today, and its CSS already ships the `.menu-list.depth-N` styles the tree needs; a theme opting in without shipping equivalent styles gets unstyled nesting. And not every static theme wires a `type:"menu"` marker into its nav — one currently hardcodes its links instead, so CMS menu edits don't reach it. See the guide's §6.3/§8 for exactly which theme and why.
 
-See `development/docs/themes/theme-authoring-guide.md` for everything else, including a minimal worked example of a new static theme.
+See `development/docs/themes/themes-guide.md` for everything else, including creating a new static theme step by step.

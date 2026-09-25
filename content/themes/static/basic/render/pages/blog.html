@@ -15,6 +15,7 @@
 </head>
 <body>
 
+<!-- Marker: shared header (render/partials/nav.html) replaces this line. "current":"blog" highlights the fallback nav link with data-nav-id="blog". -->
 <div data-embed-config='{"type":"partial","id":"nav","current":"blog"}'></div>
 
 <main>
@@ -24,6 +25,7 @@
   </section>
 
   <section class="wrap" style="padding-bottom: 96px;">
+    <!-- Marker: your 6 latest posts, as cards. What is inside shows only when there are no posts. -->
     <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
       <article class="post-card featured">
         <div class="ph-img post-card-media">featured — cover art</div>
@@ -73,6 +75,7 @@
   </section>
 </main>
 
+<!-- Marker: shared footer (render/partials/footer.html) replaces this line. -->
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>

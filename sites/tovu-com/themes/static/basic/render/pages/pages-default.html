@@ -43,6 +43,7 @@
      WordPress child theme, where the fork unit is a whole PHP template carrying markup, the loop,
      escaping, and hooks. -->
 
+<!-- Marker: shared header (render/partials/nav.html) replaces this line. Empty "current" highlights no fallback link. -->
 <div data-embed-config='{"type":"partial","id":"nav","current":""}'></div>
 
 <main>
@@ -61,10 +62,12 @@
        content, so its height is unbounded and 0 (an unset threshold) is the only value that is
        satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
   <article class="wrap post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+    <!-- Marker: the body of the page or post at this URL goes inside this element. -->
     <div data-embed-config='{"type":"content"}'></div>
   </article>
 </main>
 
+<!-- Marker: shared footer (render/partials/footer.html) replaces this line. -->
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>

@@ -21,6 +21,7 @@
 
 <!-- `current=""`, same as pages-default.html: this template is reusable across any listing page
      (theme.json `templates`), not bound to one nav item. -->
+<!-- Marker: shared header (render/partials/nav.html) replaces this line. Empty "current" highlights no fallback link. -->
 <div data-embed-config='{"type":"partial","id":"nav","current":""}'></div>
 
 <main>
@@ -52,6 +53,7 @@
        into `.latest-posts`'s top margin exactly like it does everywhere else, matching normal
        paragraph spacing instead of adding a synthetic 96px section gap. -->
   <section class="wrap post-detail" style="padding-bottom: 0;" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+    <!-- Marker: the body of the page or post at this URL goes inside this element. -->
     <div data-embed-config='{"type":"content"}'></div>
   </section>
 
@@ -69,6 +71,7 @@
        widening `.post-detail-body .live-example`'s existing reach. -->
   <section class="wrap latest-posts" style="max-width: 720px; padding-bottom: 96px;">
     <div class="live-example">
+      <!-- Marker: your 6 latest posts, as cards. What is inside shows only when there are no posts. -->
       <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
         <p style="color: var(--muted);">No articles published yet.</p>
       </section>
@@ -76,6 +79,7 @@
   </section>
 </main>
 
+<!-- Marker: shared footer (render/partials/footer.html) replaces this line. -->
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>

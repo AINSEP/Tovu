@@ -1,5 +1,11 @@
 # Tovu Theme Authoring Guide v2 — Invariant Structure
 
+> **Superseded 2026-09-24 by [`themes-guide.md`](themes-guide.md)**, the one source of truth for
+> themes. This file is kept as internal history: its line citations and status tags may be stale,
+> and parts of it describe the old v1 layout (`pages/`, `css/styles.css`, `js/`) or proposals that
+> never shipped. Read the new guide first.
+
+
 > ## STATUS — READ THIS BEFORE ANYTHING ELSE (corrected 2026-09-10)
 >
 > **Most of this design shipped the day after this document was written, and this banner did not

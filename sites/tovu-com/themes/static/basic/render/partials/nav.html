@@ -10,6 +10,7 @@
          renderer emits <ul class="menu-list depth-N">/<li class="menu-item ... has-children">,
          which theme.css's "header nav, tree variant" block styles back into a flex row plus a
          hover/focus dropdown. Changing this back to flat silently deletes the dropdown. -->
+    <!-- Marker: the header menu (Admin > Menus). "tree" renders the dropdowns; flat would drop every child item. The links inside are the fallback. -->
     <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav","variant":"tree"}'>
       <a href="pricing.html" data-nav-id="pricing">Pricing</a>
       <a href="docs.html" data-nav-id="docs">Docs</a>

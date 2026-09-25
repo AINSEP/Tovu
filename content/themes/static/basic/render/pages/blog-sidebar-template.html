@@ -20,6 +20,7 @@
 </head>
 <body>
 
+<!-- Marker: shared header (render/partials/nav.html) replaces this line. "current":"docs" highlights the fallback nav link with data-nav-id="docs". -->
 <div data-embed-config='{"type":"partial","id":"nav","current":"docs"}'></div>
 
 <main>
@@ -72,6 +73,7 @@
          not exist yet, or resolves to zero renderable links, this markup is left exactly as-is rather
          than blanked. -->
     <aside class="docs-sidebar">
+      <!-- Marker: menu "docs-current-page-sidebar" (Admin > Menus) fills this element as nested lists ("tree"). What is inside is the fallback. -->
       <nav class="docs-nav" aria-label="Documentation" data-embed-config='{"type":"menu","id":"docs-current-page-sidebar","variant":"tree"}'>
         <ul class="menu-list depth-0">
           <li class="menu-item depth-0"><span class="menu-item-label">No docs menu bound yet</span></li>
@@ -89,11 +91,13 @@
          content, so its height is unbounded and 0 (an unset threshold) is the only value that is
          satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
     <article class="docs-content post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+      <!-- Marker: the body of the page or post at this URL goes inside this element. -->
       <div data-embed-config='{"type":"content"}'></div>
     </article>
   </div>
 </main>
 
+<!-- Marker: shared footer (render/partials/footer.html) replaces this line. -->
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>

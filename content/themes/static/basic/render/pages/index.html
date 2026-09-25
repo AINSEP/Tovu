@@ -15,6 +15,7 @@
 </head>
 <body>
 
+<!-- Marker: shared header (render/partials/nav.html) replaces this line. "current":"index" highlights the fallback nav link with data-nav-id="index". -->
 <div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>
 
 <main>
@@ -128,10 +129,12 @@
        content, so its height is unbounded and 0 (an unset threshold) is the only value that is
        satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
   <section class="wrap post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+    <!-- Marker: the body of the page or post at this URL goes inside this element. -->
     <div data-embed-config='{"type":"content"}'></div>
   </section>
 </main>
 
+<!-- Marker: shared footer (render/partials/footer.html) replaces this line. -->
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>

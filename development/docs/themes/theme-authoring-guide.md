@@ -1,5 +1,11 @@
 # Tovu Theme Authoring Guide
 
+> **Superseded 2026-09-24 by [`themes-guide.md`](themes-guide.md)**, the one source of truth for
+> themes. This file is kept as internal history: its line citations and status tags may be stale,
+> and parts of it describe the old v1 layout (`pages/`, `css/styles.css`, `js/`) or proposals that
+> never shipped. Read the new guide first.
+
+
 **Status:** descriptive — this documents the theme system as it exists in the codebase today, including its gaps. It does not propose new features. For the in-progress design of a parent/child template system, see the (separate, in-flight) design doc at `ADS-memory/.local-artifacts/design/theme-template-parent-child-design.md` — that is a *future* design; nothing in that direction has landed yet, and nothing here should be read as a spec for it.
 
 **Audience:** a developer (human or agent) building a new Tovu theme, or trying to understand why an existing theme behaves the way it does.
