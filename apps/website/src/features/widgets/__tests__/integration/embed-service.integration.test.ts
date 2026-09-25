@@ -70,7 +70,11 @@ function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetTrash
   };
 }
 
-async function makeHostEntry(repos: ReturnType<typeof makeSharedRepos>, type = HOST_CONTENT_TYPE): Promise<{ id: string; version: number }> {
+async function makeHostEntry(
+  repos: ReturnType<typeof makeSharedRepos>,
+  type = HOST_CONTENT_TYPE,
+  bodyJson: unknown = { type: "doc", content: [{ type: "paragraph", content: [] }] }
+): Promise<{ id: string; version: number }> {
   const deps = { repo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `ct-${++idCounter}` }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } };
   const existing = await repos.contentTypeRepo.findByKey({ workspaceId: WORKSPACE_ID, key: type });
   if (!existing) {
@@ -86,7 +90,7 @@ async function makeHostEntry(repos: ReturnType<typeof makeSharedRepos>, type = H
       slug: `host-${idCounter}`,
       title: "Host Entry",
       fieldsJson: { ext: { site: {} } },
-      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [] }] },
+      bodyJson: bodyJson as never,
     },
   });
   if (!created.ok) throw created.error;
@@ -298,6 +302,21 @@ test("C4d fix: removeWidgetEmbed with an unknown placementId rejects instead of 
 
   const after = await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
   assert.equal(after?.version, after1.entry.version, "the host version must be unchanged — nothing was written");
+});
+
+test("C4d review: removeWidgetEmbed still removes an embed node whose widgetEntryId is null (the editor's attr default) — the not-found check uses the same match as the removal", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos, HOST_CONTENT_TYPE, {
+    type: "doc",
+    content: [{ type: "paragraph", content: [] }, { type: "widgetEmbed", attrs: { placementId: "p-orphan", widgetEntryId: null } }],
+  });
+
+  const { entry } = await removeWidgetEmbed({
+    deps: makeDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, placementId: "p-orphan" },
+  });
+
+  assert.deepEqual((entry.bodyJson as { content: unknown[] }).content, [{ type: "paragraph", content: [] }]);
 });
 
 test("REQ-44/45: reorderWidgetEmbeds swaps which widget occupies which existing slot, in document order, without changing slot count/position", async () => {

@@ -136,10 +136,21 @@ function appendEmbed(bodyJson: unknown, placementId: UUID, widgetEntryId: UUID):
 
 /** Removes every `widgetEmbed` node matching `placementId`, at any depth, preserving every other
  * node's position — mirrors the tree-shape-preserving discipline `reorderEmbeds` below also uses. */
+function isEmbedWithPlacementId(node: unknown, placementId: UUID): boolean {
+  return isPlainObject(node) && node.type === "widgetEmbed" && isPlainObject(node.attrs) && node.attrs.placementId === placementId;
+}
+
+/** Whether `removeEmbedByPlacementId` would remove anything — same match, so the two never disagree. */
+function containsEmbedWithPlacementId(node: unknown, placementId: UUID): boolean {
+  if (Array.isArray(node)) return node.some((child) => containsEmbedWithPlacementId(child, placementId));
+  if (isEmbedWithPlacementId(node, placementId)) return true;
+  return isPlainObject(node) && Array.isArray(node.content) && containsEmbedWithPlacementId(node.content, placementId);
+}
+
 function removeEmbedByPlacementId(node: unknown, placementId: UUID): unknown {
   if (Array.isArray(node)) {
     return node
-      .filter((child) => !(isPlainObject(child) && child.type === "widgetEmbed" && isPlainObject(child.attrs) && child.attrs.placementId === placementId))
+      .filter((child) => !isEmbedWithPlacementId(child, placementId))
       .map((child) => removeEmbedByPlacementId(child, placementId));
   }
   if (!isPlainObject(node)) return node;
@@ -490,9 +501,7 @@ export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Pr
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
     const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId);
-    const existing: WidgetEmbedNode[] = [];
-    collectEmbeds(host.record.bodyJson, existing);
-    if (!existing.some((embed) => embed.placementId === input.placementId)) {
+    if (!containsEmbedWithPlacementId(host.record.bodyJson, input.placementId)) {
       // C4d fix: `removeEmbedByPlacementId` is a no-op filter — without this check a stale/bogus
       // placementId fell through to `writeHostBody` unchanged and reported success while writing
       // nothing.

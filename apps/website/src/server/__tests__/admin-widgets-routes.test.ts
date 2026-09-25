@@ -382,6 +382,11 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
     body: JSON.stringify({ baseVersion: 3, orderedWidgetEntryIds: [w2.id, w1.id] }),
   });
   assert.equal(reorderRes.status, 200, await reorderRes.clone().text());
+  // Reorder mints fresh placementIds (`reorderEmbedSlots`), so the remove below must use one from
+  // the reordered body — `inserted.placementId` is stale from here on.
+  const reordered = (await reorderRes.json()) as { entry: { bodyJson: { content: Array<{ type: string; attrs?: { placementId: string } }> } } };
+  const currentPlacementId = reordered.entry.bodyJson.content.find((n) => n.type === "widgetEmbed")?.attrs?.placementId;
+  assert.ok(currentPlacementId);
 
   const wrongWsRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/entries/${hostId}/widget-embeds`, {
     method: "PUT",
@@ -411,12 +416,23 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   });
   assert.equal(errRes.status, 404);
 
-  const removeRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds/${inserted.placementId}`, {
+  // C4d: a stale placementId is a 404, not a 200 that wrote nothing.
+  const staleRemoveRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds/${inserted.placementId}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 4 }),
+  });
+  assert.equal(staleRemoveRes.status, 404);
+  assert.equal(((await staleRemoveRes.json()) as { code: string }).code, "WIDGETS_EMBED_PLACEMENT_NOT_FOUND");
+
+  const removeRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds/${currentPlacementId}`, {
     method: "DELETE",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ baseVersion: 4 }),
   });
   assert.equal(removeRes.status, 200, await removeRes.clone().text());
+  const removed = (await removeRes.json()) as { entry: { version: number } };
+  assert.equal(removed.entry.version, 5);
 });
 
 /**

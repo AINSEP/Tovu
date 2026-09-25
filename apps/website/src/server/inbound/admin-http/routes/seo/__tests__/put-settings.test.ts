@@ -121,7 +121,7 @@ test("put-settings: workspaceId undefined and req.body undefined fallbacks via d
     assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
   }
 
-  // req.body undefined -> `req.body ?? {}` -> succeeds with current settings (200)
+  // req.body undefined -> `req.body ?? {}` -> an empty patch, which `setSeoSettings` refuses (C4b) -> 400
   {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "test-principal" };
@@ -130,8 +130,7 @@ test("put-settings: workspaceId undefined and req.body undefined fallbacks via d
       body: undefined,
     } as unknown as Parameters<typeof handler>[0];
     await handler(req, res);
-    assert.equal(capture.statusCode, 200);
-    const body = capture.jsonBody as { data?: unknown };
-    assert.ok(body.data);
+    assert.equal(capture.statusCode, 400);
+    assert.deepEqual(capture.jsonBody, { error: "patch must include at least one field", code: "SEO_SETTINGS_VALIDATION_ERROR" });
   }
 });
