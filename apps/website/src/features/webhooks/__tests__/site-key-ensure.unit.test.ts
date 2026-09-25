@@ -346,3 +346,14 @@ test("ensureSiteKey: adopt into a fresh per-site file also stamps the fingerprin
   assert.equal(result.action, "adopt");
   assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(hex));
 });
+
+test("ensureSiteKeyForBoot: a traversal siteKeyId in .site-meta.json writes nothing anywhere (the id is rejected before any path is built)", () => {
+  writeSiteMeta(siteDir, { siteId: "ok", siteKeyId: "../../escaped" });
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: validHex() };
+
+  const result = ensureSiteKeyForBoot({ siteDir, mode: "local", env, home });
+
+  assert.equal(result, undefined);
+  assert.equal(existsSync(path.join(home, "escaped.hex")), false);
+  assert.equal(existsSync(path.join(home, ".tovu")), false);
+});

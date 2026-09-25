@@ -54,8 +54,8 @@ export interface SiteKeySourcesInput {
   readonly env: Record<string, string | undefined>;
   readonly home: string;
   readonly cwd: string;
-  /** This site's `siteKeyId` (`.site-meta.json`, A.4). Omitted (or empty) drops the per-site
-   *  candidate entirely — there is nowhere to look yet for a site with no id stamped. */
+  /** This site's `siteKeyId` (`.site-meta.json`, A.4). Omitted, empty, or not a safe file name
+   *  ({@link isSafeSiteKeyId}) drops the per-site candidate entirely. */
   readonly siteKeyId?: string;
 }
 
@@ -73,7 +73,7 @@ export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
   }
 
   const sources: SiteKeySource[] = [];
-  if (input.siteKeyId) {
+  if (input.siteKeyId && isSafeSiteKeyId(input.siteKeyId)) {
     sources.push({ kind: "per-site-file", path: perSiteFilePath(input.home, input.siteKeyId) });
   }
   sources.push(envSource);
@@ -85,6 +85,17 @@ export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
  *  var so an unmodified install (nothing D1-renamed yet) still resolves. */
 function resolveEnvVarName(env: Record<string, string | undefined>): string {
   return env[SITE_KEY_ENV_VAR_NAME] !== undefined ? SITE_KEY_ENV_VAR_NAME : DEFAULT_ROOT_KEY_ENV_VAR_NAME;
+}
+
+/** Characters a `siteKeyId` may contain: `initSite` writes a UUID, so letters, digits, `-`, `_` and
+ *  `.` cover every real id. Anything else — above all a path separator or a drive prefix — is
+ *  refused, because the id is joined into `~/.tovu/site-keys/<id>.hex` and `.site-meta.json` lives
+ *  in the site folder, where an agent or an imported site controls its content. */
+const SAFE_SITE_KEY_ID = /^[A-Za-z0-9._-]{1,128}$/;
+
+/** Whether `id` can be used as a key-file name without escaping `~/.tovu/site-keys/`. */
+export function isSafeSiteKeyId(id: string): boolean {
+  return SAFE_SITE_KEY_ID.test(id) && id !== "." && id !== "..";
 }
 
 /** `~/.tovu/site-keys/<siteKeyId>.hex` — A.1's per-site local path. */
@@ -157,9 +168,10 @@ export interface ResolveSiteKeyIdInput {
 export function resolveSiteKeyId(input: ResolveSiteKeyIdInput): string | undefined {
   const meta = readSiteMetaJson(input.siteDir);
   if (meta === undefined) return undefined;
-  if (typeof meta.siteKeyId === "string" && meta.siteKeyId.length > 0) return meta.siteKeyId;
-  if (typeof meta.siteId === "string" && meta.siteId.length > 0) return meta.siteId;
-  return undefined;
+  const id = typeof meta.siteKeyId === "string" && meta.siteKeyId.length > 0 ? meta.siteKeyId : meta.siteId;
+  // An unsafe id resolves to "no per-site key" (legacy readers only) rather than falling back to
+  // `siteId`: a site whose `siteKeyId` was tampered with must not quietly switch to another key file.
+  return typeof id === "string" && id.length > 0 && isSafeSiteKeyId(id) ? id : undefined;
 }
 
 export interface ResolveSiteKeyFingerprintInput {

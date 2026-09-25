@@ -303,3 +303,34 @@ test("siteKeyFilePathFrom: the given fallback when sources has no per-site-file 
   const sources = siteKeySources({ mode: "production", env: {}, home: HOME, cwd: CWD });
   assert.equal(siteKeyFilePathFrom(sources, "/fallback/path.hex"), "/fallback/path.hex");
 });
+
+/**
+ * Review fix (2026-09-24): `siteKeyId` comes from `.site-meta.json` — a file inside the site folder,
+ * which any agent with write access there (or any imported/copied site folder) controls. It is
+ * joined into `~/.tovu/site-keys/<id>.hex`, so a separator-bearing id would point the ONE key-file
+ * writer (`ensureSiteKey`'s adopt) at an arbitrary path outside `~/.tovu/` — copying the live key
+ * somewhere the agent deny lists (which cover `~/.tovu/**` only) do not reach.
+ */
+test("resolveSiteKeyId: an id carrying a path separator or traversal is rejected (undefined), never joined into a path", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-id-"));
+  try {
+    for (const bad of ["../../leak", "a/b", "..\\..\\leak", "C:leak", "x\u0000y", "a".repeat(129)]) {
+      writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "ok-site", siteKeyId: bad }));
+      assert.equal(resolveSiteKeyId({ siteDir: dir }), undefined, `siteKeyId ${JSON.stringify(bad)} must be rejected`);
+      writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: bad }));
+      assert.equal(resolveSiteKeyId({ siteDir: dir }), undefined, `siteId ${JSON.stringify(bad)} must be rejected`);
+    }
+    writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "3f2c1a9e-0b7d-4c55-9a1e-2d6f8b0c4e71" }));
+    assert.equal(resolveSiteKeyId({ siteDir: dir }), "3f2c1a9e-0b7d-4c55-9a1e-2d6f8b0c4e71", "a UUID siteId (what initSite writes) still resolves");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("siteKeySources: a separator-bearing siteKeyId drops the per-site candidate instead of building a path outside ~/.tovu/site-keys", () => {
+  const sources = siteKeySources({ mode: "local", env: {}, home: "/home/u", cwd: "/w", siteKeyId: "../../../tmp/leak" });
+  assert.deepEqual(
+    sources.map((source) => source.kind),
+    ["env", "legacy-shared-file"]
+  );
+});
