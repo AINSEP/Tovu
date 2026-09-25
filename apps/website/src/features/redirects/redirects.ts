@@ -176,6 +176,24 @@ async function resolveCollapsedTarget(
       `redirect from '${fromPattern}' would create a cycle via '${toTarget}' (resolves back to '${fromPattern}')`
     );
   }
+  // The collapse above only follows ONE hop (INV-04's own bound on what a request resolution
+  // chases). But a create/update whose finalTarget lands on an EXISTING rule can still complete a
+  // longer cycle through rules this call never collapses through — walk the rest of the chain (up
+  // to 32 hops, matching REQ-26) so e.g. /b->/c, /c->/a, then creating /a->/b is rejected too.
+  let cur = finalTarget;
+  const seen = new Set<string>([fromPattern]);
+  for (let hop = 0; hop < 32; hop++) {
+    if (isAbsoluteOrProtocolRelative(cur)) break;
+    if (seen.has(cur)) {
+      throw new RedirectLoopError(
+        `redirect from '${fromPattern}' would create a cycle via '${toTarget}' (following existing redirects leads back to '${fromPattern}')`
+      );
+    }
+    seen.add(cur);
+    const rule = await repo.findByFromPattern({ workspaceId, fromPattern: cur });
+    if (!rule || rule.status !== "active") break;
+    cur = rule.toTarget;
+  }
   return finalTarget;
 }
 
