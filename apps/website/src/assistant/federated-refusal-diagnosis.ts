@@ -82,8 +82,28 @@ import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { redactSecretShapes } from "../contracts/core/secret-redaction.js";
-import { FEDERATED_TOOL_ID_PREFIX } from "./mcp-federation/trust.js";
+import { FEDERATED_TOOL_ID_PREFIX, parseFederatedConnectionId } from "./mcp-federation/trust.js";
 import { findFederatedToolRefusal, type FederationAdmissionSnapshotEntry } from "./mcp-federation/refusal-notice.js";
+
+/**
+ * The federation boot pass's own live state, for the "still connecting" case below — deliberately
+ * NOT `FederationRuntime` itself (`external-mcp-federation-runtime.ts`): that type carries a whole
+ * runtime's worth of methods (`start`, `reload`, …) this decorator has no business calling, and
+ * importing it here would pull a composition-layer type into what is otherwise a pure reduction
+ * over data, same posture as `refusal-notice.ts`'s own `FederationAdmissionSnapshotEntry`. A caller
+ * builds this from its own `FederationRuntime` with `{ settled: federation.started, connectFailures:
+ * federation.connectFailures() }` — see `byok-tool-surface.ts`'s call site.
+ */
+export interface FederationBootStatus {
+  /** Whether the boot pass (every configured connection, attempted once, in order) has finished.
+   *  `false` for the window between "the surface started federation" and "every connection has
+   *  either admitted or failed" — the exact gap `npx` startup (6-13s) can outlast this decorator's
+   *  caller's own bounded wait (`assistant-byok.ts`'s `FEDERATION_TURN_WAIT_MS`, 5s). */
+  readonly settled: boolean;
+  /** `AttachFederatedToolsResult.connectFailures`, verbatim — a connectionId that reached `attach`
+   *  but never admission at all, with its human-readable reason. */
+  readonly connectFailures: readonly { readonly connectionId: string; readonly reason: string }[];
+}
 
 /**
  * `ToolExecutor.execute`'s own contract for an unregistered id (`@jini-ai/daemon`'s
@@ -103,6 +123,59 @@ function isUnknownToolError(error: unknown): boolean {
 }
 
 /**
+ * The "still connecting" / "failed to connect" diagnosis (2026-09-24) — reached only for a federated
+ * id that {@link findFederatedToolRefusal} could NOT explain, i.e. one whose connection has no
+ * admission report at all yet (never refused because it was never even admitted).
+ *
+ * Two distinct outcomes, both reached only via `status.connectFailures`/`!status.settled` and never
+ * both — `attachFederatedMcpTools`'s per-connection loop is sequential and produces at most one of
+ * "still running" or "failed" for a given connectionId at any moment this decorator could observe it:
+ *
+ * - `!status.settled`: the boot pass has not finished walking every configured connection, so THIS
+ *   connectionId is presumed still connecting (npx startup, 6-13s, routinely outlasts a caller's own
+ *   bounded wait). A model naming this exact tool id has, by doing so, already decided it wants it —
+ *   telling it to retry is strictly better than the opaque `unknown tool` throw it would get instead,
+ *   even in the rare case this particular connection actually already failed while a LATER one in the
+ *   loop is still connecting; the very next call after boot settles gets the precise failure reason
+ *   below instead.
+ * - `status.settled` and this connectionId is in `connectFailures`: the boot pass finished and this
+ *   connection genuinely never admitted — its own human-readable reason (`bootstrap.ts`'s
+ *   `messageOf(error)`, already proven secret-free by that field's own doc) is relayed verbatim.
+ *
+ * `status` is `undefined` for a caller that never passed `getBootStatus` at all (the daemon's own
+ * call site) or for a toolId that is not federated-shaped — both return `null` immediately, letting
+ * the original `unknown tool` throw stand exactly as it did before this diagnosis existed.
+ *
+ * @complexity O(1) for the connecting case; O(connectFailures) for the settled case.
+ * @overallScore 100
+ */
+function diagnoseStillConnectingOrFailed(toolId: string, status: FederationBootStatus | undefined): ToolExecutionResult | null {
+  if (!status) return null;
+  const connectionId = parseFederatedConnectionId(toolId);
+  if (connectionId === null) return null;
+
+  if (!status.settled) {
+    return failedResult(`External MCP server '${connectionId}' is still connecting — try again in a moment.`);
+  }
+  const failure = status.connectFailures.find((entry) => entry.connectionId === connectionId);
+  if (!failure) return null;
+  // `reason` is already proven secret-free by `AttachFederatedToolsResult.connectFailures`'s own
+  // doc, but redacted anyway for the same defense-in-depth reason the refusal branch below redacts
+  // an operator-authored/fixed-prose string that "never matches a redaction rule" today — a
+  // guarantee this file has no way to keep verifying stays true upstream.
+  return failedResult(redactSecretShapes(`External MCP server '${connectionId}' failed to connect: ${failure.reason}`).text);
+}
+
+/** One `status: 'failed'`, `errorKind: 'validation'` result — the shape both diagnosis branches
+ *  above return, factored out purely to keep {@link diagnoseStillConnectingOrFailed} and the main
+ *  refused-tool branch from hand-building the same four-field object twice. See this file's header
+ *  ("Why the result is `status: 'failed', errorKind: 'validation'`") for why this exact shape is what
+ *  reaches the model un-redacted-by-the-stack rather than a thrown error. */
+function failedResult(message: string): ToolExecutionResult {
+  return { executionId: randomUUID(), status: "failed", errorKind: "validation", error: message };
+}
+
+/**
  * Wraps `inner` so a call naming a federated tool id THIS BOOT REFUSED fails with a message naming
  * the tool, the server, and the fix, instead of the bare `unknown tool` throw escaping all the way to
  * `@jini-ai/http-kit`'s SEC-005 redaction.
@@ -113,6 +186,17 @@ function isUnknownToolError(error: unknown): boolean {
  *   a plain array parameter captured at construction time would forever see the empty pre-boot
  *   snapshot. Pass `() => federationAdmissionReports` (a closure over the module-scope binding), not
  *   `() => someArrayCapturedNow`.
+ * @param getBootStatus - Optional (2026-09-24). When given, an unknown-tool throw for a federated id
+ *   this boot's snapshot does NOT (yet) refuse is diagnosed one step further before falling back to
+ *   the original throw: while `!settled`, the connection is presumed still connecting (`npx`
+ *   startup, 6-13s, can outlast a caller's own bounded wait — see `assistant-byok.ts`'s
+ *   `FEDERATION_TURN_WAIT_MS`) and the call gets a clear "still connecting" message instead of the
+ *   raw `ToolExecutor: unknown tool` throw a model cannot act on. Once `settled`, a connectionId
+ *   present in `connectFailures` gets that failure's own reason instead. Omitted (the daemon's own
+ *   call site, where a turn never runs until `federation.start()` has fully resolved — see
+ *   `agent-daemon-server.ts`'s `start()`), this decorator's behavior is byte-identical to before this
+ *   parameter existed: every one of this file's own pre-2026-09-24 tests passes an unchanged 2-arg
+ *   call and must keep throwing for a federated-shaped id this boot never refused.
  * @returns A drop-in `ToolExecutor`. Every call that is not BOTH (a) an unknown-tool throw AND (b) a
  *   federated id this boot's snapshot actually refused passes through with byte-identical behavior —
  *   completed results, every other status, and the throw itself for a genuinely unknown or
@@ -120,12 +204,14 @@ function isUnknownToolError(error: unknown): boolean {
  *   no wrapping at all.
  * @complexity One extra `instanceof`/regex test and one string-prefix test per call that reaches
  *   `catch` — already the unhappy path; {@link findFederatedToolRefusal}'s own O(connections ×
- *   refusals) cost only when both tests pass.
+ *   refusals) cost only when both tests pass, and `getBootStatus`'s own O(connectFailures) lookup
+ *   only when they pass AND no refusal was found.
  * @overallScore 100
  */
 export function withFederatedRefusalDiagnosis(
   inner: ToolExecutor,
   getSnapshot: () => readonly FederationAdmissionSnapshotEntry[],
+  getBootStatus?: () => FederationBootStatus,
 ): ToolExecutor {
   return {
     execute: async (
@@ -141,7 +227,11 @@ export function withFederatedRefusalDiagnosis(
       } catch (error) {
         if (!isUnknownToolError(error) || !toolId.startsWith(FEDERATED_TOOL_ID_PREFIX)) throw error;
         const refusal = findFederatedToolRefusal(toolId, getSnapshot());
-        if (refusal === null) throw error;
+        if (refusal === null) {
+          const stillConnecting = diagnoseStillConnectingOrFailed(toolId, getBootStatus?.());
+          if (stillConnecting !== null) return stillConnecting;
+          throw error;
+        }
         return {
           executionId: randomUUID(),
           status: "failed",

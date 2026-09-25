@@ -247,6 +247,32 @@ export function federatedToolId(connectionId: string, remoteName: string): strin
 }
 
 /**
+ * The inverse of {@link federatedToolId}: the `connectionId` a federated-shaped id names, without
+ * needing a live admission snapshot to look it up (`refusal-notice.ts`'s `findFederatedToolRefusal`
+ * re-mints instead of parsing, precisely because it always has a snapshot in hand; a caller that has
+ * NOT admitted this connection yet — 2026-09-24, see `federated-refusal-diagnosis.ts`'s "still
+ * connecting" case — has nothing to re-mint against and must parse `toolId` itself instead).
+ *
+ * Splits on the FIRST `__` after {@link FEDERATED_TOOL_ID_PREFIX} rather than the last: safe only
+ * because `CONNECTION_ID_PATTERN` forbids `_` in a connectionId entirely, so the first `__`
+ * encountered after the prefix can only be the separator `federatedToolId` itself inserts, never a
+ * byte inside the connectionId. A `remoteName` containing `_` (e.g. `list_domains`) is therefore
+ * never mistaken for part of the separator.
+ *
+ * @returns `null` when `toolId` does not start with the prefix, or has no `__` after it (a
+ *   malformed/incomplete id — never actually minted by {@link federatedToolId}).
+ * @complexity O(n) in `toolId`'s length.
+ * @overallScore 100
+ */
+export function parseFederatedConnectionId(toolId: string): string | null {
+  if (!toolId.startsWith(FEDERATED_TOOL_ID_PREFIX)) return null;
+  const rest = toolId.slice(FEDERATED_TOOL_ID_PREFIX.length);
+  const separatorIndex = rest.indexOf("__");
+  if (separatorIndex <= 0) return null;
+  return rest.slice(0, separatorIndex);
+}
+
+/**
  * R1's runtime assertion: refuses a federated id that a native registration already owns.
  *
  * Unreachable while the prefix holds — no native id starts with `mcp__` — and kept for exactly the
