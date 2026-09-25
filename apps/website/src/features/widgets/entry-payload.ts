@@ -1,5 +1,6 @@
 import {
   registerContentType,
+  ContentTypeAlreadyExistsError,
   NoopContentTypeIndexProvisioner,
   toContentTypeOutbox,
   type ContentTypeRepoPort,
@@ -222,5 +223,13 @@ async function ensureOneContentTypeRegistered(
       fields: [{ name: WIDGET_PAYLOAD_FIELD, kind: "text", required: true, queryable: false }],
     },
   });
-  if (!result.ok) throw result.error;
+  if (!result.ok) {
+    // S9 (web-high fix plan, 2026-09-24): two concurrent first-widget creates both saw `findByKey`
+    // return null above and both called `registerContentType`; the loser now gets
+    // `ContentTypeAlreadyExistsError` instead of silently overwriting the winner's row. That is
+    // exactly the outcome this function wants — a content type now exists — so treat it as success,
+    // UNLESS the key was tombstoned (`tombstoned: true`), which is a real, unrecoverable failure.
+    if (result.error instanceof ContentTypeAlreadyExistsError && !result.error.tombstoned) return;
+    throw result.error;
+  }
 }

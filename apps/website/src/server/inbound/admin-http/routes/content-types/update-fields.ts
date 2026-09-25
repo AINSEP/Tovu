@@ -1,7 +1,9 @@
 import type { Express } from "express";
 
+import { EntityNotLiveError } from "@jini-ai/cms/core";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
 import {
+  ContentTypeAlreadyExistsError,
   ContentTypeNotFoundError,
   ForbiddenError,
   InvalidFieldKindError,
@@ -16,9 +18,15 @@ import { updateContentTypeFields } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 
+/** The `EntityNotLiveError` arm is S9 (web-high fix plan, 2026-09-24) — `updateContentTypeFields`
+ * now rejects a tombstoned type instead of silently applying a full-replace to it. The
+ * `ContentTypeAlreadyExistsError` arm mirrors `register.ts`'s for a shared status-mapping surface,
+ * though this route's own write-service call never produces one. */
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
   if (error instanceof ContentTypeNotFoundError) return { status: 404, code: "CONTENT_TYPE_NOT_FOUND" };
+  if (error instanceof ContentTypeAlreadyExistsError) return { status: 409, code: "CONTENT_TYPE_ALREADY_EXISTS" };
+  if (error instanceof EntityNotLiveError) return { status: 409, code: error.code };
   if (error instanceof VersionConflictError) return { status: 409, code: "VERSION_CONFLICT" };
   if (
     error instanceof ValidationError ||

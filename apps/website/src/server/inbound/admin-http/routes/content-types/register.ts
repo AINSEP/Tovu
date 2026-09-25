@@ -1,7 +1,9 @@
 import type { Express } from "express";
 
+import { EntityNotLiveError } from "@jini-ai/cms/core";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
 import {
+  ContentTypeAlreadyExistsError,
   ForbiddenError,
   InvalidFieldKindError,
   InvalidFieldNameGrammarError,
@@ -15,9 +17,13 @@ import { registerContentType } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 
-/** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). */
+/** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). The
+ * `ContentTypeAlreadyExistsError`/`EntityNotLiveError` arms are S9 (web-high fix plan,
+ * 2026-09-24) — row 7 (define overwrites/resurrects) and its tombstone-resurrect sibling. */
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
+  if (error instanceof ContentTypeAlreadyExistsError) return { status: 409, code: "CONTENT_TYPE_ALREADY_EXISTS" };
+  if (error instanceof EntityNotLiveError) return { status: 409, code: error.code };
   if (
     error instanceof InvalidKeyGrammarError ||
     error instanceof ReservedContentTypeKeyError ||
