@@ -977,6 +977,9 @@ export const SLUG_FORMAT_PATTERN = /^[a-z0-9-]+$/;
  */
 export const ROOT_SLUG = "/";
 
+/** Published schema pattern only; the kind gate stays in validateUpdatePostInput/resolveExplicitSlug. */
+export const SLUG_OR_ROOT_PATTERN = /^(?:\/|[a-z0-9-]+)$/;
+
 /**
  * behavior.spec.md BR-02/BR-03 — slugs a request may never claim outright (`createPost`'s
  * explicit-slug path rejects these with `VALIDATION_ERROR`; a *derived* slug landing on one of

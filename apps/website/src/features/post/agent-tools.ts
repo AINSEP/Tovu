@@ -1,4 +1,4 @@
-import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN } from "./post.js";
+import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN, SLUG_OR_ROOT_PATTERN } from "./post.js";
 import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
 
 /**
@@ -823,9 +823,9 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         title: { type: "string", maxLength: MAX_TITLE_LENGTH, description: `Human-readable title, up to ${MAX_TITLE_LENGTH} characters. An empty/whitespace-only title defaults to 'Untitled'.` },
         slug: {
           type: "string",
-          pattern: SLUG_FORMAT_PATTERN.source,
+          pattern: SLUG_OR_ROOT_PATTERN.source,
           maxLength: MAX_SLUG_LENGTH,
-          description: `Optional explicit URL slug (lowercase letters, numbers, dashes; max ${MAX_SLUG_LENGTH} characters; cannot be 'admin' or 'api'). Omit to derive one from title.`,
+          description: `Optional explicit URL slug (lowercase letters, numbers, dashes; max ${MAX_SLUG_LENGTH} characters; cannot be 'admin' or 'api'). Omit to derive one from title. Or exactly '/' for the site homepage (kind:'page' only).`,
         },
         bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `${TIPTAP_DOC_SCHEMA.description} Omit for an empty document.` },
         status: { type: "string", enum: ["draft", "published"], description: "Omit to default to 'draft'." },
@@ -861,9 +861,9 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         title: { type: "string", minLength: 1, maxLength: MAX_TITLE_LENGTH, description: "Optional — omit to leave the title unchanged. Non-empty when sent (unlike create, an empty title is rejected here rather than defaulted)." },
         slug: {
           type: "string",
-          pattern: SLUG_FORMAT_PATTERN.source,
+          pattern: SLUG_OR_ROOT_PATTERN.source,
           maxLength: MAX_SLUG_LENGTH,
-          description: `Optional — omit to leave the slug unchanged. Lowercase letters, numbers, and dashes; max ${MAX_SLUG_LENGTH} characters when sent.`,
+          description: `Optional — omit to leave the slug unchanged. Lowercase letters, numbers, and dashes; max ${MAX_SLUG_LENGTH} characters when sent. Or exactly '/' for the site homepage (kind:'page' only).`,
         },
         bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `Optional — omit to leave the body unchanged. The COMPLETE replacement body when sent, not a diff. ${TIPTAP_DOC_SCHEMA.description}` },
         status: { type: "string", enum: ["draft", "published"], description: "Optional — omit to leave the status unchanged. Setting this to 'published' from 'draft' is how a post/page is published; back to 'draft' is how it is unpublished." },

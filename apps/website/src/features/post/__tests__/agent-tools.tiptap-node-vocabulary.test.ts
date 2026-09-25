@@ -412,3 +412,19 @@ test("drift guard: every MARK_RENDERERS key is documented in TIPTAP_MARK_SCHEMA'
       `TIPTAP_MARK_SCHEMA.properties.type.enum (agent-tools.ts) — add it there, with an attrs entry too if the renderer reads any.`
   );
 });
+
+/**
+ * S20 (fix-plan-web-medium-2026-09-24.md, row 20) — `content_post_create`/`content_post_update`'s
+ * published `slug` schema was `SLUG_FORMAT_PATTERN` (`[a-z0-9-]+`, no slash), so the model had no way
+ * to learn a `kind:'page'` row may claim `/` (`post.ts`'s `ROOT_SLUG`) except by an update that was
+ * silently rejected first and explained after. The kind gate itself stays in
+ * `validateUpdatePostInput`/`resolveExplicitSlug` — this only widens what the SCHEMA advertises.
+ */
+test("schema structure: content_post_update's slug pattern accepts '/' for the homepage, and still rejects a multi-segment path", () => {
+  const updateTool = postAgentToolCatalog.find((tool) => tool.name === "content_post_update");
+  assert.ok(updateTool, "content_post_update is in postAgentToolCatalog");
+  const slugSchema = (updateTool!.inputSchema as { properties: { slug: { pattern: string } } }).properties.slug;
+  const slugPattern = new RegExp(slugSchema.pattern);
+  assert.equal(slugPattern.test("/"), true, "the update schema's slug pattern must accept '/' (ROOT_SLUG, page homepage)");
+  assert.equal(slugPattern.test("a/b"), false, "the update schema's slug pattern must still reject a multi-segment path");
+});
