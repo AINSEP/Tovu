@@ -81,6 +81,24 @@ export default defineConfig({
     globals: false,
     setupFiles: ["./src/__tests__/setup.ts"],
     css: false,
+    server: {
+      deps: {
+        /**
+         * `@jini-ai/ui`'s built `InteractiveHtmlEditor.js` does `import
+         * 'grapesjs/dist/css/grapes.min.css'`. Vitest externalizes node_modules packages by
+         * default (skips Vite's transform, uses Node's native ESM loader for them), and Node's
+         * loader has no `.css` handling, so any suite that transitively imports the html editor
+         * (`PageEditor.tsx`, `PostEditor.tsx`, and anything that renders `Pages`/`Posts`) fails
+         * to even load with `TypeError: Unknown file extension ".css"`. Targeting just
+         * `["@jini-ai/ui", "grapesjs"]` (string or regex) was tried first and did NOT clear the
+         * error even though both packages match Vitest's own `matchPattern` substring check —
+         * inlining everything is the only setting that reliably routed the import through Vite's
+         * transform pipeline, where `css: false` above turns the stylesheet import into a no-op
+         * instead of a raw Node import.
+         */
+        inline: true,
+      },
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
