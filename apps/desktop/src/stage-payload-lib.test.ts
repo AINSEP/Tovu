@@ -22,12 +22,14 @@ import test from "node:test";
 import {
   assertClosureComplete,
   diskBytes,
+  hasNativeBinaryMagic,
   newestMtime,
   parseNpmLsPaths,
   prebuildTarget,
   pruneNativePrebuilds,
   resolveNpmLsCommand,
   resolveTargets,
+  stageBundledNpm,
   stageTransitiveDependencies,
   strippableReason,
   stripNonRuntimeFiles,
@@ -737,4 +739,118 @@ test("parseNpmLsPaths reads LF output: unique, sorted, relative to node_modules,
 test("parseNpmLsPaths reads CRLF output (npm on Windows) without a trailing carriage return on any name", () => {
   const stdout = ["C:\\repo", "C:\\repo\\node_modules\\zod", "C:\\repo\\node_modules\\@scope\\pkg", ""].join("\r\n");
   assert.deepEqual(parseNpmLsPaths(stdout, "C:\\repo\\node_modules", "\\"), ["@scope\\pkg", "zod"]);
+});
+
+// --- hasNativeBinaryMagic ---------------------------------------------------------------------
+
+/** Writes `bytes` (as a hex string, e.g. "feedface") followed by filler, and returns the path. */
+function writeMagicFixture(dir: string, name: string, hex: string): string {
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, name);
+  fs.writeFileSync(file, Buffer.concat([Buffer.from(hex, "hex"), Buffer.from("filler-bytes-after-header")]));
+  return file;
+}
+
+test("hasNativeBinaryMagic: true for each recognized Mach-O/ELF/PE magic", () => {
+  const dir = tempDir();
+  for (const hex of ["feedface", "feedfacf", "cafebabe", "cefaedfe", "cffaedfe", "7f454c46", "4d5a90"]) {
+    const file = writeMagicFixture(dir, `bin-${hex}`, hex);
+    assert.equal(hasNativeBinaryMagic(file), true, `expected ${hex} to be recognized as a native binary`);
+  }
+});
+
+test("hasNativeBinaryMagic: false for ordinary JS text", () => {
+  const dir = tempDir();
+  const file = path.join(dir, "index.js");
+  fs.writeFileSync(file, "module.exports = () => 1;\n");
+  assert.equal(hasNativeBinaryMagic(file), false);
+});
+
+test("hasNativeBinaryMagic: false for a file shorter than 4 bytes", () => {
+  const dir = tempDir();
+  const file = path.join(dir, "tiny");
+  fs.writeFileSync(file, Buffer.from("ab", "hex"));
+  assert.equal(hasNativeBinaryMagic(file), false);
+});
+
+// --- stageBundledNpm ---------------------------------------------------------------------------
+
+/** Minimal fake npm package tree: just enough shape for stageBundledNpm's rules to exercise. */
+function writeNpmFixture(dir: string): void {
+  fs.mkdirSync(path.join(dir, "bin"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "bin", "npx-cli.js"), "#!/usr/bin/env node\n// npx cli\n");
+  fs.writeFileSync(path.join(dir, "bin", "npm-cli.js"), "#!/usr/bin/env node\n// npm cli\n");
+  fs.writeFileSync(path.join(dir, "bin", "npx.cmd"), "@echo off\r\n");
+  fs.writeFileSync(path.join(dir, "bin", "npx.ps1"), "# powershell wrapper\n");
+  fs.mkdirSync(path.join(dir, "docs", "content"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "docs", "content", "cli.md"), "# npm docs\n");
+  fs.mkdirSync(path.join(dir, "man", "man1"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "man", "man1", "npm.1"), "npm(1)\n");
+  fs.mkdirSync(path.join(dir, "node_modules", "@npmcli", "arborist"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "node_modules", "@npmcli", "arborist", "package.json"), '{"name":"@npmcli/arborist"}');
+  fs.writeFileSync(path.join(dir, "package.json"), '{"name":"npm","version":"11.20.0"}');
+}
+
+test("stageBundledNpm copies the package tree, preserving bin/*.js and node_modules", () => {
+  const npmSrc = path.join(tempDir(), "npm");
+  writeNpmFixture(npmSrc);
+  const outDir = path.join(tempDir(), "staging", "npm");
+
+  stageBundledNpm({ npmSrc, outDir });
+
+  assert.ok(fs.existsSync(path.join(outDir, "bin", "npx-cli.js")));
+  assert.ok(fs.existsSync(path.join(outDir, "bin", "npm-cli.js")));
+  assert.ok(fs.existsSync(path.join(outDir, "node_modules", "@npmcli", "arborist", "package.json")));
+  assert.ok(fs.existsSync(path.join(outDir, "package.json")));
+});
+
+test("stageBundledNpm drops docs/ and man/ entirely", () => {
+  const npmSrc = path.join(tempDir(), "npm");
+  writeNpmFixture(npmSrc);
+  const outDir = path.join(tempDir(), "staging", "npm");
+
+  stageBundledNpm({ npmSrc, outDir });
+
+  assert.equal(fs.existsSync(path.join(outDir, "docs")), false);
+  assert.equal(fs.existsSync(path.join(outDir, "man")), false);
+});
+
+test("stageBundledNpm drops *.ps1 but keeps bin/*.cmd", () => {
+  const npmSrc = path.join(tempDir(), "npm");
+  writeNpmFixture(npmSrc);
+  const outDir = path.join(tempDir(), "staging", "npm");
+
+  stageBundledNpm({ npmSrc, outDir });
+
+  assert.equal(fs.existsSync(path.join(outDir, "bin", "npx.ps1")), false);
+  assert.ok(fs.existsSync(path.join(outDir, "bin", "npx.cmd")));
+});
+
+test("stageBundledNpm throws if the source has no bin/npx-cli.js", () => {
+  const npmSrc = path.join(tempDir(), "not-npm");
+  fs.mkdirSync(npmSrc, { recursive: true });
+  fs.writeFileSync(path.join(npmSrc, "package.json"), '{"name":"not-npm"}');
+  const outDir = path.join(tempDir(), "staging", "npm");
+
+  assert.throws(() => stageBundledNpm({ npmSrc, outDir }), /npx-cli\.js/);
+});
+
+test("stageBundledNpm throws if any staged file starts with native binary magic bytes", () => {
+  const npmSrc = path.join(tempDir(), "npm");
+  writeNpmFixture(npmSrc);
+  writeMagicFixture(path.join(npmSrc, "node_modules", "@npmcli", "arborist"), "prebuild.node", "feedfacf");
+  const outDir = path.join(tempDir(), "staging", "npm");
+
+  assert.throws(() => stageBundledNpm({ npmSrc, outDir }), /native binary|Mach-O|magic/);
+});
+
+test("stageBundledNpm returns the staged file count and on-disk byte size", () => {
+  const npmSrc = path.join(tempDir(), "npm");
+  writeNpmFixture(npmSrc);
+  const outDir = path.join(tempDir(), "staging", "npm");
+
+  const result = stageBundledNpm({ npmSrc, outDir });
+
+  assert.ok(result.fileCount > 0);
+  assert.ok(result.bytes > 0);
 });

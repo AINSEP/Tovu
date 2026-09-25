@@ -13,7 +13,7 @@
  * constant of the same name, so a test can point them at a throwaway `fs.mkdtempSync` directory
  * instead of the real `staging/tovu-payload` tree.
  */
-import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from "node:fs";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
@@ -531,4 +531,133 @@ export function parseNpmLsPaths(stdout: string, modulesDir: string, sep: string)
     .filter((line) => line.startsWith(prefix))
     .map((line) => line.slice(prefix.length));
   return [...new Set(names)].sort();
+}
+
+/** {@link stageBundledNpm}'s input. */
+interface StageBundledNpmInput {
+  npmSrc: string;
+  outDir: string;
+}
+
+/** {@link stageBundledNpm}'s result — used to log the measured size (plan §5, §6 S5). */
+interface StageBundledNpmResult {
+  fileCount: number;
+  bytes: number;
+}
+
+/**
+ * Hex prefixes of the first 4 bytes of a Mach-O (32/64-bit, either byte order), ELF, or PE ("MZ")
+ * binary — see `plan-desktop-bundled-npx-2026-09-24.md` §5 and §6 S5. npm ships no compiled
+ * binaries today (verified: `file` over all ~1,962 files); this is the guard that makes a FUTURE
+ * npm version that adds one fail the build loudly instead of shipping unsigned inside
+ * `Contents/Resources/` (which carries no per-file code signature of its own).
+ */
+export const NATIVE_BINARY_MAGIC_HEX_PREFIXES = ["feedface", "feedfacf", "cafebabe", "cefaedfe", "cffaedfe", "7f454c46", "4d5a"];
+
+/**
+ * Whether `filePath`'s first 4 bytes match a known native-binary magic number.
+ *
+ * A file shorter than 4 bytes cannot carry any of these magics (all are exactly 4 bytes, except
+ * PE's 2-byte "MZ", which still needs at least those 2), so it reads as `false` rather than
+ * throwing on a short read.
+ *
+ * @complexity O(1) — reads at most 4 bytes.
+ */
+export function hasNativeBinaryMagic(filePath: string): boolean {
+  const fd = openSync(filePath, "r");
+  let hex: string;
+  try {
+    const buf = Buffer.alloc(4);
+    const bytesRead = readSync(fd, buf, 0, 4, 0);
+    hex = buf.subarray(0, bytesRead).toString("hex");
+  } finally {
+    closeSync(fd);
+  }
+  return NATIVE_BINARY_MAGIC_HEX_PREFIXES.some((prefix) => hex.startsWith(prefix));
+}
+
+/** Directory names {@link stageBundledNpm} drops wholesale, at any depth — npm's own `docs/` and
+ *  `man/`, neither of which the packaged app ever reads. Checked at every level, not only the npm
+ *  root, since some of npm's bundled dependencies ship their own `docs/`/`man/` too. */
+const NPM_DROPPED_DIR_NAMES = new Set(["docs", "man"]);
+
+/** Whether {@link stageBundledNpm} should skip copying `absPath` (a directory or a file under
+ *  `npmSrc`). `bin/*.cmd` is deliberately NOT excluded here — only `*.ps1` is, per plan §6 S5 step 1
+ *  ("keeps bin/*.cmd"). @complexity O(1). */
+function isNpmStagingDrop(absPath: string, isDirectory: boolean): boolean {
+  const name = path.basename(absPath);
+  if (isDirectory) return NPM_DROPPED_DIR_NAMES.has(name);
+  return name.endsWith(".ps1");
+}
+
+/** Throws naming the first file under `dir` whose first 4 bytes match a native-binary magic
+ *  number, relative to `root` — see {@link hasNativeBinaryMagic}.
+ *  @complexity O(n) in files walked. */
+function assertNoNativeBinaries(root: string, dir: string = root): void {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      assertNoNativeBinaries(root, full);
+      continue;
+    }
+    if (!entry.isFile() || !hasNativeBinaryMagic(full)) continue;
+    throw new Error(
+      `stageBundledNpm: ${path.relative(root, full)} starts with native-binary (Mach-O/ELF/PE) magic bytes. npm is ` +
+        `expected to ship no compiled binaries — files under Contents/Resources carry no per-file code signature, ` +
+        `so shipping one unsigned would be a silent security regression rather than a build failure.`
+    );
+  }
+}
+
+/**
+ * Stages the bundled npm package (`apps/desktop/node_modules/npm`) into `outDir` (`staging/npm`,
+ * sibling to `staging/tovu-payload`), for `electron-builder.yml`'s `extraResources` to ship as
+ * `Contents/Resources/npm/`. See `plan-desktop-bundled-npx-2026-09-24.md` §5 and §6 S5.
+ *
+ * Drops `docs/` and `man/` at every depth and any `*.ps1` file (Windows-only PowerShell wrappers
+ * this app never execs — the `.cmd` wrappers next to them are kept). Refuses to stage a tree that
+ * is not really an npm package root, and refuses — after copying — a staged tree that contains any
+ * file starting with native-binary magic bytes (see {@link assertNoNativeBinaries}).
+ *
+ * @throws {Error} if `npmSrc` has no `bin/npx-cli.js`, or if the staged tree contains a native
+ *   binary.
+ * @complexity O(n) in files under `npmSrc`.
+ */
+export function stageBundledNpm({ npmSrc, outDir }: StageBundledNpmInput): StageBundledNpmResult {
+  if (!existsSync(path.join(npmSrc, "bin", "npx-cli.js"))) {
+    throw new Error(`stageBundledNpm: no bin/npx-cli.js under ${npmSrc} — is this really an npm package root?`);
+  }
+
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(path.dirname(outDir), { recursive: true });
+  cpSync(npmSrc, outDir, {
+    recursive: true,
+    dereference: true,
+    filter: (src) => {
+      if (src === npmSrc) return true;
+      let isDirectory: boolean;
+      try {
+        isDirectory = statSync(src).isDirectory();
+      } catch {
+        return false;
+      }
+      return !isNpmStagingDrop(src, isDirectory);
+    },
+  });
+
+  assertNoNativeBinaries(outDir);
+
+  return { fileCount: countFiles(outDir), bytes: diskBytes(outDir) };
+}
+
+/** Recursive file count under `dir` — used only for {@link stageBundledNpm}'s reported result.
+ *  @complexity O(n) in entries walked. */
+function countFiles(dir: string): number {
+  let count = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) count += countFiles(full);
+    else count += 1;
+  }
+  return count;
 }

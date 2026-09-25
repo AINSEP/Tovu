@@ -150,3 +150,47 @@ test("the node_modules matcher is not the main matcher — proved on the same pa
   assert.equal(shipsPath(patterns, "node_modules/@jini-ai/chat/dist/index.js"), false);
   assert.equal(shipsNodeModulePath(patterns, "node_modules/@jini-ai/chat/dist/index.js"), true);
 });
+
+/**
+ * `extraResources` entries — a separate top-level array from `files:`, so `shipsPath` above (which
+ * only reads `files:`) says nothing about it. See `plan-desktop-bundled-npx-2026-09-24.md` §5, §6 S5.
+ */
+interface ExtraResourcesEntry {
+  from?: unknown;
+  to?: unknown;
+  filter?: unknown;
+}
+
+function configuredExtraResources(): ExtraResourcesEntry[] {
+  // `as`: js-yaml's `load` returns `unknown`; the assert right below is this file's actual runtime
+  // check that `extraResources` is really an array, same as `configuredFilePatterns` does for `files`.
+  const config = yaml.load(fs.readFileSync(CONFIG_PATH, "utf8")) as { extraResources?: unknown };
+  assert.ok(Array.isArray(config.extraResources), "electron-builder.yml must declare an extraResources: array");
+  return config.extraResources as ExtraResourcesEntry[];
+}
+
+test("extraResources ships the bundled npm package staged at staging/npm", () => {
+  const entries = configuredExtraResources();
+  const npmEntry = entries.find((entry) => entry.from === "staging/npm" && entry.to === "npm");
+  assert.ok(
+    npmEntry,
+    "electron-builder.yml's extraResources has no `staging/npm -> npm` entry, so the bundled npm " +
+      "package (scripts/stage-payload.ts's stageBundledNpm output) would not ship, and every " +
+      "stdio MCP server launched via a bare npx/npm command would have nothing to run."
+  );
+});
+
+test("npm's own node_modules ships as a SEPARATE extraResources entry, not folded into staging/npm -> npm", () => {
+  // electron-builder's copy filter hard-refuses a source-relative path literally named
+  // "node_modules" (app-builder-lib/out/util/filter.js: `if (relative === "node_modules") return
+  // false`) — the same reason `staging/tovu-payload/node_modules -> tovu/node_modules` is its own
+  // entry above (`:79-86`). Folding npm's node_modules into the `staging/npm -> npm` entry would
+  // silently ship an npm with none of its own bundled dependencies (@npmcli/arborist, semver, …),
+  // so every npx/npm launch inside the packaged app would fail to resolve.
+  const entries = configuredExtraResources();
+  const npmModulesEntry = entries.find((entry) => entry.from === "staging/npm/node_modules" && entry.to === "npm/node_modules");
+  assert.ok(
+    npmModulesEntry,
+    "electron-builder.yml's extraResources has no `staging/npm/node_modules -> npm/node_modules` entry."
+  );
+});

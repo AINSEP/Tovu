@@ -53,6 +53,40 @@ function findAppBundles(dir: string): string[] {
 }
 
 /**
+ * Every resources directory a packaged build could have produced — the same two layouts
+ * {@link resolveAsarPath} already knows about, but ALL of them (not just the newest), since a
+ * leftover probe build from an earlier run must not be reported clean just because it is not the
+ * one {@link resolveAsarPath} picked.
+ *
+ * @complexity O(n) in bundles found under `release/`.
+ */
+function findResourcesDirs(): string[] {
+  const releaseDir = path.join(DESKTOP_ROOT, "release");
+  const dirs = findAppBundles(releaseDir).map((bundle) => path.join(bundle, "Contents/Resources"));
+  const winUnpackedResources = path.join(releaseDir, "win-unpacked", "resources");
+  if (existsSync(winUnpackedResources)) dirs.push(winUnpackedResources);
+  return dirs;
+}
+
+/**
+ * The bundled npm package's two load-bearing files, checked directly on disk (not through the
+ * asar) because `extraResources` ships `Contents/Resources/npm/` as real files OUTSIDE
+ * `app.asar` — see `plan-desktop-bundled-npx-2026-09-24.md` §5, §6 S5. `bin/npx-cli.js` proves npm
+ * itself staged; `node_modules/@npmcli/arborist/package.json` proves the SEPARATE
+ * `staging/npm/node_modules -> npm/node_modules` `extraResources` entry actually ran — the exact
+ * thing electron-builder's copy filter silently drops when that entry is missing
+ * (`electron-builder-files.test.ts`'s node_modules tests document the same filter).
+ *
+ * @returns the missing paths, or an empty array when both are present.
+ * @complexity O(1).
+ */
+function missingBundledNpmFiles(resourcesDir: string): string[] {
+  return [path.join(resourcesDir, "npm", "bin", "npx-cli.js"), path.join(resourcesDir, "npm", "node_modules", "@npmcli", "arborist", "package.json")].filter(
+    (file) => !existsSync(file)
+  );
+}
+
+/**
  * The `app.asar` to verify: an explicit `--asar` wins (what a deliberate-corruption drill or a
  * one-off probe build uses); otherwise the most-recently-modified candidate found under `release/`,
  * across BOTH packaged layouts electron-builder produces:
@@ -119,6 +153,20 @@ function main(): void {
     process.exit(1);
     return;
   }
+
+  const resourcesDirs = findResourcesDirs();
+  const npmFailures = resourcesDirs.flatMap((dir) => missingBundledNpmFiles(dir).map((file) => `${file} (under ${dir})`));
+  if (npmFailures.length > 0) {
+    process.stderr.write(
+      `verify-package: bundled npm is missing from the packaged app:\n  ${npmFailures.join("\n  ")}\n` +
+        "Every stdio MCP server launched via a bare npx/npm command would have nothing to run. Check " +
+        "electron-builder.yml's two npm extraResources entries and that `npm run stage` ran before packaging.\n"
+    );
+    process.exit(1);
+    return;
+  }
+
+  process.stdout.write(`verify-package: OK — bundled npm present in ${resourcesDirs.length} resources dir(s)\n`);
   process.stdout.write("verify-package: OK — every file byte-identical to source\n");
 }
 

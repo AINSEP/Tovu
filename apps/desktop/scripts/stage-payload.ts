@@ -51,6 +51,7 @@ import {
   isExcluded,
   newestMtime,
   parseNpmLsPaths,
+  stageBundledNpm,
   stageDir,
   pruneNativePrebuilds,
   resolveNpmLsCommand,
@@ -369,6 +370,24 @@ for (const shell of STAGED_SHELLS) {
   }
 }
 failIfDistIsStale();
+
+// The bundled npm package (plan-desktop-bundled-npx-2026-09-24.md §5, §6 S5) — staged into its own
+// `staging/npm` tree, a SIBLING of `outDir` (`staging/tovu-payload`), not inside it: `npm` is a
+// devDependency of apps/desktop itself (package.json), never a runtime dependency of the Tovu
+// payload above, so it has nothing to do with `productionDependencyPaths()`. `electron-builder.yml`
+// ships it via its own pair of `extraResources` entries at `Contents/Resources/npm/`.
+const npmSrc = path.join(desktopDir, "node_modules", "npm");
+const npmStagingDir = path.join(desktopDir, "staging", "npm");
+let npmStaged;
+try {
+  npmStaged = stageBundledNpm({ npmSrc, outDir: npmStagingDir });
+} catch (err) {
+  // `as`: stageBundledNpm only ever throws a plain Error.
+  fail((err as Error).message);
+}
+process.stdout.write(
+  `stage-payload: staged bundled npm -> ${npmStagingDir} (${npmStaged.fileCount} files, ${(npmStaged.bytes / 1048576).toFixed(1)} MB)\n`
+);
 
 // `diskBytes`, not `du -sh`: `du` does not exist on Windows, and diskBytes already walks the same
 // on-disk block accounting the strip/prune tallies below use, so all three sizes stay comparable.

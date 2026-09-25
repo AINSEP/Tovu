@@ -89,6 +89,27 @@ extraResources:
   - from: staging/tovu-payload/package.json
     to: tovu/package.json
 
+  # The bundled npm package (plan-desktop-bundled-npx-2026-09-24.md §5, §6 S5), staged by
+  # `stageBundledNpm` (`src/stage-payload-lib.ts`) into `staging/npm`. This is what lets the
+  # desktop's stdio launch resolver rewrite a bare `npx`/`npm` command into Electron's own Node
+  # running THIS package's `bin/npx-cli.js`/`bin/npm-cli.js`, with no system Node/npm install
+  # required. Same reasoning as the `tovu/*` entries above: files here land outside app.asar
+  # because `verify-package.ts`'s post-package check reads them at `Contents/Resources/npm/`.
+  - from: staging/npm
+    to: npm
+    filter:
+      - "**/*"
+  # A SEPARATE entry, same reason `tovu/node_modules` above is one: electron-builder's copy filter
+  # hard-refuses a source-relative path literally named `node_modules`
+  # (`app-builder-lib/out/util/filter.js`: `if (relative === "node_modules") return false`), so
+  # folding this into the entry above would silently ship npm with none of its own dependencies
+  # (`@npmcli/arborist`, `semver`, …) — every `npx`/`npm exec` inside the packaged app would then
+  # fail to resolve its own CLI's requires.
+  - from: staging/npm/node_modules
+    to: npm/node_modules
+    filter:
+      - "**/*"
+
 asar: true
 asarUnpack:
   - "**/*.node"
