@@ -340,6 +340,16 @@ function requireBodyJson(input: Record<string, unknown>, key: string): JsonObjec
   return requireObject(input, key) as unknown as JsonObject;
 }
 
+/** Optional counterpart to {@link requireBodyJson} — S7's partial-patch shape for
+ *  `content_post_update`: a caller who omits `bodyJson` keeps the stored value (merged in by the
+ *  handler, not here), but a caller who SENDS a non-object one is still rejected with the exact
+ *  same "(object) is required" message `requireObject` always threw — a present-but-malformed
+ *  `bodyJson` is a shape error whether or not the field is required. */
+function optionalBodyJson(input: Record<string, unknown>, key: string): JsonObject | undefined {
+  if (input[key] === undefined) return undefined;
+  return requireBodyJson(input, key);
+}
+
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
 /** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
@@ -700,10 +710,19 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       return withSchemaOnRejection({ toolId: "content_post_update", catalog: CATALOG_BY_ID, isShapeRejection: isPostShapeRejection }, async () => {
         const id = requireString(input, "id");
         const kind = requirePostKind(input);
-        const title = requireString(input, "title");
-        const slug = requireString(input, "slug");
-        const bodyJson = requireBodyJson(input, "bodyJson");
-        const status = requirePostStatus(input);
+        // S7 (fix-plan-tool-design-2026-09-24.md) — a PARTIAL patch: each of these four is now
+        // independently optional. An omitted one is filled from the stored row inside
+        // `captureInverse` below (the one place this handler already reads `existing`), not here —
+        // a present-but-invalid value still rejects with the exact same message it always did.
+        const title = optionalString(input, "title");
+        const slug = optionalString(input, "slug");
+        const bodyJson = optionalBodyJson(input, "bodyJson");
+        const status = optionalPostStatus(input);
+        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined) {
+          throw new ToolInputError(
+            "content_post_update: send at least one of title, slug, bodyJson or status. Nothing was changed."
+          );
+        }
         // Validated, not cast — see `expected-version.ts`. `expectedVersion` is optional on
         // `UpdatePostInput`, so anything this handler failed to recognize would coerce to "no basis
         // sent" and be written through as an unguarded save, re-opening the very clobber the guard
@@ -714,6 +733,14 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // Captured by `captureInverse` below, reused verbatim by `rollback` — mirrors
         // `posts/update.ts`/`pages/update.ts`'s identical unit-of-work compensation.
         let priorPost: PostRecord | null = null;
+        // The merged, fully-populated values `execute` below actually sends to `updatePost` — set
+        // inside `captureInverse`, the only place `existing` (the fill-in source for an omitted
+        // field) is available. `basisVersion` starts as whatever the caller sent and is upgraded to
+        // `existing.version` there too, but ONLY for a partial patch with no caller-sent
+        // `expectedVersion` — see that comment for why a full four-field call must NOT gain a basis
+        // it never asked for.
+        let merged: { title: string; slug: string; bodyJson: JsonObject; status: PostStatus } | null = null;
+        let basisVersion = expectedVersion;
 
         const { result } = await executeCommand<{ post: PostRecord }>({
           deps: postCommandDeps(routeDeps),
@@ -736,6 +763,30 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 // mirroring posts/update.ts's own kind-blind captureInverse).
                 throw new PostNotFoundError(`page '${id}' was not found`);
               }
+              // S7 — fill every field the caller omitted from the stored row. This runs BEFORE the
+              // html-body guard just below on purpose: an omitted `bodyJson` must merge in as
+              // `existing.bodyJson` itself, so a title-only patch on an html Page compares equal
+              // to itself and sails through that guard rather than being misread as a body change
+              // it never made.
+              merged = {
+                title: title ?? existing.title,
+                slug: slug ?? existing.slug,
+                bodyJson: bodyJson ?? existing.bodyJson,
+                status: status ?? existing.status,
+              };
+              // A partial patch (any of the four omitted) is a read-then-write on a basis the
+              // caller did NOT necessarily pin with its own `expectedVersion`. Filling the gap from
+              // `existing` and then writing unconditionally would silently clobber a human's save
+              // landing between this read and `updatePost`'s write — so pin it to the row's own
+              // version instead, exactly as if the caller had sent it. `updatePost`'s own
+              // `assertExpectedVersion`/`saveIfVersion` CAS (already wired) does the actual
+              // enforcement; this only supplies the basis for a caller who left it out. A FULL
+              // four-field call is unaffected: `basisVersion` stays whatever the caller sent (or
+              // `undefined`), the same opt-in last-write-wins behavior as before this slice.
+              const isPartialPatch = title === undefined || slug === undefined || bodyJson === undefined || status === undefined;
+              if (isPartialPatch && expectedVersion === undefined) {
+                basisVersion = existing.version;
+              }
               // S3 (fix-plan-web-high-2026-09-24.md row 6) — `updatePost` ignores `bodyJson` outright
               // on an html-format row (CIC-3: an html Page's body is written only by
               // `PagesHtmlDocumentStore`, never through this chokepoint). Without this guard, a caller
@@ -743,8 +794,9 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               // here instead, before the write — the one place this handler already has `existing` in
               // hand. A caller round-tripping the SAME bodyJson it just read (the metadata-only edit
               // case) is unaffected: `isDeepStrictEqual` makes this opt-in, not a ban on ever sending
-              // the field.
-              if (existing.bodyFormat === "html" && !isDeepStrictEqual(bodyJson, existing.bodyJson)) {
+              // the field. Compares the MERGED value, not the raw (possibly-omitted) input — see the
+              // merge comment just above for why that is what lets a title-only patch succeed.
+              if (existing.bodyFormat === "html" && !isDeepStrictEqual(merged.bodyJson, existing.bodyJson)) {
                 throw new ToolInputError(
                   `CONTENT_POST_HTML_BODY: page '${id}' is a bespoke-HTML page, so bodyJson can't change its body. ` +
                     `To edit its title, slug or status, send bodyJson back exactly as content_read returned it. ` +
@@ -754,31 +806,41 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               priorPost = existing;
               return { title: existing.title, slug: existing.slug, bodyJson: existing.bodyJson, status: existing.status };
             },
-            execute: () =>
-              updatePost({
+            execute: () => {
+              // `captureInverse` above always runs first (per `core/commands`'s own contract) and
+              // either throws or sets `merged` — this branch is unreachable in practice, the same
+              // guarantee `rollback`'s `if (!priorPost)` below relies on, kept here only to satisfy
+              // the type checker without a forbidden non-null assertion.
+              if (!merged) throw new PostNotFoundError(`post '${id}' was not found`);
+              return updatePost({
                 deps: {
                   repo: routeDeps.postRepo,
                   clock: routeDeps.clock,
                   outbox: routeDeps.outbox,
                   beforeSaveHook: routeDeps.pluginBeforeSaveHook,
                 },
-                // `expectedVersion` forwarded exactly the way `posts/update.ts` forwards it, and
-                // omitted-means-absent for the same reason: `undefined` is what keeps the guard
-                // opt-in, so a caller that sends nothing keeps the original last-write-wins save.
+                // `title`/`slug`/`bodyJson`/`status` are the MERGED values (the caller's own field,
+                // or the stored one for an omitted field) — never the raw, possibly-partial input.
+                // `basisVersion` is `expectedVersion` forwarded exactly the way `posts/update.ts`
+                // forwards it, EXCEPT for a partial patch with no caller-sent `expectedVersion`,
+                // where `captureInverse` above upgraded it to `existing.version` so the merge stays
+                // atomic. `undefined` (a full four-field call, caller sent nothing) is still what
+                // keeps the guard opt-in, so that caller keeps the original last-write-wins save.
                 input: {
                   workspaceId: routeDeps.workspaceId,
                   id,
-                  title,
-                  slug,
-                  bodyJson,
-                  status,
-                  expectedVersion,
+                  title: merged.title,
+                  slug: merged.slug,
+                  bodyJson: merged.bodyJson,
+                  status: merged.status,
+                  expectedVersion: basisVersion,
                   actorId: ctx.principal.id,
                   // See content_post_create's identical delegatedBy* comment just above.
                   delegatedByWorkspaceId: routeDeps.workspaceId,
                   delegatedById: ctx.principal.id,
                 },
-              }),
+              });
+            },
             captureEntityVersion: (r) => r.post.version,
             rollback: async () => {
               if (!priorPost) return;

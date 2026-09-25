@@ -44,16 +44,16 @@ import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
  *   for status changes: `updatePost`'s `status` field, validated by `classifyStatusTransition`.
  *   `content_post_update` IS how an agent publishes or unpublishes a post/page — there is no second,
  *   narrower tool to add, because the domain itself has no narrower function.
- * - `content_post_update` requires EVERY field (`title`/`slug`/`bodyJson`/`status`) rather than
- *   accepting a partial patch, unlike `collections_entry_update`/`forms_update_definition`'s partial
- *   shape. This is not a design choice this catalog made — `updatePost` (`post.ts`) itself has no
- *   partial-update capability: it reads `input.title.trim()`/`input.slug.trim()`/`isJsonObject(input.
- *   bodyJson)`/`isValidPostStatus(input.status)` unconditionally, so an omitted field would throw a
- *   raw `TypeError` (`undefined.trim()`) rather than a clean validation rejection or a "leave
- *   unchanged" no-op. Mirroring `posts/update.ts`/`pages/update.ts` (both of which always send the
- *   full record from the admin editor's own save button) precisely means requiring the same four
- *   fields here too, validated before the domain call so a missing field is a clean rejection
- *   instead of a crash.
+ * - `content_post_update` NOW accepts a partial patch (S7, fix-plan-tool-design-2026-09-24.md): only
+ *   `id`/`kind` are required, and `title`/`slug`/`bodyJson`/`status` are each independently optional,
+ *   matching `collections_entry_update`/`forms_update_definition`'s shape. `updatePost` (`post.ts`)
+ *   itself still has NO partial-update capability — it still reads `input.title.trim()`/`input.slug.
+ *   trim()`/`isJsonObject(input.bodyJson)`/`isValidPostStatus(input.status)` unconditionally, so this
+ *   tool's handler fills every field the caller omitted from the stored row (inside the same
+ *   `captureInverse` read `posts/update.ts`/`pages/update.ts` never needed a partial-patch version
+ *   of, because their save button always sends the full record) before calling it. A caller sending
+ *   `{id, kind}` alone — nothing to change — is rejected before the domain call, same as before this
+ *   slice's caller-input-was-the-problem discipline for every other missing/malformed field.
  * - `content_post_get`'s and `content_post_update`'s `kind`-mismatch behavior is intentionally
  *   ASYMMETRIC between `kind:"post"` and `kind:"page"`, and that asymmetry is inherited, not
  *   invented. `posts/get-by-id.ts` and `posts/update.ts` (legacy, kind-blind routes — confirmed by
@@ -835,34 +835,38 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_update",
     description:
-      "Replaces an existing post/page's title, slug, bodyJson, and status IN FULL — every field is required, there is no partial " +
-      "patch (the underlying updatePost function itself has no partial-update path; this mirrors the admin editor's own save " +
-      "button, which always sends the complete record). This is also how a post/page is published or unpublished: set status to " +
-      "'published'/'draft'. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
-      "content_read.content_post's identical disclosed asymmetry — not rejected the other way around), if slug is malformed/reserved/taken " +
-      "by another row, or if bodyJson is not a JSON object. " +
+      "Patches an existing post/page — send only the fields that change; any of title, slug, bodyJson and status you omit keeps " +
+      "its current stored value (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
+      "from the stored row before calling it). Send at least one of the four, or the call is rejected. This is also how a " +
+      "post/page is published or unpublished: {id, kind, status:'published'} (or 'draft') alone is enough — there is no separate " +
+      "set-status tool. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
+      "content_read.content_post's identical disclosed asymmetry — not rejected the other way around), if a sent slug is " +
+      "malformed/reserved/taken by another row, or if a sent bodyJson is not a JSON object. " +
       "SEND expectedVersion whenever you are editing content you read earlier: it is how you avoid silently erasing a change a " +
       "human made in the admin editor between your read and your write. Pass the 'version' from the content_read.content_post " +
       "row you based your edit on. If it no longer matches, the call is rejected with VERSION_CONFLICT and " +
-      "NOTHING is written — re-read the row, reapply your change to the body you get back, and resend with the new version.",
+      "NOTHING is written — re-read the row, reapply your change to the body you get back, and resend with the new version. Even " +
+      "without expectedVersion, a partial patch (any field omitted) is still checked against the row's current version at write " +
+      "time, so a human's save landing between your read and this call still rejects with VERSION_CONFLICT rather than silently " +
+      "merging over it — only a FULL four-field call with no expectedVersion keeps the old unguarded last-write-wins behavior.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "kind", "title", "slug", "bodyJson", "status"],
+      required: ["id", "kind"],
       properties: {
         id: POST_ID_SCHEMA,
         kind: POST_KIND_SCHEMA,
-        title: { type: "string", minLength: 1, maxLength: MAX_TITLE_LENGTH, description: "Required, non-empty (unlike create, an empty title is rejected here rather than defaulted)." },
+        title: { type: "string", minLength: 1, maxLength: MAX_TITLE_LENGTH, description: "Optional — omit to leave the title unchanged. Non-empty when sent (unlike create, an empty title is rejected here rather than defaulted)." },
         slug: {
           type: "string",
           pattern: SLUG_FORMAT_PATTERN.source,
           maxLength: MAX_SLUG_LENGTH,
-          description: `Required. Lowercase letters, numbers, and dashes; max ${MAX_SLUG_LENGTH} characters.`,
+          description: `Optional — omit to leave the slug unchanged. Lowercase letters, numbers, and dashes; max ${MAX_SLUG_LENGTH} characters when sent.`,
         },
-        bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `Required — the COMPLETE replacement body. ${TIPTAP_DOC_SCHEMA.description}` },
-        status: { type: "string", enum: ["draft", "published"], description: "Required. Setting this to 'published' from 'draft' is how a post/page is published; back to 'draft' is how it is unpublished." },
+        bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `Optional — omit to leave the body unchanged. The COMPLETE replacement body when sent, not a diff. ${TIPTAP_DOC_SCHEMA.description}` },
+        status: { type: "string", enum: ["draft", "published"], description: "Optional — omit to leave the status unchanged. Setting this to 'published' from 'draft' is how a post/page is published; back to 'draft' is how it is unpublished." },
         // OPTIONAL, and it must stay optional: making it required would break every caller that
         // predates it, and the domain guard itself is opt-in (`updatePost` treats an absent basis as
         // "no basis sent" and keeps its original last-write-wins behavior).
