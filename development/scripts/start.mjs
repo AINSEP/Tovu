@@ -130,11 +130,23 @@ export function clearBlankRootKeyEnv(env) {
 /**
  * The quiet-boot switches `npm start` sets so its whole output is the server's one URL line:
  * `TOVU_ROOT_KEY_NOTICE=off` (silences `root-key-boot-notice.ts`'s local-mode "no usable root key"
- * wall unconditionally — `npm start`'s whole point is a one-line boot, and the imported `index.js`
- * already ensures a key via `ensureSiteKeyForBoot` before that notice would ever fire; see
- * `root-key-boot-notice.ts`'s exact-match contract) and `TOVU_DAEMON_LIFECYCLE_LOG=off` (hides the
- * agent daemon's first-spawn and deliberate-exit lines; respawns and crashes still print — see
- * `daemon-supervisor.ts`). An operator's own `TOVU_DAEMON_LIFECYCLE_LOG` (e.g. `on`) wins.
+ * wall unconditionally — `npm start`'s whole point is a one-line boot) and
+ * `TOVU_DAEMON_LIFECYCLE_LOG=off` (hides the agent daemon's first-spawn and deliberate-exit lines;
+ * respawns and crashes still print — see `daemon-supervisor.ts`). An operator's own
+ * `TOVU_DAEMON_LIFECYCLE_LOG` (e.g. `on`) wins.
+ *
+ * `TOVU_ROOT_KEY_NOTICE=off` used to rest on a claim that was briefly FALSE (2026-09-24, before
+ * `site-key-ensure.ts`'s `ensureSiteKeyForBoot` learned to mint a missing `.site-meta.json`): the
+ * default `sites/<name>/` directory this launcher boots is never given one by `tovu init` (it isn't
+ * an install dir at all — see `content-db-schema-guard.ts`'s own header), so `ensureSiteKeyForBoot`
+ * silently did nothing for it, no key was ever ensured, and this switch silenced the one notice that
+ * would have said so — unconditionally, with no way for that site's operator to see it. Now that
+ * `ensureSiteKeyForBoot` mints a fresh per-site identity for exactly that case (and never throws even
+ * when the write itself fails — the same 2026-09-24 fix), the premise holds again: every `npm start`
+ * boot really does end with a key ensured or a caught, logged failure, before this notice would ever
+ * fire. This switch stays unconditional regardless — `npm start`'s one-line-boot contract does not
+ * bend for a boot-time key failure either; that failure's own `console.error` line is what a reader
+ * of this launcher's output would see instead.
  *
  * @param {NodeJS.ProcessEnv} env
  * @returns {Record<string, string>} the variables to set.

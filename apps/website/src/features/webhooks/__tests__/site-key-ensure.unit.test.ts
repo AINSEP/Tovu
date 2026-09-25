@@ -256,11 +256,56 @@ test("ensureSiteKeyForBoot: siteDir has a .site-meta.json siteId → resolves it
   assert.equal(existsSync(perSiteFilePathIn(home, "meta-site-1")), true);
 });
 
-test("ensureSiteKeyForBoot: siteDir has no .site-meta.json → undefined, no file written, never throws", () => {
+// ---------------------------------------------------------------------------
+// ensureSiteKeyForBoot: no .site-meta.json at all (2026-09-24 fix) — this is the DEFAULT
+// `sites/<name>/` site's own real shape (`content-db-schema-guard.ts`'s header: "not a `tovu
+// init`/`tovu serve <dir>` install directory — no `.site-meta.json` is ever written there"), so
+// this is not a hypothetical edge case: it is what a fresh checkout's `sites/tovu-com` looks like
+// under a plain `npm start`/`npm run dev` boot. Before this fix `ensureSiteKeyForBoot` silently did
+// nothing for exactly this site, and `start.mjs` unconditionally silenced the one notice that would
+// have said so (`TOVU_ROOT_KEY_NOTICE=off`) on the false premise a key had just been ensured.
+// ---------------------------------------------------------------------------
+
+test("ensureSiteKeyForBoot: siteDir has no .site-meta.json, LOCAL mode → mints a minimal one and mints the per-site key file — no silent gap", () => {
   const result = ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home });
 
+  assert.ok(result, "a site with no meta file must still end up with a usable key in local mode");
+  assert.equal(result?.action, "mint");
+  const meta = JSON.parse(readFileSync(path.join(siteDir, ".site-meta.json"), "utf8")) as Record<string, unknown>;
+  assert.equal(typeof meta.siteKeyId, "string");
+  assert.ok((meta.siteKeyId as string).length > 0);
+  assert.equal(existsSync(perSiteFilePathIn(home, meta.siteKeyId as string)), true);
+});
+
+test("ensureSiteKeyForBoot: siteDir has no .site-meta.json, PRODUCTION mode → still undefined, nothing written anywhere — production never mints", () => {
+  const result = ensureSiteKeyForBoot({ siteDir, mode: "production", env: bareEnv(), home });
+
   assert.equal(result, undefined);
+  assert.equal(existsSync(path.join(siteDir, ".site-meta.json")), false);
   assert.equal(existsSync(path.join(home, ".tovu")), false);
+});
+
+test("ensureSiteKeyForBoot: a .site-meta.json that exists but is corrupt (unreadable JSON) is NEVER overwritten — no key is minted, the file is untouched", () => {
+  const metaPath = path.join(siteDir, ".site-meta.json");
+  writeFileSync(metaPath, "{ not valid json");
+
+  const result = ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home });
+
+  assert.equal(result, undefined, "a corrupt meta file must never be silently replaced with a fresh one");
+  assert.equal(readFileSync(metaPath, "utf8"), "{ not valid json", "the corrupt file's own bytes must survive untouched");
+  assert.equal(existsSync(path.join(home, ".tovu")), false);
+});
+
+test("ensureSiteKeyForBoot: a .site-meta.json that already exists with real fields is preserved verbatim — only a genuinely ABSENT file is ever minted", () => {
+  writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "meta-site-1", templateId: "starter" }));
+
+  const result = ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home });
+
+  assert.equal(result?.action, "mint");
+  const meta = JSON.parse(readFileSync(path.join(siteDir, ".site-meta.json"), "utf8")) as Record<string, unknown>;
+  assert.equal(meta.siteId, "meta-site-1", "an existing field must never be dropped or altered by the boot-time mint path");
+  assert.equal(meta.templateId, "starter");
+  assert.equal(existsSync(perSiteFilePathIn(home, "meta-site-1")), true, "resolveSiteKeyId's own siteId fallback already covers this file — no NEW meta write should occur");
 });
 
 // ---------------------------------------------------------------------------

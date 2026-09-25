@@ -1,5 +1,5 @@
-import { randomBytes } from "node:crypto";
-import { chmodSync, closeSync, existsSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
+import { randomBytes, randomUUID } from "node:crypto";
+import { chmodSync, closeSync, existsSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
@@ -321,39 +321,102 @@ export interface EnsureSiteKeyForBootInput {
  * from `siteDir`'s own `.site-meta.json` via {@link resolveSiteKeyId} and, only when that succeeds,
  * calls through to {@link ensureSiteKey}.
  *
- * A `siteDir` with no readable `.site-meta.json` (or none present) returns `undefined` and touches
- * nothing — {@link ensureSiteKey} itself throws an invariant-guard error for an empty `siteKeyId`
- * (it assumes a caller only ever invokes it with a real one), so this guard exists precisely to keep
- * that assumption true at the one real call site that cannot itself guarantee a resolvable id. Every
- * real `tovu serve`/`index.ts` boot already validated `.site-meta.json`'s presence upstream
- * (`readSiteDir`), so this is a safety net for the genuinely unusual case (a corrupt or unrepaired
- * site), not the expected path — that site simply keeps its pre-site-key env/legacy-file-only
- * behavior, exactly as before this feature existed.
+ * A `siteDir` with NO `.site-meta.json` at all is not a hypothetical: the default `sites/<name>/`
+ * directory `index.ts` boots (`npm start`/`npm run dev`) is deliberately never given one — it is not
+ * a `tovu init`/`tovu serve <dir>` install directory (`content-db-schema-guard.ts`'s own header).
+ * Before this fix that meant exactly that site's key was silently never ensured — no error, no log
+ * line, and every later admin request just quietly found no key. Local mode now closes that gap
+ * itself: an ABSENT `.site-meta.json` gets a brand-new, minimal one ({@link
+ * mintMinimalSiteMetaJson}) carrying nothing but a fresh `siteKeyId`, then boot proceeds exactly as
+ * it would have for a site that already had one. Production never does this (A.1/A.3: production
+ * never mints a site identity any more than it mints a key) — a `siteDir` with no meta file in
+ * production keeps its pre-site-key env/legacy-file-only behavior, exactly as before this feature
+ * existed. A `.site-meta.json` that EXISTS but cannot be parsed (corrupt, oversized, not an object)
+ * is a different case — {@link resolveSiteKeyId} already treats that as "no per-site candidate", and
+ * this function must never paper over a corrupt file by replacing it with a fresh one; only a
+ * genuinely absent file is ever minted (see {@link mintMinimalSiteMetaJson}'s own exclusive-create
+ * guard).
  *
- * The whole boot-time attempt — resolving `siteKeyId` and {@link ensureSiteKey}'s own key-file write
- * — is wrapped in one try/catch (2026-09-24 fix): a boot whose `~/.tovu` (or equivalent) cannot be
- * written must still start the server. `ensureSiteKey` itself deliberately keeps its own
+ * The whole boot-time attempt — minting the meta file, and {@link ensureSiteKey}'s own key-file
+ * write — is wrapped in one try/catch (2026-09-24 fix): a boot whose `~/.tovu` (or equivalent) cannot
+ * be written must still start the server. `ensureSiteKey` itself deliberately keeps its own
  * never-swallow contract (its own `@throws` doc) for a caller that wants to fail loudly; this
  * function is the boot-path wrapper specifically, and a boot-time key failure is exactly the class
  * of thing `root-key-boot-notice.ts` exists to surface at the terminal, not crash the process over —
  * the admin status route already reports a missing key the same way it does for any other reason one
  * was never created.
  *
- * @throws never — every failure below is caught, logged once, and reported as `undefined`, the same
- *   "nothing to give a caller" result as a siteDir with no resolvable `siteKeyId` at all.
- * @complexity O(1) fs read for `resolveSiteKeyId`, plus {@link ensureSiteKey}'s own cost when it runs.
+ * @throws never — every failure below (meta-mint or the underlying `ensureSiteKey` write) is caught,
+ *   logged once, and reported as `undefined`, the same "nothing to give a caller" result as a siteDir
+ *   with no resolvable `siteKeyId` at all.
+ * @complexity O(1) fs read for `resolveSiteKeyId`, plus at most one more small fs write
+ *   ({@link mintMinimalSiteMetaJson}), plus {@link ensureSiteKey}'s own cost when it runs.
  */
 export function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): EnsureSiteKeyResult | undefined {
   try {
-    const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir });
+    const env = input.env ?? process.env;
+    const mode = input.mode ?? resolveRuntimeMode({ env });
+    const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
     if (!siteKeyId) return undefined;
-    return ensureSiteKey({ siteDir: input.siteDir, siteKeyId, mode: input.mode, env: input.env, home: input.home, cwd: input.cwd });
+    return ensureSiteKey({ siteDir: input.siteDir, siteKeyId, mode, env, home: input.home, cwd: input.cwd });
   } catch (err) {
     // Boot must never go down over this — see this function's own header. `console.error` (not the
     // `warn`-level line `root-key-boot-notice.ts` prints moments later on the same terminal) so an
     // operator can tell "the key mechanism itself failed" apart from "no key happens to exist yet".
     console.error(`[site-key] could not ensure a site key at boot for ${input.siteDir}: ${(err as Error).message}`);
     return undefined;
+  }
+}
+
+/**
+ * `.site-meta.json` has no `siteKeyId` (or `siteId`) to resolve at all — for local mode only, mints
+ * a brand-new, minimal `.site-meta.json` carrying just a fresh `siteKeyId`, and returns it. Never
+ * called in production (checked by the caller before reaching this function) and never touches a
+ * `siteDir` whose `.site-meta.json` already exists in ANY form, parseable or not — see
+ * {@link mintMinimalSiteMetaJson}'s own doc for why.
+ *
+ * @complexity O(1) — one `randomUUID`, one attempted exclusive file create.
+ */
+function mintSiteKeyIdIfAbsent(siteDir: string, mode: RuntimeMode): string | undefined {
+  if (mode === "production") return undefined;
+  return mintMinimalSiteMetaJson(siteDir);
+}
+
+/**
+ * Creates `<siteDir>/.site-meta.json` with nothing but a fresh `siteKeyId`, EXCLUSIVELY (`flag:
+ * "wx"` — fails atomically with `EEXIST` if anything is already there) — race-safe the same way
+ * {@link atomicCreateSiteKeyFile} is, and for the identical reason (site-key plan §A.2's "no
+ * single-instance lock": this owner runs many local instances of the same site at once). Never
+ * overwrites, never merges into, never repairs an existing file, however corrupt or incomplete —
+ * "preserve anything present" means exactly that: the moment ANY `.site-meta.json` exists at
+ * `siteDir`, this function's job is already done (or was never its job at all), and it must not
+ * guess at what a caller who wrote that file intended.
+ *
+ * On `EEXIST` (this call lost a boot race against another instance, or — vanishingly unlikely given
+ * the caller already checked — a file appeared between that check and this write) reads back
+ * whatever is now on disk via {@link resolveSiteKeyId} rather than trusting its own candidate,
+ * exactly the "both winner and loser converge on the same reality" rule {@link
+ * atomicCreateSiteKeyFile} documents for the key file itself. That real file may turn out to have no
+ * resolvable id at all (e.g. the winner's own write raced a THIRD process that got there first with
+ * a corrupt file) — this function reports that honestly as `undefined` rather than minting a SECOND
+ * file the first write already made unnecessary.
+ *
+ * @returns the minted (or, on a lost race, the already-present) `siteKeyId`, or `undefined` when
+ *   neither this call's own write nor a re-read of an existing file resolves to one.
+ * @throws whatever `writeFileSync` throws other than `EEXIST` (permissions, a missing/non-directory
+ *   parent, disk full) — this function does not itself decide what a write failure means; its one
+ *   caller, {@link ensureSiteKeyForBoot}, is the boot-time safety net that catches it.
+ * @complexity O(1) — one `randomUUID`, one attempted exclusive file write.
+ */
+function mintMinimalSiteMetaJson(siteDir: string): string | undefined {
+  const metaPath = join(siteDir, ".site-meta.json");
+  const siteKeyId = randomUUID();
+  try {
+    writeFileSync(metaPath, JSON.stringify({ siteKeyId }, null, 2), { flag: "wx", mode: 0o600 });
+    return siteKeyId;
+  } catch (err) {
+    if (!isEexistError(err)) throw err;
+    return resolveSiteKeyId({ siteDir });
   }
 }
 
@@ -406,7 +469,7 @@ function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
   try {
     linkSync(tmpPath, filePath);
   } catch (err) {
-    if (!isLinkTargetTakenError(err)) throw err;
+    if (!isEexistError(err)) throw err;
     // Lost the race — another process's file is now canonical; fall through to read it back.
   } finally {
     try {
@@ -418,9 +481,12 @@ function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
   return readFileSync(filePath, "utf8").trim();
 }
 
-/** Whether a failed `linkSync` failed BECAUSE the target path was already taken, as opposed to a
- *  genuine I/O or permission fault that must keep propagating. */
-function isLinkTargetTakenError(err: unknown): boolean {
+/** Whether a failed exclusive-create/link failed BECAUSE the target path was already taken (`EEXIST`),
+ *  as opposed to a genuine I/O or permission fault that must keep propagating. Shared by
+ *  {@link atomicCreateSiteKeyFile}'s `linkSync` and {@link mintMinimalSiteMetaJson}'s `writeFileSync(…,
+ *  {flag:"wx"})` — both are "only the FIRST writer wins, everyone else reads the result back"
+ *  primitives, and the raced-away branch is identical for either syscall. */
+function isEexistError(err: unknown): boolean {
   if (typeof err !== "object" || err === null || !("code" in err)) return false;
   return (err as { code?: unknown }).code === "EEXIST";
 }
