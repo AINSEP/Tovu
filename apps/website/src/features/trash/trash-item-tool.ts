@@ -447,7 +447,7 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
 
       const actor: TrashActor = { principalId: ctx.principal.id, pluginId: ASSISTANT_ACTOR_PLUGIN_ID };
       const moved = await moveToTrash(
-        { workspaceId: routeDeps.workspaceId, entityType, entityId, actor },
+        { workspaceId: routeDeps.workspaceId, entityType, entityId, actor, expectedVersion: snapshot.version ?? undefined },
         { registry: routeDeps.registry, trash: routeDeps.trash, db: routeDeps.db, authorize: routeDeps.authorize, clock: routeDeps.clock }
       );
       if (!moved.ok) throw moveToTrashOutcomeToError(entityType, entityId, moved);

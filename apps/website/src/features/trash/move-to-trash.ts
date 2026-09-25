@@ -61,7 +61,20 @@ interface EntitySnapshotRow {
  * @complexity O(1): one authorize call, one indexed read, one `TrashPort.trash` call (itself O(1)).
  */
 export async function moveToTrash(
-  required: { workspaceId: string; entityType: TrashEntityType; entityId: string; actor: TrashActor },
+  required: {
+    workspaceId: string;
+    entityType: TrashEntityType;
+    entityId: string;
+    actor: TrashActor;
+    /**
+     * The version the caller last showed the human — e.g. a confirmation dialog's own snapshot read,
+     * taken before the human answered. When the entry has a version column and the row's version at
+     * write time differs from this, the row changed while the confirmation was open, and the call is
+     * refused as `version-changed` rather than trashing whatever is there now. `undefined` (the
+     * caller never read a version, or the kind has none) skips the check.
+     */
+    expectedVersion?: number | null;
+  },
   deps: {
     registry: TrashRegistry;
     trash: TrashPort;
@@ -98,6 +111,13 @@ export async function moveToTrash(
     )!,
   })) as EntitySnapshotRow | null;
   if (!row) return { ok: false, reason: "not-found" };
+
+  // The confirmation-dialog race: the human was shown `required.expectedVersion` before answering,
+  // and the row now reads differently — same "changed while the confirmation was open" outcome the
+  // race against `deps.trash.trash` itself already distinguishes below, caught one read earlier.
+  if (entry.versionColumn && required.expectedVersion !== undefined && (row.version ?? null) !== required.expectedVersion) {
+    return { ok: false, reason: "version-changed" };
+  }
 
   const marker = await deps.trash.trash({
     workspaceId: required.workspaceId,

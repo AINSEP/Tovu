@@ -103,6 +103,8 @@ interface SqliteFormHarness {
   surfaces: { surfaceExchanges: SurfaceExchangeStore };
   authorizeCalls: Array<{ permission: string }>;
   formIsLive(id: string): boolean;
+  /** Simulates another write landing on the row while a confirmation dialog is still open. */
+  bumpFormVersion(id: string): void;
 }
 
 function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness {
@@ -153,6 +155,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
     formIsLive: (id) =>
       (db.$client.prepare(`SELECT deleted_at FROM form_definitions WHERE id = ?`).get(id) as { deleted_at: string | null } | undefined)
         ?.deleted_at === null,
+    bumpFormVersion: (id) => void db.$client.prepare(`UPDATE form_definitions SET version = version + 1 WHERE id = ?`).run(id),
   };
 }
 
@@ -648,6 +651,21 @@ test("a generic kind (form): cancel writes nothing, confirm on the same item tra
   const rows = (await h.routeDeps.trash.list({ workspaceId: h.routeDeps.workspaceId, now: NOW, limit: 50 })).items;
   assert.equal(rows[0]?.actorPrincipalId, PRINCIPAL_ID);
   assert.ok(rows[0]?.actorPluginId, "the generic trash_item path must also record a non-null actorPluginId");
+});
+
+test("a generic kind (form): the row changes while the confirmation dialog is open, so confirming is refused with version-changed", async () => {
+  const h = sqliteFormHarness();
+  const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces });
+
+  const { pending, exchangeId } = await raiseDialog(trashItem, { entityType: "form", entityId: "f1" });
+  // Someone else edits the form while the human is still looking at the dialog raised above.
+  h.bumpFormVersion("f1");
+  answer(h.surfaces.surfaceExchanges, { exchangeId, toolId: TRASH_ITEM_TOOL_ID, decision: "confirm" });
+
+  await assert.rejects(pending, {
+    message: "trash_item: form 'f1' changed while the confirmation was open. Reload and try again. Nothing was changed.",
+  });
+  assert.equal(h.formIsLive("f1"), true, "a version race must leave the form untouched, nothing trashed");
 });
 
 test("a generic kind (form): an id that does not exist is refused with an exact error, with no dialog raised", async () => {
