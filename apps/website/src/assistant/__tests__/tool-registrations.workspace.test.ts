@@ -198,7 +198,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
       () => wired(deps, toolId).handler(executionContext(TOOL_INPUTS[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof Error, `expected an Error, got ${String(error)}`);
-        assert.match((error as Error).message, /is not authorized for/);
+        assert.match((error as Error).message, /^WORKSPACE_FORBIDDEN: .*is not authorized for/);
         return true;
       },
     );
@@ -210,14 +210,14 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
 test("workspace_update: rejects an empty update the same way the domain function does", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({})), /at least one of name or slug is required/);
+  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({})), /WORKSPACE_VALIDATION: .*at least one of name or slug is required/);
 });
 
 test("workspace_update: rejects a slug collision the same way the domain function does", async () => {
   const { deps, workspaceRepo } = fakeRouteDeps();
   await workspaceRepo.insert({ id: "ws-other", name: "Other", slug: "taken-slug", createdAt: NOW });
 
-  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ slug: "taken-slug" })), /already exists/);
+  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ slug: "taken-slug" })), /WORKSPACE_CONFLICT: .*already exists/);
 });
 
 // ---------------------------------------------------------------------------

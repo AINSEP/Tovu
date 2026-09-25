@@ -196,7 +196,7 @@ test("collections_entry_list: calls authorize() with admin.collections.read, inl
 
 test("collections_entry_list: a denied principal is rejected", async () => {
   const { deps } = fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired("content_read.collection_entry", deps).handler(executionContext(undefined)), /is not authorized for 'admin\.collections\.read'/);
+  await assert.rejects(() => wired("content_read.collection_entry", deps).handler(executionContext(undefined)), /ENTRIES_FORBIDDEN: .*is not authorized for 'admin\.collections\.read'/);
 });
 
 test("collections_entry_create: calls authorize() with admin.collections.manage (createEntry's own self-enforced check)", async () => {
@@ -215,7 +215,7 @@ test("collections_entry_create: a denied principal is rejected and nothing is wr
   const { deps, entryRepo } = fakeRouteDeps({ allow: false });
   await assert.rejects(
     () => wired("collections_entry_create", deps).handler(executionContext({ type: CONTENT_TYPE_KEY, slug: "s", title: "T" })),
-    /principal '.*' cannot create an entry \(insufficient_permission\)/,
+    /ENTRIES_FORBIDDEN: principal '.*' cannot create an entry \(insufficient_permission\)/,
   );
   assert.equal((await entryRepo.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 0);
 });
@@ -229,7 +229,7 @@ for (const toolId of ["collections_entry_update", "collections_entry_publish", "
     // the SAME "denied means nothing runs" guarantee.
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext({ id: "nonexistent", expectedVersion: 1 })),
-      /principal '.*' cannot modify entry 'nonexistent' \(insufficient_permission\)/,
+      /ENTRIES_FORBIDDEN: principal '.*' cannot modify entry 'nonexistent' \(insufficient_permission\)/,
     );
   });
 }
