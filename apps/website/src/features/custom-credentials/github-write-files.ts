@@ -272,11 +272,23 @@ export interface PlanGitHubFileWriteInput {
   readonly files: readonly NormalizedWriteFile[];
 }
 
-/** Phase 2 of {@link planGitHubFileWrite}: one bounded Contents API existence check per file (see
- *  this file's header, "DIFFERENT: per-file exists/create-vs-update detection"). Split out so the
- *  loop's own branching is measured independently of the two fixed lookups before it.
+/** Splits a repo-relative path into its parent directory (`""` for a root-level file) and basename —
+ *  {@link checkFileExistence}'s own grouping key plus the name it matches against a directory
+ *  listing's `entry.name`. */
+function splitRepoPath(path: string): { dir: string; name: string } {
+  const idx = path.lastIndexOf("/");
+  return idx === -1 ? { dir: "", name: path } : { dir: path.slice(0, idx), name: path.slice(idx + 1) };
+}
+
+/** Phase 2 of {@link planGitHubFileWrite}: ONE Contents API directory listing per distinct parent
+ *  directory among `files`, not one GET per file (see this file's header, "DIFFERENT: per-file
+ *  exists/create-vs-update detection") — a per-file GET returns up to 1 MB of base64 `content` the
+ *  http client's own response cap (`platform/http/client.ts`'s `capResponse`) truncates for any file
+ *  in the 740 KB-1 MB range, which then fails to parse as JSON. A directory listing carries no
+ *  `content` per entry (just `name`/`type`), so it never hits that cap regardless of how large the
+ *  individual files in it are.
  *
- * @complexity O(files) `httpClient.send()` calls.
+ * @complexity O(distinct parent directories) `httpClient.send()` calls, not O(files).
  */
 async function checkFileExistence(
   deps: GitHubWriteFilesDeps,
@@ -285,24 +297,51 @@ async function checkFileExistence(
   branch: string,
   files: readonly NormalizedWriteFile[]
 ): Promise<{ ok: true; fileStates: FileWriteState[] } | GitHubWriteFilesFailure> {
-  const fileStates: FileWriteState[] = [];
+  const filesByDir = new Map<string, NormalizedWriteFile[]>();
   for (const file of files) {
-    const existsResult = await getJson(deps, connection, `${repoPath}/contents/${encPath(file.path)}?ref=${enc(branch)}`, `GitHub lookup of '${file.path}' failed`);
-    if (!existsResult.ok) return existsResult;
-    if (!existsResult.found) {
-      fileStates.push({ path: file.path, exists: false });
+    const { dir } = splitRepoPath(file.path);
+    const bucket = filesByDir.get(dir);
+    if (bucket) bucket.push(file);
+    else filesByDir.set(dir, [file]);
+  }
+
+  const stateByPath = new Map<string, FileWriteState>();
+  for (const [dir, dirFiles] of filesByDir) {
+    const listUrl = `${repoPath}/contents${dir ? `/${encPath(dir)}` : ""}?ref=${enc(branch)}`;
+    const listResult = await getJson(deps, connection, listUrl, `GitHub directory lookup of '${dir}' failed`);
+    if (!listResult.ok) return listResult;
+    if (!listResult.found) {
+      // No such directory at all on the branch — every file planned under it is necessarily new.
+      for (const file of dirFiles) stateByPath.set(file.path, { path: file.path, exists: false });
       continue;
     }
-    // The Contents API answers an ARRAY for a directory (and an object whose `type` is not "file"
-    // for a submodule/symlink) — treating that as an existing file would plan a blob over the whole
-    // subtree, and a tree entry at that path REPLACES the subtree, dropping its contents from the
-    // new commit. Refuse rather than describe it as a file.
-    if (Array.isArray(existsResult.json) || existsResult.json.type !== "file") {
-      return { ok: false, code: "provider-error", message: `'${file.path}' already exists on the branch but is not a regular file — refusing to overwrite it with a blob` };
+    const entries: unknown = listResult.json;
+    // The Contents API answers an ARRAY for a directory. A non-array 2xx response here means `dir`
+    // itself is a FILE on the branch, not a directory — none of the files planned under it can
+    // exist as siblings of something that isn't a directory. Refuse rather than guess.
+    if (!Array.isArray(entries)) {
+      return { ok: false, code: "provider-error", message: `'${dir}' is a file on the branch, not a directory` };
     }
-    fileStates.push({ path: file.path, exists: true });
+    const entryByName = new Map(entries.map((entry) => [extractStringField(entry, "name"), entry]));
+    for (const file of dirFiles) {
+      const { name } = splitRepoPath(file.path);
+      const entry = entryByName.get(name);
+      if (!entry) {
+        stateByPath.set(file.path, { path: file.path, exists: false });
+        continue;
+      }
+      // A submodule/symlink entry at this path: treating it as an existing file would plan a blob
+      // over it, and a tree entry at that path REPLACES whatever was there. Refuse rather than
+      // describe it as a file.
+      if (extractStringField(entry, "type") !== "file") {
+        return { ok: false, code: "provider-error", message: `'${file.path}' already exists on the branch but is not a regular file — refusing to overwrite it with a blob` };
+      }
+      stateByPath.set(file.path, { path: file.path, exists: true });
+    }
   }
-  return { ok: true, fileStates };
+
+  // `filesByDir` iteration order need not match `files`' own order — rebuild from the input list.
+  return { ok: true, fileStates: files.map((file) => stateByPath.get(file.path) as FileWriteState) };
 }
 
 /**

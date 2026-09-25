@@ -59,8 +59,10 @@ test("plan: reports one existing and one new file, and returns the branch's tip/
   const client = new SequentialFakeHttpClient([
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/fly\.toml\?ref=main$/, method: "GET", status: 200, json: { sha: "existing-blob-sha", type: "file" } },
-    { match: /\/contents\/\.github\/workflows\/fly-deploy\.yml\?ref=main$/, method: "GET", status: 404, json: {} },
+    // Root-level "fly.toml" and nested ".github/workflows/fly-deploy.yml" sit in two different
+    // parent directories, so this is ONE listing per directory, not one GET per file.
+    { match: /\/contents\?ref=main$/, method: "GET", status: 200, json: [{ name: "fly.toml", type: "file" }] },
+    { match: /\/contents\/\.github\/workflows\?ref=main$/, method: "GET", status: 404, json: {} },
   ]);
   const result = await planGitHubFileWrite({ httpClient: client }, planInput([
     { path: "fly.toml", content: "app = 'demo'" },
@@ -80,16 +82,43 @@ test("plan: reports one existing and one new file, and returns the branch's tip/
   assert.equal(client.remainingCount(), 0);
 });
 
+test("plan: one directory listing serves every file planned under it, never one GET per file", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    // A single directory listing must answer for BOTH files below — a per-file GET for either path
+    // (in particular one over the http client's own 1 MB response cap, for a large file) would
+    // never be queued here, so the fake throws loudly if the implementation regresses to one.
+    { match: /\/contents\/docs\?ref=main$/, method: "GET", status: 200, json: [{ name: "big.bin", type: "file" }] },
+  ]);
+  const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "docs/big.bin", content: "x" }]));
+  assert.equal(result.ok, true);
+  assert.deepEqual((result as { plan: GitHubWriteFilesPlan }).plan.fileStates, [{ path: "docs/big.bin", exists: true }]);
+  assert.equal(client.remainingCount(), 0, "no further calls (in particular no per-file GET) should remain queued");
+});
+
 test("plan: a path that is a directory (array Contents API response) is refused, not planned as a file", async () => {
   const client = new SequentialFakeHttpClient([
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/fly\.toml\?ref=main$/, method: "GET", status: 200, json: [{ name: "fly.toml", type: "dir" }] },
+    { match: /\/contents\?ref=main$/, method: "GET", status: 200, json: [{ name: "fly.toml", type: "dir" }] },
   ]);
   const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "fly.toml", content: "x" }]));
   assert.equal(result.ok, false);
   assert.equal((result as { code: string }).code, "provider-error");
   assert.match((result as { message: string }).message, /fly\.toml/, "the refusal must name the offending path");
+});
+
+test("plan: the parent directory itself being a file (non-array Contents API response) is refused", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/docs\?ref=main$/, method: "GET", status: 200, json: { sha: "blob-sha", type: "file" } },
+  ]);
+  const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "docs/big.bin", content: "x" }]));
+  assert.equal(result.ok, false);
+  assert.equal((result as { code: string }).code, "provider-error");
+  assert.match((result as { message: string }).message, /'docs' is a file on the branch, not a directory/);
 });
 
 test("plan: branch does not exist", async () => {

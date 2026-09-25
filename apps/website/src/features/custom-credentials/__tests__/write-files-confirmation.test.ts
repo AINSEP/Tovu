@@ -74,7 +74,7 @@ function planSteps() {
   return [
     { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-    { match: /\/contents\/fly\.toml\?ref=main$/, status: 404, json: {} },
+    { match: /\/contents\?ref=main$/, status: 404, json: {} },
   ];
 }
 
@@ -224,11 +224,12 @@ test("a file that already exists on the branch is labeled as an update, resolved
     httpSteps: [
       { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
       { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-      // `type: "file"` is what GitHub's real Contents API answers for a regular file, and what
-      // `github-write-files.ts`'s existence check requires (5716426c added that check — a directory
-      // or submodule at the path must NOT be described as an update). Without it this fixture
-      // exercises the refusal path, not the update path this test is about.
-      { match: /\/contents\/fly\.toml\?ref=main$/, status: 200, json: { sha: "existing-sha", type: "file" } },
+      // A directory listing (an ARRAY of `{name, type}` entries) is what GitHub's real Contents API
+      // answers here, and `github-write-files.ts`'s existence check matches `fly.toml` against
+      // `entry.name` in it (5716426c/S21 — a directory or submodule at the path must NOT be
+      // described as an update). Without a `type: "file"` entry this fixture exercises the refusal
+      // path, not the update path this test is about.
+      { match: /\/contents\?ref=main$/, status: 200, json: [{ name: "fly.toml", type: "file" }] },
     ],
   });
   await seedGithub(writeDeps);
@@ -247,7 +248,7 @@ test("a .github/workflows/** file gets an extra, distinctly-worded warning namin
     httpSteps: [
       { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
       { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-      { match: /\/contents\/\.github\/workflows\/deploy\.yml\?ref=main$/, status: 404, json: {} },
+      { match: /\/contents\/\.github\/workflows\?ref=main$/, status: 404, json: {} },
     ],
   });
   await seedGithub(writeDeps);
