@@ -168,7 +168,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // section header for what `agent-plugin-search` itself contributes.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "agent-plugin-search",
-    "agent-plugin-uninstall",
+    // "agent-plugin-uninstall" was REMOVED 2026-09-24 (S4, b4ff558c6): its Agent Plugin branch is now
+    // reached through `plugins_uninstall` (`plugins` below, family: "agent-plugin").
     "comments",
     "content-duplication",
     "content-types",
@@ -199,6 +200,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "redirects",
     "seo",
     "settings",
+    // 2026-09-21: `site_backup_plan`/`site_backup_push` (`features/site-backup`).
+    "site-backup",
     "site-evidence",
     "site-inspection",
     "sites",
@@ -207,6 +210,11 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "supabase-connect",
     "taxonomy",
     "themes",
+    // 2026-09-24: `theme_set_active` (F7a, ca9f97328) and `change_sets_list`/`change_sets_revert`
+    // (F7b S6, e6d6963f0) â€” each its own domain key, registered right after `themes` (this list is
+    // registration order, not alphabetical).
+    "theme-set-active",
+    "change-sets",
     // 2026-09-20: the local admin Trash â€” `trash_list_items` and `trash_restore_item`, and
     // deliberately nothing else. A NEW domain (`features/trash`), not an entry in the 25-domain
     // rollout. There is no purge tool and there must never be one: permanent deletion is
