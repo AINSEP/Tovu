@@ -62,9 +62,9 @@ jobs:
         with: { node-version: 24, cache: npm, cache-dependency-path: "package-lock.json\napps/desktop/package-lock.json" }
       # `npm run build` at the root: the desktop suite's initSiteDir integration test spawns Tovu's
       # real CLI (`bin.tovu` -> dist/src/cli/main.js), which a fresh checkout does not have.
-      # vendored Jini: unpublished Jini APIs Tovu needs (see vendor/jini/README.md). --no-save keeps
-      # the lockfile; installed after `npm ci` so the tarballs replace the registry copies.
-      - run: npm ci && npm install --no-save --no-audit --no-fund ./vendor/jini/*.tgz && npm run build && npm ci --prefix apps/desktop
+      # Vendored Jini tarballs (vendor/jini/, removed) used to be installed here to get unpublished
+      # Jini APIs; the registry `@jini-ai/*` pins now cover them, so `npm ci` alone is enough.
+      - run: npm ci && npm run build && npm ci --prefix apps/desktop
       - run: npm run gates
         working-directory: apps/desktop
       - name: Tag matches desktop version
@@ -96,8 +96,8 @@ jobs:
         run: test "$(node -p process.arch)" = "${{ matrix.arch }}"
       - name: Build Tovu payload inputs
         run: |
-          npm ci && npm install --no-save --no-audit --no-fund ./vendor/jini/*.tgz && npm run build   # vendored Jini
-          (cd apps/admin && npm ci && npm install --no-save --no-audit --no-fund ../../vendor/jini/*.tgz && npx vite build)
+          npm ci && npm run build   # registry @jini-ai/* pins cover what vendor/jini used to add
+          (cd apps/admin && npm ci && npx vite build)
           (cd apps/site-chat && npm ci && npx vite build)
           npm ci --prefix apps/desktop
       - name: Build + stage desktop
@@ -234,8 +234,8 @@ jobs:
       - run: npm config set script-shell "C:\\Program Files\\Git\\bin\\bash.exe"
       - name: Build Tovu payload inputs
         run: |
-          npm ci && npm install --no-save --no-audit --no-fund ./vendor/jini/*.tgz && npm run build   # vendored Jini
-          (cd apps/admin && npm ci && npm install --no-save --no-audit --no-fund ../../vendor/jini/*.tgz && npx vite build)
+          npm ci && npm run build   # registry @jini-ai/* pins cover what vendor/jini used to add
+          (cd apps/admin && npm ci && npx vite build)
           (cd apps/site-chat && npm ci && npx vite build)
           npm ci --prefix apps/desktop
       - name: Build + stage desktop
