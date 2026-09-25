@@ -976,12 +976,14 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
     if (seenPluginIds.has(plugin.pluginId)) continue;
     seenPluginIds.add(plugin.pluginId);
 
-    // Per-PLUGIN isolation: a failure here that is not one skill's own read (e.g. `mcp.json` itself
-    // unreadable) must not take every OTHER installed plugin's search entry down with it — before
-    // this, one such failure threw out of `loadAgentPluginSearchCandidates` entirely, which is why
-    // `search_agent_plugin_local` (and the admin Agent Plugins page, the same loader's second
-    // caller) could fail outright over a single bad install. Per-SKILL isolation (one unreadable
-    // SKILL.md not costing its own plugin, let alone every other one) is `resolveSkillsForSearchTolerant`'s job, above.
+    // Per-PLUGIN isolation: a failure here that is not one skill's own read must not take every
+    // OTHER installed plugin's search entry down with it — before this, one such failure threw out
+    // of `loadAgentPluginSearchCandidates` entirely, which is why `search_agent_plugin_local` (and the
+    // admin Agent Plugins page, the same loader's second caller) could fail outright over a single
+    // bad install. Per-SKILL isolation (one unreadable SKILL.md not costing its own plugin, let alone
+    // every other one) is `resolveSkillsForSearchTolerant`'s job, above. Defensive today: neither
+    // call below throws on any known input (`readInstalledMcpServerIds` already collapses a missing,
+    // unreadable, or invalid `mcp.json` to `[]`), so this guards a future throwing change there.
     try {
       const skills = await resolveSkillsForSearchTolerant(plugin);
       const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
