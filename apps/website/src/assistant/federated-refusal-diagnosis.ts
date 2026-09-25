@@ -103,6 +103,17 @@ export interface FederationBootStatus {
   /** `AttachFederatedToolsResult.connectFailures`, verbatim — a connectionId that reached `attach`
    *  but never admission at all, with its human-readable reason. */
   readonly connectFailures: readonly { readonly connectionId: string; readonly reason: string }[];
+  /**
+   * The boot roster's connection ids (2026-09-25), known as soon as the runtime's own
+   * `resolveConnections()` call resolves — see `external-mcp-federation-runtime.ts`'s
+   * `configuredConnectionIds()`. `undefined` means the roster itself is not known yet (the earliest
+   * sliver of boot, before that call has even resolved); an omitted/`undefined` value is treated as
+   * "cannot rule anything out yet", never as "nothing is configured" — those are different claims,
+   * and only a present array can positively prove a connectionId was never configured at all. Without
+   * this field, `!status.settled` alone told a caller naming ANY federated-shaped id, including one
+   * that was never in the roster, "still connecting" for as long as boot took.
+   */
+  readonly configuredConnectionIds?: readonly string[];
 }
 
 /**
@@ -133,11 +144,14 @@ function isUnknownToolError(error: unknown): boolean {
  *
  * - `!status.settled`: the boot pass has not finished walking every configured connection, so THIS
  *   connectionId is presumed still connecting (npx startup, 6-13s, routinely outlasts a caller's own
- *   bounded wait). A model naming this exact tool id has, by doing so, already decided it wants it —
- *   telling it to retry is strictly better than the opaque `unknown tool` throw it would get instead,
- *   even in the rare case this particular connection actually already failed while a LATER one in the
- *   loop is still connecting; the very next call after boot settles gets the precise failure reason
- *   below instead.
+ *   bounded wait) — UNLESS `status.configuredConnectionIds` is already known and does not contain it,
+ *   in which case it was never configured at all and the original throw stands (2026-09-25; before
+ *   this check, a hallucinated/stale id got "still connecting" for as long as boot took, same as a
+ *   real pending one). A model naming an id that IS in the roster has, by doing so, already decided it
+ *   wants it — telling it to retry is strictly better than the opaque `unknown tool` throw it would
+ *   get instead, even in the rare case this particular connection actually already failed while a
+ *   LATER one in the loop is still connecting; the very next call after boot settles gets the precise
+ *   failure reason below instead.
  * - `status.settled` and this connectionId is in `connectFailures`: the boot pass finished and this
  *   connection genuinely never admitted — its own human-readable reason (`bootstrap.ts`'s
  *   `messageOf(error)`, already proven secret-free by that field's own doc) is relayed verbatim.
@@ -155,6 +169,10 @@ function diagnoseStillConnectingOrFailed(toolId: string, status: FederationBootS
   if (connectionId === null) return null;
 
   if (!status.settled) {
+    // Only a positively-known roster can rule `connectionId` OUT; `undefined` (roster not resolved
+    // yet) keeps the pre-2026-09-25 behavior of presuming still-connecting rather than guessing wrong
+    // in either direction.
+    if (status.configuredConnectionIds && !status.configuredConnectionIds.includes(connectionId)) return null;
     return failedResult(`External MCP server '${connectionId}' is still connecting — try again in a moment.`);
   }
   const failure = status.connectFailures.find((entry) => entry.connectionId === connectionId);

@@ -65,8 +65,12 @@ export interface CreateFederationRuntimeParams {
 export interface FederationRuntime {
   /** The boot pass: presets plus the roster `resolveConnections` returns. Single-flight and
    *  idempotent — calling it any number of times performs the boot pass exactly once and every call
-   *  shares that one result. Never rejects, because neither `params.after` nor `attachFederatedMcpTools`
-   *  ever does. */
+   *  shares that one result. Never rejects (2026-09-25): `attachFederatedMcpTools` already never does
+   *  (bootstrap.ts's FAIL-OPEN contract), and `params.after`/`params.resolveConnections` — the two
+   *  params THIS runtime awaits before calling it — are now caught here too, so a caller can always
+   *  `await start()` unconditionally. Before this, a rejection from either one left `startPromise`
+   *  permanently rejected and {@link FederationRuntime.started} permanently `false` — see this file's
+   *  own header and `ADS-memory/.local-artifacts/handoffs/2026-09-25-mcp-followups.md`. */
   start(): Promise<void>;
   /** Re-admits every roster connection not yet admitted. Resolves `{newlyAdmittedConnectionIds: [],
    *  reports: []}` with no roster read at all if `start()` was never called — there is nothing yet to
@@ -83,8 +87,17 @@ export interface FederationRuntime {
   /** The refusal-prefix text for `reports()`, cached and recomputed only when `reports()` changes —
    *  `""` when there is nothing to report. */
   refusalPrefix(): string;
-  /** Whether the boot pass has completed. */
+  /** Whether the boot pass has completed — successfully or not (2026-09-25); see `start()`'s own doc.
+   */
   readonly started: boolean;
+  /**
+   * The boot roster's connection ids (2026-09-25) — `undefined` until `resolveConnections()` resolves
+   * (the roster itself is not known yet), then fixed for the rest of boot. Lets a caller building
+   * `FederationBootStatus` (`federated-refusal-diagnosis.ts`) tell "a real, pending roster connection"
+   * apart from "never configured at all" while `!started`, without waiting for the whole boot pass —
+   * see that file's `configuredConnectionIds` doc for why `undefined` and `[]` are different claims.
+   */
+  configuredConnectionIds(): readonly string[] | undefined;
 }
 
 /** Named alias purely so this file's public surface does not have to spell out
@@ -115,36 +128,53 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   let startPromise: Promise<void> | undefined;
   let startedFlag = false;
   let coordinator: ReturnType<typeof createFederationReloadCoordinator> | undefined;
+  let configuredConnectionIds: readonly string[] | undefined;
 
   function recomputePrefix(): void {
     cachedPrefix = buildFederatedRefusalPrefix(mergedReports);
   }
 
   async function runStart(): Promise<void> {
-    await (params.after ?? Promise.resolve());
-    const connections = await params.resolveConnections();
-    const attached = await attach({
-      registry: params.registry,
-      deps: params.deps,
-      extraConnections: connections,
-      logger,
-      ...(params.connect ? { connect: params.connect } : {}),
-    });
-
-    mergedReports = attached.reports;
-    mergedConnectFailures = attached.connectFailures;
-    recomputePrefix();
-    coordinator = createFederationReloadCoordinator(
-      {
+    // Whole-block try/catch (2026-09-25): `attach` (`attachFederatedMcpTools`) already never rejects
+    // — every per-connection failure is absorbed inside it (bootstrap.ts's FAIL-OPEN contract) — so
+    // the only two things that CAN reject here are `params.after` and `params.resolveConnections`.
+    // Before this catch existed, either one rejecting left `startPromise` permanently rejected and
+    // `startedFlag` permanently `false`: every `mcp__`-prefixed tool call was diagnosed "still
+    // connecting" forever, even long after the underlying failure (a bad roster read, a failed
+    // extension registration) was fixed, because nothing ever moved `started` off `false` to let
+    // `federated-refusal-diagnosis.ts` re-evaluate. Catching here restores the behavior `start()`'s
+    // own doc already claimed and this whole module's FAIL-OPEN posture requires: a vendor- or
+    // config-side failure must never be on the critical path of booting, federation included.
+    try {
+      await (params.after ?? Promise.resolve());
+      const connections = await params.resolveConnections();
+      configuredConnectionIds = connections.map((connection) => connection.config.connectionId);
+      const attached = await attach({
         registry: params.registry,
         deps: params.deps,
-        resolveConnections: params.resolveConnections,
-        attach,
+        extraConnections: connections,
         logger,
-      },
-      mergedReports.map((entry) => entry.connectionId),
-    );
-    startedFlag = true;
+        ...(params.connect ? { connect: params.connect } : {}),
+      });
+
+      mergedReports = attached.reports;
+      mergedConnectFailures = attached.connectFailures;
+      recomputePrefix();
+      coordinator = createFederationReloadCoordinator(
+        {
+          registry: params.registry,
+          deps: params.deps,
+          resolveConnections: params.resolveConnections,
+          attach,
+          logger,
+        },
+        mergedReports.map((entry) => entry.connectionId),
+      );
+    } catch (error) {
+      logger.warn(`mcp-federation: boot pass failed, continuing without federated tools — ${messageOf(error)}`);
+    } finally {
+      startedFlag = true;
+    }
   }
 
   function start(): Promise<void> {
@@ -187,8 +217,16 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
     reports: () => mergedReports,
     connectFailures: () => mergedConnectFailures,
     refusalPrefix: () => cachedPrefix,
+    configuredConnectionIds: () => configuredConnectionIds,
     get started() {
       return startedFlag;
     },
   };
+}
+
+/** Local copy of `bootstrap.ts`'s private helper of the same name — not shared because that file
+ *  exports nothing for this one purpose, and this is a one-line reduction, not a policy this module
+ *  needs to stay byte-identical with. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

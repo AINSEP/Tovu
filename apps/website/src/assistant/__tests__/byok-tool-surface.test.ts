@@ -845,6 +845,35 @@ test("BYOK federation: execute_delegated_tool for a still-registering federated 
   await s.federation?.start();
 });
 
+test("BYOK federation: execute_delegated_tool for a server that was never in the roster gets 'unknown tool', even while the boot pass is still mid-connect for a DIFFERENT server", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+
+  // Never resolves during this test, same as the "still-registering" test above — echo-server is
+  // mid-connect throughout, but the call below names a DIFFERENT, never-configured connectionId.
+  let releaseConnect!: (session: InMemoryMcpSession) => void;
+  const connectGate = new Promise<InMemoryMcpSession>((resolve) => {
+    releaseConnect = resolve;
+  });
+
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+    federationConnect: async () => connectGate,
+  });
+
+  assert.deepEqual(await s.awaitFederation(10), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
+
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__ghost-server__whatever", input: {} }));
+
+  assert.equal(result.isError, true);
+  assert.doesNotMatch(result.content, /still connecting/i, "a server that was never in the roster must not be told to wait");
+  assert.match(result.content, /unknown tool/i);
+
+  releaseConnect(new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }));
+  await s.federation?.start();
+});
+
 test("BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();

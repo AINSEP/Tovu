@@ -384,6 +384,119 @@ test("a connection that failed at boot and then admits on a reload is no longer 
   assert.deepEqual(runtime.connectFailures(), [], "an admitted connection must not keep its old connect failure");
 });
 
+// ---------------------------------------------------------------------------
+// A rejecting boot pass must still SETTLE (2026-09-25) — see
+// `ADS-memory/.local-artifacts/handoffs/2026-09-25-mcp-followups.md`. Before this fix, a rejection
+// from `resolveConnections()` or `after` left `startPromise` permanently rejected and `started`
+// permanently `false`, which made `federated-refusal-diagnosis.ts`'s "still connecting" branch
+// answer every `mcp__`-prefixed call forever, even long after the underlying failure was fixed.
+// `attachFederatedMcpTools` itself never rejects (`bootstrap.ts`'s own FAIL-OPEN contract) — a
+// runtime-level rejection can only come from these two params.
+// ---------------------------------------------------------------------------
+
+test("a boot pass whose resolveConnections() rejects still settles: start() resolves and started becomes true, not stuck false forever", async () => {
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => {
+      throw new Error("roster read failed");
+    },
+    log: "[test]",
+  });
+
+  assert.equal(runtime.started, false);
+  await runtime.start(); // must not reject
+
+  assert.equal(runtime.started, true);
+  assert.deepEqual(runtime.reports(), []);
+  assert.deepEqual(runtime.connectFailures(), []);
+});
+
+test("a boot pass whose 'after' rejects also settles rather than leaving started() false forever", async () => {
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [],
+    after: Promise.reject(new Error("installed-extension registration failed")),
+    log: "[test]",
+  });
+
+  await runtime.start(); // must not reject
+
+  assert.equal(runtime.started, true);
+});
+
+test("a failed boot pass logs the underlying error instead of swallowing it silently", async (t) => {
+  const warnLines: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => {
+    warnLines.push(args.map(String).join(" "));
+  });
+
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => {
+      throw new Error("roster read failed");
+    },
+    log: "[assistant-byok]",
+  });
+
+  await runtime.start();
+
+  assert.ok(
+    warnLines.some((line) => line.includes("[assistant-byok]") && line.includes("roster read failed")),
+    `expected a warn line naming the failure; got: ${JSON.stringify(warnLines)}`,
+  );
+});
+
+test("reload() after a failed boot resolves an empty no-op result rather than hanging or throwing", async () => {
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => {
+      throw new Error("roster read failed");
+    },
+    log: "[test]",
+  });
+
+  await runtime.start();
+  const result = await runtime.reload(); // must not hang or reject
+
+  assert.deepEqual(result, { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] });
+});
+
+// ---------------------------------------------------------------------------
+// configuredConnectionIds() (2026-09-25) — the boot roster, known as soon as `resolveConnections()`
+// resolves, so `federated-refusal-diagnosis.ts` can tell "still connecting" (a real, pending roster
+// connection) apart from "never configured" (a hallucinated/stale id) even while `!started`.
+// ---------------------------------------------------------------------------
+
+test("configuredConnectionIds() is undefined before resolveConnections() resolves, then the resolved roster's ids once known", async () => {
+  const rosterGate = deferred<ResolvedFederatedConnection[]>();
+  const attachGate = deferred<AttachFederatedToolsResult>();
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: () => rosterGate.promise,
+    log: "[test]",
+    attach: async () => attachGate.promise,
+  });
+
+  const startPromise = runtime.start();
+  assert.equal(runtime.configuredConnectionIds(), undefined, "the roster is not resolved yet");
+
+  rosterGate.resolve([connection("a"), connection("b")]);
+  await rosterGate.promise;
+  await Promise.resolve(); // let runStart()'s own continuation past `await resolveConnections()` run
+
+  assert.deepEqual(runtime.configuredConnectionIds(), ["a", "b"], "known as soon as the roster resolves, before attach() ever settles");
+  assert.equal(runtime.started, false, "attach() has not resolved yet");
+
+  attachGate.resolve({ registeredToolIds: [], sessions: [], reports: [], connectFailures: [] });
+  await startPromise;
+  assert.equal(runtime.started, true);
+});
+
 test("a connection that fails again on every reload is listed once, with its latest reason", async () => {
   const runtime = createFederationRuntime({
     registry: fakeRegistry(),

@@ -588,10 +588,16 @@ export function createByokToolSurface(
     // `FEDERATION_TURN_WAIT_MS`) and federation's boot pass keeps running in the background past
     // that bound — so a model that names a just-registering federated tool id before the boot pass
     // has settled must get "still connecting", not the daemon's own unreachable-in-practice bare
-    // `unknown tool` throw. `settled: true, connectFailures: []` when `federation` itself is
-    // `undefined` (`installExtensions: false`): nothing is connecting, so there is nothing this
-    // branch could ever explain — every `mcp__`-prefixed id in that mode is genuinely unknown.
-    () => (federation ? { settled: federation.started, connectFailures: federation.connectFailures() } : { settled: true, connectFailures: [] }),
+    // `unknown tool` throw. `configuredConnectionIds` (2026-09-25) lets that same diagnosis tell a
+    // real, pending roster connection apart from an id that was never configured at all, even while
+    // `!settled` — see `federated-refusal-diagnosis.ts`'s own field doc. `settled: true,
+    // connectFailures: []` when `federation` itself is `undefined` (`installExtensions: false`):
+    // nothing is connecting, so there is nothing this branch could ever explain — every
+    // `mcp__`-prefixed id in that mode is genuinely unknown.
+    () =>
+      federation
+        ? { settled: federation.started, connectFailures: federation.connectFailures(), configuredConnectionIds: federation.configuredConnectionIds() }
+        : { settled: true, connectFailures: [] },
   );
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names

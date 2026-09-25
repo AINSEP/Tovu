@@ -232,6 +232,39 @@ test("a federated id with no snapshot refusal, once the boot pass has settled wi
   assert.equal(result.error, "External MCP server 'echo-server' failed to connect: connect ECONNREFUSED");
 });
 
+test("a federated id whose connectionId IS in the known boot roster, while the boot pass has not settled, is still diagnosed as still connecting", async () => {
+  const toolId = "mcp__echo-server__echo";
+  const inner = stubExecutor(new Set([toolId]));
+  const status: FederationBootStatus = { settled: false, connectFailures: [], configuredConnectionIds: ["echo-server", "other-server"] };
+
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.error, "External MCP server 'echo-server' is still connecting — try again in a moment.");
+});
+
+test("a federated id whose connectionId is NOT in the known boot roster, while the boot pass has not settled, still throws unchanged — a server that was never configured is not told to 'wait'", async () => {
+  const toolId = "mcp__ghost-server__whatever";
+  const inner = stubExecutor(new Set([toolId]));
+  const status: FederationBootStatus = { settled: false, connectFailures: [], configuredConnectionIds: ["echo-server"] };
+
+  await assert.rejects(
+    () => withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {}),
+    /unknown tool "mcp__ghost-server__whatever"/,
+  );
+});
+
+test("configuredConnectionIds omitted (the boot roster is not yet known) still defaults to 'still connecting' — same as before this field existed", async () => {
+  const toolId = "mcp__echo-server__echo";
+  const inner = stubExecutor(new Set([toolId]));
+  const status: FederationBootStatus = { settled: false, connectFailures: [] };
+
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.error, "External MCP server 'echo-server' is still connecting — try again in a moment.");
+});
+
 test("a settled boot pass with no matching connect failure still throws unchanged — a genuinely unrelated/hallucinated id is not reinterpreted as 'still connecting'", async () => {
   const toolId = "mcp__echo-server__echo";
   const inner = stubExecutor(new Set([toolId]));
