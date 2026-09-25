@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
@@ -74,6 +74,15 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     templateChoice,
     setTemplateChoice: vi.fn(),
     availableTemplates: [],
+    // "View Template" parity with `PostEditor.tsx` (2026-09-24) — `null`/`false` defaults so every
+    // pre-existing test in this file (written before these fields existed) keeps seeing a disabled
+    // button and a closed modal; the dedicated describe block below overrides them.
+    activeThemeId: null,
+    activeThemeTier: null,
+    activeThemeApiVersion: undefined,
+    showTemplateModal: false,
+    onViewTemplateClick: vi.fn(),
+    onCloseTemplateModal: vi.fn(),
     html,
     setHtml: vi.fn(),
     draftHtml: html,
@@ -159,6 +168,72 @@ function renderEditor(overrides: Partial<PageEditorController> = {}) {
   const utils = render(<PageEditor slug="pg1" usePageEditorHook={usePageEditorHook} />);
   return { ctrl, ...utils };
 }
+
+/**
+ * "View Template" eye button (2026-09-24) — Pages' own instance of the affordance `PostEditor.tsx`
+ * has carried since 2026-08-10 (`PostEditor.unit.test.tsx`'s "the View Template button is disabled
+ * once 'No template chosen' is selected"/"clicking View Template opens the read-only modal" tests,
+ * which this mirrors), now that both editors share `ViewTemplateButton`/`TemplateSourceModal`
+ * (`components/TemplateSource/`). `BASE_PAGE.bodyFormat` is already `"html"`, the one format the
+ * template picker (and this button) render for at all.
+ */
+describe("View Template button and modal", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("disables the View Template button when no template is chosen", () => {
+    renderEditor({ availableTemplates: ["pages-sidebar.html"], templateChoice: null });
+    expect(screen.getByRole("button", { name: /view template/i })).toBeDisabled();
+  });
+
+  it("disables the View Template button for the explicit bare 'No template' choice", () => {
+    renderEditor({ availableTemplates: ["pages-sidebar.html"], templateChoice: "" });
+    expect(screen.getByRole("button", { name: /view template/i })).toBeDisabled();
+  });
+
+  it("enables the button once a template is chosen, and clicking it calls onViewTemplateClick", async () => {
+    const user = userEvent.setup();
+    const onViewTemplateClick = vi.fn();
+    renderEditor({
+      availableTemplates: ["pages-sidebar.html"],
+      templateChoice: "pages-sidebar.html",
+      onViewTemplateClick,
+    });
+
+    const button = screen.getByRole("button", { name: /view template/i });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(onViewTemplateClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the read-only modal wired to the selected template once showTemplateModal is true", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url === "/theme-assets/basic/render/pages/pages-sidebar.html") {
+          return Promise.resolve(new Response("<p>sidebar template</p>", { status: 200 }));
+        }
+        return Promise.resolve(new Response("not found", { status: 404 }));
+      }),
+    );
+
+    renderEditor({
+      availableTemplates: ["pages-sidebar.html"],
+      templateChoice: "pages-sidebar.html",
+      activeThemeId: "basic",
+      activeThemeTier: "static",
+      activeThemeApiVersion: 2,
+      showTemplateModal: true,
+    });
+
+    // "pages-sidebar.html" also appears as the picker's own <option> text — scope to the modal's
+    // own title node, same disambiguation `PostEditor.unit.test.tsx`'s identical test uses.
+    await waitFor(() => expect(document.querySelector("[data-preview-modal-title]")).toHaveTextContent("pages-sidebar.html"));
+    expect(await screen.findByText("<p>sidebar template</p>")).toBeInTheDocument();
+  });
+});
 
 describe("loading and error states", () => {
   it("shows a loading notice while page is null and there is no error", () => {

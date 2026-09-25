@@ -38,9 +38,9 @@ export interface PostEditorUiController {
   onDeleteClick: () => void;
   /** `ConfirmDialog`'s cancel action for the delete confirmation. */
   onDeleteCancel: () => void;
-  /** The template picker's "View Template" button — opens the read-only `PostTemplateModal`. */
+  /** The template picker's "View Template" button — opens the read-only `TemplateSourceModal`. */
   onViewTemplateClick: () => void;
-  /** `PostTemplateModal`'s own close action. */
+  /** `TemplateSourceModal`'s own close action. */
   onCloseTemplateModal: () => void;
 }
 

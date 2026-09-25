@@ -3,14 +3,22 @@ import { useEffect, useState } from "react";
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
 import type { ThemeTier } from "@/lib/api";
-import { defaultPostTemplatePort } from "./post-template-dependencies.hooks";
-import type { PostTemplatePort } from "./post-template-port.hooks";
+import { defaultTemplateSourcePort } from "./template-source-dependencies.hooks";
+import type { TemplateSourcePort } from "./template-source-port.hooks";
 
 /**
- * @file `PostTemplateModal`'s template-source fetch, split out per the `use-<thing>.hooks.ts`
- * convention. `port` is injected (see `post-template-port.hooks.ts`) rather than calling global
+ * @file `TemplateSourceModal`'s template-source fetch, split out per the `use-<thing>.hooks.ts`
+ * convention. `port` is injected (see `template-source-port.hooks.ts`) rather than calling global
  * `fetch` directly, so a test can describe "this template loaded/failed" against
- * `createFakePostTemplatePort` instead of stubbing `fetch`.
+ * `createFakeTemplateSourcePort` instead of stubbing `fetch`.
+ *
+ * Moved here from `features/posts/hooks/use-post-template-source.hooks.ts` (2026-09-24): "View
+ * Template" started as a Post-only affordance (2026-08-10), then `features/pages`' `PageEditor.tsx`
+ * grew the identical eye-icon button/modal next to its own template picker — the fetch/URL-building
+ * logic below was already feature-agnostic (it only ever took a theme id, tier, apiVersion and
+ * filename, none of them Post-specific), so the move is a rename plus a relocation, not a rewrite.
+ * `features/posts/PostEditor.tsx` and `features/pages/PageEditor.tsx` both import from here now,
+ * instead of Pages copy-pasting a second implementation.
  *
  * 2026-08-19 architecture audit finding 1: this used to build `/theme-assets/{theme}/pages/{file}`
  * unconditionally — the v1 layout. Every current static theme (`src/themes/static/basic` and its six
@@ -20,7 +28,7 @@ import type { PostTemplatePort } from "./post-template-port.hooks";
  * uses — instead of a second, independently-spelled `pages`/`render/pages` literal.
  */
 
-export type PostTemplateFetchState =
+export type TemplateSourceFetchState =
   | { status: "loading" }
   | { status: "loaded"; html: string }
   | { status: "error"; message: string };
@@ -40,9 +48,9 @@ export function templateAssetUrl(themeId: string, templateFilename: string, apiV
 
 /**
  * Route path (not a full URL — matches this app's `navigate()`, see `apps/admin/src/lib/router.ts`)
- * for the Theme Explore screen with this template preselected — `PostTemplateModal`'s "Edit" button
- * target (owner ask, 2026-09-22). The viewer stays read-only; this only ever points the operator at
- * Explore, which is where the real edit happens.
+ * for the Theme Explore screen with this template preselected — `TemplateSourceModal`'s "Edit"
+ * button target (owner ask, 2026-09-22). The viewer stays read-only; this only ever points the
+ * operator at Explore, which is where the real edit happens.
  *
  * Builds the short `?page=<label>` form Theme Explore documents and writes for an ordinary page
  * (`theme-explore-url.hooks.ts`'s file header and `writeThemeExploreSelectionToUrl`), not the
@@ -65,7 +73,7 @@ export function templateEditUrl(themeId: string, templateFilename: string): stri
  * Fetches a static-tier theme's template source as plain text via the injected `port`. Kept out
  * of the component body so the three outcomes (loading/loaded/error) are the function's only
  * branches — no theme-tier decision in here, that gate lives in the caller
- * (`PostTemplateModal`'s render), which is also why this never fetches at all for a non-static
+ * (`TemplateSourceModal`'s render), which is also why this never fetches at all for a non-static
  * theme.
  *
  * @param themeId - The active theme id — used to build the fetch URL.
@@ -78,8 +86,8 @@ export function templateEditUrl(themeId: string, templateFilename: string): stri
  *   (e.g. presentation settings loaded but the theme's own `apiVersion` field wasn't in that
  *   response) is treated the same as `undefined` (v1), matching `resolveThemeLayout`'s own default.
  * @param templateFilename - The selected template's filename.
- * @param port - Injected {@link PostTemplatePort} — see `post-template-port.hooks.ts`.
- * @returns The current {@link PostTemplateFetchState}.
+ * @param port - Injected {@link TemplateSourcePort} — see `template-source-port.hooks.ts`.
+ * @returns The current {@link TemplateSourceFetchState}.
  * @complexity Time/space: O(n) in the fetched document's size — one request, no retry loop.
  */
 export function useTemplateSource(
@@ -87,9 +95,9 @@ export function useTemplateSource(
   themeTier: ThemeTier | null,
   themeApiVersion: 2 | undefined,
   templateFilename: string,
-  port: PostTemplatePort,
-): PostTemplateFetchState {
-  const [state, setState] = useState<PostTemplateFetchState>({ status: "loading" });
+  port: TemplateSourcePort,
+): TemplateSourceFetchState {
+  const [state, setState] = useState<TemplateSourceFetchState>({ status: "loading" });
 
   useEffect(() => {
     if (themeTier !== "static") return; // Nothing to fetch — the caller renders the tier explanation instead.
@@ -117,23 +125,23 @@ export function useTemplateSource(
 }
 
 /**
- * Binds the real `/theme-assets/...` fetch — see `post-template-dependencies.hooks.ts`.
+ * Binds the real `/theme-assets/...` fetch — see `template-source-dependencies.hooks.ts`.
  *
  * The zero-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
- * `PostTemplateModal.tsx` composes this and a test composes {@link useTemplateSource} with
- * `createFakePostTemplatePort`.
+ * `TemplateSourceModal.tsx` composes this and a test composes {@link useTemplateSource} with
+ * `createFakeTemplateSourcePort`.
  *
  * @param themeId - See {@link useTemplateSource}.
  * @param themeTier - See {@link useTemplateSource}.
  * @param themeApiVersion - See {@link useTemplateSource}.
  * @param templateFilename - See {@link useTemplateSource}.
- * @returns The current {@link PostTemplateFetchState}.
+ * @returns The current {@link TemplateSourceFetchState}.
  */
 export function useWiredTemplateSource(
   themeId: string,
   themeTier: ThemeTier | null,
   themeApiVersion: 2 | undefined,
   templateFilename: string,
-): PostTemplateFetchState {
-  return useTemplateSource(themeId, themeTier, themeApiVersion, templateFilename, defaultPostTemplatePort);
+): TemplateSourceFetchState {
+  return useTemplateSource(themeId, themeTier, themeApiVersion, templateFilename, defaultTemplateSourcePort);
 }

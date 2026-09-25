@@ -2,8 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PostTemplateModal } from "../PostTemplateModal";
-import type { PostTemplateFetchState } from "../hooks/use-post-template-source.hooks";
+import { TemplateSourceModal } from "../TemplateSourceModal";
+import type { TemplateSourceFetchState } from "../use-template-source.hooks";
 import { navigate } from "@/lib/router";
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
@@ -15,12 +15,17 @@ const t = (key: string) => key;
 const alwaysConfirmLeave = () => true;
 
 /**
- * @file `PostTemplateModal` — the "View Template" read-only source view (2026-08-10). Covers the
- * four outcomes disclosed in `PostEditor.tsx`'s wiring and the modal's own file header: a
- * non-static theme tier (nothing to fetch, by design — `theme-static-assets.ts` only mounts
- * static-tier theme dirs), an unknown tier (`null`, the active theme absent from
- * `availableThemes`), a fetch failure, and a successful load. Does not test `PreviewModalShell`'s
- * own chrome (Escape/backdrop/close) — that is Jini's own component, covered in its own package.
+ * @file `TemplateSourceModal` — the "View Template" read-only source view (2026-08-10, moved here
+ * from `features/posts/__tests__/PostTemplateModal.unit.test.tsx` 2026-09-24 once `features/pages`'
+ * `PageEditor.tsx` grew the identical affordance and the component itself moved to this shared
+ * location — see `TemplateSourceModal.tsx`'s own file header). Covers the four outcomes disclosed
+ * in that file's header: a non-static theme tier (nothing to fetch, by design —
+ * `theme-static-assets.ts` only mounts static-tier theme dirs), an unknown tier (`null`, the active
+ * theme absent from `availableThemes`), a fetch failure, and a successful load. Does not test
+ * `PreviewModalShell`'s own chrome (Escape/backdrop/close) — that is Jini's own component, covered
+ * in its own package. `editAgentHandleId="post-template-edit"` throughout is an arbitrary but
+ * representative caller id — see `PostEditor.tsx`/`PageEditor.tsx` for the real per-editor ids this
+ * prop distinguishes.
  */
 
 afterEach(() => {
@@ -38,7 +43,7 @@ describe("theme tier gates the fetch", () => {
     vi.stubGlobal("fetch", fetchSpy);
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="handlebars-theme"
         themeTier="handlebars"
         themeApiVersion={undefined}
@@ -46,6 +51,7 @@ describe("theme tier gates the fetch", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
       />,
     );
 
@@ -58,7 +64,7 @@ describe("theme tier gates the fetch", () => {
     vi.stubGlobal("fetch", fetchSpy);
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="mystery"
         themeTier={null}
         themeApiVersion={undefined}
@@ -66,6 +72,7 @@ describe("theme tier gates the fetch", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
       />,
     );
 
@@ -80,7 +87,7 @@ describe("a static-tier theme", () => {
     vi.stubGlobal("fetch", fetchSpy);
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="basic"
         themeTier="static"
         themeApiVersion={undefined}
@@ -88,6 +95,7 @@ describe("a static-tier theme", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
       />,
     );
 
@@ -106,7 +114,7 @@ describe("a static-tier theme", () => {
     vi.stubGlobal("fetch", fetchSpy);
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="basic"
         themeTier="static"
         themeApiVersion={2}
@@ -114,6 +122,7 @@ describe("a static-tier theme", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
       />,
     );
 
@@ -125,7 +134,7 @@ describe("a static-tier theme", () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="basic"
         themeTier="static"
         themeApiVersion={2}
@@ -133,6 +142,7 @@ describe("a static-tier theme", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
       />,
     );
 
@@ -143,7 +153,7 @@ describe("a static-tier theme", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("not found", { status: 404 }))));
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="basic"
         themeTier="static"
         themeApiVersion={2}
@@ -151,6 +161,7 @@ describe("a static-tier theme", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
       />,
     );
 
@@ -161,7 +172,7 @@ describe("a static-tier theme", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network down"))));
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="basic"
         themeTier="static"
         themeApiVersion={2}
@@ -169,6 +180,7 @@ describe("a static-tier theme", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
       />,
     );
 
@@ -176,19 +188,19 @@ describe("a static-tier theme", () => {
   });
 });
 
-describe("PostTemplateModal template-source-hook injection", () => {
+describe("TemplateSourceModal template-source-hook injection", () => {
   it("renders purely off an injected fake, proving useTemplateSourceHook is not hardcoded", () => {
     // The real hook always starts `{ status: "loading" }` on a fresh mount for a static-tier theme
     // — a fake that resolves synchronously to `loaded` is something the real hook could never
     // produce on first render, so this only passes if the render used the fake.
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
-    function useFakeTemplateSource(): PostTemplateFetchState {
+    function useFakeTemplateSource(): TemplateSourceFetchState {
       return { status: "loaded", html: "fake template source" };
     }
 
     render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="basic"
         themeTier="static"
         themeApiVersion={2}
@@ -196,6 +208,7 @@ describe("PostTemplateModal template-source-hook injection", () => {
         onClose={vi.fn()}
         confirmLeave={alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
         useTemplateSourceHook={useFakeTemplateSource}
       />,
     );
@@ -210,11 +223,11 @@ describe("Edit button (owner ask, 2026-09-22)", () => {
   /** Reused across this block's `it`s: a loaded static-tier fixture, so the header (and its Edit
    *  button) is on screen without waiting on a real fetch. */
   function renderLoadedModal(overrides: { onClose?: () => void; confirmLeave?: () => boolean } = {}) {
-    function useFakeTemplateSource(): PostTemplateFetchState {
+    function useFakeTemplateSource(): TemplateSourceFetchState {
       return { status: "loaded", html: "<h1>Hello template</h1>" };
     }
     return render(
-      <PostTemplateModal
+      <TemplateSourceModal
         themeId="basic"
         themeTier="static"
         themeApiVersion={2}
@@ -222,6 +235,7 @@ describe("Edit button (owner ask, 2026-09-22)", () => {
         onClose={overrides.onClose ?? vi.fn()}
         confirmLeave={overrides.confirmLeave ?? alwaysConfirmLeave}
         t={t}
+        editAgentHandleId="post-template-edit"
         useTemplateSourceHook={useFakeTemplateSource}
       />,
     );
@@ -241,9 +255,9 @@ describe("Edit button (owner ask, 2026-09-22)", () => {
   it("declines to navigate or close when confirmLeave reports unsaved edits", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    // Same shape as `PostEditorHeader`'s back-link guard: `confirmLeave` returning `false` means
-    // the operator chose "keep editing" at a browser-native confirm(), so nothing here should act
-    // as though they'd left.
+    // Same shape as each editor's own back-link guard: `confirmLeave` returning `false` means the
+    // operator chose "keep editing" at a browser-native confirm(), so nothing here should act as
+    // though they'd left.
     renderLoadedModal({ onClose, confirmLeave: () => false });
 
     await user.click(screen.getByRole("button", { name: "Edit" }));

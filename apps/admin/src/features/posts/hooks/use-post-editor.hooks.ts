@@ -146,7 +146,7 @@ export interface PostEditorController extends PostEditorUiController {
    *  as `activeThemeTier` just above) — `undefined` for a v1 theme (including "not loaded yet" or
    *  "absent from `availableThemes`", same as `activeThemeTier`'s `null`, since a v2-only fetch URL
    *  and a v1 one both need a concrete value rather than a third "unknown" state to carry through
-   *  `useTemplateSource`). 2026-08-19 architecture audit finding 1 — feeds `PostTemplateModal`'s
+   *  `useTemplateSource`). 2026-08-19 architecture audit finding 1 — feeds `TemplateSourceModal`'s
    *  "View Template" fetch, which 404ed on every v2 built-in theme without this. */
   activeThemeApiVersion: 2 | undefined;
   /**
@@ -224,7 +224,7 @@ export interface PostEditorController extends PostEditorUiController {
    *  internally). Exposed so `PostPreview` can serialize it into the pending-content-preview hidden
    *  form without importing TipTap itself. `null` before the editor mounts. */
   bodyJson: unknown;
-  /** Whether the "View Template" modal (`PostTemplateModal`) is open — moved out of `PostEditor.tsx`
+  /** Whether the "View Template" modal (`TemplateSourceModal`) is open — moved out of `PostEditor.tsx`
    *  (leftover `useState` after the `useWiredX` conversion, see `apps/admin/INFO.md`'s Hooks
    *  section). Ephemeral view state; not persisted. */
   showTemplateModal: boolean;

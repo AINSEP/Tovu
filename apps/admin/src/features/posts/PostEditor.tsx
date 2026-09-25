@@ -18,7 +18,8 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
-import { PostTemplateModal } from "./PostTemplateModal";
+import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
+import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import {
   toolbarBtnClass,
   hexOrDefault,
@@ -1066,31 +1067,20 @@ function PostEditorTemplatePicker({
       </label>
       {availableTemplates.length > 0 ? (
         <>
-          {/* Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
+          {/* Read-only inspection, not editing (`TemplateSourceModal.tsx`'s own file header —
               "I just wanna see it" is the owner's own framing). Disabled rather than hidden
               when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
               still sees the control, just inert, matching this screen's own precedent for the
               theme-with-zero-templates `<select>` below rather than the row disappearing.
-              Icon-only (2026-09-22 owner ask, moved left of the picker): the visible word is
-              gone, but `aria-label`/`title` still carry `t("View Template")` so the accessible
-              name and translation key are unchanged from the old text button. */}
-          <button
-            type="button"
-            className="view-template-btn"
+              `ViewTemplateButton` (shared with `PageEditor.tsx`'s own template picker,
+              `components/TemplateSource/ViewTemplateButton.tsx`) owns the icon-only markup and
+              its `aria-label`/`title` — this call site only supplies what differs per editor. */}
+          <ViewTemplateButton
             disabled={!templateChoice}
             onClick={onViewTemplateClick}
-            aria-label={t("View Template")}
-            title={t("View Template")}
-            {...agentHandle("post-view-template", {
-              role: "button",
-              label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
-            })}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
+            t={t}
+            agentHandleId="post-view-template"
+          />
           <select
             value={templateChoice ?? ""}
             // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
@@ -1265,7 +1255,7 @@ function PostEditorBody({
  * The "View Template" modal's mount gate — pulled out of `PostEditor` (complexity-ceiling pass,
  * 2026-08-20) as its own top-level function so the three-condition `&&` chain scores in its own
  * scope. Conditionally mounted, not always-mounted-with-`open`: `PreviewModalShell` (the shell
- * `PostTemplateModal` renders through) is a plain fixed-position overlay `<div>`, not the native
+ * `TemplateSourceModal` renders through) is a plain fixed-position overlay `<div>`, not the native
  * `<dialog>` `ConfirmDialog` wraps — there is no `open` prop to toggle, so this follows
  * `AgentPluginDetailsModal`'s own call site (`AgentPlugins.tsx`) instead. `templateChoice` and
  * `activeThemeId` are re-checked here (not just at the "View Template" button's `disabled`) so this
@@ -1293,7 +1283,7 @@ function PostEditorTemplateModalGate({
 }) {
   if (!show || !templateChoice || !activeThemeId) return null;
   return (
-    <PostTemplateModal
+    <TemplateSourceModal
       themeId={activeThemeId}
       themeTier={activeThemeTier}
       themeApiVersion={activeThemeApiVersion}
@@ -1301,6 +1291,7 @@ function PostEditorTemplateModalGate({
       onClose={onClose}
       confirmLeave={confirmLeave}
       t={t}
+      editAgentHandleId="post-template-edit"
     />
   );
 }

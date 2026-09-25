@@ -24,6 +24,9 @@ import {
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
+import type { ThemeTier } from "../../lib/api";
+import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
+import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import {
   isAutosaveDraftStale,
   PAGE_EXTERNAL_CHANGE_MESSAGE,
@@ -552,6 +555,12 @@ function PageEditorNotices({
  * footer) — so the picker routes through {@link pagePickerValue}/{@link pickerValueToChoice} (`rules.ts`)
  * rather than `templateChoice ?? ""` directly, and shows a hint line under the `<select>` whenever the
  * bare option is selected.
+ *
+ * "View Template" eye button (2026-09-24, parity with `PostEditor.tsx`'s identical control): left of
+ * the `<select>`, same shared `ViewTemplateButton` (`components/TemplateSource/ViewTemplateButton.tsx`)
+ * Posts renders, disabled whenever nothing is chosen ({@link templateChoice} falsy — covers both
+ * "Theme default" (`null`) and the explicit bare "No template" (`""`), neither of which names a real
+ * file to show). Opens `TemplateSourceModal` (`PageEditor`'s own `PageEditorTemplateModalGate` below).
  */
 function PageEditorToolbarEnd({
   view,
@@ -561,6 +570,7 @@ function PageEditorToolbarEnd({
   availableTemplates,
   templateChoice,
   setTemplateChoice,
+  onViewTemplateClick,
   t,
 }: {
   view: PageEditorView;
@@ -570,6 +580,7 @@ function PageEditorToolbarEnd({
   availableTemplates: string[];
   templateChoice: string | null;
   setTemplateChoice: (value: string | null) => void;
+  onViewTemplateClick: () => void;
   t: Translate;
 }) {
   const pickerValue = pagePickerValue(templateChoice, availableTemplates);
@@ -584,6 +595,12 @@ function PageEditorToolbarEnd({
           <label className="a11y-label-wrap">
             <span className="visually-hidden">{t("Template")}</span>
           </label>
+          <ViewTemplateButton
+            disabled={!templateChoice}
+            onClick={onViewTemplateClick}
+            t={t}
+            agentHandleId="page-view-template"
+          />
           {availableTemplates.length > 0 ? (
             <select
               value={pickerValue}
@@ -628,6 +645,47 @@ function PageEditorToolbarEnd({
   );
 }
 
+/**
+ * The "View Template" modal's mount gate — mirrors `PostEditor.tsx`'s identical
+ * `PostEditorTemplateModalGate` (see that function's own doc for the full "why conditionally
+ * mounted, why re-check here" reasoning, which applies unchanged: `PreviewModalShell` has no `open`
+ * prop to toggle, and `templateChoice`/`activeThemeId` are re-checked so this can never render with
+ * an empty/`null` URL segment even if state changes out from under an already-open modal).
+ */
+function PageEditorTemplateModalGate({
+  show,
+  templateChoice,
+  activeThemeId,
+  activeThemeTier,
+  activeThemeApiVersion,
+  onClose,
+  confirmLeave,
+  t,
+}: {
+  show: boolean;
+  templateChoice: string | null;
+  activeThemeId: string | null;
+  activeThemeTier: ThemeTier | null;
+  activeThemeApiVersion: 2 | undefined;
+  onClose: () => void;
+  confirmLeave: () => boolean;
+  t: Translate;
+}) {
+  if (!show || !templateChoice || !activeThemeId) return null;
+  return (
+    <TemplateSourceModal
+      themeId={activeThemeId}
+      themeTier={activeThemeTier}
+      themeApiVersion={activeThemeApiVersion}
+      templateFilename={templateChoice}
+      onClose={onClose}
+      confirmLeave={confirmLeave}
+      t={t}
+      editAgentHandleId="page-template-edit"
+    />
+  );
+}
+
 export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEditor }: PageEditorProps) {
   const {
     page,
@@ -642,6 +700,12 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     templateChoice,
     setTemplateChoice,
     availableTemplates,
+    activeThemeId,
+    activeThemeTier,
+    activeThemeApiVersion,
+    showTemplateModal,
+    onViewTemplateClick,
+    onCloseTemplateModal,
     html,
     setHtml,
     draftHtml,
@@ -672,6 +736,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     confirmingDelete,
     setConfirmingDelete,
     deleting,
+    confirmLeave,
     onBackLinkClick,
     recoverableDraft,
     restoreRecoveredDraft,
@@ -783,6 +848,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           availableTemplates={availableTemplates}
           templateChoice={templateChoice}
           setTemplateChoice={setTemplateChoice}
+          onViewTemplateClick={onViewTemplateClick}
           t={t}
         />
       </div>
@@ -840,6 +906,18 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         pending={deleting}
         onConfirm={remove}
         onCancel={() => setConfirmingDelete(false)}
+      />
+      {/* See `PageEditorTemplateModalGate`'s own doc for why this is conditionally mounted rather
+          than always-mounted-with-`open`. */}
+      <PageEditorTemplateModalGate
+        show={showTemplateModal}
+        templateChoice={templateChoice}
+        activeThemeId={activeThemeId}
+        activeThemeTier={activeThemeTier}
+        activeThemeApiVersion={activeThemeApiVersion}
+        onClose={onCloseTemplateModal}
+        confirmLeave={confirmLeave}
+        t={t}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost, ThemeTier } from "@/lib/api";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
 
 /**
@@ -10,12 +10,15 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
  * declares, `page-editor-dependencies.hooks.ts` binds the real `api` client, and nothing else under
  * `features/pages/hooks` imports `lib/api` for these six routes.
  *
- * `getPresentation`'s return type is narrowed to the three fields this hook actually reads off it
+ * `getPresentation`'s return type is narrowed to the four fields this hook actually reads off it
  * (see `usePageEditor`'s load effect). `features/posts`' `usePostEditor` reads more fields off the
  * same route through its own `PostEditorPort` (`post-editor-port.hooks.ts`) — narrowing here is not a
- * shared contract, it is this hook's own consumption. The narrowing also moves one derivation off
- * the hook: the active theme's `apiVersion` lives on `availableThemes`, keyed by id, and
- * `page-editor-dependencies.hooks.ts` resolves it rather than handing the whole array through.
+ * shared contract, it is this hook's own consumption. The narrowing also moves two derivations off
+ * the hook: the active theme's `apiVersion` and `tier` both live on `availableThemes`, keyed by id,
+ * and `page-editor-dependencies.hooks.ts` resolves them rather than handing the whole array through.
+ * `activeThemeTier` (2026-09-24, "View Template" parity with `features/posts`) feeds
+ * `TemplateSourceModal`'s (`components/TemplateSource/TemplateSourceModal.tsx`) tier gate the same
+ * way `usePostEditor`'s own `activeThemeTier` does.
  */
 /**
  * Standing-draft autosave (2026-09-06 dispatch) — `putAutosave`/`getAutosave`/`discardAutosave` are
@@ -29,13 +32,18 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
   getPresentation(): Promise<{
     activeThemeTemplates: string[];
     /** `PresentationSettings.activeThemeId` — feeds the Interactive tab's canvas stylesheet and
-     *  token fetches (`use-theme-canvas-styling.hooks.ts`). */
+     *  token fetches (`use-theme-canvas-styling.hooks.ts`), and `TemplateSourceModal`'s fetch URL. */
     activeThemeId: string;
     /** The active theme's manifest `apiVersion` (`2`, or `undefined` for v1), looked up on
      *  `availableThemes` by `activeThemeId`. `undefined` also covers "the active theme is absent
      *  from `availableThemes`", which `resolveThemeLayout` treats as v1 — the same conflation
      *  `usePostEditor`'s own `activeThemeApiVersion` documents. */
     activeThemeApiVersion: 2 | undefined;
+    /** The active theme's capability tier, looked up on `availableThemes` the same way as
+     *  `activeThemeApiVersion` just above. `null` when the id has not loaded yet OR when
+     *  `activeThemeId` is absent from `availableThemes` — same conflation `usePostEditor`'s own
+     *  `activeThemeTier` documents. Gates whether `TemplateSourceModal` attempts a fetch at all. */
+    activeThemeTier: ThemeTier | null;
   }>;
   updatePageHtml(id: string, html: string): Promise<{ post: AdminPost }>;
   /**

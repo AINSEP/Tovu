@@ -4680,18 +4680,18 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   .agent-plugin-source-files { border-right: none; border-bottom: 1px solid var(--border); }
 }
 
-/* "View Template" (2026-08-10, `PostTemplateModal.tsx`) — same `PreviewModalShell` host chrome as
+/* "View Template" (2026-08-10, `TemplateSourceModal.tsx`, shared by both editors since 2026-09-24) — same `PreviewModalShell` host chrome as
    `.agent-plugin-source-modal` above, but a single stage pane rather than a file-browser grid: this
    modal has exactly one file (the chosen template), never a list to pick from. `.code-viewer` reuses
    the identical gutter/line styling `CodeWithLines` renders into, scoped under this modal's own
    ancestor since `.agent-plugin-source-content .code-viewer` above only matches inside that OTHER
    modal's markup. */
-.post-template-modal {
+.template-source-modal {
   z-index: 80;
   padding: var(--space-4);
   background: oklch(0% 0 0 / 0.48);
 }
-.post-template-modal [data-preview-modal] {
+.template-source-modal [data-preview-modal] {
   max-width: 60rem;
   max-height: min(44rem, calc(100vh - 2rem));
   overflow: hidden;
@@ -4701,31 +4701,31 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-md);
 }
-.post-template-modal [data-preview-modal-header] {
+.template-source-modal [data-preview-modal-header] {
   min-height: 4rem;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
-.post-template-modal [data-preview-modal-title] { font-weight: 700; color: var(--fg); font-family: var(--font-mono); }
-.post-template-modal [data-preview-modal-subtitle] { margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
-.post-template-modal [data-preview-modal-close],
-.post-template-modal [data-preview-modal-stage-fullscreen] {
+.template-source-modal [data-preview-modal-title] { font-weight: 700; color: var(--fg); font-family: var(--font-mono); }
+.template-source-modal [data-preview-modal-subtitle] { margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
+.template-source-modal [data-preview-modal-close],
+.template-source-modal [data-preview-modal-stage-fullscreen] {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 2rem; min-height: 2rem; padding: 0.4rem;
   color: var(--fg-2); background: transparent;
   border: 1px solid var(--border); border-radius: var(--r-sm);
 }
-.post-template-modal [data-preview-modal-stage-fullscreen] { position: absolute; z-index: 1; top: var(--space-3); right: var(--space-3); }
-.post-template-modal [data-preview-modal-stage-custom] {
+.template-source-modal [data-preview-modal-stage-fullscreen] { position: absolute; z-index: 1; top: var(--space-3); right: var(--space-3); }
+.template-source-modal [data-preview-modal-stage-custom] {
   width: 100%; height: 100%; min-height: 0; overflow: auto; padding: var(--space-4);
 }
-.post-template-modal [data-preview-modal-stage-custom] .code-viewer {
+.template-source-modal [data-preview-modal-stage-custom] .code-viewer {
   display: grid; grid-template-columns: auto minmax(max-content, 1fr);
   margin: 0; color: var(--fg-2); background: var(--surface); font: var(--text-xs)/1.6 var(--font-mono);
   border: 1px solid var(--border); border-radius: var(--r-md);
 }
-.post-template-modal [data-preview-modal-stage-custom] .code-viewer code { display: block; padding: var(--space-3) var(--space-4); white-space: pre; }
-.post-template-modal [data-preview-modal-stage-custom] .code-viewer .gutter {
+.template-source-modal [data-preview-modal-stage-custom] .code-viewer code { display: block; padding: var(--space-3) var(--space-4); white-space: pre; }
+.template-source-modal [data-preview-modal-stage-custom] .code-viewer .gutter {
   position: sticky; left: 0; text-align: right; user-select: none;
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }

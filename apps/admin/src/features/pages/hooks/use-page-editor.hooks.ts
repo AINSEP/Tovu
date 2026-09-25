@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 
 import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
 
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost, ThemeTier } from "@/lib/api";
 import {
   useDevicePreviewDevice,
   usePreviewPaneWidth,
@@ -99,6 +99,29 @@ export interface PageEditorController {
    *  `usePostEditor`'s `availableTemplates` reads (unified 2026-08-11 — was a separate `pageTemplate`
    *  array before the `content` marker removed the reason Posts and Pages needed different lists). */
   availableTemplates: string[];
+  /** The workspace's currently active theme id (`PresentationSettings.activeThemeId`) — feeds the
+   *  Interactive tab's canvas stylesheet/token fetches and `TemplateSourceModal`'s fetch URL. `null`
+   *  until the presentation-settings load settles. Mirrors `usePostEditor`'s identical field. */
+  activeThemeId: string | null;
+  /** The active theme's capability tier (looked up on `availableThemes` by `activeThemeId`) — gates
+   *  whether "View Template" (`TemplateSourceModal`) attempts a fetch at all. `null` when the id has
+   *  not loaded yet OR when it is absent from `availableThemes`. Mirrors `usePostEditor`'s identical
+   *  field ("View Template" parity, 2026-09-24). */
+  activeThemeTier: ThemeTier | null;
+  /** The active theme's manifest `apiVersion` (`2`, or `undefined` for v1) — same
+   *  `render/pages/`-vs-`pages/` fetch-URL decision `usePostEditor`'s identical field documents. */
+  activeThemeApiVersion: 2 | undefined;
+  /** Whether the "View Template" modal (`TemplateSourceModal`) is open — Pages' own instance of the
+   *  affordance `usePostEditor`'s identical field has carried since 2026-08-10 (2026-09-24, "View
+   *  Template" parity: Pages had a template picker but no way to inspect the chosen template's
+   *  source, unlike Posts). Ephemeral view state; not persisted. */
+  showTemplateModal: boolean;
+  /** The template picker's "View Template" button — opens {@link showTemplateModal}. A no-op when
+   *  nothing is chosen ({@link templateChoice} falsy); `PageEditor.tsx`'s own button additionally
+   *  disables itself in that case, this is belt-and-suspenders against a direct call. */
+  onViewTemplateClick: () => void;
+  /** `TemplateSourceModal`'s own close action. */
+  onCloseTemplateModal: () => void;
   /** The working copy of the page's HTML — what the preview renders and what Save persists. */
   html: string;
   setHtml: (value: string) => void;
@@ -626,6 +649,12 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // until then, which `useThemeCanvasStyling` reads as "keep waiting", never as "no theme".
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [activeThemeApiVersion, setActiveThemeApiVersion] = useState<2 | undefined>(undefined);
+  // "View Template" parity with `usePostEditor` (2026-09-24) — same `activeThemeTier` shape, same
+  // load-effect source (the presentation-settings response).
+  const [activeThemeTier, setActiveThemeTier] = useState<ThemeTier | null>(null);
+  // View Template (2026-09-24, Pages' own instance of `usePostEditor`'s identical state) — whether
+  // the read-only `TemplateSourceModal` is open.
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [html, setHtml] = useState("");
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
@@ -672,11 +701,12 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     // needs `activeThemeTemplates` in hand before it can render anything meaningful, and a fast
     // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
     Promise.all([port.getPage(routeSlug), port.getPresentation()])
-      .then(([{ post }, { activeThemeTemplates, activeThemeId: themeId, activeThemeApiVersion: themeApiVersion }]) => {
+      .then(([{ post }, { activeThemeTemplates, activeThemeId: themeId, activeThemeApiVersion: themeApiVersion, activeThemeTier: themeTier }]) => {
         if (cancelled) return;
         setAvailableTemplates(activeThemeTemplates);
         setActiveThemeId(themeId);
         setActiveThemeApiVersion(themeApiVersion);
+        setActiveThemeTier(themeTier);
         applyLoadedPage(post, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
         // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same rule
         // `use-widget-instance-editor.hooks.ts` applies for widgets. Skipped for the root page
@@ -1147,6 +1177,16 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     templateChoice,
     setTemplateChoice: setTemplateChoiceAfterFlush,
     availableTemplates,
+    activeThemeId,
+    activeThemeTier,
+    activeThemeApiVersion,
+    showTemplateModal,
+    // Thin wiring closures, same "one-line handler named and moved out of JSX" shape
+    // `usePostEditorUi`'s identical pair documents — kept inline here rather than a separate
+    // `use-page-editor-ui.hooks.ts` since Pages has only these two UI-only handlers today, not the
+    // half-dozen `usePostEditorUi` composes.
+    onViewTemplateClick: () => setShowTemplateModal(true),
+    onCloseTemplateModal: () => setShowTemplateModal(false),
     html,
     setHtml,
     draftHtml,

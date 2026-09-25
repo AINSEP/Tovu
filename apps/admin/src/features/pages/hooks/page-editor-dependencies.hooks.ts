@@ -1,4 +1,4 @@
-import { api, ApiError, type AdminPost } from "@/lib/api";
+import { api, ApiError, type AdminPost, type ThemeTier } from "@/lib/api";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
@@ -10,7 +10,7 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
  *  `defaultRedirectsPort`. `getPresentation` narrows `api.getPresentation()`'s wider response down to
- *  the one field this port promises. */
+ *  the fields this port promises. */
 export const defaultPageEditorPort: PageEditorPort = {
   getPage: (routeSlug) => api.getPage(routeSlug),
   getPresentation: async () => {
@@ -20,6 +20,9 @@ export const defaultPageEditorPort: PageEditorPort = {
       activeThemeTemplates,
       activeThemeId: settings.activeThemeId,
       activeThemeApiVersion: activeTheme?.apiVersion,
+      // "View Template" parity with `features/posts` (2026-09-24) — same `?? null` normalization
+      // `usePostEditor`'s own load effect applies for "theme absent from `availableThemes`".
+      activeThemeTier: activeTheme?.tier ?? null,
     };
   },
   updatePageHtml: (id, html) => api.updatePageHtml(id, html),
@@ -37,6 +40,9 @@ export interface FakePageEditorPortOptions {
   activeThemeTemplates?: string[];
   activeThemeId?: string;
   activeThemeApiVersion?: 2;
+  /** "View Template" parity with `features/posts`' `createFakePostEditorPort` (2026-09-24). `null`
+   *  default matches the real port's own "theme absent from `availableThemes`" fallback. */
+  activeThemeTier?: ThemeTier | null;
   /** Seeds a standing draft as though a previous session had already parked one — the recovery-
    *  banner test seam. Absent/`undefined` means "nothing to recover", the common case. */
   autosave?: StandingDraftAutosaveSnapshot;
@@ -129,6 +135,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
         // fails if the editor ever goes back to reading the real active theme directly.
         activeThemeId: options.activeThemeId ?? "fake-theme",
         activeThemeApiVersion: options.activeThemeApiVersion,
+        activeThemeTier: options.activeThemeTier ?? null,
       };
     },
 

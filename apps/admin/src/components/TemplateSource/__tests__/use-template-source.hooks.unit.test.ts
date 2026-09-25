@@ -1,15 +1,18 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { templateAssetUrl, useTemplateSource } from "../hooks/use-post-template-source.hooks";
-import { createFakePostTemplatePort } from "../hooks/post-template-dependencies.hooks";
+import { templateAssetUrl, useTemplateSource } from "../use-template-source.hooks";
+import { createFakeTemplateSourcePort } from "../template-source-dependencies.hooks";
 
 /**
  * @file `useTemplateSource`/`templateAssetUrl` — the template-source fetch extracted out of
- * `PostTemplateModal.tsx`. `PostTemplateModal.unit.test.tsx` already covers the same four outcomes
- * end-to-end through the rendered component (stubbing global `fetch`), so this file's job is to
- * pin the hook's own contract in isolation against a `PostTemplatePort` fake instead: it never
- * fetches for a non-static/`null` tier, starts `loading`, and resolves to `loaded`/`error`.
+ * `TemplateSourceModal.tsx` (moved here from `features/posts/__tests__/
+ * use-post-template-source.hooks.unit.test.ts`, 2026-09-24, alongside the hook itself — see
+ * `use-template-source.hooks.ts`'s own file header). `TemplateSourceModal.unit.test.tsx` already
+ * covers the same four outcomes end-to-end through the rendered component (stubbing global
+ * `fetch`), so this file's job is to pin the hook's own contract in isolation against a
+ * `TemplateSourcePort` fake instead: it never fetches for a non-static/`null` tier, starts
+ * `loading`, and resolves to `loaded`/`error`.
  */
 
 describe("templateAssetUrl", () => {
@@ -30,7 +33,7 @@ describe("templateAssetUrl", () => {
 
 describe("useTemplateSource", () => {
   it("never calls the port for a non-static theme tier", () => {
-    const port = createFakePostTemplatePort({ html: "<p>x</p>" });
+    const port = createFakeTemplateSourcePort({ html: "<p>x</p>" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
     const { result } = renderHook(() => useTemplateSource("t1", "handlebars", 2, "post.html", port));
 
@@ -39,7 +42,7 @@ describe("useTemplateSource", () => {
   });
 
   it("never calls the port when the tier is null (undetermined)", () => {
-    const port = createFakePostTemplatePort({ html: "<p>x</p>" });
+    const port = createFakeTemplateSourcePort({ html: "<p>x</p>" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
     renderHook(() => useTemplateSource("t1", null, undefined, "post.html", port));
 
@@ -47,7 +50,7 @@ describe("useTemplateSource", () => {
   });
 
   it("starts loading, then resolves to loaded with the fetched html for a static theme", async () => {
-    const port = createFakePostTemplatePort({ html: "<h1>Hello template</h1>" });
+    const port = createFakeTemplateSourcePort({ html: "<h1>Hello template</h1>" });
     const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "blog-post.html", port));
 
     expect(result.current).toEqual({ status: "loading" });
@@ -56,14 +59,14 @@ describe("useTemplateSource", () => {
   });
 
   it("resolves to error with the rejection's message on a port failure", async () => {
-    const port = createFakePostTemplatePort({ fetchTemplateSourceError: new Error("network down") });
+    const port = createFakeTemplateSourcePort({ fetchTemplateSourceError: new Error("network down") });
     const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "x.html", port));
 
     await waitFor(() => expect(result.current).toEqual({ status: "error", message: "network down" }));
   });
 
   it("fetches the v1 URL built by templateAssetUrl for a v1 (apiVersion undefined) theme", async () => {
-    const port = createFakePostTemplatePort({ html: "ok" });
+    const port = createFakeTemplateSourcePort({ html: "ok" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
     renderHook(() => useTemplateSource("basic", "static", undefined, "blog-post.html", port));
 
@@ -71,7 +74,7 @@ describe("useTemplateSource", () => {
   });
 
   it("fetches the v2 render/pages/ URL built by templateAssetUrl for an apiVersion: 2 theme", async () => {
-    const port = createFakePostTemplatePort({ html: "ok" });
+    const port = createFakeTemplateSourcePort({ html: "ok" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");
     renderHook(() => useTemplateSource("basic", "static", 2, "blog-post.html", port));
 
