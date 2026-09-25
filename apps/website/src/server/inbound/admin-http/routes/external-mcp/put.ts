@@ -1,11 +1,11 @@
 import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
+  notifyExternalMcpRosterChanged,
   type SaveExternalMcpOAuthInput,
   saveExternalMcpServer,
 } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { triggerFederationReload } from "#src/server/runtime/composition/modules/assistant-daemon-client";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -156,8 +156,10 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
 
       // Fire-and-forget: never awaited, so this route's own response time and shape are unaffected
       // by daemon reachability — see this file's own header for why `restartRequired` stays `true`
-      // unconditionally regardless of what this trigger ends up doing.
-      void triggerFederationReload();
+      // unconditionally regardless of what this trigger ends up doing. Fans out to every registered
+      // federation runtime (agent-daemon, BYOK) via `external-mcp-roster-change.ts`, not just the
+      // daemon's own `triggerFederationReload` — see that module's own header.
+      void notifyExternalMcpRosterChanged();
       res.json({ server, restartRequired: true });
     } catch (err) {
       if (err instanceof ExternalMcpValidationError) {

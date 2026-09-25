@@ -289,6 +289,20 @@ export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
 export { connectMcpHttpSession, createFetchMcpHttpExchange } from "./mcp-federation/adapter.http.js";
 export { registerFederatedMcpPreset } from "./mcp-federation/presets.js";
 
+// Roster-change fan-out (2026-09-24): the seam that lets `put.ts`/`oauth-callback.ts`/
+// `features/external-mcp/tool-registrations.ts` announce a saved or newly connected row without
+// knowing how many federation runtimes exist in this process — see `external-mcp-roster-change.ts`'s
+// own header. `onExternalMcpRosterChanged` is exported for the composition roots
+// (`server/runtime/composition/app.ts`, `server/inbound/assistant/agent-daemon-server.ts`) that
+// register a runtime's reload under a key; `resetExternalMcpRosterChangeListenersForTests` is exported
+// for tests that rebuild those roots more than once in the same process.
+export {
+  notifyExternalMcpRosterChanged,
+  onExternalMcpRosterChanged,
+  resetExternalMcpRosterChangeListenersForTests,
+} from "./external-mcp-roster-change.js";
+export type { ExternalMcpRosterChangeListener } from "./external-mcp-roster-change.js";
+
 // ---------------------------------------------------------------------------------------------
 // E2 — AI-Tool Contribution Registry
 //

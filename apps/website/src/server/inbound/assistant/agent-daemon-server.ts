@@ -88,6 +88,7 @@ type OnStartedContext = Parameters<RunStartHandler>[0];
 
 import { attachAssistantToolExtensions, type AssistantToolExtensions } from "#src/assistant/installed-extension-tools";
 import { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
+import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
@@ -1333,7 +1334,14 @@ async function start(): Promise<void> {
   registerToolCatalogRoutes(app, { catalog: liveToolCatalog.query }, adapter);
 
   registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });
-  // S6: register the roster-change notifier key "agent-daemon-local" here once that notifier lands.
+  // S6 (2026-09-24): this daemon PROCESS also reacts directly to a roster change, not only over its
+  // own `/api/federation/reload` HTTP route above — a same-process caller (none exists yet, but the
+  // key is registered here rather than left for the next one to discover this gap) can go through
+  // `notifyExternalMcpRosterChanged()` instead of a loopback HTTP round trip. Keyed
+  // `"agent-daemon-local"`, distinct from the web root's `"agent-daemon"` key
+  // (`server/runtime/composition/app.ts`), which reaches this SAME `extensions.federation.reload()`
+  // but from the other process, over HTTP — see `external-mcp-roster-change.ts`'s own header.
+  onExternalMcpRosterChanged("agent-daemon-local", () => extensions.federation.reload());
 
   // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
   // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from

@@ -1,11 +1,10 @@
 import type { Express } from "express";
 
-import { ExternalMcpValidationError } from "#src/assistant/index";
+import { ExternalMcpValidationError, notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { ExternalMcpOAuthService } from "#src/assistant/index";
 import { isOAuthError } from "#src/platform/oauth/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { triggerFederationReload } from "#src/server/runtime/composition/modules/assistant-daemon-client";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
 
@@ -42,14 +41,14 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
  * `OAuthError.providerErrorCode`. The browser gets one of a small, fixed set of Tovu-authored reasons
  * (`OAuthCallbackFailureReason`), never a word of what the provider actually said.
  *
- * ## Federation hot-reload trigger (2026-09-11)
+ * ## Federation hot-reload trigger (2026-09-11; fanned out to every runtime 2026-09-24)
  *
  * This is the PRIMARY operator-authorized event federation hot-reload fires on: once
- * `completeAuthorizationCallback` durably persists a completed sign-in, `triggerFederationReload`
- * tells the agent daemon to admit it without a restart — see `assistant-daemon-client.ts`'s own doc
- * for the cross-process call and `mcp-federation/reload.ts` for why this is safe to call for ANY
- * completed OAuth connection, not only a first-time one (an already-admitted connectionId is a no-op
- * on the daemon side, never a re-admission).
+ * `completeAuthorizationCallback` durably persists a completed sign-in, `notifyExternalMcpRosterChanged`
+ * tells every registered federation runtime (the agent daemon, over HTTP; BYOK, in-process) to admit it
+ * without a restart — see `external-mcp-roster-change.ts`'s own doc for the fan-out and
+ * `mcp-federation/reload.ts` for why this is safe to call for ANY completed OAuth connection, not only
+ * a first-time one (an already-admitted connectionId is a no-op, never a re-admission).
  *
  * Why THIS route is the right trigger, rather than `external-mcp-oauth.ts`'s
  * `completeAuthorizationCallback` itself: that file is the OAuth service shared by both this public
@@ -145,13 +144,13 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
       // and reporting success over a write still in flight would report a connection that is one
       // restart from vanishing.
       //
-      // Awaited (bounded to 5s — see `triggerFederationReload`'s own timeout), but its OUTCOME never
-      // changes this response: the OAuth connection above already succeeded and is durable regardless
-      // of whether the daemon is reachable or its reload pass admits the connection cleanly. Awaiting
-      // rather than firing-and-forgetting is what lets the operator return to the chat and find the
-      // tool already usable in the common case, instead of only on their NEXT turn — see this file's
-      // own header for the full trigger argument.
-      await triggerFederationReload();
+      // Awaited (bounded to 5s — see `notifyExternalMcpRosterChanged`'s own `waitMs` default), but its
+      // OUTCOME never changes this response: the OAuth connection above already succeeded and is
+      // durable regardless of whether any registered runtime is reachable or its reload pass admits
+      // the connection cleanly. Awaiting rather than firing-and-forgetting is what lets the operator
+      // return to the chat and find the tool already usable in the common case, instead of only on
+      // their NEXT turn — see this file's own header for the full trigger argument.
+      await notifyExternalMcpRosterChanged();
       res.status(200).type("html").send(renderOAuthCallbackPage({ ok: true, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
     } catch (error) {
       // eslint-disable-next-line no-console

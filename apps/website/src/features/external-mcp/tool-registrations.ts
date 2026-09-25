@@ -36,6 +36,7 @@ import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
   listExternalMcpServerViews,
+  notifyExternalMcpRosterChanged,
   readEnabledExternalMcpConfigs,
   saveExternalMcpServer,
   type SaveExternalMcpOAuthInput,
@@ -387,6 +388,10 @@ async function handleExternalMcpSaveAnswer(
       },
       saveInput,
     );
+    // Same roster-change fan-out `put.ts`/`oauth-callback.ts` fire on their own save/connect success —
+    // see `external-mcp-roster-change.ts`'s own header. Fire-and-forget: this chat-surface save
+    // already succeeded and is durable regardless of whether any registered runtime reloads cleanly.
+    void notifyExternalMcpRosterChanged();
     return { saved: true, server };
   } catch (err) {
     if (err instanceof ExternalMcpValidationError) {
@@ -549,7 +554,11 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
         );
       }
 
-      return routeDeps.externalMcpOAuth.pollDeviceAuthorization({ serverId: id });
+      const result = await routeDeps.externalMcpOAuth.pollDeviceAuthorization({ serverId: id });
+      // Same roster-change fan-out as a completed browser OAuth callback — a device-flow connection
+      // becomes usable at exactly this "connected" transition, not at every "pending" poll in between.
+      if (result.status === "connected") void notifyExternalMcpRosterChanged();
+      return result;
     },
   };
 
