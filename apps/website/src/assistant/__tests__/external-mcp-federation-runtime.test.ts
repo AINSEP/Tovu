@@ -361,3 +361,41 @@ test("a reload's own connect failure is merged onto connectFailures() even thoug
   assert.deepEqual(result.connectFailures, [{ connectionId: "y", reason: "boom" }]);
   assert.deepEqual(runtime.connectFailures(), [{ connectionId: "y", reason: "boom" }], "the reload's own connect failure must be merged onto the live accessor");
 });
+
+test("a connection that failed at boot and then admits on a reload is no longer listed in connectFailures()", async () => {
+  const failIds = new Set(["y"]);
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [connection("y")],
+    log: "[test]",
+    attach: attachFailing(failIds),
+  });
+
+  await runtime.start();
+  assert.deepEqual(runtime.connectFailures(), [{ connectionId: "y", reason: "boom" }]);
+
+  failIds.delete("y");
+  const result = await runtime.reload();
+
+  assert.deepEqual(result.newlyAdmittedConnectionIds, ["y"]);
+  // A stale entry would put "y" in BOTH `connections` and `configFailures` on the admissions wire
+  // (documented as disjoint), and let the BYOK diagnosis blame a connect failure that no longer holds.
+  assert.deepEqual(runtime.connectFailures(), [], "an admitted connection must not keep its old connect failure");
+});
+
+test("a connection that fails again on every reload is listed once, with its latest reason", async () => {
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [connection("y")],
+    log: "[test]",
+    attach: attachFailing(new Set(["y"])),
+  });
+
+  await runtime.start();
+  await runtime.reload();
+  await runtime.reload();
+
+  assert.deepEqual(runtime.connectFailures(), [{ connectionId: "y", reason: "boom" }], "repeated failures must replace, not accumulate");
+});

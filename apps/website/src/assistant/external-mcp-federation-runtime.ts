@@ -163,10 +163,16 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
     const result = await coordinator.reload();
     // A reload's own connect failures are merged unconditionally, even when nothing was newly
     // admitted — a reload that only ever fails a connection must still make that failure visible,
-    // not just a reload that also happened to admit something else alongside it. Does not touch
+    // not just a reload that also happened to admit something else alongside it. Every connection
+    // this pass attempted (admitted or failed) first drops its older entry: a now-admitted one must
+    // leave the list (the admissions wire documents `connections`/`configFailures` as disjoint), and
+    // a repeat failure replaces rather than piling up one entry per reload. Does not touch
     // `cachedPrefix`: `buildFederatedRefusalPrefix` is a pure function of `mergedReports` alone, and
     // a connect failure never produces a report entry to feed it.
-    if (result.connectFailures.length > 0) mergedConnectFailures = [...mergedConnectFailures, ...result.connectFailures];
+    const attemptedIds = new Set([...result.newlyAdmittedConnectionIds, ...result.connectFailures.map((entry) => entry.connectionId)]);
+    if (attemptedIds.size > 0) {
+      mergedConnectFailures = [...mergedConnectFailures.filter((entry) => !attemptedIds.has(entry.connectionId)), ...result.connectFailures];
+    }
     if (result.newlyAdmittedConnectionIds.length === 0) return result;
 
     mergedReports = [...mergedReports, ...result.reports];
