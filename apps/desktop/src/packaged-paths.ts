@@ -22,6 +22,10 @@ interface DesktopRoots {
   siteScanRoots: string[];
   defaultCliMode: "source" | "compiled";
   userDataDir: string;
+  /** The bundled npm package's root — `bin/npx-cli.js` and `bin/npm-cli.js` live under it. Read by
+   *  `node-toolchain.ts`'s toolchain writer, never by this module (see plan
+   *  `plan-desktop-bundled-npx-2026-09-24.md` §2, §6 S3). */
+  npmRoot: string;
 }
 
 /**
@@ -86,6 +90,9 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
       // `npm run build`, which is why source mode exists at all (see `resolveDevCliEntry`).
       defaultCliMode: "source",
       userDataDir: path.join(input.appDataDir, DESKTOP_APP_NAME),
+      // Scoped to `apps/desktop`'s own devDependency, not the workspace root's `node_modules` —
+      // a root `npm install` would unlink the local Jini link, so npm is installed here instead.
+      npmRoot: path.join(input.repoRoot, "apps", "desktop", "node_modules", "npm"),
     };
   }
 
@@ -106,6 +113,10 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
     // removes this app's last dependency on a system Node being installed.
     defaultCliMode: "compiled",
     userDataDir: path.join(input.appDataDir, PACKAGED_APP_DATA_NAME),
+    // Staged next to `tovu/`, not inside it: `stage-desktop-payload.mjs`'s tree mirrors the
+    // checkout's repo-relative shape, which has no `node_modules/npm` of its own to preserve — npm
+    // is staged as a sibling resource instead (plan §5, S5's staging guard).
+    npmRoot: path.join(input.resourcesPath, "npm"),
   };
 }
 

@@ -85,3 +85,13 @@ test("resolveDesktopRoots reads no ambient state — same inputs, same answer", 
   assert.deepEqual(packagedRoots(), packagedRoots());
   assert.deepEqual(devRoots(), devRoots());
 });
+
+test("dev mode finds the bundled npm devDependency inside this app's own node_modules", () => {
+  // Not the workspace root's node_modules: the design (plan-desktop-bundled-npx-2026-09-24.md §6
+  // S3) scopes npm to apps/desktop precisely so a root install can never unlink the local Jini.
+  assert.equal(devRoots().npmRoot, path.join(REPO_ROOT, "apps", "desktop", "node_modules", "npm"));
+});
+
+test("a packaged app finds npm staged next to the payload, not inside node_modules", () => {
+  assert.equal(packagedRoots().npmRoot, path.join(RESOURCES, "npm"));
+});

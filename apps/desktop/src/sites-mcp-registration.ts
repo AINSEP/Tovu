@@ -535,6 +535,7 @@ export {
   SITES_MCP_LABEL,
   SITES_MCP_LAUNCHER_NAME,
   SITES_MCP_SERVER_ID,
+  assertShellQuotable,
   buildSitesMcpLauncherScript,
   buildSitesMcpRegistration,
   readSitesMcpEnabled,
