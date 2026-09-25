@@ -80,6 +80,8 @@ interface Harness {
   readonly baseUrl: string;
   readonly authorizeCalls: { principalId?: unknown; permission?: unknown; workspaceId?: unknown }[];
   readonly storeCalls: string[];
+  /** Every scope the route opened the store with — S1 (fix plan 2026-09-24 row 14) pins `actorId`. */
+  readonly storeScopes: { workspaceId: string; postId: string; actorId?: string }[];
 }
 
 /**
@@ -89,6 +91,7 @@ interface Harness {
 async function harness(t: { after: (fn: () => Promise<void>) => void }, options: { allow: boolean }): Promise<Harness> {
   const authorizeCalls: Harness["authorizeCalls"] = [];
   const storeCalls: string[] = [];
+  const storeScopes: Harness["storeScopes"] = [];
 
   const store: PagesHtmlDocumentStorePort = {
     ensureHtmlFormat: async () => {
@@ -109,7 +112,10 @@ async function harness(t: { after: (fn: () => Promise<void>) => void }, options:
       authorizeCalls.push(params);
       return options.allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
-    pagesHtmlStore: () => store,
+    pagesHtmlStore: (scope: Harness["storeScopes"][number]) => {
+      storeScopes.push(scope);
+      return store;
+    },
     postRepo: {
       findById: async () => ({ id: PAGE_ID, kind: "page", bodyFormat: "html", bodyHtml: "<p>stored</p>" }),
     },
@@ -131,7 +137,7 @@ async function harness(t: { after: (fn: () => Promise<void>) => void }, options:
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const { port } = server.address() as AddressInfo;
-  return { baseUrl: `http://127.0.0.1:${port}`, authorizeCalls, storeCalls };
+  return { baseUrl: `http://127.0.0.1:${port}`, authorizeCalls, storeCalls, storeScopes };
 }
 
 function putHtml(baseUrl: string, body: unknown) {
@@ -202,6 +208,17 @@ test("PUT /pages/:id/html still serves an authorized principal, running the full
   // `write()` conditions its compare-and-set on (CIC-1), so a reordering would silently turn the
   // write into an unconditional overwrite.
   assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+});
+
+test("PUT /pages/:id/html opens the store as the authenticated principal, so its post_revisions rows are attributed to them (S1)", async (t) => {
+  const { baseUrl, storeScopes } = await harness(t, { allow: true });
+
+  const response = await putHtml(baseUrl, { html: "<p>legitimate</p>" });
+
+  assert.equal(response.status, 200, await response.clone().text());
+  // Without `actorId` the store falls back to SYSTEM_ACTOR_ID and every human edit made through the
+  // admin editor is ledgered as the system's.
+  assert.deepEqual(storeScopes, [{ workspaceId: WS, postId: PAGE_ID, actorId: PRINCIPAL_ID }]);
 });
 
 // ---------------------------------------------------------------------------
