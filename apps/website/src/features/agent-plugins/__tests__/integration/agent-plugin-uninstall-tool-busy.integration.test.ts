@@ -11,7 +11,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 
 /**
- * @file C2 busy-mapping proof for `agent_plugins_uninstall` (t91 R2, 2026-09-16): when the
+ * @file C2 busy-mapping proof for `plugins_uninstall`'s Agent Plugin family (t91 R2, 2026-09-16): when the
  * cross-process activations.json write lock is busy, the tool must return
  * `{uninstalled:false, reason:"activations-busy", ...}` — the same ADR-055 Decision 6 RESULT shape
  * `plugins_set_enabled` returns for the sibling family, never an opaque thrown error. Mirrors this
@@ -20,6 +20,9 @@ import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exch
  * repo's proven `activation-lock-busy.unit.test.ts` idiom: `mock.module()` is registered, spreading
  * the real module's own exports through it, before `activation.js`/`tool-registrations.js` are ever
  * imported, and each is imported only once, dynamically.
+ *
+ * RETARGETED (S4, 2026-09-24) from the deleted standalone `agent_plugins_uninstall` onto
+ * `plugins_uninstall` with `family: "agent-plugin"`; only the registration, tool id and input changed.
  *
  * The package is confirmed STILL installed afterwards, and `uninstall.ts`'s `restoreStagedTrees`
  * leaves no staged/quarantined leftovers — a busy lock is a refused delete, not a partial one.
@@ -42,14 +45,14 @@ const { installAgentPlugin } = await import("#src/features/agent-plugins/install
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
 const { setAgentPluginActivation } = await import("#src/features/agent-plugins/activation");
 const { forceRemove } = await import("../fixtures/force-remove.js");
-const { buildAgentPluginUninstallRegistrations } = await import("../../tool-registrations.js");
+const { buildPluginsUninstallRegistration } = await import("../fixtures/plugins-uninstall-registration.js");
 const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
 
 type AgentPluginArchiveEntry = Parameters<typeof reader>[0][number];
-type AgentPluginUninstallToolDeps = Parameters<typeof buildAgentPluginUninstallRegistrations>[0];
+type AgentPluginUninstallToolDeps = Parameters<typeof buildPluginsUninstallRegistration>[0];
 
 const WORKSPACE_A = "88888888-8888-4888-8888-888888888888";
-const TOOL_ID = "agent_plugins_uninstall";
+const TOOL_ID = "plugins_uninstall";
 const PRINCIPAL_ID = "principal-1";
 
 function reader(entries: readonly { kind: "file"; entryPath: string; declaredSize: number; executable: boolean; openReadStream(): AsyncGenerator<Uint8Array> }[]) {
@@ -94,12 +97,13 @@ async function installReal(workspaceId: string, pluginId: string, archiveSeed: s
   return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout(), workspaceId });
 }
 
-function fakeCtx(input: unknown, options: { emitSurface?: SurfaceEmitter } = {}): ToolExecutionContext {
+/** Every call picks the Agent Plugin branch of `plugins_uninstall`; `family` is required. */
+function fakeCtx(input: Record<string, unknown>, options: { emitSurface?: SurfaceEmitter } = {}): ToolExecutionContext {
   return {
     executionId: "exec-1",
     principal: { id: PRINCIPAL_ID },
     run: { id: "run-1" },
-    input,
+    input: { family: "agent-plugin", ...input },
     signal: new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
@@ -115,9 +119,7 @@ function fakeDeps(): { deps: AgentPluginUninstallToolDeps } {
 }
 
 function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): ToolRegistration {
-  const [registration] = buildAgentPluginUninstallRegistrations(deps, { surfaceExchanges });
-  assert.ok(registration, "agent_plugins_uninstall must be registered");
-  return registration;
+  return buildPluginsUninstallRegistration(deps, { surfaceExchanges });
 }
 
 function surfaceRecorder() {

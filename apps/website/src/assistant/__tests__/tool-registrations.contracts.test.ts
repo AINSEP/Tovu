@@ -5,7 +5,7 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
-import { agentPluginSearchAgentToolCatalog, agentPluginUninstallAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
+import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
 import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../../features/trash/agent-tools.js";
@@ -230,11 +230,6 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // dynamic `agent_plugin_<pluginId>` tools that same file also registers (those are NOT wired
   // through the tool-contribution registry at all, so they never appear in this map either).
   "agent-plugin-search": agentPluginSearchAgentToolCatalog as unknown as AgentToolDefinition[],
-  // 2026-09-09: `agent-plugin-uninstall` — `agent_plugins_uninstall`, wired via
-  // `contributeAgentPluginUninstallTools()`. See `features/agent-plugins/tool-registrations.ts`'s
-  // own "agent_plugins_uninstall" section header — added at the same time the contributor was,
-  // rather than after this file's completeness test caught it (the `media-generation` drift above).
-  "agent-plugin-uninstall": agentPluginUninstallAgentToolCatalog as unknown as AgentToolDefinition[],
   // Pre-existing gap, unrelated to `agent-plugin-search` — found and fixed opportunistically while
   // adding the entry above. `content-duplication` (`content_duplicate`, 2026-09-07 per
   // `tool-catalog-manifest.ts`'s own header) was already wired in production with no entry here,
@@ -712,40 +707,40 @@ test("assistant_admin_screen_link is wired into the real assistant tool registry
 });
 
 // ---------------------------------------------------------------------------
-// 8. agent_plugins_uninstall wiring (2026-09-09) — present in the REAL ToolRegistry, not merely
-//    compiling. See `features/agent-plugins/tool-registrations.ts`'s own "agent_plugins_uninstall"
-//    section header and `uninstall.ts`'s file header for the domain function this wires.
+// 8. plugins_uninstall's Agent Plugin family wiring — present in the REAL ToolRegistry, not merely
+//    compiling. Retargeted (S4, 2026-09-24) from the deleted standalone `agent_plugins_uninstall`;
+//    the branch now lives in `features/agent-plugins/uninstall-tool.ts`, reached through
+//    `plugins_uninstall` with `family: "agent-plugin"`. See `uninstall.ts`'s file header for the
+//    domain function this wires.
 // ---------------------------------------------------------------------------
 
-test("agent_plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array", async () => {
+test("plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not", async () => {
   const { registry } = await buildRealAssembledSurface();
 
-  // `registry.has()` reflects `.register()` having actually been called for this id —
-  // unreachable if `contributeAgentPluginUninstallTools()` were not installed by
-  // `installFirstPartyToolContributors()`, or if `buildAgentPluginUninstallRegistrations` left the
-  // id out of its returned `ToolRegistration[]` (both real ways this could regress).
-  assert.equal(registry.has("agent_plugins_uninstall"), true);
+  // `registry.has()` reflects `.register()` having actually been called for this id.
+  assert.equal(registry.has("plugins_uninstall"), true);
+  assert.equal(registry.has("agent_plugins_uninstall"), false);
 
-  const registration = wiredRegistration("agent_plugins_uninstall");
+  const registration = wiredRegistration("plugins_uninstall");
   assert.equal(registration.descriptor.readOnly, false, "a delete must never be reported read-only");
 });
 
-test("agent_plugins_uninstall is discoverable through the real search_tools/describe_tool catalog", async () => {
+test("plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog", async () => {
   const { catalog } = await buildRealAssembledSurface();
 
-  const described = catalog.describe("agent_plugins_uninstall");
-  assert.ok(described, "agent_plugins_uninstall must be describable — search_tools/describe_tool is how a spawned CLI or a BYOK turn actually finds a tool id");
-  assert.match(described!.description, /PERMANENTLY removes an installed Agent Plugin/);
+  const described = catalog.describe("plugins_uninstall");
+  assert.ok(described, "plugins_uninstall must be describable — search_tools/describe_tool is how a spawned CLI or a BYOK turn actually finds a tool id");
+  assert.match(described!.description, /PERMANENTLY removes the Agent Plugin/);
 
   const hits = catalog.search("uninstall an agent plugin", 25);
-  assert.ok(hits.some((hit) => hit.id === "agent_plugins_uninstall"), `expected agent_plugins_uninstall among search hits: ${JSON.stringify(hits.map((h) => h.id))}`);
+  assert.ok(hits.some((hit) => hit.id === "plugins_uninstall"), `expected plugins_uninstall among search hits: ${JSON.stringify(hits.map((h) => h.id))}`);
 });
 
-test("agent_plugins_uninstall actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash", async () => {
+test("plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash", async () => {
   const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
   const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
 
-  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "agent_plugins_uninstall", { pluginId: "definitely-not-installed" });
+  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "plugins_uninstall", { family: "agent-plugin", pluginId: "definitely-not-installed" });
 
   assert.equal(result.status, "failed", `expected a real failed execution for an unknown id, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /not installed/);

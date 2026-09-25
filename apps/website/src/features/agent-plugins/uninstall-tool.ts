@@ -226,7 +226,7 @@ async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequir
         reason: "changed-since-confirmation",
         note:
           `'${request.pluginId}' changed after the user was asked: the installed archives are no longer the ones the confirmation showed. ` +
-          "Nothing was removed. Call plugins_uninstall again so the user can review and confirm what is installed now.",
+          "Nothing was removed. Call plugins_uninstall again with family 'agent-plugin' so the user can review and confirm what is installed now.",
       };
     }
     return uninstallRefusedResult(request.pluginId, error);

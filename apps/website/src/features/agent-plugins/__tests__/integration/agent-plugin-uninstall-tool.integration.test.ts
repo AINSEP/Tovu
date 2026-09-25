@@ -15,14 +15,12 @@ import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentP
 import { forceRemove } from "../fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import {
-  agentPluginUninstallAgentToolCatalog,
-  buildAgentPluginUninstallRegistrations,
-  type AgentPluginUninstallToolDeps,
-} from "../../tool-registrations.js";
+import { pluginAgentToolCatalog } from "#src/features/plugin-runtime/agent-tools";
+import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
+import { buildPluginsUninstallRegistration } from "../fixtures/plugins-uninstall-registration.js";
 
 /**
- * @file `agent_plugins_uninstall`'s tool-boundary behavior: authorization, the held-open human
+ * @file `plugins_uninstall`'s Agent Plugin family (`family: "agent-plugin"`) tool-boundary behavior: authorization, the held-open human
  * confirmation every delete sibling uses (`content_post_delete`, `media_trash_asset`), `ToolInputError`
  * re-classification of `uninstall.ts`'s own domain errors, and the actual on-disk effect — against
  * real installs through the production `installAgentPlugin` pipeline, the same idiom
@@ -30,10 +28,14 @@ import {
  * `__tests__/unit/uninstall.unit.test.ts`, which proves the domain function itself; this file proves
  * the SEAM around it. The route-level proof that a real Confirm/Cancel click is admitted lives in
  * `assistant/__tests__/mcp-ui-tool-calls-route.agent-plugins-uninstall.integration.test.ts`.
+ *
+ * RETARGETED (S4, 2026-09-24): this file used to prove the deleted standalone `agent_plugins_uninstall`
+ * tool. Its handler moved to `uninstall-tool.ts` and is reached through `plugins_uninstall` with
+ * `family: "agent-plugin"`, so the registration, the tool id and every input changed; the asserts moved.
  */
 
 const WORKSPACE_A = "77777777-7777-4777-8777-777777777777";
-const TOOL_ID = "agent_plugins_uninstall";
+const TOOL_ID = "plugins_uninstall";
 const PRINCIPAL_ID = "principal-1";
 
 function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
@@ -78,12 +80,13 @@ async function installReal(workspaceId: string, pluginId: string, archiveSeed: s
   return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout(), workspaceId });
 }
 
-function fakeCtx(input: unknown, options: { emitSurface?: SurfaceEmitter; signal?: AbortSignal } = {}): ToolExecutionContext {
+/** Every call picks the Agent Plugin branch of `plugins_uninstall`; `family` is required. */
+function fakeCtx(input: Record<string, unknown>, options: { emitSurface?: SurfaceEmitter; signal?: AbortSignal } = {}): ToolExecutionContext {
   return {
     executionId: "exec-1",
     principal: { id: PRINCIPAL_ID },
     run: { id: "run-1" },
-    input,
+    input: { family: "agent-plugin", ...input },
     signal: options.signal ?? new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
@@ -105,9 +108,7 @@ function fakeDeps(options: { allow?: boolean } = {}): { deps: AgentPluginUninsta
 }
 
 function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): ToolRegistration {
-  const [registration] = buildAgentPluginUninstallRegistrations(deps, { surfaceExchanges });
-  assert.ok(registration, "agent_plugins_uninstall must be registered");
-  return registration;
+  return buildPluginsUninstallRegistration(deps, { surfaceExchanges });
 }
 
 /** Records every surface the handler emits. `first` resolves on the first one — the handler reads
@@ -178,9 +179,8 @@ interface UninstallToolOutput {
   readonly note: string;
 }
 
-test("the catalog carries exactly one tool, agent_plugins_uninstall, requiring 'pluginId', classified deletes-durable-state, and says it asks the human", () => {
-  assert.equal(agentPluginUninstallAgentToolCatalog.length, 1);
-  const [entry] = agentPluginUninstallAgentToolCatalog;
+test("the catalog's plugins_uninstall entry requires 'family' and 'pluginId', is classified deletes-durable-state, and says it asks the human", () => {
+  const entry = pluginAgentToolCatalog.find((candidate) => candidate.name === TOOL_ID);
   assert.ok(entry);
   assert.equal(entry.name, TOOL_ID);
   assert.equal(entry.sideEffects, "deletes-durable-state");
@@ -189,7 +189,7 @@ test("the catalog carries exactly one tool, agent_plugins_uninstall, requiring '
   assert.match(entry.description, /ASKS THE HUMAN FIRST/);
   assert.doesNotMatch(entry.description, /does not raise its own confirmation dialog/);
   const schema = entry.inputSchema as { required: readonly string[] };
-  assert.deepEqual(schema.required, ["pluginId"]);
+  assert.deepEqual([...schema.required].sort(), ["family", "pluginId"]);
 });
 
 test("checks admin.plugins.enable for this run's principal, scoped to this workspace", async () => {
@@ -254,7 +254,7 @@ test("a bundled plugin is refused as ToolInputError before any dialog, naming pl
   });
 });
 
-/** The path-free result `agent_plugins_uninstall` returns when this workspace's activations.json cannot be read. */
+/** The path-free result `plugins_uninstall` (family agent-plugin) returns when this workspace's activations.json cannot be read. */
 function activationsUnreadableOutput(pluginId: string): UninstallToolOutput {
   return {
     uninstalled: false,
@@ -279,16 +279,14 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
     t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
 
     const registry = createToolRegistry();
-    for (const registration of buildAgentPluginUninstallRegistrations(fakeDeps().deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
-      registry.register(registration);
-    }
+    registry.register(buildPluginsUninstallRegistration(fakeDeps().deps, { surfaceExchanges: createSurfaceExchangeStore() }));
     const toolExecutor = createToolExecutor({ registry });
     const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
     const { run } = await lifecycle.start({ contextRef: "ctx-1" });
     const internalErrors: unknown[] = [];
 
     const wire = await delegatedToolExecuteRoute.handle(
-      { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: { pluginId: "operator-plugin" } },
+      { runId: run.id, toolUseId: "tu-1", toolId: TOOL_ID, input: { family: "agent-plugin", pluginId: "operator-plugin" } },
       { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }), onInternalError: (context) => internalErrors.push(context) },
     );
 
@@ -298,7 +296,7 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
     assert.equal(JSON.stringify(wire).includes(dir), false, "no host path may reach the model");
     assert.deepEqual(internalErrors, []);
     assert.equal(warnings.length, 1);
-    assert.match(warnings[0] ?? "", /\[agent-plugins\] 'operator-plugin': agent_plugins_uninstall refused — agent-plugin activation: activations\.json is not valid JSON/);
+    assert.match(warnings[0] ?? "", /\[agent-plugins\] 'operator-plugin': plugins_uninstall \(family agent-plugin\) refused — agent-plugin activation: activations\.json is not valid JSON/);
     assert.ok((warnings[0] ?? "").includes(activationsPath), "the server log must name the file");
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
     assert.equal(await readFile(activationsPath, "utf8"), "{ not json");
@@ -351,7 +349,7 @@ test("FAILS CLOSED: with no interactive confirmation channel (no emitSurface) no
   });
 });
 
-test("the dialog names the plugin and its version, targets agent_plugins_uninstall, and carries no host path", async () => {
+test("the dialog names the plugin and its version, targets plugins_uninstall, and carries no host path", async () => {
   await withAgentPluginsDir(async (dir) => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-dialog-content");
     const { deps } = fakeDeps();
@@ -362,7 +360,8 @@ test("the dialog names the plugin and its version, targets agent_plugins_uninsta
     const html = surfaceHtml(surface);
     assert.match(html, /operator-plugin/);
     assert.match(html, /1\.0\.0/);
-    assert.match(html, /agent_plugins_uninstall/);
+    assert.match(html, /plugins_uninstall/);
+    assert.doesNotMatch(html, /agent_plugins_uninstall/);
     assert.equal(html.includes(installed.packageRoot), false, "the package root is a host path");
     assert.equal(html.includes(dir), false, "the agent-plugins directory is a host path");
   });
@@ -463,7 +462,7 @@ test("an archive installed for the same id while the dialog is open: confirm rem
       reason: "changed-since-confirmation",
       note:
         "'operator-plugin' changed after the user was asked: the installed archives are no longer the ones the confirmation showed. " +
-        "Nothing was removed. Call agent_plugins_uninstall again so the user can review and confirm what is installed now.",
+        "Nothing was removed. Call plugins_uninstall again with family 'agent-plugin' so the user can review and confirm what is installed now.",
     });
     assert.equal((await stat(first.packageRoot)).isDirectory(), true);
     assert.equal((await stat(second.packageRoot)).isDirectory(), true);
