@@ -1232,12 +1232,18 @@ pre .code-copy-btn.copied .icon-check { display: block; }
    recursively (`.mnav-list .mnav-list`), never per depth, so any menu depth renders.
    --------------------------------------------------------------------------- */
 
+/* Theme toggle stays visible in the top bar at every width, including compact/mobile — the
+   owner wants it reachable without opening the drawer. Only `.main-nav` (the link row) and
+   the desktop-only absence of the hamburger collapse here; `.nav-actions .theme-toggle` is
+   deliberately NOT touched by either compact rule below. The drawer keeps its own copy
+   (`.mnav-foot .theme-toggle`) for when the drawer itself is open, but the two are never
+   visible at once: the drawer is a modal `<dialog>` whose native `::backdrop` covers the
+   full viewport, so opening it obscures the top-bar control behind it. */
 @media (max-width: 900px) {
-  .main-nav, .nav-actions .theme-toggle { display: none; }
+  .main-nav { display: none; }
   .nav-actions .nav-toggle { display: inline-flex; }
 }
-.site-header.nav-compact .main-nav,
-.site-header.nav-compact .nav-actions .theme-toggle { display: none; }
+.site-header.nav-compact .main-nav { display: none; }
 .site-header.nav-compact .nav-actions .nav-toggle { display: inline-flex; }
 .nav-actions .nav-toggle { width: 38px; padding: 0; justify-content: center; }
 
