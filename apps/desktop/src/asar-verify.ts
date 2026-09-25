@@ -43,7 +43,7 @@
  * riskier than the gap. Add `"@electron/asar": "^3.4.1"` to `devDependencies` and run
  * `npm install --prefix apps/desktop` once the tree is quiet.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { extractFile, getRawHeader } from "@electron/asar";
 
@@ -245,6 +245,28 @@ export function isEmptyVerification(checkedCount: number): boolean {
  */
 export function toArchiveEntryPath(relPath: string, sep: string = path.sep): string {
   return sep === "/" ? relPath : relPath.split("/").join(sep);
+}
+
+/**
+ * The bundled npm's missing load-bearing files across `resourcesDirs`, as report lines — checked on
+ * disk, not in the asar, because `extraResources` ships `Resources/npm/` as real files outside it
+ * (`plan-desktop-bundled-npx-2026-09-24.md` §5, §6 S5). `bin/npx-cli.js` proves npm staged;
+ * `node_modules/@npmcli/arborist/package.json` proves the SEPARATE `staging/npm/node_modules`
+ * `extraResources` entry ran, which electron-builder's copy filter silently drops otherwise.
+ *
+ * An empty `resourcesDirs` is itself a failure: checking nothing must never read as a clean pass,
+ * the same rule {@link isEmptyVerification} applies to the asar comparison.
+ *
+ * @returns one line per missing file, or `[]` when every dir has both.
+ * @complexity O(n) in `resourcesDirs.length`.
+ */
+export function bundledNpmFailures(resourcesDirs: string[]): string[] {
+  if (resourcesDirs.length === 0) return ["no packaged resources directory was found to check for the bundled npm"];
+  return resourcesDirs.flatMap((dir) =>
+    [path.join(dir, "npm", "bin", "npx-cli.js"), path.join(dir, "npm", "node_modules", "@npmcli", "arborist", "package.json")]
+      .filter((file) => !existsSync(file))
+      .map((file) => `${file} (under ${dir})`),
+  );
 }
 
 export type { AsarHeaderNode, AsarMismatch, AsarVerification };

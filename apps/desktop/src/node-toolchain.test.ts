@@ -79,6 +79,12 @@ test("writeNodeToolchain writes exactly the three POSIX shims, mode 0o700, with 
     const mode = fs.statSync(path.join(paths.binDir, name)).mode & 0o777;
     assert.equal(mode, 0o700, `${name} mode`);
   }
+  // The dir holding them is prepended to every child's PATH, so only the owner may add to it —
+  // including when it already existed with a looser mode from an earlier launch.
+  assert.equal(fs.statSync(paths.binDir).mode & 0o777, 0o700, "bin dir mode");
+  fs.chmodSync(paths.binDir, 0o777);
+  writeNodeToolchain({ userDataDir, electronPath: ELECTRON, npmRoot: NPM_ROOT, platform: "darwin" });
+  assert.equal(fs.statSync(paths.binDir).mode & 0o777, 0o700, "bin dir mode after a rewrite");
   assert.ok(fs.statSync(paths.npmCacheDir).isDirectory());
   assert.ok(fs.statSync(paths.npmPrefixDir).isDirectory());
 });

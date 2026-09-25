@@ -17,6 +17,7 @@ import {
   VERIFIED_PREFIXES,
   filesUnderPrefixes,
   formatMismatchReport,
+  bundledNpmFailures,
   isEmptyVerification,
   toArchiveEntryPath,
   verifyAsarAgainstSource,
@@ -323,4 +324,30 @@ test("toArchiveEntryPath defaults to the real host path.sep when none is passed"
   // On this test's host (macOS/Linux CI), path.sep is "/", so the default call must equal the
   // explicit POSIX case above — pins the default without hard-coding which OS the suite runs on.
   assert.equal(toArchiveEntryPath("src/a.js"), path.sep === "/" ? "src/a.js" : "src\\a.js");
+});
+
+// --- bundledNpmFailures: the bundled npm must be present in every resources dir -----------------
+
+test("bundledNpmFailures: no resources dir to check is a failure, never a vacuous pass", () => {
+  assert.deepEqual(bundledNpmFailures([]), ["no packaged resources directory was found to check for the bundled npm"]);
+});
+
+test("bundledNpmFailures: passes when npx-cli.js and npm's own node_modules are both present, names each one missing otherwise", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "bundled-npm-verify-"));
+  try {
+    const complete = path.join(root, "complete");
+    const noDeps = path.join(root, "no-deps");
+    for (const dir of [complete, noDeps]) {
+      mkdirSync(path.join(dir, "npm", "bin"), { recursive: true });
+      writeFileSync(path.join(dir, "npm", "bin", "npx-cli.js"), "");
+    }
+    mkdirSync(path.join(complete, "npm", "node_modules", "@npmcli", "arborist"), { recursive: true });
+    writeFileSync(path.join(complete, "npm", "node_modules", "@npmcli", "arborist", "package.json"), "{}");
+
+    assert.deepEqual(bundledNpmFailures([complete]), []);
+    const arborist = path.join(noDeps, "npm", "node_modules", "@npmcli", "arborist", "package.json");
+    assert.deepEqual(bundledNpmFailures([complete, noDeps]), [`${arborist} (under ${noDeps})`]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

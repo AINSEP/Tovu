@@ -134,7 +134,10 @@ function writeNodeToolchain({ userDataDir, electronPath, npmRoot, platform = pro
   const npmCacheDir = path.join(toolchainDir, "npm-cache");
   const npmPrefixDir = path.join(toolchainDir, "npm-prefix");
 
-  fs.mkdirSync(binDir, { recursive: true });
+  // `bin/` goes first on every stdio child's PATH, so only the owner may write into it; chmod too,
+  // since `mkdirSync` leaves an existing dir's mode alone and applies the umask to a new one.
+  fs.mkdirSync(binDir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(binDir, 0o700);
   fs.mkdirSync(npmCacheDir, { recursive: true });
   fs.mkdirSync(npmPrefixDir, { recursive: true });
 

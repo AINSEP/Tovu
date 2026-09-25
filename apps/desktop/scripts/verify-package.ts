@@ -28,7 +28,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { VERIFIED_PREFIXES, formatMismatchReport, isEmptyVerification, verifyAsarAgainstSource } from "../src/asar-verify.ts";
+import { VERIFIED_PREFIXES, bundledNpmFailures, formatMismatchReport, isEmptyVerification, verifyAsarAgainstSource } from "../src/asar-verify.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -66,24 +66,6 @@ function findResourcesDirs(): string[] {
   const winUnpackedResources = path.join(releaseDir, "win-unpacked", "resources");
   if (existsSync(winUnpackedResources)) dirs.push(winUnpackedResources);
   return dirs;
-}
-
-/**
- * The bundled npm package's two load-bearing files, checked directly on disk (not through the
- * asar) because `extraResources` ships `Contents/Resources/npm/` as real files OUTSIDE
- * `app.asar` — see `plan-desktop-bundled-npx-2026-09-24.md` §5, §6 S5. `bin/npx-cli.js` proves npm
- * itself staged; `node_modules/@npmcli/arborist/package.json` proves the SEPARATE
- * `staging/npm/node_modules -> npm/node_modules` `extraResources` entry actually ran — the exact
- * thing electron-builder's copy filter silently drops when that entry is missing
- * (`electron-builder-files.test.ts`'s node_modules tests document the same filter).
- *
- * @returns the missing paths, or an empty array when both are present.
- * @complexity O(1).
- */
-function missingBundledNpmFiles(resourcesDir: string): string[] {
-  return [path.join(resourcesDir, "npm", "bin", "npx-cli.js"), path.join(resourcesDir, "npm", "node_modules", "@npmcli", "arborist", "package.json")].filter(
-    (file) => !existsSync(file)
-  );
 }
 
 /**
@@ -154,8 +136,10 @@ function main(): void {
     return;
   }
 
-  const resourcesDirs = findResourcesDirs();
-  const npmFailures = resourcesDirs.flatMap((dir) => missingBundledNpmFiles(dir).map((file) => `${file} (under ${dir})`));
+  // The verified asar's own resources dir always counts, so an explicit `--asar` outside
+  // `release/` is checked too rather than passing with zero dirs.
+  const resourcesDirs = [...new Set([path.dirname(asarPath), ...findResourcesDirs()])];
+  const npmFailures = bundledNpmFailures(resourcesDirs);
   if (npmFailures.length > 0) {
     process.stderr.write(
       `verify-package: bundled npm is missing from the packaged app:\n  ${npmFailures.join("\n  ")}\n` +
