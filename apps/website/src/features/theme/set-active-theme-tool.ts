@@ -76,7 +76,10 @@ const SET_ACTIVE_THEME_CATALOG: WirableToolDefinition = {
   },
 };
 
-const CATALOG_BY_ID = indexCatalogById([SET_ACTIVE_THEME_CATALOG]);
+/** This domain's full catalog — read by `tool-registrations.contracts.test.ts`'s `CATALOGS_BY_DOMAIN`. */
+export const setActiveThemeAgentToolCatalog: WirableToolDefinition[] = [SET_ACTIVE_THEME_CATALOG];
+
+const CATALOG_BY_ID = indexCatalogById(setActiveThemeAgentToolCatalog);
 
 /** This wiring layer's own risk classification — `setActiveTheme` writes
  *  `presentation_settings.active_theme_id`, a real, disk-affecting durable-state mutation. */

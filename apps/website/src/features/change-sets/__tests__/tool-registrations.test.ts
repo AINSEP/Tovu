@@ -169,3 +169,22 @@ test("change_sets_revert: the contributor registers under its own domain key", (
   const domains = listToolContributors().map((c) => c.domain);
   assert.ok(domains.includes("change-sets"));
 });
+
+test("change_sets_list: newest first, 20 by default, and never more than 100 however large the limit", async () => {
+  const { deps, changeSets } = fakeRouteDeps();
+  // Inserted oldest first, so a list that trusted insertion order would come back reversed.
+  for (let i = 0; i < 105; i++) {
+    const createdAt = new Date(Date.UTC(2026, 8, 24, 0, 0, i)).toISOString();
+    await changeSets.insert(
+      { id: `cs-${i}`, workspaceId: WORKSPACE_ID, status: "applied", summary: `change ${i}`, createdAt } as never,
+      [],
+    );
+  }
+
+  const byDefault = (await wired("change_sets_list", deps).handler(executionContext({}))) as { changeSets: { id: string }[] };
+  assert.equal(byDefault.changeSets.length, 20);
+  assert.equal(byDefault.changeSets[0]?.id, "cs-104");
+
+  const huge = (await wired("change_sets_list", deps).handler(executionContext({ limit: 500 }))) as { changeSets: unknown[] };
+  assert.equal(huge.changeSets.length, 100);
+});

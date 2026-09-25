@@ -148,3 +148,17 @@ test("theme_set_active: refuses a principal without theme.set, without writing",
   await assert.rejects(() => handler(ctxFor({ themeId: "aurora" })));
   assert.equal(await resolveActiveThemeId(routeDeps), "basic", "a refused call must not have written");
 });
+
+test("theme_set_active: checks exactly the theme.set permission", async () => {
+  const asked: string[] = [];
+  const routeDeps: SetActiveThemeToolDeps = {
+    ...fakeDeps(),
+    authorize: async (request) => {
+      asked.push((request as { permission: string }).permission);
+      return { allowed: true, reason: "matched" };
+    },
+  };
+
+  await handlerFor(routeDeps)(ctxFor({ themeId: "aurora" }));
+  assert.deepEqual(asked, ["theme.set"]);
+});
