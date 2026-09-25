@@ -335,6 +335,40 @@ async function resolveSkillsForPlugin(plugin: {
   return skills;
 }
 
+/**
+ * Same per-skill work as {@link resolveSkillsForPlugin}, but tolerant of ONE skill's own read
+ * failure — used only by the search loader below ({@link loadAgentPluginSearchCandidates}), which
+ * must keep the plugin, and its OTHER skills, discoverable rather than losing the whole entry (and
+ * every other installed plugin behind it in the same call, since one unhandled rejection here would
+ * fail the entire `loadAgentPluginSearchCandidates` promise) to one skill file that is present in
+ * the fresh directory walk but no longer actually readable (a permissions problem, disk corruption).
+ * Logged and skipped, never fabricated.
+ *
+ * The dynamic-tool loader ({@link loadInstalledAgentPluginToolSources}) deliberately keeps
+ * `resolveSkillsForPlugin`'s stricter, plugin-wide failure instead: a tool whose catalog description
+ * silently dropped one of its skills is a worse failure mode there than refusing the whole plugin's
+ * tool, so that loader's own per-plugin `catch` (below) is intentionally left alone.
+ */
+async function resolveSkillsForSearchTolerant(plugin: {
+  readonly pluginId: string;
+  readonly packageRoot: string;
+  readonly skills: readonly { readonly name: string; readonly skillPath: string }[];
+}): Promise<AgentPluginSkillDetail[]> {
+  const skills: AgentPluginSkillDetail[] = [];
+  for (const skill of plugin.skills) {
+    try {
+      const markdown = await readInstalledSkillMarkdown(plugin.packageRoot, skill.skillPath);
+      skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown });
+    } catch (error) {
+      console.warn(
+        `[agent-plugins] '${plugin.pluginId}': skill '${skill.name}' could not be read ` +
+          `(${error instanceof Error ? error.message : String(error)}) — skipped from search`,
+      );
+    }
+  }
+  return skills;
+}
+
 /** Which skill a no-argument (or unrecognized-argument) call to this plugin's tool returns —
  *  the plugin's own eponymous skill when one exists, otherwise its alphabetically-first skill (see
  *  this file's header, "The optional `skill` argument"). A pure defaulting decision, isolated from
@@ -942,18 +976,28 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
     if (seenPluginIds.has(plugin.pluginId)) continue;
     seenPluginIds.add(plugin.pluginId);
 
-    const skills = await resolveSkillsForPlugin(plugin);
-    const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
+    // Per-PLUGIN isolation: a failure here that is not one skill's own read (e.g. `mcp.json` itself
+    // unreadable) must not take every OTHER installed plugin's search entry down with it — before
+    // this, one such failure threw out of `loadAgentPluginSearchCandidates` entirely, which is why
+    // `search_agent_plugin_local` (and the admin Agent Plugins page, the same loader's second
+    // caller) could fail outright over a single bad install. Per-SKILL isolation (one unreadable
+    // SKILL.md not costing its own plugin, let alone every other one) is `resolveSkillsForSearchTolerant`'s job, above.
+    try {
+      const skills = await resolveSkillsForSearchTolerant(plugin);
+      const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
 
-    candidates.push({
-      pluginId: plugin.pluginId,
-      ...(plugin.version !== undefined ? { version: plugin.version } : {}),
-      ...(plugin.description !== undefined ? { description: plugin.description } : {}),
-      keywords: plugin.keywords ?? [],
-      enabled: isAgentPluginActive(activations, plugin.pluginId),
-      skills: skills.map((skill) => ({ name: skill.name, summary: skill.summary })),
-      mcpServerIds,
-    });
+      candidates.push({
+        pluginId: plugin.pluginId,
+        ...(plugin.version !== undefined ? { version: plugin.version } : {}),
+        ...(plugin.description !== undefined ? { description: plugin.description } : {}),
+        keywords: plugin.keywords ?? [],
+        enabled: isAgentPluginActive(activations, plugin.pluginId),
+        skills: skills.map((skill) => ({ name: skill.name, summary: skill.summary })),
+        mcpServerIds,
+      });
+    } catch (error) {
+      console.warn(`[agent-plugins] '${plugin.pluginId}': ${error instanceof Error ? error.message : String(error)} — excluded from search`);
+    }
   }
 
   return candidates;

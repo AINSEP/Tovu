@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { chmod, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -248,6 +248,44 @@ test("a plugin with no mcp.json at all reports an empty mcpServers array, not an
     const result = await search(WORKSPACE_A, { query: "plain" });
     assert.equal(result.matches.length, 1);
     assert.deepEqual(result.matches[0]?.mcpServers, []);
+  });
+});
+
+test("SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it", async () => {
+  await withAgentPluginsDir(async () => {
+    const broken = await installReal(
+      WORKSPACE_A,
+      "broken-plugin",
+      {
+        "plugin.json": manifestJson("broken-plugin", { description: "has a skill file that will go missing from disk" }),
+        "skills/broken-plugin/SKILL.md": SITE_COMPLIANCE_SKILL,
+      },
+      "archive-broken",
+    );
+    await installReal(
+      WORKSPACE_A,
+      "healthy-plugin",
+      { "plugin.json": manifestJson("healthy-plugin", { description: "stays fully readable" }) },
+      "archive-healthy",
+    );
+    // Simulates the real-world failure this covers: the skill file still EXISTS (so the fresh
+    // `indexInstalledRoot` walk `listInstalledPlugins` runs on every call still lists it as one of
+    // the plugin's skills — deleting the file instead would simply make the walk stop listing it,
+    // never exercising `readInstalledSkillMarkdown`'s own failure path at all) but is no longer
+    // readable — e.g. a permissions problem on disk. chmod 0 revokes read for everyone, including
+    // this test's own process.
+    const skillFile = path.join(broken.packageRoot, "skills", "broken-plugin", "SKILL.md");
+    await chmod(skillFile, 0o000);
+
+    const result = await search(WORKSPACE_A, { query: "plugin" });
+    assert.equal(result.totalInstalled, 2);
+    assert.deepEqual(
+      result.matches.map((m) => m.pluginId).sort(),
+      ["broken-plugin", "healthy-plugin"],
+      "the plugin with the missing skill file must still be found — search degrades per-skill, not per-plugin"
+    );
+    const brokenMatch = result.matches.find((m) => m.pluginId === "broken-plugin");
+    assert.deepEqual(brokenMatch?.skills, [], "the unreadable skill itself is dropped, not fabricated");
   });
 });
 
