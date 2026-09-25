@@ -5,6 +5,11 @@ import { posts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+// Not from `../post/index.js`: that barrel deliberately never re-exports Pages-specific things and,
+// symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than
+// through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing
+// FROM `post.ts` here, only re-exporting Pages things there).
+import { SYSTEM_ACTOR_ID, type PostRepoPort } from "../post/post.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's implementation of `@jini-ai/vibecoding/html`'s
@@ -98,6 +103,24 @@ export interface PagesHtmlDocumentStoreDeps {
    * rebuildable by definition (`EntryRefsRepoPort`'s own doc), not because the race is impossible.
    */
   entryRefsRepo?: EntryRefsRepoPort;
+  /**
+   * Fix plan 2026-09-24 row 14 (S1) — when supplied, every successful {@link
+   * PagesHtmlDocumentStore.write}/{@link PagesHtmlDocumentStore.ensureHtmlFormat} appends the row's
+   * post-write state to the `post_revisions` ledger `createPost`/`updatePost`/`deletePost` already
+   * write to (`post.ts`'s `PostRepoPort.appendRevision`), so an html Page's edit history is
+   * recoverable the same way a Post's already is — CIC-3 keeps this store the sole WRITER of
+   * `bodyFormat: "html"`, but it does not have to be the sole thing that forgets what came before.
+   *
+   * Optional, not required, for the identical reason {@link entryRefsRepo} is: every pre-existing
+   * construction site keeps compiling and behaving unchanged when this is omitted — the ledger
+   * append simply does not happen, not a broken build. Real composition roots (`server/deps.ts`)
+   * supply the same `postRepo` they already construct.
+   *
+   * A `Pick`, not the whole port: this store must never gain the ability to `save`/`softDelete`/etc.
+   * a Post through the back door — appending to the ledger and reading the row it just wrote are the
+   * only two capabilities it needs.
+   */
+  revisions?: Pick<PostRepoPort, "findById" | "appendRevision" | "transaction" | "listRevisions">;
 }
 
 /** Scopes one store instance to one Page row — mirrors every other adapter in this feature area
@@ -107,6 +130,14 @@ export interface PagesHtmlDocumentStoreDeps {
 export interface PagesHtmlDocumentStoreScope {
   workspaceId: string;
   postId: string;
+  /**
+   * Fix plan 2026-09-24 row 14 (S1) — the `post_revisions.actor_id` a {@link
+   * PagesHtmlDocumentStoreDeps.revisions} append attributes this Page's edit to. Defaults to
+   * {@link SYSTEM_ACTOR_ID}, the same ledger fallback `post.ts` itself uses for an omitted caller,
+   * rather than being required — most construction sites predate this field and a route that never
+   * passes one should not have to.
+   */
+  actorId?: string;
 }
 
 /**
@@ -275,26 +306,54 @@ export class PagesHtmlDocumentStore {
     }
 
     const nextVersion = row.version + 1;
-    const result = this.deps.db
-      .update(posts)
-      .set({
-        bodyFormat: "html",
-        bodyHtml: seedHtml,
-        // Required by the table's CHECK constraint, not incidental — see this method's doc.
-        bodyJson: null,
-        version: nextVersion,
-        updatedAt: this.deps.clock.nowIso(),
-      })
-      .where(
-        and(
-          eq(posts.workspaceId, this.scope.workspaceId),
-          eq(posts.id, this.scope.postId),
-          // Same compare-and-set discipline as `write()` (CIC-1): if another writer moved this row
-          // between the SELECT above and here, this update matches nothing rather than clobbering.
-          eq(posts.version, row.version)
+    const updatedAt = this.deps.clock.nowIso();
+
+    const runConversion = async () => {
+      // S1 (fix plan 2026-09-24 row 14) — the PRE-conversion snapshot. `bodyJson` is about to be
+      // nulled by the UPDATE below (D-2's one-way conversion), so this is the ledger's only chance
+      // ever to record what a legacy doc Page's body was. Skipped when a row at this exact `seq`
+      // already exists — `updatePost` ledgers every real edit itself, so a Page with prior edit
+      // history already has this snapshot and a second row at the same `seq` would be a redundant
+      // duplicate, not a recovery of anything new.
+      if (this.deps.revisions) {
+        const existing = await this.deps.revisions.listRevisions({
+          workspaceId: this.scope.workspaceId,
+          postId: this.scope.postId,
+        });
+        if (!existing.some((revision) => revision.seq === row.version)) {
+          await this.appendRevision(row.version, updatedAt);
+        }
+      }
+
+      const updateResult = this.deps.db
+        .update(posts)
+        .set({
+          bodyFormat: "html",
+          bodyHtml: seedHtml,
+          // Required by the table's CHECK constraint, not incidental — see this method's doc.
+          bodyJson: null,
+          version: nextVersion,
+          updatedAt,
+        })
+        .where(
+          and(
+            eq(posts.workspaceId, this.scope.workspaceId),
+            eq(posts.id, this.scope.postId),
+            // Same compare-and-set discipline as `write()` (CIC-1): if another writer moved this row
+            // between the SELECT above and here, this update matches nothing rather than clobbering.
+            eq(posts.version, row.version)
+          )
         )
-      )
-      .run();
+        .run();
+
+      // The POST-conversion snapshot — the row's first ever html-format state. Only on the row this
+      // UPDATE actually matched; a 0-row result below throws before any append lands (and, inside
+      // `revisions.transaction()`, rolls the pre-conversion append above back too).
+      if (updateResult.changes > 0) await this.appendRevision(nextVersion, updatedAt);
+      return updateResult;
+    };
+
+    const result = this.deps.revisions ? await this.deps.revisions.transaction(runConversion) : await runConversion();
 
     if (result.changes === 0) {
       throw new PageConcurrentEditError(
@@ -304,6 +363,36 @@ export class PagesHtmlDocumentStore {
 
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(seedHtml);
+  }
+
+  /**
+   * S1 (fix plan 2026-09-24 row 14) — appends one `post_revisions` row capturing this row's state AS
+   * OF RIGHT NOW under `seq`, when {@link PagesHtmlDocumentStoreDeps.revisions} was supplied. A no-op
+   * (not an error) when it wasn't, matching {@link reindexEntryRefs}'s own optional-dependency shape.
+   *
+   * Always re-reads the row through `revisions.findById` rather than accepting a caller-built
+   * snapshot — the two write paths that call this ({@link write}'s post-write state and {@link
+   * ensureHtmlFormat}'s pre- AND post-conversion states) each need a DIFFERENT moment's row, and
+   * "read whatever is there right now" is the one implementation that is correct for all three
+   * without the caller having to hand-assemble a `PostRecord`.
+   *
+   * @complexity O(1) — one indexed lookup plus one ledger insert.
+   */
+  private async appendRevision(seq: number, recordedAt: string): Promise<void> {
+    if (!this.deps.revisions) return;
+    const row = await this.deps.revisions.findById({ workspaceId: this.scope.workspaceId, id: this.scope.postId });
+    // Cannot happen on either call site's success path (each call follows a write that just matched
+    // this exact row) — a defensive no-op, not a silent swallow of a real failure.
+    if (!row) return;
+    await this.deps.revisions.appendRevision({
+      postId: this.scope.postId,
+      workspaceId: this.scope.workspaceId,
+      seq,
+      op: "update",
+      stateJson: row,
+      actorId: this.scope.actorId ?? SYSTEM_ACTOR_ID,
+      recordedAt,
+    });
   }
 
   /**
@@ -353,20 +442,31 @@ export class PagesHtmlDocumentStore {
     }
     const expectedVersion = this.lastReadVersion;
     const nextVersion = expectedVersion + 1;
+    const updatedAt = this.deps.clock.nowIso();
 
-    const result = this.deps.db
-      .update(posts)
-      .set({ bodyHtml: html, version: nextVersion, updatedAt: this.deps.clock.nowIso() })
-      .where(
-        and(
-          eq(posts.workspaceId, this.scope.workspaceId),
-          eq(posts.id, this.scope.postId),
-          eq(posts.bodyFormat, "html"),
-          eq(posts.version, expectedVersion),
-          isNull(posts.deletedAt)
+    const runWrite = async () => {
+      const updateResult = this.deps.db
+        .update(posts)
+        .set({ bodyHtml: html, version: nextVersion, updatedAt })
+        .where(
+          and(
+            eq(posts.workspaceId, this.scope.workspaceId),
+            eq(posts.id, this.scope.postId),
+            eq(posts.bodyFormat, "html"),
+            eq(posts.version, expectedVersion),
+            isNull(posts.deletedAt)
+          )
         )
-      )
-      .run();
+        .run();
+      // S1 (fix plan 2026-09-24 row 14) — only on the row this UPDATE actually matched. A 0-row
+      // result below throws before any append lands (and, inside `revisions.transaction()`, rolls
+      // this back too — though there is nothing to roll back on this path, unlike `ensureHtmlFormat`'s
+      // two-append converting branch).
+      if (updateResult.changes > 0) await this.appendRevision(nextVersion, updatedAt);
+      return updateResult;
+    };
+
+    const result = this.deps.revisions ? await this.deps.revisions.transaction(runWrite) : await runWrite();
 
     if (result.changes === 0) {
       // Disambiguate: the row can have moved off this exact predicate either because it was trashed

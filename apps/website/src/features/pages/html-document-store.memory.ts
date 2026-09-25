@@ -1,6 +1,8 @@
 import { assertEntityLive, type ClockPort } from "@jini-ai/cms/core";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
+// Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
+import { SYSTEM_ACTOR_ID } from "../post/post.js";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import {
@@ -61,6 +63,26 @@ export class InMemoryPagesHtmlDocumentStore {
     return this.lastReadVersion;
   }
 
+  /**
+   * S1 (fix plan 2026-09-24 row 14) — mirrors the real store's `appendRevision` helper. Unlike that
+   * store's optional `deps.revisions`, `deps.repo` here IS a full `PostRepoPort` unconditionally (it
+   * is what this whole double is built over — see this file's header), so there is no "supplied or
+   * not" branch: every call appends.
+   */
+  private async appendRevision(seq: number, recordedAt: string): Promise<void> {
+    const row = await this.load();
+    if (!row) return;
+    await this.deps.repo.appendRevision({
+      postId: this.scope.postId,
+      workspaceId: this.scope.workspaceId,
+      seq,
+      op: "update",
+      stateJson: row,
+      actorId: this.scope.actorId ?? SYSTEM_ACTOR_ID,
+      recordedAt,
+    });
+  }
+
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
   async ensureHtmlFormat(seedHtml: string): Promise<void> {
     const row = await this.load();
@@ -76,12 +98,23 @@ export class InMemoryPagesHtmlDocumentStore {
     }
 
     const nextVersion = row.version + 1;
-    await this.deps.repo.save({
-      ...row,
-      bodyFormat: "html",
-      bodyHtml: seedHtml,
-      version: nextVersion,
-      updatedAt: this.deps.clock.nowIso(),
+    const updatedAt = this.deps.clock.nowIso();
+
+    await this.deps.repo.transaction(async () => {
+      // Pre-conversion snapshot — see the real store's `ensureHtmlFormat` for why this is skipped
+      // when a revision at this exact `seq` already exists.
+      const existing = await this.deps.repo.listRevisions({ workspaceId: this.scope.workspaceId, postId: this.scope.postId });
+      if (!existing.some((revision) => revision.seq === row.version)) {
+        await this.appendRevision(row.version, updatedAt);
+      }
+      await this.deps.repo.save({
+        ...row,
+        bodyFormat: "html",
+        bodyHtml: seedHtml,
+        version: nextVersion,
+        updatedAt,
+      });
+      await this.appendRevision(nextVersion, updatedAt);
     });
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(seedHtml);
@@ -134,8 +167,9 @@ export class InMemoryPagesHtmlDocumentStore {
     }
 
     const nextVersion = expectedVersion + 1;
+    const updatedAt = this.deps.clock.nowIso();
     const { applied } = await this.deps.repo.saveIfVersion({
-      record: { ...row, bodyHtml: html, version: nextVersion, updatedAt: this.deps.clock.nowIso() },
+      record: { ...row, bodyHtml: html, version: nextVersion, updatedAt },
       ifVersion: expectedVersion,
     });
     if (!applied) {
@@ -143,6 +177,10 @@ export class InMemoryPagesHtmlDocumentStore {
         `page '${this.scope.postId}' was edited elsewhere since this turn started — re-read and retry`
       );
     }
+    // S1 (fix plan 2026-09-24 row 14) — after, not inside, `saveIfVersion`: that call is this
+    // store's own atomic compare-and-set (see this method's own header), so there is nothing left to
+    // wrap in a `transaction()` by the time `applied` is known true.
+    await this.appendRevision(nextVersion, updatedAt);
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(html);
   }

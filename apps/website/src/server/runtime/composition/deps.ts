@@ -1732,8 +1732,10 @@ export function createSqliteRouteDeps(
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
     // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
-    // exposes — one shared index, not a second writer.
-    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db, clock, entryRefsRepo }),
+    // exposes — one shared index, not a second writer. `revisions: postRepo` (S1, fix plan
+    // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
+    // not a second writer of that either.
+    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db, clock, entryRefsRepo, revisions: postRepo }),
     // `chatDb` (opened above, alongside `databaseJournalDb`) is the sidecar `chat.db` handle, NOT
     // `content.db`'s — ADS-memory/reports/2026-09-05-db-split-scoping.md §6. `@jini-ai/sqlite`'s
     // chat-history adapter takes a raw handle and never opens a database itself, which is exactly

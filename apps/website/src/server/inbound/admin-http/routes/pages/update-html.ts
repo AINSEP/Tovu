@@ -162,7 +162,10 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, dep
           return;
         }
 
-        const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: pageId });
+        // S1 (fix plan 2026-09-24 row 14) — attributes this route's `post_revisions` rows to the
+        // real authenticated principal, not the ledger's `SYSTEM_ACTOR_ID` fallback. Cheap: reads
+        // `res.locals`, no second auth check (`allowedToWrite` above already ran one).
+        const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: pageId, actorId: getAuthedPrincipal(res).id });
 
         // Idempotent: a no-op once the page is already html-format, so both the first write and
         // every later one take this identical path.

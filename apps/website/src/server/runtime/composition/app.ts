@@ -942,7 +942,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // not live in any SQLite database, so a real-adapter-over-scratch-db would edit rows nothing
     // else in this root can see. See `features/pages/html-document-store.memory.ts`'s header.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
-    // exposes — one shared index, mirroring `server/deps.ts`'s identical wiring.
+    // exposes — one shared index, mirroring `server/deps.ts`'s identical wiring. No separate
+    // `revisions:` field to wire here (S1, fix plan 2026-09-24 row 14) — unlike the sqlite store,
+    // this double's `deps.repo` is already the full `postRepo`, so its own `appendRevision` calls
+    // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
     pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock, entryRefsRepo }),
     // No in-memory *reimplementation* of the chat store: this root gets the real adapter over a
     // throwaway `:memory:` database. `search-index.memory.ts` earns a hand-written double because

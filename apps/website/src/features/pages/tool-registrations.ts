@@ -264,7 +264,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       });
 
       const id = requireString(input, "id");
-      const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id });
+      const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       try {
         const html = await store.read();
@@ -301,7 +301,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       // `ensureHtmlFormat` on the way to a rejection.
       assertTopLevelSectionsAreTagged(html);
 
-      const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id });
+      const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       try {
         const basis = await openForFullWrite(store, html);
@@ -349,7 +349,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const handle = requireString(input, "handle");
       const fragment = requireString(input, "html");
       const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
-      const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id });
+      const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let current: string;
       try {
