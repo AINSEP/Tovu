@@ -299,6 +299,46 @@ test("GET status: state is 'mismatch' when .site-meta.json's stamped fingerprint
   assert.equal(mismatchBody.active, true, "the key itself still resolves fine — only the stamp disagrees");
 });
 
+test("generate re-stamps .site-meta.json's siteKeyFingerprint to the new key's own fingerprint, preserving every other field (site-key plan §A.6 item 2)", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+
+  // A STALE stamp, simulating an old, now-gone key (e.g. the key file was regenerated outside this
+  // route once already, or restored from an older backup) — `generate` must overwrite it, not
+  // leave it pointing at a fingerprint nothing resolves to any more.
+  const siteMetaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(
+    siteMetaPath,
+    JSON.stringify({
+      siteId: "restamp-test-site",
+      createdAt: "2020-01-01T00:00:00.000Z",
+      siteKeyFingerprint: "stale0stale0",
+    })
+  );
+
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const generated = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+  assert.equal(generated.status, 201);
+  const generatedBody = (await generated.json()) as { fingerprint: string };
+
+  const metaAfter = JSON.parse(readFileSync(siteMetaPath, "utf8")) as Record<string, unknown>;
+  assert.equal(
+    metaAfter.siteKeyFingerprint,
+    generatedBody.fingerprint,
+    "the stale stamp was replaced with the newly generated key's own fingerprint"
+  );
+  assert.equal(metaAfter.siteId, "restamp-test-site", "every other field survives the re-stamp");
+  assert.equal(metaAfter.createdAt, "2020-01-01T00:00:00.000Z", "every other field survives the re-stamp");
+
+  const status = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  assert.equal(status.status, 200);
+  const statusBody = (await status.json()) as { state: string };
+  assert.equal(statusBody.state, "active", "a matching re-stamp reports 'active', not a spurious 'mismatch'");
+});
+
 test("generate writes THIS site's own per-site key file when a siteKeyId is resolvable, not the legacy global default (site-key plan §A3b)", async (t) => {
   isolateHomeDir(t);
   const deps = createRouteDeps();
