@@ -206,11 +206,19 @@ export async function collectPageEvidence(
         continue;
       }
 
-      const outcome = await observeOnePage(availability.browser, originBaseUrl, path, input);
-      if (outcome.kind === "skipped") {
-        runtimeSkipped.push(outcome.skipped);
-      } else {
-        pages.push(outcome.page);
+      // A THROWING `observe()` (a port implementation that does not honor the `{ ok: false, reason }`
+      // contract for every failure — e.g. the page navigating away between the load and the read
+      // that follows it) must not end the whole run any more than an ordinary `ok: false` does. One
+      // bad page is recorded as skipped; every OTHER requested page still gets its own attempt.
+      try {
+        const outcome = await observeOnePage(availability.browser, originBaseUrl, path, input);
+        if (outcome.kind === "skipped") {
+          runtimeSkipped.push(outcome.skipped);
+        } else {
+          pages.push(outcome.page);
+        }
+      } catch (error) {
+        runtimeSkipped.push(skip(path, "navigation-failed", messageOf(error)));
       }
     }
   } finally {
@@ -350,6 +358,12 @@ function redactToOrigin(url: string): string {
 
 function skip(path: string, reason: SkippedPageReason, message: string): SkippedPage {
   return { path, reason, message };
+}
+
+/** Same tiny helper as `playwright-browser.ts`'s own — duplicated rather than imported, matching
+ *  this feature's existing convention for a helper this small. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /** Re-exported so a caller building a report has the phase vocabulary without importing the port

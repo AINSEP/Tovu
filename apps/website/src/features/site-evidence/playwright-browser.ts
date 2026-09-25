@@ -241,15 +241,28 @@ class PlaywrightSiteEvidenceBrowser implements SiteEvidenceBrowserPort {
         collectAccessibility: request.collectAccessibility,
       };
 
-      const structure = await page.evaluate<PageStructureCapture>(buildPageStructureExpression(structureLimits));
+      let structure: PageStructureCapture;
+      let cookies: PwCookie[];
+      try {
+        structure = await page.evaluate<PageStructureCapture>(buildPageStructureExpression(structureLimits));
 
-      if (request.consentAcceptSelector !== undefined) {
-        await this.performConsentClick(page, request, notes, () => {
-          phase = "after";
-        });
+        if (request.consentAcceptSelector !== undefined) {
+          await this.performConsentClick(page, request, notes, () => {
+            phase = "after";
+          });
+        }
+
+        cookies = await context.cookies();
+      } catch (error) {
+        // The page can navigate away, close, or crash between `goto` resolving above and either of
+        // these reads — most commonly surfacing as Playwright's own "Execution context was
+        // destroyed". That is exactly the class of failure this port's contract exists to report as
+        // `{ ok: false, reason }` rather than let escape as a thrown error: one unreachable/unstable
+        // page must not end the whole `site_collect_page_evidence` run (`collect-page-evidence.ts`'s
+        // own per-page catch is the second, defense-in-depth layer for a port that does not honor
+        // this).
+        return { ok: false, reason: `page capture failed after load: ${messageOf(error)}` };
       }
-
-      const cookies = await context.cookies();
 
       return {
         ok: true,

@@ -217,6 +217,39 @@ test("a navigation failure skips one page without ending the run", async () => {
   assert.equal(skipped?.message, "timed out");
 });
 
+test("a page load that THROWS (not merely returns ok: false) skips that one page without ending the run", async () => {
+  // A real cause: the page navigated away or crashed between `goto` resolving and the evaluate/
+  // cookies read that follows it (`playwright-browser.ts`) — `browser.observe()` here stands in for
+  // any port implementation that throws instead of resolving `{ ok: false, reason }`, since
+  // `observeOnePage`'s own caller (`collectPageEvidence`'s loop) must not assume its dependency
+  // always honors that contract.
+  const visited: string[] = [];
+  let closed = 0;
+  const browser: SiteEvidenceBrowserFactory = async () => ({
+    available: true,
+    browser: {
+      async observe(request) {
+        visited.push(request.url);
+        if (request.url.endsWith("/about")) throw new Error("Execution context was destroyed");
+        return { ok: true, observation: observation() };
+      },
+      async close() {
+        closed += 1;
+      },
+    },
+  });
+
+  const result = await collectPageEvidence(deps(browser), { paths: ["/", "/about"] });
+
+  assert.deepEqual(visited, ["https://example.test/", "https://example.test/about"], "the throw must not stop the loop from reaching the next page");
+  assert.equal(result.pages.length, 1);
+  assert.deepEqual(result.pages.map((page) => page.path), ["/"]);
+  const skipped = result.skipped.find((entry) => entry.path === "/about");
+  assert.equal(skipped?.reason, "navigation-failed");
+  assert.ok(skipped?.message.includes("Execution context was destroyed"));
+  assert.equal(closed, 1, "the browser must still be closed even though one page's observe() threw");
+});
+
 test("with no consent selector, the result SAYS no consent transition was performed", async () => {
   const browser = fakeBrowser();
   const result = await collectPageEvidence(deps(browser.factory), { paths: ["/"] });
