@@ -250,3 +250,13 @@ test("pages_write_html with the CORRECT expectedVersion on a doc page converts a
   assert.equal(saved?.bodyFormat, "html");
   assert.equal(saved?.bodyHtml, html);
 });
+
+test("a page id that does not exist reaches the model as PAGES_NOT_FOUND input, not a redacted internal error", async () => {
+  const { call } = harness();
+  const html = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>`;
+
+  // Unwrapped, `PageNotFoundError` is a plain domain error the executor classifies as internal and
+  // redacts, so the model never learns the id was simply wrong.
+  await assert.rejects(() => call("pages_read_html", { id: "no-such-page" }), { name: "ToolInputError", message: /^PAGES_NOT_FOUND: / });
+  await assert.rejects(() => call("pages_write_html", { id: "no-such-page", html }), { name: "ToolInputError", message: /^PAGES_NOT_FOUND: / });
+});
