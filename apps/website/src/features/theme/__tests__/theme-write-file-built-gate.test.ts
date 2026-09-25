@@ -137,6 +137,17 @@ test("writing inside a compiled theme's declared sourceDir is still allowed", as
   );
 });
 
+test("writing a NEW file inside a compiled theme's sourceDir, with an extension the framework allowlist excludes, is refused", async () => {
+  const { deps, themesDir } = fakeDeps();
+
+  await assert.rejects(
+    () => writeFileHandler(deps)(executionContext({ themeId: "compiled", path: "src/evil.js", content: "alert(1)" })),
+    /is read-only: only framework source/
+  );
+
+  assert.equal(fs.existsSync(path.join(themesDir, "compiled", "src", "evil.js")), false, "a refused write must not touch disk");
+});
+
 test("writing a compiled theme's own theme.json is still allowed", async () => {
   const { deps } = fakeDeps();
   const updated = JSON.stringify({

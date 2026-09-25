@@ -254,6 +254,19 @@ test("theme_restore_trashed_file honors an explicit restoreTo, different from th
   assert.equal(existsInTheme(themesDir, "styles.css"), false, "the original path is untouched by an explicit restoreTo");
 });
 
+test("theme_restore_trashed_file refuses an explicit restoreTo that names a location back inside .trash/", async () => {
+  const { deps } = fakeRouteDeps();
+  const trashed = (await trashFile(deps, { themeId: "plain", path: "styles.css" })) as { trashedPath: string };
+
+  await assert.rejects(
+    () =>
+      wired(deps, "theme_restore_trashed_file").handler(
+        executionContext({ themeId: "plain", trashedPath: trashed.trashedPath, restoreTo: ".trash/1/b.css" })
+      ),
+    /is inside the trash and cannot be written to directly/
+  );
+});
+
 test("theme_restore_trashed_file refuses a trashedPath that theme_trash_file never produced", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(

@@ -80,6 +80,8 @@ import { loadTheme, type DiscoveredTheme } from "./theme.js";
 // for why the decision had to live here rather than in `explore.ts` alongside its original home.
 import {
   fileExtension,
+  isInsideCompiledSourceDir,
+  isSourceDirWritableExtension,
   isTrashedThemePath,
   originalPathFromTrashedPath,
   trashDestinationFor,
@@ -273,6 +275,16 @@ function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): 
   if (isTrashedThemePath(relativePath)) {
     throw new ThemeFileReadOnlyError(
       `'${relativePath}' is inside the trash and cannot be written to directly — restore it first with theme_restore_trashed_file`
+    );
+  }
+  // Same disjoint sourceDir rule `explore.ts`'s HTTP PUT route enforces (`isPutWritable`): inside a
+  // compiled theme's `build.sourceDir`, ONLY the framework-source extension allowlist decides —
+  // falling back to the group-based checks above would silently readmit an extension (e.g. `.js`)
+  // the sourceDir allowlist exists to exclude. Without this, `theme_write_file`/`theme_edit_file`
+  // could write straight past the PUT route's own gate on the identical compiled-theme path.
+  if (isInsideCompiledSourceDir(theme, relativePath, writeScope) && !isSourceDirWritableExtension(relativePath)) {
+    throw new ThemeFileReadOnlyError(
+      `'${relativePath}' is read-only: only framework source extensions can be written inside a compiled theme's build.sourceDir`
     );
   }
 }
@@ -952,11 +964,23 @@ export function buildThemesRegistrations(
           throw new ThemePathError(`'${restoreTo}' already exists in this theme — pass a different restoreTo, or move/rename the existing file first`);
         }
 
-        // Defense-in-depth, mirroring theme_trash_file's own destination check: an explicit
-        // `restoreTo` could otherwise name a location inside a built theme's generated tree.
-        const destWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: restoreTo });
-        if (destWriteScope.kind === "generated-readonly") {
-          throw new ThemeFileReadOnlyError(`'${restoreTo}' is read-only: ${destWriteScope.reason}`);
+        // The same write gate every other write path in this file runs (`theme_write_file`/
+        // `theme_edit_file`): refuses a built theme's generated tree, a compiled theme's
+        // non-writable sourceDir extension, and — the case the old, generated-readonly-only check
+        // here missed — an explicit `restoreTo` that names a location BACK inside `.trash/` itself.
+        assertThemeFileWritable(theme, restoreTo);
+
+        // An explicit `restoreTo` that differs from the trashed file's own original location is,
+        // functionally, a RENAME riding along with the restore. `theme_rename_file` refuses to touch
+        // a path inside `.trash/` at all (`isTrashedThemePath`, above), so without this check a
+        // script/other-group file — or a compiled theme's identity-locked extension — could change
+        // identity by restoring under a new name instead of going through (and being refused by)
+        // `theme_rename_file`. Checked against the ORIGINAL location's own write scope, the same
+        // input `theme_rename_file` validates against for an in-place rename.
+        if (restoreTo !== derivedRestoreTo) {
+          const originalWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: derivedRestoreTo });
+          const lock = validateFileIdentityChange(theme, derivedRestoreTo, originalWriteScope, "renamed");
+          if (lock) throw new ThemeFileIdentityLockedError(lock.error);
         }
 
         renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: trashedPath, destPath: restoreTo });
