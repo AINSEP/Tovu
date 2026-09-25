@@ -52,3 +52,10 @@ test("an empty value returns undefined", () => {
   const md = "---\ndescription:\n---\nbody";
   assert.equal(readFrontmatterField(md, "description"), undefined);
 });
+
+test("a value YAML reads as a non-string (flow sequence/map) falls back to the single-line regex, as it read before", () => {
+  // The pre-S13 regex returned the raw line for these; a YAML parse turns them into an array/object,
+  // which would otherwise silently drop a skill that loads today.
+  assert.equal(readFrontmatterField("---\nname: x\ndescription: [Beta]\n---\nbody", "description"), "[Beta]");
+  assert.equal(readFrontmatterField("---\nname: {x}\ndescription: d\n---\nbody", "name"), "{x}");
+});

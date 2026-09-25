@@ -62,5 +62,8 @@ export function readFrontmatterField(markdown: string, key: string): string | un
 
   if (!isPlainObject(parsed)) return undefined;
   const raw = parsed[key];
-  return typeof raw === "string" ? collapseWhitespace(raw) : undefined;
+  if (typeof raw === "string") return collapseWhitespace(raw);
+  // A value YAML reads as a sequence/map (e.g. `description: [Beta]`) was a plain string to the old
+  // regex; keep reading it that way so such a skill doesn't silently stop loading.
+  return raw === undefined || raw === null ? undefined : readFieldByRegex(frontmatter, key);
 }
