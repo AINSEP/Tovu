@@ -239,6 +239,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   theme_copy_file: "theme file copy duplicate clone branch variant new name",
   theme_trash_file: "theme file delete remove trash soft delete",
   theme_restore_trashed_file: "theme file bring back undelete recover",
+  // "theme_set_active" (F7a, 2026-09-24) — switches which theme the site renders with, distinct
+  // from every other theme_* tool above, which all edit ONE theme's own files.
+  theme_set_active: "theme switch activate change active theme live site look design",
 
   // --- database ------------------------------------------------------------------------------------
   database_get_health: "database health healthy status ok working check diagnose",

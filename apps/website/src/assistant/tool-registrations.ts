@@ -208,6 +208,7 @@ import type { SitesToolDeps } from "../features/sites/index.js";
 import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../server/runtime/composition/site-switcher-enabled.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
+import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
@@ -272,6 +273,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   SitesToolDeps &
   TaxonomyToolDeps &
   ThemeToolDeps &
+  SetActiveThemeToolDeps &
   WorkspaceToolDeps &
   FormsToolDeps &
   IdentityToolDeps &

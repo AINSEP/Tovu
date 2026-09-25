@@ -137,6 +137,7 @@ export {
 // deep import, same as every other export here.
 export {
   resolveActiveTheme,
+  writableThemeIds,
   DEFAULT_THEME_ID,
   NO_THEME_ID,
   type ActiveThemeResolution,

@@ -21,6 +21,7 @@ import { contributePostTools, contributePostDuplicateHandlers } from "#src/featu
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
+import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
 import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
@@ -320,6 +321,10 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeSupabaseConnectTools());
   registerToolContributor(contributeTaxonomyTools());
   registerToolContributor(contributeThemesTools());
+  // `theme_set_active` (F7a, 2026-09-24) — a SEPARATE contributor, own domain key
+  // (`"theme-set-active"`), because re-registering under `contributeThemesTools()`'s own `"theme"`
+  // key would replace that domain's four file-operation tools instead of adding a fifth.
+  registerToolContributor(contributeSetActiveThemeTools());
   // Trash: `trash_list_items` and `trash_restore_item` ONLY. There is no purge tool and there must
   // never be one — `features/trash/__tests__/tool-registrations.purge-ban.test.ts` walks every
   // registration this function installs and fails if any handler can reach `purgeSelected`.

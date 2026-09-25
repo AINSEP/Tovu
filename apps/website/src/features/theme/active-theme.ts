@@ -1,4 +1,4 @@
-import { findTheme, type DiscoveredTheme } from "./theme.js";
+import { findTheme, validThemeIds, type DiscoveredTheme } from "./theme.js";
 
 /**
  * @file "Given a list of discovered themes and a candidate active id, which theme actually
@@ -153,4 +153,35 @@ export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeI
       : `[theme] active theme '${activeThemeId}' did not resolve and the default theme '${DEFAULT_THEME_ID}' is absent or invalid; substituting '${substitute.manifest.id}', which is whichever theme discovery happened to list first`
   );
   return substitute;
+}
+
+/**
+ * The ids a write path is permitted to STORE: every valid discovered theme, plus the no-theme
+ * sentinel.
+ *
+ * Moved here from `server/inbound/admin-http/routes/presentation/patch-active-theme.ts` (2026-09-24,
+ * F7a) once a second caller needed the identical rule: `theme_set_active`
+ * (`set-active-theme-tool.ts`) writes through the same `setActiveTheme` chokepoint the admin PATCH
+ * route does, and a second private copy of this list would be the one place the two callers could
+ * silently drift on which ids a write may target.
+ *
+ * Jini's `setActiveTheme` validates against a set the CALLER supplies
+ * (`@jini-ai/cms/presentation`'s `deps.availableThemeIds ?? ALLOWED_THEME_IDS`) — deliberately, per
+ * that module's own header: it is theme-engine agnostic and a host owns theme discovery. Appending
+ * the sentinel here is using that seam as documented, not working around it. No Jini edit, no
+ * publish, no version bump.
+ *
+ * **This is the WRITE allowlist, and it is NOT the same list as the admin PATCH route's `get.ts`
+ * sibling.** Those two call sites used to be character-for-character identical —
+ * `availableThemeIds: validThemeIds(deps.themes)`, same expression, same field name, same import,
+ * sibling files in one directory — while meaning two different things. `get.ts`'s copy is echoed to
+ * the admin as `AdminPresentation.availableThemeIds` and feeds the theme picker, where the sentinel
+ * would render as a blank card. Naming this value (rather than inlining the spread at each call site)
+ * exists so the two stop looking interchangeable to anyone reducing duplication across these callers.
+ * See `get.ts`'s matching note at its own call site — a comment only on the side that changed would
+ * explain the addition but not the asymmetry, and the side that breaks is the one with nothing
+ * written on it.
+ */
+export function writableThemeIds(deps: ActiveThemeResolutionDeps): string[] {
+  return [...validThemeIds(deps.themes), NO_THEME_ID];
 }

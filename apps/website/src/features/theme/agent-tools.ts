@@ -65,9 +65,13 @@ import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
  *   out this pass on the same basis. (`theme_rename_file`, below, only ever touches a file inside an
  *   already-discovered theme's own folder — a different, narrower operation from renaming the
  *   folder itself, and not what this bullet excludes.)
- * - Nothing here touches the ACTIVE theme selection. `theme.set` is a separate, already-exposed
- *   operation (`server/routes/admin/presentation/patch-active-theme.ts`); this domain edits theme
- *   content, it does not decide which theme the site serves.
+ * - Nothing here touches the ACTIVE theme selection. `theme.set` is a separate operation, exposed
+ *   both to a human (`server/inbound/admin-http/routes/presentation/patch-active-theme.ts`) and, as
+ *   of F7a (2026-09-24), to an agent (`theme_set_active`, `features/theme/set-active-theme-tool.ts`
+ *   — deliberately its OWN file/catalog, not an entry in THIS catalog: it shares no validator with
+ *   the file operations above, and it is the one write this domain's own `writableThemeIds`-shaped
+ *   allowlist governs); this domain edits theme content, it does not decide which theme the site
+ *   serves.
  *
  * How it relates to the project:
  * The server-side tool filter (ADR-014) consumes this catalog to decide which tool names an agent
