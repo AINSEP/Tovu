@@ -160,7 +160,11 @@ function siteTokenStatusBadgeLabel(active: boolean, source: "env" | "file" | "no
  *  "environment variable" vs. "key file" distinction is explained in plain terms here rather than
  *  assumed — the badge itself stays terse, this line carries the plain-language context. The
  *  `TOVU_INTEGRATIONS_ROOT_KEY` variable name stays in the invalid-env case since fixing it requires
- *  that exact name. @complexity O(1). */
+ *  that exact name. The `"none"` case was reworded again for the site-key plan (2026-09-24) item 3:
+ *  it used to promise that clicking Generate would save a key to `status.keyFilePath` — stale ever
+ *  since Generate was hidden by default (§A.6) in favor of `ensureSiteKeyForBoot` minting one
+ *  automatically at boot, and doubly so once no fixed path is even guaranteed to be the one that
+ *  ends up used (per-site keys, §A.1). @complexity O(1). */
 function siteTokenStatusNote(status: { active: boolean; source: "env" | "file" | "none"; invalid?: boolean; keyFilePath: string }, translate: Translate) {
   if (status.invalid) {
     return status.source === "env" ? (
@@ -181,11 +185,7 @@ function siteTokenStatusNote(status: { active: boolean; source: "env" | "file" |
       </>
     );
   }
-  return (
-    <>
-      {translate("No key has been created yet. Generating one saves it to")} <code>{status.keyFilePath}</code> {translate("on this server.")}
-    </>
-  );
+  return <>{translate("A key is created automatically when this site starts.")}</>;
 }
 
 /** Reveal — never shown on page load; the button is present whenever a key is active, and clicking

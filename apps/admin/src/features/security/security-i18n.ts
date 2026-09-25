@@ -7,6 +7,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
   en: {
     "unknown error": "unknown error", "this workspace": "this workspace", All: "All", Secrets: "Secrets", "Source control": "Source control", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Ops", General: "General",
     "External MCP servers": "External MCP servers", "Providers · External MCP": "Providers · External MCP", "No environment variables set": "No environment variables set", "1 environment variable set": "1 environment variable set", "{count} environment variables set": "{count} environment variables set", Connected: "Connected", "Connected as: {label}": "Connected as: {label}",
+    "A key is created automatically when this site starts.": "A key is created automatically when this site starts.",
   },
   es: {
     "Access Tokens": "Tokens de acceso", "Site Token": "Token del sitio", Operations: "Operaciones", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un solo lugar para ver todos los tokens de acceso de esta instalación y crear, rotar o eliminar uno sin buscar entre las pantallas que lo crearon.",
@@ -32,6 +33,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Manage on": "Administrar en", "Not configured": "No configurado",
     "Site assistant model key": "Clave de modelo del asistente del sitio", "Admin AI Assistant key (BYOK)": "Clave del asistente de IA de administración (BYOK)", "Media provider keys": "Claves de proveedores de medios", "Composio project key": "Clave de proyecto de Composio", "Composio connector accounts": "Cuentas de conectores de Composio",
     "AI Assistant": "Asistente de IA", "Settings · Execution mode": "Configuración · Modo de ejecución", "Providers · Media": "Proveedores · Medios", "Providers · Composio": "Proveedores · Composio",
+    "A key is created automatically when this site starts.": "La clave se crea automáticamente cuando este sitio se inicia.",
   },
   de: {
     "Access Tokens": "Zugriffstoken", "Site Token": "Website-Token", Operations: "Vorgänge", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Ein Ort, um alle Zugriffstoken dieser Installation zu sehen und eines zu erstellen, zu rotieren oder zu entfernen, ohne die Bildschirme durchsuchen zu müssen, die es erstellt haben.",
@@ -57,6 +59,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Manage on": "Verwalten unter", "Not configured": "Nicht konfiguriert",
     "Site assistant model key": "Modellschlüssel des Website-Assistenten", "Admin AI Assistant key (BYOK)": "Admin-KI-Assistent-Schlüssel (BYOK)", "Media provider keys": "Medienanbieter-Schlüssel", "Composio project key": "Composio-Projektschlüssel", "Composio connector accounts": "Composio-Connector-Konten",
     "AI Assistant": "KI-Assistent", "Settings · Execution mode": "Einstellungen · Ausführungsmodus", "Providers · Media": "Anbieter · Medien", "Providers · Composio": "Anbieter · Composio",
+    "A key is created automatically when this site starts.": "Ein Schlüssel wird automatisch erstellt, wenn diese Website startet.",
   },
   fr: {
     "Access Tokens": "Jetons d’accès", "Site Token": "Jeton du site", Operations: "Opérations", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un seul endroit pour voir tous les jetons d’accès de cette installation et en créer, renouveler ou supprimer un sans chercher parmi les écrans qui l’ont créé.",
@@ -82,6 +85,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Manage on": "Gérer sur", "Not configured": "Non configuré",
     "Site assistant model key": "Clé de modèle de l'assistant du site", "Admin AI Assistant key (BYOK)": "Clé de l'assistant IA d'administration (BYOK)", "Media provider keys": "Clés des fournisseurs de médias", "Composio project key": "Clé de projet Composio", "Composio connector accounts": "Comptes connecteurs Composio",
     "AI Assistant": "Assistant IA", "Settings · Execution mode": "Paramètres · Mode d'exécution", "Providers · Media": "Fournisseurs · Médias", "Providers · Composio": "Fournisseurs · Composio",
+    "A key is created automatically when this site starts.": "Une clé est créée automatiquement au démarrage de ce site.",
   },
   it: {
     "Access Tokens": "Token di accesso", "Site Token": "Token del sito", Operations: "Operazioni", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un unico posto per vedere tutti i token di accesso di questa installazione e crearne, ruotarne o rimuoverne uno senza cercare nelle schermate che lo hanno creato.",
@@ -107,6 +111,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Manage on": "Gestisci su", "Not configured": "Non configurato",
     "Site assistant model key": "Chiave del modello dell'assistente del sito", "Admin AI Assistant key (BYOK)": "Chiave dell'assistente IA di amministrazione (BYOK)", "Media provider keys": "Chiavi dei provider multimediali", "Composio project key": "Chiave di progetto Composio", "Composio connector accounts": "Account connettori Composio",
     "AI Assistant": "Assistente IA", "Settings · Execution mode": "Impostazioni · Modalità di esecuzione", "Providers · Media": "Provider · Media", "Providers · Composio": "Provider · Composio",
+    "A key is created automatically when this site starts.": "Una chiave viene creata automaticamente all'avvio di questo sito.",
   },
   "pt-BR": {
     "Access Tokens": "Tokens de acesso", "Site Token": "Token do site", Operations: "Operações", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Um só lugar para ver todos os tokens de acesso desta instalação e criar, alternar ou remover um sem procurar nas telas que o criaram.",
@@ -132,6 +137,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Manage on": "Gerenciar em", "Not configured": "Não configurado",
     "Site assistant model key": "Chave de modelo do assistente do site", "Admin AI Assistant key (BYOK)": "Chave do assistente de IA de administração (BYOK)", "Media provider keys": "Chaves de provedores de mídia", "Composio project key": "Chave de projeto do Composio", "Composio connector accounts": "Contas de conectores do Composio",
     "AI Assistant": "Assistente de IA", "Settings · Execution mode": "Configurações · Modo de execução", "Providers · Media": "Provedores · Mídia", "Providers · Composio": "Provedores · Composio",
+    "A key is created automatically when this site starts.": "Uma chave é criada automaticamente quando este site é iniciado.",
   },
   pl: {
     "Access Tokens": "Tokeny dostępu", "Site Token": "Token witryny", Operations: "Operacje", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Jedno miejsce, aby zobaczyć wszystkie tokeny dostępu tej instalacji oraz utworzyć, zmienić lub usunąć token bez przeszukiwania ekranów, na których go utworzono.",
@@ -157,6 +163,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Manage on": "Zarządzaj w", "Not configured": "Nie skonfigurowano",
     "Site assistant model key": "Klucz modelu asystenta witryny", "Admin AI Assistant key (BYOK)": "Klucz asystenta AI administratora (BYOK)", "Media provider keys": "Klucze dostawców mediów", "Composio project key": "Klucz projektu Composio", "Composio connector accounts": "Konta konektorów Composio",
     "AI Assistant": "Asystent AI", "Settings · Execution mode": "Ustawienia · Tryb wykonania", "Providers · Media": "Dostawcy · Media", "Providers · Composio": "Dostawcy · Composio",
+    "A key is created automatically when this site starts.": "Klucz jest tworzony automatycznie podczas uruchamiania tej witryny.",
   },
   hu: {
     "Access Tokens": "Hozzáférési tokenek", "Site Token": "Webhelytoken", Operations: "Műveletek", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Egy helyen láthatja a telepítés összes hozzáférési tokenjét, és létrehozhat, lecserélhet vagy eltávolíthat egyet anélkül, hogy végig kellene keresnie a létrehozó képernyőket.",
@@ -182,6 +189,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Manage on": "Kezelés itt:", "Not configured": "Nincs beállítva",
     "Site assistant model key": "Webhelyasszisztens modellkulcsa", "Admin AI Assistant key (BYOK)": "Admin AI-asszisztens kulcs (BYOK)", "Media provider keys": "Médiaszolgáltatói kulcsok", "Composio project key": "Composio projektkulcs", "Composio connector accounts": "Composio konnektorfiókok",
     "AI Assistant": "AI-asszisztens", "Settings · Execution mode": "Beállítások · Végrehajtási mód", "Providers · Media": "Szolgáltatók · Média", "Providers · Composio": "Szolgáltatók · Composio",
+    "A key is created automatically when this site starts.": "A kulcs automatikusan létrejön, amikor ez a webhely elindul.",
   },
   tr: {
     "Access Tokens": "Erişim belirteçleri", "Site Token": "Site belirteci", Operations: "İşlemler", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Bu kurulumdaki tüm erişim belirteçlerini görebileceğiniz ve onu oluşturan ekranlarda aramadan bir belirteç oluşturabileceğiniz, değiştirebileceğiniz veya kaldırabileceğiniz tek yer.",
@@ -247,6 +255,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "Ayarlar · Yürütme modu",
     "Providers · Media": "Sağlayıcılar · Medya",
     "Providers · Composio": "Sağlayıcılar · Composio",
+    "A key is created automatically when this site starts.": "Bu site başladığında bir anahtar otomatik olarak oluşturulur.",
   },
   ru: {
     "Access Tokens": "Токены доступа", "Site Token": "Токен сайта", Operations: "Операции", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одно место, где можно увидеть все токены доступа этой установки, создать, заменить или удалить токен без поиска по экранам, в которых он был создан.",
@@ -312,6 +321,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "Настройки · Режим выполнения",
     "Providers · Media": "Провайдеры · Медиа",
     "Providers · Composio": "Провайдеры · Composio",
+    "A key is created automatically when this site starts.": "Ключ создаётся автоматически при запуске этого сайта.",
   },
   uk: {
     "Access Tokens": "Токени доступу", "Site Token": "Токен сайту", Operations: "Операції", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одне місце, щоб переглянути всі токени доступу цієї інсталяції та створити, замінити чи вилучити токен без пошуку на екранах, де його створено.",
@@ -377,6 +387,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "Налаштування · Режим виконання",
     "Providers · Media": "Провайдери · Медіа",
     "Providers · Composio": "Провайдери · Composio",
+    "A key is created automatically when this site starts.": "Ключ створюється автоматично під час запуску цього сайту.",
   },
   id: {
     "Access Tokens": "Token akses", "Site Token": "Token situs", Operations: "Operasi", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Satu tempat untuk melihat setiap token akses yang dimiliki instalasi ini, serta membuat, merotasi, atau menghapusnya tanpa mencari di layar yang membuatnya.",
@@ -442,6 +453,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "Pengaturan · Mode eksekusi",
     "Providers · Media": "Penyedia · Media",
     "Providers · Composio": "Penyedia · Composio",
+    "A key is created automatically when this site starts.": "Kunci dibuat secara otomatis saat situs ini dimulai.",
   },
   ar: {
     "Access Tokens": "رموز الوصول", "Site Token": "رمز الموقع", Operations: "العمليات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "مكان واحد لرؤية كل رموز الوصول التي يحتفظ بها هذا التثبيت، وإنشاء أحدها أو تدويره أو إزالته دون البحث في الشاشات التي أنشأته.",
@@ -507,6 +519,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "الإعدادات · وضع التنفيذ",
     "Providers · Media": "المزوّدون · الوسائط",
     "Providers · Composio": "المزوّدون · Composio",
+    "A key is created automatically when this site starts.": "يتم إنشاء مفتاح تلقائيًا عند بدء تشغيل هذا الموقع.",
   },
   fa: {
     "Access Tokens": "توکن‌های دسترسی", "Site Token": "توکن سایت", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "یک جا برای دیدن همهٔ توکن‌های دسترسی این نصب و ایجاد، چرخش یا حذف یکی از آن‌ها، بدون جست‌وجو در صفحه‌هایی که آن را ساخته‌اند.",
@@ -572,6 +585,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "تنظیمات · حالت اجرا",
     "Providers · Media": "ارائه‌دهندگان · رسانه",
     "Providers · Composio": "ارائه‌دهندگان · Composio",
+    "A key is created automatically when this site starts.": "کلید هنگام شروع این سایت به‌طور خودکار ایجاد می‌شود.",
   },
   hi: {
     "Access Tokens": "एक्सेस टोकन", "Site Token": "साइट टोकन", Operations: "संचालन", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "इस इंस्टॉलेशन के सभी एक्सेस टोकन देखने और उन्हें बनाने, बदलने या हटाने के लिए एक जगह, बिना उन्हें बनाने वाली स्क्रीन खोजे।",
@@ -637,6 +651,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "सेटिंग्स · निष्पादन मोड",
     "Providers · Media": "प्रदाता · मीडिया",
     "Providers · Composio": "प्रदाता · Composio",
+    "A key is created automatically when this site starts.": "यह साइट शुरू होने पर कुंजी स्वचालित रूप से बन जाती है।",
   },
   bn: {
     "Access Tokens": "অ্যাক্সেস টোকেন", "Site Token": "সাইট টোকেন", Operations: "কার্যক্রম", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "এই ইনস্টলেশনের সব অ্যাক্সেস টোকেন দেখার এবং যে স্ক্রিনে তৈরি হয়েছে তা খুঁজে না বেড়িয়ে টোকেন তৈরি, পরিবর্তন বা সরানোর একটি জায়গা।",
@@ -702,6 +717,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "সেটিংস · এক্সিকিউশন মোড",
     "Providers · Media": "প্রদানকারী · মিডিয়া",
     "Providers · Composio": "প্রদানকারী · Composio",
+    "A key is created automatically when this site starts.": "এই সাইট শুরু হলে একটি কী স্বয়ংক্রিয়ভাবে তৈরি হয়।",
   },
   ur: {
     "Access Tokens": "رسائی ٹوکن", "Site Token": "سائٹ ٹوکن", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "اس انسٹالیشن کے تمام رسائی ٹوکن دیکھنے اور انہیں بنانے، تبدیل کرنے یا ہٹانے کے لیے ایک جگہ، انہیں بنانے والی اسکرینیں ڈھونڈے بغیر۔",
@@ -767,6 +783,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "ترتیبات · عملدرآمد موڈ",
     "Providers · Media": "فراہم کنندگان · میڈیا",
     "Providers · Composio": "فراہم کنندگان · Composio",
+    "A key is created automatically when this site starts.": "جب یہ سائٹ شروع ہوتی ہے تو ایک کی خودکار طور پر بن جاتی ہے۔",
   },
   ja: {
     "Access Tokens": "アクセストークン", "Site Token": "サイトトークン", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "このインストールが保持するすべてのアクセストークンを確認し、作成元の画面を探し回らずに作成、ローテーション、削除できる場所です。",
@@ -832,6 +849,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "設定 · 実行モード",
     "Providers · Media": "プロバイダー · メディア",
     "Providers · Composio": "プロバイダー · Composio",
+    "A key is created automatically when this site starts.": "このサイトが起動すると、キーが自動的に作成されます。",
   },
   ko: {
     "Access Tokens": "액세스 토큰", "Site Token": "사이트 토큰", Operations: "작업", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "이 설치에 있는 모든 액세스 토큰을 보고, 생성한 화면을 찾지 않아도 토큰을 만들고 교체하거나 제거할 수 있는 곳입니다.",
@@ -897,6 +915,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "설정 · 실행 모드",
     "Providers · Media": "공급자 · 미디어",
     "Providers · Composio": "공급자 · Composio",
+    "A key is created automatically when this site starts.": "이 사이트가 시작되면 키가 자동으로 생성됩니다.",
   },
   th: {
     "Access Tokens": "โทเค็นการเข้าถึง", "Site Token": "โทเค็นเว็บไซต์", Operations: "การดำเนินการ", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "ที่เดียวสำหรับดูโทเค็นการเข้าถึงทั้งหมดของการติดตั้งนี้ และสร้าง หมุนเวียน หรือลบโทเค็นโดยไม่ต้องค้นหาจากหน้าจอที่สร้างโทเค็นนั้น",
@@ -962,6 +981,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "การตั้งค่า · โหมดการทำงาน",
     "Providers · Media": "ผู้ให้บริการ · สื่อ",
     "Providers · Composio": "ผู้ให้บริการ · Composio",
+    "A key is created automatically when this site starts.": "คีย์จะถูกสร้างขึ้นโดยอัตโนมัติเมื่อไซต์นี้เริ่มทำงาน",
   },
   "zh-CN": {
     "Access Tokens": "访问令牌", "Site Token": "站点令牌", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在一个位置查看此安装保存的所有访问令牌，并可创建、轮换或删除令牌，无需在创建它的各个界面中查找。",
@@ -1027,6 +1047,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "设置 · 执行模式",
     "Providers · Media": "提供商 · 媒体",
     "Providers · Composio": "提供商 · Composio",
+    "A key is created automatically when this site starts.": "此站点启动时会自动创建密钥。",
   },
   "zh-TW": {
     "Access Tokens": "存取權杖", "Site Token": "網站權杖", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在同一處查看此安裝保有的所有存取權杖，並可建立、輪替或移除權杖，不必在建立它的各個畫面中尋找。",
@@ -1092,6 +1113,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Settings · Execution mode": "設定 · 執行模式",
     "Providers · Media": "供應商 · 媒體",
     "Providers · Composio": "供應商 · Composio",
+    "A key is created automatically when this site starts.": "此網站啟動時會自動建立金鑰。",
   },
 };
 

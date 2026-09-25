@@ -71,6 +71,28 @@ describe("SiteTokenTab — status card copy", () => {
   });
 });
 
+/** Site-key plan (2026-09-24) item 3: the "none" status note used to promise that clicking
+ *  Generate would create and save the key file — stale ever since Generate was hidden by default
+ *  (§A.6) in favor of automatic creation at boot (`ensureSiteKeyForBoot`). The copy must say what
+ *  actually happens now, not describe a control that isn't on the page. */
+describe("SiteTokenTab — 'no key yet' copy is terse and true (site-key plan item 3)", () => {
+  const NO_KEY_STATUS: AdminSiteTokenStatus = {
+    active: false,
+    source: "none",
+    keyFilePath: "/data/tovu/site-keys/abc123.hex",
+    runtimeMode: "local",
+    state: "missing",
+  };
+
+  it("says a key is created automatically, not that Generating one would save it", () => {
+    renderTab(NO_KEY_STATUS);
+
+    expect(screen.getByText("A key is created automatically when this site starts.")).toBeInTheDocument();
+    expect(screen.queryByText(/Generating one saves it to/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No key has been created yet\./)).not.toBeInTheDocument();
+  });
+});
+
 /** sol packet-3 finding 3-1: the Generate button used to show whenever `!status.active`, which
  *  includes an existing-but-invalid key file — a state where the server always 409s
  *  `ALREADY_EXISTS` (it only ever creates, never overwrites). Generate must be offered only for
