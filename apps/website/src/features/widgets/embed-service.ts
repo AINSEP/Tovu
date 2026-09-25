@@ -57,6 +57,7 @@ import {
   WidgetEmbedGuardrailError,
   WidgetEmbedHostNotFoundError,
   WidgetEmbedHostUnsupportedError,
+  WidgetEmbedPlacementNotFoundError,
   WidgetForbiddenError,
   WidgetInstanceNotFoundError,
   WidgetVersionConflictError,
@@ -489,6 +490,16 @@ export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Pr
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
     const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId);
+    const existing: WidgetEmbedNode[] = [];
+    collectEmbeds(host.record.bodyJson, existing);
+    if (!existing.some((embed) => embed.placementId === input.placementId)) {
+      // C4d fix: `removeEmbedByPlacementId` is a no-op filter — without this check a stale/bogus
+      // placementId fell through to `writeHostBody` unchanged and reported success while writing
+      // nothing.
+      throw new WidgetEmbedPlacementNotFoundError(
+        `no widget embed with placementId '${input.placementId}' was found in host '${input.hostEntryId}'`
+      );
+    }
     const nextBodyJson = removeEmbedByPlacementId(host.record.bodyJson, input.placementId);
     assertGuardrails(deps, hostBodyType(host), nextBodyJson);
     const entry =

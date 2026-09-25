@@ -128,6 +128,20 @@ export class WidgetEmbedHostNotFoundError extends Error {
   }
 }
 
+/**
+ * `WIDGETS_EMBED_PLACEMENT_NOT_FOUND` (404) — `removeWidgetEmbed` was called with a `placementId`
+ * that matches no `widgetEmbed` node in the host's body (already removed, or never existed). Fixed
+ * during the C4d leftovers pass: `removeEmbedByPlacementId` is a no-op filter — before this class
+ * existed, a stale or bogus `placementId` fell through to `writeHostBody` unchanged and reported
+ * success while writing nothing.
+ */
+export class WidgetEmbedPlacementNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WidgetEmbedPlacementNotFoundError";
+  }
+}
+
 /** `WIDGETS_EMBED_HOST_UNSUPPORTED` (400) — the host exists but has no rich-text body a widgetEmbed node can live in. */
 export class WidgetEmbedHostUnsupportedError extends Error {
   constructor(

@@ -14,6 +14,7 @@ import {
   WidgetAreaNotFoundError,
   WidgetEmbedHostNotFoundError,
   WidgetEmbedHostUnsupportedError,
+  WidgetEmbedPlacementNotFoundError,
   WidgetForbiddenError,
   WidgetInstanceNotFoundError,
   WidgetVersionConflictError,
@@ -95,6 +96,10 @@ const CASES: ReadonlyArray<{ name: string; make: () => Error }> = [
   {
     name: "WidgetEmbedHostUnsupportedError",
     make: () => new WidgetEmbedHostUnsupportedError("host 'x' is an HTML-format page, which has no rich-text body for widgetEmbed nodes", "html-page"),
+  },
+  {
+    name: "WidgetEmbedPlacementNotFoundError",
+    make: () => new WidgetEmbedPlacementNotFoundError("no widget embed with placementId 'x' was found in host 'y'"),
   },
   { name: "WidgetVersionConflictError", make: () => new WidgetVersionConflictError("post 'x' was modified by another save (expected version 1, current version 2)", 2) },
   { name: "WidgetAreaConflictError", make: () => new WidgetAreaConflictError("widget_area 'x' was modified by another save (expected version 1, current version 2)", 2) },

@@ -15,7 +15,7 @@ import {
   WidgetEmbedReorderCountMismatchError,
   type EmbedServiceDeps,
 } from "../../embed-service.js";
-import { WidgetEmbedGuardrailError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors.js";
+import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors.js";
 import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps } from "../../write-service.js";
 import { buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload.js";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types.js";
@@ -275,6 +275,29 @@ test("REQ-44/45: removeWidgetEmbed removes only the matching placement, retracts
   const refs = await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
   assert.ok(!refs.some((r) => r.targetId === w1), "the removed placement's ref must be retracted");
   assert.ok(refs.some((r) => r.targetId === w2), "the remaining placement's ref must still be present");
+});
+
+test("C4d fix: removeWidgetEmbed with an unknown placementId rejects instead of reporting success while writing nothing", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos);
+  const w1 = await makeWidgetInstance(repos);
+  const after1 = await insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: w1 } });
+
+  await assert.rejects(
+    () =>
+      removeWidgetEmbed({
+        deps: makeDeps(repos),
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: after1.entry.version, placementId: "does-not-exist" },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof WidgetEmbedPlacementNotFoundError, `expected WidgetEmbedPlacementNotFoundError, got ${String(err)}`);
+      assert.match((err as Error).message, /no widget embed with placementId/);
+      return true;
+    }
+  );
+
+  const after = await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
+  assert.equal(after?.version, after1.entry.version, "the host version must be unchanged — nothing was written");
 });
 
 test("REQ-44/45: reorderWidgetEmbeds swaps which widget occupies which existing slot, in document order, without changing slot count/position", async () => {

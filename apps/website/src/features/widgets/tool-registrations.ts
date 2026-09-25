@@ -62,6 +62,7 @@ import {
   WidgetEmbedGuardrailError,
   WidgetEmbedHostNotFoundError,
   WidgetEmbedHostUnsupportedError,
+  WidgetEmbedPlacementNotFoundError,
   WidgetForbiddenError,
   WidgetInstanceNotFoundError,
   WidgetTypeUnregisteredError,
@@ -181,6 +182,9 @@ function toModelFacingWidgetsError(err: unknown): unknown {
   }
   if (err instanceof WidgetEmbedHostUnsupportedError) {
     return new ToolInputError(`WIDGETS_EMBED_HOST_UNSUPPORTED: ${err.message}`);
+  }
+  if (err instanceof WidgetEmbedPlacementNotFoundError) {
+    return new ToolInputError(`WIDGETS_EMBED_PLACEMENT_NOT_FOUND: ${err.message}`);
   }
   if (err instanceof WidgetVersionConflictError) {
     return new ToolInputError(
