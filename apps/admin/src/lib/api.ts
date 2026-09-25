@@ -751,6 +751,19 @@ export interface AdminPublishCredentialsSnapshot {
  *  the generate action can matter at all — see `AdminSiteTokenStatus`'s doc). */
 export type AdminSiteTokenRuntimeMode = "production" | "local";
 
+/**
+ * Mirrors `SiteTokenState` (`apps/website/src/contracts/core/site-token-state.ts`) — the site-key
+ * plan §A.6 5-state set `GET .../system/site-token`'s `state` field now carries. Hand-declared
+ * rather than imported: that file isn't wired into this app's `@tovu/*` tsconfig/vite path-alias
+ * list yet (see its own header comment — a later admin-side slice does that; this one only needs a
+ * stable value to read). `ADMIN_SITE_TOKEN_STATES` is the runtime source of truth this type is
+ * derived from — `lib/__tests__/site-token-state-parity.unit.test.ts` reads the server source
+ * file's own union text off disk and checks it against this list, so the two can never silently
+ * drift apart. Keep both edited together.
+ */
+export const ADMIN_SITE_TOKEN_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid"] as const;
+export type AdminSiteTokenState = (typeof ADMIN_SITE_TOKEN_STATES)[number];
+
 /** Mirrors `GET .../system/site-token`'s response shape (`inspectRootKeyMaterial`, server-side).
  *  NEVER carries the key value itself — only whether one is active, which of the two possible
  *  sources it came from, and a one-way `fingerprint` a human can use to recognize "same key as
@@ -767,6 +780,8 @@ export interface AdminSiteTokenStatus {
    *  Generate would write. */
   keyFilePath: string;
   runtimeMode: AdminSiteTokenRuntimeMode;
+  /** Site-key plan §A.6 — see {@link AdminSiteTokenState}'s own doc for what each value means. */
+  state: AdminSiteTokenState;
 }
 
 /** Mirrors `POST .../system/site-token/generate`'s `201` response shape. Deliberately has NO

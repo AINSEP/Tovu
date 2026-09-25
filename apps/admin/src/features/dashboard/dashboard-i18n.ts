@@ -51,6 +51,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Se recomienda cambiar tu contraseña antes de desplegar",
     "Change password": "Cambiar contraseña",
     Dismiss: "Descartar",
+    // Site-key plan (2026-09-24) §A.6 — the dashboard's site-key warning banner (`rules.ts`'s
+    // `siteKeyBannerCopy`).
+    "This site has saved credentials, but no site key was found to open them.":
+      "Este sitio tiene credenciales guardadas, pero no se encontró ninguna clave del sitio para abrirlas.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "La clave de este sitio no coincide con la que se usó para guardar sus datos. Las credenciales guardadas no se pueden abrir.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "La clave de este sitio no tiene un formato utilizable. Las credenciales guardadas no se pueden abrir.",
   },
   id: {
     Overview: "Ringkasan",
@@ -87,6 +95,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Sebaiknya ganti kata sandi Anda sebelum melakukan deployment",
     "Change password": "Ganti kata sandi",
     Dismiss: "Tutup",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Situs ini memiliki kredensial yang tersimpan, tetapi tidak ditemukan kunci situs untuk membukanya.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "Kunci situs ini tidak cocok dengan kunci yang digunakan saat datanya disimpan. Kredensial yang tersimpan tidak dapat dibuka.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "Kunci situs ini tidak dalam format yang dapat digunakan. Kredensial yang tersimpan tidak dapat dibuka.",
   },
   de: {
     Overview: "Übersicht",
@@ -123,6 +137,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Es wird empfohlen, Ihr Passwort vor dem Deployment zu ändern",
     "Change password": "Passwort ändern",
     Dismiss: "Verwerfen",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Diese Website hat gespeicherte Zugangsdaten, aber es wurde kein Website-Schlüssel gefunden, um sie zu öffnen.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "Der Schlüssel dieser Website stimmt nicht mit dem überein, mit dem ihre Daten gespeichert wurden. Gespeicherte Zugangsdaten können nicht geöffnet werden.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "Der Schlüssel dieser Website hat kein verwendbares Format. Gespeicherte Zugangsdaten können nicht geöffnet werden.",
   },
   "zh-CN": {
     Overview: "概览",
@@ -159,6 +179,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "建议在部署之前更改您的密码",
     "Change password": "更改密码",
     Dismiss: "关闭",
+    "This site has saved credentials, but no site key was found to open them.":
+      "此站点保存了凭据，但未找到可用于打开它们的站点密钥。",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "此站点的密钥与保存其数据时使用的密钥不匹配。已保存的凭据无法打开。",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "此站点的密钥格式不可用。已保存的凭据无法打开。",
   },
   "zh-TW": {
     Overview: "總覽",
@@ -195,6 +221,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "建議在部署之前變更您的密碼",
     "Change password": "變更密碼",
     Dismiss: "關閉",
+    "This site has saved credentials, but no site key was found to open them.":
+      "此站點已儲存憑證，但找不到可用於開啟它們的站點金鑰。",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "此站點的金鑰與儲存其資料時使用的金鑰不符。已儲存的憑證無法開啟。",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "此站點的金鑰格式無法使用。已儲存的憑證無法開啟。",
   },
   "pt-BR": {
     Overview: "Visão geral",
@@ -231,6 +263,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Recomendamos alterar sua senha antes de fazer o deploy",
     "Change password": "Alterar senha",
     Dismiss: "Dispensar",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Este site tem credenciais salvas, mas nenhuma chave do site foi encontrada para abri-las.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "A chave deste site não corresponde à usada para salvar os dados. As credenciais salvas não podem ser abertas.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "A chave deste site não está em um formato utilizável. As credenciais salvas não podem ser abertas.",
   },
   ru: {
     Overview: "Обзор",
@@ -267,6 +305,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Рекомендуется сменить пароль перед развёртыванием",
     "Change password": "Изменить пароль",
     Dismiss: "Скрыть",
+    "This site has saved credentials, but no site key was found to open them.":
+      "На этом сайте есть сохранённые учётные данные, но ключ сайта для их открытия не найден.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "Ключ этого сайта не совпадает с тем, под которым были сохранены его данные. Сохранённые учётные данные невозможно открыть.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "Ключ этого сайта имеет непригодный формат. Сохранённые учётные данные невозможно открыть.",
   },
   fa: {
     Overview: "نمای کلی",
@@ -303,6 +347,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "توصیه می‌شود پیش از استقرار، رمز عبور خود را تغییر دهید",
     "Change password": "تغییر رمز عبور",
     Dismiss: "نادیده گرفتن",
+    "This site has saved credentials, but no site key was found to open them.":
+      "این سایت دارای اطلاعات ورود ذخیره‌شده است، اما کلید سایتی برای باز کردن آن‌ها یافت نشد.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "کلید این سایت با کلیدی که داده‌های آن با آن ذخیره شده مطابقت ندارد. اطلاعات ورود ذخیره‌شده قابل باز شدن نیستند.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "کلید این سایت در قالبی قابل استفاده نیست. اطلاعات ورود ذخیره‌شده قابل باز شدن نیستند.",
   },
   ar: {
     Overview: "نظرة عامة",
@@ -339,6 +389,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "يُوصى بتغيير كلمة المرور قبل النشر",
     "Change password": "تغيير كلمة المرور",
     Dismiss: "تجاهل",
+    "This site has saved credentials, but no site key was found to open them.":
+      "يحتوي هذا الموقع على بيانات اعتماد محفوظة، ولكن لم يتم العثور على مفتاح للموقع لفتحها.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "لا يتطابق مفتاح هذا الموقع مع المفتاح الذي حُفظت به بياناته. لا يمكن فتح بيانات الاعتماد المحفوظة.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "مفتاح هذا الموقع بصيغة غير صالحة للاستخدام. لا يمكن فتح بيانات الاعتماد المحفوظة.",
   },
   ja: {
     Overview: "概要",
@@ -375,6 +431,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "デプロイする前にパスワードを変更することをお勧めします",
     "Change password": "パスワードを変更",
     Dismiss: "閉じる",
+    "This site has saved credentials, but no site key was found to open them.":
+      "このサイトには保存された認証情報がありますが、それを開くためのサイトキーが見つかりません。",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "このサイトのキーは、データが保存されたときのキーと一致しません。保存された認証情報を開けません。",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "このサイトのキーは使用可能な形式ではありません。保存された認証情報を開けません。",
   },
   ko: {
     Overview: "개요",
@@ -411,6 +473,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "배포하기 전에 비밀번호를 변경하는 것이 좋습니다",
     "Change password": "비밀번호 변경",
     Dismiss: "닫기",
+    "This site has saved credentials, but no site key was found to open them.":
+      "이 사이트에는 저장된 자격 증명이 있지만 이를 열 수 있는 사이트 키를 찾을 수 없습니다.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "이 사이트의 키가 데이터를 저장할 때 사용된 키와 일치하지 않습니다. 저장된 자격 증명을 열 수 없습니다.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "이 사이트의 키가 사용할 수 없는 형식입니다. 저장된 자격 증명을 열 수 없습니다.",
   },
   pl: {
     Overview: "Przegląd",
@@ -447,6 +515,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Zaleca się zmianę hasła przed wdrożeniem",
     "Change password": "Zmień hasło",
     Dismiss: "Odrzuć",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Ta witryna ma zapisane dane uwierzytelniające, ale nie znaleziono klucza witryny, aby je otworzyć.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "Klucz tej witryny nie zgadza się z tym, którym zapisano jej dane. Zapisanych danych uwierzytelniających nie można otworzyć.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "Klucz tej witryny ma nieużywalny format. Zapisanych danych uwierzytelniających nie można otworzyć.",
   },
   hu: {
     Overview: "Áttekintés",
@@ -483,6 +557,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Javasoljuk, hogy a telepítés előtt változtassa meg a jelszavát",
     "Change password": "Jelszó módosítása",
     Dismiss: "Elvetés",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Ennek a webhelynek vannak mentett hitelesítő adatai, de nem található webhelykulcs a megnyitásukhoz.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "Ennek a webhelynek a kulcsa nem egyezik azzal, amellyel az adatait mentették. A mentett hitelesítő adatok nem nyithatók meg.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "Ennek a webhelynek a kulcsa nem használható formátumú. A mentett hitelesítő adatok nem nyithatók meg.",
   },
   fr: {
     Overview: "Vue d'ensemble",
@@ -519,6 +599,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Il est recommandé de changer votre mot de passe avant le déploiement",
     "Change password": "Changer le mot de passe",
     Dismiss: "Ignorer",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Ce site a des identifiants enregistrés, mais aucune clé de site n'a été trouvée pour les ouvrir.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "La clé de ce site ne correspond pas à celle utilisée pour enregistrer ses données. Les identifiants enregistrés ne peuvent pas être ouverts.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "La clé de ce site n'est pas dans un format utilisable. Les identifiants enregistrés ne peuvent pas être ouverts.",
   },
   uk: {
     Overview: "Огляд",
@@ -555,6 +641,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Рекомендується змінити пароль перед розгортанням",
     "Change password": "Змінити пароль",
     Dismiss: "Приховати",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Цей сайт має збережені облікові дані, але ключ сайту для їх відкриття не знайдено.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "Ключ цього сайту не збігається з тим, яким було збережено його дані. Збережені облікові дані неможливо відкрити.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "Ключ цього сайту має непридатний формат. Збережені облікові дані неможливо відкрити.",
   },
   tr: {
     Overview: "Genel Bakış",
@@ -591,6 +683,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Dağıtımdan önce parolanızı değiştirmeniz önerilir",
     "Change password": "Parolayı değiştir",
     Dismiss: "Kapat",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Bu sitede kayıtlı kimlik bilgileri var, ancak bunları açacak bir site anahtarı bulunamadı.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "Bu sitenin anahtarı, verilerinin kaydedildiği anahtarla eşleşmiyor. Kayıtlı kimlik bilgileri açılamıyor.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "Bu sitenin anahtarı kullanılabilir bir biçimde değil. Kayıtlı kimlik bilgileri açılamıyor.",
   },
   th: {
     Overview: "ภาพรวม",
@@ -627,6 +725,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "ขอแนะนำให้เปลี่ยนรหัสผ่านของคุณก่อนดีพลอย",
     "Change password": "เปลี่ยนรหัสผ่าน",
     Dismiss: "ปิด",
+    "This site has saved credentials, but no site key was found to open them.":
+      "เว็บไซต์นี้มีข้อมูลรับรองที่บันทึกไว้ แต่ไม่พบคีย์เว็บไซต์สำหรับเปิดข้อมูลเหล่านั้น",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "คีย์ของเว็บไซต์นี้ไม่ตรงกับคีย์ที่ใช้บันทึกข้อมูล ไม่สามารถเปิดข้อมูลรับรองที่บันทึกไว้ได้",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "คีย์ของเว็บไซต์นี้อยู่ในรูปแบบที่ใช้งานไม่ได้ ไม่สามารถเปิดข้อมูลรับรองที่บันทึกไว้ได้",
   },
   it: {
     Overview: "Panoramica",
@@ -663,6 +767,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "Si consiglia di cambiare la password prima della distribuzione",
     "Change password": "Cambia password",
     Dismiss: "Ignora",
+    "This site has saved credentials, but no site key was found to open them.":
+      "Questo sito ha credenziali salvate, ma non è stata trovata alcuna chiave del sito per aprirle.",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "La chiave di questo sito non corrisponde a quella con cui sono stati salvati i suoi dati. Le credenziali salvate non possono essere aperte.",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "La chiave di questo sito non è in un formato utilizzabile. Le credenziali salvate non possono essere aperte.",
   },
   hi: {
     Overview: "अवलोकन",
@@ -699,6 +809,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "डिप्लॉय करने से पहले अपना पासवर्ड बदलने की सलाह दी जाती है",
     "Change password": "पासवर्ड बदलें",
     Dismiss: "खारिज करें",
+    "This site has saved credentials, but no site key was found to open them.":
+      "इस साइट में सहेजी गई क्रेडेंशियल हैं, लेकिन उन्हें खोलने के लिए कोई साइट कुंजी नहीं मिली।",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "इस साइट की कुंजी उस कुंजी से मेल नहीं खाती जिससे इसका डेटा सहेजा गया था। सहेजी गई क्रेडेंशियल नहीं खोली जा सकतीं।",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "इस साइट की कुंजी उपयोग योग्य प्रारूप में नहीं है। सहेजी गई क्रेडेंशियल नहीं खोली जा सकतीं।",
   },
   ur: {
     Overview: "جائزہ",
@@ -735,6 +851,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "ڈیپلائے کرنے سے پہلے اپنا پاس ورڈ تبدیل کرنے کی سفارش کی جاتی ہے",
     "Change password": "پاس ورڈ تبدیل کریں",
     Dismiss: "مسترد کریں",
+    "This site has saved credentials, but no site key was found to open them.":
+      "اس سائٹ میں محفوظ کردہ کریڈینشلز موجود ہیں، لیکن انہیں کھولنے کے لیے کوئی سائٹ کلید نہیں ملی۔",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "اس سائٹ کی کلید اس کلید سے مماثل نہیں ہے جس سے اس کا ڈیٹا محفوظ کیا گیا تھا۔ محفوظ کردہ کریڈینشلز کھولے نہیں جا سکتے۔",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "اس سائٹ کی کلید قابلِ استعمال فارمیٹ میں نہیں ہے۔ محفوظ کردہ کریڈینشلز کھولے نہیں جا سکتے۔",
   },
   bn: {
     Overview: "সংক্ষিপ্ত বিবরণ",
@@ -771,6 +893,12 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "It is recommended to change your password before deploying": "ডিপ্লয় করার আগে আপনার পাসওয়ার্ড পরিবর্তন করার পরামর্শ দেওয়া হচ্ছে",
     "Change password": "পাসওয়ার্ড পরিবর্তন করুন",
     Dismiss: "খারিজ করুন",
+    "This site has saved credentials, but no site key was found to open them.":
+      "এই সাইটে সংরক্ষিত ক্রেডেনশিয়াল আছে, কিন্তু সেগুলো খোলার জন্য কোনো সাইট কী পাওয়া যায়নি।",
+    "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.":
+      "এই সাইটের কী তার ডেটা যে কী দিয়ে সংরক্ষণ করা হয়েছিল তার সাথে মেলে না। সংরক্ষিত ক্রেডেনশিয়াল খোলা যাবে না।",
+    "This site's key isn't in a usable format. Saved credentials can't be opened.":
+      "এই সাইটের কী ব্যবহারযোগ্য ফরম্যাটে নেই। সংরক্ষিত ক্রেডেনশিয়াল খোলা যাবে না।",
   },
 };
 

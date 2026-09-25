@@ -1,4 +1,4 @@
-import type { AdminPost } from "../../lib/api";
+import type { AdminPost, AdminSiteTokenState } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 
 /**
@@ -78,4 +78,44 @@ export function commentsStatMeta(pendingCount: number | null, t: Translate): str
  */
 export function shouldShowDefaultPasswordBanner(usesDefault: boolean | null, dismissed: boolean): boolean {
   return usesDefault === true && !dismissed;
+}
+
+/**
+ * Site-key plan (2026-09-24) §A.6. Whether the dashboard should show the site-key warning banner.
+ * Only 3 of the 5 {@link AdminSiteTokenState} values are urgent enough to interrupt the landing
+ * screen: `"missing-with-data"` (saved credentials exist but nothing can open them),
+ * `"mismatch"` (the active key doesn't match what the data was sealed under), and `"invalid"` (a
+ * source was found but fails hex validation). Plain `"missing"` is the ordinary state of a brand
+ * new site before its first key is minted at boot (`ensureSiteKey`) — not an error, so no banner.
+ * `"active"` is the normal case. `undefined` (status still loading, or the fetch failed and was
+ * swallowed — see `use-dashboard.hooks.ts`) also renders nothing, the same fail-closed default
+ * {@link shouldShowDefaultPasswordBanner} uses for its own advisory nag: a transient fetch error
+ * must never be read as "something is wrong with your site key" any more than as "it's fine".
+ *
+ * @complexity O(1).
+ */
+export function shouldShowSiteKeyBanner(state: AdminSiteTokenState | undefined): boolean {
+  return state === "missing-with-data" || state === "mismatch" || state === "invalid";
+}
+
+/**
+ * The site-key banner's own copy (site-key plan §A.6) — one terse sentence per bannered state,
+ * translated through the caller's own `t`. Only ever meaningful for a state
+ * {@link shouldShowSiteKeyBanner} already said `true` for; every other state (including
+ * `undefined`) returns `""` defensively — `Dashboard.tsx` never renders it for those, this just
+ * avoids handing back `undefined` prose during a state transition mid-render.
+ *
+ * @complexity O(1).
+ */
+export function siteKeyBannerCopy(state: AdminSiteTokenState | undefined, t: Translate): string {
+  switch (state) {
+    case "missing-with-data":
+      return t("This site has saved credentials, but no site key was found to open them.");
+    case "mismatch":
+      return t("This site's key doesn't match the one its data was saved with. Saved credentials can't be opened.");
+    case "invalid":
+      return t("This site's key isn't in a usable format. Saved credentials can't be opened.");
+    default:
+      return "";
+  }
 }

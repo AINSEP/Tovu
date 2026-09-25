@@ -1,4 +1,4 @@
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost, AdminSiteTokenState } from "@/lib/api";
 
 /**
  * @file What `use-dashboard.hooks.ts` needs from the outside world, as an interface rather than a
@@ -31,4 +31,10 @@ export interface DashboardPort {
    *  so the per-browser Dismiss is remembered per user — another account signing in on the same
    *  browser still gets its own nag. */
   getPasswordStatus(): Promise<{ usesDefaultPassword: boolean; principalId: string }>;
+  /** Site-key plan (2026-09-24) §A.6 — a seventh independent read, same "each source owns its own
+   *  error slot, advisory, swallowed on failure" shape `getPasswordStatus` above documents. Narrowed
+   *  to just `state` (`GET .../system/site-token`'s full response also carries `active`/`source`/
+   *  `fingerprint`/`keyFilePath`, none of which the dashboard's own warning banner needs — the
+   *  Security → Site Token tab is the one place that reads the rest). */
+  getSiteTokenState(): Promise<{ state: AdminSiteTokenState }>;
 }

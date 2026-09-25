@@ -148,6 +148,27 @@ function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Tra
   );
 }
 
+/** Site-key plan (2026-09-24) §A.6 — the site-key warning banner. Same `.notice.warning` full block
+ *  the tab's own {@link SiteTokenScopeNotice}-equivalent uses for a genuinely urgent state (unlike
+ *  the deliberately-subtler {@link DefaultPasswordBanner}): `showSiteKeyBanner` is only ever `true`
+ *  for `missing-with-data`/`mismatch`/`invalid` (`rules.ts`'s `shouldShowSiteKeyBanner`) — states
+ *  where saved credentials genuinely cannot be opened, not a routine nag. No dismiss control (a
+ *  standing fact about the install's data, not a one-time reminder) and no extra CTA link — the
+ *  Secrets → Site Token tab is already one click away in the sidebar, and adding a link here would
+ *  mean adding yet another translated string for a banner that is meant to stay terse. `role=
+ *  "status"`, same as `DefaultPasswordBanner`: it renders on load rather than in response to an
+ *  action. */
+function SiteKeyWarningBanner({ message }: { message: string }) {
+  return (
+    <div className="notice warning dash-site-key-banner" {...agentHandle("dashboard-site-key-banner", { role: "status", label: "Warns that this site's key can't open its saved credentials" })}>
+      <span className="dash-site-key-banner-icon" aria-hidden="true">
+        <Icon name="alert-triangle" size={16} />
+      </span>
+      <p>{message}</p>
+    </div>
+  );
+}
+
 export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardProps = {}) {
   const {
     posts,
@@ -162,6 +183,8 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
     t,
     showDefaultPasswordBanner,
     dismissDefaultPasswordBanner,
+    showSiteKeyBanner,
+    siteKeyBannerMessage,
   } = useDashboardHook();
 
   return (
@@ -199,6 +222,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
         </div>
       </div>
 
+      {showSiteKeyBanner ? <SiteKeyWarningBanner message={siteKeyBannerMessage} /> : null}
       {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 
       <div className="dash-stats">

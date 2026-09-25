@@ -99,6 +99,10 @@ function successRoutes(): Record<string, () => Promise<Response>> {
     // The banner's port pairs the status with the caller's id (per-user Dismiss). Listed after
     // "password-status" because `routeFetch` matches by substring in insertion order.
     "/auth/me": () => Promise.resolve(jsonResponse({ user: { id: "dash-test-user" } })),
+    // Default "active" (the normal, no-banner case) so every pre-existing test in this file (none
+    // of which are about the site-key plan) keeps rendering with no site-key banner, unchanged.
+    "system/site-token": () =>
+      Promise.resolve(jsonResponse({ active: true, source: "file", keyFilePath: "/x", runtimeMode: "local", state: "active" })),
   };
 }
 
@@ -383,5 +387,34 @@ describe("default-password banner (password-banner plan, 2026-09-24, Slice 3)", 
 
     const link = await screen.findByRole("link", { name: "Change password" });
     expect(link).toHaveAttribute("href", "/admin/users/change-password");
+  });
+});
+
+describe("site key banner (site-key plan §A.6)", () => {
+  it("renders no banner on a fresh site — no known state route returns", async () => {
+    fetchMock.mockImplementation(
+      routeFetch({
+        ...successRoutes(),
+        "system/site-token": () =>
+          Promise.resolve(jsonResponse({ active: true, source: "file", keyFilePath: "/x", runtimeMode: "local", state: "active" })),
+      }),
+    );
+    render(<Dashboard />);
+
+    await screen.findByText("editorial");
+    expect(screen.queryByText(/site key|site's key/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a banner when the status route reports mismatch", async () => {
+    fetchMock.mockImplementation(
+      routeFetch({
+        ...successRoutes(),
+        "system/site-token": () =>
+          Promise.resolve(jsonResponse({ active: true, source: "file", keyFilePath: "/x", runtimeMode: "local", state: "mismatch" })),
+      }),
+    );
+    render(<Dashboard />);
+
+    expect(await screen.findByText(/site's key doesn't match/i)).toBeInTheDocument();
   });
 });

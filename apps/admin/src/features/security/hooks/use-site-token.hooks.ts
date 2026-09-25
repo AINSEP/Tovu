@@ -111,7 +111,10 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
     setGenerateError(null);
     try {
       const result = await port.generate();
-      setStatus({ active: true, source: "file", fingerprint: result.fingerprint, keyFilePath: result.keyFilePath, runtimeMode: result.runtimeMode });
+      // A freshly-created key is always `"active"` with nothing to mismatch yet — the server
+      // stamps `.site-meta.json`'s fingerprint to match in the same request (site-key plan §A.6,
+      // `stampSiteKeyFingerprint` in `routes/system/site-token.ts`).
+      setStatus({ active: true, source: "file", fingerprint: result.fingerprint, keyFilePath: result.keyFilePath, runtimeMode: result.runtimeMode, state: "active" });
     } catch (err) {
       setGenerateError(classifySiteTokenGenerateError(err, t));
     } finally {

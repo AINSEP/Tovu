@@ -21,6 +21,7 @@ const ACTIVE_FILE_STATUS: AdminSiteTokenStatus = {
   fingerprint: "a1b2c3d4e5f6",
   keyFilePath: "/data/tovu/integrations-root-key",
   runtimeMode: "production",
+  state: "active",
 };
 
 function makeSiteToken(overrides: Partial<SiteTokenController> = {}): SiteTokenController {

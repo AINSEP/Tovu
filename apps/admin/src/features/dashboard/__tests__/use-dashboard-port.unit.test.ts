@@ -159,3 +159,29 @@ describe("useDashboard — default-password banner (password-banner plan, 2026-0
     }
   });
 });
+
+describe("useDashboard — site key banner (site-key plan §A.6)", () => {
+  it("shows for missing-with-data", async () => {
+    const port = createFakeDashboardPort({ siteKeyState: "missing-with-data" });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.showSiteKeyBanner).toBe(true));
+    expect(result.current.siteKeyBannerMessage.length).toBeGreaterThan(0);
+  });
+
+  it("hides for the normal active state", async () => {
+    const port = createFakeDashboardPort({ siteKeyState: "active" });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeId).not.toBeNull());
+    expect(result.current.showSiteKeyBanner).toBe(false);
+  });
+
+  it("hides when the status fetch rejects — advisory, swallowed, same fail-closed default as the password banner", async () => {
+    const port = createFakeDashboardPort({ getSiteTokenStateError: new Error("boom") });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeId).not.toBeNull());
+    expect(result.current.showSiteKeyBanner).toBe(false);
+  });
+});

@@ -20,6 +20,7 @@ const ACTIVE_FILE_STATUS: AdminSiteTokenStatus = {
   fingerprint: "a1b2c3d4e5f6",
   keyFilePath: "/data/tovu/integrations-root-key",
   runtimeMode: "production",
+  state: "active",
 };
 
 /** Minimal `SiteTokenController` fake — same shape `Security.unit.test.tsx` uses, with the
@@ -80,6 +81,7 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     source: "none",
     keyFilePath: "/data/tovu/integrations-root-key.hex",
     runtimeMode: "local",
+    state: "missing",
   };
 
   const INVALID_FILE_STATUS: AdminSiteTokenStatus = {
@@ -88,6 +90,7 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     invalid: true,
     keyFilePath: "/data/tovu/integrations-root-key.hex",
     runtimeMode: "production",
+    state: "invalid",
   };
 
   const INVALID_ENV_STATUS: AdminSiteTokenStatus = {
@@ -96,12 +99,13 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     invalid: true,
     keyFilePath: "/data/tovu/integrations-root-key.hex",
     runtimeMode: "production",
+    state: "invalid",
   };
 
-  it("shows Generate when there is no key at all", () => {
+  it("hides Generate even when there is no key at all — site-key plan §A.6: kept but hidden by default", () => {
     renderTab(NO_KEY_STATUS);
 
-    expect(screen.getByRole("button", { name: "Generate a key" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate a key" })).not.toBeInTheDocument();
   });
 
   it("hides Generate when the existing key file is invalid — Generate can only create, never replace it", () => {

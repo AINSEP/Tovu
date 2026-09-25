@@ -135,7 +135,11 @@ function SiteTokenStatusCard({ controller }: { controller: SiteTokenController }
       </p>
       <p className="site-token-status-note">{siteTokenStatusNote(status, translate)}</p>
       <SiteTokenRevealAction controller={controller} />
-      <SiteTokenGenerateAction controller={controller} />
+      {/* Site-key plan (2026-09-24) §A.6: Generate is hidden by default, not deleted — the
+          server route, `useSiteToken`'s `generate()`, and this tab's own `SiteTokenGenerateAction`
+          all stay wired (see that component's own header) so a later slice can re-expose it (e.g.
+          behind an "advanced" disclosure) without rebuilding the plumbing. There is no existing
+          "advanced" disclosure pattern on this tab to tuck it into, so this pass just hides it. */}
     </section>
   );
 }

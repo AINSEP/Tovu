@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { commentsStatMeta, pagesStatMeta, postsStatMeta, shouldShowDefaultPasswordBanner } from "../rules";
+import { commentsStatMeta, pagesStatMeta, postsStatMeta, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 
 /**
  * @file Direct coverage for the stat-card meta formatters extracted out of `Dashboard`'s own body
@@ -70,5 +70,49 @@ describe("shouldShowDefaultPasswordBanner", () => {
 
   it("hides while the status is unknown (null) — fail closed, not open", () => {
     expect(shouldShowDefaultPasswordBanner(null, false)).toBe(false);
+  });
+});
+
+describe("shouldShowSiteKeyBanner (site-key plan §A.6)", () => {
+  it("shows for missing-with-data — a site key can't be found but this site has saved credentials", () => {
+    expect(shouldShowSiteKeyBanner("missing-with-data")).toBe(true);
+  });
+
+  it("shows for mismatch — the active key's fingerprint disagrees with the site's stamped one", () => {
+    expect(shouldShowSiteKeyBanner("mismatch")).toBe(true);
+  });
+
+  it("shows for invalid — a source was found but fails hex validation", () => {
+    expect(shouldShowSiteKeyBanner("invalid")).toBe(true);
+  });
+
+  it("hides for active — the normal case", () => {
+    expect(shouldShowSiteKeyBanner("active")).toBe(false);
+  });
+
+  it("hides for plain missing — a fresh site before its first key is minted at boot", () => {
+    expect(shouldShowSiteKeyBanner("missing")).toBe(false);
+  });
+
+  it("hides while the state is unknown (undefined) — fail closed, same default shouldShowDefaultPasswordBanner uses", () => {
+    expect(shouldShowSiteKeyBanner(undefined)).toBe(false);
+  });
+});
+
+describe("siteKeyBannerCopy (site-key plan §A.6)", () => {
+  it("has non-empty, distinct copy for each of the three bannered states", () => {
+    const missingWithData = siteKeyBannerCopy("missing-with-data", identityT);
+    const mismatch = siteKeyBannerCopy("mismatch", identityT);
+    const invalid = siteKeyBannerCopy("invalid", identityT);
+    expect(missingWithData.length).toBeGreaterThan(0);
+    expect(mismatch.length).toBeGreaterThan(0);
+    expect(invalid.length).toBeGreaterThan(0);
+    expect(new Set([missingWithData, mismatch, invalid]).size).toBe(3);
+  });
+
+  it("returns empty string for a non-bannered state — Dashboard.tsx never renders it for these", () => {
+    expect(siteKeyBannerCopy("active", identityT)).toBe("");
+    expect(siteKeyBannerCopy("missing", identityT)).toBe("");
+    expect(siteKeyBannerCopy(undefined, identityT)).toBe("");
   });
 });

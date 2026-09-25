@@ -1,4 +1,4 @@
-import { api, type AdminPost } from "@/lib/api";
+import { api, type AdminPost, type AdminSiteTokenState } from "@/lib/api";
 import type { DashboardPort } from "./dashboard-port.hooks";
 
 /**
@@ -20,6 +20,10 @@ export const defaultDashboardPort: DashboardPort = {
     const [status, me] = await Promise.all([api.getPasswordStatus(), api.me()]);
     return { usesDefaultPassword: status.usesDefaultPassword, principalId: me.user.id };
   },
+  getSiteTokenState: async () => {
+    const status = await api.getSiteTokenStatus();
+    return { state: status.state };
+  },
 };
 
 /** Seed state for {@link createFakeDashboardPort}. Every field is independent — a test can seed
@@ -39,12 +43,16 @@ export interface FakeDashboardPortOptions {
   usesDefaultPassword?: boolean;
   /** The caller's own id the fake reports. Defaults to `"fake-user-1"`. */
   principalId?: string;
+  /** Site-key plan §A.6. Defaults to `"active"` (the normal, no-banner case) — a test seeds
+   *  `"missing-with-data"`/`"mismatch"`/`"invalid"` to exercise the site-key warning banner. */
+  siteKeyState?: AdminSiteTokenState;
   listPostsError?: Error;
   listPagesError?: Error;
   listMediaError?: Error;
   listCommentsQueueError?: Error;
   getPresentationError?: Error;
   getPasswordStatusError?: Error;
+  getSiteTokenStateError?: Error;
 }
 
 /**
@@ -78,6 +86,10 @@ export function createFakeDashboardPort(options: FakeDashboardPortOptions = {}):
     async getPasswordStatus() {
       if (options.getPasswordStatusError) throw options.getPasswordStatusError;
       return { usesDefaultPassword: options.usesDefaultPassword ?? false, principalId: options.principalId ?? "fake-user-1" };
+    },
+    async getSiteTokenState() {
+      if (options.getSiteTokenStateError) throw options.getSiteTokenStateError;
+      return { state: options.siteKeyState ?? "active" };
     },
   };
 }

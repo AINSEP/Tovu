@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { describeApiError, type AdminPost } from "@/lib/api";
-import { mergeRecent, shouldShowDefaultPasswordBanner } from "../rules";
+import { describeApiError, type AdminPost, type AdminSiteTokenState } from "@/lib/api";
+import { mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -110,6 +110,13 @@ export interface DashboardController {
   showDefaultPasswordBanner: boolean;
   /** Hides the banner for this browser and persists that choice (best-effort). */
   dismissDefaultPasswordBanner: () => void;
+
+  /** Site-key plan (2026-09-24) §A.6 — whether the site-key warning banner should render.
+   *  `rules.ts`'s `shouldShowSiteKeyBanner`, applied to this hook's own fetched state. */
+  showSiteKeyBanner: boolean;
+  /** The banner's own copy for the current state (`rules.ts`'s `siteKeyBannerCopy`) — `""` whenever
+   *  {@link showSiteKeyBanner} is `false`. */
+  siteKeyBannerMessage: string;
 }
 
 export interface DashboardDependencies {
@@ -144,6 +151,9 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   const [passwordStatus, setPasswordStatus] = useState<{ usesDefaultPassword: boolean; principalId: string } | null>(null);
   // Lazy initializer: read once, at mount, not on every render.
   const [dismissedBy, setDismissedBy] = useState<string | null>(readDefaultPasswordBannerDismissedBy);
+  // `undefined` until the site-key status fetch settles (or forever, if it fails — swallowed below,
+  // same as `passwordStatus` above). `shouldShowSiteKeyBanner` treats `undefined` as "don't show".
+  const [siteKeyState, setSiteKeyState] = useState<AdminSiteTokenState | undefined>(undefined);
 
   // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
   // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
@@ -191,6 +201,13 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
     // file's `passwordStatus` declaration), not a card showing an em-dash. It's advisory, not
     // a stat the operator came to this screen to see.
     port.getPasswordStatus().then(setPasswordStatus).catch(() => {});
+
+    // Site-key plan §A.6 — same advisory, swallowed-on-failure shape as the password status read
+    // just above: a failed fetch means no banner, not an error card.
+    port
+      .getSiteTokenState()
+      .then((result) => setSiteKeyState(result.state))
+      .catch(() => {});
   }, []);
 
   return {
@@ -214,6 +231,9 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
       writeDefaultPasswordBannerDismissedBy(passwordStatus.principalId);
       setDismissedBy(passwordStatus.principalId);
     },
+
+    showSiteKeyBanner: shouldShowSiteKeyBanner(siteKeyState),
+    siteKeyBannerMessage: siteKeyBannerCopy(siteKeyState, t),
   };
 }
 
