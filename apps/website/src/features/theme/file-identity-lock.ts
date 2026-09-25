@@ -233,7 +233,7 @@ function isFileIdentityChangeAllowed(
 export interface FileIdentityLockResult {
   status: number;
   error: string;
-  code: "REQUIRED_FILE_LOCKED" | "GENERATED_READONLY" | "READ_ONLY_FILE";
+  code: "REQUIRED_FILE_LOCKED" | "GENERATED_READONLY" | "READ_ONLY_FILE" | "NON_CANONICAL_PATH";
 }
 
 /**
@@ -263,6 +263,16 @@ export function validateFileIdentityChange(
   writeScope: ThemeFileWriteScope,
   action: "renamed" | "deleted" | "trashed"
 ): FileIdentityLockResult | null {
+  const hasNonCanonicalSegment = path
+    .split("/")
+    .some((segment) => segment === "" || segment === "." || segment === "..");
+  if (hasNonCanonicalSegment || path.includes("\\")) {
+    return {
+      status: 400,
+      error: `'${path}' is not a canonical theme path — remove empty, '.' and '..' segments`,
+      code: "NON_CANONICAL_PATH",
+    };
+  }
   if (requiredThemeFiles(theme.manifest.apiVersion).includes(path)) {
     return {
       status: 409,
