@@ -45,7 +45,7 @@ export interface ResolvedFederatedConnection {
  * point of a shared default is that "no particular reason" resolves to the same number everywhere.
  */
 export const FEDERATED_CONNECTION_DEFAULTS = {
-  connectTimeoutMs: 15_000,
+  connectTimeoutMs: 60_000,
   callTimeoutMs: 30_000,
   maxResultBytes: 64 * 1024,
   maxTools: 32,

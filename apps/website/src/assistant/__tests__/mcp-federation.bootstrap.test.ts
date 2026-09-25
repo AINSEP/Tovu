@@ -23,9 +23,11 @@ import { McpLaunchUnavailableError, type McpStdioLaunchResolver, type ResolvedSt
  * `postWithTimeout`) applies it to EVERY request the session ever makes, `initialize` included but
  * not exclusively — `callTool` uses the exact same field. So whatever `defaultConnect` hands it
  * becomes the ceiling on every hosted federated tool call for the life of the connection, not just
- * the handshake. Handing it `connectTimeoutMs` (15s) therefore silently caps every hosted tool call
- * at 15s and makes `callTimeoutMs` (30s) dead configuration on this transport — concretely, a
- * `sync:true` poll that legitimately takes ~25s can never finish. The stdio arm gets this right:
+ * the handshake. Handing it `connectTimeoutMs` (60s as of 2026-09-25, owner decision — was 15s)
+ * instead of `callTimeoutMs` (30s) would therefore make `callTimeoutMs` dead configuration on this
+ * transport regardless of which of the two is numerically larger — concretely, a `sync:true` poll
+ * that legitimately takes ~45s would incorrectly succeed under this bug (bounded by 60s) instead of
+ * correctly timing out at the configured 30s. The stdio arm gets this right:
  * `connectMcpStdioSession` is handed `callTimeoutMs` as its `requestTimeoutMs`, and
  * `connectTimeoutMs` bounds only the outer `spawn` race that has nothing to do with any one request.
  *
@@ -111,7 +113,7 @@ test("defaultConnect hands the hosted transport callTimeoutMs as its per-request
   assert.equal(
     seenRequestTimeouts[0],
     CONFIG.callTimeoutMs,
-    "the hosted transport's per-request bound must be callTimeoutMs (30s) — connectTimeoutMs (15s) silently caps every hosted tool call and makes callTimeoutMs dead configuration on this transport",
+    "the hosted transport's per-request bound must be callTimeoutMs (30s) — connectTimeoutMs (60s) must not be substituted for it, which would make callTimeoutMs dead configuration on this transport",
   );
   assert.equal(result.registeredToolIds.length, 0, "no tools were allowlisted on this fixture — this test is only about the timeout wiring");
 });
