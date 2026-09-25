@@ -109,8 +109,23 @@ function isolateSiteDir(t: import("node:test").TestContext): void {
   });
 }
 
+/**
+ * Every test here must run against a temp site dir ({@link isolateSiteDir}): `generate` stamps
+ * `.site-meta.json` and GET scans `content.db` at `siteBinding.dir`, which otherwise resolves to the
+ * REAL `<repo-root>/sites/tovu-com`. Asserted after every `createRouteDeps()` so a new test that
+ * forgets the isolation fails instead of touching the live dev site.
+ */
+function assertSiteDirIsolated(deps: { siteBinding: { dir: string } }): void {
+  assert.ok(
+    path.resolve(deps.siteBinding.dir).startsWith(path.resolve(tmpdir())),
+    `siteBinding.dir must be a temp dir, got ${deps.siteBinding.dir} — call isolateSiteDir(t) before createRouteDeps()`
+  );
+}
+
 test("an api_key holding admin.security.tokens.manage is refused 403 on GET status, reveal, and generate", async (t) => {
+  isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -146,7 +161,9 @@ test("an api_key holding admin.security.tokens.manage is refused 403 on GET stat
 
 test("session callers keep working: GET, reveal, and generate all still succeed for an admin session", async (t) => {
   isolateHomeDir(t);
+  isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -172,7 +189,9 @@ test("session callers keep working: GET, reveal, and generate all still succeed 
 
 test("generate's response never carries the raw key — only status/reveal-relevant metadata (sol finding 3-2)", async (t) => {
   isolateHomeDir(t);
+  isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -190,7 +209,9 @@ test("generate's response never carries the raw key — only status/reveal-relev
 
 test("reveal and generate responses carry Cache-Control: no-store; GET status does not carry key material", async (t) => {
   isolateHomeDir(t);
+  isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -212,6 +233,7 @@ test("GET status: state is 'missing' when nothing is configured, 'active' after 
   isolateHomeDir(t);
   isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -245,6 +267,7 @@ test("GET status: state is 'missing-with-data' when nothing resolves but this si
   isolateHomeDir(t);
   isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
 
   // Seed a key-dependent row directly, before the app even boots — `findKeyDependentData`'s own
   // `webhook_subscriptions` check (no `sealed_ciphertext` column required) is the smallest fixture
@@ -269,6 +292,7 @@ test("GET status: state is 'mismatch' when .site-meta.json's stamped fingerprint
   isolateHomeDir(t);
   isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
 
   // A commit-marker `.site-meta.json` must already exist for `generate` to have anything to stamp
   // a fingerprint into (`stampSiteKeyFingerprint`'s own "no meta yet → nothing written" no-op) —
@@ -303,6 +327,7 @@ test("generate re-stamps .site-meta.json's siteKeyFingerprint to the new key's o
   isolateHomeDir(t);
   isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
 
   // A STALE stamp, simulating an old, now-gone key (e.g. the key file was regenerated outside this
   // route once already, or restored from an older backup) — `generate` must overwrite it, not
@@ -341,13 +366,14 @@ test("generate re-stamps .site-meta.json's siteKeyFingerprint to the new key's o
 
 test("generate writes THIS site's own per-site key file when a siteKeyId is resolvable, not the legacy global default (site-key plan §A3b)", async (t) => {
   isolateHomeDir(t);
+  isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  // The in-memory composition root's siteBinding.dir points at a real directory on disk
-  // (describeSiteBinding()'s own resolution) — stamp a resolvable siteKeyId into it so this test
-  // proves generate targets the PER-SITE path, not merely "some path".
+  // siteBinding.dir is this test's own temp site dir (isolateSiteDir) — stamp a resolvable
+  // siteKeyId into it so this test proves generate targets the PER-SITE path, not merely "some path".
   const siteMetaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
   const priorSiteMeta = existsSync(siteMetaPath) ? readFileSync(siteMetaPath, "utf8") : undefined;
   writeFileSync(siteMetaPath, JSON.stringify({ siteId: "site-token-route-test-site" }));
@@ -368,7 +394,9 @@ test("generate writes THIS site's own per-site key file when a siteKeyId is reso
 });
 
 test("all three verbs stay 401 without a credential and 403 for a session lacking the permission", async (t) => {
+  isolateSiteDir(t);
   const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
 
