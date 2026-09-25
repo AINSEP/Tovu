@@ -47,6 +47,7 @@ import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
 import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/identity/tool-registrations.js";
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
+import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
 import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
@@ -192,6 +193,9 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   integrations: getWebhooksAgentToolCatalog() as unknown as AgentToolDefinition[],
   post: postAgentToolCatalog as unknown as AgentToolDefinition[],
   themes: getThemesAgentToolCatalog() as unknown as AgentToolDefinition[],
+  // `change-sets` (F7b option A, S6, 2026-09-24): `change_sets_list`/`change_sets_revert`, wired via
+  // `contributeChangeSetsTools()`. See `features/change-sets/tool-registrations.ts`'s own header.
+  "change-sets": getChangeSetsAgentToolCatalog() as unknown as AgentToolDefinition[],
   deployments: deploymentsAgentToolCatalog as unknown as AgentToolDefinition[],
   pages: pagesAgentToolCatalog as unknown as AgentToolDefinition[],
   "static-publish": staticPublishAgentToolCatalog as unknown as AgentToolDefinition[],

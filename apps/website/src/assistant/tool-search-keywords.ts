@@ -243,6 +243,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // from every other theme_* tool above, which all edit ONE theme's own files.
   theme_set_active: "theme switch activate change active theme live site look design",
 
+  // --- change sets (F7b option A, S6, 2026-09-24) — undo for post/page edits and deletes ------------
+  change_sets_list: "change set history recent edits undo list revert log",
+  change_sets_revert: "change set undo revert restore rollback previous version post page edit",
+
   // --- database ------------------------------------------------------------------------------------
   database_get_health: "database health healthy status ok working check diagnose",
   database_get_schema_state: "database schema tables structure state",

@@ -22,6 +22,7 @@ import { contributeRecoveryTools } from "#src/features/recovery/tool-registratio
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
 import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
+import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
 import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
@@ -325,6 +326,9 @@ export function installFirstPartyToolContributors(): void {
   // (`"theme-set-active"`), because re-registering under `contributeThemesTools()`'s own `"theme"`
   // key would replace that domain's four file-operation tools instead of adding a fifth.
   registerToolContributor(contributeSetActiveThemeTools());
+  // `change_sets_list`/`change_sets_revert` (F7b option A, S6, 2026-09-24) — own domain key
+  // (`"change-sets"`), sharing no key with any other contributor above.
+  registerToolContributor(contributeChangeSetsTools());
   // Trash: `trash_list_items` and `trash_restore_item` ONLY. There is no purge tool and there must
   // never be one — `features/trash/__tests__/tool-registrations.purge-ban.test.ts` walks every
   // registration this function installs and fails if any handler can reach `purgeSelected`.
