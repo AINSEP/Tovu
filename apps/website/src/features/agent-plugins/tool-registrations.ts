@@ -13,6 +13,8 @@ import {
   type WirableToolDefinition,
 } from "@jini-ai/cms/core";
 
+import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
+
 import {
   filterActiveAgentPlugins,
   isAgentPluginActive,
@@ -149,7 +151,7 @@ import type { ToolContributor } from "#src/assistant/index";
  * must still be able to find this one tool even though neither term appears in the plugin's own
  * top-level name. {@link buildPluginToolDescription} therefore folds every skill's own summary (its
  * frontmatter `description:`, or its opening prose when there is none — the exact per-skill parsing
- * {@link extractFrontmatterDescription} / {@link extractFallbackSummary} already did for the prior
+ * `readFrontmatterField` / {@link extractFallbackSummary} already did for the prior
  * pilot, reused here rather than re-implemented) into one combined, readable description naming
  * every skill and what it is for.
  *
@@ -205,27 +207,6 @@ function toAgentPluginToolId(pluginId: string): string {
   return `agent_plugin_${pluginId.replace(/-/g, "_")}`;
 }
 
-/**
- * Extracts a SKILL.md's own YAML frontmatter `description:` field, when present.
- *
- * Deliberately a narrow regex over the delimited block rather than a full YAML parse: every real
- * SKILL.md sampled while building this feature (all 7 of the reference `ui-ux-design` plugin's own
- * skills) uses a single-line `description: ...` value, and a regex over already-known-installed,
- * validated content cannot throw the way a real parser could on an unexpected nested shape (e.g. one
- * skill in that same sample set declares a multi-line `allowed-tools:` list alongside its
- * single-line `description:` — a regex simply ignores it; a naive full-document YAML parse would not).
- */
-function extractFrontmatterDescription(markdown: string): string | undefined {
-  if (!markdown.startsWith("---")) return undefined;
-  const end = markdown.indexOf("\n---", 3);
-  if (end === -1) return undefined;
-  const frontmatter = markdown.slice(3, end);
-  const match = frontmatter.match(/^description:\s*(.+)$/m);
-  const raw = match?.[1];
-  if (!raw) return undefined;
-  return raw.trim().replace(/^["']|["']$/g, "");
-}
-
 /** Falls back to the first real prose line when a skill has no (or no parseable) frontmatter — the
  *  reference plugin's own `web-compliance` skill is exactly this case: no frontmatter block at all,
  *  just an H1 followed by real prose. Skips every heading and blank line. */
@@ -242,7 +223,7 @@ function extractFallbackSummary(markdown: string): string | undefined {
  *  standalone tool description of its own. */
 function summarizeSkillMarkdown(skillName: string, markdown: string): string {
   return (
-    extractFrontmatterDescription(markdown) ?? extractFallbackSummary(markdown) ?? `${humanize(skillName)} guidance and reference material.`
+    readFrontmatterField(markdown, "description") ?? extractFallbackSummary(markdown) ?? `${humanize(skillName)} guidance and reference material.`
   );
 }
 

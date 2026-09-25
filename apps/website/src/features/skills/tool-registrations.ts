@@ -12,6 +12,8 @@ import {
   type WirableToolDefinition,
 } from "@jini-ai/cms/core";
 
+import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
+
 import { resolveSkillLayout } from "./layout.js";
 
 /**
@@ -113,13 +115,10 @@ interface SkillFrontmatter {
 }
 
 /**
- * Extracts `name:` and `description:` from a `SKILL.md`'s YAML frontmatter block.
- *
- * Deliberately a narrow regex over the delimited block, not a full YAML parse — mirrors
- * `agent-plugins/tool-registrations.ts`'s own `extractFrontmatterDescription`, for the identical
- * reason: every sampled real `SKILL.md` (this feature's own installed `incident-response` fixture)
- * uses single-line `key: value` frontmatter fields, and a regex over already-locally-authored content
- * cannot throw the way a full parser could on an unexpected shape.
+ * Extracts `name:` and `description:` from a `SKILL.md`'s YAML frontmatter block, via the shared
+ * {@link readFrontmatterField} (a real YAML parse of the isolated block, falling back to a single-line
+ * regex only when that block isn't valid YAML — see that module's header for why: a folded/literal
+ * block scalar `description:` value needs a real parse to resolve, not a regex over its marker line).
  *
  * @returns `undefined` when the file has no frontmatter block, or the block is missing either
  * required field — the caller treats that as "skip this folder" (see this file's header), never a
@@ -127,27 +126,11 @@ interface SkillFrontmatter {
  * @complexity O(n) in the frontmatter block's own length.
  */
 function parseSkillFrontmatter(markdown: string): SkillFrontmatter | undefined {
-  if (!markdown.startsWith("---")) return undefined;
-  const end = markdown.indexOf("\n---", 3);
-  if (end === -1) return undefined;
-  const frontmatter = markdown.slice(3, end);
-
-  const name = extractFrontmatterField(frontmatter, "name");
-  const description = extractFrontmatterField(frontmatter, "description");
+  const name = readFrontmatterField(markdown, "name");
+  const description = readFrontmatterField(markdown, "description");
   if (!name || !description) return undefined;
 
   return { name, description };
-}
-
-/** Reads one `key: value` line out of an already-isolated frontmatter block, trimming surrounding
- *  quotes the same way `agent-plugins/tool-registrations.ts`'s own frontmatter reader does. Returns
- *  `undefined` for a missing key or an empty value — both are "not usably present" to this loader. */
-function extractFrontmatterField(frontmatter: string, key: string): string | undefined {
-  const match = frontmatter.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
-  const raw = match?.[1];
-  if (!raw) return undefined;
-  const value = raw.trim().replace(/^["']|["']$/g, "");
-  return value.length > 0 ? value : undefined;
 }
 
 /** `skill_<sanitized name>` — see this file's header, "Tool id scheme", for why `skill_` is the
