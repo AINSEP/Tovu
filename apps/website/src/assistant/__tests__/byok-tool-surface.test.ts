@@ -803,3 +803,66 @@ test("BYOK federation: installExtensions: false leaves federation undefined and 
   assert.equal(s.federation, undefined);
   assert.deepEqual(await s.awaitFederation(1000), { settled: true });
 });
+
+/**
+ * @file Regression tests for commit 3e87d71c5 ("still connecting" vs "unknown tool") — see
+ * `ADS-memory/.local-artifacts/handoffs/2026-09-24-mcp-connect-ux.md`'s "NOT DONE — regression
+ * tests" section, which names this exact scenario as the natural test: a `federationConnect` that
+ * has not yet resolved when `execute_delegated_tool` names a still-registering federated id, and one
+ * that has rejected by the time the boot pass settles.
+ */
+
+test("BYOK federation: execute_delegated_tool for a still-registering federated id gets 'still connecting', not a bare 'unknown tool' throw", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+
+  // Never resolves during this test — stands in for npx startup (6-13s) outlasting
+  // `assistant-byok.ts`'s own bounded `FEDERATION_TURN_WAIT_MS` (here, `awaitFederation`'s 10ms).
+  let releaseConnect!: (session: InMemoryMcpSession) => void;
+  const connectGate = new Promise<InMemoryMcpSession>((resolve) => {
+    releaseConnect = resolve;
+  });
+
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+    federationConnect: async () => connectGate,
+  });
+
+  assert.deepEqual(await s.awaitFederation(10), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
+  assert.equal(s.federation?.started, false);
+
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: {} }));
+
+  assert.equal(result.isError, true);
+  assert.equal(result.content, "External MCP server 'echo-server' is still connecting — try again in a moment.");
+  // The exact throw text this test exists to stop the model from seeing in its place.
+  assert.doesNotMatch(result.content, /unknown tool/i);
+
+  // Let the background boot pass finish so it does not leave a dangling connect promise once this
+  // test returns.
+  releaseConnect(new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }));
+  await s.federation?.start();
+});
+
+test("BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+    federationConnect: async () => {
+      throw new Error("connect ECONNREFUSED");
+    },
+  });
+
+  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.equal(s.federation?.started, true);
+  assert.deepEqual(s.federation?.connectFailures(), [{ connectionId: "echo-server", reason: "connect ECONNREFUSED" }]);
+
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: {} }));
+
+  assert.equal(result.isError, true);
+  assert.equal(result.content, "External MCP server 'echo-server' failed to connect: connect ECONNREFUSED");
+});

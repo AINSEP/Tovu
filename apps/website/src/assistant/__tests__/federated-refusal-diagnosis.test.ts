@@ -6,7 +6,7 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import type { FederatedAdmissionReport } from "../mcp-federation/trust.js";
 import type { FederationAdmissionSnapshotEntry } from "../mcp-federation/refusal-notice.js";
-import { withFederatedRefusalDiagnosis } from "../federated-refusal-diagnosis.js";
+import { withFederatedRefusalDiagnosis, type FederationBootStatus } from "../federated-refusal-diagnosis.js";
 
 /**
  * @file The incident this closes: an operator's higgsfield connection allowlists only
@@ -198,6 +198,57 @@ test("the snapshot is read LIVE at call time — a refusal that only exists afte
 // ---------------------------------------------------------------------------
 // resumeConfirmation / cancel / getAuditRecord delegate straight through
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// getBootStatus (2026-09-24) — "still connecting" / "failed to connect", reached only when the
+// snapshot itself has no refusal entry for this id (never even admitted yet). Regression tests for
+// commit 3e87d71c5, called out as missing in
+// `ADS-memory/.local-artifacts/handoffs/2026-09-24-mcp-connect-ux.md`.
+// ---------------------------------------------------------------------------
+
+test("a federated id with no snapshot refusal, while the boot pass has not settled, is diagnosed as still connecting", async () => {
+  const toolId = "mcp__echo-server__echo";
+  const inner = stubExecutor(new Set([toolId]));
+  const status: FederationBootStatus = { settled: false, connectFailures: [] };
+
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.errorKind, "validation");
+  assert.equal(result.error, "External MCP server 'echo-server' is still connecting — try again in a moment.");
+  // The exact throw text this diagnosis exists to stop the caller from seeing in its place.
+  assert.doesNotMatch(result.error ?? "", /unknown tool/i);
+});
+
+test("a federated id with no snapshot refusal, once the boot pass has settled with a recorded connect failure, gets that failure's own reason", async () => {
+  const toolId = "mcp__echo-server__echo";
+  const inner = stubExecutor(new Set([toolId]));
+  const status: FederationBootStatus = { settled: true, connectFailures: [{ connectionId: "echo-server", reason: "connect ECONNREFUSED" }] };
+
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.errorKind, "validation");
+  assert.equal(result.error, "External MCP server 'echo-server' failed to connect: connect ECONNREFUSED");
+});
+
+test("a settled boot pass with no matching connect failure still throws unchanged — a genuinely unrelated/hallucinated id is not reinterpreted as 'still connecting'", async () => {
+  const toolId = "mcp__echo-server__echo";
+  const inner = stubExecutor(new Set([toolId]));
+  const status: FederationBootStatus = { settled: true, connectFailures: [] };
+
+  await assert.rejects(
+    () => withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {}),
+    /unknown tool "mcp__echo-server__echo"/,
+  );
+});
+
+test("getBootStatus omitted (the daemon's own call site) is byte-identical to before this parameter existed — still throws for an undiagnosed federated id", async () => {
+  const toolId = "mcp__echo-server__echo";
+  const inner = stubExecutor(new Set([toolId]));
+
+  await assert.rejects(() => withFederatedRefusalDiagnosis(inner, () => []).execute(PRINCIPAL, RUN, toolId, {}), /unknown tool/);
+});
 
 test("resumeConfirmation, cancel, and getAuditRecord are untouched pass-throughs", () => {
   let resumed: [string, string] | null = null;
