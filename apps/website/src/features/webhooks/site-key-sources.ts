@@ -81,10 +81,13 @@ export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
   return sources;
 }
 
-/** Prefers the new `TOVU_SITE_KEY` name when it is already set; otherwise names the current real
- *  var so an unmodified install (nothing D1-renamed yet) still resolves. */
+/** Prefers the new `TOVU_SITE_KEY` name when it is set to a non-blank value; otherwise names the
+ *  current real var so an unmodified install (nothing D1-renamed yet) still resolves. A blank
+ *  `TOVU_SITE_KEY` counts as unset ({@link readSiteKeySourceMaterial}'s "blank env = absent" rule) —
+ *  it must never shadow a real value under the legacy name. */
 function resolveEnvVarName(env: Record<string, string | undefined>): string {
-  return env[SITE_KEY_ENV_VAR_NAME] !== undefined ? SITE_KEY_ENV_VAR_NAME : DEFAULT_ROOT_KEY_ENV_VAR_NAME;
+  const preferred = env[SITE_KEY_ENV_VAR_NAME];
+  return preferred !== undefined && preferred.trim().length > 0 ? SITE_KEY_ENV_VAR_NAME : DEFAULT_ROOT_KEY_ENV_VAR_NAME;
 }
 
 /** Characters a `siteKeyId` may contain: `initSite` writes a UUID, so letters, digits, `-`, `_` and

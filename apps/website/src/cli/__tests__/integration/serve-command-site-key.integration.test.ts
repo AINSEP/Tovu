@@ -170,21 +170,11 @@ function buildSealedCiphertextDb(dbPath: string): void {
  *  explicitly made ABSENT — see this file's header for why inheriting the real parent env is
  *  unsafe here.
  *
- * Deliberately `undefined`, NOT `""`: `spawn`'s `env` option drops any key whose value is
- * `undefined` (verified directly — the child's `process.env` has no such key at all), which is
- * what "genuinely nothing configured" means to `siteKeySources`'s `resolveEnvVarName` and
- * `ensureSiteKey`'s own material resolution. An EMPTY STRING is a materially different input to
- * THIS specific pipeline: `resolveEnvVarName` treats any `env[name] !== undefined` as "already
- * set" (preferring `TOVU_SITE_KEY` the instant it exists at all, blank or not), and
- * `findFirstPresentMaterial`/`readSourceRaw` (`site-key-ensure.ts`) then treat that blank value as
- * PRESENT-but-invalid material (`parseRootKeyHex("")` rejects it) — `planSiteKeyEnsure` reports
- * `"invalid"`, not `"mint"`, exactly per its own documented rule #5 ("adopting broken material
- * would just move the breakage"). That is correct, deliberate A1/A2 behavior for this new
- * `sources`-driven path — a real difference from the OLD, unrelated `EnvOrFileKeyring.
- * resolveRootKey()` default branch's `if (fromEnv)` truthy check, which is what
- * `development/scripts/start.mjs`'s `clearBlankRootKeyEnv`/"empty string = absent" convention
- * actually targets. This test wants the genuinely-nothing-anywhere case, so it must send genuine
- * absence, not a blank value this mechanism validates and rejects. */
+ * Deliberately `undefined` rather than `""`: `spawn`'s `env` option drops any key whose value is
+ * `undefined`, so the child's `process.env` has no such key at all — genuine absence. A blank value
+ * would also resolve as absent today (`site-key-sources.ts`'s "blank env = absent" rule, which
+ * covers both the value read and the `TOVU_SITE_KEY`-vs-legacy name choice), but this test wants
+ * the nothing-configured case without depending on that rule. */
 function isolatedEnv(tempHome: string): NodeJS.ProcessEnv {
   return { HOME: tempHome, TOVU_INTEGRATIONS_ROOT_KEY: undefined, TOVU_SITE_KEY: undefined };
 }

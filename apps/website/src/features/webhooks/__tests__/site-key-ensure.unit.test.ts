@@ -357,3 +357,13 @@ test("ensureSiteKeyForBoot: a traversal siteKeyId in .site-meta.json writes noth
   assert.equal(existsSync(path.join(home, "escaped.hex")), false);
   assert.equal(existsSync(path.join(home, ".tovu")), false);
 });
+
+test("ensureSiteKey: TOVU_SITE_KEY set but blank does not hide a valid TOVU_INTEGRATIONS_ROOT_KEY — the legacy value is adopted", () => {
+  const hex = validHex();
+  const env = { ...bareEnv(), TOVU_SITE_KEY: "", TOVU_INTEGRATIONS_ROOT_KEY: hex };
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), hex);
+});

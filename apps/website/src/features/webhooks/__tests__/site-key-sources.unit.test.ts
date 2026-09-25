@@ -334,3 +334,17 @@ test("siteKeySources: a separator-bearing siteKeyId drops the per-site candidate
     ["env", "legacy-shared-file"]
   );
 });
+
+test("the env candidate falls back to the legacy name when TOVU_SITE_KEY is set but BLANK — blank means absent, it must not shadow a real legacy value", () => {
+  for (const blank of ["", "   "]) {
+    const sources = siteKeySources({
+      mode: "local",
+      env: { [SITE_KEY_ENV_VAR_NAME]: blank, [DEFAULT_ROOT_KEY_ENV_VAR_NAME]: "a".repeat(64) },
+      home: "/home/u",
+      cwd: "/w",
+      siteKeyId: "site-1",
+    });
+    const envSource = sources.find((source) => source.kind === "env");
+    assert.equal(envSource?.envVarName, DEFAULT_ROOT_KEY_ENV_VAR_NAME, `TOVU_SITE_KEY=${JSON.stringify(blank)} must not win`);
+  }
+});
