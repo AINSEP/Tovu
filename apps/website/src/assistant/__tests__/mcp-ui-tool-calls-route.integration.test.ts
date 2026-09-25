@@ -12,6 +12,8 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildPostRegistrations } from "#src/features/post/tool-registrations";
 import type { RouteDeps } from "#src/server/routes/types";
 
+import { removeVia } from "../../features/post/__tests__/remove-post-double.js";
+
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
@@ -63,7 +65,14 @@ const NOW = "2026-08-04T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
 /** Builds the real tool surface: one registry, one production-shaped executor (no `delegate`, no
- * mocks), over an in-memory Posts repo so a real soft-delete can be asserted directly. */
+ * mocks), over an in-memory Posts repo so a real soft-delete can be asserted directly.
+ *
+ * `removePost` uses the project's established `RemovePostFn` double (`remove-post-double.ts`'s
+ * `removeVia`) rather than the real `TrashPort` binding: production's post trash adapter
+ * (`trash/adapters/post.ts`) writes raw SQL against `content.db`, which this in-memory harness has
+ * no analogue for. `deletePost` (post.ts, 9822f7697) has depended on an injected `remove` since
+ * 2026-09-20; this route's own test double is only for the index-less marker flip that fixture
+ * covers — see `features/trash/__tests__/` for the real-store, index-included coverage. */
 function buildRealPostToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   const postRepo = new InMemoryPostRepo();
   const changeSets = new InMemoryChangeSetRepo();
@@ -78,6 +87,7 @@ function buildRealPostToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
     outbox,
     bus,
     postRepo,
+    removePost: removeVia(postRepo),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as RouteDeps;
 
