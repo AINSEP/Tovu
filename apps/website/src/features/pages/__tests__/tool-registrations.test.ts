@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, createPost } from "../../post/index.js";
+import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { buildPagesRegistrations } from "../tool-registrations.js";
 
@@ -178,4 +178,75 @@ test("pages_read_html round-trips what pages_write_html wrote", async () => {
 
   assert.equal(result.html, html);
   assert.deepEqual(result.regions, ["hero"]);
+});
+
+// ---------------------------------------------------------------------------
+// S2 (fix plan 2026-09-24, rows 13 + 18-pages) — pages_read_html tells the truth about a doc page,
+// and pages_write_html accepts a caller-stated basis for the conversion that follows.
+// ---------------------------------------------------------------------------
+
+const DOC_WITH_PARAGRAPH = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }] };
+
+test("pages_read_html on a doc page with content reports bodyFormat, the real version, and hasDocContent — not an empty not-found", async () => {
+  const { repo, call } = harness();
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.ok(row);
+
+  const result = (await call("pages_read_html", { id: "page-1" })) as {
+    html: string;
+    bodyFormat: string;
+    version: number;
+    hasDocContent: boolean;
+    note?: string;
+  };
+
+  assert.equal(result.html, "");
+  assert.equal(result.bodyFormat, "doc");
+  assert.equal(result.version, row.version);
+  assert.equal(result.hasDocContent, true);
+  assert.match(String(result.note), /rich-text \(doc\) page with content/);
+  assert.match(String(result.note), /revision history/);
+});
+
+test("pages_read_html on a brand-new (empty doc) page reports hasDocContent: false and no note", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1", "Brand new");
+
+  const result = (await call("pages_read_html", { id: "page-1" })) as { hasDocContent: boolean; note?: string };
+
+  assert.equal(result.hasDocContent, false);
+  assert.equal(result.note, undefined);
+});
+
+test("pages_write_html with a stale expectedVersion on a doc page rejects with the version-conflict code, and the row is untouched", async () => {
+  const { repo, call } = harness();
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.ok(row);
+
+  const html = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>`;
+  await assert.rejects(
+    () => call("pages_write_html", { id: "page-1", html, expectedVersion: row.version - 1 }),
+    { message: new RegExp(`^${VERSION_CONFLICT_CODE}:`) }
+  );
+
+  const stillThere = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.deepEqual(stillThere?.bodyJson, DOC_WITH_PARAGRAPH, "the rejected write must not have converted or touched the doc body");
+  assert.equal(stillThere?.bodyFormat, "doc");
+});
+
+test("pages_write_html with the CORRECT expectedVersion on a doc page converts and writes normally", async () => {
+  const { repo, call } = harness();
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Landing", kind: "page", bodyJson: DOC_WITH_PARAGRAPH } });
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.ok(row);
+
+  const html = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>`;
+  const result = (await call("pages_write_html", { id: "page-1", html, expectedVersion: row.version })) as { written: boolean };
+
+  assert.equal(result.written, true);
+  const saved = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.equal(saved?.bodyFormat, "html");
+  assert.equal(saved?.bodyHtml, html);
 });

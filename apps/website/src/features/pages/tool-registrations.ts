@@ -14,7 +14,8 @@ import {
 import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { EXPECTED_VERSION_REJECTION, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
+import { EXPECTED_VERSION_REJECTION, isTrashed, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
+import { forbiddenRule, withModelFacingErrors } from "../../contracts/core/model-facing-tool-errors.js";
 import { pagesAgentToolCatalog, type AgentToolDefinition as PagesAgentToolDefinition } from "./agent-tools.js";
 import {
   PageConcurrentEditError,
@@ -227,21 +228,37 @@ function describeRegionProblem(id: string, handle: string, problem: RegionLookup
  * caller read beforehand — checking there would reject every legitimate first write and accept
  * nothing extra. Reading first separates the two cases cleanly: an existing html page yields the
  * live version (and the guard applies), and a page with no body yet yields `null` (and there was
- * never a basis to state). For an existing page this is also strictly one SELECT fewer than the
- * previous `ensureHtmlFormat` -> `read` sequence, and produces the identical version arithmetic in
- * both branches.
+ * never a basis to state).
+ *
+ * S2 (fix plan 2026-09-24, rows 13 + 18-pages) — a caller CAN state a basis for that first-write
+ * case now, when it is converting an existing `doc`-format row rather than birthing a genuinely
+ * empty page: `pages_read_html` (see its own `hasDocContent`/`note`) tells the model the row's real
+ * `version` before it ever calls this, so a stale basis on the conversion turn is exactly as real a
+ * conflict as a stale basis on any later write, and is checked here against the row `findById`
+ * returns — the one extra SELECT the not-found branch now costs, paid only on the conversion path.
+ * A row that does not exist at all (`findById` returns `null`) has no version to check, so the
+ * guard is skipped and `ensureHtmlFormat`'s own `PageNotFoundError` reaches the caller unchanged.
  *
  * @throws {PageNotFoundError} If no such row exists at all.
  * @throws {PageKindMismatchError} If the id names a post.
- * @complexity O(1) — one indexed read, plus one indexed update on the birth path.
+ * @throws {ToolInputError} If a stated `expectedVersion` does not match an existing `doc` row's
+ * real version (via {@link assertExpectedVersion}).
+ * @complexity O(1) — one indexed read, plus (on the conversion path) one indexed lookup and one
+ * indexed update.
  */
-async function openForFullWrite(store: PagesHtmlDocumentStorePort, seedHtml: string): Promise<number | null> {
+async function openForFullWrite(
+  store: PagesHtmlDocumentStorePort,
+  seedHtml: string,
+  guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number | undefined }
+): Promise<number | null> {
   try {
     await store.read();
     return requireCapturedVersion(store);
   } catch (err) {
     if (!(err instanceof PageNotFoundError)) throw err;
   }
+  const row = await guard.postRepo.findById({ workspaceId: guard.workspaceId, id: guard.id });
+  if (row) assertExpectedVersion({ id: guard.id, expectedVersion: guard.expectedVersion, basis: row.version });
   await store.ensureHtmlFormat(seedHtml);
   return null;
 }
@@ -279,7 +296,30 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
           // for a different id instead of writing the page it was asked to write. Distinguish the
           // two by asking the repo whether the row exists at all.
           const row = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-          if (row && row.kind === "page") return { id, html: "", regions: [] };
+          // S2 (fix plan 2026-09-24, rows 13 + 18-pages) — a trashed row still 404s (matches every
+          // other pages tool's Trash handling: `read()`/`ensureHtmlFormat()` both refuse a trashed
+          // row rather than reporting its pre-trash state).
+          if (row && row.kind === "page" && !isTrashed(row)) {
+            // A `doc`-format Page with real authored content is NOT the same "nothing here yet"
+            // case an empty, freshly-created Page is — see this function's `note` below for why the
+            // model must be told before it calls `pages_write_html` and silently discards it.
+            const hasDocContent = Array.isArray(row.bodyJson.content) && row.bodyJson.content.length > 0;
+            return {
+              id,
+              html: "",
+              regions: [],
+              bodyFormat: row.bodyFormat,
+              version: row.version,
+              hasDocContent,
+              ...(hasDocContent
+                ? {
+                    note:
+                      "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
+                      "replaces that rich-text body; the previous body is kept in the page's revision history.",
+                  }
+                : {}),
+            };
+          }
         }
         throw err;
       }
@@ -304,15 +344,8 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       try {
-        const basis = await openForFullWrite(store, html);
+        const basis = await openForFullWrite(store, html, { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion });
         if (basis !== null) assertExpectedVersion({ id, expectedVersion, basis });
-        else if (expectedVersion !== undefined) {
-          throw new ToolInputError(
-            `Nothing was written: page '${id}' has no HTML body yet, so there is no version to base an edit on — ` +
-              "this call would be its first, and creating the body is itself a version change. Resend without " +
-              "expectedVersion; every write after this one can send it."
-          );
-        }
         await store.write(html);
       } catch (err) {
         if (err instanceof PageKindMismatchError) {
@@ -402,7 +435,16 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     domain: "pages",
     catalogModule: "features/pages/agent-tools.ts",
     catalog: CATALOG_BY_ID as ReadonlyMap<string, PagesAgentToolDefinition>,
-    handlers,
+    // S2 (fix plan 2026-09-24, rows 13 + 18-pages) — Pages had no `withModelFacingErrors` wrap at
+    // all (this file's own header dated that gap to before this fix: every rejection here was a
+    // hand-built `ToolInputError` or nothing). A `PageNotFoundError` that reaches this point (a
+    // genuinely missing row on the conversion path — see `openForFullWrite`'s own doc) is real
+    // caller input the model can act on (try a different id), not an internal failure, so it earns
+    // the same treatment `forbiddenRule` already gives every `ForbiddenError`. `toModelFacingWriteError`
+    // stays a separate, inline reclassification at its own two call sites (unchanged) — it targets
+    // `PageConcurrentEditError` specifically, with a narrower message than a generic allowlist rule
+    // would produce.
+    handlers: withModelFacingErrors(handlers, [forbiddenRule("PAGES"), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }]),
     derivedRisk: pagesDerivedRisk,
   });
 }
