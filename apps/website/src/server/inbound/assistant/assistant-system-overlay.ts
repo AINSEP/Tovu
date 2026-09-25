@@ -71,6 +71,14 @@ export const BASH_PROHIBITION_BLOCK =
  * this fix must not become; scoping anything beyond this evidence-backed set is a later product
  * decision, not this fix's call.
  *
+ * `MultiEdit`, `NotebookEdit`, `BashOutput`, and `KillShell` were added later (2026-09-24): the
+ * original security report and chat.db sweep above predate these four and never named them, but
+ * they are the same shape of risk — `MultiEdit`/`NotebookEdit` write files to disk exactly like
+ * `Edit`/`Write`, and `BashOutput`/`KillShell` are the read/kill halves of a Bash-started background
+ * process, the same category `Cron*`/`EnterWorktree`/`ExitWorktree`/`RemoteTrigger`/`Workflow`
+ * already cover. Left off, `NotebookEdit` alone let this assistant write files to disk (as a
+ * `.ipynb`) despite the public FAQ's "can't … edit files" claim.
+ *
  * Kept independent of {@link BASH_PROHIBITION_BLOCK}/`TOVU_AGENT_FORBID_BASH`: this list applies
  * unconditionally to every run regardless of that diagnostic flag's state, which is what makes the
  * flag's own "not a security control" framing accurate rather than aspirational.
@@ -79,6 +87,10 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "Bash",
   "Edit",
   "Write",
+  "MultiEdit",
+  "NotebookEdit",
+  "BashOutput",
+  "KillShell",
   "Task",
   "CronCreate",
   "CronDelete",

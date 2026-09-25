@@ -111,18 +111,35 @@ test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the se
     ASSISTANT_DISALLOWED_TOOLS.filter((rule) => !rule.includes("(")).sort(),
     [
       "Bash",
+      "BashOutput",
       "CronCreate",
       "CronDelete",
       "CronList",
       "Edit",
       "EnterWorktree",
       "ExitWorktree",
+      "KillShell",
+      "MultiEdit",
+      "NotebookEdit",
       "RemoteTrigger",
       "Task",
       "Workflow",
       "Write",
     ].sort(),
   );
+});
+
+// FAQ claim (public docs): "In Local CLI mode, Claude Code can read files and search the web, but
+// can't run commands or edit files." MultiEdit and NotebookEdit both write files to disk exactly
+// like Edit/Write (NotebookEdit edits .ipynb cell contents in place); BashOutput and KillShell are
+// the read/kill halves of a Bash-started background process and belong in the same
+// shell/background-process category this list already partly covers via Cron*/EnterWorktree/
+// ExitWorktree/RemoteTrigger/Workflow. None of the four were on the list, so the FAQ's "can't edit
+// files" claim was false for any Claude Code build that ships them as host-CLI builtins.
+test("ASSISTANT_DISALLOWED_TOOLS also blocks the other host-CLI write and background-shell builtins: MultiEdit, NotebookEdit, BashOutput, KillShell", () => {
+  for (const tool of ["MultiEdit", "NotebookEdit", "BashOutput", "KillShell"]) {
+    assert.equal(ASSISTANT_DISALLOWED_TOOLS.includes(tool), true, `${tool} must be on ASSISTANT_DISALLOWED_TOOLS`);
+  }
 });
 
 // Owner rule: the agent must never read the root key. The CLI runs under bypassPermissions with a
