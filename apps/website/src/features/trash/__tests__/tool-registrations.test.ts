@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { UserRepoPort, UserRecord } from "@jini-ai/cms/identity";
 
 import * as schema from "#src/platform/db/schema.sqlite";
@@ -9,7 +9,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
-import type { PurgeReport, RestoreOutcome, TrashItem, TrashPort } from "../ports.js";
+import type { PurgeReport, RestoreOutcome, TrashActor, TrashItem, TrashPort } from "../ports.js";
 
 /** The real `form` entry (registry-derived permission), same source `deps.ts` composes from —
  *  needed because "form" -> "admin.forms.manage" is one of this file's pinned pairings, and that
@@ -47,6 +47,10 @@ function item(overrides: Partial<TrashItem> & Pick<TrashItem, "id" | "entityType
 interface Harness {
   byId: Map<string, ToolRegistration>;
   restoreCalls: { entityType: string; entityId: string }[];
+  /** The `actor` each `trash.restore` call received, positionally aligned with `restoreCalls` —
+   *  kept separate so the pre-existing `restoreCalls` shape (asserted with exact `deepEqual`
+   *  elsewhere in this file) never has to grow a field just to observe this. */
+  restoreActors: (TrashActor | undefined)[];
   authorizeCalls: { permission: string; entityType?: string }[];
 }
 
@@ -95,6 +99,7 @@ function harness(
     ]
   );
   const restoreCalls: { entityType: string; entityId: string }[] = [];
+  const restoreActors: (TrashActor | undefined)[] = [];
   const authorizeCalls: { permission: string; entityType?: string }[] = [];
 
   const trash: TrashPort = {
@@ -103,6 +108,7 @@ function harness(
     },
     async restore(required) {
       restoreCalls.push({ entityType: required.entityType, entityId: required.entityId });
+      restoreActors.push(required.actor);
       return optional.outcome ?? "restored";
     },
     async list() {
@@ -129,7 +135,12 @@ function harness(
     registry: REGISTRY,
   });
 
-  return { byId: new Map(registrations.map((r) => [r.descriptor.id, r])), restoreCalls, authorizeCalls };
+  return {
+    byId: new Map(registrations.map((r) => [r.descriptor.id, r])),
+    restoreCalls,
+    restoreActors,
+    authorizeCalls,
+  };
 }
 
 function ctx(input: unknown): ToolExecutionContext {
@@ -313,4 +324,33 @@ test("restoring each registry kind checks that kind's own registry permission, a
     await assert.rejects(() => restore(denied, { entityType, entityId: "e-1" }));
     assert.deepEqual(denied.restoreCalls, [], `a ${entityType} restore without '${entry.permission}' must never reach the port`);
   }
+});
+
+test("a restore records the calling principal as the actor, so the Trash list can attribute it", async () => {
+  const h = harness();
+  await restore(h, { entityType: "post", entityId: "post-1" });
+  assert.deepEqual(h.restoreActors, [{ principalId: "principal-1", pluginId: "assistant" }]);
+});
+
+test("restoring a kind the Trash does not own throws a ToolInputError, not a plain Error — it must reach the model, not get redacted", async () => {
+  const h = harness();
+  await assert.rejects(
+    () => restore(h, { entityType: "gizmo", entityId: "g-1" }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected a ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      assert.match((err as Error).message, /^trash_restore_item: 'gizmo' is not a kind the Trash can restore\./);
+      return true;
+    }
+  );
+});
+
+test("a malformed entityTypes filter throws a ToolInputError, not a plain Error", async () => {
+  const h = harness();
+  await assert.rejects(
+    () => list(h, { entityTypes: "post" }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected a ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    }
+  );
 });

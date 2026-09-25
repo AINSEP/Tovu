@@ -24,6 +24,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
+// rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
+// `Error` gets. Same reasoning as `features/database/tool-registrations.ts`'s identical import.
+import { ToolInputError } from "@jini-ai/core";
 import type { UserRepoPort } from "@jini-ai/cms/identity";
 import type { ToolContributor } from "#src/assistant/index";
 import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "./agent-tools.js";
@@ -182,7 +186,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
 
       const permission = trashPermissionFor(entityType, routeDeps);
       if (!permission) {
-        throw new Error(
+        throw new ToolInputError(
           `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
             `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ")}.`
         );
@@ -194,6 +198,11 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
         entityType,
         entityId,
         at: routeDeps.clock.nowIso(),
+        // Same `principalId` shape the admin restore route passes (`routes/trash/restore.ts`), plus
+        // `pluginId`: this call always came in through an agent tool, not a human clicking Restore,
+        // so whatever an adapter's `restore` records as the actor should say so — same "+ AI"
+        // convention `resolveActorDisplay` (above) applies to a trash-side `actorPluginId`.
+        actor: { principalId: ctx.principal.id, pluginId: "assistant" },
       });
       return outcome === "restored"
         ? { restored: true, entityType, entityId }
@@ -229,7 +238,7 @@ function readEntityTypes(input: Record<string, unknown>): TrashEntityType[] | un
   const raw = input.entityTypes;
   if (raw === undefined) return undefined;
   if (!Array.isArray(raw) || raw.some((value) => typeof value !== "string")) {
-    throw new Error("trash_list_items: 'entityTypes' must be an array of strings when it is given.");
+    throw new ToolInputError("trash_list_items: 'entityTypes' must be an array of strings when it is given.");
   }
   return raw as TrashEntityType[];
 }
