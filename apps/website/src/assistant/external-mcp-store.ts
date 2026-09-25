@@ -51,12 +51,13 @@ import { supabaseMcpScopeFailure } from "./supabase-mcp-scope.js";
  */
 
 /**
- * `stdio` is what `mcp-federation/adapter.stdio.ts` implements and is the only transport that can
- * actually be federated today. `streamable_http` is accepted and STORED so an operator can describe
- * a hosted server and authorize it now, but {@link readEnabledExternalMcpConfigs} reports such a row
- * as unusable rather than pretending — there is no HTTP MCP client in this repo yet, and
- * half-building one behind a config flag is how a feature ends up looking supported while never
- * having worked.
+ * Both transports are federated. `stdio` is served by `mcp-federation/adapter.stdio.ts` (a local
+ * child process); `streamable_http` by `mcp-federation/adapter.http.ts` (a hosted endpoint, with a
+ * bearer header when the row is OAuth- or access-token-authenticated — see `resolveHttpTarget`).
+ * {@link readEnabledExternalMcpConfigs} resolves a hosted row to a `streamable_http` target,
+ * `toFederatedLaunchSpec` maps it to a `{ url, headers }` launch spec, and
+ * `mcp-federation/bootstrap.ts`'s `defaultConnect` picks the HTTP adapter from that spec's shape.
+ * A hosted row is reported unusable only when it has no URL or its token cannot be resolved.
  */
 export const SUPPORTED_EXTERNAL_MCP_TRANSPORTS = ["stdio", "streamable_http"] as const;
 export type ExternalMcpTransport = (typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[number];
