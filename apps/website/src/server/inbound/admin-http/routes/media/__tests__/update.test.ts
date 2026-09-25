@@ -476,3 +476,29 @@ test("update: omitting htmlAttributes leaves a previously-set value unchanged", 
   assert.equal(json.media.htmlAttributes, "muted");
   assert.equal(json.media.alt, "unrelated change");
 });
+
+test("update: a trashed media row is refused with 409 ENTITY_IN_TRASH and left unchanged (S8, web-high fix plan)", async (t) => {
+  const base = createRouteDeps();
+  const app = buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+  const id = await seedMedia(base);
+  const seeded = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.ok(seeded);
+  await base.mediaRepo.save({ ...seeded, status: "trashed" });
+
+  const { status, json } = await patch(t, app, id, { alt: "x" });
+  assert.equal(status, 409);
+  assert.equal(json.code, "ENTITY_IN_TRASH");
+  assert.equal(json.error, `ENTITY_IN_TRASH: media '${id}' is in the Trash. Restore it from the Trash before changing it.`);
+  const after = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.equal(after?.alt, "Original alt text");
+});
