@@ -1,6 +1,7 @@
 import { MediaConflictError, MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { readRecordedContentType } from "./content-type.js";
 import type { MediaRouteRegistrar } from "./deps.js";
@@ -65,12 +66,15 @@ interface MediaUpdateErrorResponse {
  * it, one function per error type — same table-shaped pattern
  * `custom-credentials/tool-registrations.ts`'s `mapCreateCredentialError` uses for the same reason
  * (source-complexity-drift ceiling: an inline instanceof chain inside the route handler's own
- * try/catch pushed it over 9). Anything not one of the three known error types falls through to a
- * generic 500, matching this route's prior behavior exactly.
+ * try/catch pushed it over 9). Anything not one of the three known error types (plus the new
+ * `entityNotLiveResponse` arm, S8, web-high fix plan 2026-09-24) falls through to a generic 500,
+ * matching this route's prior behavior exactly.
  *
- * @complexity O(1) — three `instanceof` checks.
+ * @complexity O(1) — four `instanceof` checks.
  */
 function mapMediaUpdateError(err: unknown): MediaUpdateErrorResponse {
+  const live = entityNotLiveResponse(err);
+  if (live) return live;
   if (err instanceof MediaNotFoundError) return { status: 404, body: { error: err.message } };
   if (err instanceof MediaValidationError) return { status: 400, body: { error: err.message } };
   // A slug collision — either `resolveSlugForUpdate`'s own app-level courtesy check, or (on a
