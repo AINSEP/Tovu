@@ -169,6 +169,9 @@ test("media_upload_asset's published schema offers image/avif as a selectable co
 test("media_upload_asset accepts a file over the 10 MiB @jini-ai/cms default, up to Tovu's own TOVU_MAX_UPLOAD_BYTES cap", async () => {
   const { deps } = fakeRouteDeps();
   const overTenMib = Buffer.alloc(11 * 1024 * 1024, 0xab);
+  // A real PNG signature up front so this fixture sniffs as `image/png` (the S11 fix rejects
+  // uploads whose bytes sniff outside the allowlist) — this test is about the SIZE cap, not sniffing.
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(overTenMib);
   assert.ok(overTenMib.byteLength > 10 * 1024 * 1024 && overTenMib.byteLength <= TOVU_MAX_UPLOAD_BYTES, "fixture must sit strictly between the two caps for this test to prove anything");
 
   const result = (await wired("media_upload_asset", deps).handler(

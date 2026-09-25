@@ -10,6 +10,23 @@ import { DEFAULT_ALLOWED_MIME_TYPES, MediaValidationError, sniffContentType } fr
  */
 
 /**
+ * Sniffs `bytes` and returns the resulting content type when it is on `DEFAULT_ALLOWED_MIME_TYPES`.
+ * The one place that owns this rejection, so every caller that needs "are these bytes an allowed
+ * media type" (the declared-type check below, and the agent upload path in `tool-registrations.ts`)
+ * throws the identical message instead of each re-deriving it.
+ *
+ * @throws MediaValidationError `the file's content (<sniffed>) is not an allowed media type`.
+ * @complexity O(1) — the sniffer reads a fixed-size prefix.
+ */
+export function assertAllowedSniffedContentType(bytes: Uint8Array): string {
+  const sniffed = sniffContentType(bytes);
+  if (!DEFAULT_ALLOWED_MIME_TYPES.has(sniffed)) {
+    throw new MediaValidationError(`the file's content (${sniffed}) is not an allowed media type`);
+  }
+  return sniffed;
+}
+
+/**
  * The content type to store for an upload: the sniffed type when it is an allowed media type.
  *
  * - Declared type not allowed → returned unchanged, so `uploadMedia` rejects it with its own message.
@@ -22,9 +39,5 @@ import { DEFAULT_ALLOWED_MIME_TYPES, MediaValidationError, sniffContentType } fr
  */
 export function resolveUploadContentType(input: { bytes: Uint8Array; declaredContentType: string }): string {
   if (!DEFAULT_ALLOWED_MIME_TYPES.has(input.declaredContentType)) return input.declaredContentType;
-  const sniffed = sniffContentType(input.bytes);
-  if (!DEFAULT_ALLOWED_MIME_TYPES.has(sniffed)) {
-    throw new MediaValidationError(`the file's content (${sniffed}) is not an allowed media type`);
-  }
-  return sniffed;
+  return assertAllowedSniffedContentType(input.bytes);
 }

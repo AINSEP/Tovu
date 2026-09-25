@@ -82,7 +82,7 @@
  */
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
-import { buildMediaRegistrations, mediaDerivedRisk, sniffContentType, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
+import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 import {
   resolveConfirmationDecision,
   SURFACE_EXCHANGE_ID_PARAM,
@@ -91,7 +91,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 import { requireInputRecord, requireString, requireToolPermission, type ToolHandler, type ToolRegistration } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
-import { getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
+import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
 
@@ -191,22 +191,29 @@ export async function resolveMediaPublicUrls(
  * `uploadMedia`'s own header (`@jini-ai/cms/media`) already discloses for the upload-validation step,
  * and `content-type-store.ts`'s header states as this store's own invariant.
  *
- * `undefined` when `routeDeps.mediaContentTypeStore` is not wired (mirrors {@link resolveMediaPublicUrls}'s
- * identical degrade-soft contract): `buildMediaRegistrations`'s hook is OPTIONAL, so an upload still
- * succeeds with no type recorded, exactly the pre-fix behavior, rather than throwing for a caller
- * that hasn't opted in.
+ * ALWAYS returns a hook, even when `routeDeps.mediaContentTypeStore` is not wired: the allowlist
+ * check below must run on every upload, not only on hosts that opted into content-type recording.
+ * `assertAllowedSniffedContentType` (`upload-content-type.ts`) sniffs the bytes and throws the SAME
+ * `MediaValidationError` `resolveUploadContentType`'s declared-type check throws, so this is a shape
+ * rejection Jini's `uploadMedia` caller-facing contract already surfaces to the model (see that
+ * file's `tool-registrations.ts:136-138`). Only once that passes does this record the type — and
+ * only when `store` exists, matching the pre-fix degrade-soft contract for hosts with no store.
  *
+ * @throws MediaValidationError bytes sniff outside `DEFAULT_ALLOWED_MIME_TYPES` — the caller's own
+ *   rollback-and-rethrow (Jini's `media_upload_asset` handler) deletes the media/blob/rendition rows
+ *   `uploadMedia()` just wrote, so no unlabeled OR mistyped row survives.
  * @complexity O(bytes.length) once, bounded by `sniffContentType`'s own fixed-window magic-byte
  *   scan (see that function's own doc) — not proportional to the upload size cap.
  */
 function buildRecordUploadContentType(
   routeDeps: MediaToolDeps & MediaPublicUrlDeps
-): ((params: { media: MediaRecord; bytes: Uint8Array }) => Promise<void>) | undefined {
+): (params: { media: MediaRecord; bytes: Uint8Array }) => Promise<void> {
   const store = routeDeps.mediaContentTypeStore;
-  if (!store) return undefined;
   return async ({ media, bytes }) => {
-    const contentType = sniffContentType(bytes);
-    await store.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType });
+    const contentType = assertAllowedSniffedContentType(bytes);
+    if (store) {
+      await store.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType });
+    }
   };
 }
 
