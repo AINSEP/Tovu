@@ -4,9 +4,13 @@ import test from "node:test";
 import express from "express";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { createAssistantByokModule, SYSTEM_PREAMBLE } from "../runtime/composition/modules/assistant-byok.js";
+import {
+  createAssistantByokModule,
+  FEDERATION_STILL_CONNECTING_NOTE,
+  SYSTEM_PREAMBLE,
+} from "../runtime/composition/modules/assistant-byok.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
-import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../assistant/index.js";
+import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface } from "../../assistant/index.js";
 import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";
@@ -404,6 +408,84 @@ test(`${BYOK_TURN_PATH} sends the bare SYSTEM_PREAMBLE as 'system' when no custo
   const deps = createRouteDeps();
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
+
+  let capturedSystem: unknown;
+  const providerUrl = await stubProvider(t, (_callCount, requestBody) => {
+    capturedSystem = requestBody.system;
+    return sseBody(messageStart(), textBlock(0, "Hello."), messageDelta("end_turn"), messageStop());
+  });
+
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
+  assert.equal(res.status, 200);
+  await res.text();
+
+  assert.equal(capturedSystem, SYSTEM_PREAMBLE);
+});
+
+/**
+ * Bare `ByokToolSurface` stand-in for the federation system-prompt tests below — deliberately NOT
+ * built through `createByokToolSurface` (which would spin up a real registry/executor/federation
+ * runtime these tests have no interest in controlling). `handleTurn` (`assistant-byok.ts`) only ever
+ * reads `.ready`, `.metaTools`, `.executeMetaTool`, `.awaitFederation`, and
+ * `.federation?.refusalPrefix()` off the surface it is handed, so those are the only members given
+ * real behavior here — everything else is a placeholder the route never touches for a turn with no
+ * tool_use block, and the whole object is cast past the full interface rather than hand-filling
+ * `registry`/`executor` with fakes nothing here exercises.
+ */
+function stubByokToolSurface(options: { readonly settled: boolean; readonly refusalPrefix?: string }): ByokToolSurface {
+  return {
+    metaTools: [],
+    surfaceExchanges: createSurfaceExchangeStore(),
+    executeMetaTool: async () => ({ content: "" }),
+    ready: Promise.resolve(),
+    awaitFederation: async () => ({ settled: options.settled }),
+    ...(options.refusalPrefix !== undefined ? { federation: { refusalPrefix: () => options.refusalPrefix } } : {}),
+  } as unknown as ByokToolSurface;
+}
+
+/** Builds a hand-assembled express app around a caller-supplied `toolSurface`, mirroring the
+ *  no-hang test's identical shape below — `createApp` always builds its own production
+ *  `ByokToolSurface` and offers no seam to swap in {@link stubByokToolSurface}'s bare stand-in. */
+async function bootWithStubSurface(deps: RouteDeps, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  createAssistantByokModule(deps, toolSurface).registerRoutes(app);
+  return bootAuthenticated(app, t);
+}
+
+/**
+ * RED-first coverage for §2.1 item 6 / S5 of `design-byok-external-mcp-2026-09-24.md`: a turn whose
+ * `awaitFederation` call times out gets `FEDERATION_STILL_CONNECTING_NOTE` appended, and a turn whose
+ * surface reports federation drift gets that `refusalPrefix()` text too — both ahead of the custom
+ * overlay, in the fixed order `resolveByokSystemPrompt`'s own doc specifies.
+ */
+test(`${BYOK_TURN_PATH} composes 'system' with the federation refusal prefix and the still-connecting note when awaitFederation does not settle`, async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const toolSurface = stubByokToolSurface({ settled: false, refusalPrefix: "PREFIX" });
+  const { baseUrl } = await bootWithStubSurface(deps, toolSurface, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
+
+  let capturedSystem: unknown;
+  const providerUrl = await stubProvider(t, (_callCount, requestBody) => {
+    capturedSystem = requestBody.system;
+    return sseBody(messageStart(), textBlock(0, "Hello."), messageDelta("end_turn"), messageStop());
+  });
+
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
+  assert.equal(res.status, 200);
+  await res.text();
+
+  assert.equal(capturedSystem, `${SYSTEM_PREAMBLE}\n\nPREFIX\n\n${FEDERATION_STILL_CONNECTING_NOTE}`);
+});
+
+test(`${BYOK_TURN_PATH} sends the bare SYSTEM_PREAMBLE when the surface has no federation drift and awaitFederation settles`, async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const toolSurface = stubByokToolSurface({ settled: true });
+  const { baseUrl } = await bootWithStubSurface(deps, toolSurface, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
   let capturedSystem: unknown;

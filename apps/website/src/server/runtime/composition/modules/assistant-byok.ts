@@ -82,6 +82,22 @@ export const SYSTEM_PREAMBLE =
   "confirmations for destructive actions keep their full content. " +
   "Only call tools that exist in your tool list; never invent one.";
 
+/** How long one BYOK turn waits on `ByokToolSurface.awaitFederation` before giving up and running
+ *  with whatever tools are searchable so far — see that method's own doc for why the wait is bounded
+ *  rather than open-ended. Only the very first API-mode turn after boot (or a turn that lands while a
+ *  reload from a roster change is still running) can actually wait this long; every other turn finds
+ *  the boot pass already settled and returns at once. 5s, per the owner's own sizing
+ *  (`design-byok-external-mcp-2026-09-24.md` §2.1 item 6). */
+export const FEDERATION_TURN_WAIT_MS = 5_000;
+
+/** Appended to the system prompt (see {@link resolveByokSystemPrompt}) on a turn whose
+ *  `awaitFederation` call timed out rather than settling — the same "no silent withholding" rule
+ *  `agent-daemon-server.ts:643-647` already enforces for its own turns: a model that cannot yet see a
+ *  just-registered external-MCP tool is told WHY a search might come up empty, rather than being left
+ *  to guess the tool does not exist. */
+export const FEDERATION_STILL_CONNECTING_NOTE =
+  "External MCP servers are still connecting, so their tools may not be searchable yet. If a tool you need is missing, say so and suggest asking again in a moment.";
+
 /** Bounds one BYOK turn's history the same way `assistant-transport.ts`'s `MAX_TRANSCRIPT_TURNS`
  *  bounds the daemon path's flattened prompt — each turn is a fresh provider request billed for its
  *  whole input, so an unbounded history would make every later message in a long chat more
@@ -181,11 +197,20 @@ function resolveMessages(raw: unknown): ByokChatMessage[] {
 }
 
 /**
- * Composes this route's `system` prompt: {@link SYSTEM_PREAMBLE} plus the admin Instructions tab's
- * custom overlay (`core.instructions.custom`), when the operator has set one — same composition order
- * and separator as the Local CLI path's own `systemOverlay()` (`agent-daemon-server.ts`: `` `${base}
- * \n\n${custom}` `` when a custom overlay exists, the bare base otherwise), so an operator's custom
- * instructions apply identically in both execution modes rather than only to Local CLI runs.
+ * Composes this route's `system` prompt in the fixed order §2.1 item 6 of
+ * `design-byok-external-mcp-2026-09-24.md` specifies: {@link SYSTEM_PREAMBLE}, then the federation
+ * runtime's own `refusalPrefix()` (when this turn's surface actually has drift to report), then
+ * {@link FEDERATION_STILL_CONNECTING_NOTE} (when this turn's `awaitFederation` call timed out rather
+ * than settling), then the admin Instructions tab's custom overlay (`core.instructions.custom`), when
+ * the operator has set one — every present part joined with the Local CLI path's own separator
+ * (`agent-daemon-server.ts`: `` `${base}\n\n${custom}` ``), so an operator's custom instructions still
+ * apply identically in both execution modes rather than only to Local CLI runs, and a still-connecting
+ * federation boot pass never silently withholds a tool the model would otherwise assume does not exist
+ * (the same rule `agent-daemon-server.ts:643-647` already enforces for its own turns).
+ *
+ * `federation.refusalPrefix`/`federation.stillConnecting` are `handleTurn`'s own read of THIS turn's
+ * `awaitFederation(FEDERATION_TURN_WAIT_MS)` outcome and `ByokToolSurface.federation?.refusalPrefix()`
+ * — passed in rather than resolved here, since this function has no surface of its own to ask.
  *
  * Re-reads `core.instructions.custom` fresh on every call rather than caching it at module load or
  * across turns: this route has no long-lived process to refresh a cache against between requests (each
@@ -194,13 +219,16 @@ function resolveMessages(raw: unknown): ByokChatMessage[] {
  * `createCustomInstructionsCache` bridge specifically because `PromptAugmenter.systemOverlay()` is
  * called synchronously inside the daemon's `run()`. `resolveCustomInstructions` never throws (fails
  * open to `""` on any read error) and `formatCustomInstructionsOverlay` returns `null` for unset,
- * empty, or whitespace-only text, so an operator who has never opened the Instructions tab gets exactly
- * {@link SYSTEM_PREAMBLE} back, unchanged.
+ * empty, or whitespace-only text, so a turn with no federation drift/timeout and an operator who has
+ * never opened the Instructions tab gets exactly {@link SYSTEM_PREAMBLE} back, unchanged.
  *
  * @complexity O(1) — one `resolveCustomInstructions` read (itself O(1)) plus a trim/length check.
  * @overallScore 100
  */
-async function resolveByokSystemPrompt(routeDeps: RouteDeps): Promise<string> {
+async function resolveByokSystemPrompt(
+  routeDeps: RouteDeps,
+  federation: { readonly refusalPrefix: string; readonly stillConnecting: boolean },
+): Promise<string> {
   const customInstructions = await resolveCustomInstructions(
     {
       settingsRepo: routeDeps.settingsRepo,
@@ -211,7 +239,11 @@ async function resolveByokSystemPrompt(routeDeps: RouteDeps): Promise<string> {
     { workspaceId: routeDeps.workspaceId },
   );
   const customOverlay = formatCustomInstructionsOverlay(customInstructions);
-  return customOverlay === null ? SYSTEM_PREAMBLE : `${SYSTEM_PREAMBLE}\n\n${customOverlay}`;
+  const parts = [SYSTEM_PREAMBLE];
+  if (federation.refusalPrefix.length > 0) parts.push(federation.refusalPrefix);
+  if (federation.stillConnecting) parts.push(FEDERATION_STILL_CONNECTING_NOTE);
+  if (customOverlay !== null) parts.push(customOverlay);
+  return parts.join("\n\n");
 }
 
 /**
@@ -360,7 +392,6 @@ export function createAssistantByokModule(
     const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
     if (!inputs) return;
     const { messages, principal, credential } = inputs;
-    const system = await resolveByokSystemPrompt(routeDeps);
 
     // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
     // plugin-capability tools) has been applied to `resolvedToolSurface`'s registry AND its
@@ -370,6 +401,19 @@ export function createAssistantByokModule(
     // every turn after the first (the promise is already settled) and for a caller-supplied
     // `toolSurface` that predates this field, which has no `ready` to wait on at all.
     await (resolvedToolSurface.ready ?? Promise.resolve());
+
+    // Starts (or awaits) this surface's lazy federation boot pass, bounded to
+    // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only the first
+    // API-mode turn after boot, or a turn that lands while a roster-change reload is still running,
+    // can actually wait; every later turn finds the boot pass already settled and this resolves at
+    // once. `federation?.refusalPrefix()` reads whatever drift THIS surface has accumulated so far,
+    // live — empty before federation has admitted anything, and always when this surface was built
+    // with `installExtensions: false` (`federation` is `undefined` there).
+    const federationOutcome = await resolvedToolSurface.awaitFederation(FEDERATION_TURN_WAIT_MS);
+    const system = await resolveByokSystemPrompt(routeDeps, {
+      refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
+      stillConnecting: !federationOutcome.settled,
+    });
 
     const run = { id: randomUUID() };
 
