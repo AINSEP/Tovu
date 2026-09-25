@@ -43,11 +43,17 @@ import {
 import type { ToolExecutor } from "@jini-ai/daemon";
 import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 
+import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-catalog-audit.js";
-import { registerInstalledExtensionTools } from "./installed-extension-tools.js";
+import { withFederatedRefusalDiagnosis } from "./federated-refusal-diagnosis.js";
+import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
+import { attachAssistantToolExtensions } from "./installed-extension-tools.js";
+import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
+import type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+import type { McpSessionPort } from "./mcp-federation/ports.js";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-executor-stack.js";
@@ -100,6 +106,27 @@ export interface ByokToolSurface {
    * disk read) when the surface was built with `installExtensions: false`.
    */
   readonly ready: Promise<void>;
+  /**
+   * This surface's own `FederationRuntime` (`external-mcp-federation-runtime.ts`) — the SAME
+   * runtime shape `attachAssistantToolExtensions` hands the daemon, built but never started here:
+   * unlike the daemon, BYOK never awaits `federation.start()` at construction, so building this
+   * surface stays free of the external-MCP roster read and every child-process spawn it would
+   * otherwise trigger. `undefined` when this surface was built with `installExtensions: false` —
+   * there is nothing to federate without the installed-extension pass ahead of it (see
+   * `attachAssistantToolExtensions`'s own doc for why the two are one registrar).
+   */
+  readonly federation?: FederationRuntime;
+  /**
+   * Starts (or, if already started, awaits) `federation.start()`, racing it against a `timeoutMs`
+   * timer so a turn that touches an external-MCP tool never blocks forever on a slow or wedged
+   * remote server. `federation.start()` is single-flight (see that method's own doc): a timeout
+   * here does not cancel the boot pass, which keeps running in the background and still becomes
+   * searchable once it finishes — only the CALLER stops waiting. `{settled: true}` once the boot
+   * pass has actually completed and this surface's `search_tools`/`describe_tool` catalog has been
+   * rebuilt to include whatever it admitted; `{settled: false}` on a timeout, or immediately, with
+   * no timer started, when `federation` is `undefined`.
+   */
+  readonly awaitFederation: (timeoutMs: number) => Promise<{ readonly settled: boolean }>;
 }
 
 /** Bounds `search_tools`' `limit`, mirroring `@jini-ai/http-kit`'s `tool-catalog.ts`
@@ -429,6 +456,15 @@ export function createByokToolSurface(
      * cost a swallowed `console.warn` per call, not a test failure, but there is no reason to pay it.
      */
     readonly installExtensions?: boolean;
+    /**
+     * Test seam, threaded straight into `CreateFederationRuntimeParams.connect` (see that field's
+     * own doc): overrides the session factory federation's boot pass uses for EVERY connection in
+     * the roster, so a test can hand it a fake `McpSessionPort` (e.g.
+     * `mcp-federation/adapter.memory.ts`'s `InMemoryMcpSession`) instead of actually spawning a
+     * child process or dialing a hosted URL. Omitted, the real transport connects, exactly as
+     * `assistant-byok.ts` (the only production caller) wants.
+     */
+    readonly federationConnect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
   } = {},
 ): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
@@ -478,27 +514,118 @@ export function createByokToolSurface(
   // forwarded verbatim — omitted, the shared factory skips its own audit wrap the identical way this
   // function's inline one used to, matching this option's documented "neither half is logged"
   // contract.
-  const executor = createAssistantToolExecutor({
-    registry,
-    surfaceExchanges,
-    ...(options.toolAttemptAudit ? { toolAttemptAudit: options.toolAttemptAudit } : {}),
+  // Idempotent (`supabase-mcp-plugin.ts`'s own doc), and cheap when
+  // `TOVU_SUPABASE_MCP_ENABLED` is unset — safe to call unconditionally, matching
+  // `agent-daemon-server.ts`'s own `start()`, which is what makes disclosing this as
+  // behavior-preserving for BYOK (a root that never called it before this slice) correct: nothing
+  // is spawned unless an operator has actually opted in.
+  registerSupabaseMcpPreset();
+
+  // The stored-roster half of `external-mcp-connection-source.ts` — reads Settings → External
+  // MCP's rows fresh on every `federation.resolveConnections()` call (boot, and every reload),
+  // never rejecting. `routeDeps.externalMcpOAuth?.tokenResolver` mirrors
+  // `agent-daemon-server.ts`'s own `resolveStoredExternalMcpConnections`: omitted (not merely
+  // `undefined`-valued) when this surface's `routeDeps` carries no OAuth service, so an
+  // `authMode: "oauth"` row degrades to a reported failure rather than launching credential-free.
+  const connectionSource = createStoredExternalMcpConnectionSource({
+    repo: routeDeps.externalMcpServerRepo,
+    sealer: routeDeps.siteAssistantSecretSealer,
+    ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth.tokenResolver } : {}),
+    workspaceId: routeDeps.workspaceId,
+    log: "[assistant-byok]",
   });
+
+  // THE ONE REGISTRAR (`installed-extension-tools.ts`) — installed-extension tools, then (once
+  // that settles) a `FederationRuntime` built but not yet started, per that function's own doc.
+  // Skipped entirely under `installExtensions: false`, the same bare-test-double posture `ready`
+  // already had: there is no roster to federate without the extension pass ahead of it, and this
+  // surface's `federation`/`awaitFederation` degrade to `undefined`/an immediate no-op below.
+  const extensions =
+    options.installExtensions === false
+      ? undefined
+      : attachAssistantToolExtensions(
+          registry,
+          {
+            ...deps,
+            federation: {
+              deps: buildExternalMcpFederationDeps({
+                authorize: routeDeps.authorize,
+                workspaceId: routeDeps.workspaceId,
+                repo: routeDeps.externalMcpServerRepo,
+                ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth } : {}),
+              }),
+              resolveConnections: () => connectionSource.resolve(),
+              // Only a RELOAD pass reaches this — see `FederationRuntime.reload`'s own doc — so the
+              // boot pass's own newly-searchable tools are rebuilt by `awaitFederation` below, not
+              // here.
+              onAdmitted: () => {
+                catalog = buildToolCatalogQuery(registry);
+              },
+              ...(options.federationConnect ? { connect: options.federationConnect } : {}),
+            },
+          },
+          "[assistant-byok]",
+        );
+  const federation: FederationRuntime | undefined = extensions?.federation;
+
+  // Composed OUTERMOST, matching `agent-daemon-server.ts`'s identical ordering (`:541` there) —
+  // see `withFederatedRefusalDiagnosis`'s own header for why outermost is load-bearing. `() =>
+  // federation?.reports() ?? []` reads live: empty before `awaitFederation` (or a caller directly
+  // holding `federation`) ever starts the boot pass, and again whenever `federation` itself is
+  // `undefined`, in which case no toolId here can be `mcp__`-prefixed either — this decorator is
+  // then a no-op passthrough, never a behavior change for `installExtensions: false`.
+  const executor = withFederatedRefusalDiagnosis(
+    createAssistantToolExecutor({
+      registry,
+      surfaceExchanges,
+      ...(options.toolAttemptAudit ? { toolAttemptAudit: options.toolAttemptAudit } : {}),
+    }),
+    () => federation?.reports() ?? [],
+  );
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
   // that non-drift property as the reason it takes the registry rather than a separate catalog.
   // `let`, not `const`: `ready` below rebuilds it once the installed-extension-tools pass finishes,
-  // so a tool that pass adds is findable, not just executable — see `ready`'s own doc.
+  // and `awaitFederation`/`onAdmitted` above each rebuild it again once federation actually admits
+  // something, so a tool either pass adds is findable, not just executable — see those members'
+  // own docs.
   let catalog = buildToolCatalogQuery(registry);
 
-  // See `ByokToolSurface.ready`'s own doc. `registerInstalledExtensionTools` is fail-open by
-  // construction (each of its three sub-registrations catches its own error), so this `.then()` is
-  // reached unconditionally and `ready` never rejects.
-  const ready: Promise<void> =
-    options.installExtensions === false
-      ? Promise.resolve()
-      : registerInstalledExtensionTools(registry, deps, "[assistant-byok]").then(() => {
-          catalog = buildToolCatalogQuery(registry);
-        });
+  // See `ByokToolSurface.ready`'s own doc — `installed`, unchanged: `registerInstalledExtensionTools`
+  // is fail-open by construction (each of its three sub-registrations catches its own error), so
+  // this `.then()` is reached unconditionally and `ready` never rejects. Deliberately NOT chained
+  // onto `federation.start()` too — federation stays lazy, per this module's own header.
+  const ready: Promise<void> = extensions
+    ? extensions.installed.then(() => {
+        catalog = buildToolCatalogQuery(registry);
+      })
+    : Promise.resolve();
+
+  /**
+   * Starts (or awaits) `federation.start()`, racing it against `timeoutMs` — see
+   * `ByokToolSurface.awaitFederation`'s own doc for the full contract. Rebuilds `catalog` itself
+   * on a successful boot pass, mirroring `ready`'s own `.then(rebuildCatalog)`: unlike the daemon
+   * (which starts federation and builds its FIRST catalog snapshot in the same sequential boot,
+   * per `design-byok-external-mcp-2026-09-24.md` §2.1 item 4), BYOK's `catalog` above is already
+   * built and possibly already searched by the time federation's lazy boot pass resolves, so
+   * nothing else would ever pick up what it admitted.
+   */
+  async function awaitFederation(timeoutMs: number): Promise<{ readonly settled: boolean }> {
+    if (!federation) return { settled: false };
+    const runtime = federation;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+      runtime.start().then((): "started" => {
+        catalog = buildToolCatalogQuery(registry);
+        return "started";
+      }),
+      new Promise<"timed-out">((resolve) => {
+        timer = setTimeout(() => resolve("timed-out"), timeoutMs);
+      }),
+    ]);
+    if (timer) clearTimeout(timer);
+    return { settled: outcome === "started" };
+  }
 
   async function executeMetaTool(
     principal: Principal,
@@ -534,5 +661,14 @@ export function createByokToolSurface(
     return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
   }
 
-  return { registry, executor, metaTools: META_TOOL_DESCRIPTORS, surfaceExchanges, executeMetaTool, ready };
+  return {
+    registry,
+    executor,
+    metaTools: META_TOOL_DESCRIPTORS,
+    surfaceExchanges,
+    executeMetaTool,
+    ready,
+    federation,
+    awaitFederation,
+  };
 }

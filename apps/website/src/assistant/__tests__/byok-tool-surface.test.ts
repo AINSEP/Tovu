@@ -29,6 +29,11 @@ import { TOOL_ERROR_ID_PATTERN } from "../tool-failure-redaction.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../external-mcp-store.js";
+import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 
 // `surface()` below calls `createByokToolSurface` directly (not through `createAssistantByokModule`,
 // which installs first-party contributors itself) — so this file must, or the `comments`/
@@ -707,4 +712,91 @@ test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry ar
     "fake_recoverable_audited:requested",
     "fake_recoverable_audited:completed",
   ]);
+});
+
+/**
+ * @file S4 (BYOK federation surface) — `design-byok-external-mcp-2026-09-24.md` §2.1 item 5. Unlike
+ * every test above, these three build a REAL `InMemoryExternalMcpServerRepo` row through
+ * `saveExternalMcpServer` (mirrors `external-mcp-store.test.ts`'s own `makeDeps()`), because the
+ * property under test is that `createByokToolSurface` reads the STORED roster through
+ * `external-mcp-connection-source.ts`, not that a fed-in fake list round-trips.
+ * `federationConnect` (this surface's own test seam, threaded to
+ * `CreateFederationRuntimeParams.connect`) is what stands in for the real transport — the row's
+ * `command`/`args` are never actually spawned.
+ */
+const FEDERATION_WORKSPACE = "ws-federation-surface";
+
+/** One enabled `stdio` row allowlisting exactly `echo`, saved through the real store so admission
+ *  goes through the real `readEnabledExternalMcpConfigs` -> `toResolvedFederatedConnections` path,
+ *  not a hand-built `ResolvedFederatedConnection`. */
+async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer, keyring: InMemoryKeyring): Promise<void> {
+  await saveExternalMcpServer(
+    { repo, sealer, keyring, clock: { nowIso: () => "2026-09-24T00:00:00.000Z" } },
+    {
+      workspaceId: FEDERATION_WORKSPACE,
+      serverId: "echo-server",
+      label: "Echo",
+      transport: "stdio",
+      enabled: true,
+      command: "npx",
+      args: "-y echo-mcp-server",
+      allowedToolNames: "echo",
+      writeAllowedToolNames: "",
+      principalId: "principal-federation-surface",
+      env: "",
+    },
+  );
+}
+
+/** `fakeRouteDeps()` widened with the ONE real repo/sealer pair federation reads from — every other
+ *  field stays the bare double `fakeRouteDeps()` already provides, which is enough because
+ *  `attachAssistantToolExtensions`'s installed-extension half is fail-open regardless (see that
+ *  function's own doc) and nothing here calls a real tool handler through it. */
+function federationRouteDeps(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer): ByokToolSurfaceDeps {
+  return {
+    ...fakeRouteDeps(),
+    workspaceId: FEDERATION_WORKSPACE,
+    externalMcpServerRepo: repo,
+    siteAssistantSecretSealer: sealer,
+  } as unknown as ByokToolSurfaceDeps;
+}
+
+test("BYOK federation: awaitFederation boots the real stored roster and resolves {settled: true}", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+    federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
+  });
+
+  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+});
+
+test("BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), {
+    federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
+  });
+  await s.awaitFederation(1000);
+
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "echo" }));
+  const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
+
+  assert.ok(
+    hits.some((hit) => hit.id === "mcp__echo-server__echo"),
+    `expected a federated hit for the echo tool; got: ${JSON.stringify(hits)}`,
+  );
+});
+
+test("BYOK federation: installExtensions: false leaves federation undefined and awaitFederation a harmless no-op", async () => {
+  const s = createByokToolSurface(fakeRouteDeps(), { installExtensions: false });
+
+  assert.equal(s.federation, undefined);
+  assert.deepEqual(await s.awaitFederation(1000), { settled: false });
 });
