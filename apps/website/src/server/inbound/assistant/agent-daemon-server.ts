@@ -86,7 +86,8 @@ import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunS
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
-import { registerInstalledExtensionTools } from "#src/assistant/installed-extension-tools";
+import { attachAssistantToolExtensions, type AssistantToolExtensions } from "#src/assistant/installed-extension-tools";
+import { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
 import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
@@ -126,19 +127,10 @@ import {
   requireAgentDaemonToken,
   AGENT_DAEMON_EXIT_CODE,
   FRONTEND_CONTROL_CAPABILITIES,
-  attachFederatedMcpTools,
-  buildFederatedRefusalPrefix,
   withFederatedRefusalDiagnosis,
-  createFederationReloadCoordinator,
-  type FederationReloadResult,
-  type FederationDeps,
   createLiveToolCatalogQuery,
-  type ResolvedFederatedConnection,
   createDeviceAuthorizationStore,
-  createExternalMcpConnectionGate,
   createExternalMcpOAuthService,
-  readEnabledExternalMcpConfigs,
-  toResolvedFederatedConnections,
   registerA2uiActionsRoute,
   registerMcpUiToolCallsRoute,
   resolveMcpJsonInjection,
@@ -536,15 +528,15 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // tool id this boot refused would otherwise throw `unknown tool "<id>"` (the id is never registered)
 // straight past every decorator above and into `@jini-ai/http-kit`'s SEC-005 redaction, reaching the
 // model as an opaque `INTERNAL_ERROR` that names neither the tool nor the reason. This layer catches
-// exactly that throw and, only when the id matches a refusal in `federationAdmissionReports`, returns
-// a real result naming the tool, the server, and the fix instead. See that file's own header.
+// exactly that throw and, only when the id matches a refusal in `toolExtensions.federation.reports()`,
+// returns a real result naming the tool, the server, and the fix instead. See that file's own header.
 const toolExecutor = withFederatedRefusalDiagnosis(
   createAssistantToolExecutor({
     registry,
     surfaceExchanges,
     toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
   }),
-  () => federationAdmissionReports,
+  () => toolExtensions?.federation.reports() ?? [],
 );
 
 /**
@@ -631,39 +623,23 @@ const principalByRunId = new Map<string, Principal>();
 let attachmentStore: AttachmentStore | undefined;
 
 /**
- * The federation refusal notice this boot's admission pass produced, prepended to every run's
- * prompt below. `""` — the overwhelmingly common case — costs nothing and adds nothing.
+ * This boot's federation runtime plus the installed-extension registration promise — see
+ * `ADS-memory/.local-artifacts/design-byok-external-mcp-2026-09-24.md` §2.1 items 3-4. Replaces
+ * what used to be two separate module-level `let`s (`federationRefusalPrefix`,
+ * `federationAdmissionReports`): `toolExtensions.federation.refusalPrefix()`/`.reports()` are now
+ * the SAME live getters those two bindings existed to provide, off one object instead of two that
+ * had to be kept in lockstep by hand on every reload.
  *
- * Assigned once inside `start()`, on the same snapshot `registerFederationAdmissionsRoute` is
- * handed, so the operator's view (`GET /api/federation/admissions`) and the model's view can never
- * disagree about what was withheld. A module-level `let` for the same reason `attachmentStore` is
- * one: `onStarted` is registered at module scope, long before `start()` runs, and reads this at
- * request time.
- *
- * Why the model needs this AT ALL, given the route already exists: a refused tool is never
- * registered, so it is absent from `search_tools` and `describe_tool` — indistinguishable from a
- * capability Tovu simply does not have. Asked why it could not generate an image, the assistant
- * invented a cause, because there was nothing anywhere it could read that said "this exists and was
- * withheld." See `mcp-federation/refusal-notice.ts`.
+ * `undefined` until `start()` assigns it (constructed by `attachAssistantToolExtensions`) — a
+ * module-level `let` for the same reason `attachmentStore` is one: `toolExecutor`'s
+ * `withFederatedRefusalDiagnosis` wrap and `onStarted`'s prompt assembly are both constructed/
+ * registered at module scope, long before `start()` runs, so each reads this through a closure
+ * (`() => toolExtensions?.federation.reports() ?? []`) rather than a value that would forever see
+ * `undefined`. Every reader falls back to the empty/no-refusal case for that pre-boot instant,
+ * matching what `federationAdmissionReports = []`/`federationRefusalPrefix = ""` already defaulted
+ * to before this boot's admission pass ran.
  */
-let federationRefusalPrefix = "";
-
-/**
- * The SAME boot admission snapshot `federationRefusalPrefix` above is built from, kept around for
- * `toolExecutor`'s `withFederatedRefusalDiagnosis` wrap below to read at CALL time rather than boot
- * time. A module-level `let` for the identical reason `federationRefusalPrefix` is one: `toolExecutor`
- * is constructed at module scope, long before `start()` resolves `attachFederatedMcpTools`, so the
- * decorator closes over this binding (`() => federationAdmissionReports`) rather than a value that
- * would forever see the empty pre-boot array. See `federated-refusal-diagnosis.ts`.
- *
- * Typed by deriving `attachFederatedMcpTools`'s own return shape (`Awaited<ReturnType<...>>`) rather
- * than restating it or reusing `refusal-notice.ts`'s deliberately narrower
- * `FederationAdmissionSnapshotEntry` (which structurally omits `isPreset` on purpose, per that
- * file's own doc): `registerFederationAdmissionsRoute` below needs the FULL shape, `isPreset`
- * included, and a narrower annotation here would satisfy the other two readers
- * (`buildFederatedRefusalPrefix`, `withFederatedRefusalDiagnosis`) while breaking that one.
- */
-let federationAdmissionReports: Awaited<ReturnType<typeof attachFederatedMcpTools>>["reports"] = [];
+let toolExtensions: AssistantToolExtensions | undefined;
 
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
@@ -900,7 +876,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // not have to go looking for. Not a tool, deliberately: a model that does not know it is
       // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
-      prompt = assemblePromptWithPluginPrefix(prompt, federationRefusalPrefix);
+      prompt = assemblePromptWithPluginPrefix(prompt, toolExtensions?.federation.refusalPrefix() ?? "");
 
       const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, pluginRefIds, runLifecycle, routeDeps.workspaceId);
       if (pluginPromptPrefix === null) return;
@@ -1159,22 +1135,6 @@ frontendControl.httpExtension(app, { adapter });
  * order is otherwise unchanged: the catalog routes were already registered last.
  */
 /**
- * Reads the operator-editable roster (Settings → External MCP) into federation's connection shape.
- *
- * Boot-time only, and that is the DESIGN, not a limitation left unfinished: the admitted tool set is
- * frozen at connect (`trust.ts` R5), which is what closes the rug-pull where a server advertises a
- * benign surface while an operator picks an allowlist and swaps it afterwards. Re-reading this
- * roster mid-process would have to re-establish that guarantee deliberately. The tab therefore tells
- * the operator a restart is required rather than implying a saved row is already live.
- *
- * Fail-open on every path, matching `bootstrap.ts`: an unreadable roster must not stop the daemon
- * booting, because the assistant's own native catalog does not depend on it.
- *
- * @returns The stored connections, or an empty list if none are usable.
- * @complexity O(n) in the enabled server count.
- * @overallScore 100
- */
-/**
  * This process's OWN OAuth service — a SECOND `ExternalMcpOAuthService` instance, not
  * `routeDeps.externalMcpOAuth` reused directly.
  *
@@ -1182,24 +1142,25 @@ frontendControl.httpExtension(app, { adapter });
  * above is built by THIS process's own `createSqliteRouteDepsForWorkspace`/`createRouteDeps` call
  * (this file is its own composition root, same as the main web server is its), so that field is
  * every bit as much a daemon-process object as this one. The real reason for a second instance is
- * narrower: `resolveStoredExternalMcpConnections`/`onAuthFailed` below need a token
- * resolver/`reportAuthFailure` bound to THIS boot's federation setup, and building that inline here
- * is simpler than threading a second construction parameter through `createSqliteRouteDeps` for a
- * concern only the daemon has. The two instances share the only thing they must: the database row,
- * which is where the sealed token, the plaintext expiry, and the cross-process refresh lease all
- * live — `tryClaimOAuthRefreshLease` is what keeps the two from redeeming one single-use rotating
- * refresh token twice.
+ * narrower: `start()`'s stored-connection source/federation deps (`external-mcp-connection-source.ts`)
+ * need a token resolver/`reportAuthFailure` bound to THIS boot's federation setup, and building that
+ * inline here is simpler than threading a second construction parameter through
+ * `createSqliteRouteDeps` for a concern only the daemon has. The two instances share the only thing
+ * they must: the database row, which is where the sealed token, the plaintext expiry, and the
+ * cross-process refresh lease all live — `tryClaimOAuthRefreshLease` is what keeps the two from
+ * redeeming one single-use rotating refresh token twice.
  *
  * `pending`/`devices` below are `routeDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` —
  * the SAME two stores `routeDeps.externalMcpOAuth` was built with, not a second pair. They are
- * still, in practice, unreachable through THIS instance specifically: `resolveStoredExternalMcpConnections`
- * only reads `.tokenResolver`, and `onAuthFailed` only calls `.reportAuthFailure` — neither reaches
- * `beginConnect`/`completeAuthorizationCallback`/`pollDeviceAuthorization`, which is where a
- * handshake actually touches them. The assistant tool that DOES start a handshake from this process
- * (`external_mcp_oauth_connect`, wired against `routeDeps.externalMcpOAuth` in
- * `features/external-mcp/tool-registrations.ts`) uses the OTHER instance — and reusing the same
- * store objects here rather than building a redundant in-memory pair is what keeps this file's own
- * doc accurate instead of quietly wrong the next time something is wired through this local.
+ * still, in practice, unreachable through THIS instance specifically: the stored-connection source
+ * only reads `.tokenResolver`, and `buildExternalMcpFederationDeps`'s `onAuthFailed` only calls
+ * `.reportAuthFailure` — neither reaches `beginConnect`/`completeAuthorizationCallback`/
+ * `pollDeviceAuthorization`, which is where a handshake actually touches them. The assistant tool
+ * that DOES start a handshake from this process (`external_mcp_oauth_connect`, wired against
+ * `routeDeps.externalMcpOAuth` in `features/external-mcp/tool-registrations.ts`) uses the OTHER
+ * instance — and reusing the same store objects here rather than building a redundant in-memory pair
+ * is what keeps this file's own doc accurate instead of quietly wrong the next time something is
+ * wired through this local.
  */
 const externalMcpOAuth = createExternalMcpOAuthService({
   workspaceId: routeDeps.workspaceId,
@@ -1213,161 +1174,85 @@ const externalMcpOAuth = createExternalMcpOAuthService({
   devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
 });
 
-/**
- * Boot-time (and every reload pass's) accounting of which SAVED external-MCP rows could not even be
- * resolved into a connection attempt — e.g. a sealed env block that failed to decrypt because the
- * site token is not available. `resolveStoredExternalMcpConnections` reassigns this on every call
- * (boot, plus every `reloadFederatedConnections` pass), REPLACING rather than accumulating: unlike
- * `federationAdmissionReports` (a connection, once admitted, stays admitted forever per `trust.ts`
- * R5), a config-resolution failure is not permanent — fixing the site token and triggering a reload
- * can make the SAME serverId resolve cleanly on a later call, and the stale failure must disappear
- * from this list rather than linger next to a since-succeeded connection.
- *
- * Read through a closure (`registerFederationAdmissionsRoute` below), matching
- * `federationAdmissionReports`'s own module-level-`let` reasoning: this binding is declared before
- * `start()` ever runs, so the route must close over the BINDING, not a value snapshot that would
- * forever see the empty pre-boot array.
- */
-let externalMcpConfigFailures: readonly { readonly connectionId: string; readonly reason: string }[] = [];
-
-async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedConnection[]> {
-  try {
-    const { configs, failures } = await readEnabledExternalMcpConfigs(
-      {
-        repo: routeDeps.externalMcpServerRepo,
-        sealer: routeDeps.siteAssistantSecretSealer,
-        // Resolves (and refreshes, if due) the access token for an `authMode: "oauth"` row before
-        // its child process is launched with it. A row that needs re-authorization is reported in
-        // `failures` below rather than launched credential-free.
-        oauth: externalMcpOAuth.tokenResolver,
-      },
-      routeDeps.workspaceId,
-    );
-    for (const failure of failures) {
-      console.warn(`[agent-daemon] mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);
-    }
-    // Replaces, not appends — see `externalMcpConfigFailures`'s own doc on why this list tracks the
-    // most recent resolution attempt rather than every attempt this process has ever made.
-    externalMcpConfigFailures = failures.map((failure) => ({ connectionId: failure.serverId, reason: failure.reason }));
-    return toResolvedFederatedConnections(configs);
-  } catch (error) {
-    console.warn(
-      `[agent-daemon] mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${error instanceof Error ? error.message : String(error)}`,
-    );
-    // The whole read failed before any per-row failure could be attributed — a stale per-row failure
-    // from an earlier, partially-successful read must not survive next to a total read outage.
-    externalMcpConfigFailures = [];
-    return [];
-  }
-}
-
 async function start(): Promise<void> {
   registerSupabaseMcpPreset();
 
-  // Shared by the boot admission pass below AND every federation-reload pass
-  // (`reloadFederatedConnections`, defined further down): the SAME gate/failure-reporting wiring
-  // must back both, or a connection admitted by a reload could be held to different liveness
-  // behaviour than one admitted at boot for no reason other than which pass happened to register it.
-  const federationDeps: FederationDeps = {
-    authorize: routeDeps.authorize,
+  /**
+   * Reads the operator-editable roster (Settings → External MCP) into federation's connection
+   * shape, boot-time and every reload pass alike — see `createStoredExternalMcpConnectionSource`'s
+   * own doc (`assistant/external-mcp-connection-source.ts`) for the boot-time-only/R5 rationale and
+   * the fail-open behavior on both a whole-read failure and a per-row resolution failure. Extracted
+   * so BYOK's own root builds the identical source from the identical code rather than a second
+   * hand-copied read. `source.failures()` is what `registerFederationAdmissionsRoute` below reads
+   * for `configFailures`.
+   */
+  const source = createStoredExternalMcpConnectionSource({
+    repo: routeDeps.externalMcpServerRepo,
+    sealer: routeDeps.siteAssistantSecretSealer,
+    // Resolves (and refreshes, if due) the access token for an `authMode: "oauth"` row before its
+    // child process is launched with it. A row that needs re-authorization is reported through
+    // `source.failures()` rather than launched credential-free.
+    oauth: externalMcpOAuth.tokenResolver,
     workspaceId: routeDeps.workspaceId,
-    // Nothing here unregisters a federated tool once it is in the FTS index, so a connection whose
-    // authorization dies mid-run, or that an operator turns off, deletes, narrows or disconnects,
-    // stays discoverable and selectable. The gate is what stops the model looping on it: every call
-    // to a `needs_reauth`, or now operator-revoked, connection returns one terminal, explicitly
-    // non-retryable message instead of a transient-looking transport error. See
-    // `mcp-federation/registrations.ts`'s `assertConnectionUsable` doc.
-    assertConnectionUsable: createExternalMcpConnectionGate({
-      workspaceId: routeDeps.workspaceId,
-      repo: routeDeps.externalMcpServerRepo,
-    }),
-    // The gate above only catches a connection ALREADY known dead. A token valid at admission can
-    // still die mid-session — there is no periodic refresh — so this is what discovers that: on a
-    // live 401/403 it records `needs_reauth` (so the gate catches the NEXT call cheaply) and
-    // replaces the transport-shaped error with the same terminal message the gate throws.
-    onAuthFailed: (connectionId, error) => externalMcpOAuth.reportAuthFailure(connectionId, error),
-  };
-
-  // Reassigns the module-scope `let` declared above (not a fresh local `const`): `toolExecutor`'s
-  // `withFederatedRefusalDiagnosis` wrap already closed over that binding before this line ever
-  // runs, and only a reassignment — not a same-named local shadowing it — is visible through that
-  // closure. Same reasoning as `federationRefusalPrefix` a few lines down.
-  federationAdmissionReports = (await attachFederatedMcpTools({
-    registry,
-    deps: federationDeps,
-    extraConnections: await resolveStoredExternalMcpConnections(),
-  })).reports;
-
-  // What this process has admitted so far, over HTTP — see `federation-admissions-route.ts`'s own
-  // doc for why `reports` is a LIVE getter (not a snapshot handed in once) and
-  // `daemon-auth.ts`'s gate (already mounted above, before any route) for why this needs no auth
-  // logic of its own: the path is not in that gate's `exemptPaths`, so it is covered like every
-  // other route in this process.
-  registerFederationAdmissionsRoute(app, {
-    reports: () => federationAdmissionReports,
-    // See `externalMcpConfigFailures`'s own doc: a boot-time (or reload-time) decrypt/config failure
-    // for a saved row that never even reached `attachFederatedMcpTools`, so it has no admission
-    // report at all and would otherwise be invisible to this route.
-    configFailures: () => externalMcpConfigFailures,
+    log: "[agent-daemon]",
   });
 
-  // The same accounting, for the OTHER party that never heard the refusal. Rebuilt (not merely
-  // reassigned) after every reload pass that admits something new — see `reloadFederatedConnections`
-  // below — because a connection admitted mid-process should stop being reported as withheld in
-  // every NEW run's prompt, even though `trust.ts` R5 still means the admitted set for any ONE
-  // connection, once decided, never changes again.
-  federationRefusalPrefix = buildFederatedRefusalPrefix(federationAdmissionReports);
-  if (federationRefusalPrefix !== "") {
-    console.warn(
-      `[agent-daemon] mcp-federation: ${federationRefusalPrefix.split("\n").filter((line) => line.startsWith("- ")).length} withheld external tool(s) will be reported to the model in every run's prompt`,
-    );
-  }
+  // Shared by the boot admission pass below AND every federation-reload pass: the SAME
+  // gate/failure-reporting wiring must back both, or a connection admitted by a reload could be
+  // held to different liveness behaviour than one admitted at boot for no reason other than which
+  // pass happened to register it. Built by `buildExternalMcpFederationDeps`
+  // (`external-mcp-connection-source.ts`) so BYOK's own root shares this exact wiring too.
+  const federationDeps = buildExternalMcpFederationDeps({
+    authorize: routeDeps.authorize,
+    workspaceId: routeDeps.workspaceId,
+    repo: routeDeps.externalMcpServerRepo,
+    // The gate above (inside `buildExternalMcpFederationDeps`) only catches a connection ALREADY
+    // known dead. A token valid at admission can still die mid-session — there is no periodic
+    // refresh — so this is what discovers that: on a live 401/403 it records `needs_reauth` (so the
+    // gate catches the NEXT call cheaply) and replaces the transport-shaped error with the same
+    // terminal message the gate throws.
+    oauth: externalMcpOAuth,
+  });
 
   /**
-   * Owns "which connectionIds has THIS process admitted so far" and serializes every reload attempt
-   * — see `mcp-federation/reload.ts`'s own header for the full concurrency/R5 argument, not repeated
-   * here. Seeded from the boot pass immediately above, so the first reload only ever considers
-   * connections that did not exist (or were not yet authorized) at boot.
+   * THE ONE REGISTRAR (`installed-extension-tools.ts`): installed-extension tools, then (once that
+   * settles) this boot's federation runtime, in that fixed order — the disclosed change from this
+   * file's former order (federation attached before extensions). Assigned into the module-level
+   * `toolExtensions` binding declared above so `toolExecutor`'s `withFederatedRefusalDiagnosis` wrap
+   * and `onStarted`'s prompt assembly (both constructed at module scope, before this line ever runs)
+   * can read it once it exists. `federation` is built but not started here — `federation.start()`
+   * below is what performs the boot admission pass.
    */
-  const federationReloadCoordinator = createFederationReloadCoordinator(
-    { registry, deps: federationDeps, resolveConnections: resolveStoredExternalMcpConnections },
-    federationAdmissionReports.map((entry) => entry.connectionId),
+  const extensions = attachAssistantToolExtensions(
+    registry,
+    {
+      ...routeDeps,
+      federation: {
+        deps: federationDeps,
+        resolveConnections: source.resolve,
+        // Propagates a reload that actually admitted something new into every OTHER piece of
+        // process state a boot-time admission also updates: the discovery-side fix (see
+        // `tool-catalog-live-query.ts`) — the `search_tools`/`describe_tool` snapshot, rebuilt from
+        // `registry.list()` and rebound into the SAME object identity `registerToolCatalogRoutes`
+        // was handed below (`liveToolCatalog`, built a few lines down). A no-op reload (nothing new
+        // in the roster) never calls this — see `external-mcp-federation-runtime.ts`'s own doc.
+        onAdmitted: (result) => {
+          liveToolCatalog.rebind(
+            withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+              workspaceId: routeDeps.workspaceId,
+              runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
+              principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
+            }),
+          );
+          console.log(
+            `[agent-daemon] mcp-federation: reload admitted ${result.newlyAdmittedConnectionIds.length} new connection(s): ${result.newlyAdmittedConnectionIds.join(", ")}`,
+          );
+        },
+      },
+    },
+    "[agent-daemon]",
   );
-
-  /**
-   * Runs one reload pass and, only when it actually admitted something new, propagates the result
-   * into every OTHER piece of process state that a boot-time admission also updates: the merged
-   * accounting `GET /api/federation/admissions` (registered above) now serves live, the refusal
-   * prefix future runs' prompts carry, and — the discovery-side fix, see
-   * `tool-catalog-live-query.ts` — the `search_tools`/`describe_tool` snapshot, rebuilt from
-   * `registry.list()` and rebound into the SAME object identity `registerToolCatalogRoutes` was
-   * handed below (`liveToolCatalog`, defined a few lines down).
-   *
-   * A no-op reload (nothing new in the roster) intentionally skips all of this — rebuilding an
-   * unchanged FTS snapshot would cost real work for zero benefit, and would also, if a bug ever
-   * changed the rebuild to compute a stale result, be the SORT of no-op that becomes hard to notice
-   * precisely because nothing appeared to happen.
-   */
-  async function reloadFederatedConnections(): Promise<FederationReloadResult> {
-    const result = await federationReloadCoordinator.reload();
-    if (result.newlyAdmittedConnectionIds.length === 0) return result;
-
-    federationAdmissionReports = [...federationAdmissionReports, ...result.reports];
-    federationRefusalPrefix = buildFederatedRefusalPrefix(federationAdmissionReports);
-    liveToolCatalog.rebind(
-      withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
-        workspaceId: routeDeps.workspaceId,
-        runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
-        principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-      }),
-    );
-    console.log(
-      `[agent-daemon] mcp-federation: reload admitted ${result.newlyAdmittedConnectionIds.length} new connection(s): ${result.newlyAdmittedConnectionIds.join(", ")}`,
-    );
-    return result;
-  }
-
-  registerFederationReloadRoute(app, { reload: reloadFederatedConnections });
+  toolExtensions = extensions;
 
   /**
    * Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
@@ -1379,17 +1264,41 @@ async function start(): Promise<void> {
    * tools are the fix for the 2026-08-26 registration-gap audit: Word Count was live, valid, and
    * computing real data, but no tool anywhere ever exposed it.
    *
-   * Moved into `registerInstalledExtensionTools` (`assistant/installed-extension-tools.ts`), which
-   * `byok-tool-surface.ts` now calls too, so BYOK mode sees the identical three families through the
-   * identical ordering/fail-open registrar rather than a second hand-written copy — see that
-   * function's own header for the full ordering/fail-open rationale, unchanged from the three blocks
-   * this call replaces. Placed here — inside `start()`, immediately before `buildToolCatalogQuery` —
-   * because that call snapshots `registry.list()` into a one-shot FTS index: a tool registered after
-   * it is executable but INVISIBLE to `search_tools`. Awaited for the same reason: each family reads
-   * its own tree off disk, and an un-awaited promise would let the snapshot win the race on a cold
-   * cache.
+   * `extensions.installed` is `registerInstalledExtensionTools`'s own promise (see
+   * `installed-extension-tools.ts`), which `byok-tool-surface.ts` now calls too, so BYOK mode sees
+   * the identical three families through the identical ordering/fail-open registrar rather than a
+   * second hand-written copy. Awaited here, before the federation boot pass below, for the same
+   * reason it always was: each family reads its own tree off disk, and an un-awaited promise would
+   * let the FTS snapshot (`buildToolCatalogQuery` below) win the race on a cold cache.
    */
-  await registerInstalledExtensionTools(registry, routeDeps, "[agent-daemon]");
+  await extensions.installed;
+
+  // The boot admission pass — presets plus the roster `source.resolve()` reads. Never rejects; see
+  // `external-mcp-federation-runtime.ts`.
+  await extensions.federation.start();
+
+  // What this process has admitted so far, over HTTP — see `federation-admissions-route.ts`'s own
+  // doc for why `reports` is a LIVE getter (not a snapshot handed in once) and
+  // `daemon-auth.ts`'s gate (already mounted above, before any route) for why this needs no auth
+  // logic of its own: the path is not in that gate's `exemptPaths`, so it is covered like every
+  // other route in this process.
+  registerFederationAdmissionsRoute(app, {
+    reports: () => extensions.federation.reports(),
+    // See `external-mcp-connection-source.ts`'s `failures()` doc: a boot-time (or reload-time)
+    // decrypt/config failure for a saved row that never even reached federation's `attach`, so it
+    // has no admission report at all and would otherwise be invisible to this route.
+    configFailures: () => source.failures(),
+  });
+
+  // The same accounting, for the OTHER party that never heard the refusal — read fresh here rather
+  // than cached, since `extensions.federation.refusalPrefix()` already reflects this boot's
+  // admission pass by the time `start()` reaches this line, and stays live for every later reload.
+  const bootRefusalPrefix = extensions.federation.refusalPrefix();
+  if (bootRefusalPrefix !== "") {
+    console.warn(
+      `[agent-daemon] mcp-federation: ${bootRefusalPrefix.split("\n").filter((line) => line.startsWith("- ")).length} withheld external tool(s) will be reported to the model in every run's prompt`,
+    );
+  }
 
   // Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,
   // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
@@ -1405,13 +1314,15 @@ async function start(): Promise<void> {
   //
   // Wrapped a SECOND time in `createLiveToolCatalogQuery` (federation hot-reload, 2026-09-11):
   // `registerToolCatalogRoutes` captures whatever object `.catalog` points to here ONCE, at this
-  // call, so a later `attachFederatedMcpTools` call (`reloadFederatedConnections` above) that
-  // registers new tools into `registry` would otherwise be invisible to `search_tools`/`describe_tool`
-  // forever — executable via `execute_delegated_tool` (which resolves against the live `registry`
-  // directly, see `@jini-ai/daemon`'s `ToolExecutor.execute`) but undiscoverable, the exact half-wired
-  // state `tool-catalog-query.ts`'s own header records finding on 2026-07-30 for a different reason.
-  // `liveToolCatalog.query`'s object identity never changes; `reloadFederatedConnections` calls
-  // `.rebind(...)` with a freshly reseeded snapshot instead.
+  // call, so a later federation reload that registers new tools into `registry` would otherwise be
+  // invisible to `search_tools`/`describe_tool` forever — executable via `execute_delegated_tool`
+  // (which resolves against the live `registry` directly, see `@jini-ai/daemon`'s
+  // `ToolExecutor.execute`) but undiscoverable, the exact half-wired state `tool-catalog-query.ts`'s
+  // own header records finding on 2026-07-30 for a different reason. `liveToolCatalog.query`'s
+  // object identity never changes; the federation deps' `onAdmitted` above calls `.rebind(...)` with
+  // a freshly reseeded snapshot instead. Built here, right after the boot pass and before any route
+  // that a reload could ever trigger, so `onAdmitted`'s closure (created above, before this exists)
+  // never sees it undefined by the time a reload can actually call it.
   const liveToolCatalog = createLiveToolCatalogQuery(
     withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
       workspaceId: routeDeps.workspaceId,
@@ -1420,6 +1331,9 @@ async function start(): Promise<void> {
     }),
   );
   registerToolCatalogRoutes(app, { catalog: liveToolCatalog.query }, adapter);
+
+  registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });
+  // S6: register the roster-change notifier key "agent-daemon-local" here once that notifier lands.
 
   // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
   // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from
