@@ -420,11 +420,14 @@ test("drift guard: every MARK_RENDERERS key is documented in TIPTAP_MARK_SCHEMA'
  * silently rejected first and explained after. The kind gate itself stays in
  * `validateUpdatePostInput`/`resolveExplicitSlug` — this only widens what the SCHEMA advertises.
  */
-test("schema structure: content_post_update's slug pattern accepts '/' for the homepage, and still rejects a multi-segment path", () => {
-  const updateTool = postAgentToolCatalog.find((tool) => tool.name === "content_post_update");
-  assert.ok(updateTool, "content_post_update is in postAgentToolCatalog");
-  const slugSchema = (updateTool!.inputSchema as { properties: { slug: { pattern: string } } }).properties.slug;
-  const slugPattern = new RegExp(slugSchema.pattern);
-  assert.equal(slugPattern.test("/"), true, "the update schema's slug pattern must accept '/' (ROOT_SLUG, page homepage)");
-  assert.equal(slugPattern.test("a/b"), false, "the update schema's slug pattern must still reject a multi-segment path");
-});
+for (const toolName of ["content_post_create", "content_post_update"]) {
+  test(`schema structure: ${toolName}'s slug pattern accepts '/' for the homepage, and still rejects a multi-segment path`, () => {
+    const tool = postAgentToolCatalog.find((t) => t.name === toolName);
+    assert.ok(tool, `${toolName} is in postAgentToolCatalog`);
+    const slugSchema = (tool!.inputSchema as { properties: { slug: { pattern: string } } }).properties.slug;
+    const slugPattern = new RegExp(slugSchema.pattern);
+    assert.equal(slugPattern.test("/"), true, `${toolName}'s slug pattern must accept '/' (ROOT_SLUG, page homepage)`);
+    assert.equal(slugPattern.test("a/b"), false, `${toolName}'s slug pattern must still reject a multi-segment path`);
+    assert.equal(slugPattern.test("//"), false, `${toolName}'s slug pattern must accept '/' only on its own`);
+  });
+}
