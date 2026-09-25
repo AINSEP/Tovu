@@ -445,7 +445,14 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-body li { margin-bottom: 6px; }
 .post-detail-body blockquote { border-left: 2px solid var(--border-strong); padding-left: 20px; margin: 24px 0; color: var(--muted); font-style: italic; }
 .post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
-.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre; position: relative; }
+/* `font` (13px/1.5) set here, on `pre` itself, not just on `pre code` below — `pre` is the block
+   box that lays out the forced-newline lines, and CSS gives every line box a "strut" sized off the
+   BLOCK's own font/line-height, not the inline `code` descendant's. Without an override here `pre`
+   inherited `.post-detail-body`'s 17px/1.7 (line-height: 28.9px), so every line was struck at
+   28.9px tall even though the visible glyphs rendered at `code`'s 13px/19.5px — double-spaced text
+   sitting inside correctly-sized lines. Matches `.docs-main pre` below, which already sets its own
+   font and never had this bug. */
+.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre; position: relative; font: 13px/1.5 var(--font-mono); }
 .post-detail-body pre code { border: none; background: none; padding: 0; white-space: inherit; line-height: 1.5; }
 /* Live example frame (docs pages, 2026-09-23; white/gold made the default 2026-09-23 same day,
    owner approved the gold-frame prototype and asked to "update throughout") — wraps a rendered
