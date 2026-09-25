@@ -221,3 +221,70 @@ test("the logger prints the daemon's exact byte-identical line, prefixed with th
     `expected the exact log line; got: ${JSON.stringify(logLines)}`,
   );
 });
+
+test("a reload merges its reports onto the boot pass's and never re-admits a boot connection", async () => {
+  const roster: ResolvedFederatedConnection[] = [connection("a")];
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [...roster],
+    log: "[test]",
+    attach: admitAllWithDriftOnX,
+  });
+
+  await runtime.start();
+  roster.push(connection("x"));
+  const result = await runtime.reload();
+
+  assert.deepEqual(result.newlyAdmittedConnectionIds, ["x"], "the boot connection 'a' must seed the coordinator, not be re-admitted");
+  assert.deepEqual(
+    runtime.reports().map((entry) => entry.connectionId),
+    ["a", "x"],
+    "reports() must keep the boot pass's reports alongside the reload's",
+  );
+});
+
+test("reload() called while start() is in flight waits for the boot pass before settling", async () => {
+  const order: string[] = [];
+  const afterGate = deferred<void>();
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [],
+    after: afterGate.promise,
+    log: "[test]",
+    attach: admitAllWithDriftOnX,
+  });
+
+  const startPromise = runtime.start().then(() => order.push("start"));
+  const reloadPromise = runtime.reload().then(() => order.push("reload"));
+  afterGate.resolve();
+  await Promise.all([startPromise, reloadPromise]);
+
+  assert.deepEqual(order, ["start", "reload"]);
+});
+
+test("the logger prefixes warnings with the caller's own log tag too", async (t) => {
+  const warnLines: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => {
+    warnLines.push(args.map(String).join(" "));
+  });
+  t.mock.method(console, "log", () => {});
+
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [connection("x")],
+    log: "[assistant-byok]",
+    connect: async () => {
+      throw new Error("boom");
+    },
+  });
+
+  await runtime.start();
+
+  assert.ok(
+    warnLines.includes("[assistant-byok] mcp-federation: 'x' failed, continuing without its tools — boom"),
+    `expected the exact warn line; got: ${JSON.stringify(warnLines)}`,
+  );
+});

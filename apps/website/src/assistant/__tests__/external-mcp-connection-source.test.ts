@@ -7,7 +7,7 @@ import {
   buildExternalMcpFederationDeps,
   createStoredExternalMcpConnectionSource,
 } from "../external-mcp-connection-source.js";
-import type { ExternalMcpServerRepoPort } from "../external-mcp-store.js";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../external-mcp-store.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 
 /**
@@ -61,6 +61,38 @@ test("a repo whose listByWorkspaceId throws makes resolve() return [] and failur
     ),
     `expected a warn line with the roster-unreadable prefix; got: ${JSON.stringify(warnLines)}`,
   );
+});
+
+test("failures() is replaced on every resolve(), never appended, and a whole-read failure clears it", async (t) => {
+  const warnLines: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => {
+    warnLines.push(args.join(" "));
+  });
+
+  let listThrows = false;
+  const badRow = { workspaceId: WORKSPACE, serverId: "bad-row", enabled: true, transport: "carrier-pigeon" } as ExternalMcpServerRecord;
+  const repo: ExternalMcpServerRepoPort = {
+    ...repoWhoseListThrows(new Error("database is locked")),
+    listByWorkspaceId: () => (listThrows ? Promise.reject(new Error("database is locked")) : Promise.resolve([badRow])),
+  };
+  const source = createStoredExternalMcpConnectionSource({
+    repo,
+    sealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    workspaceId: WORKSPACE,
+    log: "[assistant-byok]",
+  });
+
+  assert.deepEqual(await source.resolve(), []);
+  assert.deepEqual(await source.resolve(), [], "a second read of the same bad row must replace, not append to, the first");
+  assert.deepEqual(source.failures(), [{ connectionId: "bad-row", reason: "unsupported transport 'carrier-pigeon'" }]);
+  assert.ok(
+    warnLines.includes("[assistant-byok] mcp-federation: stored server 'bad-row' skipped — unsupported transport 'carrier-pigeon'"),
+    `expected the per-row skip warning; got: ${JSON.stringify(warnLines)}`,
+  );
+
+  listThrows = true;
+  assert.deepEqual(await source.resolve(), []);
+  assert.deepEqual(source.failures(), [], "a total read outage must not leave the earlier per-row failure behind");
 });
 
 test("buildExternalMcpFederationDeps omits onAuthFailed entirely when oauth is absent", () => {
