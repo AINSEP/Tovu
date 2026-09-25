@@ -350,6 +350,15 @@ function optionalBodyJson(input: Record<string, unknown>, key: string): JsonObje
   return requireBodyJson(input, key);
 }
 
+/** Optional counterpart to `requireString`, for the same S7 partial patch: an omitted field keeps
+ *  the stored value, but a SENT one must still be a non-empty string, rejected with the exact
+ *  message the full-record shape always gave. The kit's `optionalString` accepts `""`, which would
+ *  let an empty title or slug through where the full-record call rejected it. */
+function optionalNonEmptyString(input: Record<string, unknown>, key: string): string | undefined {
+  if (input[key] === undefined) return undefined;
+  return requireString(input, key);
+}
+
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
 /** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
@@ -714,8 +723,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // independently optional. An omitted one is filled from the stored row inside
         // `captureInverse` below (the one place this handler already reads `existing`), not here —
         // a present-but-invalid value still rejects with the exact same message it always did.
-        const title = optionalString(input, "title");
-        const slug = optionalString(input, "slug");
+        const title = optionalNonEmptyString(input, "title");
+        const slug = optionalNonEmptyString(input, "slug");
         const bodyJson = optionalBodyJson(input, "bodyJson");
         const status = optionalPostStatus(input);
         if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined) {

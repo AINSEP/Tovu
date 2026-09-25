@@ -6,6 +6,7 @@ import type { UserRepoPort, UserRecord } from "@jini-ai/cms/identity";
 
 import * as schema from "#src/platform/db/schema.sqlite";
 
+import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
 import type { PurgeReport, RestoreOutcome, TrashItem, TrashPort } from "../ports.js";
@@ -285,4 +286,31 @@ test("the built tools accept every kind the Trash holds, not just the phase-1 fo
 
   const result = await restore(h, { entityType: "widget", entityId: "w-1" });
   assert.deepEqual(result, { restored: true, entityType: "widget", entityId: "w-1" });
+});
+
+test("both enums are exactly the bespoke permission-map kinds plus every registry kind — no more, no fewer", () => {
+  const h = harness();
+  const expected = [...new Set([...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...REGISTRY.keys()])].sort();
+  const restoreEnum = (h.byId.get("trash_restore_item")!.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } })
+    .properties.entityType.enum;
+  const listEnum = (h.byId.get("trash_list_items")!.descriptor.inputSchema as { properties: { entityTypes: { items: { enum: string[] } } } })
+    .properties.entityTypes.items.enum;
+  assert.deepEqual([...restoreEnum].sort(), expected);
+  assert.deepEqual([...listEnum].sort(), expected);
+});
+
+test("restoring each registry kind checks that kind's own registry permission, and is refused without it", async () => {
+  for (const [entityType, entry] of REGISTRY) {
+    const allowed = harness({ granted: ["content.read", entry.permission] });
+    await restore(allowed, { entityType, entityId: "e-1" });
+    assert.ok(
+      allowed.authorizeCalls.some((call) => call.permission === entry.permission && call.entityType === entityType),
+      `restoring a ${entityType} must check '${entry.permission}'`
+    );
+    assert.deepEqual(allowed.restoreCalls, [{ entityType, entityId: "e-1" }]);
+
+    const denied = harness({ granted: ["content.read"] });
+    await assert.rejects(() => restore(denied, { entityType, entityId: "e-1" }));
+    assert.deepEqual(denied.restoreCalls, [], `a ${entityType} restore without '${entry.permission}' must never reach the port`);
+  }
 });

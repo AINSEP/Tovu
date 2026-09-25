@@ -258,3 +258,54 @@ test("content_post_update: a title-only patch on a bespoke-HTML page SUCCEEDS �
   assert.equal(after!.bodyFormat, "html");
   assert.equal(after!.bodyHtml, generated, "the html body must survive a title-only patch untouched");
 });
+
+/* ------------------------------------------------------------------------------------------------
+ * (f) A SENT field keeps the full-record shape's validation: an empty title/slug is still rejected
+ * ---------------------------------------------------------------------------------------------- */
+
+test("content_post_update: an empty title or slug on a partial patch is rejected exactly as the full-record shape rejected it", async () => {
+  for (const key of ["title", "slug"] as const) {
+    const { deps, postRepo } = fakeRouteDeps();
+    await seedPost(postRepo);
+    const registrations = registrationsFor(deps);
+
+    await assert.rejects(
+      () => call(tool(registrations, "content_post_update"), { id: "p1", kind: "post", [key]: "" }),
+      (err: unknown) => err instanceof Error && err.message.startsWith(`'${key}' (non-empty string) is required`)
+    );
+    assert.equal((await storedPost(postRepo)).version, 1, `a rejected empty ${key} must not write`);
+  }
+});
+
+/* ------------------------------------------------------------------------------------------------
+ * (g) A FULL four-field call with no expectedVersion gains no basis — the old opt-in behavior
+ * ---------------------------------------------------------------------------------------------- */
+
+test("content_post_update: a FULL four-field call with no expectedVersion is NOT auto-guarded — same last-write-wins save as before S7", async () => {
+  const inner = new InMemoryPostRepo();
+  await inner.save({
+    id: "p1",
+    workspaceId: WORKSPACE_ID,
+    title: "Human's edit",
+    slug: "original-slug",
+    bodyJson: EMPTY_DOC,
+    status: "draft",
+    kind: "post",
+    updatedAt: NOW,
+    version: 2,
+  } as never);
+  const { deps } = fakeRouteDeps(staleReadPostRepo(inner, 1) as InMemoryPostRepo);
+  const registrations = registrationsFor(deps);
+
+  await call(tool(registrations, "content_post_update"), {
+    id: "p1",
+    kind: "post",
+    title: "Agent's title",
+    slug: "original-slug",
+    bodyJson: EMPTY_DOC,
+    status: "draft",
+  });
+
+  const real = await inner.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
+  assert.equal(real?.title, "Agent's title");
+});
