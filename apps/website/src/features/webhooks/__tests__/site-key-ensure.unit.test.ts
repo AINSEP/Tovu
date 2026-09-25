@@ -347,6 +347,51 @@ test("ensureSiteKey: adopt into a fresh per-site file also stamps the fingerprin
   assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(hex));
 });
 
+// ---------------------------------------------------------------------------
+// Review fix (2026-09-24): the stamp is consulted BEFORE a write, not only after it.
+// - adopt: a candidate whose fingerprint differs from the stamp, on a site with sealed data, is
+//   known to be the wrong key — writing it would make it permanent (the per-site file wins over
+//   every other source from then on, so the right key could never be adopted later).
+// - mint/adopt with no key-dependent data: nothing can be orphaned, so a stale stamp is updated
+//   instead of leaving a permanent false "mismatch" banner Generate cannot clear.
+// ---------------------------------------------------------------------------
+
+test("ensureSiteKey: adopt of a key whose fingerprint differs from the stamp, on a site with sealed data → 'mismatch', and the wrong key is NOT written", () => {
+  const stampedFingerprint = fingerprintRootKeyHex(validHex());
+  const wrongHex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: stampedFingerprint });
+  buildSealedCiphertextDb(path.join(siteDir, "content.db"));
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: wrongHex };
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home });
+
+  assert.equal(result.action, "mismatch");
+  assert.equal(result.fingerprint, fingerprintRootKeyHex(wrongHex), "reports the candidate's own fingerprint");
+  assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false, "a key the stamp proves wrong must never become the site's permanent per-site key");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, stampedFingerprint, "the stamp is evidence while sealed data exists — never overwritten");
+});
+
+test("ensureSiteKey: adopt with a stale stamp on a site with NO key-dependent data → 'adopt', and the stamp is updated to the adopted key", () => {
+  const hex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: hex };
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), hex);
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(hex));
+});
+
+test("ensureSiteKey: mint on a site carrying a stale stamp (moved/copied site, no sealed data) → 'mint', and the stamp is updated — no permanent false mismatch", () => {
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
+
+  const result = ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home });
+
+  assert.equal(result.action, "mint");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, result.fingerprint);
+});
+
 test("ensureSiteKeyForBoot: a traversal siteKeyId in .site-meta.json writes nothing anywhere (the id is rejected before any path is built)", () => {
   writeSiteMeta(siteDir, { siteId: "ok", siteKeyId: "../../escaped" });
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: validHex() };

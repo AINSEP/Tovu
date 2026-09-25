@@ -8,6 +8,7 @@ import {
   findKeyDependentData,
   readSiteKeySourceMaterial,
   readSiteMetaJson,
+  resolveSiteKeyFingerprint,
   resolveSiteKeyId,
   siteKeySources,
   type SiteKeySource,
@@ -196,8 +197,13 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
   const otherParsed = otherRaw === undefined ? undefined : parseRootKeyHex(otherRaw);
 
   const contentDbPath = join(input.siteDir, CONTENT_DB_FILENAME);
+  let hasKeyDataMemo: boolean | undefined;
+  const siteHasKeyData = (): boolean => {
+    hasKeyDataMemo ??= existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
+    return hasKeyDataMemo;
+  };
   const needsDataCheck = perSiteParsed === undefined && otherParsed === undefined;
-  const siteDbsWithKeyData = needsDataCheck && existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
+  const siteDbsWithKeyData = needsDataCheck ? siteHasKeyData() : false;
 
   const plan = planSiteKeyEnsure({
     mode,
@@ -209,7 +215,7 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
   switch (plan.action) {
     case "noop": {
       if (!perSiteParsed?.ok) throw new Error("ensureSiteKey: 'noop' plan implies a valid per-site key");
-      return withFingerprintReconciliation(input.siteDir, "noop", perSiteFilePath, fingerprintRootKeyHex(perSiteParsed.hex));
+      return withFingerprintReconciliation(input.siteDir, "noop", perSiteFilePath, fingerprintRootKeyHex(perSiteParsed.hex), () => false);
     }
     case "invalid": {
       const rejected = perSiteParsed?.ok === false ? perSiteParsed : otherParsed?.ok === false ? otherParsed : undefined;
@@ -218,15 +224,27 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
     }
     case "adopt": {
       if (!otherParsed?.ok) throw new Error("ensureSiteKey: 'adopt' plan implies valid adoptable material");
+      // The stamp is checked BEFORE the write: once a per-site file exists it outranks every other
+      // source, so adopting a key the stamp already proves wrong would make it permanent and block
+      // the right key from ever being adopted. With no key-dependent data the stamp protects
+      // nothing, so adoption goes ahead and the stamp is updated.
+      const candidateFingerprint = fingerprintRootKeyHex(otherParsed.hex);
+      const stamped = resolveSiteKeyFingerprint({ siteDir: input.siteDir });
+      if (stamped !== undefined && stamped !== candidateFingerprint && siteHasKeyData()) {
+        return { action: "mismatch", perSiteFilePath, fingerprint: candidateFingerprint };
+      }
       const written = atomicCreateSiteKeyFile(perSiteFilePath, otherParsed.hex);
-      return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written));
+      return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written), () => !siteHasKeyData());
     }
     case "refuse":
       return { action: "refuse", perSiteFilePath };
     case "mint": {
       const generatedHex = randomBytes(32).toString("hex");
       const written = atomicCreateSiteKeyFile(perSiteFilePath, generatedHex);
-      return withFingerprintReconciliation(input.siteDir, "mint", perSiteFilePath, fingerprintRootKeyHex(written));
+      // `mint` is only planned when the site has no key-dependent data, so a stale stamp (a moved or
+      // copied site folder) protects nothing — it is replaced rather than left as a permanent,
+      // false "mismatch".
+      return withFingerprintReconciliation(input.siteDir, "mint", perSiteFilePath, fingerprintRootKeyHex(written), () => !siteHasKeyData());
     }
     case "production-noop":
       // Unreachable here (the mode==="production" branch above already returned) — kept only so
@@ -249,10 +267,12 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
  * - Field absent → stamped now, merged into the EXISTING parsed object so no other field is lost or
  *   reset (never a fresh object built from scratch).
  * - Field present and equal → nothing written; the file already reflects reality.
- * - Field present and different → the stamp is evidence, not a cache: this call returns
- *   `"mismatch"` instead of the caller's own action, and neither rewrites `.site-meta.json` nor
- *   mints/writes any new key material — the key file itself was already established (or left alone)
- *   by the caller before this function ever runs.
+ * - Field present and different, and `mayRestamp()` is false (the site has key-dependent data, or
+ *   the caller is `"noop"`) → the stamp is evidence, not a cache: this call returns `"mismatch"`
+ *   instead of the caller's own action and does not rewrite `.site-meta.json`.
+ * - Field present and different, and `mayRestamp()` is true (`"mint"`/`"adopt"` on a site with no
+ *   key-dependent data — nothing sealed under the stamped key can be orphaned) → re-stamped to the
+ *   key now in the file, and the caller's own action is returned.
  *
  * @complexity O(1) — one bounded JSON read, at most one atomic JSON write.
  */
@@ -260,7 +280,8 @@ function withFingerprintReconciliation(
   siteDir: string,
   action: "noop" | "adopt" | "mint",
   perSiteFilePath: string,
-  fingerprint: string
+  fingerprint: string,
+  mayRestamp: () => boolean
 ): EnsureSiteKeyResult {
   // `readSiteMetaJson` (site-key-sources.ts) — the shared `.site-meta.json` parse both this
   // function and `site-key-sources.ts`'s own `resolveSiteKeyId`/`resolveSiteKeyFingerprint` build
@@ -276,6 +297,10 @@ function withFingerprintReconciliation(
     return { action, perSiteFilePath, fingerprint };
   }
   if (stamped === fingerprint) {
+    return { action, perSiteFilePath, fingerprint };
+  }
+  if (mayRestamp()) {
+    writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
     return { action, perSiteFilePath, fingerprint };
   }
   return { action: "mismatch", perSiteFilePath, fingerprint };
