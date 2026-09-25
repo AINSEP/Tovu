@@ -58,7 +58,26 @@ describe("agent-daemon-server.ts — federation runtime wiring (S3)", () => {
     const catalog = indexOfOrFail("const liveToolCatalog = createLiveToolCatalogQuery(", startFn);
     const reloadRoute = indexOfOrFail("registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });", startFn);
     assert.ok(catalog < reloadRoute, "the reload route must be mounted after liveToolCatalog is declared (TDZ)");
-    assert.equal((SOURCE.match(/\.federation\.reload\(/g) ?? []).length, 1, "the reload route is the only reload caller");
+  });
+
+  test("extensions.federation.reload() has exactly two callers: the reload route and the agent-daemon-local roster-change listener (S6, 3cdf21c52)", () => {
+    // A raw `.federation.reload(` occurrence count is not the right guard: S6 added a code comment
+    // (right above the roster-change call) that itself mentions `extensions.federation.reload()` in
+    // prose, so a naive count drifts from 1 to 3 without any new caller existing. Pin the exact two
+    // call-site strings instead, then confirm no other real call site exists by stripping comment
+    // lines before counting — a genuine new caller must still fail this test.
+    indexOfOrFail("registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });");
+    indexOfOrFail('onExternalMcpRosterChanged("agent-daemon-local", () => extensions.federation.reload());');
+
+    const codeOnly = SOURCE.split("\n")
+      .filter((line) => !/^\s*\/\//.test(line))
+      .join("\n");
+    const callSites = codeOnly.match(/\.federation\.reload\(\)/g) ?? [];
+    assert.equal(
+      callSites.length,
+      2,
+      "an unexpected new caller of extensions.federation.reload() was found; update this test's pinned set only after confirming the new call site is intended",
+    );
   });
 
   test("the admissions route reads the runtime's reports and merges the source's config failures with the runtime's own connect failures", () => {
