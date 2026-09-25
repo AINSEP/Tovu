@@ -1,6 +1,7 @@
 import { assignLocation, MenuNotFoundError } from "#src/features/navigation/index";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 
 /** Reads+trims `locationKey` off the body in one place; `null` means missing or blank.
  *  @complexity O(1). */
@@ -70,6 +71,11 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
 
       res.json(toAdminAssignLocationResponse({ menu, binding, displacedMenu }));
     } catch (err) {
+      const live = entityNotLiveResponse(err);
+      if (live) {
+        res.status(live.status).json(live.body);
+        return;
+      }
       if (err instanceof MenuNotFoundError) {
         res.status(404).json({ error: err.message });
         return;
