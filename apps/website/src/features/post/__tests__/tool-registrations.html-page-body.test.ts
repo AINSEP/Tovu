@@ -6,8 +6,10 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createPost } from "../post.js";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { createPost, DEFAULT_BODY_JSON } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { SqlitePostRepo } from "../repo.sqlite.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
@@ -25,9 +27,10 @@ const WORKSPACE_ID = "ws-html-page-body";
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-24T00:00:00.000Z";
 
-function fakeRouteDeps() {
+function fakeRouteDeps<R extends InMemoryPostRepo | SqlitePostRepo = InMemoryPostRepo>(
+  postRepo: R = new InMemoryPostRepo() as R
+) {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
@@ -67,7 +70,7 @@ function call(registration: ToolRegistration, input: unknown) {
 
 /** Creates a Page and converts it to a bespoke-HTML one carrying `html`, the same technique
  *  `features/pages/__tests__/metadata-edit-preserves-html.test.ts`'s own `seedHtmlPage` uses. */
-async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo, html: string) {
+async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo | SqlitePostRepo, html: string) {
   await createPost({
     deps: { repo: postRepo, clock: deps.clock },
     input: { workspaceId: WORKSPACE_ID, id: "page-1", title: "Pricing", kind: "page" },
@@ -134,5 +137,36 @@ test("content_post_update: sending bodyJson back exactly as content_post_get ret
   assert.ok(after);
   assert.equal(after!.title, "Pricing and plans");
   assert.equal(after!.bodyFormat, "html");
+  assert.equal(after!.bodyHtml, generated, "the html body must survive the metadata edit");
+});
+
+test("content_post_update: the real sqlite placeholder bodyJson, JSON-serialized the way the model sees it, still allows a title edit", async () => {
+  // The in-memory case above hands content_post_get's own object reference straight back, so it
+  // can't prove the guard's deep-equal matches what an agent actually sends. This one reads through
+  // `SqlitePostRepo` (whose `toRecord` fills an html row's NULL `body_json` with the placeholder)
+  // and round-trips that bodyJson through JSON, as the tool transport does.
+  const { deps, postRepo } = fakeRouteDeps(new SqlitePostRepo(openContentDb(":memory:")));
+  const generated = `<section data-agent-element="page-body" data-agent-role="region"><p>Real content</p></section>`;
+  await seedHtmlPage(deps, postRepo, generated);
+  const registrations = registrationsFor(deps);
+
+  const got = JSON.parse(
+    JSON.stringify(await call(tool(registrations, "content_post_get"), { id: "page-1", kind: "page" }))
+  ) as { post: { bodyJson: unknown; slug: string; status: string } };
+  assert.deepEqual(got.post.bodyJson, DEFAULT_BODY_JSON, "an html row's bodyJson is the shared placeholder");
+
+  const updated = (await call(tool(registrations, "content_post_update"), {
+    id: "page-1",
+    kind: "page",
+    title: "Pricing and plans",
+    slug: got.post.slug,
+    bodyJson: got.post.bodyJson,
+    status: got.post.status,
+  })) as { post: { title: string } };
+  assert.equal(updated.post.title, "Pricing and plans");
+
+  const after = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "page-1" });
+  assert.ok(after);
+  assert.equal(after!.title, "Pricing and plans");
   assert.equal(after!.bodyHtml, generated, "the html body must survive the metadata edit");
 });
