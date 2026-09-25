@@ -204,7 +204,7 @@ changes. Deleted or unpublished targets are left out, never shown as dead links.
 <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-footer-nav"}'><a href="/docs">Docs</a><a href="/about" aria-current="page">About</a></nav>
 ```
 
-**Tree (`"variant":"tree"`).** Every level, as nested lists, with classes to style against:
+**Tree.** Add `"variant":"tree"` to get every level, as nested lists, with classes to style against:
 
 ```html
 <nav class="docs-nav" data-embed-config='{"type":"menu","id":"docs-section","variant":"tree"}'>
