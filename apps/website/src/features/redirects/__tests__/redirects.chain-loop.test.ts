@@ -99,3 +99,36 @@ test("S9: creating /a->/b when /b->/c and /c->/a already exist rejects the whole
     }
   );
 });
+
+test("S9: a pre-existing loop that does NOT pass through the new rule's fromPattern does not reject the write (it is not this write's cycle)", async () => {
+  const deps = makeDeps();
+  const repo = deps.repo as InMemoryRedirectRepo;
+  // /x->/y exists normally; /y->/w and /w->/x are seeded straight into the repo, as data written
+  // before the chain walk existed could be (the one-hop check alone never caught a 3-rule loop).
+  const { record } = await createRedirect({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      matchType: "exact",
+      fromPattern: "/x",
+      toTarget: "/y",
+      statusCode: 301,
+      actorId: ACTOR_ID,
+    },
+  });
+  repo.insertRedirect({ ...record, id: "legacy-y", fromPattern: "/y", toTarget: "/w" });
+  repo.insertRedirect({ ...record, id: "legacy-w", fromPattern: "/w", toTarget: "/x" });
+
+  const { record: created } = await createRedirect({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      matchType: "exact",
+      fromPattern: "/z",
+      toTarget: "/x",
+      statusCode: 301,
+      actorId: ACTOR_ID,
+    },
+  });
+  assert.equal(created.toTarget, "/y");
+});

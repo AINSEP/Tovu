@@ -180,15 +180,19 @@ async function resolveCollapsedTarget(
   // chases). But a create/update whose finalTarget lands on an EXISTING rule can still complete a
   // longer cycle through rules this call never collapses through — walk the rest of the chain (up
   // to 32 hops, matching REQ-26) so e.g. /b->/c, /c->/a, then creating /a->/b is rejected too.
+  // Only a walk that reaches `fromPattern` itself is THIS write's cycle. A loop among other rules
+  // (legacy data written before this walk existed) ends the walk instead: this write neither
+  // creates it nor would removing this rule break it, and naming `fromPattern` would be false.
   let cur = finalTarget;
-  const seen = new Set<string>([fromPattern]);
+  const seen = new Set<string>();
   for (let hop = 0; hop < 32; hop++) {
     if (isAbsoluteOrProtocolRelative(cur)) break;
-    if (seen.has(cur)) {
+    if (cur === fromPattern) {
       throw new RedirectLoopError(
         `redirect from '${fromPattern}' would create a cycle via '${toTarget}' (following existing redirects leads back to '${fromPattern}')`
       );
     }
+    if (seen.has(cur)) break;
     seen.add(cur);
     const rule = await repo.findByFromPattern({ workspaceId, fromPattern: cur });
     if (!rule || rule.status !== "active") break;
