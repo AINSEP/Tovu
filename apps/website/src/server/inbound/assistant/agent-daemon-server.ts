@@ -1335,9 +1335,11 @@ async function start(): Promise<void> {
 
   registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });
   // S6 (2026-09-24): this daemon PROCESS also reacts directly to a roster change, not only over its
-  // own `/api/federation/reload` HTTP route above — a same-process caller (none exists yet, but the
-  // key is registered here rather than left for the next one to discover this gap) can go through
-  // `notifyExternalMcpRosterChanged()` instead of a loopback HTTP round trip. Keyed
+  // own `/api/federation/reload` HTTP route above. The same-process caller is
+  // `features/external-mcp/tool-registrations.ts`: its chat-surface save and device-poll tools run in
+  // THIS process's registry, and notify after a successful save/connect. Only this key is registered
+  // here, so such a save does not reach the web process's BYOK runtime until that runtime next
+  // starts or reloads. Keyed
   // `"agent-daemon-local"`, distinct from the web root's `"agent-daemon"` key
   // (`server/runtime/composition/app.ts`), which reaches this SAME `extensions.federation.reload()`
   // but from the other process, over HTTP — see `external-mcp-roster-change.ts`'s own header.

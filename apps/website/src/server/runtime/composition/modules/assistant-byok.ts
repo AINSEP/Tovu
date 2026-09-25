@@ -84,9 +84,9 @@ export const SYSTEM_PREAMBLE =
 
 /** How long one BYOK turn waits on `ByokToolSurface.awaitFederation` before giving up and running
  *  with whatever tools are searchable so far — see that method's own doc for why the wait is bounded
- *  rather than open-ended. Only the very first API-mode turn after boot (or a turn that lands while a
- *  reload from a roster change is still running) can actually wait this long; every other turn finds
- *  the boot pass already settled and returns at once. 5s, per the owner's own sizing
+ *  rather than open-ended. Only a turn that lands before the lazy boot pass has settled (normally just the
+ *  first API-mode turn after boot) can actually wait this long; a roster-change reload is never
+ *  awaited here, and every later turn finds the boot pass already settled and returns at once. 5s, per the owner's own sizing
  *  (`design-byok-external-mcp-2026-09-24.md` §2.1 item 6). */
 export const FEDERATION_TURN_WAIT_MS = 5_000;
 
@@ -403,9 +403,9 @@ export function createAssistantByokModule(
     await (resolvedToolSurface.ready ?? Promise.resolve());
 
     // Starts (or awaits) this surface's lazy federation boot pass, bounded to
-    // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only the first
-    // API-mode turn after boot, or a turn that lands while a roster-change reload is still running,
-    // can actually wait; every later turn finds the boot pass already settled and this resolves at
+    // `FEDERATION_TURN_WAIT_MS` — see `ByokToolSurface.awaitFederation`'s own doc. Only a turn that
+    // lands before the boot pass has settled can actually wait (a roster-change reload is never
+    // awaited here); every later turn finds the boot pass already settled and this resolves at
     // once. `federation?.refusalPrefix()` reads whatever drift THIS surface has accumulated so far,
     // live — empty before federation has admitted anything, and always when this surface was built
     // with `installExtensions: false` (`federation` is `undefined` there).

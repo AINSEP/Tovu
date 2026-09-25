@@ -794,9 +794,12 @@ test("BYOK federation: after awaitFederation settles, search_tools finds the new
   );
 });
 
-test("BYOK federation: installExtensions: false leaves federation undefined and awaitFederation a harmless no-op", async () => {
+// `settled: true`, not `false`: with no federation there is nothing still connecting, and
+// `assistant-byok.ts` appends FEDERATION_STILL_CONNECTING_NOTE to the system prompt on `false` —
+// a no-federation surface must not tell the model that tools are on their way.
+test("BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once", async () => {
   const s = createByokToolSurface(fakeRouteDeps(), { installExtensions: false });
 
   assert.equal(s.federation, undefined);
-  assert.deepEqual(await s.awaitFederation(1000), { settled: false });
+  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
 });

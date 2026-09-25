@@ -123,8 +123,9 @@ export interface ByokToolSurface {
    * here does not cancel the boot pass, which keeps running in the background and still becomes
    * searchable once it finishes — only the CALLER stops waiting. `{settled: true}` once the boot
    * pass has actually completed and this surface's `search_tools`/`describe_tool` catalog has been
-   * rebuilt to include whatever it admitted; `{settled: false}` on a timeout, or immediately, with
-   * no timer started, when `federation` is `undefined`.
+   * rebuilt to include whatever it admitted; `{settled: false}` only on a timeout. `{settled: true}`
+   * immediately, with no timer started, when `federation` is `undefined` — nothing is connecting, so
+   * the turn route must not append its "still connecting" note.
    */
   readonly awaitFederation: (timeoutMs: number) => Promise<{ readonly settled: boolean }>;
 }
@@ -611,7 +612,7 @@ export function createByokToolSurface(
    * nothing else would ever pick up what it admitted.
    */
   async function awaitFederation(timeoutMs: number): Promise<{ readonly settled: boolean }> {
-    if (!federation) return { settled: false };
+    if (!federation) return { settled: true };
     const runtime = federation;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const outcome = await Promise.race([
