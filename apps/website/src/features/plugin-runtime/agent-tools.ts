@@ -201,7 +201,7 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "plugins_list",
     description:
-      "Lists every discovered plugin (built-in and site-installed) with its id, name, version, source, trust tier, validation status, current enabled state, and any validation errors. Read-only.",
+      "Lists every discovered plugin (built-in and site-installed) with its id, name, version, source, trust tier, validation status, current enabled state, and any validation errors. Read-only. Also returns agentPlugins: every installed Agent Plugin (pluginId, version, archiveDigest, skill names).",
     sideEffects: "none",
     authorization: { permission: "admin.plugins.read" },
     inputSchema: NO_INPUT_SCHEMA,

@@ -141,6 +141,32 @@ import { runAgentPluginUninstall } from "../agent-plugins/uninstall-tool.js";
 
 const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
 
+/** One `plugins_list` response row for an installed Agent Plugin — see this file's header,
+ *  "`plugins_list` also reports installed Agent Plugins", for why only these four fields (never
+ *  `packageRoot` or a skill's `skillPath`) ever leave this module. */
+interface AgentPluginListRow {
+  readonly pluginId: string;
+  readonly version: string | null;
+  readonly archiveDigest: string;
+  readonly skills: readonly string[];
+}
+
+function toAgentPluginListRow(p: InstalledAgentPlugin): AgentPluginListRow {
+  return { pluginId: p.pluginId, version: p.version ?? null, archiveDigest: p.archiveDigest, skills: p.skills.map((s) => s.name) };
+}
+
+/** Reads every installed Agent Plugin for `plugins_list`'s Agent Plugin half. Degrades to `[]` on
+ *  any failure (see this file's header, "Failure isolation") rather than failing the whole tool
+ *  call over the newer, less-exercised half of this tool. */
+async function listAgentPluginsForResponse(workspaceId: string): Promise<readonly AgentPluginListRow[]> {
+  try {
+    const installed = await listInstalledPlugins(resolveAgentPluginLayout().forWorkspace(workspaceId).packages);
+    return installed.map(toAgentPluginListRow);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * The exact slice of the route-deps bag Plugins' tool handlers read. Declared structurally (rather
  * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
@@ -714,7 +740,8 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
           return toAdminPluginResponse(record, activation);
         }),
       );
-      return { plugins };
+      const agentPlugins = await listAgentPluginsForResponse(routeDeps.workspaceId);
+      return { plugins, agentPlugins };
     },
 
     /**
