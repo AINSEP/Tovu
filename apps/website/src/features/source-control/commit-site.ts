@@ -391,6 +391,35 @@ async function exportForCommit(input: CommitSiteInput): Promise<CommitExportResu
   return { ok: true, files };
 }
 
+export type PreviewCommitExportResult =
+  | { ok: true; fileCount: number; totalBytes: number; paths: string[] }
+  | { ok: false; code: "INVALID_CONFIG" | "EXPORT_FAILED"; message: string };
+
+/**
+ * Previews what {@link commitSiteToSourceControl} would export and commit, for
+ * `tool-registrations.ts`'s `dryRun` handling. Runs the same {@link validateCommitTarget} guard and
+ * the same fresh, isolated {@link exportForCommit} pass the real commit runs — so the file count and
+ * byte total are real, not estimated — then reports a summary instead of committing anything.
+ * Deliberately stops there: unlike {@link commitSiteToSourceControl}, this never calls
+ * `resolveCommitCredential` (no decrypt) and never touches a {@link GitHubCommitAdapter} (no
+ * network call) — see this file's header's "no network before a human confirms" rule.
+ * `paths` is sorted and capped at the first 50, so a large export does not blow out a dry-run
+ * response.
+ * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) —
+ *   no credential resolution, no `GitHubCommitAdapter.commit()` call, ever.
+ */
+export async function previewCommitExport(input: CommitSiteInput): Promise<PreviewCommitExportResult> {
+  const configError = validateCommitTarget(input);
+  if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
+
+  const exportResult = await exportForCommit(input);
+  if (!exportResult.ok) return exportResult;
+
+  const sortedPaths = exportResult.files.map((file) => file.path).sort();
+  const totalBytes = exportResult.files.reduce((sum, file) => sum + Buffer.byteLength(file.data), 0);
+  return { ok: true, fileCount: exportResult.files.length, totalBytes, paths: sortedPaths.slice(0, 50) };
+}
+
 /**
  * Commits Tovu's current site export to `input.owner/input.repo`. Always runs a fresh, `clean` export
  * immediately before committing — never reuses a previously-produced export directory (same

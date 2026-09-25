@@ -1,6 +1,7 @@
 import {
   buildDomainRegistrations,
   indexCatalogById,
+  optionalBoolean,
   requireInputRecord,
   requireNoInput,
   requireString,
@@ -21,7 +22,14 @@ import type { SecretSealerPort } from "../webhooks/index.js";
 
 import { resolveConfirmationDecision, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
-import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter, type SourceControlCommitOutcome } from "./commit-site.js";
+import {
+  commitSiteToSourceControl,
+  previewCommitExport,
+  validateCommitTarget,
+  type ExportSiteBoundFn,
+  type GitHubCommitAdapter,
+  type SourceControlCommitOutcome,
+} from "./commit-site.js";
 import { createGitHubCommitAdapter } from "./github-git-provider.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
@@ -121,6 +129,11 @@ const EXECUTE_COMMIT_SCHEMA = {
         "Branch to commit to. Optional; when omitted, the repository's own default branch is used. If the named branch does not exist yet, it is created from this commit. If it exists, this commit is added on top of its current history. NEVER force-pushed: if the branch has moved since this call's confirmation dialog was shown (someone else pushed to it), the commit is refused rather than overwriting that history — see the DIVERGED_BRANCH result below.",
     },
     commitMessage: { type: "string", description: "The git commit message. 1-500 characters." },
+    dryRun: {
+      type: "boolean",
+      description:
+        "Pass dryRun: true first to see how many files the export would commit, without contacting GitHub. Optional; defaults to false.",
+    },
   },
 } as const;
 
@@ -141,7 +154,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_execute_commit",
     description:
-      "Commits the current site as a FRESH export to a GitHub repository, using the workspace's own SAVED github source control credential (configured by a human in the admin's Source Control page — this tool takes no token field of any kind; do not attempt to supply one). Only 'provider': 'github' is accepted today. HUMAN-GATED: call it with just { provider: 'github', owner, repo, commitMessage, branch? }. This ONE call shows an interactive confirmation dialog naming the repository, the branch, and the commit message, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make. If the human clicks Commit, THIS SAME CALL runs the export and commit and returns { committed: true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths } on success — filesChanged is how many files the current export wrote, filesDeleted is how many paths this same tool previously committed to this repo that are no longer part of the export and were explicitly removed from the target tree (report both to the human; a nonzero filesDeleted means real content was removed from their repository, not merely added). Only paths this tool itself previously wrote, AND whose live content still exactly matches what it wrote, are ever deleted — an existing README, workflow file, any other content already on the branch, or a page this tool once wrote that someone has since hand-edited, is never touched. divergedPaths lists any paths that fell into that last case: no longer part of the export, but preserved because their content no longer matches this tool's own record (or pre-dates this tool's ability to verify that) — tell the human these need their own manual review/cleanup if removal is still wanted. If they click Cancel, it returns { committed: false, cancelled: true, owner, repo }. If nobody answers before the dialog expires (or the run ends first), it returns { committed: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no github credential is configured yet, this returns { committed: false, reason: 'no-credential', message } — pointing to the Source Control page — WITHOUT ever raising a dialog (call source_control_get_capabilities first to check readiness and avoid this). Every other failure — discovered only AFTER the human confirms, since committing needs the real credential and the export needs to run first — is returned as { committed: false, cancelled: false, code, message }: code 'REPOSITORY_NOT_FOUND' means the token cannot see that owner/repo; 'NO_CHANGES' means nothing changed since the branch's last commit, so nothing was written (this is not a failure to report as one — just tell the human nothing needed to commit); 'DIVERGED_BRANCH' means the branch moved (someone else pushed to it) since this call started — the commit was refused rather than overwriting that history, and the human needs to resolve this themselves, the same as any git push rejected for not being a fast-forward; 'NETWORK_UNREACHABLE' means the request could not reach GitHub at all (DNS/connection failure) — this says NOTHING about whether the credential is good, so do not tell the user to replace it, suggest trying again; 'PROVIDER_ERROR' means GitHub's API rejected the request (e.g. an expired or insufficient-scope token, a permission error) — the message names what went wrong, never a raw response body or the credential; 'EXPORT_FAILED' means the site itself failed to export cleanly, before any commit was attempted. Simply wait for the result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
+      "Commits the current site as a FRESH export to a GitHub repository, using the workspace's own SAVED github source control credential (configured by a human in the admin's Source Control page — this tool takes no token field of any kind; do not attempt to supply one). Only 'provider': 'github' is accepted today. HUMAN-GATED: call it with just { provider: 'github', owner, repo, commitMessage, branch? }. Pass dryRun: true first to see how many files the export would commit, without contacting GitHub. This ONE call shows an interactive confirmation dialog naming the repository, the branch, and the commit message, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make. If the human clicks Commit, THIS SAME CALL runs the export and commit and returns { committed: true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths } on success — filesChanged is how many files the current export wrote, filesDeleted is how many paths this same tool previously committed to this repo that are no longer part of the export and were explicitly removed from the target tree (report both to the human; a nonzero filesDeleted means real content was removed from their repository, not merely added). Only paths this tool itself previously wrote, AND whose live content still exactly matches what it wrote, are ever deleted — an existing README, workflow file, any other content already on the branch, or a page this tool once wrote that someone has since hand-edited, is never touched. divergedPaths lists any paths that fell into that last case: no longer part of the export, but preserved because their content no longer matches this tool's own record (or pre-dates this tool's ability to verify that) — tell the human these need their own manual review/cleanup if removal is still wanted. If they click Cancel, it returns { committed: false, cancelled: true, owner, repo }. If nobody answers before the dialog expires (or the run ends first), it returns { committed: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no github credential is configured yet, this returns { committed: false, reason: 'no-credential', message } — pointing to the Source Control page — WITHOUT ever raising a dialog (call source_control_get_capabilities first to check readiness and avoid this). Every other failure — discovered only AFTER the human confirms, since committing needs the real credential and the export needs to run first — is returned as { committed: false, cancelled: false, code, message }: code 'REPOSITORY_NOT_FOUND' means the token cannot see that owner/repo; 'NO_CHANGES' means nothing changed since the branch's last commit, so nothing was written (this is not a failure to report as one — just tell the human nothing needed to commit); 'DIVERGED_BRANCH' means the branch moved (someone else pushed to it) since this call started — the commit was refused rather than overwriting that history, and the human needs to resolve this themselves, the same as any git push rejected for not being a fast-forward; 'NETWORK_UNREACHABLE' means the request could not reach GitHub at all (DNS/connection failure) — this says NOTHING about whether the credential is good, so do not tell the user to replace it, suggest trying again; 'PROVIDER_ERROR' means GitHub's API rejected the request (e.g. an expired or insufficient-scope token, a permission error) — the message names what went wrong, never a raw response body or the credential; 'EXPORT_FAILED' means the site itself failed to export cleanly, before any commit was attempted. Simply wait for the result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
     // Genuinely consequential (pushes a real commit into someone's actual git history using a
     // write-scoped external credential) — classified accordingly, cross-checked against
     // `sourceControlDerivedRisk` below at build time. Deliberately carries NO `actorClassRule` — see
@@ -251,6 +264,7 @@ interface ParsedCommitCommand {
   repo: string;
   commitMessage: string;
   branch: string | undefined;
+  dryRun: boolean;
 }
 
 /**
@@ -270,13 +284,14 @@ function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
   const repo = requireString(raw, "repo");
   const commitMessage = requireString(raw, "commitMessage");
   const branch = typeof raw.branch === "string" ? raw.branch : undefined;
+  const dryRun = optionalBoolean(raw, "dryRun") ?? false;
 
   const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage });
   if (configError !== null) {
     throw new ToolInputError(`source_control_execute_commit: ${configError}`);
   }
 
-  return { owner, repo, commitMessage, branch };
+  return { owner, repo, commitMessage, branch, dryRun };
 }
 
 /**
@@ -421,6 +436,47 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       const command = parseCommitCommand(raw);
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "source-control.commit", entityType: "source-control" });
+
+      if (command.dryRun) {
+        // Same "presence only" read `source_control_get_capabilities` and the real-commit path
+        // below both rely on — never decrypts. No dialog: a dry run only previews what a real
+        // commit would export, so it never opens the confirmation surface or touches `emitSurface`.
+        const existing = await deps.sourceControlCredentialSetRepo.findDefaultByProvider({ workspaceId: deps.workspaceId, providerId: "github" });
+        const preview = await previewCommitExport({
+          workspaceId: deps.workspaceId,
+          sourceControlExportRootDir: deps.sourceControlExportRootDir,
+          idGen: deps.idGen,
+          exportSiteBound: deps.exportSiteBound,
+          owner: command.owner,
+          repo: command.repo,
+          ...(command.branch !== undefined ? { branch: command.branch } : {}),
+          commitMessage: command.commitMessage,
+        });
+        if (!preview.ok) {
+          return {
+            dryRun: true,
+            committed: false,
+            owner: command.owner,
+            repo: command.repo,
+            branch: command.branch,
+            credentialConfigured: existing !== null,
+            code: preview.code,
+            message: preview.message,
+          };
+        }
+        return {
+          dryRun: true,
+          committed: false,
+          owner: command.owner,
+          repo: command.repo,
+          branch: command.branch,
+          credentialConfigured: existing !== null,
+          fileCount: preview.fileCount,
+          totalBytes: preview.totalBytes,
+          paths: preview.paths,
+          note: "Nothing was sent. Call again without dryRun to commit; the human confirms first.",
+        };
+      }
 
       // Fail closed rather than degrade — same posture `deployment_execute_static_publish` takes.
       if (!ctx.emitSurface) {

@@ -146,7 +146,7 @@ test("source_control_execute_commit's schema carries no token/credential field o
   const entry = sourceControlAgentToolCatalog.find((t) => t.name === "source_control_execute_commit")!;
   const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: boolean; required: string[] };
   assert.equal(schema.additionalProperties, false);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["branch", "commitMessage", "owner", "provider", "repo"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["branch", "commitMessage", "dryRun", "owner", "provider", "repo"]);
   assert.deepEqual(schema.required.sort(), ["commitMessage", "owner", "provider", "repo"]);
   assert.deepEqual((schema.properties.provider as { enum: string[] }).enum, ["github"]);
 });
