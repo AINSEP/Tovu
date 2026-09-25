@@ -8,7 +8,7 @@ import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
 import { agentPluginSearchAgentToolCatalog, agentPluginUninstallAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
-import { getTrashAgentToolCatalog } from "../../features/trash/agent-tools.js";
+import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../../features/trash/agent-tools.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
 import { supabaseConnectAgentToolCatalog } from "../../features/supabase-connect/agent-tools.js";
@@ -260,7 +260,15 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `contributeTrashTools()`. Added with the contributor rather than after this test caught it.
   // The catalog has exactly two entries and must never grow a purge tool; see
   // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`.
-  trash: getTrashAgentToolCatalog() as unknown as AgentToolDefinition[],
+  //
+  // 2026-09-24 (F6): the published entityType enum is now built from the kinds reachable through
+  // `fakeRouteDeps()` at registration time, not a fixed catalog — `buildTrashRegistrations` builds
+  // its own catalog the same way, from `trashToolEntityTypes(routeDeps.registry)`, and
+  // `fakeRouteDeps()` below sets no `registry`, so `trashToolEntityTypes(undefined)` (the bespoke
+  // six kinds, no phase-2 registry kinds) is what actually gets registered. Comparing against the
+  // static `getTrashAgentToolCatalog()` (still the phase-1 four) would fail the generic
+  // published-schema loop below on a real, expected difference rather than drift.
+  trash: buildTrashAgentToolCatalog(trashToolEntityTypes(undefined)) as unknown as AgentToolDefinition[],
   // 2026-09-20: `trash-item` — `trash_item`, built by a post-processing pass in
   // `buildAssistantToolRegistrations` (it reuses the four delete tools' built handlers), so it is in
   // neither `listToolContributors()` nor `DOMAIN_SLICES` and the completeness test above cannot

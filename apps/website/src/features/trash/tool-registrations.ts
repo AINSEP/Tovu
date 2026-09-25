@@ -26,7 +26,7 @@ import {
 } from "@jini-ai/cms/core";
 import type { UserRepoPort } from "@jini-ai/cms/identity";
 import type { ToolContributor } from "#src/assistant/index";
-import { getTrashAgentToolCatalog } from "./agent-tools.js";
+import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "./agent-tools.js";
 import {
   filterVisibleTrashItems,
   trashDaysRemaining,
@@ -36,8 +36,6 @@ import {
 } from "./permissions.js";
 import type { TrashEntityType, TrashItem, TrashPort } from "./ports.js";
 import type { TrashRegistry } from "./registry.js";
-
-const CATALOG_BY_ID = indexCatalogById(getTrashAgentToolCatalog());
 
 const DEFAULT_LIST_LIMIT = 25;
 const MAX_LIST_LIMIT = 100;
@@ -203,10 +201,16 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
     },
   };
 
+  // Built per call, from the kinds this call's registry actually holds (F6) — a module-level
+  // catalog would freeze the published entityType enum at whatever `TRASHABLE` held when this file
+  // first loaded, before a later-registered phase-2 kind (`registry.ts`'s own "resolved at call
+  // time" rule) could ever reach it.
+  const catalog = indexCatalogById(buildTrashAgentToolCatalog(trashToolEntityTypes(routeDeps.registry)));
+
   return buildDomainRegistrations({
     domain: "trash",
     catalogModule: "trash/agent-tools.ts",
-    catalog: CATALOG_BY_ID,
+    catalog,
     handlers,
     derivedRisk: trashDerivedRisk,
   });

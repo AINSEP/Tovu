@@ -261,3 +261,28 @@ test("daysRemaining never goes negative, whatever the clock says", async () => {
   const result = (await list(h)) as { items: { daysRemaining: number }[] };
   assert.equal(result.items[0]!.daysRemaining, 0);
 });
+
+test("the built tools accept every kind the Trash holds, not just the phase-1 four — REGISTRY carries widget/menu/form", async () => {
+  const h = harness({
+    items: [item({ id: "r1", entityType: "widget", entityId: "w-1" })],
+    granted: ["content.read", "widgets.delete"],
+  });
+
+  const restoreDescriptor = h.byId.get("trash_restore_item")!.descriptor;
+  const restoreEnum = (restoreDescriptor.inputSchema as { properties: { entityType: { enum: string[] } } }).properties
+    .entityType.enum;
+  assert.ok(restoreEnum.includes("widget"), `trash_restore_item's entityType enum must include 'widget', got ${restoreEnum.join(", ")}`);
+  assert.ok(restoreEnum.includes("menu"), `trash_restore_item's entityType enum must include 'menu', got ${restoreEnum.join(", ")}`);
+  assert.ok(restoreEnum.includes("form"), `trash_restore_item's entityType enum must include 'form', got ${restoreEnum.join(", ")}`);
+
+  const listDescriptor = h.byId.get("trash_list_items")!.descriptor;
+  const listEnum = (
+    listDescriptor.inputSchema as { properties: { entityTypes: { items: { enum: string[] } } } }
+  ).properties.entityTypes.items.enum;
+  assert.ok(listEnum.includes("widget"), `trash_list_items' entityTypes enum must include 'widget', got ${listEnum.join(", ")}`);
+  assert.ok(listEnum.includes("menu"), `trash_list_items' entityTypes enum must include 'menu', got ${listEnum.join(", ")}`);
+  assert.ok(listEnum.includes("form"), `trash_list_items' entityTypes enum must include 'form', got ${listEnum.join(", ")}`);
+
+  const result = await restore(h, { entityType: "widget", entityId: "w-1" });
+  assert.deepEqual(result, { restored: true, entityType: "widget", entityId: "w-1" });
+});
