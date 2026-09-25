@@ -4,7 +4,15 @@ import test from "node:test";
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "../mcp-federation/config.js";
-import type { FederatedCallTarget, FederatedMcpConnectionConfig, McpHttpLaunchSpec, McpSessionPort } from "../mcp-federation/ports.js";
+import type {
+  FederatedCallTarget,
+  FederatedMcpConnectionConfig,
+  McpHttpLaunchSpec,
+  McpSessionPort,
+  McpStdioChannel,
+  McpStdioLaunchSpec,
+} from "../mcp-federation/ports.js";
+import { McpLaunchUnavailableError, type McpStdioLaunchResolver, type ResolvedStdioLaunch } from "../mcp-federation/stdio-launch-resolver.js";
 
 /**
  * @file `bootstrap.ts`'s `defaultConnect` — the production session factory `attachFederatedMcpTools`
@@ -141,4 +149,77 @@ test("attachFederatedMcpTools stamps preset connections with a preset origin, fo
   });
 
   assert.deepEqual(seenOrigins, [{ kind: "preset" }]);
+});
+
+// ---------------------------------------------------------------------------
+// `createDefaultConnect` — S2 of the desktop-npx plan: `resolveFederationAttachInputs`'s default
+// `connect` now runs every stdio launch through an injected `McpStdioLaunchResolver` BEFORE
+// spawning anything. A resolver that throws `McpLaunchUnavailableError` (the desktop resolver's
+// contract for "uvx"/"docker"/an unresolvable bare command, per `stdio-launch-resolver.ts`) must
+// become this connection's own connect failure — logged and stepped over by the existing fail-open
+// loop in `attachOneFederatedConnection`, exactly like a real spawn failure — and must never reach
+// `spawnMcpStdioChannel` at all. `createDefaultConnect` is exported for exactly this: a fake
+// `spawnChannel` lets this be asserted without a real child process.
+// ---------------------------------------------------------------------------
+
+function collectingLogger() {
+  const messages: string[] = [];
+  return { messages, logger: { info: (m: string) => messages.push(`info:${m}`), warn: (m: string) => messages.push(`warn:${m}`) } };
+}
+
+const UVX_UNAVAILABLE_MESSAGE =
+  'This server needs "uvx" (from uv), which isn\'t installed on this computer. Tovu includes ' +
+  "Node.js (node, npm, npx) but not uv. Install uv from https://docs.astral.sh/uv/ and restart Tovu.";
+
+const UVX_LAUNCH: McpStdioLaunchSpec = { command: "uvx", args: ["some-package"], env: {} };
+
+const UVX_CONFIG: FederatedMcpConnectionConfig = { ...CONFIG, connectionId: "uvx-vendor", allowedToolNames: [] };
+const OK_CONFIG: FederatedMcpConnectionConfig = { ...CONFIG, connectionId: "ok-vendor", allowedToolNames: ["ping"] };
+
+test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailableError prevents any spawn and is reported through logger.warn", async () => {
+  const { attachFederatedMcpTools, createDefaultConnect } = await import("../mcp-federation/bootstrap.js");
+
+  let spawnCalls = 0;
+  const throwingResolver: McpStdioLaunchResolver = {
+    resolve(): ResolvedStdioLaunch {
+      throw new McpLaunchUnavailableError(UVX_UNAVAILABLE_MESSAGE);
+    },
+  };
+  const fakeSpawnChannel = (): McpStdioChannel => {
+    spawnCalls += 1;
+    throw new Error("spawnChannel must not be called — the resolver must throw before any spawn");
+  };
+  const uvxConnect = createDefaultConnect(throwingResolver, fakeSpawnChannel);
+
+  const okSession: McpSessionPort = {
+    listTools: async () => [{ name: "ping", inputSchema: { type: "object", properties: {} } }],
+    callTool: async () => ({ content: [] }),
+    close: async () => undefined,
+  };
+
+  const { messages, logger } = collectingLogger();
+  const registry = fakeRegistry();
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: { authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: WORKSPACE_ID },
+    connections: [
+      { config: UVX_CONFIG, launch: UVX_LAUNCH },
+      { config: OK_CONFIG, launch: HTTP_LAUNCH },
+    ],
+    logger,
+    // A single dispatcher standing in for `resolveFederationAttachInputs`'s own default: the uvx
+    // connection goes through the real `createDefaultConnect` + resolver + fake spawnChannel wiring
+    // under test; the other connection just proves one connection's resolver failure does not stop
+    // the loop from reaching the next one (the existing fail-open behaviour, unaffected by S2).
+    connect: async (connection) => (connection.config.connectionId === UVX_CONFIG.connectionId ? uvxConnect(connection) : okSession),
+  });
+
+  assert.equal(spawnCalls, 0, "the resolver's throw must prevent any spawn from ever happening");
+  assert.ok(
+    messages.some((message) => message === `warn:mcp-federation: '${UVX_CONFIG.connectionId}' failed, continuing without its tools — ${UVX_UNAVAILABLE_MESSAGE}`),
+    `expected logger.warn to receive the resolver's exact message; got ${JSON.stringify(messages)}`,
+  );
+  assert.equal(registry.registered.length, 1, "the other connection must still attach and register its tool");
+  assert.deepEqual(result.registeredToolIds, ["mcp__ok-vendor__ping"]);
 });

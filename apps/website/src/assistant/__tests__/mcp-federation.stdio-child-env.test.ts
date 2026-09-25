@@ -12,11 +12,21 @@ import { buildMcpChildEnv } from "../mcp-federation/adapter.stdio.js";
  * all never `TOVU_AGENT_DAEMON_TOKEN`. On win32 only, the child also gets the handful of
  * non-secret variables Windows programs need to start at all, and — when the child is this very
  * process's own executable — the `ELECTRON_RUN_AS_NODE` mode this process itself runs in.
+ *
+ * Since the desktop-npx plan (S2), a third input layers in between: `launchEnv`, the resolver's own
+ * additions (`ELECTRON_RUN_AS_NODE`, `PATH`, `npm_config_*`) from `stdio-launch-resolver.ts`. It sits
+ * BETWEEN the inherited allowlist and the connection's own `specEnv` — `inherited < launchEnv <
+ * specEnv` — so an operator's own `env` on a connection always has the last word, including an
+ * explicit `PATH` that deliberately drops the toolchain shims. Omitting `launchEnv` entirely must
+ * keep every non-desktop deployment byte-identical to before this parameter existed.
  */
 
 const ELECTRON_EXE = "C:\\Program Files\\Tovu\\Tovu.exe";
 
-/** A parent environment carrying every variable any branch reads, plus two that must never leak. */
+/** A parent environment carrying every variable any branch reads, plus the ones that must never
+ *  leak — `TOVU_AGENT_DAEMON_TOKEN` from before this file existed, and (S2) the two desktop-only
+ *  resolver-selection variables, which are read by `stdio-launch-resolver.ts` but must never
+ *  themselves reach a federated child. */
 function parentEnv(): NodeJS.ProcessEnv {
   return {
     PATH: "/usr/bin",
@@ -25,6 +35,8 @@ function parentEnv(): NodeJS.ProcessEnv {
     TOVU_AGENT_DAEMON_TOKEN: "daemon-secret",
     HTTPS_PROXY: "http://user:pass@proxy",
     ELECTRON_RUN_AS_NODE: "1",
+    TOVU_NODE_TOOLCHAIN_DIR: "/toolchain",
+    TOVU_BUNDLED_NPM_ROOT: "/npm-root",
     SystemRoot: "C:\\Windows",
     windir: "C:\\Windows",
     ComSpec: "C:\\Windows\\system32\\cmd.exe",
@@ -47,7 +59,61 @@ test("on POSIX the child env is exactly PATH/HOME/TMPDIR plus the connection env
       execPath: ELECTRON_EXE,
     });
     assert.deepEqual(env, { PATH: "/usr/bin", HOME: "/home/op", TMPDIR: "/tmp", API_KEY: "k" }, platform);
+    // The two desktop-only resolver-selection variables must never reach the child, same as
+    // `TOVU_AGENT_DAEMON_TOKEN` — they select WHICH resolver runs, they are not something a
+    // federated server should ever see.
+    assert.equal(Object.hasOwn(env, "TOVU_NODE_TOOLCHAIN_DIR"), false, platform);
+    assert.equal(Object.hasOwn(env, "TOVU_BUNDLED_NPM_ROOT"), false, platform);
   }
+});
+
+test("omitting launchEnv keeps the child env byte-identical to before launchEnv existed", () => {
+  const withoutLaunchEnv = buildMcpChildEnv({ command: ELECTRON_EXE, specEnv: { API_KEY: "k" }, platform: "darwin", parentEnv: parentEnv(), execPath: ELECTRON_EXE });
+  const withEmptyLaunchEnv = buildMcpChildEnv({
+    command: ELECTRON_EXE,
+    specEnv: { API_KEY: "k" },
+    launchEnv: {},
+    platform: "darwin",
+    parentEnv: parentEnv(),
+    execPath: ELECTRON_EXE,
+  });
+  assert.deepEqual(withoutLaunchEnv, { PATH: "/usr/bin", HOME: "/home/op", TMPDIR: "/tmp", API_KEY: "k" });
+  assert.deepEqual(withEmptyLaunchEnv, withoutLaunchEnv);
+});
+
+test("launchEnv layers strictly between the inherited allowlist and the connection's own specEnv", () => {
+  const env = buildMcpChildEnv({
+    command: ELECTRON_EXE,
+    specEnv: { PATH: "/spec/bin", API_KEY: "k" },
+    launchEnv: { PATH: "/launch/bin", ELECTRON_RUN_AS_NODE: "1", npm_config_cache: "/toolchain/npm-cache" },
+    platform: "darwin",
+    parentEnv: parentEnv(),
+    execPath: ELECTRON_EXE,
+  });
+  // specEnv's PATH beats launchEnv's PATH, which beats the inherited PATH — the connection's own
+  // `env` always has the last word, including dropping the toolchain shims with its own PATH.
+  assert.equal(env.PATH, "/spec/bin");
+  assert.equal(env.API_KEY, "k");
+  // launchEnv additions land when specEnv does not override them.
+  assert.equal(env.ELECTRON_RUN_AS_NODE, "1");
+  assert.equal(env.npm_config_cache, "/toolchain/npm-cache");
+  // The inherited allowlist is still present underneath.
+  assert.equal(env.HOME, "/home/op");
+  assert.equal(env.TMPDIR, "/tmp");
+});
+
+test("launchEnv alone (no specEnv override) still reaches the child, layered over the inherited allowlist", () => {
+  const env = buildMcpChildEnv({
+    command: ELECTRON_EXE,
+    specEnv: {},
+    launchEnv: { PATH: "/launch/bin", npm_config_prefix: "/toolchain/npm-prefix" },
+    platform: "darwin",
+    parentEnv: parentEnv(),
+    execPath: ELECTRON_EXE,
+  });
+  assert.equal(env.PATH, "/launch/bin");
+  assert.equal(env.npm_config_prefix, "/toolchain/npm-prefix");
+  assert.equal(env.HOME, "/home/op");
 });
 
 test("on win32 the child also inherits the non-secret variables Windows programs need to start", () => {

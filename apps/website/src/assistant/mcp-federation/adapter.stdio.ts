@@ -9,7 +9,8 @@ import {
   parseCallToolResult,
   parseInitializeResult,
 } from "./mcp-protocol.js";
-import type { McpSessionPort, McpStdioChannel, McpStdioLaunchSpec, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
+import type { McpSessionPort, McpStdioChannel, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
+import type { ResolvedStdioLaunch } from "./stdio-launch-resolver.js";
 
 /**
  * @file The real `McpSessionPort` adapter: a minimal MCP client speaking newline-delimited JSON-RPC
@@ -255,13 +256,21 @@ export async function connectMcpStdioSession(deps: { channel: McpStdioChannel; r
  * exact inversion of the `mcp-injection.ts` grant, and a far worse one. A federated server receives
  * what `config.ts` explicitly puts in `env`, plus what {@link buildMcpChildEnv} inherits and nothing else.
  *
+ * Takes a {@link ResolvedStdioLaunch} rather than an {@link McpStdioLaunchSpec} (S2 of the
+ * desktop-npx plan): the launch has already passed through the injected `McpStdioLaunchResolver`
+ * by the time it gets here, so `resolved.command`/`resolved.args` are already whatever the resolver
+ * decided to run, and `resolved.launchEnv` is threaded into {@link buildMcpChildEnv} alongside the
+ * connection's own `env`. On every non-desktop deployment `resolved` is the identity resolver's
+ * output — `command`/`args`/`env` unchanged, `launchEnv: {}` — so this stays byte-identical to
+ * before the resolver existed.
+ *
  * @complexity O(n) in bytes received.
  * @overallScore 100
  */
-export function spawnMcpStdioChannel(spec: McpStdioLaunchSpec): McpStdioChannel {
-  const child = spawn(spec.command, [...spec.args], {
-    cwd: spec.cwd,
-    env: buildMcpChildEnv({ command: spec.command, specEnv: spec.env }),
+export function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioChannel {
+  const child = spawn(resolved.command, [...resolved.args], {
+    cwd: resolved.cwd,
+    env: buildMcpChildEnv({ command: resolved.command, specEnv: resolved.env, launchEnv: resolved.launchEnv }),
     stdio: ["pipe", "pipe", "pipe"],
   });
 
@@ -370,8 +379,18 @@ const ELECTRON_RUN_AS_NODE = "ELECTRON_RUN_AS_NODE";
 interface McpChildEnvInput {
   /** The child's `command`, compared against `execPath` on win32. */
   readonly command: string;
-  /** The connection's own `env`, which wins over anything inherited. */
+  /** The connection's own `env`, which wins over anything inherited AND over `launchEnv`. */
   readonly specEnv: Readonly<Record<string, string>>;
+  /**
+   * The stdio launch resolver's own additions (S2 of the desktop-npx plan) — `ELECTRON_RUN_AS_NODE`,
+   * `PATH`, `npm_config_*` — from `stdio-launch-resolver.ts`'s {@link ResolvedStdioLaunch.launchEnv}.
+   * Layered between the inherited allowlist and `specEnv`: it can add variables the parent process
+   * never had, but the connection's own `env` still wins over it, including an explicit `PATH` that
+   * deliberately drops the toolchain shims — the user's own call, per plan §4. Defaults to `{}`, so
+   * omitting it (every caller before this parameter existed, and every non-desktop deployment today)
+   * leaves the result byte-identical.
+   */
+  readonly launchEnv?: Readonly<Record<string, string>>;
   readonly platform?: NodeJS.Platform;
   readonly parentEnv?: NodeJS.ProcessEnv;
   readonly execPath?: string;
@@ -380,11 +399,11 @@ interface McpChildEnvInput {
 /**
  * The complete environment one federated MCP child is spawned with.
  *
- * On every platform: {@link INHERITED_ENV_VARS} from the parent, then the connection's own `env`
- * over the top. On darwin and linux that is ALL — byte-identical to what this adapter has always
- * sent.
+ * On every platform: {@link INHERITED_ENV_VARS} from the parent, then `launchEnv`, then the
+ * connection's own `env` over the top of both. On darwin and linux, with `launchEnv` empty (every
+ * non-desktop deployment), that is ALL — byte-identical to what this adapter has always sent.
  *
- * On win32, two additions:
+ * On win32, two further additions:
  *
  * 1. {@link WIN32_INHERITED_ENV_VARS}, which Windows programs need to start.
  * 2. `ELECTRON_RUN_AS_NODE`, but ONLY when the child's `command` is this process's own executable
@@ -403,6 +422,7 @@ interface McpChildEnvInput {
 export function buildMcpChildEnv({
   command,
   specEnv,
+  launchEnv = {},
   platform = process.platform,
   parentEnv = process.env,
   execPath = process.execPath,
@@ -418,7 +438,7 @@ export function buildMcpChildEnv({
   if (isWin32 && typeof runMode === "string" && runMode.length > 0 && isSameWin32Path(command, execPath)) {
     inherited[ELECTRON_RUN_AS_NODE] = runMode;
   }
-  return { ...inherited, ...specEnv };
+  return { ...inherited, ...launchEnv, ...specEnv };
 }
 
 /** Whether two win32 paths name the same file: resolved, then compared case-insensitively, as

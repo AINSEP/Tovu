@@ -3,9 +3,10 @@ import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 import { connectMcpHttpSession, createFetchMcpHttpExchange } from "./adapter.http.js";
 import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio.js";
 import type { ResolvedFederatedConnection } from "./config.js";
-import { isHttpLaunchSpec, type McpSessionPort, type McpStdioLaunchSpec } from "./ports.js";
+import { isHttpLaunchSpec, type McpSessionPort, type McpStdioChannel, type McpStdioLaunchSpec } from "./ports.js";
 import { listFederatedMcpPresets } from "./presets.js";
 import { federateSession, type FederationDeps } from "./registrations.js";
+import { stdioLaunchResolverFromEnv, type McpStdioLaunchResolver, type ResolvedStdioLaunch } from "./stdio-launch-resolver.js";
 // `registrations.ts` imports this type from `trust.ts` for its own use but does not re-export it,
 // so it has to come from the module that declares it.
 import type { FederatedAdmissionReport } from "./trust.js";
@@ -125,6 +126,20 @@ export interface AttachFederatedMcpToolsParams {
   connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
   logger?: FederationLogger;
   env?: NodeJS.ProcessEnv;
+  /**
+   * The desktop-only stdio launch rewrite (desktop-npx plan §2): given a stdio launch spec, decides
+   * what actually gets spawned and with what extra env, or throws {@link McpLaunchUnavailableError}
+   * before any spawn when nothing resolves. Defaults to `stdioLaunchResolverFromEnv(params.env ??
+   * process.env)`, which is the identity resolver — spawn args and child env byte-identical to
+   * before this parameter existed — on every deployment that does not set
+   * `TOVU_NODE_TOOLCHAIN_DIR`/`TOVU_BUNDLED_NPM_ROOT`, i.e. every non-desktop one.
+   *
+   * A separate parameter from `connect` (rather than folded into it) because it applies only to the
+   * stdio arm: `defaultConnect`'s hosted (HTTP) branch never touches it. Injectable directly, not
+   * only via `env`, so a test can supply a resolver that throws without needing real toolchain
+   * directories on disk — see `createDefaultConnect`'s own test in `mcp-federation.bootstrap.test.ts`.
+   */
+  stdioLaunchResolver?: McpStdioLaunchResolver;
 }
 
 /** One connection paired with where it came from — the signal `attachFederatedMcpTools`'s `reports`
@@ -161,13 +176,43 @@ function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
   connections: readonly OriginTaggedConnection[];
 } {
   const logger = params.logger ?? consoleLogger;
-  const connect = params.connect ?? defaultConnect;
+  const stdioLaunchResolver = warnOnceStdioLaunchResolver(
+    params.stdioLaunchResolver ?? stdioLaunchResolverFromEnv(params.env ?? process.env),
+    logger,
+  );
+  const connect = params.connect ?? createDefaultConnect(stdioLaunchResolver);
   const presetConnections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger);
   const connections = [
     ...presetConnections.map((connection): OriginTaggedConnection => ({ connection: withPresetOrigin(connection), isPreset: true })),
     ...(params.extraConnections ?? []).map((connection): OriginTaggedConnection => ({ connection, isPreset: false })),
   ];
   return { logger, connect, connections };
+}
+
+/**
+ * Wraps a stdio launch resolver so a non-empty {@link ResolvedStdioLaunch.warning} — today, only
+ * `stdioLaunchResolverFromEnv`'s "bundled npm root is set but `npx-cli.js` is missing" identity
+ * fallback — reaches `logger.warn` exactly once per `attachFederatedMcpTools` call, however many
+ * stdio connections resolve through it in that call's loop. `stdio-launch-resolver.ts` deliberately
+ * returns the warning rather than logging it itself (that module stays pure, no I/O); this is the
+ * one caller that turns it into a log line, and the dedup this function owns is what keeps a boot
+ * with five misconfigured stdio connections from printing the same warning five times.
+ *
+ * Split out of {@link resolveFederationAttachInputs} purely to keep that function's complexity
+ * under the shop ceiling.
+ */
+function warnOnceStdioLaunchResolver(resolver: McpStdioLaunchResolver, logger: FederationLogger): McpStdioLaunchResolver {
+  let warned = false;
+  return {
+    resolve(spec): ResolvedStdioLaunch {
+      const resolved = resolver.resolve(spec);
+      if (resolved.warning && !warned) {
+        warned = true;
+        logger.warn(resolved.warning);
+      }
+      return resolved;
+    },
+  };
 }
 
 export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
@@ -303,34 +348,47 @@ function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogg
 }
 
 /**
- * The production session factory: reach the server and handshake.
+ * Builds the production session factory: reach the server and handshake.
  *
  * Which config field bounds the handshake differs by transport, because the two adapters do not
- * offer the same seam: the stdio arm gives up on the whole `connect` (spawn + handshake) if it
- * outlasts `connectTimeoutMs`, via the outer race in {@link connectMcpStdioSessionWithSpawnTimeout}.
- * The hosted arm has no such outer race — see the inline comment on its branch below for why — so
- * its handshake is bounded the same way every later request is, by whatever `requestTimeoutMs` it is
- * constructed with.
+ * offer the same seam: the stdio arm gives up on the whole `connect` (resolve + spawn + handshake)
+ * if it outlasts `connectTimeoutMs`, via the outer race in
+ * {@link connectMcpStdioSessionWithSpawnTimeout}. The hosted arm has no such outer race — see the
+ * inline comment on its branch below for why — so its handshake is bounded the same way every later
+ * request is, by whatever `requestTimeoutMs` it is constructed with.
  *
  * Dispatches on the launch spec rather than on a configured transport name, so "which adapter" is
  * decided by the shape of the thing that was resolved and cannot disagree with it.
+ *
+ * A FACTORY, not a bare function (desktop-npx plan §2, S2): `resolver` — the stdio-only launch
+ * rewrite — has to come from somewhere per-call (`resolveFederationAttachInputs` builds one from
+ * `params.stdioLaunchResolver` or `env`), and closing over it here is what lets a single
+ * `attachFederatedMcpTools` call's own resolver reach every stdio connection in that call's loop
+ * without a module-level global. `spawnChannel` defaults to the real {@link spawnMcpStdioChannel};
+ * exported so `mcp-federation.bootstrap.test.ts` can hand it a fake one and assert that a resolver
+ * throwing `McpLaunchUnavailableError` never reaches it, with no real child process involved.
  */
-async function defaultConnect(connection: ResolvedFederatedConnection): Promise<McpSessionPort> {
-  if (isHttpLaunchSpec(connection.launch)) {
-    return connectMcpHttpSession({
-      exchange: createFetchMcpHttpExchange(),
-      spec: connection.launch,
-      // Unlike the stdio arm, the hosted adapter has ONE timeout field, and it governs every
-      // request the session ever sends (`adapter.http.ts`'s `McpHttpSession.postWithTimeout`),
-      // the handshake included but not exclusively — every later `tools/call` reuses it too. So
-      // `callTimeoutMs` is the right bound here, matching the stdio arm below: `connectTimeoutMs`
-      // still needs its own outer race for that arm's `spawn`-can-hang gap, but this adapter's
-      // request-scoped `AbortSignal` already bounds its own handshake, so no such race is needed
-      // here — that much of the old comment stands, only the bound it fed was wrong.
-      requestTimeoutMs: connection.config.callTimeoutMs,
-    });
-  }
-  return connectMcpStdioSessionWithSpawnTimeout(connection, connection.launch);
+export function createDefaultConnect(
+  resolver: McpStdioLaunchResolver,
+  spawnChannel: (resolved: ResolvedStdioLaunch) => McpStdioChannel = spawnMcpStdioChannel,
+): (connection: ResolvedFederatedConnection) => Promise<McpSessionPort> {
+  return async function defaultConnect(connection: ResolvedFederatedConnection): Promise<McpSessionPort> {
+    if (isHttpLaunchSpec(connection.launch)) {
+      return connectMcpHttpSession({
+        exchange: createFetchMcpHttpExchange(),
+        spec: connection.launch,
+        // Unlike the stdio arm, the hosted adapter has ONE timeout field, and it governs every
+        // request the session ever sends (`adapter.http.ts`'s `McpHttpSession.postWithTimeout`),
+        // the handshake included but not exclusively — every later `tools/call` reuses it too. So
+        // `callTimeoutMs` is the right bound here, matching the stdio arm below: `connectTimeoutMs`
+        // still needs its own outer race for that arm's `spawn`-can-hang gap, but this adapter's
+        // request-scoped `AbortSignal` already bounds its own handshake, so no such race is needed
+        // here — that much of the old comment stands, only the bound it fed was wrong.
+        requestTimeoutMs: connection.config.callTimeoutMs,
+      });
+    }
+    return connectMcpStdioSessionWithSpawnTimeout(connection, connection.launch, resolver, spawnChannel);
+  };
 }
 
 /**
@@ -341,12 +399,22 @@ async function defaultConnect(connection: ResolvedFederatedConnection): Promise<
  * before it ever writes, an `npx` fetching a package on a stalled network — where no request has
  * been sent yet and so nothing inside the adapter has started counting. The hosted transport has no
  * equivalent gap, which is why only this arm needs the race.
+ *
+ * `resolver.resolve(launch)` runs BEFORE `spawnChannel`, and outside the race: a throw here (desktop
+ * resolver's contract for an unresolvable command — `McpLaunchUnavailableError`) becomes this whole
+ * `connect` call's rejection, caught by {@link attachOneFederatedConnection}'s existing fail-open
+ * catch exactly like a real spawn failure. So `uvx`/`docker`/anything else the resolver could not
+ * find never reaches `spawnChannel` at all — no process, no hang, just the resolver's own message
+ * logged and the connection dropped.
  */
 async function connectMcpStdioSessionWithSpawnTimeout(
   connection: ResolvedFederatedConnection,
   launch: McpStdioLaunchSpec,
+  resolver: McpStdioLaunchResolver,
+  spawnChannel: (resolved: ResolvedStdioLaunch) => McpStdioChannel,
 ): Promise<McpSessionPort> {
-  const channel = spawnMcpStdioChannel(launch);
+  const resolved = resolver.resolve(launch);
+  const channel = spawnChannel(resolved);
   const timeoutMs = connection.config.connectTimeoutMs;
 
   let timer: NodeJS.Timeout | undefined;
