@@ -68,17 +68,33 @@ const contentDuplicationDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   ["content_duplicate", "mutates-durable-state"],
 ]);
 
-/** Reads and loosely validates `input.overrides` — an absent/omitted `overrides` is simply "no
- *  overrides" (`{}`); a present-but-non-object value is a caller shape error, not silently ignored. */
+/** The only keys `overrides` may contain — anything else is rejected, not silently dropped. */
+const OVERRIDE_KEYS = ["title", "slug", "status"] as const;
+
+/** Reads and validates `input.overrides` — an absent/omitted `overrides` is simply "no overrides"
+ *  (`{}`); a present-but-non-object value, an unknown key, or a present-but-non-string known key is
+ *  each a caller shape error, not silently ignored or coerced to `undefined`. */
 function readOverrides(input: Record<string, unknown>): { title?: string; slug?: string; status?: string } {
   const raw = input.overrides;
   if (raw === undefined) return {};
   if (!isRecord(raw)) throw new ToolInputError("'overrides' must be an object");
 
-  const title = typeof raw.title === "string" ? raw.title : undefined;
-  const slug = typeof raw.slug === "string" ? raw.slug : undefined;
-  const status = typeof raw.status === "string" ? raw.status : undefined;
-  return { title, slug, status };
+  for (const key of Object.keys(raw)) {
+    if (!(OVERRIDE_KEYS as readonly string[]).includes(key)) {
+      throw new ToolInputError(`unknown override '${key}'`);
+    }
+  }
+
+  const result: { title?: string; slug?: string; status?: string } = {};
+  for (const key of OVERRIDE_KEYS) {
+    const value = raw[key];
+    if (value === undefined) continue;
+    if (typeof value !== "string") {
+      throw new ToolInputError(`'overrides.${key}' must be a string`);
+    }
+    result[key] = value;
+  }
+  return result;
 }
 
 /**

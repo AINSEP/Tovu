@@ -243,6 +243,62 @@ test("a present-but-non-object overrides is a caller shape error, never silently
   assert.deepEqual(posts.calls, []);
 });
 
+test("a present non-string overrides.title is rejected, the resource's own duplicate() is never entered", async () => {
+  const posts = fakeResource("post", "content.write");
+  const { deps } = fakeRouteDeps(["content.write"]);
+
+  await assert.rejects(
+    call(toolFor(deps, [posts.contributor]), { resource: "post", id: "p-1", overrides: { title: 42 } }),
+    (err: Error) => {
+      assert.equal(err.message, "'overrides.title' must be a string");
+      return true;
+    },
+  );
+  assert.deepEqual(posts.calls, []);
+});
+
+test("a present non-string overrides.slug is rejected", async () => {
+  const posts = fakeResource("post", "content.write");
+  const { deps } = fakeRouteDeps(["content.write"]);
+
+  await assert.rejects(
+    call(toolFor(deps, [posts.contributor]), { resource: "post", id: "p-1", overrides: { slug: 42 } }),
+    (err: Error) => {
+      assert.equal(err.message, "'overrides.slug' must be a string");
+      return true;
+    },
+  );
+  assert.deepEqual(posts.calls, []);
+});
+
+test("a present non-string overrides.status is rejected", async () => {
+  const posts = fakeResource("post", "content.write");
+  const { deps } = fakeRouteDeps(["content.write"]);
+
+  await assert.rejects(
+    call(toolFor(deps, [posts.contributor]), { resource: "post", id: "p-1", overrides: { status: 42 } }),
+    (err: Error) => {
+      assert.equal(err.message, "'overrides.status' must be a string");
+      return true;
+    },
+  );
+  assert.deepEqual(posts.calls, []);
+});
+
+test("an unknown overrides key is rejected rather than silently dropped", async () => {
+  const posts = fakeResource("post", "content.write");
+  const { deps } = fakeRouteDeps(["content.write"]);
+
+  await assert.rejects(
+    call(toolFor(deps, [posts.contributor]), { resource: "post", id: "p-1", overrides: { color: "blue" } }),
+    (err: Error) => {
+      assert.equal(err.message, "unknown override 'color'");
+      return true;
+    },
+  );
+  assert.deepEqual(posts.calls, []);
+});
+
 test("a missing resource or id is rejected before anything is copied", async () => {
   const posts = fakeResource("post", "content.write");
   const { deps } = fakeRouteDeps(["content.write"]);
