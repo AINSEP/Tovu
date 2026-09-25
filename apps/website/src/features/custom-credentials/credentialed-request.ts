@@ -354,6 +354,44 @@ function redactSecretSubstrings(text: string, secrets: readonly string[]): strin
   return secrets.reduce((acc, secret) => (secret === "" ? acc : acc.split(secret).join(REDACTED_MARKER)), text);
 }
 
+/** Below this length, a partial-secret TAIL is as ambiguous as a full short token is for
+ *  {@link MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH} — a 1-3 character tail match is coincidence, not
+ *  evidence of a cut-off secret. Deliberately the same floor value, for the same reason; kept as its
+ *  own constant because it gates a different thing (a SUFFIX of `body`, not `token`'s own length). */
+const MIN_SAFE_TRUNCATED_TAIL_PREFIX_LENGTH = 4;
+
+/**
+ * Catches the one leak {@link redactSecretSubstrings} cannot: a response body the egress size cap
+ * cut off mid-secret. `redactSecretSubstrings` only matches a secret's FULL text, so a body truncated
+ * partway through one leaves a dangling prefix fragment — e.g. a token's first 12 characters — sitting
+ * in `body` unredacted, because the complete secret never occurs in a body that was cut short before
+ * it finished. Only ever meaningful on a body {@link makeCredentialedRequest} already knows is
+ * truncated (its callers gate the call on that); a complete body has no dangling fragment to catch,
+ * and running this against one risks false-positively matching an unrelated tail that merely happens
+ * to share a short prefix with some secret.
+ *
+ * Finds the LONGEST prefix (across every secret, down to
+ * {@link MIN_SAFE_TRUNCATED_TAIL_PREFIX_LENGTH}) that `body` ends with, and replaces exactly that
+ * suffix with {@link REDACTED_MARKER} — the longest match is used so the fragment is removed cleanly,
+ * not partially, when more than one secret's prefix would otherwise match different tail lengths.
+ * `body` is otherwise returned unchanged: a body with no such tail is not touched at all.
+ *
+ * @complexity O(n * m): n secrets, each checked against `body`'s tail for every prefix length down to
+ *   the floor (m, a secret's own length — small and fixed).
+ */
+function redactTruncatedTail(body: string, secrets: readonly string[]): string {
+  let longestMatch = 0;
+  for (const secret of secrets) {
+    for (let len = Math.min(secret.length, body.length); len >= MIN_SAFE_TRUNCATED_TAIL_PREFIX_LENGTH; len--) {
+      if (body.endsWith(secret.slice(0, len))) {
+        longestMatch = Math.max(longestMatch, len);
+        break;
+      }
+    }
+  }
+  return longestMatch === 0 ? body : body.slice(0, body.length - longestMatch) + REDACTED_MARKER;
+}
+
 /**
  * Decides what {@link makeCredentialedRequest} returns as `bodyText`: the real response body with
  * {@link redactSecretSubstrings} applied when `token` is long enough that matching it is unambiguous,
@@ -362,11 +400,18 @@ function redactSecretSubstrings(text: string, secrets: readonly string[]): strin
  * (not the full `secrets` list): the built Authorization header is always at least as long as the
  * token plus its scheme prefix, so the token is the shorter, harder-to-scrub-safely secret of the two.
  *
- * @complexity O(1) below the length floor; {@link redactSecretSubstrings}'s own O(n * m) above it.
+ * When `bodyTruncated` is true, {@link redactTruncatedTail} runs on top of the normal redaction pass
+ * — the egress size cap can cut the body off mid-secret, and a partial-secret tail like that never
+ * matches {@link redactSecretSubstrings}'s whole-secret comparison. Never runs on a complete body:
+ * there is no cut-off fragment to find, only a chance of matching something unrelated.
+ *
+ * @complexity O(1) below the length floor; {@link redactSecretSubstrings}'s own O(n * m) above it, plus
+ *   {@link redactTruncatedTail}'s own cost when `bodyTruncated`.
  */
-function resolveRedactedResponseBody(bodyText: string, token: string, secrets: readonly string[]): string {
+function resolveRedactedResponseBody(bodyText: string, token: string, secrets: readonly string[], bodyTruncated: boolean): string {
   if (token.length < MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH) return BODY_WITHHELD_SHORT_TOKEN_MARKER;
-  return redactSecretSubstrings(bodyText, secrets);
+  const redacted = redactSecretSubstrings(bodyText, secrets);
+  return bodyTruncated ? redactTruncatedTail(redacted, secrets) : redacted;
 }
 
 /** Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
@@ -987,7 +1032,7 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
     executed: true,
     status: response.status,
     headers: redactResponseHeaders(response.headers, responseSecrets),
-    bodyText: resolveRedactedResponseBody(response.bodyText, connection.token, responseSecrets),
+    bodyText: resolveRedactedResponseBody(response.bodyText, connection.token, responseSecrets, response.bodyTruncated === true),
     ...(authDiagnostic ? { authDiagnostic } : {}),
   };
 }

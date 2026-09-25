@@ -1165,6 +1165,45 @@ test("makeCredentialedRequest: strips the injected token from the response BODY 
   assert.equal(result.bodyText, '{"echo":{"authorization":"[REDACTED]"},"machines":["m-1","m-2"]}');
 });
 
+test("makeCredentialedRequest: a TRUNCATED response body whose tail is only a partial-length prefix of the secret is scrubbed too, not just full occurrences", async () => {
+  // `redactSecretSubstrings` only matches the WHOLE secret; a body cut off (by the egress size cap)
+  // mid-token never contains the full string, so the ordinary redaction pass leaves this dangling
+  // fragment untouched. `bodyTruncated: true` is what tells `resolveRedactedResponseBody` the body
+  // isn't complete and its tail needs the extra check.
+  const writeDeps = await seedNameComAndFlyIo();
+  const tokenTailPrefix = "flyio-secret-token".slice(0, 12); // "flyio-secret" — >= the 4-char floor
+  const bodyText = `{"echo":"leaked-fragment-${tokenTailPrefix}`;
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText, bodyTruncated: true }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    method: "GET",
+    url: "https://api.fly.io/v1/apps",
+  });
+
+  assert.ok(!result.bodyText.includes(tokenTailPrefix), "a partial-token tail must not survive truncation either");
+  assert.ok(result.bodyText.endsWith("[REDACTED]"), `expected the tail to end with the redaction marker, got: ${result.bodyText}`);
+});
+
+test("makeCredentialedRequest: a NON-truncated body with the identical partial-token-shaped tail is left byte-for-byte unchanged — the tail check only fires when bodyTruncated is true", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const tokenTailPrefix = "flyio-secret-token".slice(0, 12);
+  const bodyText = `{"echo":"leaked-fragment-${tokenTailPrefix}`;
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText }]); // bodyTruncated omitted: a complete response.
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    method: "GET",
+    url: "https://api.fly.io/v1/apps",
+  });
+
+  assert.equal(result.bodyText, bodyText);
+});
+
 test("makeCredentialedRequest: a pathologically short credential token withholds the response body instead of substring-scrubbing it", async () => {
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
