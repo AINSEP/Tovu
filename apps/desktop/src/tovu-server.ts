@@ -313,6 +313,13 @@ interface BuildServeEnvInput {
   baseEnv?: NodeJS.ProcessEnv;
   desktopCredential?: DesktopCredential;
   adminDevProxyUrl?: string | null;
+  /** The two-key env contract `node-toolchain.ts`'s `buildNodeToolchainEnv` returns
+   *  (`TOVU_NODE_TOOLCHAIN_DIR`, `TOVU_BUNDLED_NPM_ROOT`), read by the website's
+   *  `stdioLaunchResolverFromEnv` (plan `plan-desktop-bundled-npx-2026-09-24.md` §2). `main.ts` is
+   *  the only real caller; every other caller and every existing test omits it, which is what MUST
+   *  delete rather than merely leave unmerged any inherited value of either key — see this
+   *  function's own doc below. */
+  nodeToolchainEnv?: Record<string, string>;
 }
 
 /**
@@ -478,6 +485,19 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   // Omitted by every caller that passes nothing, so the child env is unchanged for them.
   if (typeof input.adminDevProxyUrl === "string" && input.adminDevProxyUrl !== "") {
     env.TOVU_ADMIN_DEV_PROXY_URL = input.adminDevProxyUrl;
+  }
+
+  // Node-toolchain plan (2026-09-24), S4. Unlike every other pair in this function, an inherited
+  // value is DELETED rather than left alone when the caller passes nothing — `main.ts` is the only
+  // real caller of `nodeToolchainEnv`, and every other caller (every existing test, and any future
+  // one that does not opt in) must reach the child with neither key present, even on a developer
+  // machine whose shell still exports a stale pair from a previous checkout. A stale
+  // `TOVU_NODE_TOOLCHAIN_DIR` pointing at a deleted `userData` would make the resolver hand back
+  // paths under a toolchain that no longer exists, rather than the safe identity fallback.
+  delete env.TOVU_NODE_TOOLCHAIN_DIR;
+  delete env.TOVU_BUNDLED_NPM_ROOT;
+  if (input.nodeToolchainEnv) {
+    Object.assign(env, input.nodeToolchainEnv);
   }
 
   return env;
@@ -728,6 +748,9 @@ interface StartTovuServerInput {
   cliMode?: CliMode;
   adminDevProxyUrl?: string | null;
   baseEnv?: NodeJS.ProcessEnv;
+  /** Forwarded to {@link buildServeEnv}'s own field of the same name; see its doc there. Omitted by
+   *  every existing caller and every existing test. */
+  nodeToolchainEnv?: Record<string, string>;
   emitBootToken?: boolean;
   /** Test seam: injects the OS platform {@link stopChild} branches its kill escalation on. Defaults
    *  to the real `process.platform`; production never passes this. */
@@ -777,6 +800,8 @@ interface TovuServerHandle {
  * @param input.platform test seam forwarded to {@link stopChild}; defaults to `process.platform`.
  * @param input.killTree win32-only test seam forwarded to {@link stopChild}; defaults to
  *   {@link taskkillTree}.
+ * @param input.nodeToolchainEnv forwarded to {@link buildServeEnv}'s field of the same name — the
+ *   bundled node/npm toolchain's env contract. Omit to leave the child's env exactly as before.
  * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop(), onExit(cb) }` —
  *   `onExit` is the post-ready liveness signal a supervisor needs; see {@link createExitSignal}.
  * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
@@ -805,7 +830,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     plan.command,
     plan.args,
     {
-      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl }),
+      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv }),
       stdio: ["ignore", "pipe", "pipe"],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason

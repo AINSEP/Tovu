@@ -381,6 +381,40 @@ test("buildServeEnv keeps an operator-set TOVU_AGENT_CWD instead of replacing it
   assert.equal(env.TOVU_AGENT_CWD, "/operator/pinned");
 });
 
+// S4 (plan-desktop-bundled-npx-2026-09-24.md §6): `main.ts`'s own `writeNodeToolchain` call hands
+// this function the two-key env contract `node-toolchain.ts`'s `buildNodeToolchainEnv` returns.
+// Merged in, not layered underneath `baseEnv`, so a stale inherited value from another checkout
+// (dev shells routinely carry exports from a previous session) can never survive a launch that
+// minted its own toolchain.
+test("buildServeEnv merges nodeToolchainEnv's two variables into the child env", () => {
+  const env = buildServeEnv({
+    repoRoot: makeTempRepo(),
+    baseEnv: {},
+    nodeToolchainEnv: { TOVU_NODE_TOOLCHAIN_DIR: "/toolchain", TOVU_BUNDLED_NPM_ROOT: "/npm-root" },
+  });
+  assert.equal(env.TOVU_NODE_TOOLCHAIN_DIR, "/toolchain");
+  assert.equal(env.TOVU_BUNDLED_NPM_ROOT, "/npm-root");
+});
+
+test("buildServeEnv sets no TOVU_NODE_TOOLCHAIN_DIR or TOVU_BUNDLED_NPM_ROOT when nodeToolchainEnv is omitted", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
+  assert.equal(env.TOVU_NODE_TOOLCHAIN_DIR, undefined);
+  assert.equal(env.TOVU_BUNDLED_NPM_ROOT, undefined);
+});
+
+// The load-bearing half: an inherited value must be DELETED, not merely left unmerged, when this
+// call passes no nodeToolchainEnv — otherwise a stale dev export naming another checkout's
+// toolchain dir would flow straight through to the child (`stdioLaunchResolverFromEnv` would then
+// resolve real npm paths that no longer exist on this machine).
+test("buildServeEnv deletes an inherited TOVU_NODE_TOOLCHAIN_DIR/TOVU_BUNDLED_NPM_ROOT when nodeToolchainEnv is omitted", () => {
+  const env = buildServeEnv({
+    repoRoot: makeTempRepo(),
+    baseEnv: { TOVU_NODE_TOOLCHAIN_DIR: "/stale/other-checkout", TOVU_BUNDLED_NPM_ROOT: "/stale/npm" },
+  });
+  assert.equal(env.TOVU_NODE_TOOLCHAIN_DIR, undefined);
+  assert.equal(env.TOVU_BUNDLED_NPM_ROOT, undefined);
+});
+
 test("allocatePort returns a port that is actually bindable", async () => {
   const port = await allocatePort();
   assert.ok(port > 0 && port < 65536);

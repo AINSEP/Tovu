@@ -104,6 +104,7 @@ import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen } from "electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
+import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
@@ -241,6 +242,30 @@ const DESKTOP_ROOTS = resolveDesktopRoots({
  * `desktop-state.json`). Unset in every real launch.
  */
 app.setPath("userData", process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim() || DESKTOP_ROOTS.userDataDir);
+
+/**
+ * The bundled node/npm/npx shims' env contract (`TOVU_NODE_TOOLCHAIN_DIR`, `TOVU_BUNDLED_NPM_ROOT`),
+ * or `undefined` if writing them failed — see `node-toolchain.ts` and
+ * `plan-desktop-bundled-npx-2026-09-24.md` §2, §6 S4. Written once here, after `userData` is set
+ * above (the shims live under it) and before any site is served, then handed to every
+ * {@link startTovuServer} call below so a stdio MCP server naming `npx`/`npm`/`node` can be found
+ * without a system Node install.
+ *
+ * Best-effort like every other `userData` write in this file: a failure here (a read-only volume, a
+ * full disk) must degrade to the old identity behaviour — no bundled toolchain, same as before this
+ * slice existed — never crash the app over a feature that is itself an upgrade.
+ */
+let NODE_TOOLCHAIN_ENV: Record<string, string> | undefined;
+try {
+  const toolchain = writeNodeToolchain({
+    userDataDir: app.getPath("userData"),
+    electronPath: process.execPath,
+    npmRoot: DESKTOP_ROOTS.npmRoot,
+  });
+  NODE_TOOLCHAIN_ENV = buildNodeToolchainEnv({ toolchainDir: toolchain.toolchainDir, npmRoot: DESKTOP_ROOTS.npmRoot });
+} catch (error) {
+  console.warn(`tovu desktop: could not write the bundled node toolchain — stdio MCP servers naming npx/npm/node will fall back to a system install: ${(error as Error).message}`);
+}
 
 /**
  * The runnable Tovu tree: `dist/`'s CLI, `apps/admin/dist`, `apps/site-chat/dist` and the
@@ -686,6 +711,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
     port: options.port,
     emitBootToken: true,
     adminDevProxyUrl,
+    nodeToolchainEnv: NODE_TOOLCHAIN_ENV,
   });
   recordSiteOpened(ctx.registryPath, {
     siteDir,
