@@ -264,6 +264,27 @@ test("ensureSiteKeyForBoot: siteDir has no .site-meta.json → undefined, no fil
 });
 
 // ---------------------------------------------------------------------------
+// ensureSiteKeyForBoot: boot must never crash on a key-write failure (2026-09-24 fix) — a boot
+// whose ~/.tovu (or equivalent) cannot be written must still start the server; the admin status
+// route already reports "missing"/"missing-with-data" for a site with no per-site key, exactly as
+// it does today for any other reason a key never got created.
+// ---------------------------------------------------------------------------
+
+test("ensureSiteKeyForBoot: the per-site key file's own directory cannot be created → returns undefined, never throws", () => {
+  // `home` itself is a plain file, not a directory, so `mkdirSync(<home>/.tovu, ...)` inside
+  // `ensureSiteKey`'s own atomic write must fail with ENOTDIR — a real, not simulated, write
+  // failure, reached through the exact code path a real permissions/disk problem would hit.
+  rmSync(home, { recursive: true, force: true });
+  writeFileSync(home, "not a directory");
+  writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "meta-site-1" }));
+
+  assert.doesNotThrow(() => {
+    const result = ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home });
+    assert.equal(result, undefined);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ensureSiteKey: fingerprint stamp (site-key plan §A.2/§A.4) — after `noop`/`adopt`/`mint` settle
 // on the key now in the per-site file, `.site-meta.json`'s own `siteKeyFingerprint` is stamped if
 // absent, left alone if it already matches, and turns the result into `"mismatch"` — never

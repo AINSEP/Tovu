@@ -330,12 +330,31 @@ export interface EnsureSiteKeyForBootInput {
  * site), not the expected path — that site simply keeps its pre-site-key env/legacy-file-only
  * behavior, exactly as before this feature existed.
  *
+ * The whole boot-time attempt — resolving `siteKeyId` and {@link ensureSiteKey}'s own key-file write
+ * — is wrapped in one try/catch (2026-09-24 fix): a boot whose `~/.tovu` (or equivalent) cannot be
+ * written must still start the server. `ensureSiteKey` itself deliberately keeps its own
+ * never-swallow contract (its own `@throws` doc) for a caller that wants to fail loudly; this
+ * function is the boot-path wrapper specifically, and a boot-time key failure is exactly the class
+ * of thing `root-key-boot-notice.ts` exists to surface at the terminal, not crash the process over —
+ * the admin status route already reports a missing key the same way it does for any other reason one
+ * was never created.
+ *
+ * @throws never — every failure below is caught, logged once, and reported as `undefined`, the same
+ *   "nothing to give a caller" result as a siteDir with no resolvable `siteKeyId` at all.
  * @complexity O(1) fs read for `resolveSiteKeyId`, plus {@link ensureSiteKey}'s own cost when it runs.
  */
 export function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): EnsureSiteKeyResult | undefined {
-  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir });
-  if (!siteKeyId) return undefined;
-  return ensureSiteKey({ siteDir: input.siteDir, siteKeyId, mode: input.mode, env: input.env, home: input.home, cwd: input.cwd });
+  try {
+    const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir });
+    if (!siteKeyId) return undefined;
+    return ensureSiteKey({ siteDir: input.siteDir, siteKeyId, mode: input.mode, env: input.env, home: input.home, cwd: input.cwd });
+  } catch (err) {
+    // Boot must never go down over this — see this function's own header. `console.error` (not the
+    // `warn`-level line `root-key-boot-notice.ts` prints moments later on the same terminal) so an
+    // operator can tell "the key mechanism itself failed" apart from "no key happens to exist yet".
+    console.error(`[site-key] could not ensure a site key at boot for ${input.siteDir}: ${(err as Error).message}`);
+    return undefined;
+  }
 }
 
 /** {@link planSiteKeyEnsure}'s input shape from a raw {@link parseRootKeyHex} result (or
