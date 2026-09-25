@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { ForbiddenError } from "@jini-ai/cms/core";
+import { EntityNotLiveError, ForbiddenError } from "@jini-ai/cms/core";
 import {
   createPostBackedContentLookup,
   toTaxonomyOutbox,
@@ -14,7 +14,10 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
 
+/** The `EntityNotLiveError` arm is S10 (web-high fix plan, 2026-09-24) — assigning terms to a
+ * trashed post/page now 409s instead of silently joining terms to it. */
 function statusFor(err: unknown): { status: number; code: string; message: string } {
+  if (err instanceof EntityNotLiveError) return { status: 409, code: err.code, message: err.message };
   if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };
   if (err instanceof TermRecordNotFoundError) return { status: 404, code: "TERM_NOT_FOUND", message: err.message };
   if (err instanceof ContentRecordNotFoundError) return { status: 404, code: "CONTENT_NOT_FOUND", message: err.message };
