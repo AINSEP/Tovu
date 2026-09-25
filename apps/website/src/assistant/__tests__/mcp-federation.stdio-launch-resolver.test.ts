@@ -270,3 +270,36 @@ test("createBundledNodeLaunchResolver: a missing absolute command throws a gener
     },
   );
 });
+
+test("createBundledNodeLaunchResolver: a relative command with a path separator is checked against the spec's cwd and left unchanged, not searched on PATH", () => {
+  const checked: string[] = [];
+  const resolver = createBundledNodeLaunchResolver({
+    toolchainDir: "/toolchain",
+    npmRoot: "/npm",
+    platform: "linux",
+    parentEnv: { PATH: "/usr/bin" },
+    isExecutable: (candidatePath) => {
+      checked.push(candidatePath);
+      return candidatePath === "/work/bin/server";
+    },
+  });
+  const resolved = resolver.resolve(spec("./bin/server", ["--flag"], { cwd: "/work" }));
+  assert.equal(resolved.command, "./bin/server");
+  assert.deepEqual(resolved.args, ["--flag"]);
+  assert.equal(resolved.cwd, "/work");
+  assert.deepEqual(checked, ["/work/bin/server"]);
+  assert.equal(resolved.launchEnv.PATH, "/toolchain/bin:/usr/bin");
+});
+
+test("createBundledNodeLaunchResolver: on win32 a bare command is also found as <name>.exe, as spawn itself would", () => {
+  const resolver = createBundledNodeLaunchResolver({
+    toolchainDir: "C:\\toolchain",
+    npmRoot: "C:\\npm",
+    platform: "win32",
+    parentEnv: { PATH: "C:\\tools" },
+    isExecutable: (candidatePath) => candidatePath === "C:\\tools\\uvx.exe",
+  });
+  const resolved = resolver.resolve(spec("uvx", ["mcp-server-thing"]));
+  assert.equal(resolved.command, "C:\\tools\\uvx.exe");
+  assert.equal("ELECTRON_RUN_AS_NODE" in resolved.launchEnv, false);
+});

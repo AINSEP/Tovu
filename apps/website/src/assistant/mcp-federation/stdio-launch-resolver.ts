@@ -171,19 +171,31 @@ function defaultIsExecutable(candidatePath: string): boolean {
   }
 }
 
-/** Searches `searchDirs` in order for an executable file named `command`. @complexity O(n) in
- * `searchDirs.length`. */
+/** Searches `searchDirs` in order for an executable file named `command`. On win32 an
+ * extensionless name is also tried as `<name>.exe`, the one suffix `spawn` itself adds there
+ * without a shell — so `uvx`/`docker` resolve to `uvx.exe`/`docker.exe` as they did before this
+ * resolver existed. @complexity O(n) in `searchDirs.length`. */
 function findOnSearchDirs(
   command: string,
   searchDirs: readonly string[],
   pathModule: path.PlatformPath,
   isExecutable: (candidatePath: string) => boolean,
 ): string | null {
+  const names = pathModule === path.win32 && pathModule.extname(command) === "" ? [command, `${command}.exe`] : [command];
   for (const dir of searchDirs) {
-    const candidate = pathModule.join(dir, command);
-    if (isExecutable(candidate)) return candidate;
+    for (const name of names) {
+      const candidate = pathModule.join(dir, name);
+      if (isExecutable(candidate)) return candidate;
+    }
   }
   return null;
+}
+
+/** Whether `command` names a path (absolute, or relative with a separator such as `./bin/server`)
+ * rather than a bare name to search for — the same split `spawn`/`execvp` makes. @complexity O(n)
+ * in the command's length. */
+function isPathCommand(command: string, pathModule: path.PlatformPath): boolean {
+  return pathModule.isAbsolute(command) || command.includes("/") || (pathModule === path.win32 && command.includes("\\"));
 }
 
 /** {@link createBundledNodeLaunchResolver}'s config. Only `toolchainDir` and `npmRoot` are ever
@@ -203,8 +215,8 @@ export interface BundledNodeLaunchResolverConfig {
 /**
  * The desktop resolver: rewrites `npx`/`npm`/`node` to run on Electron's own Node via the bundled
  * npm package, resolves any other bare command (`uvx`, `docker`, …) against a PATH widened with
- * the toolchain's shim `bin/` and (darwin) a few well-known install dirs, leaves an already-
- * absolute command's `command`/`args` unchanged, and throws {@link McpLaunchUnavailableError}
+ * the toolchain's shim `bin/` and (darwin) a few well-known install dirs, leaves a path command
+ * (absolute, or relative to `spec.cwd`)'s `command`/`args` unchanged, and throws {@link McpLaunchUnavailableError}
  * before any spawn when nothing resolves — see plan §2's table for the full case list.
  *
  * `ELECTRON_RUN_AS_NODE` is added to `launchEnv` only for the three rewritten commands, i.e. only
@@ -238,8 +250,9 @@ export function createBundledNodeLaunchResolver({
         return { command: execPath, args, cwd: spec.cwd, env: spec.env, launchEnv: nodeToolchainLaunchEnv };
       }
 
-      if (pathModule.isAbsolute(spec.command)) {
-        if (!isExecutable(spec.command)) {
+      if (isPathCommand(spec.command, pathModule)) {
+        // A relative path runs against the child's own cwd, so that is where it has to exist.
+        if (!isExecutable(pathModule.resolve(spec.cwd ?? process.cwd(), spec.command))) {
           throw new McpLaunchUnavailableError(buildLaunchUnavailableMessage(spec.command, searchDirs));
         }
         return { command: spec.command, args: [...spec.args], cwd: spec.cwd, env: spec.env, launchEnv: otherLaunchEnv };
