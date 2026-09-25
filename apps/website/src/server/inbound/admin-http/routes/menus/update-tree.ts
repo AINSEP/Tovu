@@ -7,6 +7,7 @@ import {
 import type { NavItemNode } from "#src/features/navigation/index";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import type { Response } from "express";
 
 /** The PUT body's four fields, read off an untyped body, or `null` if `items` is not an array.
@@ -31,7 +32,8 @@ function parseMenuTreeRequestBody(rawBody: unknown): {
 
 /** Maps `updateMenuTree`'s thrown error types onto the admin error envelope.
  *
- * The three typed cases carry their own message through to the caller. Anything else is a genuine
+ * The three typed cases, and a trashed menu (409 via `entityNotLiveResponse`), carry their own
+ * message through to the caller. Anything else is a genuine
  * server fault and is flattened to an opaque "internal error" — but logged first, matching
  * `routes/connectors/errors.ts`'s `sendConnectorError`. Without that log the flattening is total:
  * an unmapped throw (the `TypeError` a missing menu-item `target` used to raise before
@@ -41,6 +43,11 @@ function parseMenuTreeRequestBody(rawBody: unknown): {
  *
  *  @complexity O(1). */
 function sendUpdateMenuTreeError(res: Response, err: unknown): void {
+  const live = entityNotLiveResponse(err);
+  if (live) {
+    res.status(live.status).json(live.body);
+    return;
+  }
   if (err instanceof MenuValidationError) {
     res.status(400).json({ error: err.message });
     return;
