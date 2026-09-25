@@ -87,6 +87,20 @@ export interface AttachFederatedToolsResult {
      */
     readonly isPreset: boolean;
   }[];
+  /**
+   * One entry per connection that failed BEFORE reaching admission — a bad spawn, a timed-out
+   * handshake, a malformed tool listing, or a native-id collision (2026-09-24). This is the
+   * connection-level counterpart to `reports` above: `reports` never carries an entry for one of
+   * these (see {@link attachOneFederatedConnection}'s catch branch), which used to mean the
+   * connection was simply invisible everywhere an operator could look — `GET
+   * /api/federation/admissions` showed no row for it and `configFailures` (a SEPARATE, boot-time
+   * config-resolution channel — see `external-mcp-connection-source.ts`) has no way to know about a
+   * failure that happens deeper, inside `connect()` itself. `reason` is `messageOf(error)` — the
+   * same text `logger.warn` already prints for this exact failure, so this field discloses nothing
+   * that was not already reaching this process's own stderr; it is never a raw env value or secret,
+   * since nothing in this file's `connect`/`spawn` error paths ever formats one into a message.
+   */
+  readonly connectFailures: readonly { readonly connectionId: string; readonly reason: string }[];
 }
 
 /**
@@ -218,20 +232,24 @@ function warnOnceStdioLaunchResolver(resolver: McpStdioLaunchResolver, logger: F
 export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
   const { logger, connect, connections } = resolveFederationAttachInputs(params);
 
-  if (connections.length === 0) return { registeredToolIds: [], sessions: [], reports: [] };
+  if (connections.length === 0) return { registeredToolIds: [], sessions: [], reports: [], connectFailures: [] };
 
   const registeredToolIds: string[] = [];
   const sessions: McpSessionPort[] = [];
   const reports: { connectionId: string; report: FederatedAdmissionReport; isPreset: boolean }[] = [];
+  const connectFailures: { connectionId: string; reason: string }[] = [];
 
   for (const { connection, isPreset } of connections) {
     const attached = await attachOneFederatedConnection({ connection, registry: params.registry, deps: params.deps, connect, logger });
     registeredToolIds.push(...attached.registeredToolIds);
     if (attached.session) sessions.push(attached.session);
     if (attached.report) reports.push({ connectionId: connection.config.connectionId, report: attached.report, isPreset });
+    if (attached.connectFailureReason !== undefined) {
+      connectFailures.push({ connectionId: connection.config.connectionId, reason: attached.connectFailureReason });
+    }
   }
 
-  return { registeredToolIds, sessions, reports };
+  return { registeredToolIds, sessions, reports, connectFailures };
 }
 
 /** Registers every admitted tool from one connection's {@link federateSession} pass into
@@ -292,6 +310,10 @@ async function attachOneFederatedConnection(params: {
   /** The admission report `federateSession` produced, or `null` when this connection never reached
    *  that step (connect failed, listing failed, or a native-id collision dropped it whole). */
   readonly report: FederatedAdmissionReport | null;
+  /** Set (never `""`) exactly when `report` is `null` — the human-readable reason this connection
+   *  never reached admission, for the caller to surface as a {@link AttachFederatedToolsResult.connectFailures}
+   *  entry instead of leaving the connection silently absent everywhere. `undefined` on success. */
+  readonly connectFailureReason?: string;
 }> {
   const { connection, registry, deps, connect, logger } = params;
   const { connectionId } = connection.config;
@@ -315,7 +337,7 @@ async function attachOneFederatedConnection(params: {
     logger.warn(`mcp-federation: '${connectionId}' failed, continuing without its tools — ${messageOf(error)}`);
     // A session that connected but failed during listing/admission still owns a child process.
     await session?.close().catch(() => undefined);
-    return { registeredToolIds: [], session: null, report: null };
+    return { registeredToolIds: [], session: null, report: null, connectFailureReason: messageOf(error) };
   }
 }
 

@@ -1285,10 +1285,18 @@ async function start(): Promise<void> {
   // other route in this process.
   registerFederationAdmissionsRoute(app, {
     reports: () => extensions.federation.reports(),
-    // See `external-mcp-connection-source.ts`'s `failures()` doc: a boot-time (or reload-time)
-    // decrypt/config failure for a saved row that never even reached federation's `attach`, so it
-    // has no admission report at all and would otherwise be invisible to this route.
-    configFailures: () => source.failures(),
+    // Two DIFFERENT failure channels feed the SAME `configFailures` wire field, merged here rather
+    // than reported separately, because they answer the identical operator-facing question — "why
+    // does this saved, enabled connection have no admission report?" — and the admin's own
+    // `describeAdmissionDrift` (`external-mcp-admissions-rules.ts`) already reads `configFailures`
+    // as one flat list keyed by `connectionId`, with no way to distinguish a second list anyway.
+    // `source.failures()`: `external-mcp-connection-source.ts`'s own boot-time (or reload-time)
+    // decrypt/config failure for a saved row that never even reached federation's `attach` at all.
+    // `extensions.federation.connectFailures()` (2026-09-24): a row that DID reach `attach` — its
+    // config resolved fine — but whose `connect()` itself failed (a timed-out handshake, a bad
+    // spawn), which used to leave the row silently absent from both this route's `connections` AND
+    // `configFailures`, with the real reason reaching only this process's own stderr.
+    configFailures: () => [...source.failures(), ...extensions.federation.connectFailures()],
   });
 
   // The same accounting, for the OTHER party that never heard the refusal — read fresh here rather

@@ -222,4 +222,33 @@ test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailab
   );
   assert.equal(registry.registered.length, 1, "the other connection must still attach and register its tool");
   assert.deepEqual(result.registeredToolIds, ["mcp__ok-vendor__ping"]);
+  // 2026-09-24: a connect failure used to be reported ONLY through `logger.warn` — invisible to
+  // anything reading `attachFederatedMcpTools`'s own return value, which is what `GET
+  // /api/federation/admissions` and its admin proxy actually serve. `connectFailures` is the fix:
+  // the exact same reason `logger.warn` printed, now also on the result an operator-facing caller
+  // can read.
+  assert.deepEqual(result.connectFailures, [{ connectionId: UVX_CONFIG.connectionId, reason: UVX_UNAVAILABLE_MESSAGE }]);
+  assert.deepEqual(
+    result.reports.map((entry) => entry.connectionId),
+    ["ok-vendor"],
+    "the failed connection must still contribute no report entry — connectFailures is a SEPARATE list, not a synthetic report",
+  );
+});
+
+test("a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface", async () => {
+  const { attachFederatedMcpTools } = await import("../mcp-federation/bootstrap.js");
+  const registry = fakeRegistry();
+  const timeoutMessage = "connect timed out after 15000ms";
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: { authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: WORKSPACE_ID },
+    connections: [{ config: { ...CONFIG, connectionId: "namecom" }, launch: HTTP_LAUNCH }],
+    connect: async () => {
+      throw new Error(timeoutMessage);
+    },
+  });
+
+  assert.deepEqual(result.reports, []);
+  assert.deepEqual(result.connectFailures, [{ connectionId: "namecom", reason: timeoutMessage }]);
 });

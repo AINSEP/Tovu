@@ -82,7 +82,7 @@ async function admitAllWithDriftOnX(params: AttachFederatedMcpToolsParams): Prom
     },
     isPreset: false,
   }));
-  return { registeredToolIds: [], sessions: [], reports };
+  return { registeredToolIds: [], sessions: [], reports, connectFailures: [] };
 }
 
 test("reload() before start() never reads the roster and resolves an empty result", async () => {
@@ -99,7 +99,7 @@ test("reload() before start() never reads the roster and resolves an empty resul
 
   const result = await runtime.reload();
 
-  assert.deepEqual(result, { newlyAdmittedConnectionIds: [], reports: [] });
+  assert.deepEqual(result, { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] });
   assert.equal(resolveCalls, 0, "reload() must not read the roster when start() was never called");
 });
 
@@ -195,7 +195,7 @@ test("a no-op reload (nothing new in the roster) never calls onAdmitted", async 
   await runtime.start();
   const result = await runtime.reload();
 
-  assert.deepEqual(result, { newlyAdmittedConnectionIds: [], reports: [] });
+  assert.deepEqual(result, { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] });
 });
 
 test("the logger prints the daemon's exact byte-identical line, prefixed with the caller's own log tag", async (t) => {
@@ -287,4 +287,77 @@ test("the logger prefixes warnings with the caller's own log tag too", async (t)
     warnLines.includes("[assistant-byok] mcp-federation: 'x' failed, continuing without its tools — boom"),
     `expected the exact warn line; got: ${JSON.stringify(warnLines)}`,
   );
+});
+
+// ---------------------------------------------------------------------------
+// connectFailures() (2026-09-24) — a connection that never reached admission must still be visible
+// somewhere other than this process's own stderr; see `bootstrap.ts`'s `AttachFederatedToolsResult
+// .connectFailures` and `agent-daemon-server.ts`'s merge into `GET /api/federation/admissions`'s
+// `configFailures`.
+// ---------------------------------------------------------------------------
+
+test("a connect failure at boot is reported by connectFailures(), with reports() left untouched", async () => {
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [connection("x")],
+    log: "[test]",
+    connect: async () => {
+      throw new Error("connect timed out after 15000ms");
+    },
+  });
+
+  await runtime.start();
+
+  assert.deepEqual(runtime.connectFailures(), [{ connectionId: "x", reason: "connect timed out after 15000ms" }]);
+  assert.deepEqual(runtime.reports(), [], "a connection that never reached admission must not gain a synthetic report entry");
+});
+
+/** Admits every connection EXCEPT those in `failIds`, which come back as a connect failure with a
+ *  fixed reason — the connect-failure sibling of `admitAllWithDriftOnX` above. Needed (rather than
+ *  the runtime's own `connect` override) because `connect` is a BOOT-pass-only seam — a reload pass
+ *  never overrides it (`mcp-federation/reload.ts`'s `runOnePass`) — while `attach` applies to both. */
+function attachFailing(failIds: ReadonlySet<string>) {
+  return async (params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> => {
+    const reports: AttachFederatedToolsResult["reports"] = [];
+    const connectFailures: AttachFederatedToolsResult["connectFailures"] = [];
+    for (const c of params.extraConnections ?? []) {
+      if (failIds.has(c.config.connectionId)) {
+        connectFailures.push({ connectionId: c.config.connectionId, reason: "boom" });
+        continue;
+      }
+      params.registry.register({
+        descriptor: { id: `mcp__${c.config.connectionId}__tool` },
+        handler: async () => "ok",
+        policy: { authorize: async () => "allow" as const },
+      });
+      reports.push({
+        connectionId: c.config.connectionId,
+        report: { admitted: [], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] },
+        isPreset: false,
+      });
+    }
+    return { registeredToolIds: reports.map((r) => `mcp__${r.connectionId}__tool`), sessions: [], reports, connectFailures };
+  };
+}
+
+test("a reload's own connect failure is merged onto connectFailures() even though nothing was newly admitted", async () => {
+  const roster: ResolvedFederatedConnection[] = [];
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => [...roster],
+    log: "[test]",
+    attach: attachFailing(new Set(["y"])),
+  });
+
+  await runtime.start();
+  assert.deepEqual(runtime.connectFailures(), []);
+
+  roster.push(connection("y"));
+  const result = await runtime.reload();
+
+  assert.deepEqual(result.newlyAdmittedConnectionIds, [], "a connection whose connect failed was never admitted");
+  assert.deepEqual(result.connectFailures, [{ connectionId: "y", reason: "boom" }]);
+  assert.deepEqual(runtime.connectFailures(), [{ connectionId: "y", reason: "boom" }], "the reload's own connect failure must be merged onto the live accessor");
 });

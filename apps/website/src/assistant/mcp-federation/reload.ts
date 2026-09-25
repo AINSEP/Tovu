@@ -67,6 +67,11 @@ export interface FederationReloadResult {
    *  (`agent-daemon-server.ts`) merges these into the running, boot-plus-every-reload accounting
    *  `GET /api/federation/admissions` serves; this module holds no history beyond `admittedConnectionIds`. */
   readonly reports: AttachFederatedToolsResult["reports"];
+  /** This pass's own connect failures only (2026-09-24) — a connection the reload attempted that
+   *  never reached admission, same shape and same merge-at-the-caller discipline as `reports`. A
+   *  connectionId that fails a reload is NOT added to `admittedConnectionIds`, so the next reload
+   *  attempts it again rather than treating one failed attempt as permanent. */
+  readonly connectFailures: AttachFederatedToolsResult["connectFailures"];
 }
 
 export interface FederationReloadCoordinatorDeps {
@@ -121,7 +126,7 @@ export function createFederationReloadCoordinator(
   async function runOnePass(): Promise<FederationReloadResult> {
     const allConnections = await coordDeps.resolveConnections();
     const unadmitted = selectUnadmittedConnections(allConnections, admitted);
-    if (unadmitted.length === 0) return { newlyAdmittedConnectionIds: [], reports: [] };
+    if (unadmitted.length === 0) return { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] };
 
     const attached = await attach({
       registry: coordDeps.registry,
@@ -137,7 +142,11 @@ export function createFederationReloadCoordinator(
     });
 
     for (const entry of attached.reports) admitted.add(entry.connectionId);
-    return { newlyAdmittedConnectionIds: attached.reports.map((entry) => entry.connectionId), reports: attached.reports };
+    return {
+      newlyAdmittedConnectionIds: attached.reports.map((entry) => entry.connectionId),
+      reports: attached.reports,
+      connectFailures: attached.connectFailures,
+    };
   }
 
   function reload(): Promise<FederationReloadResult> {

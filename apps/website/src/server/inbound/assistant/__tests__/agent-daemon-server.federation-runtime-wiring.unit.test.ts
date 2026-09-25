@@ -61,10 +61,10 @@ describe("agent-daemon-server.ts — federation runtime wiring (S3)", () => {
     assert.equal((SOURCE.match(/\.federation\.reload\(/g) ?? []).length, 1, "the reload route is the only reload caller");
   });
 
-  test("the admissions route reads the runtime's reports and the source's config failures", () => {
+  test("the admissions route reads the runtime's reports and merges the source's config failures with the runtime's own connect failures", () => {
     assert.match(
       SOURCE,
-      /registerFederationAdmissionsRoute\(app,\s*\{\s*reports:\s*\(\)\s*=>\s*extensions\.federation\.reports\(\),[\s\S]*?configFailures:\s*\(\)\s*=>\s*source\.failures\(\),\s*\}\);/,
+      /registerFederationAdmissionsRoute\(app,\s*\{\s*reports:\s*\(\)\s*=>\s*extensions\.federation\.reports\(\),[\s\S]*?configFailures:\s*\(\)\s*=>\s*\[\.\.\.source\.failures\(\),\s*\.\.\.extensions\.federation\.connectFailures\(\)\],\s*\}\);/,
     );
   });
 });

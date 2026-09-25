@@ -78,7 +78,7 @@ async function admitAllImpl(params: AttachFederatedMcpToolsParams): Promise<Atta
       isPreset: false,
     };
   });
-  return { registeredToolIds: reports.map((r) => `mcp__${r.connectionId}__tool`), sessions: [], reports };
+  return { registeredToolIds: reports.map((r) => `mcp__${r.connectionId}__tool`), sessions: [], reports, connectFailures: [] };
 }
 
 const FEDERATION_DEPS = { authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws-reload" };
@@ -118,7 +118,7 @@ test("reload() is a no-op — attach is never called — when the roster has not
   const result = await coordinator.reload();
 
   assert.equal(attachCalls, 0, "attach must not be called when every roster connection is already admitted");
-  assert.deepEqual(result, { newlyAdmittedConnectionIds: [], reports: [] });
+  assert.deepEqual(result, { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] });
 });
 
 test("reload() admits only the NEW connection — attach's extraConnections excludes the already-admitted one, and connections is always empty", async () => {
@@ -164,7 +164,7 @@ test("admittedConnectionIds() grows after a successful reload, so a second reloa
   // `ToolRegistry.register` above throws if it does, so a passing assertion here is proof, not
   // merely a plausible claim.
   const second = await coordinator.reload();
-  assert.deepEqual(second, { newlyAdmittedConnectionIds: [], reports: [] });
+  assert.deepEqual(second, { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] });
   assert.equal(registry.registered.length, 1, "the connection must have been registered exactly once across both reload() calls");
 });
 

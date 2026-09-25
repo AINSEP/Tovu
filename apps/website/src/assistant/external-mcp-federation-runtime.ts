@@ -75,6 +75,11 @@ export interface FederationRuntime {
   reload(): Promise<FederationReloadResult>;
   /** A live read of the merged boot-plus-every-reload admission accounting. */
   reports(): AttachFederatedToolsResultReports;
+  /** A live read of the merged boot-plus-every-reload CONNECT failures (2026-09-24) — one entry per
+   *  connection that never reached admission at all (bad spawn, timed-out handshake, malformed
+   *  listing), so it has no entry in `reports()` either. Same shape and same merge discipline as
+   *  `reports()`. */
+  connectFailures(): AttachFederatedToolsResultConnectFailures;
   /** The refusal-prefix text for `reports()`, cached and recomputed only when `reports()` changes —
    *  `""` when there is nothing to report. */
   refusalPrefix(): string;
@@ -86,6 +91,7 @@ export interface FederationRuntime {
  *  `Awaited<ReturnType<typeof attachFederatedMcpTools>>["reports"]` at every use. */
 type AttachFederatedMcpToolsResult = Awaited<ReturnType<typeof attachFederatedMcpTools>>;
 type AttachFederatedToolsResultReports = AttachFederatedMcpToolsResult["reports"];
+type AttachFederatedToolsResultConnectFailures = AttachFederatedMcpToolsResult["connectFailures"];
 
 /**
  * Builds one process's federation runtime. Nothing here performs I/O until `start()` or `reload()` is
@@ -104,6 +110,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   };
 
   let mergedReports: AttachFederatedToolsResultReports = [];
+  let mergedConnectFailures: AttachFederatedToolsResultConnectFailures = [];
   let cachedPrefix = "";
   let startPromise: Promise<void> | undefined;
   let startedFlag = false;
@@ -125,6 +132,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
     });
 
     mergedReports = attached.reports;
+    mergedConnectFailures = attached.connectFailures;
     recomputePrefix();
     coordinator = createFederationReloadCoordinator(
       {
@@ -148,11 +156,17 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
     // Nothing to extend yet — matches `start()` never having run, rather than treating "not started"
     // as an error. A caller unsure whether `start()` has happened yet (BYOK's lazy start) can always
     // call `reload()` first and get a harmless no-op.
-    if (!startPromise) return { newlyAdmittedConnectionIds: [], reports: [] };
+    if (!startPromise) return { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] };
     await startPromise;
-    if (!coordinator) return { newlyAdmittedConnectionIds: [], reports: [] };
+    if (!coordinator) return { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] };
 
     const result = await coordinator.reload();
+    // A reload's own connect failures are merged unconditionally, even when nothing was newly
+    // admitted — a reload that only ever fails a connection must still make that failure visible,
+    // not just a reload that also happened to admit something else alongside it. Does not touch
+    // `cachedPrefix`: `buildFederatedRefusalPrefix` is a pure function of `mergedReports` alone, and
+    // a connect failure never produces a report entry to feed it.
+    if (result.connectFailures.length > 0) mergedConnectFailures = [...mergedConnectFailures, ...result.connectFailures];
     if (result.newlyAdmittedConnectionIds.length === 0) return result;
 
     mergedReports = [...mergedReports, ...result.reports];
@@ -165,6 +179,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
     start,
     reload,
     reports: () => mergedReports,
+    connectFailures: () => mergedConnectFailures,
     refusalPrefix: () => cachedPrefix,
     get started() {
       return startedFlag;
