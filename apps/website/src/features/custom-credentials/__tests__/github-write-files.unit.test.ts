@@ -121,6 +121,40 @@ test("plan: the parent directory itself being a file (non-array Contents API res
   assert.match((result as { message: string }).message, /'docs' is a file on the branch, not a directory/);
 });
 
+test("plan: a listing at the Contents API's 1,000-entry cap is incomplete — an unlisted file is checked on its own, not assumed new", async () => {
+  const fullListing = Array.from({ length: 1000 }, (_, i) => ({ name: `f${i}.txt`, type: "file" }));
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/docs\?ref=main$/, method: "GET", status: 200, json: fullListing },
+    { match: /\/contents\/docs\/late\.txt\?ref=main$/, method: "GET", status: 200, json: { type: "file" } },
+    { match: /\/contents\/docs\/new\.txt\?ref=main$/, method: "GET", status: 404, json: {} },
+  ]);
+  const result = await planGitHubFileWrite({ httpClient: client }, planInput([
+    { path: "docs/f0.txt", content: "x" },
+    { path: "docs/late.txt", content: "x" },
+    { path: "docs/new.txt", content: "x" },
+  ]));
+  assert.equal(result.ok, true);
+  assert.deepEqual((result as { plan: GitHubWriteFilesPlan }).plan.fileStates, [
+    { path: "docs/f0.txt", exists: true },
+    { path: "docs/late.txt", exists: true },
+    { path: "docs/new.txt", exists: false },
+  ]);
+  assert.equal(client.remainingCount(), 0);
+});
+
+test("plan: a submodule a directory listing reports as type 'file' (download_url null) is refused, not planned as a file", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\?ref=main$/, method: "GET", status: 200, json: [{ name: "vendor", type: "file", download_url: null }] },
+  ]);
+  const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "vendor", content: "x" }]));
+  assert.equal(result.ok, false);
+  assert.equal((result as { message: string }).message, "'vendor' already exists on the branch but is not a regular file — refusing to overwrite it with a blob");
+});
+
 test("plan: branch does not exist", async () => {
   const client = new SequentialFakeHttpClient([{ match: /\/git\/ref\/heads\/main$/, method: "GET", status: 404, json: {} }]);
   const result = await planGitHubFileWrite({ httpClient: client }, planInput([{ path: "fly.toml", content: "x" }]));

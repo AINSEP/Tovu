@@ -272,6 +272,52 @@ export interface PlanGitHubFileWriteInput {
   readonly files: readonly NormalizedWriteFile[];
 }
 
+/** The Contents API returns at most this many entries for one directory, with no pagination
+ *  ("This API has an upper limit of 1,000 files for a directory") — a listing this long may be
+ *  missing the very file being checked, so an absent name there proves nothing. */
+const CONTENTS_API_DIRECTORY_LISTING_CAP = 1000;
+
+/** A listing entry that is safe to plan a blob over: `type: "file"` and NOT a submodule reported as
+ *  `"file"` (a submodule entry in a directory listing has a null `download_url`; a real file never
+ *  does). Anything else — dir, symlink, submodule — would have its tree entry REPLACED by the blob. */
+function isRegularFileEntry(entry: unknown): boolean {
+  if (extractStringField(entry, "type") !== "file") return false;
+  return !(entry !== null && typeof entry === "object" && (entry as Record<string, unknown>).download_url === null);
+}
+
+/** The refusal {@link checkFileExistence} returns for a path that exists but is not a regular file. */
+function notRegularFileFailure(path: string): GitHubWriteFilesFailure {
+  return { ok: false, code: "provider-error", message: `'${path}' already exists on the branch but is not a regular file — refusing to overwrite it with a blob` };
+}
+
+/** One per-file Contents API existence check — only for a file a capped directory listing could not
+ *  answer for (see {@link CONTENTS_API_DIRECTORY_LISTING_CAP}). A 740 KB-1 MB file can still trip the
+ *  http client's response cap here, which fails loudly as a non-JSON response rather than guessing. */
+async function checkOneFileExistence(
+  deps: GitHubWriteFilesDeps,
+  connection: CustomProviderConnectionInput,
+  repoPath: string,
+  branch: string,
+  path: string
+): Promise<{ ok: true; state: FileWriteState } | GitHubWriteFilesFailure> {
+  const result = await getJson(deps, connection, `${repoPath}/contents/${encPath(path)}?ref=${enc(branch)}`, `GitHub lookup of '${path}' failed`);
+  if (!result.ok) return result;
+  if (!result.found) return { ok: true, state: { path, exists: false } };
+  if (Array.isArray(result.json) || result.json.type !== "file") return notRegularFileFailure(path);
+  return { ok: true, state: { path, exists: true } };
+}
+
+/** One planned file's state from its directory listing entry (`undefined`: not listed, so new). A
+ *  dir/submodule/symlink entry at this path is refused: treating it as an existing file would plan a
+ *  blob over it, and a tree entry at that path REPLACES whatever was there. Only called when the
+ *  listing is complete or the entry is present — a capped listing's absent name proves nothing
+ *  (see {@link CONTENTS_API_DIRECTORY_LISTING_CAP}). */
+function stateFromListingEntry(path: string, entry: unknown): { ok: true; state: FileWriteState } | GitHubWriteFilesFailure {
+  if (entry === undefined) return { ok: true, state: { path, exists: false } };
+  if (!isRegularFileEntry(entry)) return notRegularFileFailure(path);
+  return { ok: true, state: { path, exists: true } };
+}
+
 /** Splits a repo-relative path into its parent directory (`""` for a root-level file) and basename —
  *  {@link checkFileExistence}'s own grouping key plus the name it matches against a directory
  *  listing's `entry.name`. */
@@ -288,7 +334,8 @@ function splitRepoPath(path: string): { dir: string; name: string } {
  *  `content` per entry (just `name`/`type`), so it never hits that cap regardless of how large the
  *  individual files in it are.
  *
- * @complexity O(distinct parent directories) `httpClient.send()` calls, not O(files).
+ * @complexity O(distinct parent directories) `httpClient.send()` calls, not O(files) — plus one
+ *   per unlisted file in a directory whose listing hit {@link CONTENTS_API_DIRECTORY_LISTING_CAP}.
  */
 async function checkFileExistence(
   deps: GitHubWriteFilesDeps,
@@ -323,20 +370,14 @@ async function checkFileExistence(
       return { ok: false, code: "provider-error", message: `'${dir}' is a file on the branch, not a directory` };
     }
     const entryByName = new Map(entries.map((entry) => [extractStringField(entry, "name"), entry]));
+    const listingMayBeIncomplete = entries.length >= CONTENTS_API_DIRECTORY_LISTING_CAP;
     for (const file of dirFiles) {
-      const { name } = splitRepoPath(file.path);
-      const entry = entryByName.get(name);
-      if (!entry) {
-        stateByPath.set(file.path, { path: file.path, exists: false });
-        continue;
-      }
-      // A submodule/symlink entry at this path: treating it as an existing file would plan a blob
-      // over it, and a tree entry at that path REPLACES whatever was there. Refuse rather than
-      // describe it as a file.
-      if (extractStringField(entry, "type") !== "file") {
-        return { ok: false, code: "provider-error", message: `'${file.path}' already exists on the branch but is not a regular file — refusing to overwrite it with a blob` };
-      }
-      stateByPath.set(file.path, { path: file.path, exists: true });
+      const entry = entryByName.get(splitRepoPath(file.path).name);
+      const resolved = entry || !listingMayBeIncomplete
+        ? stateFromListingEntry(file.path, entry)
+        : await checkOneFileExistence(deps, connection, repoPath, branch, file.path);
+      if (!resolved.ok) return resolved;
+      stateByPath.set(file.path, resolved.state);
     }
   }
 

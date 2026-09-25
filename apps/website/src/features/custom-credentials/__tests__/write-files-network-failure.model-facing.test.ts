@@ -54,7 +54,8 @@ class SteppedHttpClient implements HttpClientPort {
 const PLAN_STEPS: Step[] = [
   { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
   { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-  { match: /\/contents\/fly\.toml\?ref=main$/, status: 404, json: {} },
+  // One listing per parent directory (S21): root-level fly.toml is checked via the root listing.
+  { match: /\/contents\?ref=main$/, status: 200, json: [] },
 ];
 
 /** A transport failure whose text carries an internal address and — the worst case for an adapter
