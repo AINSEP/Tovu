@@ -3,6 +3,7 @@ import { isPublicAssistantEnabled } from "#src/assistant/index";
 import { toSiteProducts } from "#src/features/commerce/index";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
+import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
 import { resolveSiteTitleForRender } from "./pages.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
@@ -91,9 +92,8 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       // 500 above), while the sentinel means the operator turned styling off on purpose and expects
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
-        await renderSite({ theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled }),
-      );
+      const html = await renderSite({ theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -124,9 +124,8 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       // 500 above), while the sentinel means the operator turned styling off on purpose and expects
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
-        await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled }),
-      );
+      const html = await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled });
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }

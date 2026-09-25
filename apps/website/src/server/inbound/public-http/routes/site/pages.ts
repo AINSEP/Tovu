@@ -85,6 +85,7 @@ import {
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
 import { renderBareEntryDocument } from "../../http/site/bare-page.js";
+import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
 import { isHttpsRequest } from "../oauth/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
@@ -2177,6 +2178,25 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
 }
 
 /**
+ * The one place every page/post response in this file finalizes its assembled HTML before it reaches
+ * a browser — every `res...send(...)` call site below routes through this instead of composing
+ * {@link markOffSiteLinksOpenInNewTab} and {@link injectFormSubmissionResultIntoHtml} by hand, so
+ * both treatments are applied identically regardless of which theme tier (static/declarative/
+ * templated/handlebars), or which of home/page/post/marketing/bare-page branch, produced `html`.
+ *
+ * Owner rule (2026-09-24): "links should open a new tab" — implemented generically here, at the
+ * server's one HTML-finalization step, rather than requiring every theme or authored page to add
+ * `target="_blank"` to each individual off-site link. `req.hostname` is Express's own already-parsed,
+ * port-free Host value (synchronous — no additional I/O beyond what every call site already has in
+ * scope), used to tell an off-site link apart from an absolute link back to this same site.
+ *
+ * @complexity O(html length) — one pass for each of the two transforms it composes.
+ */
+function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined): string {
+  return injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
+}
+
+/**
  * Content-owned homepage (SPEC-0XX) — looks up the published row currently claiming the reserved
  * `"/"` slug (`post.ts`'s `ROOT_SLUG`), the mechanism that lets `GET /` render a real, authored Page
  * instead of always falling back to the active theme's own `index.html`. Only a `kind: "page"` row
@@ -2261,7 +2281,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         });
         const html = templateHtml ?? (await renderGenericPostPage(deps, theme, homePage, visiblePosts, siteAssistantEnabled));
         const perVisitor = resolvePerVisitorResponse(req, res);
-        res.set("Cache-Control", perVisitor.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, perVisitor.result));
+        res.set("Cache-Control", perVisitor.cacheControl).type("html").send(finalizePublicPageHtml(req, html, perVisitor.result));
         return;
       }
 
@@ -2295,7 +2315,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         res
           .set("Cache-Control", homePerVisitor.cacheControl)
           .type("html")
-          .send(injectFormSubmissionResultIntoHtml(homeHtml, homePerVisitor.result));
+          .send(finalizePublicPageHtml(req, homeHtml, homePerVisitor.result));
         return;
       }
 
@@ -2317,7 +2337,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // response's `Cache-Control` — including the member-session arm, which matters here because
       // `visiblePosts` above made this body cookie-dependent. See `resolvePerVisitorResponse`'s doc.
       const perVisitor = resolvePerVisitorResponse(req, res);
-      res.set("Cache-Control", perVisitor.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, perVisitor.result));
+      res.set("Cache-Control", perVisitor.cacheControl).type("html").send(finalizePublicPageHtml(req, html, perVisitor.result));
     } catch (err) {
       reportSiteRenderFault("GET / failed", err);
       res.status(500).type("html").send("<h1>Site error</h1>");
@@ -2378,7 +2398,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         res
           .set("Cache-Control", perVisitor.cacheControl)
           .type("html")
-          .send(injectFormSubmissionResultIntoHtml(marketingResolution.html, perVisitor.result));
+          .send(finalizePublicPageHtml(req, marketingResolution.html, perVisitor.result));
         return;
       }
 
@@ -2409,7 +2429,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         res
           .set("Cache-Control", perVisitor.cacheControl)
           .type("html")
-          .send(injectFormSubmissionResultIntoHtml(templateHtml, perVisitor.result));
+          .send(finalizePublicPageHtml(req, templateHtml, perVisitor.result));
         return;
       }
 
@@ -2417,7 +2437,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       res
         .set("Cache-Control", perVisitor.cacheControl)
         .type("html")
-        .send(injectFormSubmissionResultIntoHtml(genericPostHtml, perVisitor.result));
+        .send(finalizePublicPageHtml(req, genericPostHtml, perVisitor.result));
     } catch (err) {
       // A `PostNotFoundError` is ordinary control flow on this route (no post at this slug), not a
       // fault — reporting it would bury every real fault under one line per 404 a crawler produces.
