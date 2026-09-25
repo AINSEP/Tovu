@@ -189,7 +189,7 @@ import {
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
 import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";
-import type { AgentPluginSearchToolDeps, AgentPluginUninstallToolDeps } from "../features/agent-plugins/tool-registrations.js";
+import type { AgentPluginSearchToolDeps } from "../features/agent-plugins/tool-registrations.js";
 import type { PostToolDeps } from "../features/post/tool-registrations.js";
 import type { PublishContentToolDeps } from "../features/publish-content/tool-registrations.js";
 import type { PagesToolDeps } from "../features/pages/tool-registrations.js";
@@ -258,7 +258,10 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   EntriesToolDeps &
   PluginsToolDeps &
   AgentPluginSearchToolDeps &
-  AgentPluginUninstallToolDeps &
+  // `AgentPluginUninstallToolDeps` (the old standalone `agent_plugins_uninstall` tool's deps slice)
+  // was deleted here (S4, 2026-09-24): it was exactly `{ authorize; workspaceId }`, both already
+  // present via `PluginsToolDeps` above, which is what the merged `plugins_uninstall` tool's
+  // Agent Plugin branch (`agent-plugins/uninstall-tool.ts`) reads now.
   PostToolDeps &
   PublishContentToolDeps &
   PagesToolDeps &

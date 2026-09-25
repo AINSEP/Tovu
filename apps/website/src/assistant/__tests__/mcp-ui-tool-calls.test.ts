@@ -55,12 +55,10 @@ test("assistant_ask_choice is on the allowlist — it holds up the same held-ope
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("assistant_ask_choice"));
 });
 
-test("agent_plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does (2026-09-14)", () => {
-  assert.equal(isMcpUiToolCallAllowed("agent_plugins_uninstall"), true);
-  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("agent_plugins_uninstall"));
-});
-
-test("plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way agent_plugins_uninstall does, one plugin family over (2026-09-16)", () => {
+// S4 (2026-09-24): the standalone `agent_plugins_uninstall` tool this allowlist used to carry a
+// separate entry for (2026-09-14) was deleted — its Agent Plugin branch now redeems through this SAME
+// `plugins_uninstall` entry, covering BOTH plugin families with the one id.
+test("plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does, for either plugin family (2026-09-16)", () => {
   assert.equal(isMcpUiToolCallAllowed("plugins_uninstall"), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("plugins_uninstall"));
 });
@@ -122,7 +120,6 @@ test("custom_credential_write_files is on the allowlist — every call holds up 
  * unrelated-looking reason.
  */
 const EXPECTED_ALLOWLIST = [
-  "agent_plugins_uninstall",
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",

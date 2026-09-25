@@ -49,15 +49,25 @@
  *   that same passage is still accurate: deleting bytes still has no meaningful inverse to capture,
  *   so `executeCommand` is still not used here. Confirmation and revertability are orthogonal
  *   concerns; only the first one changed.
+ *   RESOLVED 2026-09-24 (S4): `plugins_uninstall` is now ALSO one tool covering BOTH plugin
+ *   families, the same merge `plugins_set_enabled` got below, selected by a REQUIRED `family`
+ *   argument — the sentence above ("mirrors the route it wires exactly") described only the
+ *   'site-runtime' branch, which is unchanged; the 'agent-plugin' branch runs
+ *   `features/agent-plugins/uninstall-tool.ts`'s `runAgentPluginUninstall`, the same logic the
+ *   deleted standalone `agent_plugins_uninstall` tool used to run under its own id. Risk is now
+ *   `deletes-durable-state` for the whole tool, not `mutates-durable-state` — the worse of the two
+ *   families' blast radii (site plugins go to the Trash; Agent Plugins do not), because
+ *   `pluginsDerivedRisk` is keyed per tool id, not per family.
  * - `plugins_set_enabled` is ONE tool covering BOTH plugin families (2026-09-09) — the `.tovu-plugin`
  *   site/runtime family this module belongs to, AND `features/agent-plugins/`'s separate Agent Plugin
  *   family, selected by a REQUIRED `family` argument. Two tools would have been the smaller diff and
  *   the worse answer: the operator asking "turn on the Higgsfield plugin" does not know which of
  *   Tovu's two plugin systems that word means, and a model choosing between two near-identically
  *   named enable tools is the exact confusion this catalog exists to prevent. What is deliberately
- *   NOT folded in is install/uninstall: `DERIVED_RISK_BY_TOOL_ID` is keyed per tool id, so merging a
- *   reversible flag flip with an operation that runs third-party code or deletes bytes would force
- *   one risk band onto three very different blast radii.
+ *   NOT folded in is install: `DERIVED_RISK_BY_TOOL_ID` is keyed per tool id, so merging a reversible
+ *   flag flip with an operation that runs third-party code would force one risk band onto two very
+ *   different blast radii. (Uninstall WAS folded in per-family, above — its two families share one
+ *   blast radius class, "deletes bytes", even though only one of them has a Trash behind it.)
  * - Enabling, in either family, raises a real human confirmation and PARKS on the answer
  *   (`set-enabled-confirmation-ui.ts`, ADR-055 Decision 2's held-open exchange). Disabling does not.
  *   See that file's header for why the asymmetry is the point rather than an omission.
@@ -89,7 +99,7 @@
  * together by test instead (`tool-registrations.plugins-set-enabled-families.test.ts`).
  */
 
-export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
+export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
@@ -156,9 +166,26 @@ const SET_ENABLED_SCHEMA = {
 const UNINSTALL_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["pluginId"],
+  required: ["family", "pluginId"],
   properties: {
-    pluginId: { type: "string", minLength: 1, description: "The plugin id, as returned by content_read.plugin. Must be a site-installed plugin — a built-in has no on-disk artifact to remove and this is refused." },
+    family: {
+      type: "string",
+      enum: ["site-runtime", "agent-plugin"],
+      description:
+        "Which plugin SYSTEM the id belongs to. Required, and never guessed — same rule as plugins_set_enabled's 'family' " +
+        "argument, and the same reason: Tovu has two unrelated systems that share the word 'plugin'. Use 'agent-plugin' for an " +
+        "Agent Plugin (an agent-plugins.org package — anything search_agent_plugin_local returned). Use 'site-runtime' for a " +
+        ".tovu-plugin site/runtime plugin (anything content_read.plugin returned). If you did not get the id from one of those " +
+        "two tools, call the matching one first rather than picking a family.",
+    },
+    pluginId: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The plugin id. For family 'site-runtime', as returned by content_read.plugin — must be a site-installed plugin (a " +
+        "built-in has no on-disk artifact to remove and this is refused). For family 'agent-plugin', the plugin.json 'name' as " +
+        "returned by search_agent_plugin_local — must be installed in this workspace and not bundled with Tovu.",
+    },
   },
 } as const;
 
@@ -198,8 +225,20 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "plugins_uninstall",
     description:
-      "Moves a site-installed plugin to the Trash (restorable for 60 days from Admin → Trash; only a human can delete it permanently). This removes it for all workspaces on this site. Refused if the plugin is a built-in (nothing to remove), or if it is currently enabled in ANY workspace (the on-disk artifact is shared across every workspace this instance serves, so removing it while another workspace still has it enabled would silently break that workspace) — call plugins_set_enabled with enabled:false everywhere it is on first. ALWAYS ASKS THE HUMAN FIRST: this tool opens a confirmation dialog and waits for their answer; nothing is removed unless they confirm, and a cancel or no answer comes back as a result, not an error.",
-    sideEffects: "mutates-durable-state",
+      "Uninstalls a plugin. This is the ONE tool for uninstalling plugins, and it covers BOTH of Tovu's plugin systems — say " +
+      "which with the required 'family' argument, same as plugins_set_enabled. For family 'site-runtime': moves a " +
+      "site-installed plugin to the Trash (restorable for 60 days from Admin → Trash; only a human can delete it permanently), " +
+      "removing it for all workspaces on this site. Refused if the plugin is a built-in (nothing to remove), or if it is " +
+      "currently enabled in ANY workspace (the on-disk artifact is shared across every workspace this instance serves, so " +
+      "removing it while another workspace still has it enabled would silently break that workspace) — call " +
+      "plugins_set_enabled with enabled:false everywhere it is on first. For family 'agent-plugin': PERMANENTLY removes the " +
+      "Agent Plugin from THIS workspace — its package and activation record. This is NOT reversible from inside Tovu: there " +
+      "is no Trash for this family, and reinstalling means re-running the install with the plugin's archive. Refused if the " +
+      "id is not installed in this workspace or is BUNDLED with Tovu (bundled plugins are re-seeded on every boot) — call " +
+      "plugins_set_enabled with family 'agent-plugin' and enabled false instead. Either way, ALWAYS ASKS THE HUMAN FIRST: " +
+      "this tool opens a confirmation dialog and waits for their answer; nothing is removed unless they confirm, and a " +
+      "cancel or no answer comes back as a result, not an error.",
+    sideEffects: "deletes-durable-state",
     authorization: { permission: "admin.plugins.enable" },
     inputSchema: UNINSTALL_SCHEMA,
   },

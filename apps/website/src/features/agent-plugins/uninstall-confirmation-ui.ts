@@ -4,12 +4,16 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exc
 import type { AgentPluginUninstallPreview } from "./uninstall.js";
 
 /**
- * @file The dialog `agent_plugins_uninstall` raises before it removes anything.
+ * @file The dialog the Agent Plugin family's uninstall raises before it removes anything.
  *
  * Same held-open exchange as `plugin-runtime/set-enabled-confirmation-ui.ts` and `media_trash_asset`
  * (ADR-055 Decision 2; `post/delete-confirmation-ui.ts` has the full chain): the model's one call
- * parks, and only the browser POST to `mcp-ui-tool-calls-route.ts` can resolve it. So
- * `agent_plugins_uninstall` must also be on `assistant/mcp-ui-tool-calls.ts`'s
+ * parks, and only the browser POST to `mcp-ui-tool-calls-route.ts` can resolve it.
+ *
+ * (S4, 2026-09-24) This dialog's confirm/cancel `toolName` used to be the now-deleted
+ * `agent_plugins_uninstall` id. Both plugin families redeem through the ONE `plugins_uninstall` tool
+ * now (`features/plugin-runtime/tool-registrations.ts`), so `plugins_uninstall` — not a
+ * family-specific id — is what must be on `assistant/mcp-ui-tool-calls.ts`'s
  * `MCP_UI_REDEEMABLE_TOOL_IDS`, or every Confirm/Cancel click 403s.
  *
  * Jini's `buildConfirmationSurface` owns how the dialog behaves; this only decides what it says. Its
@@ -17,8 +21,12 @@ import type { AgentPluginUninstallPreview } from "./uninstall.js";
  * exchange id goes into the two button params and nowhere else.
  */
 
-/** The tool id the dialog asks the Host to call back. Single source of truth for both halves. */
-export const AGENT_PLUGINS_UNINSTALL_TOOL_ID = "agent_plugins_uninstall";
+/** The tool id the dialog asks the Host to call back — the ONE `plugins_uninstall` id both plugin
+ *  families redeem through (S4). Named separately from `plugin-runtime/uninstall-confirmation-ui.ts`'s
+ *  identical constant rather than imported from it: that file's own header explains why the two
+ *  dialogs stay separate modules (differing wording/warnings/preview shapes) even though the id they
+ *  both target has converged. */
+export const PLUGINS_UNINSTALL_TOOL_ID = "plugins_uninstall";
 
 /** Keyed by plugin id; a URI is an identifier a host may log, and nothing here is sensitive. */
 function uninstallConfirmationUri(pluginId: string): UIResourceUri {
@@ -51,13 +59,13 @@ export function buildUninstallConfirmationResource(spec: { preview: AgentPluginU
     danger: true,
     confirm: {
       label: "Uninstall",
-      toolName: AGENT_PLUGINS_UNINSTALL_TOOL_ID,
+      toolName: PLUGINS_UNINSTALL_TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
     },
     // A tool action, not a bare dismiss: cancelling posts back and resolves the parked call at once.
     cancel: {
       label: "Cancel",
-      toolName: AGENT_PLUGINS_UNINSTALL_TOOL_ID,
+      toolName: PLUGINS_UNINSTALL_TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
     },
     app: { appName: "tovu-agent-plugins-uninstall", appVersion: "1" },

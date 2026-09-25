@@ -3,7 +3,7 @@ import {
   registerDuplicateResourceHandler,
   listDuplicateResourceHandlers,
 } from "#src/assistant/index";
-import { contributeAgentPluginSearchTools, contributeAgentPluginUninstallTools } from "#src/features/agent-plugins/tool-registrations";
+import { contributeAgentPluginSearchTools } from "#src/features/agent-plugins/tool-registrations";
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
 import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
@@ -262,9 +262,11 @@ export function installFirstPartyToolContributors(): void {
   // call — see `features/agent-plugins/tool-registrations.ts`'s "search_agent_plugin_local" section
   // header for why the two halves use different wiring seams.
   registerToolContributor(contributeAgentPluginSearchTools());
-  // `agent_plugins_uninstall` — static, same seam as `search_agent_plugin_local` above. See
-  // `features/agent-plugins/tool-registrations.ts`'s own "agent_plugins_uninstall" section header.
-  registerToolContributor(contributeAgentPluginUninstallTools());
+  // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
+  // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
+  // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
+  // one uninstall id for both plugin families instead of two near-identically-named tools. See
+  // `features/agent-plugins/uninstall-tool.ts`'s header for the merge.
   registerToolContributor(contributeCommentsTools());
   // `listDuplicateResourceHandlers` is injected rather than imported by
   // `features/content-duplication/tool-registrations.ts` itself: `.dependency-cruiser.mjs`'s

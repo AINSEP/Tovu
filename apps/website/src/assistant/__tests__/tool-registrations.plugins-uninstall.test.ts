@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -17,6 +21,12 @@ import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discov
 import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
+// S4 (2026-09-24) fixtures — case (a) below installs a REAL Agent Plugin on disk to prove the
+// 'agent-plugin' family branch, the same way `mcp-ui-tool-calls-route.agent-plugins-uninstall.
+// integration.test.ts` (now retargeted to this same tool) already did for the deleted standalone tool.
+import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/install.js";
+import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 
 /**
  * @file `plugins_uninstall` — the RED/GREEN proof for `ADS-memory/reports/2026-09-07-
@@ -201,7 +211,7 @@ test("plugins_uninstall: calls authorize() with admin.plugins.enable and the run
   const { deps, authorizeCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
 
-  await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm");
+  await uninstallWithDecision(deps, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "confirm");
 
   assert.ok(authorizeCalls.length >= 1);
   assert.equal(authorizeCalls[0]!.principalId, PRINCIPAL_ID);
@@ -218,7 +228,7 @@ test("plugins_uninstall: with no interactive confirmation channel, the call fail
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
 
   await assert.rejects(
-    () => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id })),
+    () => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })),
     /confirmation|cannot be gated/i,
   );
   assert.deepEqual(uninstallCalls, [], "the filesystem mechanism must never be reached without a way to ask a human first");
@@ -228,7 +238,7 @@ test("plugins_uninstall: a cancelled confirmation removes nothing and reports ca
   const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
 
-  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "cancel")) as {
+  const out = (await uninstallWithDecision(deps, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "cancel")) as {
     pluginId: string;
     uninstalled: boolean;
     cancelled: boolean;
@@ -245,7 +255,7 @@ test("plugins_uninstall: a cancelled confirmation removes nothing and reports ca
 
 test("plugins_uninstall: a denied principal is rejected and nothing is removed", async () => {
   const { deps, uninstallCalls } = fakeRouteDeps({ allow: false, discovery: [SITE_PLUGIN] });
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id })));
+  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })));
   assert.deepEqual(uninstallCalls, []);
 });
 
@@ -255,7 +265,7 @@ test("plugins_uninstall: a denied principal is rejected and nothing is removed",
 
 test("plugins_uninstall: refuses a built-in plugin — nothing to remove", async () => {
   const { deps, uninstallCalls } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: BUILT_IN.id })), /built-in/);
+  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: BUILT_IN.id })), /built-in/);
   assert.deepEqual(uninstallCalls, []);
 });
 
@@ -263,13 +273,13 @@ test("plugins_uninstall: refuses a plugin still enabled in a workspace", async (
   const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: true, updatedAt: NOW });
 
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id })), /enabled/);
+  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: SITE_PLUGIN.id })), /enabled/);
   assert.deepEqual(uninstallCalls, [], "the filesystem mechanism must never be reached while still enabled somewhere");
 });
 
 test("plugins_uninstall: refuses an unknown plugin id", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: "does-not-exist" })), /was not found/);
+  await assert.rejects(() => wired(deps, "plugins_uninstall").handler(executionContext({ family: "site-runtime", pluginId: "does-not-exist" })), /was not found/);
 });
 
 // ---------------------------------------------------------------------------
@@ -281,7 +291,7 @@ test("plugins_uninstall: moves the on-disk artifact to Trash and retains activat
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: "other-ws", version: "1.0.0", enabled: false, updatedAt: NOW });
 
-  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm")) as {
+  const out = (await uninstallWithDecision(deps, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "confirm")) as {
     pluginId: string;
     trashed: true;
   };
@@ -296,7 +306,7 @@ test("plugins_uninstall: moves the on-disk artifact to Trash and retains activat
 
 test("plugins_uninstall: a plugin never activated anywhere moves to Trash cleanly", async () => {
   const { deps, uninstallCalls } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
-  const out = (await uninstallWithDecision(deps, { pluginId: SITE_PLUGIN.id }, "confirm")) as { trashed: true };
+  const out = (await uninstallWithDecision(deps, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "confirm")) as { trashed: true };
   assert.deepEqual(uninstallCalls, [SITE_PLUGIN.id]);
   assert.equal(out.trashed, true);
 });
@@ -311,7 +321,7 @@ test("plugins_uninstall: a plugin whose version changed while the dialog was ope
   let discoveryCalls = 0;
   const changing: PluginsToolDeps = { ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : [{ ...SITE_PLUGIN, version: "2.0.0" }]) };
 
-  const out = await uninstallWithDecision(changing, { pluginId: SITE_PLUGIN.id }, "confirm");
+  const out = await uninstallWithDecision(changing, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "confirm");
 
   assert.deepEqual(out, {
     pluginId: "my-plugin",
@@ -334,8 +344,127 @@ test("plugins_uninstall: a plugin that disappeared from discovery while the dial
   const changing: PluginsToolDeps = { ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : []) };
 
   await assert.rejects(
-    () => uninstallWithDecision(changing, { pluginId: SITE_PLUGIN.id }, "confirm"),
+    () => uninstallWithDecision(changing, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "confirm"),
     /plugin 'my-plugin' was not found in the current discovery snapshot/,
   );
   assert.deepEqual(uninstallCalls, []);
+});
+
+// ---------------------------------------------------------------------------
+// 6. S4 (2026-09-24) — plugins_uninstall is now ONE tool for BOTH plugin families, the deleted
+//    standalone agent_plugins_uninstall's Agent Plugin branch folded in behind a required 'family'
+//    argument (same merge plugins_set_enabled already got, 2026-09-09).
+// ---------------------------------------------------------------------------
+
+const AGENT_PLUGIN_ID = "operator-plugin";
+
+/** Installs one real, minimal Agent Plugin under a temp `TOVU_AGENT_PLUGINS_DIR` — the directory
+ *  `runAgentPluginUninstall` (via `resolveAgentPluginLayout()`) resolves at call time — and runs `fn`
+ *  with the installed record, cleaning up the temp dir and env var override afterward regardless of
+ *  outcome. Mirrors `mcp-ui-tool-calls-route.agent-plugins-uninstall.integration.test.ts`'s own
+ *  `withInstalledPlugin` (that file is retargeted onto this same `plugins_uninstall` tool). */
+async function withInstalledAgentPlugin<T>(fn: (packageRoot: string) => Promise<T>): Promise<T> {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-plugins-uninstall-agent-plugin-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  try {
+    const manifest = Buffer.from(
+      JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: AGENT_PLUGIN_ID, version: "1.0.0" }),
+      "utf8",
+    );
+    const skill = Buffer.from(`# ${AGENT_PLUGIN_ID}\n`, "utf8");
+    function fileEntry(entryPath: string, bytes: Buffer): AgentPluginArchiveEntry {
+      return {
+        kind: "file",
+        entryPath,
+        declaredSize: bytes.byteLength,
+        executable: false,
+        async *openReadStream() {
+          yield bytes;
+        },
+      };
+    }
+    const archive = new Uint8Array(Buffer.from("plugins-uninstall-agent-plugin-family-fixture"));
+    const installed = await installAgentPlugin({
+      archive,
+      expectedSha256: createHash("sha256").update(archive).digest("hex"),
+      archiveReader: {
+        async *entries() {
+          yield fileEntry("plugin.json", manifest);
+          yield fileEntry(`skills/${AGENT_PLUGIN_ID}/SKILL.md`, skill);
+        },
+      },
+      layout: resolveAgentPluginLayout(),
+      workspaceId: WORKSPACE_ID,
+    });
+    return await fn(installed.packageRoot);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+}
+
+test("plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm toolName is plugins_uninstall, and confirming removes the package dir", async () => {
+  await withInstalledAgentPlugin(async (packageRoot) => {
+    const { deps } = fakeRouteDeps();
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const registration = buildPluginsRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "plugins_uninstall");
+    assert.ok(registration, "expected 'plugins_uninstall' to be wired");
+
+    const emitted: unknown[] = [];
+    let resolveEmitted: () => void = () => undefined;
+    const firstEmitted = new Promise<void>((resolve) => {
+      resolveEmitted = resolve;
+    });
+    const emitSurface: SurfaceEmitter = async (surface) => {
+      emitted.push(surface);
+      resolveEmitted();
+    };
+    const pending = registration.handler({
+      executionId: "exec-1",
+      principal: { id: PRINCIPAL_ID },
+      run: { id: "run-1" },
+      input: { family: "agent-plugin", pluginId: AGENT_PLUGIN_ID },
+      signal: new AbortController().signal,
+      emitSurface,
+    } as ToolExecutionContext);
+
+    // Real disk I/O (`previewAgentPluginUninstall`) precedes the dialog here, unlike the site-runtime
+    // branch's in-memory preview — so this races the emission against the call settling, rather than
+    // assuming one microtask tick is enough.
+    const first = await Promise.race([firstEmitted.then(() => "emitted" as const), pending.then(() => "settled" as const)]);
+    assert.equal(first, "emitted", `expected the agent-plugin uninstall dialog to open before the call settled: ${JSON.stringify(emitted)}`);
+    assert.equal(emitted.length, 1, "expected the agent-plugin uninstall dialog to open");
+    const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text ?? "";
+    assert.match(html, new RegExp(`Uninstall ${AGENT_PLUGIN_ID}\\?`));
+
+    const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    assert.ok(match, "the dialog must carry its exchange id");
+    // Load-bearing: `deliver` only resolves this call when its `toolId` matches the id the exchange was
+    // opened with (`tool-surface-exchanges.ts`'s `toolMismatch` guard) — so a successful delivery here
+    // through "plugins_uninstall" IS the proof the dialog's confirm redeems through that one id, not
+    // the deleted family-specific `agent_plugins_uninstall`.
+    surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision: "confirm" }, principalId: PRINCIPAL_ID, toolId: "plugins_uninstall" });
+
+    const out = (await pending) as { uninstalled: boolean; cancelled: boolean; pluginId: string };
+    assert.equal(out.uninstalled, true);
+    assert.equal(out.cancelled, false);
+    assert.equal(out.pluginId, AGENT_PLUGIN_ID);
+    await assert.rejects(() => stat(packageRoot), "a confirmed uninstall must remove the package");
+  });
+});
+
+test("plugins_uninstall: a call with no 'family' is rejected before any dialog, for either family's id", async () => {
+  const { deps } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
+  await assert.rejects(
+    () => wired(deps, "plugins_uninstall").handler(executionContext({ pluginId: SITE_PLUGIN.id })),
+    /'family' is required and must be exactly one of: 'site-runtime'/,
+  );
+});
+
+test("the registry this file builds has no agent_plugins_uninstall id — the standalone tool was deleted; both families redeem through plugins_uninstall now", () => {
+  const { deps } = fakeRouteDeps();
+  assert.equal(registrations(deps).has("agent_plugins_uninstall"), false);
+  assert.equal(pluginAgentToolCatalog.some((tool) => tool.name === "agent_plugins_uninstall"), false);
 });

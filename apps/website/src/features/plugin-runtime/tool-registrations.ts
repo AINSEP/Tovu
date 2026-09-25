@@ -132,6 +132,12 @@ import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError,
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../agent-plugins/federate-mcp.js";
 import { buildEnableConfirmationResource, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
 import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstall-confirmation-ui.js";
+// The Agent Plugin branch of `plugins_uninstall` (S4, 2026-09-24) — the deleted standalone
+// `agent_plugins_uninstall` tool's own logic, moved rather than duplicated. `uninstall-tool.ts` is
+// this domain's entry point into that logic, deliberately not `agent-plugins/tool-registrations.ts`
+// (a separate workstream's file; not touched here, same reasoning as the `set-enabled.js` import
+// above). See that file's header for the merge.
+import { runAgentPluginUninstall } from "../agent-plugins/uninstall-tool.js";
 
 const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
 
@@ -177,9 +183,13 @@ export const pluginsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   //    (on enable) the injected onEnabled hook, which can run ADR-023 schema DDL against the live
   //    database. Genuinely mutating, not a metadata-only flip.
   ["plugins_set_enabled", "mutates-durable-state"],
-  // -> uninstallPlugin (uninstall.ts): the package directory moves to the 60-day Trash.
-  //    Durable and reversible only through the human Admin Trash surface.
-  ["plugins_uninstall", "mutates-durable-state"],
+  // -> uninstallPlugin (uninstall.ts) for family 'site-runtime': the package directory moves to the
+  //    60-day Trash, durable and reversible only through the human Admin Trash surface. ->
+  //    runAgentPluginUninstall (agent-plugins/uninstall-tool.ts) for family 'agent-plugin': the
+  //    package is deleted from disk with no Trash and no undo. One tool id, one risk band (S4,
+  //    2026-09-24) — `deletes-durable-state`, the worse of the two families' blast radii, since this
+  //    map is keyed per tool id, not per family.
+  ["plugins_uninstall", "deletes-durable-state"],
 ]);
 
 /**
@@ -741,25 +751,38 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
     },
 
     /**
-     * Mirrors `routes/admin/plugins/uninstall.ts`'s own business rules exactly: same permission, same
-     * `uninstallPlugin()` module, same pre-bound Trash removal binding. NOT wrapped in
-     * `executeCommand` — matching that route's own deliberate choice (`uninstall.ts`'s header: "there
-     * is no meaningful 'restore the prior state' for deleted bytes"), so there is nothing here for a
-     * `captureInverse`/`rollback` pair to capture. That is a statement about revertability, not about
-     * consent — the two are orthogonal, and this DOES now confirm (2026-09-16, see `agent-tools.ts`'s
-     * header for why the prior "confirm with the human before calling this" description was never
-     * actually enforced here, only asked of the model in prose).
+     * ONE tool, BOTH plugin families (S4, 2026-09-24) — the same merge `plugins_set_enabled` above
+     * got on 2026-09-09, for the identical reason: two near-identically-named uninstall tools
+     * (`plugins_uninstall` and the now-deleted `agent_plugins_uninstall`) is the exact confusion this
+     * catalog exists to prevent, and the operator asking to "uninstall the Higgsfield plugin" does not
+     * know which of Tovu's two plugin systems that word means either.
      *
-     * Order is load-bearing, same as `plugins_set_enabled` above: parse -> authorize -> preview ->
-     * confirm -> re-discover and write only if the plugin is still what the dialog showed.
+     * The 'site-runtime' branch is UNCHANGED: mirrors `routes/admin/plugins/uninstall.ts`'s own
+     * business rules exactly — same permission, same `uninstallPlugin()` module, same pre-bound Trash
+     * removal binding. NOT wrapped in `executeCommand` — matching that route's own deliberate choice
+     * (`uninstall.ts`'s header: "there is no meaningful 'restore the prior state' for deleted bytes"),
+     * so there is nothing here for a `captureInverse`/`rollback` pair to capture. That is a statement
+     * about revertability, not about consent — the two are orthogonal, and this DOES now confirm
+     * (2026-09-16, see `agent-tools.ts`'s header). Order is load-bearing: parse -> authorize -> preview
+     * -> confirm -> re-discover and write only if the plugin is still what the dialog showed.
      * `previewUninstallPlugin` runs BEFORE the dialog so an unknown, built-in, or still-enabled plugin
-     * is refused without ever asking a human to approve an uninstall that was never going to happen —
-     * reuses the SAME held-open exchange `plugins_set_enabled`'s enable path already does
-     * (`uninstall-confirmation-ui.ts`).
+     * is refused without ever asking a human to approve an uninstall that was never going to happen.
+     *
+     * The 'agent-plugin' branch delegates to `runAgentPluginUninstall` (`agent-plugins/
+     * uninstall-tool.ts`) for its ENTIRE order (permission, preview-or-refusal, confirm, write) —
+     * unlike `plugins_set_enabled`, whose single pre-branch `requireToolPermission` call covers both
+     * families, this tool's permission check stays INSIDE each branch, exactly where the deleted
+     * standalone tool ran it. Both branches reuse the SAME held-open exchange
+     * (`uninstall-confirmation-ui.ts` in each family's own module), and both redeem through this one
+     * `plugins_uninstall` id — see `PLUGINS_UNINSTALL_TOOL_ID` in each.
      */
     plugins_uninstall: async (ctx) => {
       const input = requireInputRecord(ctx.input);
+      const family = readFamily(input);
       const pluginId = requireString(input, "pluginId");
+
+      if (family === "agent-plugin") return runAgentPluginUninstall(routeDeps, surfaces, ctx, pluginId);
+
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.plugins.enable", entityType: "plugin", entityId: pluginId });
 
       const preview = await previewUninstallPlugin(await uninstallRequestFor(routeDeps, pluginId, ctx.principal.id)); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
