@@ -6,6 +6,42 @@
       "origin": "bundled",
       "updatedAt": "2026-08-26T18:00:00.000Z",
       "updatedBy": "owner"
+    },
+    "tovu-deploy-fly": {
+      "enabled": true,
+      "origin": "bundled",
+      "updatedAt": "2026-09-10T01:04:05.410Z",
+      "updatedBy": "7499d195-5c75-4bfd-a13e-8e6c1f8e87da"
+    },
+    "higgsfield-media": {
+      "enabled": true,
+      "origin": "bundled",
+      "updatedAt": "2026-09-10T01:25:31.013Z",
+      "updatedBy": "7499d195-5c75-4bfd-a13e-8e6c1f8e87da"
+    },
+    "github": {
+      "enabled": true,
+      "origin": "bundled",
+      "updatedAt": "2026-09-10T18:15:35.607Z",
+      "updatedBy": "unknown"
+    },
+    "tovuize-site": {
+      "enabled": false,
+      "origin": "bundled",
+      "updatedAt": "2026-09-11T02:29:58.787Z",
+      "updatedBy": "system:seed"
+    },
+    "supabase": {
+      "enabled": false,
+      "origin": "bundled",
+      "updatedAt": "2026-09-14T06:15:01.573Z",
+      "updatedBy": "system:seed"
+    },
+    "jev": {
+      "enabled": false,
+      "origin": "bundled",
+      "updatedAt": "2026-09-21T17:37:49.602Z",
+      "updatedBy": "system:seed"
     }
   }
 }
