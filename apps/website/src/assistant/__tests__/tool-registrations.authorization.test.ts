@@ -6,7 +6,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { contentTypesAgentToolCatalog } from "../../features/content-types/index.js";
 import { ForbiddenError } from "../../features/content-types/index.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
-import { ForbiddenError as CoreForbiddenError } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
@@ -302,7 +302,12 @@ test("content_read.collection_content_type: a denied principal is rejected and t
   await assert.rejects(
     () => wired.handler(executionContext({})),
     (error: unknown) => {
-      assert.ok(error instanceof CoreForbiddenError, `expected core/commands' ForbiddenError, got ${String(error)}`);
+      // `contributeContentTypesTools` wraps every registration with `withModelFacingRegistrationErrors`
+      // (S15, 2026-09-24): the kit's `ForbiddenError` (still plain `Error`) is reclassified to a
+      // `ToolInputError` coded `CONTENT_TYPES_FORBIDDEN` so the refusal reaches the model as its real
+      // reason, not a redacted `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts`.
+      assert.ok(error instanceof ToolInputError, `expected ToolInputError, got ${String(error)}`);
+      assert.match((error as Error).message, /^CONTENT_TYPES_FORBIDDEN: /);
       assert.match((error as Error).message, new RegExp(PRINCIPAL_ID));
       return true;
     },

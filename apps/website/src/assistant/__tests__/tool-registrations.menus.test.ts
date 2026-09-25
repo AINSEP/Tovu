@@ -14,7 +14,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
 import {
   InMemoryMenuRepo,
   InMemoryNavLocationBindingRepo,
@@ -358,7 +358,13 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext(TOOL_INPUTS[toolId](id))),
       (error: unknown) => {
-        assert.ok(error instanceof ForbiddenError, `expected ForbiddenError, got ${String(error)}`);
+        // `tool-registrations.ts`'s `contributeMenusTools` wraps every registration with
+        // `withModelFacingRegistrationErrors` (S15, 2026-09-24): the kit's `ForbiddenError` (still
+        // plain `Error`) is reclassified to a `ToolInputError` coded `MENUS_FORBIDDEN` so the
+        // refusal reaches the model as its real reason, not a redacted `INTERNAL_ERROR` — see
+        // `contracts/core/model-facing-tool-errors.ts`.
+        assert.ok(error instanceof ToolInputError, `expected ToolInputError, got ${String(error)}`);
+        assert.match((error as Error).message, /^MENUS_FORBIDDEN: /);
         assert.match((error as Error).message, new RegExp(PRINCIPAL_ID));
         assert.match((error as Error).message, new RegExp(EXPECTED_PERMISSIONS[toolId].replace(/\./g, "\\.")));
         return true;

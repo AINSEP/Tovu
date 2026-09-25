@@ -57,7 +57,7 @@
  * credential concept, so any feature can adopt it without this file growing an edge back into that
  * feature. Pure: no I/O, no state, no logging.
  */
-import { ForbiddenError, type ToolHandler } from "@jini-ai/cms/core";
+import { ForbiddenError, type ToolHandler, type ToolRegistration } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 /**
@@ -191,6 +191,40 @@ export function withModelFacingErrors(
       },
     ])
   );
+}
+
+/**
+ * Wraps EVERY registration's handler in a domain's `ToolRegistration[]` with
+ * {@link reclassifyToolError}, returning a new array. The `ToolRegistration[]`-shaped sibling of
+ * {@link withModelFacingErrors} — for the registry-converted domains whose `build*Registrations`
+ * returns an array of `{descriptor, handler, policy}` (see `assistant/tool-contribution-registry.ts`'s
+ * `ToolContributor.build`) rather than a `Record<toolId, handler>`. `features/entries`,
+ * `features/content-types`, `features/navigation` and `features/workspace` are re-exported Jini
+ * builders of exactly this shape — see each one's `contribute*Tools`.
+ *
+ * Same transparency guarantee as {@link withModelFacingErrors}: only the `catch` arm does work, and
+ * every other field of each registration (`descriptor`, `policy`) passes through unchanged.
+ *
+ * @param registrations - The domain's registrations, in whatever order `build*Registrations`
+ * returned them.
+ * @param rules - The domain's allowlist, applied identically to every registration.
+ * @returns A new array with the same length and order; the input array is not mutated.
+ * @complexity O(n) registrations wrapped once at build time; O(r) per failed call, none per successful one.
+ */
+export function withModelFacingRegistrationErrors(
+  registrations: readonly ToolRegistration[],
+  rules: readonly ModelFacingErrorRule[]
+): ToolRegistration[] {
+  return registrations.map((registration) => ({
+    ...registration,
+    handler: (async (ctx: Parameters<ToolHandler>[0]) => {
+      try {
+        return await registration.handler(ctx);
+      } catch (err) {
+        throw reclassifyToolError(err, rules);
+      }
+    }) as ToolHandler,
+  }));
 }
 
 /**
