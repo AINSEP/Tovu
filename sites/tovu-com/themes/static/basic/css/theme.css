@@ -398,9 +398,10 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .docs-main .lede { font-size: 16px; margin-bottom: 32px; max-width: 60ch; }
 .docs-main pre {
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 18px 20px; overflow-x: auto; font: 13px/1.6 var(--font-mono); color: var(--fg);
-  white-space: pre-wrap; overflow-wrap: anywhere; position: relative;
+  padding: 18px 20px; overflow-x: auto; font: 13px/1.5 var(--font-mono); color: var(--fg);
+  white-space: pre; position: relative;
 }
+.docs-main pre code { white-space: inherit; line-height: inherit; padding: 0; }
 .docs-main h2 { font-size: 20px; margin: 40px 0 14px; }
 .docs-main p { font-size: 15px; margin-bottom: 14px; max-width: 60ch; }
 
@@ -444,8 +445,8 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-body li { margin-bottom: 6px; }
 .post-detail-body blockquote { border-left: 2px solid var(--border-strong); padding-left: 20px; margin: 24px 0; color: var(--muted); font-style: italic; }
 .post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
-.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre-wrap; overflow-wrap: anywhere; position: relative; }
-.post-detail-body pre code { border: none; background: none; padding: 0; }
+.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre; position: relative; }
+.post-detail-body pre code { border: none; background: none; padding: 0; white-space: inherit; line-height: 1.5; }
 /* Live example frame (docs pages, 2026-09-23; white/gold made the default 2026-09-23 same day,
    owner approved the gold-frame prototype and asked to "update throughout") — wraps a rendered
    marker's live output (a `.live-example` div around the marker element) so it reads as a
