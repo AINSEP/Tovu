@@ -800,3 +800,13 @@ test("a key longer than 32 bytes is still accepted — the floor is a minimum, n
     delete process.env[envVarName];
   }
 });
+
+test("generateFileRootKey creates a missing key directory at mode 0700 (site-key plan §A.1: the site-keys dir is 0700)", { skip: process.platform === "win32" }, async () => {
+  await withTempDir(async (dir) => {
+    const keyFilePath = join(dir, "site-keys", "site-1.hex");
+    generateFileRootKey({ keyFilePath });
+    const { statSync } = await import("node:fs");
+    assert.equal(statSync(join(dir, "site-keys")).mode & 0o777, 0o700);
+    assert.equal(statSync(keyFilePath).mode & 0o777, 0o600);
+  });
+});

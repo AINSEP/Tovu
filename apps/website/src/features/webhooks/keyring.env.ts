@@ -593,7 +593,8 @@ export function generateFileRootKey(options: { keyFilePath?: string } = {}): Gen
   const keyFilePath = options.keyFilePath ?? defaultRootKeyFilePath();
   const generated = randomBytes(ROOT_KEY_LENGTH_BYTES);
   const hex = generated.toString("hex");
-  mkdirSync(dirname(keyFilePath), { recursive: true });
+  // 0700 like `ensureSiteKey`'s own writer (site-key plan §A.1) — only applies to directories this call creates.
+  mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
   try {
     writeFileSync(keyFilePath, hex, { mode: 0o600, flag: "wx" });
   } catch (err) {
