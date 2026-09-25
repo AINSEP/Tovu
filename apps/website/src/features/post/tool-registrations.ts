@@ -43,6 +43,7 @@
  * response, so a large workspace can no longer flood the agent's context with every row, and
  * truncation is never silent.
  */
+import { isDeepStrictEqual } from "node:util";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -734,6 +735,21 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 // (see agent-tools.ts's disclosed asymmetry; kind:"post" carries no such guard,
                 // mirroring posts/update.ts's own kind-blind captureInverse).
                 throw new PostNotFoundError(`page '${id}' was not found`);
+              }
+              // S3 (fix-plan-web-high-2026-09-24.md row 6) — `updatePost` ignores `bodyJson` outright
+              // on an html-format row (CIC-3: an html Page's body is written only by
+              // `PagesHtmlDocumentStore`, never through this chokepoint). Without this guard, a caller
+              // sending a changed `bodyJson` got back a 200 with its edit silently dropped. Reject it
+              // here instead, before the write — the one place this handler already has `existing` in
+              // hand. A caller round-tripping the SAME bodyJson it just read (the metadata-only edit
+              // case) is unaffected: `isDeepStrictEqual` makes this opt-in, not a ban on ever sending
+              // the field.
+              if (existing.bodyFormat === "html" && !isDeepStrictEqual(bodyJson, existing.bodyJson)) {
+                throw new ToolInputError(
+                  `CONTENT_POST_HTML_BODY: page '${id}' is a bespoke-HTML page, so bodyJson can't change its body. ` +
+                    `To edit its title, slug or status, send bodyJson back exactly as content_read returned it. ` +
+                    `To change the body, use pages_write_html or pages_write_region.`
+                );
               }
               priorPost = existing;
               return { title: existing.title, slug: existing.slug, bodyJson: existing.bodyJson, status: existing.status };
