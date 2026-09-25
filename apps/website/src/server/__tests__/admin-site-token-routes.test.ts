@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import Database from "better-sqlite3";
+
+import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
+
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 
@@ -77,6 +81,30 @@ function isolateHomeDir(t: import("node:test").TestContext): void {
   process.env.HOME = dir;
   t.after(() => {
     process.env.HOME = originalHome;
+    rmSync(dir, { recursive: true, force: true });
+  });
+}
+
+/**
+ * Redirects `describeSiteBinding()`'s `siteBinding.dir` (`resolveSiteRoot`'s `TOVU_SITE_DIR`
+ * precedence) to a throwaway temp directory for the life of one test, and removes it on teardown.
+ *
+ * Exists because `createRouteDeps()` calls `describeSiteBinding()` with no override, which
+ * otherwise resolves to the REAL `<repo-root>/sites/tovu-com` — the actual live dev site, whose
+ * real `content.db` already holds genuine sealed credential rows. Any test that exercises the
+ * `state` field's `missing`/`missing-with-data` branches (site-key plan §A.6) MUST call this
+ * before `createRouteDeps()`, or it silently depends on that real site's current data shape
+ * instead of a deterministic fixture. A read of the real `content.db` is safe
+ * (`findKeyDependentData` opens read-only); this helper exists so no test needs to rely on that —
+ * every state-asserting test gets its own empty site dir with no `content.db` at all.
+ */
+function isolateSiteDir(t: import("node:test").TestContext): void {
+  const dir = mkdtempSync(path.join(tmpdir(), "tovu-site-token-test-site-"));
+  const originalSiteDir = process.env.TOVU_SITE_DIR;
+  process.env.TOVU_SITE_DIR = dir;
+  t.after(() => {
+    if (originalSiteDir === undefined) delete process.env.TOVU_SITE_DIR;
+    else process.env.TOVU_SITE_DIR = originalSiteDir;
     rmSync(dir, { recursive: true, force: true });
   });
 }
@@ -182,6 +210,7 @@ test("reveal and generate responses carry Cache-Control: no-store; GET status do
 
 test("GET status: state is 'missing' when nothing is configured, 'active' after generate, and 'invalid' for a malformed per-site file (site-key plan §A3b)", async (t) => {
   isolateHomeDir(t);
+  isolateSiteDir(t);
   const deps = createRouteDeps();
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -210,6 +239,64 @@ test("GET status: state is 'missing' when nothing is configured, 'active' after 
   assert.equal(invalidBody.state, "invalid");
   assert.equal(invalidBody.active, false);
   assert.equal(invalidBody.invalid, true);
+});
+
+test("GET status: state is 'missing-with-data' when nothing resolves but this site's content.db holds key-dependent data (site-key plan §A.6)", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+
+  // Seed a key-dependent row directly, before the app even boots — `findKeyDependentData`'s own
+  // `webhook_subscriptions` check (no `sealed_ciphertext` column required) is the smallest fixture
+  // that trips it.
+  const contentDbPath = path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME);
+  const db = new Database(contentDbPath);
+  db.exec("CREATE TABLE webhook_subscriptions (id INTEGER PRIMARY KEY)");
+  db.prepare("INSERT INTO webhook_subscriptions DEFAULT VALUES").run();
+  db.close();
+
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const status = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  assert.equal(status.status, 200);
+  const statusBody = (await status.json()) as { state: string; active: boolean };
+  assert.equal(statusBody.active, false, "nothing was ever generated in this isolated site/home pair");
+  assert.equal(statusBody.state, "missing-with-data");
+});
+
+test("GET status: state is 'mismatch' when .site-meta.json's stamped fingerprint disagrees with the resolved key's own fingerprint (site-key plan §A.6)", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+
+  // A commit-marker `.site-meta.json` must already exist for `generate` to have anything to stamp
+  // a fingerprint into (`stampSiteKeyFingerprint`'s own "no meta yet → nothing written" no-op) —
+  // same minimal shape the per-site-file test below seeds.
+  const siteMetaPathBefore = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(siteMetaPathBefore, JSON.stringify({ siteId: "mismatch-test-site" }));
+
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const generated = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+  assert.equal(generated.status, 201);
+
+  const active = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  const activeBody = (await active.json()) as { state: string };
+  assert.equal(activeBody.state, "active", "generate re-stamps a matching fingerprint (site-key plan item 2)");
+
+  // Simulate the physical key file being substituted for a different one after the stamp was
+  // written — the case `resolveSiteKeyFingerprint`'s own doc describes.
+  const siteMetaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  const meta = JSON.parse(readFileSync(siteMetaPath, "utf8")) as Record<string, unknown>;
+  writeFileSync(siteMetaPath, JSON.stringify({ ...meta, siteKeyFingerprint: "0000deadbeef" }));
+
+  const mismatch = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  assert.equal(mismatch.status, 200);
+  const mismatchBody = (await mismatch.json()) as { state: string; active: boolean };
+  assert.equal(mismatchBody.state, "mismatch");
+  assert.equal(mismatchBody.active, true, "the key itself still resolves fine — only the stamp disagrees");
 });
 
 test("generate writes THIS site's own per-site key file when a siteKeyId is resolvable, not the legacy global default (site-key plan §A3b)", async (t) => {

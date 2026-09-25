@@ -1,4 +1,6 @@
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 
 import type { Express, Request, Response } from "express";
 
@@ -10,9 +12,20 @@ import {
   RootKeyFileAlreadyExistsError,
   type RootKeyStatus,
 } from "#src/features/webhooks/keyring.env";
-import { resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources, type SiteKeySource } from "#src/features/webhooks/site-key-sources";
+import {
+  findKeyDependentData,
+  readSiteMetaJson,
+  resolveSiteKeyFingerprint,
+  resolveSiteKeyId,
+  siteKeyFilePathFrom,
+  siteKeySources,
+  type SiteKeySource,
+} from "#src/features/webhooks/site-key-sources";
 import { SITE_TOKEN_MANAGE_PERMISSION } from "#src/features/identity/site-token-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import type { SiteTokenState } from "#src/contracts/core/site-token-state";
+import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
+import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -88,9 +101,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * with no readable `.site-meta.json` (or production, which has no per-site file at all) falls back
  * to exactly today's behavior: `siteKeySources` drops the per-site candidate in that case.
  *
- * `GET`'s response also carries a `state` field derived from the resolved status —
- * `"active" | "invalid" | "missing"` in this slice (see {@link siteTokenState}'s own doc for why
- * the plan's full banner set is deferred).
+ * `GET`'s response also carries a `state` field derived from the resolved status — the full
+ * site-key-plan §A.6 5-state set ({@link SiteTokenState}: `"active" | "missing" |
+ * "missing-with-data" | "mismatch" | "invalid"`), computed by {@link siteTokenState}.
  *
  * ## 2026-09-14 hardening — session-only, `no-store`
  *
@@ -125,21 +138,72 @@ export function resolveSiteTokenSources(
   return { sources, keyFilePath: siteKeyFilePathFrom(sources, defaultRootKeyFilePath()) };
 }
 
+export interface SiteTokenStateInput {
+  readonly active: boolean;
+  readonly invalid?: boolean;
+  /** The currently-resolved key material's own fingerprint (only meaningful when `active`). */
+  readonly fingerprint?: string;
+  /** `.site-meta.json`'s stamped `siteKeyFingerprint` ({@link resolveSiteKeyFingerprint}) —
+   *  `undefined` when nothing has been stamped yet (never treated as a mismatch). */
+  readonly metaFingerprint?: string;
+  /** Whether this site's `content.db` holds data only a site key could decrypt or verify
+   *  ({@link findKeyDependentData}) — only meaningful when neither `active` nor `invalid`. */
+  readonly hasKeyDependentData: boolean;
+}
+
 /**
- * `GET`'s `state` banner field, derived from an already-computed {@link RootKeyStatus}.
+ * `GET`'s `state` banner field (site-key plan §A.6), derived from an already-computed
+ * {@link RootKeyStatus} plus the two site-key-plan-specific inputs {@link SiteTokenStateInput}
+ * carries beyond it.
  *
- * Scoped to `"active" | "invalid" | "missing"` in this slice — the site-key plan's full 4-state
- * set (`missing-with-data`, `mismatch`, `env-conflict`) needs A4's fingerprint stamp + `siteKeyId`
- * field (mismatch) and D1's dual-env-var alias (env-conflict) to mean anything real yet. A
- * `missing-with-data` state could be added now via a `content.db` scan
- * (`findKeyDependentData`, already exported from `site-key-ensure.ts`), but that is deliberately
- * deferred here: scanning `content.db` on every admin status-page load is a real perf/design
- * question this narrow slice should not decide unilaterally.
+ * `invalid` wins outright — a source was found but fails hex validation, regardless of what a
+ * stale `.site-meta.json` stamp or a `content.db` scan would otherwise say. Otherwise: `active`
+ * with a stamped fingerprint that disagrees with the resolved key's own fingerprint is `mismatch`
+ * (the physical key file was substituted after the stamp was written); `active` with no stamp yet,
+ * or a stamp that agrees, is plain `active`. Not active: `missing-with-data` when this site's
+ * `content.db` holds key-dependent data (a materially more urgent banner — something the operator
+ * saved is stuck behind a key that no longer resolves), otherwise plain `missing`.
+ *
+ * @complexity O(1) — a fixed sequence of comparisons over already-computed inputs; no I/O.
  */
-function siteTokenState(status: Pick<RootKeyStatus, "active" | "invalid">): "active" | "invalid" | "missing" {
-  if (status.active) return "active";
-  if (status.invalid) return "invalid";
-  return "missing";
+export function siteTokenState(input: SiteTokenStateInput): SiteTokenState {
+  if (input.invalid) return "invalid";
+  if (input.active) {
+    return input.metaFingerprint !== undefined && input.metaFingerprint !== input.fingerprint
+      ? "mismatch"
+      : "active";
+  }
+  return input.hasKeyDependentData ? "missing-with-data" : "missing";
+}
+
+/** {@link siteTokenState}'s `hasKeyDependentData` input for the GET handler: whether THIS site's
+ *  `content.db` exists at all, and if so whether it holds key-dependent data
+ *  ({@link findKeyDependentData}). A site directory with no `content.db` yet is "nothing to scan
+ *  yet" (`false`), not "unreadable" — mirrors `ensureSiteKey`'s own `existsSync` guard
+ *  (`site-key-ensure.ts`) so the two callers of `findKeyDependentData` agree about when a missing
+ *  database counts as "no data" versus the function's own fail-closed "could not open" case.
+ *
+ * @complexity O(1) `existsSync` plus {@link findKeyDependentData}'s own cost when the file exists.
+ */
+function siteHasKeyDependentData(siteDir: string): boolean {
+  const contentDbPath = join(siteDir, CONTENT_DB_FILENAME);
+  return existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
+}
+
+/**
+ * Re-stamps `.site-meta.json`'s `siteKeyFingerprint` to `fingerprint` after `generate` mints a new
+ * key (site-key plan §A.6) — mirrors `ensureSiteKey`'s own `withFingerprintReconciliation`
+ * "present and equal → nothing written" case (`site-key-ensure.ts`): a missing `.site-meta.json`
+ * (no commit marker at all — a legacy or unrepaired site) is left alone rather than fabricated, and
+ * an already-matching stamp is left untouched rather than rewritten for no reason. Every other
+ * field in the object survives unchanged (the atomic write spreads the parsed object first).
+ *
+ * @complexity O(1) — one read, at most one atomic write.
+ */
+function stampSiteKeyFingerprint(siteDir: string, fingerprint: string): void {
+  const meta = readSiteMetaJson(siteDir);
+  if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
+  writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
 }
 
 /** Shared workspace-path-param + permission check every verb below performs first — same
@@ -177,7 +241,15 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     const { sources } = resolveSiteTokenSources(deps);
     const status = inspectRootKeyMaterial({ sources });
-    res.status(200).json({ ...status, state: siteTokenState(status), runtimeMode: resolveRuntimeMode() });
+    const state = siteTokenState({
+      active: status.active,
+      invalid: status.invalid,
+      fingerprint: status.fingerprint,
+      metaFingerprint: status.active ? resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) : undefined,
+      hasKeyDependentData:
+        !status.active && !status.invalid ? siteHasKeyDependentData(deps.siteBinding.dir) : false,
+    });
+    res.status(200).json({ ...status, state, runtimeMode: resolveRuntimeMode() });
   });
 
   app.post(`${BASE_PATH}/reveal`, async (req, res) => {
@@ -209,6 +281,11 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
 
     try {
       const generated = generateFileRootKey({ keyFilePath });
+      // Site-key plan §A.6: keep `.site-meta.json`'s stamped fingerprint in step with the key
+      // `generate` just minted, so a subsequent GET reports `"active"` rather than a spurious
+      // `"mismatch"` against a now-stale stamp. Never touches the create-only/never-overwrite
+      // semantics above — this only stamps metadata after a successful create.
+      stampSiteKeyFingerprint(deps.siteBinding.dir, generated.fingerprint);
       // `generated.hex` is deliberately NOT forwarded here (sol finding 3-2, 2026-09-16): the
       // admin controller (`use-site-token.hooks.ts`'s `generate()`) only ever reads
       // fingerprint/keyFilePath/runtimeMode from this response, so echoing the raw key gave it no
