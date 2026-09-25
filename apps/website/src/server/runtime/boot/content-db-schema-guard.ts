@@ -14,9 +14,12 @@ import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/errors.js"
  * `SiteNewerThanRuntimeError` if the site is newer than, or has diverged from, this runtime — see
  * that file's own header for why the check must run BEFORE the db is ever opened. `index.ts`'s
  * boot path has no such stamp file to read (`sites/<name>/` under the default site-root model is
- * not a `tovu init`/`tovu serve <dir>` install directory — no `.site-meta.json` is ever written
- * there), so `deps.ts`'s `createSqliteRouteDeps()` calls `openContentDb()` directly, which
- * unconditionally runs Drizzle's `migrate()` with no schema-version check of any kind first.
+ * not a `tovu init`/`tovu serve <dir>` install directory). A minimal `.site-meta.json` CAN now be
+ * minted there as a side effect of boot's site-key step in LOCAL mode when one is absent
+ * (`site-key-ensure.ts`'s `ensureSiteKeyForBoot`, site-key plan §A.1) — but that file carries only a
+ * `siteKeyId`, never a schema-version stamp, so this module still has nothing of that kind to
+ * compare against there. `deps.ts`'s `createSqliteRouteDeps()` calls `openContentDb()` directly,
+ * which unconditionally runs Drizzle's `migrate()` with no schema-version check of any kind first.
  *
  * This module reuses `compareSchemaVersion` itself — the exact same policy `tovu serve` enforces,
  * unchanged — sourcing its `{schemaVersion, schemaTag}` input from

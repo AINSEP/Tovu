@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 
 import {
@@ -25,6 +26,7 @@ import { resolveConfirmationDecision, type AssistantSurfaceDeps, type SurfaceExc
 import type { ToolContributor } from "#src/assistant/index";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import {
   CustomCredentialSecretStoreUnconfiguredError,
   CustomCredentialValidationError,
@@ -36,6 +38,7 @@ import {
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateOwner, validateRepo } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
+import { siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import { buildConfirmationSurface, SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
 import { commitBackupTree, inspectBackupRepository, uploadBackupBlob, type BackupRepositoryTarget, type InspectBackupRepositoryResult, type UploadedBackupBlob } from "./github-push.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
@@ -77,10 +80,13 @@ import {
  *
  * Credential errors are split so an operator can act on them: a label with no saved row is
  * `CREDENTIAL_NOT_FOUND` (with the labels that do exist), and a saved row this server cannot decrypt
- * is `CREDENTIAL_UNREADABLE`, whose message says WHICH problem it is from the Site Token's status
- * (`inspectRootKeyMaterial`) — never from the decrypt error's own text, which can quote plaintext.
- * (The same "unreadable reads as missing" confusion `ADS-memory/.local-artifacts/reports/
- * 2026-09-21-byok-triage.md` traced for BYOK keys.)
+ * is `CREDENTIAL_UNREADABLE`, whose message says WHICH problem it is from THIS SITE's own Site Token
+ * status (`inspectRootKeyMaterial` run over `siteKeySourcesForSiteDir`'s site-aware source ordering —
+ * site-key plan §A3b, the same composed helper the admin Site Token route reuses, so an active
+ * per-site key file is never mistaken for "no Site Token" — see `unreadableCredentialMessage`) —
+ * never from the decrypt error's own text, which can quote plaintext. (The same "unreadable reads as
+ * missing" confusion `ADS-memory/.local-artifacts/reports/2026-09-21-byok-triage.md` traced for BYOK
+ * keys.)
  *
  * Out of scope: restoring from a backup, an admin UI, and scheduled backups.
  */
@@ -192,7 +198,7 @@ export interface SiteBackupToolDeps {
   readonly siteBackupSources?: SiteBackupSources;
   /** Test-only; defaults to the process-wide store. */
   readonly siteBackupPlanStore?: SiteBackupPlanStore;
-  /** Test-only; defaults to `inspectRootKeyMaterial`. */
+  /** Test-only; defaults to {@link siteAwareRootKeyStatus} (site-aware — see that function's doc). */
   readonly siteBackupRootKeyStatus?: () => { readonly active: boolean; readonly invalid?: boolean };
   /** Test-only; defaults to `console.warn`. Receives only lines built here — never a token. */
   readonly siteBackupFailureLog?: (line: string) => void;
@@ -264,9 +270,36 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, requested: string |
   return { ok: false, code: "CREDENTIAL_AMBIGUOUS", message: `${github.length} saved credentials point at ${GITHUB_API_ORIGIN} (${labelList(github)}); name one with 'credential'.` };
 }
 
-/** Why a saved credential could not be decrypted, from the Site Token's status alone. */
+/**
+ * This site's own Site Token status ({@link inspectRootKeyMaterial}), resolved over THIS site's
+ * site-aware source ordering ({@link siteKeySourcesForSiteDir} — site-key plan §A3b, the same
+ * composed helper the admin Site Token route's `resolveSiteTokenSources` reuses) rather than the
+ * module-wide env-then-legacy-file default `inspectRootKeyMaterial()` falls back to when called
+ * bare. That default cannot see a per-site key file at all (`~/.tovu/site-keys/<id>.hex`), so a site
+ * whose OWN key is active but has no env var and no legacy shared file would be reported `active:
+ * false` — the exact gap {@link unreadableCredentialMessage} used to surface as "this server has no
+ * Site Token" for a site that in fact has one.
+ *
+ * Falls back to the bare, non-site-aware status only when this runtime has no site folder at all
+ * (`deps.siteBackupSources` absent — the in-memory `app.ts` runtime; in practice the plan tool's own
+ * `UNAVAILABLE` check already refuses before this is ever reached for that case, but the push path
+ * re-resolves the credential independently and must not throw if it ever is).
+ *
+ * @complexity O(1) — one `.site-meta.json` read plus a fixed-size source list, matching
+ *   {@link inspectRootKeyMaterial}'s own cost.
+ */
+function siteAwareRootKeyStatus(deps: SiteBackupToolDeps): { active: boolean; invalid?: boolean } {
+  const siteDir = deps.siteBackupSources?.siteDir;
+  if (siteDir === undefined) return inspectRootKeyMaterial();
+  const sources = siteKeySourcesForSiteDir({ siteDir, mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() });
+  return inspectRootKeyMaterial({ sources });
+}
+
+/** Why a saved credential could not be decrypted, from THIS SITE's own Site Token status
+ *  ({@link siteAwareRootKeyStatus}) — never the bare, env/legacy-only default (see that function's
+ *  own doc for why that used to misreport an active per-site key as "no Site Token"). */
 function unreadableCredentialMessage(deps: SiteBackupToolDeps, label: string): string {
-  const status = (deps.siteBackupRootKeyStatus ?? inspectRootKeyMaterial)();
+  const status = (deps.siteBackupRootKeyStatus ?? (() => siteAwareRootKeyStatus(deps)))();
   if (status.active) {
     return (
       `the credential '${label}' is saved but cannot be decrypted with this server's Site Token: it differs from the one the credential was saved under, ` +

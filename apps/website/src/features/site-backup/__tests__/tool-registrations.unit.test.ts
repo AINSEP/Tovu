@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -125,6 +126,33 @@ function write(file: string, content: string): void {
   writeFileSync(file, content);
 }
 
+/** Redirects `homedir()`-based site-key resolution (`unreadableCredentialMessage`'s default,
+ *  site-aware status) to a throwaway temp dir for the life of one test, and also clears the
+ *  env-var/mode inputs that ordering reads — so a passing run never touches, creates, or is
+ *  influenced by the operator's real `~/.tovu`. Mirrors `admin-site-token-routes.test.ts`'s own
+ *  `isolateHomeDir`. */
+function isolateHomeDir(t: TestContext): string {
+  const dir = mkdtempSync(path.join(tmpdir(), "tovu-site-backup-test-home-"));
+  const saved = {
+    HOME: process.env.HOME,
+    TOVU_INTEGRATIONS_ROOT_KEY: process.env.TOVU_INTEGRATIONS_ROOT_KEY,
+    TOVU_SITE_KEY: process.env.TOVU_SITE_KEY,
+    TOVU_RUNTIME_MODE: process.env.TOVU_RUNTIME_MODE,
+  };
+  process.env.HOME = dir;
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env.TOVU_SITE_KEY;
+  delete process.env.TOVU_RUNTIME_MODE;
+  t.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+  return dir;
+}
+
 /** A throwaway site folder named `demo-site` (the default backup folder), with one file per scope. */
 function makeSite(t: TestContext): { parent: string; root: string; sources: SiteBackupSources } {
   const parent = mkdtempSync(path.join(tmpdir(), "site-backup-tools-"));
@@ -155,6 +183,9 @@ interface HarnessOptions {
   /** The sealer the tools decrypt with; the one credentials were sealed with by default. */
   openSealer?: (sealedWith: SecretSealerPort) => SecretSealerPort;
   rootKeyStatus?: () => { active: boolean; invalid?: boolean };
+  /** When true, leaves `deps.siteBackupRootKeyStatus` unset entirely (rather than this harness's own
+   *  `{active: true}` stub) so the SUT's real default, site-aware status computation runs. */
+  useDefaultRootKeyStatus?: boolean;
   withoutSources?: boolean;
   planNowMs?: () => number;
 }
@@ -184,7 +215,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     dbOps,
     ...(options.withoutSources ? {} : { siteBackupSources: site.sources }),
     siteBackupPlanStore: planStore,
-    siteBackupRootKeyStatus: options.rootKeyStatus ?? (() => ({ active: true })),
+    ...(options.useDefaultRootKeyStatus ? {} : { siteBackupRootKeyStatus: options.rootKeyStatus ?? (() => ({ active: true })) }),
     siteBackupFailureLog: (line) => logLines.push(line),
     siteBackupNow: () => new Date(NOW),
   };
@@ -512,6 +543,33 @@ test("the unreadable-credential message follows the Site Token's status and neve
     assert.doesNotMatch(published, new RegExp(TOKEN));
     assert.deepEqual(h.logLines, [], "nothing about the decrypt failure is logged either");
   }
+});
+
+test("site-key plan §A3b: a site with an ACTIVE per-site key file is never told 'this server has no Site Token' — the default status is site-aware, not env/legacy-only", async (t) => {
+  const home = isolateHomeDir(t);
+  const h = harness(t, { openSealer: (sealedWith) => new LeakySealer(sealedWith), useDefaultRootKeyStatus: true });
+  await h.seed();
+  // `makeSite` stamps `.site-meta.json` with `{siteId: "s1"}`, so this site's resolved siteKeyId is
+  // "s1" (site-key-sources.ts's `resolveSiteKeyId`: siteKeyId defaults to siteId when absent) — mint
+  // a real, valid per-site key file at the path that id resolves to, and nothing else (no env var,
+  // no legacy shared file), so ONLY a site-aware status can see it as active.
+  const perSiteKeyPath = path.join(home, ".tovu", "site-keys", "s1.hex");
+  mkdirSync(path.dirname(perSiteKeyPath), { recursive: true });
+  writeFileSync(perSiteKeyPath, randomBytes(32).toString("hex"));
+
+  const result = await plan(h);
+
+  assert.equal(result.code, "CREDENTIAL_UNREADABLE");
+  assert.doesNotMatch(
+    result.message as string,
+    /this server has no Site Token/,
+    "wrong: an env/legacy-only check cannot see the ACTIVE per-site key file, so it wrongly reports none configured at all"
+  );
+  assert.match(
+    result.message as string,
+    /differs from the one the credential was saved under/,
+    "right: the per-site key IS active, so the credential is unreadable for a different reason (wrong key or a corrupted row), not because no key exists"
+  );
 });
 
 test("a network failure is NETWORK_UNREACHABLE; the detail goes to the server log only, never the token", async (t) => {

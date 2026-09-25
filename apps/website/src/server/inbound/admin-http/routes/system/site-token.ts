@@ -16,9 +16,8 @@ import {
   findKeyDependentData,
   readSiteMetaJson,
   resolveSiteKeyFingerprint,
-  resolveSiteKeyId,
   siteKeyFilePathFrom,
-  siteKeySources,
+  siteKeySourcesForSiteDir,
   type SiteKeySource,
 } from "#src/features/webhooks/site-key-sources";
 import { SITE_TOKEN_MANAGE_PERMISSION } from "#src/features/identity/site-token-permission";
@@ -92,7 +91,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * ## Site-key plan §A3b — site-aware sources
  *
  * Every verb now resolves this SITE's own ordered source list ({@link resolveSiteTokenSources}:
- * `site-key-sources.ts`'s `siteKeySources`, keyed off `deps.siteBinding.dir`'s `.site-meta.json`)
+ * `site-key-sources.ts`'s `siteKeySourcesForSiteDir`, keyed off `deps.siteBinding.dir`'s
+ * `.site-meta.json` — the same composed helper `site-backup/tool-registrations.ts`'s
+ * `unreadableCredentialMessage` reuses, so the two site-aware callers can never drift apart)
  * instead of the module-level env-then-legacy-default precedence `inspectRootKeyMaterial`'s own
  * defaults still use. In local mode with a resolvable `siteKeyId` this prefers the per-site file
  * (`~/.tovu/site-keys/<id>.hex`, A.1) over the legacy shared file, and `generate` now (re)writes
@@ -133,8 +134,7 @@ export function resolveSiteTokenSources(
   env: NodeJS.ProcessEnv = process.env
 ): { sources: SiteKeySource[]; keyFilePath: string } {
   const mode = resolveRuntimeMode({ env });
-  const siteKeyId = resolveSiteKeyId({ siteDir: deps.siteBinding.dir });
-  const sources = siteKeySources({ mode, env, home: homedir(), cwd: process.cwd(), siteKeyId });
+  const sources = siteKeySourcesForSiteDir({ siteDir: deps.siteBinding.dir, mode, env, home: homedir(), cwd: process.cwd() });
   return { sources, keyFilePath: siteKeyFilePathFrom(sources, defaultRootKeyFilePath()) };
 }
 

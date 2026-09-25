@@ -177,6 +177,32 @@ export function resolveSiteKeyId(input: ResolveSiteKeyIdInput): string | undefin
   return typeof id === "string" && id.length > 0 && isSafeSiteKeyId(id) ? id : undefined;
 }
 
+export interface SiteKeySourcesForSiteDirInput {
+  readonly siteDir: string;
+  readonly mode: RuntimeMode;
+  /** A snapshot of the process env to consult — see {@link SiteKeySourcesInput.env}. */
+  readonly env: Record<string, string | undefined>;
+  readonly home: string;
+  readonly cwd: string;
+}
+
+/**
+ * {@link siteKeySources}'s ordered list, keyed off `siteDir`'s own `.site-meta.json`
+ * ({@link resolveSiteKeyId}) — the exact two-call composition every site-aware caller needs
+ * (read this site's `siteKeyId`, then order its candidate sources). Both the admin Site Token
+ * route (`server/inbound/admin-http/routes/system/site-token.ts`'s `resolveSiteTokenSources`) and
+ * the site-backup tool (`site-backup/tool-registrations.ts`'s `unreadableCredentialMessage`) call
+ * this rather than each re-assembling the same two calls, so a third site-aware caller has one
+ * function to reuse instead of a third independently-reasoned copy of the wiring.
+ *
+ * @complexity O(1) — one `.site-meta.json` read ({@link resolveSiteKeyId}) plus
+ *   {@link siteKeySources}'s own fixed-size ordering.
+ */
+export function siteKeySourcesForSiteDir(input: SiteKeySourcesForSiteDirInput): SiteKeySource[] {
+  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir });
+  return siteKeySources({ mode: input.mode, env: input.env, home: input.home, cwd: input.cwd, siteKeyId });
+}
+
 export interface ResolveSiteKeyFingerprintInput {
   readonly siteDir: string;
 }
