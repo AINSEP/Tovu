@@ -5,6 +5,7 @@ import {
   MAX_ROBOTS_RULES,
   MAX_RULE_PATH_ENTRIES,
   TITLE_TEMPLATE_MAX_LENGTH,
+  TWITTER_SITE_MAX_LENGTH,
 } from "./settings.js";
 
 /**
@@ -178,7 +179,8 @@ const SET_SETTINGS_SCHEMA = {
     },
     twitterSite: {
       type: ["string", "null"],
-      description: "Site-wide @handle attributed as the Twitter/X card's site. Pass null to clear.",
+      maxLength: TWITTER_SITE_MAX_LENGTH,
+      description: `Site-wide @handle attributed as the Twitter/X card's site. At most ${TWITTER_SITE_MAX_LENGTH} characters. Pass null to clear.`,
     },
     defaultRobots: {
       type: "object",

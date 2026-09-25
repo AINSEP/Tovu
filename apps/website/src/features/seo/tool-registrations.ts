@@ -101,11 +101,11 @@ function seoOverridesPatchFromInput(input: Record<string, unknown>): SeoExtField
 }
 
 /**
- * Builds `setSeoSettings`'s `patch` from `ctx.input` verbatim. Unlike the overrides patch above,
- * `setSeoSettings`'s own `validateSeoSettingsPatch` does not reject an unrecognized key (it only
- * inspects the 7 fields it knows about and ignores the rest) — so, unlike
- * `seoOverridesPatchFromInput`, there is no rejection to preserve either way; passed through as-is
- * for the same "let the chokepoint be the one validator" reason.
+ * Builds `setSeoSettings`'s `patch` from `ctx.input` verbatim. `setSeoSettings`'s own
+ * `validateSeoSettingsPatch` rejects both an empty patch and any key outside `SeoSettings`' own
+ * 7 fields, the same "unrecognized/empty input must be rejected, not silently accepted" reasoning
+ * `seoOverridesPatchFromInput`'s chokepoint (`validateSeoExtFieldsPatch`) already applies — passed
+ * through as-is here either way, for the "let the chokepoint be the one validator" reason.
  */
 function seoSettingsPatchFromInput(input: Record<string, unknown>): Partial<SeoSettings> {
   return { ...input } as Partial<SeoSettings>;

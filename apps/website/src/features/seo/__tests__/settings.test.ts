@@ -298,7 +298,7 @@ test("setSeoSettings: a null defaultOgImage bypasses validation and reads back a
   assert.equal(result.defaultOgImage, undefined);
 });
 
-test("setSeoSettings: twitterSite is written and round-trips (no validation rule applies to it)", async () => {
+test("setSeoSettings: twitterSite is validated as a bounded string, written, and round-trips", async () => {
   const deps = await seeded();
   const result = await setSeoSettings(deps, {
     workspaceId: WORKSPACE,
@@ -309,6 +309,56 @@ test("setSeoSettings: twitterSite is written and round-trips (no validation rule
 
   const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
   assert.equal(reread.twitterSite, "@example");
+});
+
+test("setSeoSettings: a non-string twitterSite is rejected, titleTemplate is left unchanged (all-or-nothing)", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { titleTemplate: "%s | New", twitterSite: 123 } as unknown as { titleTemplate: string; twitterSite: string },
+    }),
+    "twitterSite must be a string"
+  );
+
+  const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  assert.equal(after.titleTemplate, "%s", "title_template must be unchanged — all-or-nothing (INV-06)");
+});
+
+test("setSeoSettings: a 101-char twitterSite is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { twitterSite: "a".repeat(101) },
+    }),
+    "twitterSite must be at most 100 characters"
+  );
+});
+
+test("setSeoSettings: an empty patch is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, { workspaceId: WORKSPACE, callerPrincipalId: CALLER, patch: {} }),
+    "patch must include at least one field"
+  );
+});
+
+test("setSeoSettings: an unknown patch key is rejected, zero settings changed", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { bogusField: "x" } as unknown as { titleTemplate: string },
+    }),
+    "'bogusField' is not a registered SEO setting field"
+  );
+
+  const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  assert.equal(after.titleTemplate, "%s");
 });
 
 test("setSeoSettings: a null twitterSite is written as the '' sentinel and reads back as undefined", async () => {

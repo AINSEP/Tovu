@@ -206,6 +206,37 @@ export const MAX_RULE_PATH_ENTRIES = 100;
 export const TITLE_TEMPLATE_MAX_LENGTH = 500;
 export const DEFAULT_DESCRIPTION_MAX_LENGTH = 500;
 export const DEFAULT_OG_IMAGE_MAX_LENGTH = 2048;
+export const TWITTER_SITE_MAX_LENGTH = 100;
+
+/** The only keys `setSeoSettings`'s patch may contain — mirrors `SeoSettings`' own field list. */
+const KNOWN_PATCH_KEYS: ReadonlySet<string> = new Set([
+  "titleTemplate",
+  "defaultDescription",
+  "defaultOgImage",
+  "twitterSite",
+  "defaultRobots",
+  "sitemapEnabled",
+  "robotsRules",
+]);
+
+/**
+ * Validated first, before any field-shape check: an empty patch is refused rather than accepted as
+ * a no-op write of nothing (mirrors Forms' `requireFormsPatch`'s identical discipline), and a key
+ * outside `SeoSettings`' own field list is refused rather than silently ignored — the same
+ * "unrecognized input must be rejected, not dropped" reasoning `write-service.ts`'s
+ * `validateRegisteredKeys` already applies to `setEntrySeoOverrides`.
+ */
+function validatePatchKeys(patch: Partial<SeoSettings>): void {
+  const keys = Object.keys(patch);
+  if (keys.length === 0) {
+    throw new SeoSettingsValidationError("patch must include at least one field");
+  }
+  for (const key of keys) {
+    if (!KNOWN_PATCH_KEYS.has(key)) {
+      throw new SeoSettingsValidationError(`'${key}' is not a registered SEO setting field`);
+    }
+  }
+}
 
 function validateTitleTemplate(titleTemplate: string | undefined): void {
   if (titleTemplate === undefined) return;
@@ -276,9 +307,11 @@ function validateRobotsRules(robotsRules: RobotsRule[] | undefined): void {
 }
 
 function validateSeoSettingsPatch(patch: Partial<SeoSettings>): void {
+  validatePatchKeys(patch);
   validateTitleTemplate(patch.titleTemplate);
   validateBoundedNullableString(patch.defaultDescription, "defaultDescription", DEFAULT_DESCRIPTION_MAX_LENGTH);
   validateBoundedNullableString(patch.defaultOgImage, "defaultOgImage", DEFAULT_OG_IMAGE_MAX_LENGTH);
+  validateBoundedNullableString(patch.twitterSite, "twitterSite", TWITTER_SITE_MAX_LENGTH);
   validateDefaultRobots(patch.defaultRobots);
   validateSitemapEnabled(patch.sitemapEnabled);
   validateRobotsRules(patch.robotsRules);
