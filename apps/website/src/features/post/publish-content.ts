@@ -2,6 +2,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 
 import { contentHash } from "#src/features/publish-content/content-hash";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
+import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { addressHeldByOther, trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type {
@@ -231,6 +232,13 @@ function applyPorts(ports: PostPorts, deps: PublishContentDeps, kind: PostKind) 
   return { repo: ports.repo, clock: deps.clock, outbox: gatewayDeps(deps, kind).outbox, forgetRemoved };
 }
 
+/** Why an entity of type `kind` is refused when its packed `kind` differs, or `null`. `kind` is
+ *  transferred, so without this a `page` entity could create a post: a publishing grant limited to
+ *  `page` authorizes through the `page` handler and would never see the post it wrote. */
+function packedKindMismatch(kind: PostKind, id: string, state: Record<string, unknown>): string | null {
+  return state.kind === kind ? null : `${kind} entity '${id}' is packed as a '${String(state.kind)}' — a ${kind} publish writes only ${kind}s`;
+}
+
 function contributePostKind(kind: PostKind): PublishContentContributor {
   return createRepoPublishHandler<PostRow, PostPorts>({
     entityType: kind, // PostKind's two values are exactly this feature's two entityTypes
@@ -257,6 +265,8 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.
     validate: async ({ ports, workspaceId, entity }) => {
+      const wrongKind = packedKindMismatch(kind, entity.id, entity.state);
+      if (wrongKind) return wrongKind;
       const slug = entity.state.slug;
       if (typeof slug !== "string" || slug.length === 0) return `${kind} entity '${entity.id}' has no usable slug to check for a collision`;
       const holder = await ports.repo.findBySlug({ workspaceId, slug });
@@ -269,6 +279,8 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
       return null;
     },
     write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }) => {
+      const wrongKind = packedKindMismatch(kind, id, state);
+      if (wrongKind) throw new PublishContentApplyRowError("blocked", wrongKind);
       const { repo, outbox } = applyPorts(ports, deps, kind);
       const terms = await prepareTermSync({ ports: ports.term, deps, entityType: kind, entityId: id, principalId, contentType: kind, wanted: state.termIds });
       // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.

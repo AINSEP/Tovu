@@ -138,7 +138,7 @@ test("precheck(): exact reason strings", async () => {
     "post 'p-trashed' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content"
   );
   assert.equal(
-    await page.precheck(entity("page", "p-untagged", state("untagged"))),
+    await page.precheck(entity("page", "p-untagged", { ...state("untagged"), kind: "page" })),
     "'p-untagged' is a 'post' at this destination but a 'page' at the source — kind is fixed at creation and cannot be changed by publishing"
   );
 });

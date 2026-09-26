@@ -235,7 +235,7 @@ test("precheck() allows an entity whose slug is free", async () => {
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
-    state: { slug: "free-slug" },
+    state: { kind: "post", slug: "free-slug" },
   });
   assert.equal(result, null);
 });
@@ -250,7 +250,7 @@ test("precheck() allows an entity claiming ITS OWN current slug (updating in pla
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
-    state: { slug: "hello" },
+    state: { kind: "post", slug: "hello" },
   });
   assert.equal(result, null);
 });
@@ -265,7 +265,7 @@ test("precheck() blocks an entity whose slug is held by a DIFFERENT id — never
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
-    state: { slug: "taken" },
+    state: { kind: "post", slug: "taken" },
   });
   assert.match(result ?? "", /already held by a different post \('post-1'\)/);
 });
@@ -279,7 +279,7 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
-    state: {},
+    state: { kind: "post" },
   });
   assert.match(result ?? "", /no usable slug/);
 });
@@ -294,7 +294,7 @@ test("precheck() no longer blocks a body-format difference — D2 (2026-09-24 ow
     contentHash: "irrelevant",
     hashVersion: 1,
     requiredBlobs: [],
-    state: { slug: "hello", bodyFormat: "doc" },
+    state: { kind: "post", slug: "hello", bodyFormat: "doc" },
   });
   assert.equal(result, null);
 });
@@ -612,4 +612,42 @@ test("retire() throws when removePost is not wired — never silently no-ops", a
       }),
     /requires PublishContentDeps.changeSets\/authorize\/outbox and ports\.post\.repo\/forgetRemoved\/remove/
   );
+});
+
+// ---------------------------------------------------------------------------
+// The packed `kind` must match the handler's type. A grant limited to `page` authorizes through the
+// `page` handler, so a `page` entity carrying `kind: "post"` would otherwise create a post the grant
+// never named.
+// ---------------------------------------------------------------------------
+
+test("precheck() blocks a page entity whose packed kind is 'post'", async () => {
+  const handler = contributePagePublish().build(makeDeps([]));
+  const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "post" });
+  const reason = await handler.precheck(packedFrom("page", smuggled));
+  assert.equal(reason, "page entity 'smuggled' is packed as a 'post' — a page publish writes only pages");
+});
+
+test("apply() refuses a page entity whose packed kind is 'post' and writes nothing", async () => {
+  const deps = makeApplyDeps([]);
+  const handler = contributePagePublish().build(deps);
+  const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "post" });
+  await assert.rejects(
+    handler.apply({ entity: packedFrom("page", smuggled), expectedVersion: undefined, principalId: "operator-1" }),
+    (err: unknown) =>
+      err instanceof Error &&
+      (err as { rowOutcome?: string }).rowOutcome === "blocked" &&
+      err.message === "page entity 'smuggled' is packed as a 'post' — a page publish writes only pages"
+  );
+  assert.equal(await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "smuggled" }), null);
+});
+
+test("apply() refuses a post entity whose packed kind is 'page'", async () => {
+  const deps = makeApplyDeps([]);
+  const handler = contributePostPublish().build(deps);
+  const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "page" });
+  await assert.rejects(
+    handler.apply({ entity: packedFrom("post", smuggled), expectedVersion: undefined, principalId: "operator-1" }),
+    { message: "post entity 'smuggled' is packed as a 'page' — a post publish writes only posts" }
+  );
+  assert.equal(await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "smuggled" }), null);
 });
