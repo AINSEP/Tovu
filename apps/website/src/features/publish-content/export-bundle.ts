@@ -8,6 +8,7 @@ import {
   type PublishContentHandler,
   type SkippedPackEntity,
 } from "./type-registry.js";
+import type { PublishScope } from "./ui/contract.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -162,6 +163,41 @@ export function selectBundleEntities(
   const requiredBlobs = new Set<string>();
   for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
   return { ...envelope, entities, blobManifest: Array.from(requiredBlobs) };
+}
+
+/**
+ * Narrows an already-built envelope to a section (or a section plus specific rows) — the
+ * `plan-publish-sections-2026-09-25.md` §1 "Publish pages"/"Publish all content" mechanism. Runs
+ * BEFORE {@link selectBundleEntities} on the `push/plan` route (`scope` narrows first, then an
+ * operator's row selection narrows that result further), which is why a themes-only scope never even
+ * uploads a media blob: `blobManifest` here is already scoped, and `selectBundleEntities` only ever
+ * shrinks further from there.
+ *
+ * `entityTypes` and `entityKeys`, when both given, AND together (an id from a type not in
+ * `entityTypes` matches nothing) — this is deliberately stricter than `selectBundleEntities`, which
+ * only ever narrows by key. `skipped` is filtered by the identical predicate: a refused theme tree
+ * shows up in a `theme-files` scope and nowhere else, the same as any other theme row would.
+ *
+ * @complexity O(e + s) time in the envelope's entity and skipped counts, O(e + s) space for the
+ * narrowed copy.
+ */
+export function applyPublishScope(
+  envelope: PublishContentExportEnvelope,
+  scope: PublishScope
+): PublishContentExportEnvelope {
+  const entityKeys = scope.entityKeys ? new Set(scope.entityKeys) : null;
+  const matchesScope = (type: string, id: string): boolean => {
+    if (scope.entityTypes && !scope.entityTypes.includes(type)) return false;
+    if (entityKeys && !entityKeys.has(entityKey(type, id))) return false;
+    return true;
+  };
+
+  const entities = envelope.entities.filter((entity) => matchesScope(entity.entityType, entity.id));
+  const requiredBlobs = new Set<string>();
+  for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
+  const skipped = envelope.skipped.filter((entry) => matchesScope(entry.entityType, entry.id));
+
+  return { ...envelope, entities, blobManifest: Array.from(requiredBlobs), skipped };
 }
 
 /**
