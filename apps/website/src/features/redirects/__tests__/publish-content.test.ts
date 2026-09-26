@@ -104,6 +104,30 @@ test("pack() skips a disabled (tombstoned) row and packs an active one, keyed by
   assert.equal(entities[0].state.fromPattern, "/live");
 });
 
+test("pack() packs a plain-English title so the Publish dialog never falls back to a short id", async () => {
+  // planner.ts's `entityDisplayLabel` only reads `slug`/`title`/`name`/`filename` off packed state,
+  // and no `RedirectRecord` field is named any of those — without a `title` here, the dialog fell
+  // back to `entityId.slice(0, 8)`, and a redirect's natural key (`"exact:/old-promo"`) truncated to
+  // an unreadable `"exact:/o"` (owner report, 2026-09-25).
+  const writeDeps = makeWriteDeps();
+  await createRedirect({
+    deps: writeDeps,
+    input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-promo", toTarget: "/new-promo", statusCode: 301, actorId: ACTOR_ID },
+  });
+  await createRedirect({
+    deps: writeDeps,
+    input: { workspaceId: WORKSPACE_ID, matchType: "prefix", fromPattern: "/blog", toTarget: "/posts", statusCode: 301, actorId: ACTOR_ID },
+  });
+
+  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  const entities: PackedEntity[] = [];
+  for await (const entity of handler.pack()) entities.push(entity);
+  const titleByFromPattern = new Map(entities.map((e) => [e.state.fromPattern, e.state.title]));
+
+  assert.equal(titleByFromPattern.get("/old-promo"), "/old-promo → /new-promo");
+  assert.equal(titleByFromPattern.get("/blog"), "starts with /blog → /posts");
+});
+
 // ---------------------------------------------------------------------------
 // inspect() — natural-key resolution (S2 design: the packed id is NEVER the per-install row id)
 // ---------------------------------------------------------------------------

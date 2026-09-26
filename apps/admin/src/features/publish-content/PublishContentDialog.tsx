@@ -252,7 +252,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                           />
                         )}
                       </td>
-                      <td>{row.entityType}</td>
+                      <td>{t(row.entityTypeLabel)}</td>
                       {/* The id stays reachable as a tooltip — it is what a support conversation
                           needs — but it is never what the column reads as. */}
                       <td title={row.entityId}>{row.entityLabel}</td>

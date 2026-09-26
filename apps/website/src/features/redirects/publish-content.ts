@@ -154,6 +154,33 @@ export function redirectNaturalKey(matchType: RedirectMatchType, fromPattern: st
   return `${matchType}:${fromPattern}`;
 }
 
+/** The short plain-English word an operator reads for a non-`"exact"` `matchType`, prefixed onto
+ *  {@link redirectDisplayTitle}'s output. `"exact"` gets no prefix at all — an exact rule reads fine
+ *  as a bare `from → to` pair, and every other match type needs to say it is not one. */
+const MATCH_TYPE_PREFIX: Readonly<Record<RedirectMatchType, string>> = {
+  exact: "",
+  prefix: "starts with ",
+  wildcard: "matches ",
+  regex: "matches pattern ",
+};
+
+/**
+ * What a human calls this redirect on screen — no `RedirectRecord` field is named `slug`/`title`/
+ * `name`/`filename` (the four fields `planner.ts`'s `entityDisplayLabel` reads off packed state), so
+ * without this every redirect row fell through to a short id prefix of its `PackedEntity.id`
+ * (`redirectNaturalKey`'s `"matchType:fromPattern"`) — meaningless for this type specifically, since
+ * that id is a colon- and slash-heavy string rather than the mostly-random uuid the short-id fallback
+ * was designed for (`"exact:/old-promo"`.slice(0, 8) reads as `"exact:/o"`, not a recognizable
+ * abbreviation). Packed under `state.title` in {@link toPublishableRedirectState}'s caller so the
+ * generic fallback in `report-rows.ts` picks it up the same way every other type's `title`/`slug`
+ * does, needing no redirect-specific code in the planner or the dialog.
+ *
+ * @complexity O(1).
+ */
+function redirectDisplayTitle(matchType: RedirectMatchType, fromPattern: string, toTarget: string): string {
+  return `${MATCH_TYPE_PREFIX[matchType]}${fromPattern} → ${toTarget}`;
+}
+
 /** Reverses {@link redirectNaturalKey}, splitting on the FIRST `:` only (`fromPattern` may itself
  *  contain one; `matchType` never does). Returns `null` for a key with no `:` at all — never
  *  reachable for a key this file's own {@link redirectNaturalKey} produced, but a defensive result
@@ -220,7 +247,11 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
         contentHash: contentHash(entityType, toHashableRedirectState(row)),
         hashVersion: CONTENT_HASH_VERSION,
         requiredBlobs: [],
-        state: toPublishableRedirectState(row),
+        // `title` is synthetic display text, not a `RedirectRecord` field — added alongside the real
+        // transferred/provenance fields rather than through them, and deliberately excluded from
+        // {@link toHashableRedirectState} (this file's header: hashing something the destination could
+        // never disagree on by real edit would just add noise to the comparison).
+        state: { ...toPublishableRedirectState(row), title: redirectDisplayTitle(row.matchType, row.fromPattern, row.toTarget) },
       };
     }
   }

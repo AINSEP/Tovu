@@ -63,11 +63,15 @@
   table-layout: fixed;
 }
 
+/* Owner-facing plain words ("Post", "Redirect", "Theme" — `report-rows.ts`'s `ENTITY_TYPE_LABEL`)
+   run a little longer than the raw type ids this column was first sized for; 10% clipped "Redirect"
+   to "Redire…" (owner report, 2026-09-25). Taken from the flexible, unspecified Why column below
+   (this file's header), which has the most room to give. */
 .publish-content-report .list-table th:nth-child(2) {
-  width: 10%;
+  width: 14%;
 }
 
-/* The type column is a short word ('post', 'media', 'theme-files') and should not claim a share of
+/* The type column is a short word ('Post', 'Media', 'Theme') and should not claim a share of
    the row; ellipsis is a defensive floor, not the expected case — every real value fits. */
 .publish-content-report td:nth-child(2) {
   font-size: var(--text-2xs);

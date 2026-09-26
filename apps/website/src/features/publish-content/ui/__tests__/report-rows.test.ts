@@ -120,6 +120,27 @@ test("a row with no label falls back to a short id, never the whole uuid", () =>
   }
 });
 
+test("the type column reads as a plain word, not the raw entity type id", () => {
+  // publish-content-copy-2026-09-25.md — the dialog rendered `row.entityType` raw ("redirect",
+  // "theme-files"), which the fixed-width type column then clipped to "redire…"; a short plain word
+  // both fits the column and reads as English.
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "created", entityType: "post", entityId: "p1" }),
+      row({ outcome: "created", entityType: "page", entityId: "pg1" }),
+      row({ outcome: "created", entityType: "media", entityId: "m1" }),
+      row({ outcome: "created", entityType: "menu", entityId: "menu1" }),
+      row({ outcome: "created", entityType: "redirect", entityId: "exact:/old-promo" }),
+      row({ outcome: "created", entityType: "theme-files", entityId: "official/basic" }),
+      row({ outcome: "created", entityType: "some-future-type", entityId: "x" }),
+    ])
+  );
+  assert.deepEqual(
+    rows.map((r) => r.entityTypeLabel),
+    ["Post", "Page", "Media", "Menu", "Redirect", "Theme", "some-future-type"]
+  );
+});
+
 test("only a row the run would write is selectable", () => {
   const rows = toPublishReportRows(
     report([
