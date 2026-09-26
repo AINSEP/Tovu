@@ -3,6 +3,7 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
+import { destroyClientWhenUpstreamCloses } from "./dev-proxy-upstream-close";
 import { isDevTlsExplicitlyDisabled } from "./dev-tls-disable-flag";
 
 // The admin SPA is served at /admin by the Tovu server in production builds.
@@ -191,7 +192,15 @@ export default defineConfig({
       // `UNABLE_TO_VERIFY_LEAF_SIGNATURE`/`SELF_SIGNED_CERT_IN_CHAIN` even though the same cert
       // works fine in a real browser tab. Harmless when the target is plain `http://` (unset,
       // ignored by `http-proxy` for non-TLS targets).
-      "/api": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
+      //
+      // `configure` on `/api` only: it carries the long-lived SSE feeds, and without it a tsx watch
+      // restart of the API leaves them open forever — see `dev-proxy-upstream-close.ts`.
+      "/api": {
+        target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`,
+        changeOrigin: false,
+        secure: false,
+        configure: destroyClientWhenUpstreamCloses,
+      },
       // `@jini-ai/chat-react`'s runtime picker requests agent icons from this root-relative path
       // (see `src/server/app.ts`'s matching route for why it can't just live under `/admin/`).
       "/agent-icons": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
