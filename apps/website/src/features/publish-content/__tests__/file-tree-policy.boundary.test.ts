@@ -299,6 +299,8 @@ test("THEME_FILE_TREE_ALLOWED_EXTENSIONS covers every extension used by the real
 function listFilesRecursive(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
+    // Mirrors `walkThemeTree`: Finder recreates `.DS_Store` in a real theme folder on its own.
+    if (isIgnoredTreeFileName(name)) continue;
     const full = path.join(dir, name);
     if (statSync(full).isDirectory()) out.push(...listFilesRecursive(full));
     else out.push(full);
