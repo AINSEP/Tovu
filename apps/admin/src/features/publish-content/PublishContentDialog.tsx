@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 
-import type { PublishCriteria, PublishRequestResult } from "@tovu/publish-content-ui";
+import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
 import type { Translate } from "../../lib/dictionary-translator";
 import { overwriteTooltipFor, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
@@ -87,13 +87,16 @@ export interface PublishContentDialogProps {
   /** `publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2 — threaded straight through to
    *  `usePublishContentConfirm`; see that hook's own `props.criteria` doc for what it does. */
   criteria?: PublishCriteria;
+  /** `plan-publish-sections-2026-09-25.md` §2 S2 — threaded straight through to
+   *  `usePublishContentConfirm`; see that hook's own `props.scope` doc for what it does. */
+  scope?: PublishScope;
   /** Threaded straight through to `usePublishContentConfirm`; see that hook's own `props.onPlanned`
    *  doc for when it fires. */
   onPlanned?: (result: PublishRequestResult) => void;
 }
 
-export function PublishContentDialog({ onCancel, t, port, criteria, onPlanned }: PublishContentDialogProps) {
-  const view = usePublishContentConfirm({ onCancel, t, port, criteria, onPlanned });
+export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPlanned }: PublishContentDialogProps) {
+  const view = usePublishContentConfirm({ onCancel, t, port, criteria, scope, onPlanned });
   const titleId = "dashboard-publish-content-confirm-title";
   // publish-overwrite-live-plan §4/S9. The column exists only while the peer this plan targets can
   // honour a forced overwrite AND at least one row is offering one — decided in the hook.
@@ -108,7 +111,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, onPlanned }:
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id={titleId}>{t("Publish Content")}</h2>
+        <h2 id={titleId}>{t(view.title)}</h2>
         <p>{t("Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.")}</p>
         <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
 

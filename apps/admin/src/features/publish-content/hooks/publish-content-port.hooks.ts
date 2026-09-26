@@ -3,6 +3,7 @@ import type {
   PublishContentExecuteResult,
   PublishContentPeerSummary,
   PublishContentPlanResult,
+  PublishScope,
 } from "@tovu/publish-content-ui";
 
 import type { AdminPublishDestinationView } from "@/lib/api";
@@ -59,11 +60,17 @@ export interface PublishContentPort {
    * ticked, independent of any `selectedEntityKeys` narrowing — the two combine, neither replaces the
    * other. `PublishContentPlanResult.overwriteEntityKeys` echoes exactly what was sent, and
    * `liveCanOverwrite` says whether the peer can honour it at all.
+   *
+   * `scope` (`plan-publish-sections-2026-09-25.md` §2 S2) is what dialog this is about — a section
+   * button's "Publish pages", say. Unlike `selectedEntityKeys`, it is not something the operator can
+   * change mid-dialog: the hook sends the SAME `scope` it was opened with on every call this method
+   * makes, via its own `planInScope` helper.
    */
   planPublish(input: {
     peerId: string;
     selectedEntityKeys?: readonly string[];
     overwriteEntityKeys?: readonly string[];
+    scope?: PublishScope;
   }): Promise<PublishContentPlanResult>;
   /** `publish_content.apply`. Issues the one token that authorizes an execute. */
   confirmPublish(input: { peerId: string; planId: string; planHash: string }): Promise<PublishContentConfirmResult>;

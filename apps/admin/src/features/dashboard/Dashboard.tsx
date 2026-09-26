@@ -214,10 +214,10 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
             onClick={() => requestPublish({})}
             {...agentHandle("dashboard-publish-content", {
               role: "button",
-              label: "Publish content to the live site",
+              label: "Publish all content to the live site",
             })}
           >
-            {t("Publish Content")}
+            {t("Publish all content")}
           </button>
         </div>
       </div>

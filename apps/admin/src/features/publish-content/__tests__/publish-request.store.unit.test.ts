@@ -86,4 +86,27 @@ describe("publish-request.store", () => {
     expect(() => closePublishRequest()).not.toThrow();
     expect(result.current).toBeNull();
   });
+
+  // plan-publish-sections-2026-09-25.md §2 S2 — a section button's `requestPublish({}, scope)` must
+  // carry the scope through to whoever mounts the dialog from this store, same as `criteria` already
+  // does.
+  it("requestPublish({}, {entityTypes:['page']}) carries the scope on the open request", () => {
+    const { result } = renderHook(() => usePublishRequest());
+
+    act(() => {
+      void requestPublish({}, { entityTypes: ["page"] });
+    });
+
+    expect(result.current?.scope).toEqual({ entityTypes: ["page"] });
+  });
+
+  it("requestPublish with no scope argument leaves scope undefined, not an empty object", () => {
+    const { result } = renderHook(() => usePublishRequest());
+
+    act(() => {
+      void requestPublish({ types: ["page"] });
+    });
+
+    expect(result.current?.scope).toBeUndefined();
+  });
 });

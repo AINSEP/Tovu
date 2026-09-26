@@ -3,6 +3,7 @@ import type {
   PublishContentExecuteResult,
   PublishContentPeerSummary,
   PublishContentPlanResult,
+  PublishScope,
 } from "@tovu/publish-content-ui";
 
 import { isPageUnloading } from "./page-lifecycle";
@@ -4199,24 +4200,31 @@ export const api = {
    *
    *  `overwriteEntityKeys` (publish-overwrite-live-plan §4/S9) is the operator's ticked "Overwrite on
    *  live" rows — sent alongside `selectedEntityKeys`, never in place of it, so re-planning against a
-   *  narrower selection never silently drops what was ticked. Omitted means nothing was ticked. */
+   *  narrower selection never silently drops what was ticked. Omitted means nothing was ticked.
+   *
+   *  `scope` (`plan-publish-sections-2026-09-25.md` §2 S2) narrows the bundle on the SERVER before
+   *  `selectedEntityKeys` does, same "absent means everything" contract. Sent unchanged on every call
+   *  the dialog was opened with a scope for. */
   planPublishContent: ({
     peerId,
     selectedEntityKeys,
     overwriteEntityKeys,
+    scope,
   }: {
     peerId: string;
     selectedEntityKeys?: readonly string[];
     overwriteEntityKeys?: readonly string[];
+    scope?: PublishScope;
   }) =>
     request<PublishContentPlanResult>(`${publishContentPeerPath(peerId)}/push/plan`, {
       method: "POST",
-      ...(selectedEntityKeys === undefined && overwriteEntityKeys === undefined
+      ...(selectedEntityKeys === undefined && overwriteEntityKeys === undefined && scope === undefined
         ? {}
         : {
             body: JSON.stringify({
               ...(selectedEntityKeys === undefined ? {} : { selectedEntityKeys }),
               ...(overwriteEntityKeys === undefined ? {} : { overwriteEntityKeys }),
+              ...(scope === undefined ? {} : { scope }),
             }),
           }),
     }),

@@ -20,6 +20,7 @@ import {
   type PublishReportRow,
   type PublishReportSummary,
   type PublishRequestResult,
+  type PublishScope,
 } from "@tovu/publish-content-ui";
 
 import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
@@ -27,6 +28,7 @@ import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
 import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
+import { publishScopeTitleKey } from "../publish-scope";
 
 /**
  * @file The colocated `PublishContentDialog` behaviour — Escape-to-cancel, plus plan -> confirm ->
@@ -136,6 +138,10 @@ export interface PublishContentConfirmView {
    *  untouched, unticked report) but the peer this plan targets cannot honour it
    *  (`!liveCanOverwrite`) — the dialog shows this sentence instead of any checkbox. */
   readonly overwriteUnavailable: string | null;
+  /** `plan-publish-sections-2026-09-25.md` §2 S2 — the dialog's own `<h2>`, an English copy key the
+   *  screen's `t()` resolves the same way it resolves every other string here. Always
+   *  `publishScopeTitleKey(props.scope)`; unlike `primaryLabel`, it never changes once a plan lands. */
+  readonly title: string;
   readonly primaryLabel: string;
   readonly primaryDisabled: boolean;
   readonly onPrimary: () => void;
@@ -191,13 +197,16 @@ function primaryLabelFor(
   selectedPublishing: number,
   connectOffer: PublishContentConnectOffer | null,
   connecting: boolean,
-  t: Translate
+  t: Translate,
+  scope: PublishScope | undefined
 ): string {
   if (connectOffer) return connecting ? t("Connecting…") : t("Connect");
   if (phase.kind === "planning") return t("Planning…");
   if (phase.kind === "confirming" || phase.kind === "executing") return t("Publishing…");
   if (phase.kind === "done") return t("Published");
-  if (phase.kind !== "planned") return t("Publish Content");
+  // plan-publish-sections-2026-09-25.md §2 S2 — before a plan lands, the idle button promises what
+  // this dialog is scoped to, same label as its own title (`publishScopeTitleKey`).
+  if (phase.kind !== "planned") return t(publishScopeTitleKey(scope));
   // The SELECTED count, not the plan's own: the button must promise what this click will actually
   // do. A plan of 59 writable rows with 56 unchecked says "Publish 3 items".
   if (selectedPublishing === 0) return t("Nothing to publish");
@@ -405,6 +414,11 @@ function buildCriteriaPublishResult(
  *   STARTING `deselectedKeys`/overwrite ticks, never a second selection mechanism of its own — see
  *   this file's "S2 — applying criteria" block below, and plan §2's own header for why this can never
  *   itself write anything (planning is read-only; only a person's own click reaches confirm/execute).
+ * @param props.scope `plan-publish-sections-2026-09-25.md` §2 S2 — what this dialog is about (a
+ *   section button's "Publish pages", say), sent unchanged on every `port.planPublish` call via this
+ *   hook's own `planInScope` helper. `undefined` for the Dashboard's own "Publish all content" and
+ *   for every criteria-only (chat/WebMCP) open — see `ui/contract.ts`'s `PublishScope` header for why
+ *   this is kept separate from `props.criteria`.
  * @param props.onPlanned Fires once, with what the (possibly criteria-narrowed) plan actually shows —
  *   after any overwrite re-plan the criteria triggered has settled, never before. `undefined` for the
  *   Dashboard's own ordinary open (plan §0's caller 1), which has no one waiting on an answer.
@@ -416,10 +430,21 @@ export function usePublishContentConfirm(props: {
   t: Translate;
   port?: PublishContentPort;
   criteria?: PublishCriteria;
+  scope?: PublishScope;
   onPlanned?: (result: PublishRequestResult) => void;
 }): PublishContentConfirmView {
   const { onCancel, t } = props;
   const port = props.port ?? defaultPublishContentPort;
+
+  // plan-publish-sections-2026-09-25.md §2 S2 — the ONE place `scope` reaches `port.planPublish`
+  // from, so no bare `port.planPublish` call under this hook can forget it. `props.scope` is fixed
+  // for the dialog's whole lifetime (it is not operator-changeable state), so this needs no memo
+  // beyond `useCallback`'s own identity stability.
+  const planInScope = useCallback(
+    (input: { peerId: string; selectedEntityKeys?: readonly string[]; overwriteEntityKeys?: readonly string[] }) =>
+      port.planPublish(props.scope === undefined ? input : { ...input, scope: props.scope }),
+    [port, props.scope]
+  );
 
   const [phase, setPhase] = useState<PublishContentPhase>({ kind: "idle" });
   const [peers, setPeers] = useState<readonly PublishContentPeerSummary[]>([]);
@@ -558,7 +583,7 @@ export function usePublishContentConfirm(props: {
       planPeerRef.current = peerId;
       setPhase({ kind: "planning" });
       try {
-        const plan = await port.planPublish({ peerId });
+        const plan = await planInScope({ peerId });
         // A plan answering for a site the dialog is no longer pointed at is dropped, not shown.
         if (!live.current || planPeerRef.current !== peerId) return;
         // A fresh top-level plan is the new baseline every overwrite tick gets checked against, and
@@ -575,7 +600,7 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
       }
     },
-    [port, setReplanPending, t]
+    [planInScope, setReplanPending, t]
   );
 
   /**
@@ -606,7 +631,7 @@ export function usePublishContentConfirm(props: {
         try {
           const replanned = useBase
             ? base
-            : await port.planPublish(
+            : await planInScope(
                 nextOverwriteKeys.size === 0 ? { peerId } : { peerId, overwriteEntityKeys: Array.from(nextOverwriteKeys) }
               );
           // Superseded by a newer tick, a peer switch, or an unmount while this was in flight.
@@ -625,7 +650,7 @@ export function usePublishContentConfirm(props: {
         }
       })();
     },
-    [peers, phase, port, setReplanPending, t]
+    [peers, phase, planInScope, setReplanPending, t]
   );
 
   const onToggleOverwrite = useCallback(
@@ -703,7 +728,7 @@ export function usePublishContentConfirm(props: {
             // drop an "Overwrite on live" tick. A ticked row the operator ALSO unchecked is not in
             // `keep`, so its key is dropped here: an overwrite of something not being published
             // would only ask live to force a row the bundle doesn't carry.
-            await port.planPublish({
+            await planInScope({
               peerId,
               selectedEntityKeys: keep,
               ...overwriteKeysWithin(plan.overwriteEntityKeys, keep),
@@ -724,7 +749,7 @@ export function usePublishContentConfirm(props: {
       if (!live.current) return;
       setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
     }
-  }, [deselectedKeys, phase, port, t]);
+  }, [deselectedKeys, phase, planInScope, port, t]);
 
   // The ONLY call site of `port.executePublish` in this package. Its input is whatever
   // `confirmationTokenFor` returns, which is `null` for every phase but `confirmed`/`executing` —
@@ -954,7 +979,8 @@ export function usePublishContentConfirm(props: {
     overwriteWarning,
     overwriteMismatch,
     overwriteUnavailable,
-    primaryLabel: primaryLabelFor(phase, selectedPublishing, connectOffer, connecting, t),
+    title: publishScopeTitleKey(props.scope),
+    primaryLabel: primaryLabelFor(phase, selectedPublishing, connectOffer, connecting, t, props.scope),
     primaryDisabled: connectOffer
       ? connecting || connectOffer.candidateUrl === null
       : // `selectedPublishing` is ANDed with the plan-level rule, never a replacement for it: a plan

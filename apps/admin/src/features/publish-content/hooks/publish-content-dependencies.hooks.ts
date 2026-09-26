@@ -4,6 +4,7 @@ import type {
   PublishContentPeerSummary,
   PublishContentPlanResult,
   PublishContentReport,
+  PublishScope,
 } from "@tovu/publish-content-ui";
 
 import { api, type AdminPublishDestinationView } from "@/lib/api";
@@ -75,7 +76,12 @@ export interface FakePublishContentPortCalls {
   readonly listPeers: number;
   readonly getDestination: number;
   readonly connectDestination: Array<{ siteUrl?: string }>;
-  readonly planPublish: Array<{ peerId: string; selectedEntityKeys?: readonly string[]; overwriteEntityKeys?: readonly string[] }>;
+  readonly planPublish: Array<{
+    peerId: string;
+    selectedEntityKeys?: readonly string[];
+    overwriteEntityKeys?: readonly string[];
+    scope?: PublishScope;
+  }>;
   readonly confirmPublish: Array<{ peerId: string; planId: string; planHash: string }>;
   readonly executePublish: Array<{ peerId: string; bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] }>;
 }
@@ -141,6 +147,21 @@ export function createFakePublishContentPort(
       // so a test can tell the plans apart and prove which one execute redeemed.
       let rows = report.rows;
       let idSuffix = "";
+      // `plan-publish-sections-2026-09-25.md` §1 — scope narrows FIRST, mirroring the real route's
+      // own order (`peer-transport.ts`: `scoped = applyPublishScope(fullBundle, scope)`, then
+      // `selectBundleEntities` on top of that). AND, not OR, when both `entityTypes` and `entityKeys`
+      // are given — same contract `applyPublishScope` documents.
+      if (input.scope !== undefined) {
+        const { entityTypes, entityKeys } = input.scope;
+        const types = entityTypes === undefined ? null : new Set(entityTypes);
+        const keys = entityKeys !== undefined && entityKeys.length > 0 ? new Set(entityKeys) : null;
+        rows = rows.filter((row) => {
+          if (types !== null && !types.has(row.entityType)) return false;
+          if (keys !== null && !keys.has(`${row.entityType}:${row.entityId}`)) return false;
+          return true;
+        });
+        idSuffix += "-scoped";
+      }
       if (input.selectedEntityKeys !== undefined) {
         const selected = new Set(input.selectedEntityKeys);
         rows = rows.filter((row) => selected.has(`${row.entityType}:${row.entityId}`));

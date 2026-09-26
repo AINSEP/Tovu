@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor, within } from "@testing-libra
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { PublishContentReport, PublishCriteria, PublishRequestResult } from "@tovu/publish-content-ui";
+import type { PublishContentReport, PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
 import { ApiError } from "@/lib/api";
 
@@ -81,8 +81,13 @@ const HELLO_WORLD = "11111111-aaaa-4aaa-8aaa-111111111111";
 const ABOUT_US = "22222222-bbbb-4bbb-8bbb-222222222222";
 const UNNAMED_MEDIA = "33333333-cccc-4ccc-8ccc-333333333333";
 
-function renderDialog(port: ReturnType<typeof createFakePublishContentPort>) {
-  return render(<PublishContentDialog onCancel={() => {}} t={t} port={port} />);
+function renderDialog(port: ReturnType<typeof createFakePublishContentPort>, extra?: { scope?: PublishScope }) {
+  return render(<PublishContentDialog onCancel={() => {}} t={t} port={port} scope={extra?.scope} />);
+}
+
+/** The dialog's own `<h2>` — plan-publish-sections-2026-09-25.md §2 S2's title. */
+function dialogTitle(): string | null {
+  return document.querySelector(".settings-dialog h2")?.textContent ?? null;
 }
 
 /** The dialog's single forward control, whatever its label currently is. */
@@ -108,6 +113,17 @@ function headerCheckbox(): HTMLInputElement {
   const box = document.querySelector("thead input[type=checkbox]");
   if (!box) throw new Error("the report table has no header checkbox");
   return box as HTMLInputElement;
+}
+
+/** Same as {@link planFrom}, but with a `scope` prop threaded to the dialog — plan-publish-sections
+ *  §2 S2's scoped-plan tests. */
+async function planFromScoped(port: ReturnType<typeof createFakePublishContentPort>, scope: PublishScope) {
+  const user = userEvent.setup();
+  renderDialog(port, { scope });
+  await waitFor(() => expect(port.calls.listPeers).toBe(1));
+  await user.click(primaryButton());
+  await screen.findByRole("table");
+  return user;
 }
 
 async function planFrom(port: ReturnType<typeof createFakePublishContentPort>) {
@@ -551,7 +567,7 @@ describe("PublishContentDialog — a plan belongs to the site it was made for (t
     await user.selectOptions(picker, "peer-staging");
 
     expect(screen.queryByRole("table")).toBeNull();
-    expect(primaryButton().textContent).toBe("Publish Content");
+    expect(primaryButton().textContent).toBe("Publish all content");
 
     await user.click(primaryButton());
     await screen.findByRole("table");
@@ -896,6 +912,93 @@ describe("PublishContentDialog — Overwrite on live", () => {
     expect(
       await screen.findByText("tovu.com (production) is on an older Tovu and can't overwrite these yet. Update it, then publish again.")
     ).toBeTruthy();
+  });
+});
+
+// plan-publish-sections-2026-09-25.md §2 S2 — the dialog's own `scope` prop: its title, its
+// idle-state primary label, and every `port.planPublish` call it makes while a scope is threaded in.
+describe("PublishContentDialog — scope (plan-publish-sections §2 S2)", () => {
+  it("no scope reads the dialog as publishing everything", () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER });
+    renderDialog(port);
+
+    expect(dialogTitle()).toBe("Publish all content");
+    expect(primaryButton().textContent).toBe("Publish all content");
+  });
+
+  it("a single-type scope titles the dialog and its idle button with that section's label", () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER });
+    renderDialog(port, { scope: { entityTypes: ["page"] } });
+
+    expect(dialogTitle()).toBe("Publish pages");
+    expect(primaryButton().textContent).toBe("Publish pages");
+  });
+
+  it("an entityKeys scope titles the dialog 'Publish item'", () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER });
+    renderDialog(port, { scope: { entityTypes: ["page"], entityKeys: ["page:page-1"] } });
+
+    expect(dialogTitle()).toBe("Publish item");
+  });
+
+  it("the initial plan carries the scope", async () => {
+    // `MIXED_REPORT`'s rows are `post`/`media` only — the scope here matches all of them so the
+    // dialog still has a table to plan against; the fake port's own row filtering is exercised
+    // elsewhere and is not what this test is about.
+    const scope: PublishScope = { entityTypes: ["post", "media"] };
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    await planFromScoped(port, scope);
+
+    expect(port.calls.planPublish).toEqual([{ peerId: "peer-prod", scope }]);
+  });
+
+  it("an overwrite-tick re-plan carries the scope alongside overwriteEntityKeys", async () => {
+    const scope: PublishScope = { entityTypes: ["post"] };
+    // A local, minimal stand-in for the "Overwrite on live" describe block's own `OVERWRITE_REPORT`
+    // (out of scope here) — one row this test doesn't touch, one overwritable clash it does.
+    const report: PublishContentReport = {
+      refused: false,
+      refusalReason: null,
+      applyOrder: ["post"],
+      rows: [
+        { entityType: "post", entityId: "post-new", outcome: "created", writes: true, reason: null },
+        {
+          entityType: "post",
+          entityId: "post-clash",
+          entityLabel: "About (new)",
+          outcome: "blocked",
+          writes: false,
+          reason: "slug 'about' is already held by a different post",
+          canOverwrite: true,
+          retires: { entityType: "post", entityId: "post-about", entityLabel: "About", hash: "h1" },
+        },
+      ],
+    };
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report });
+    const user = await planFromScoped(port, scope);
+
+    const overwriteCheckbox = (entityId: string): HTMLInputElement | null =>
+      reportRow(entityId).querySelector("input[data-publish-row-overwrite]");
+    await user.click(overwriteCheckbox("post-clash")!);
+    await waitFor(() => expect(port.calls.planPublish).toHaveLength(2));
+
+    expect(port.calls.planPublish[1]).toEqual({ peerId: "peer-prod", overwriteEntityKeys: ["post:post-clash"], scope });
+  });
+
+  it("a deselect-narrowed confirm re-plan carries the scope alongside selectedEntityKeys", async () => {
+    const scope: PublishScope = { entityTypes: ["post", "media"] };
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const user = await planFromScoped(port, scope);
+
+    await user.click(rowCheckbox(ABOUT_US)!);
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.planPublish).toHaveLength(2));
+
+    expect(port.calls.planPublish[1]).toEqual({
+      peerId: "peer-prod",
+      selectedEntityKeys: [`post:${HELLO_WORLD}`, `media:${UNNAMED_MEDIA}`],
+      scope,
+    });
   });
 });
 

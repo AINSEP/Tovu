@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import type { PublishCriteria, PublishRequestResult } from "@tovu/publish-content-ui";
+import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
 /**
  * @file `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2 — the one
@@ -41,6 +41,11 @@ export interface OpenPublishRequest {
    *  fresh per request, so a stale instance can never call a newer request's `resolve`. */
   readonly requestId: string;
   readonly criteria: PublishCriteria;
+  /** `plan-publish-sections-2026-09-25.md` §2 S2 — a section button's ask, e.g. `{entityTypes:
+   *  ["page"]}`. `undefined` for the Dashboard's own "Publish all content" (plan §0 caller 1) and for
+   *  chat/WebMCP's `criteria`-only asks, which do not narrow what gets staged, only what starts
+   *  ticked — see `ui/contract.ts`'s `PublishScope` header for why the two are kept separate. */
+  readonly scope?: PublishScope;
   /** Settles the promise {@link requestPublish} returned for THIS request. Wired as the dialog's
    *  `onPlanned` at the App level — see this file's header. Calling it does not close the dialog;
    *  {@link closePublishRequest} is the only thing that does that. */
@@ -97,16 +102,17 @@ function unplannedResult(): PublishRequestResult {
  *
  * Never itself publishes anything — see this file's header for the full division of labour.
  *
+ * @param scope `plan-publish-sections-2026-09-25.md` §2 S2 — see {@link OpenPublishRequest.scope}.
  * @complexity O(listeners) to notify subscribers; O(1) otherwise.
  */
-export function requestPublish(criteria: PublishCriteria): Promise<PublishRequestResult> {
+export function requestPublish(criteria: PublishCriteria, scope?: PublishScope): Promise<PublishRequestResult> {
   // A still-open request is superseded, not dropped — see this file's header.
   openRequest?.resolve(unplannedResult());
 
   requestCounter += 1;
   const requestId = `publish-request-${requestCounter}`;
   return new Promise<PublishRequestResult>((resolve) => {
-    openRequest = { requestId, criteria, resolve };
+    openRequest = { requestId, criteria, scope, resolve };
     notify();
   });
 }

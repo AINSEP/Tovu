@@ -685,6 +685,7 @@ export function App(props: AppProps) {
           <PublishContentDialog
             key={openPublishRequest.requestId}
             criteria={openPublishRequest.criteria}
+            scope={openPublishRequest.scope}
             onPlanned={openPublishRequest.resolve}
             onCancel={closePublishRequest}
             t={dashboardT}
