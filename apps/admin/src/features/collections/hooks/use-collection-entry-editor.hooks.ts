@@ -5,7 +5,6 @@ import {
   describeApiError,
   type AdminContentType,
   type AdminEntry,
-  type AdminTaxonomyWithTerms,
 } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
@@ -43,7 +42,7 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
  * stays a direct, uninjected import for this hook's OWN error strings: a pure lookup that already
  * takes `locale` explicitly, not a host reach.
  *
- * `lib/fetch-query` migration (2026-08-12): the combined content-type/entry/taxonomies read is one
+ * `lib/fetch-query` migration (2026-08-12): the combined content-type/entry read is one
  * `useFetchQuery` keyed on `KEYS.entry(contentTypeKey, entryId)` — a SIBLING of `use-collection-
  * entries.hooks.ts`'s `KEYS.entries(key)`, deliberately NOT nested under it (see `rules.ts`'s `KEYS`
  * doc for the regression that nesting caused: every save background-refetched this SAME hook's own
@@ -57,8 +56,9 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
  * reassigns `entry` from the write's own response) rather than being read directly off `list.data` —
  * `seededIdentityRef` seeds them from `list.data` exactly once per `(contentTypeKey, entryId)` pair,
  * so a background refetch from a `KEYS.list` invalidation doesn't re-seed and silently overwrite
- * in-progress edits. `contentType`/`taxonomies` have no such hazard (nothing local ever mutates them)
- * and are read straight off `list.data` every render.
+ * in-progress edits. `contentType` has no such hazard (nothing local ever mutates it) and is read
+ * straight off `list.data` every render. The Categories & Tags box loads its own taxonomies
+ * (`features/taxonomy/TermPicker.tsx`).
  */
 
 export interface CollectionEntryEditorController {
@@ -70,7 +70,6 @@ export interface CollectionEntryEditorController {
   setSlug: (slug: string) => void;
   extFields: Record<string, unknown>;
   setExtFields: Dispatch<SetStateAction<Record<string, unknown>>>;
-  taxonomies: AdminTaxonomyWithTerms[];
   message: string | null;
   error: string | null;
   loadError: string | null;
@@ -150,10 +149,9 @@ export function useCollectionEntryEditor(
   const list = useFetchQuery({
     key: KEYS.entry(props.contentTypeKey, props.entryId),
     fetch: async () => {
-      const [typesResult, entriesResult, taxonomyResult] = await Promise.all([
+      const [typesResult, entriesResult] = await Promise.all([
         port.listContentTypes(),
         props.entryId ? port.listEntries({ type: props.contentTypeKey }) : Promise.resolve({ items: [] as AdminEntry[] }),
-        port.listTaxonomies().catch(() => ({ items: [] as AdminTaxonomyWithTerms[] })),
       ]);
       return {
         contentType: typesResult.items.find((type) => type.key === props.contentTypeKey) ?? null,
@@ -162,13 +160,11 @@ export function useCollectionEntryEditor(
         entry: props.entryId
           ? (entriesResult.items.find((e) => e.id === props.entryId || e.slug === props.entryId) ?? null)
           : null,
-        taxonomies: taxonomyResult.items,
       };
     },
   });
 
   const contentType = list.data?.contentType;
-  const taxonomies = list.data?.taxonomies ?? [];
   const loaded = list.status !== "loading";
   const loadError = list.error ? describeApiError(list.error, translate(locale, "failed to load entry")) : null;
 
@@ -354,7 +350,6 @@ export function useCollectionEntryEditor(
     setSlug,
     extFields,
     setExtFields,
-    taxonomies,
     message,
     error,
     loadError,

@@ -1,18 +1,18 @@
 import { EditorContent, type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib/api";
+import { type ContentTypeFieldDef } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { ServerLabel } from "@/components/status-labels";
-import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
+import { TermPicker } from "../taxonomy/TermPicker";
 import { useJsonFieldControl } from "./hooks/use-json-field-control.hooks";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
  * `/admin/collections/{typeKey}/{entryId|new}` route. Markup only: every piece of state and every
- * API call lives in `hooks/use-collection-entry-editor.hooks.ts` (and, for `TermPicker`,
- * `hooks/use-term-picker.hooks.ts`) — see those files' headers for why.
+ * API call lives in `hooks/use-collection-entry-editor.hooks.ts` — see its header for why. The
+ * Categories & Tags box is the shared `features/taxonomy/TermPicker.tsx`.
  *
  * Disclosed deviation from design-spec.md §1.5's "do not build a second TipTap wiring from
  * scratch — extract/reuse [PostEditor.tsx's]" direction: this dispatch's own scope discipline
@@ -186,100 +186,6 @@ function DynamicField(props: {
         fieldName={field.name}
         setFieldValidity={setFieldValidity}
       />
-    </div>
-  );
-}
-
-/** Categories & tags for this entry (design-spec.md §1.6): the boxes start ticked for the terms it
- * holds, and Save makes the entry hold exactly the ticked ones (`use-term-picker.hooks.ts`). */
-function TermPicker(props: {
-  taxonomies: AdminTaxonomyWithTerms[];
-  contentType: string;
-  contentId: string;
-  t: (key: string) => string;
-  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
-   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`CollectionEntryEditor`
-   *  below) pass nothing and behave exactly as before. */
-  useTermPickerHook?: typeof useWiredTermPicker;
-}) {
-  const useTermPickerHook = props.useTermPickerHook ?? useWiredTermPicker;
-  const { selected, toggle, loading, dirty, saving, message, error, save } = useTermPickerHook({
-    contentType: props.contentType,
-    contentId: props.contentId,
-  });
-  const { t } = props;
-
-  if (props.taxonomies.length === 0) return null;
-
-  // Term ids are database row ids — globally unique across every taxonomy, not just within one —
-  // so one flat handle list across all taxonomies is correct; there is no per-taxonomy scoping to
-  // preserve the way `EXTERNAL_MCP_CARD_HANDLE_PREFIX`'s cards or this file's own `entry-field`s
-  // need.
-  const termHandles = buildAgentListHandles(
-    "term-picker-term",
-    props.taxonomies.flatMap(({ terms }) => terms.map((term) => term.id)),
-  );
-  let termHandleIndex = 0;
-
-  return (
-    <div className="collections-term-picker">
-      <h3>{t("Categories & Tags")}</h3>
-      <p className="muted-cell">
-        {loading ? t("Loading categories & tags…") : t("Tick the categories and tags this entry belongs to, then save.")}
-      </p>
-      {props.taxonomies.map(({ taxonomy, terms }) => (
-        <fieldset key={taxonomy.id}>
-          <legend>{taxonomy.name}</legend>
-          {terms.length === 0 ? (
-            <p className="muted-cell">{t("No terms yet.")}</p>
-          ) : (
-            terms.map((term) => {
-              // Consumed in rendered (taxonomy, then term) order, matching how `termHandles` was
-              // built above via the identical `flatMap` order — a plain running index rather than
-              // a second id-keyed lookup, since this loop already visits every term exactly once.
-              const handle = termHandles[termHandleIndex];
-              termHandleIndex += 1;
-              return (
-                <label key={term.id} className="collections-term-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(term.id)}
-                    disabled={loading}
-                    onChange={() => toggle(term.id)}
-                    {...agentHandle(handle, {
-                      role: "checkbox",
-                      label: `Tag this entry with the "${taxonomy.name}" term "${term.name}"`,
-                    })}
-                  />
-                  {term.name}
-                </label>
-              );
-            })
-          )}
-        </fieldset>
-      ))}
-      {/* `term-picker-actions` is a spacing-only hook layered on `.editor-actions`, same pattern
-          as `FormEditor.tsx`'s `.form-actions`: `.editor-actions` sets direction/gap/alignment but
-          deliberately no outer margin, and this row follows a stack of `<fieldset>`s with nothing
-          else separating them. Scoped here rather than added to `.editor-actions` itself, which is
-          shared with screens where a blanket top margin would be wrong (see this dispatch's
-          `.editor-actions` audit — most of its ~30 other callers are small inline `<span>` groups
-          inside a table row or compact form, not a bottom-of-block action bar). */}
-      <span className="editor-actions term-picker-actions">
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving || !dirty}
-          {...agentHandle("term-picker-save", {
-            role: "button",
-            label: "Save this entry's categories and tags as checked above",
-          })}
-        >
-          {saving ? t("Saving…") : t("Save categories & tags")}
-        </button>
-        {message ? <span className="save-ok">{message}</span> : null}
-        {error ? <span className="save-error">{error}</span> : null}
-      </span>
     </div>
   );
 }
@@ -504,7 +410,6 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
     setSlug,
     extFields,
     setExtFields,
-    taxonomies,
     message,
     error,
     loadError,
@@ -598,7 +503,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
       />
 
       {entry ? (
-        <TermPicker taxonomies={taxonomies} contentType={props.contentTypeKey} contentId={entry.id} t={t} />
+        <TermPicker contentType={props.contentTypeKey} contentId={entry.id} />
       ) : null}
     </div>
   );

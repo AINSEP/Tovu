@@ -7,6 +7,15 @@ import type { PageEditorController } from "../hooks/use-page-editor.hooks";
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
 import { api, type AdminPost } from "@/lib/api";
 
+// The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
+// content ref so this file's fetch queue and assertions stay about the editor itself (its own
+// branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
+vi.mock("../../taxonomy/TermPicker", () => ({
+  TermPicker: (props: { contentType: string; contentId: string }) => (
+    <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
+  ),
+}));
+
 /**
  * @file Interactive flush (2026-09-23 plan) — proves `PageEditorPane` attaches `usePageEditor`'s
  * `interactiveEditorRef` onto the REAL `<InteractiveHtmlEditor>` (`@jini-ai/ui/html-editor`), not a

@@ -34,17 +34,19 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
   return { status: 500, code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
 }
 
-/** A collection entry also needs the collections permission — the one its own editor saves under. */
+/** Tagging content also needs the permission its own editor saves under: `content.write` for a
+ *  post or page, `admin.collections.manage` for a collection entry. */
+const CONTENT_PERMISSION = "content.write";
 const COLLECTIONS_PERMISSION = "admin.collections.manage";
 const TAXONOMY_PERMISSION = "admin.taxonomy.manage";
 
-/** Throws `ForbiddenError` when `contentType` is a collection and the caller may not manage
- *  collections. Posts and pages need `admin.taxonomy.manage` only (Jini checks that one). */
-async function authorizeCollectionTarget(deps: TaxonomyRouteDeps, principalId: string, contentType: string): Promise<void> {
-  if (isContentTypeOnAllowList(contentType)) return;
-  const result = await deps.authorize({ principalId, permission: COLLECTIONS_PERMISSION, workspaceId: deps.workspaceId });
+/** Throws `ForbiddenError` unless the caller may edit `contentType`'s content — on top of
+ *  `admin.taxonomy.manage`, which Jini checks for the write itself. */
+async function authorizeContentTarget(deps: TaxonomyRouteDeps, principalId: string, contentType: string): Promise<void> {
+  const permission = isContentTypeOnAllowList(contentType) ? CONTENT_PERMISSION : COLLECTIONS_PERMISSION;
+  const result = await deps.authorize({ principalId, permission, workspaceId: deps.workspaceId });
   if (!result.allowed) {
-    throw new ForbiddenError(`principal '${principalId}' is not authorized for '${COLLECTIONS_PERMISSION}' (${result.reason})`, COLLECTIONS_PERMISSION, result.reason);
+    throw new ForbiddenError(`principal '${principalId}' is not authorized for '${permission}' (${result.reason})`, permission, result.reason);
   }
 }
 
@@ -91,7 +93,8 @@ function sendError(res: Response, err: unknown): void {
  * `assignTerms` now runs `validation-chain.ts`'s `validateContentJoin` allow-list/workspace/lens
  * chain via a content lookup (the "content repo port" the old disclosed-gap comment said this
  * needed). Since 2026-09-26 that lookup also resolves collection entries, admitted by the same
- * live-collection policy publishing uses; tagging an entry also needs `admin.collections.manage`.
+ * live-collection policy publishing uses. Tagging also needs the content's own edit permission:
+ * `content.write` for a post/page, `admin.collections.manage` for an entry.
  */
 export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
   app.post("/api/admin/v1/taxonomy/assign-terms", async (req, res) => {
@@ -99,7 +102,7 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeCollectionTarget(deps, principal.id, body.contentType);
+      await authorizeContentTarget(deps, principal.id, body.contentType);
       await assignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
@@ -109,8 +112,8 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
 }
 
 /**
- * `POST /api/admin/v1/taxonomy/unassign-terms` — the removal half the entry editor's Categories &
- * Tags control saves with (Jini `unassignTerms`: same permission, target and term checks as assign;
+ * `POST /api/admin/v1/taxonomy/unassign-terms` — the removal half the post, page and entry editors'
+ * Categories & Tags box saves with (Jini `unassignTerms`: same permission, target and term checks as assign;
  * removing a term that is not assigned is a no-op).
  */
 export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
@@ -119,7 +122,7 @@ export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: Taxo
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeCollectionTarget(deps, principal.id, body.contentType);
+      await authorizeContentTarget(deps, principal.id, body.contentType);
       await unassignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
@@ -145,7 +148,7 @@ export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: Taxo
       if (!allowed.allowed) {
         throw new ForbiddenError(`principal '${principal.id}' is not authorized for '${TAXONOMY_PERMISSION}' (${allowed.reason})`, TAXONOMY_PERMISSION, allowed.reason);
       }
-      await authorizeCollectionTarget(deps, principal.id, contentType);
+      await authorizeContentTarget(deps, principal.id, contentType);
       const rows = await deps.entryTermRepo.listForContent({ contentType, contentId });
       res.json({ termIds: rows.map((row) => row.termId).sort() });
     } catch (err) {

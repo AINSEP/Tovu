@@ -59,9 +59,7 @@ afterEach(() => {
 
 describe("new entry — title and slug fields", () => {
   it("gives the title field a real accessible name, not just a placeholder", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }))
-      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }));
 
     render(
       <FetchQueryProvider>
@@ -74,9 +72,7 @@ describe("new entry — title and slug fields", () => {
   });
 
   it("gives the slug field a real accessible name, not just a placeholder", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }))
-      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }));
 
     render(
       <FetchQueryProvider>
@@ -102,7 +98,6 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
       setSlug: vi.fn(),
       extFields: {},
       setExtFields: vi.fn(),
-      taxonomies: [],
       message: null,
       error: null,
       loadError: null,
@@ -140,7 +135,6 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
       setSlug: vi.fn(),
       extFields: {},
       setExtFields: vi.fn(),
-      taxonomies: [],
       message: null,
       error: null,
       loadError: null,

@@ -7,6 +7,15 @@ import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
 
+// The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
+// content ref so this file's fetch queue and assertions stay about the editor itself (its own
+// branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
+vi.mock("../../taxonomy/TermPicker", () => ({
+  TermPicker: (props: { contentType: string; contentId: string }) => (
+    <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
+  ),
+}));
+
 /**
  * @file Proves §3 of `ADS-memory/.local-artifacts/handoffs/2026-09-15-preview-fullscreen-PLAN.md`
  * — the assistant needs no new tool to drive the Preview tab or the expand toggle; an `agentHandle`

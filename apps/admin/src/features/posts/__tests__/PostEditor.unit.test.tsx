@@ -6,6 +6,15 @@ import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
 
+// The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
+// content ref so this file's fetch queue and assertions stay about the editor itself (its own
+// branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
+vi.mock("../../taxonomy/TermPicker", () => ({
+  TermPicker: (props: { contentType: string; contentId: string }) => (
+    <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
+  ),
+}));
+
 /**
  * jsdom omits `Range.getClientRects`/`Range.getBoundingClientRect` entirely (confirmed against the
  * installed jsdom: `Element.prototype.getClientRects` exists, `Range.prototype.getClientRects` does
@@ -1439,5 +1448,22 @@ describe("standing-draft autosave stale-basis notice", () => {
     const region = document.querySelector('[data-agent-element="post-autosave-stale"]');
     expect(region).not.toBeNull();
     expect(region!.querySelectorAll("button")).toHaveLength(0);
+  });
+});
+
+describe("Categories & Tags", () => {
+  it("mounts the shared box for the open post, by its kind and id", () => {
+    renderPostEditor();
+    expect(screen.getByTestId("term-picker")).toHaveTextContent("post/p1");
+  });
+
+  it("tags a page opened here as a page", () => {
+    renderPostEditor({ post: DRAFT_PAGE as AdminPost });
+    expect(screen.getByTestId("term-picker")).toHaveTextContent("page/pg1");
+  });
+
+  it("is not mounted before the post loads", () => {
+    renderPostEditor({ post: null });
+    expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
   });
 });

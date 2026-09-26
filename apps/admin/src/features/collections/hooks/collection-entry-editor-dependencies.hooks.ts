@@ -1,4 +1,4 @@
-import { api, type AdminContentType, type AdminEntry, type AdminTaxonomyWithTerms } from "@/lib/api";
+import { api, type AdminContentType, type AdminEntry } from "@/lib/api";
 import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";
 
 /**
@@ -10,7 +10,6 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
 export const defaultCollectionEntryEditorPort: CollectionEntryEditorPort = {
   listContentTypes: () => api.listContentTypes(),
   listEntries: (options) => api.listEntries(options),
-  listTaxonomies: () => api.listTaxonomies(),
   updateEntry: (target, patch) => api.updateEntry(target, patch),
   createEntry: (input, options) => api.createEntry(input, options),
   entryLifecycle: (input) => api.entryLifecycle(input),
@@ -38,7 +37,6 @@ function fakeEntry(overrides: Partial<AdminEntry> = {}): AdminEntry {
 export interface FakeCollectionEntryEditorPortOptions {
   types?: AdminContentType[];
   entries?: AdminEntry[];
-  taxonomies?: AdminTaxonomyWithTerms[];
   /** When set, `listContentTypes()` rejects with this instead of resolving — for
    *  load-failure tests. */
   listContentTypesError?: Error;
@@ -52,9 +50,7 @@ export interface FakeCollectionEntryEditorPortOptions {
 
 /**
  * An in-memory {@link CollectionEntryEditorPort} for tests — "every port gets a fake" (see
- * `assistant-chats-dependencies.hooks.ts`). `listTaxonomies` never rejects on its own (the real
- * hook already tolerates a failing taxonomy load via `.catch(() => ({ items: [] }))` at the call
- * site, so the port itself has no failure mode to simulate for it).
+ * `assistant-chats-dependencies.hooks.ts`).
  */
 export function createFakeCollectionEntryEditorPort(
   options: FakeCollectionEntryEditorPortOptions = {}
@@ -64,7 +60,6 @@ export function createFakeCollectionEntryEditorPort(
 } {
   const types = options.types ?? [];
   const entries = [...(options.entries ?? [])];
-  const taxonomies = options.taxonomies ?? [];
 
   return {
     entries,
@@ -74,9 +69,6 @@ export function createFakeCollectionEntryEditorPort(
     },
     async listEntries(queryOptions) {
       return { items: queryOptions.type ? entries.filter((e) => e.type === queryOptions.type) : entries };
-    },
-    async listTaxonomies() {
-      return { items: taxonomies };
     },
     async updateEntry({ id, expectedVersion }, patch) {
       if (options.saveError) throw options.saveError;

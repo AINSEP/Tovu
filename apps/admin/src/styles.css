@@ -2942,10 +2942,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .collections-dynamic-field { display: flex; flex-direction: column; gap: 0.3rem; }
 /* Same consolidation as `.login-card label` above. */
 .collections-dynamic-field label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.collections-term-picker { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; }
-.collections-term-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem 0.8rem 0.2rem 0; font-size: 0.85rem; }
+.term-picker { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; }
+.term-picker-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem 0.8rem 0.2rem 0; font-size: 0.85rem; }
 /* Same `.editor-actions` flush-spacing fix as `FormEditor.tsx`'s `.form-actions` — see
-   `CollectionEntryEditor.tsx`'s `TermPicker` for why this is scoped here rather than added to
+   `features/taxonomy/TermPicker.tsx` for why this is scoped here rather than added to
    `.editor-actions` itself (that class is shared with ~30 other, structurally different callers
    across the app, most of them small inline row-action groups that must NOT get a top margin). */
 .term-picker-actions { margin-top: var(--space-5); }

@@ -4,8 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
-import type { TermPickerController } from "../hooks/use-term-picker.hooks";
-import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms, ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, AdminEntry, ContentTypeFieldDef } from "@/lib/api";
 
 /**
  * @file `CollectionEntryEditor` — the render-layer branches `CollectionEntryEditor.unit.test.tsx`
@@ -13,20 +12,18 @@ import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms, ContentTypeF
  * reach: `DynamicField`'s five `ContentTypeFieldDef.kind` branches (rank #2 by cognitive
  * complexity in the whole admin app per the coverage audit), `readExtSiteField`'s defensive
  * shape-check fallbacks, the Publish/Unpublish/Save lifecycle buttons, loading/error states, and
- * `TermPicker`.
+ * that the shared `TermPicker` is mounted (its own branches: `features/taxonomy/__tests__/`).
  *
- * Neither `CollectionEntryEditor` nor its nested `DynamicField`/`TermPicker` expose a `use*Hook`
- * DI seam through props (`CollectionEntryEditor`'s own props are only `{ contentTypeKey,
- * entryId }`) — so `use-collection-entry-editor.hooks.ts` and `use-term-picker.hooks.ts` are
- * module-mocked via `vi.hoisted` refs, the same fallback seam `Recovery.tsx`'s `RestoreFlow` and
+ * `CollectionEntryEditor`'s nested `DynamicField` exposes no `use*Hook` DI seam through props — so
+ * `use-collection-entry-editor.hooks.ts` is module-mocked via a `vi.hoisted` ref (and `TermPicker`
+ * is stubbed to echo its content ref), the same fallback seam `Recovery.tsx`'s `RestoreFlow` and
  * `Database.tsx`'s sections needed. `editor` is fixture-supplied as `null` throughout — verified
  * safe: `WidgetEmbedInsertControl` explicitly renders nothing for a null editor
  * (`lib/widget-embed-extension.tsx`), and `EditorContent` (`@tiptap/react`) accepts a null editor.
  */
 
-const { editorControllerRef, termPickerControllerRef } = vi.hoisted(() => ({
+const { editorControllerRef } = vi.hoisted(() => ({
   editorControllerRef: { current: null as unknown },
-  termPickerControllerRef: { current: null as unknown },
 }));
 
 vi.mock("../hooks/use-collection-entry-editor.hooks", async (importOriginal) => {
@@ -36,13 +33,11 @@ vi.mock("../hooks/use-collection-entry-editor.hooks", async (importOriginal) => 
   // rename of what gets intercepted, not a behavior or assertion change.
   return { ...actual, useWiredCollectionEntryEditor: () => editorControllerRef.current };
 });
-vi.mock("../hooks/use-term-picker.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-term-picker.hooks")>();
-  // Mocks the zero-deps wrapper `CollectionEntryEditor.tsx` now calls by default post-`useWiredX`
-  // conversion — was `useTermPicker` (the pure, port-taking hook) before; a call-site rename of
-  // what gets intercepted, not a behavior or assertion change.
-  return { ...actual, useWiredTermPicker: () => termPickerControllerRef.current };
-});
+vi.mock("../../taxonomy/TermPicker", () => ({
+  TermPicker: (props: { contentType: string; contentId: string }) => (
+    <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
+  ),
+}));
 
 const FIELD_TEXT: ContentTypeFieldDef = { name: "notes", kind: "text", required: false, queryable: false };
 const FIELD_INTEGER: ContentTypeFieldDef = { name: "prep_time", kind: "integer", required: true, queryable: true };
@@ -90,7 +85,6 @@ function editorController(overrides: Partial<CollectionEntryEditorController> = 
     setSlug: vi.fn(),
     extFields: {},
     setExtFields: vi.fn(),
-    taxonomies: [],
     message: null,
     error: null,
     loadError: null,
@@ -110,23 +104,8 @@ function editorController(overrides: Partial<CollectionEntryEditorController> = 
   };
 }
 
-function termPickerController(overrides: Partial<TermPickerController> = {}): TermPickerController {
-  return {
-    selected: new Set(),
-    toggle: vi.fn(),
-    loading: false,
-    dirty: false,
-    saving: false,
-    message: null,
-    error: null,
-    save: vi.fn(async () => {}),
-    ...overrides,
-  };
-}
-
 beforeEach(() => {
   editorControllerRef.current = editorController();
-  termPickerControllerRef.current = termPickerController();
 });
 
 function renderEditor(overrides: Partial<CollectionEntryEditorController> = {}, entryId: string | null = null) {
@@ -567,105 +546,14 @@ describe("readExtSiteField — falls back to the entry's stored fieldsJson only 
   });
 });
 
-function taxonomy(overrides: Partial<AdminTaxonomyWithTerms["taxonomy"]> = {}): AdminTaxonomyWithTerms["taxonomy"] {
-  return { id: "tax1", name: "Genre", hierarchical: false, status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1, ...overrides };
-}
-function term(overrides: Partial<AdminTaxonomyWithTerms["terms"][number]> = {}): AdminTaxonomyWithTerms["terms"][number] {
-  return { id: "t1", taxonomyId: "tax1", parentId: null, name: "Fiction", status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1, ...overrides };
-}
-
-const TAXONOMY: AdminTaxonomyWithTerms = {
-  taxonomy: taxonomy(),
-  terms: [term({ id: "t1", name: "Fiction" }), term({ id: "t2", name: "Non-fiction" })],
-};
-const EMPTY_TAXONOMY: AdminTaxonomyWithTerms = {
-  taxonomy: taxonomy({ id: "tax2", name: "Empty Tax" }),
-  terms: [],
-};
-
-describe("TermPicker", () => {
-  it("is not rendered at all when there is no entry yet (new entry)", () => {
-    renderEditor({ entry: null, taxonomies: [TAXONOMY] });
-    expect(screen.queryByText("Categories & Tags")).not.toBeInTheDocument();
+describe("Categories & Tags", () => {
+  it("is not mounted when there is no entry yet (new entry)", () => {
+    renderEditor({ entry: null });
+    expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
   });
 
-  it("renders nothing when taxonomies is empty, even with an entry", () => {
-    renderEditor({ entry: ENTRY, taxonomies: [] });
-    expect(screen.queryByText("Categories & Tags")).not.toBeInTheDocument();
-  });
-
-  it("renders one fieldset per taxonomy with its own terms as checkboxes", () => {
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByRole("group", { name: "Genre" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Fiction" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Non-fiction" })).toBeInTheDocument();
-  });
-
-  it("shows 'No terms yet.' for a taxonomy with zero terms", () => {
-    renderEditor({ entry: ENTRY, taxonomies: [EMPTY_TAXONOMY] });
-    expect(screen.getByText("No terms yet.")).toBeInTheDocument();
-  });
-
-  it("a term's checkbox reflects the hook's own `selected` set", () => {
-    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]) });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByRole("checkbox", { name: "Fiction" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Non-fiction" })).not.toBeChecked();
-  });
-
-  it("clicking a term checkbox calls toggle(termId)", async () => {
-    const user = userEvent.setup();
-    const toggle = vi.fn();
-    termPickerControllerRef.current = termPickerController({ toggle });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    await user.click(screen.getByRole("checkbox", { name: "Fiction" }));
-    expect(toggle).toHaveBeenCalledWith("t1");
-  });
-
-  it("the entry's own terms show ticked; the boxes wait for them to load", () => {
-    termPickerControllerRef.current = termPickerController({ loading: true });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByText("Loading categories & tags…")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Fiction" })).toBeDisabled();
-  });
-
-  it("'Save categories & tags' is disabled until the ticked set differs from the entry's", () => {
-    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), dirty: false });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByText("Tick the categories and tags this entry belongs to, then save.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save categories & tags" })).toBeDisabled();
-  });
-
-  it("'Save categories & tags' is enabled once something changed, even an untick", () => {
-    termPickerControllerRef.current = termPickerController({ selected: new Set(), dirty: true });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByRole("button", { name: "Save categories & tags" })).toBeEnabled();
-  });
-
-  it("shows 'Saving…' and disables while saving", () => {
-    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), dirty: true, saving: true });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
-  });
-
-  it("clicking Save calls save()", async () => {
-    const user = userEvent.setup();
-    const save = vi.fn(async () => {});
-    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), dirty: true, save });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    await user.click(screen.getByRole("button", { name: "Save categories & tags" }));
-    expect(save).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows the hook's own message on success", () => {
-    termPickerControllerRef.current = termPickerController({ message: "Categories & tags saved." });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByText("Categories & tags saved.")).toBeInTheDocument();
-  });
-
-  it("shows the hook's own error on failure", () => {
-    termPickerControllerRef.current = termPickerController({ error: "Failed to save categories & tags" });
-    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByText("Failed to save categories & tags")).toBeInTheDocument();
+  it("mounts the shared box for a saved entry, by its collection key and entry id", () => {
+    renderEditor({ entry: ENTRY });
+    expect(screen.getByTestId("term-picker")).toHaveTextContent("recipe/e1");
   });
 });

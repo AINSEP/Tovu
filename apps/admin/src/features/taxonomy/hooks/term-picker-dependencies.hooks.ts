@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api, type AdminTaxonomyWithTerms } from "@/lib/api";
 import type { TermPickerPort } from "./term-picker-port.hooks";
 
 /**
@@ -8,6 +8,7 @@ import type { TermPickerPort } from "./term-picker-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultTermPickerPort: TermPickerPort = {
+  listTaxonomies: () => api.listTaxonomies(),
   assignedTerms: (input) => api.assignedTerms(input),
   assignTerms: (input) => api.assignTerms(input),
   unassignTerms: (input) => api.unassignTerms(input),
@@ -15,10 +16,14 @@ export const defaultTermPickerPort: TermPickerPort = {
 
 /** Seed state for {@link createFakeTermPickerPort}. */
 export interface FakeTermPickerPortOptions {
-  /** The term ids the entry holds before any save. */
+  /** The taxonomies (with their terms) the picker lists. */
+  taxonomies?: AdminTaxonomyWithTerms[];
+  /** The term ids the post, page or entry holds before any save. */
   assigned?: string[];
   /** When set, `assignedTerms()` rejects with this. */
   loadError?: Error;
+  /** When set, `listTaxonomies()` rejects with this. */
+  taxonomiesError?: Error;
   /** When set, `assignTerms()`/`unassignTerms()` reject with this instead of resolving. */
   saveError?: Error;
 }
@@ -47,6 +52,10 @@ export function createFakeTermPickerPort(options: FakeTermPickerPortOptions = {}
 
   return {
     calls,
+    async listTaxonomies() {
+      if (options.taxonomiesError) throw options.taxonomiesError;
+      return { items: options.taxonomies ?? [] };
+    },
     async assignedTerms() {
       if (options.loadError) throw options.loadError;
       return { termIds: [...assigned].sort() };

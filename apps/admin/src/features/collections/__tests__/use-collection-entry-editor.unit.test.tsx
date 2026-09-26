@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { navigate } from "@/lib/router";
 import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
@@ -78,12 +78,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Queues the load's three Promise.all responses in the order the hook awaits them:
- *  listContentTypes, (listEntries — only when entryId is set), listTaxonomies. */
+/** Queues the load's Promise.all responses in the order the hook awaits them:
+ *  listContentTypes, then listEntries (only when entryId is set). */
 function queueLoad(opts: {
   types?: AdminContentType[];
   entries?: AdminEntry[];
-  taxonomies?: AdminTaxonomyWithTerms[];
   entryId: string | null;
   typesStatus?: number;
 }) {
@@ -91,7 +90,6 @@ function queueLoad(opts: {
   if (opts.entryId) {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: opts.entries ?? [] }));
   }
-  fetchMock.mockResolvedValueOnce(jsonResponse({ items: opts.taxonomies ?? [] }));
 }
 
 async function mountLoaded(opts: Parameters<typeof queueLoad>[0]) {
@@ -102,12 +100,13 @@ async function mountLoaded(opts: Parameters<typeof queueLoad>[0]) {
 }
 
 describe("initial load — new entry (entryId null)", () => {
-  it("resolves contentType from the matching key, taxonomies from listTaxonomies, and does NOT call listEntries", async () => {
-    const { result } = await mountLoaded({ entryId: null, taxonomies: [] });
+  it("resolves contentType from the matching key and does NOT call listEntries", async () => {
+    const { result } = await mountLoaded({ entryId: null });
     expect(result.current.contentType).toEqual(RECIPE_TYPE);
     expect(result.current.entry).toBeNull();
-    // Only 2 fetch calls: listContentTypes + listTaxonomies — no listEntries call for a new entry.
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Only 1 fetch call: listContentTypes — no listEntries call for a new entry (and no taxonomy
+    // list: the Categories & Tags box loads its own).
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("starts contentType as undefined (the not-yet-resolved sentinel) before the load settles", () => {
@@ -153,20 +152,9 @@ describe("initial load — editing (entryId set)", () => {
 describe("initial load — failure", () => {
   it("sets the fallback loadError when listContentTypes fails, and still sets loaded=true", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
-    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [] })); // listTaxonomies
     const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }), { wrapper });
     await waitFor(() => expect(result.current.loaded).toBe(true));
     expect(result.current.loadError).toBe("failed to load entry");
-  });
-
-  it("tolerates a failing listTaxonomies call — falls back to an empty taxonomies list, no loadError", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [RECIPE_TYPE] }));
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500)); // listTaxonomies fails
-    const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }), { wrapper });
-    await waitFor(() => expect(result.current.loaded).toBe(true));
-    expect(result.current.taxonomies).toEqual([]);
-    expect(result.current.loadError).toBeNull();
-    expect(result.current.contentType).toEqual(RECIPE_TYPE);
   });
 });
 
@@ -388,7 +376,7 @@ describe("toggleLifecycle", () => {
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {
-  it("loads contentType/entry/taxonomies through the injected port, without touching fetch", async () => {
+  it("loads contentType/entry through the injected port, without touching fetch", async () => {
     const localFetchMock = vi.fn();
     vi.stubGlobal("fetch", localFetchMock);
     try {
@@ -627,9 +615,6 @@ describe("stale-response race (2026-08-12 regression test)", () => {
             resolve: (items) => resolve({ items }),
           });
         });
-      },
-      async listTaxonomies() {
-        return { items: [] };
       },
       async updateEntry() {
         throw new Error("not used in this test");

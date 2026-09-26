@@ -1,4 +1,4 @@
-import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/lib/api";
 
 /**
  * @file What `use-collection-entry-editor.hooks.ts` needs from the outside world, as an interface
@@ -8,7 +8,6 @@ import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "@/lib
 export interface CollectionEntryEditorPort {
   listContentTypes(): Promise<{ items: AdminContentType[] }>;
   listEntries(options: { type?: string }): Promise<{ items: AdminEntry[] }>;
-  listTaxonomies(): Promise<{ items: AdminTaxonomyWithTerms[] }>;
   updateEntry(
     target: { id: string; expectedVersion: number },
     patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown }

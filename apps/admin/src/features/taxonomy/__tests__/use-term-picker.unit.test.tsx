@@ -5,9 +5,11 @@ import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
 import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hooks";
 import type { TermPickerPort } from "../hooks/term-picker-port.hooks";
+import type { AdminTaxonomyWithTerms } from "@/lib/api";
 
 /**
- * @file `useTermPicker` — `TermPicker`'s ticked set, loaded from the entry's own terms, and its save
+ * @file `useTermPicker` — `TermPicker`'s taxonomy list, its ticked set loaded from the content's own
+ * terms (a post, page or collection entry — only the content ref differs), and its save
  * (assign the added ids, unassign the removed ones). Driven through `createFakeTermPickerPort`; one
  * wired case at the bottom proves the real client's three routes.
  *
@@ -31,8 +33,8 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   return { promise, resolve };
 }
 
-async function mountWith(port: TermPickerPort) {
-  const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+async function mountWith(port: TermPickerPort, target = { contentType: "recipe", contentId: "e1" }) {
+  const hook = renderHook(() => useTermPicker(target, { port, locale: "en" }), { wrapper });
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   return hook;
 }
@@ -52,6 +54,64 @@ describe("loading the entry's terms", () => {
     const port = createFakeTermPickerPort({ loadError: new Error("read exploded") });
     const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.error).toBe("read exploded"));
+  });
+});
+
+const GENRE: AdminTaxonomyWithTerms = {
+  taxonomy: { id: "tax1", name: "Genre", hierarchical: false, status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1 },
+  terms: [{ id: "t1", taxonomyId: "tax1", parentId: null, name: "Fiction", status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1 }],
+};
+
+describe("the taxonomy list and the tagged content", () => {
+  it("lists every taxonomy with its terms and shows the box", async () => {
+    const { result } = await mountWith(createFakeTermPickerPort({ taxonomies: [GENRE] }));
+    expect(result.current.taxonomies).toEqual([GENRE]);
+    expect(result.current.hidden).toBe(false);
+  });
+
+  it("hides the box once the list is known to be empty, not while it loads", async () => {
+    const port = createFakeTermPickerPort();
+    const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    expect(hook.result.current.hidden).toBe(false);
+    await waitFor(() => expect(hook.result.current.hidden).toBe(true));
+  });
+
+  it("a failed taxonomy list read is reported with its own message", async () => {
+    const port = createFakeTermPickerPort({ taxonomiesError: new Error("list exploded") });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.error).toBe("list exploded"));
+    expect(result.current.hidden).toBe(false);
+  });
+
+  it("tags a post by its own content ref and names it a post", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const hook = renderHook(() => useTermPicker({ contentType: "post", contentId: "p1" }, { port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(hook.result.current.loading).toBe(false));
+    expect(hook.result.current.subject).toBe("post");
+    act(() => hook.result.current.toggle("t1"));
+    await act(async () => {
+      await hook.result.current.save();
+    });
+    expect(port.calls).toEqual([{ kind: "assign", contentType: "post", contentId: "p1", termIds: ["t1"] }]);
+  });
+
+  it("names a page a page and a collection entry an entry", async () => {
+    const page = await mountWith(createFakeTermPickerPort(), { contentType: "page", contentId: "g1" });
+    expect(page.result.current.subject).toBe("page");
+    const entry = await mountWith(createFakeTermPickerPort());
+    expect(entry.result.current.subject).toBe("entry");
+  });
+
+  it("speaks the admin locale", async () => {
+    const port = createFakeTermPickerPort();
+    const hook = renderHook(() => useTermPicker({ contentType: "post", contentId: "p1" }, { port, locale: "es" }), { wrapper });
+    await waitFor(() => expect(hook.result.current.loading).toBe(false));
+    expect(hook.result.current.t("Save categories & tags")).toBe("Guardar categorías y etiquetas");
+    act(() => hook.result.current.toggle("t1"));
+    await act(async () => {
+      await hook.result.current.save();
+    });
+    expect(hook.result.current.message).toBe("Categorías y etiquetas guardadas.");
   });
 });
 
@@ -127,6 +187,7 @@ describe("save", () => {
     const inFlight = deferred<void>();
     let held: string[] = [];
     const port: TermPickerPort = {
+      listTaxonomies: async () => ({ items: [] }),
       assignedTerms: async () => ({ termIds: held }),
       assignTerms: async (input) => {
         writes.push(input.termIds);
@@ -181,13 +242,17 @@ describe("useWiredTermPicker (real client)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("reads assigned-terms, then saves through assign-terms and unassign-terms", async () => {
-    fetchMock.mockImplementation(async (url: string) =>
-      String(url).includes("/assigned-terms") ? jsonResponse({ termIds: ["t1"] }) : new Response(null, { status: 204 })
-    );
-    const { result } = renderHook(() => useWiredTermPicker({ contentType: "recipe", contentId: "e1" }), { wrapper });
+  it("reads the taxonomy list and assigned-terms, then saves through assign-terms and unassign-terms", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).includes("/assigned-terms")) return jsonResponse({ termIds: ["t1"] });
+      if (init?.method === "POST") return new Response(null, { status: 204 });
+      return jsonResponse({ items: [GENRE] });
+    });
+    const { result } = renderHook(() => useWiredTermPicker({ contentType: "post", contentId: "p1" }), { wrapper });
     await waitFor(() => expect(result.current.selected).toEqual(new Set(["t1"])));
-    expect(String(fetchMock.mock.calls[0]![0])).toContain("/taxonomy/assigned-terms?contentType=recipe&contentId=e1");
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GENRE]));
+    const reads = fetchMock.mock.calls.map(([url]) => String(url).replace(/^.*\/api\/admin\/v1/, ""));
+    expect(reads).toEqual(expect.arrayContaining(["/taxonomy", "/taxonomy/assigned-terms?contentType=post&contentId=p1"]));
 
     act(() => result.current.toggle("t1"));
     act(() => result.current.toggle("t2"));
@@ -199,8 +264,8 @@ describe("useWiredTermPicker (real client)", () => {
       .filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")
       .map(([url, init]) => [String(url).replace(/^.*\/taxonomy\//, ""), JSON.parse(String((init as RequestInit).body))]);
     expect(writes).toEqual([
-      ["assign-terms", { contentType: "recipe", contentId: "e1", termIds: ["t2"] }],
-      ["unassign-terms", { contentType: "recipe", contentId: "e1", termIds: ["t1"] }],
+      ["assign-terms", { contentType: "post", contentId: "p1", termIds: ["t2"] }],
+      ["unassign-terms", { contentType: "post", contentId: "p1", termIds: ["t1"] }],
     ]);
   });
 });

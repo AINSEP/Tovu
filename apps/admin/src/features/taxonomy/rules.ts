@@ -26,6 +26,10 @@ import type { QueryKey } from "../../lib/fetch-query";
  */
 export const KEYS = {
   list: ["taxonomies"] as QueryKey,
+  /** The term ids one post, page or entry holds (`use-term-picker.hooks.ts`). Nested under `list`
+   *  on purpose: deleting or merging a term changes what content holds, so a list refresh should
+   *  refresh these too; a tag save invalidates only its own key. */
+  assignedTerms: (contentType: string, contentId: string): QueryKey => ["taxonomies", "assigned", contentType, contentId],
 };
 
 /**
@@ -186,4 +190,14 @@ export function describeTrashError(e: Error | null, fallback: string): { already
     }
   }
   return { alreadyGone: false, message: describeApiError(e, fallback) };
+}
+
+/**
+ * What the Categories & Tags box calls the thing it tags, in its agent-facing labels: `post` and
+ * `page` name themselves; any other content type is a collection entry.
+ *
+ * @complexity O(1).
+ */
+export function termPickerSubject(contentType: string): "post" | "page" | "entry" {
+  return contentType === "post" || contentType === "page" ? contentType : "entry";
 }

@@ -6,6 +6,15 @@ import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
 
+// The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
+// content ref so this file's fetch queue and assertions stay about the editor itself (its own
+// branches: `features/taxonomy/__tests__/TermPicker.unit.test.tsx`).
+vi.mock("../../taxonomy/TermPicker", () => ({
+  TermPicker: (props: { contentType: string; contentId: string }) => (
+    <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
+  ),
+}));
+
 /**
  * @file `PageEditor` had no test of any kind before this pass (see the note this corrects in
  * `features/pages/README.md`, which claims "There is no PageEditor" — it is live-wired in
@@ -940,5 +949,17 @@ describe("external-change notice", () => {
     });
     const preview = screen.getByTitle("Page preview");
     expect(preview.getAttribute("src")).toContain("/about?_v=9");
+  });
+});
+
+describe("Categories & Tags", () => {
+  it("mounts the shared box for the open page, by its kind and id", () => {
+    renderEditor();
+    expect(screen.getByTestId("term-picker")).toHaveTextContent("page/pg1");
+  });
+
+  it("is not mounted before the page loads", () => {
+    renderEditor({ page: null });
+    expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
   });
 });

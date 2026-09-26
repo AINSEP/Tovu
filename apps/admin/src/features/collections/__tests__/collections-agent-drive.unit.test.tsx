@@ -79,9 +79,7 @@ afterEach(() => {
 describe("driving a new entry's editor through page.* verbs", () => {
   it("page.fill on the title and slug fields reaches React state", async () => {
     stubLocaleAndRoute(fetchMock);
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] })) // listContentTypes
-      .mockResolvedValueOnce(jsonResponse({ items: [] })); // listTaxonomies
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] })); // listContentTypes
 
     const { container } = render(
       <FetchQueryProvider>
@@ -100,9 +98,7 @@ describe("driving a new entry's editor through page.* verbs", () => {
 
   it("publishes entry-save but never entry-publish/entry-unpublish — those need an existing entry", async () => {
     stubLocaleAndRoute(fetchMock);
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }))
-      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }));
 
     const { container } = render(
       <FetchQueryProvider>

@@ -20,6 +20,7 @@ import type {
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
+import { TermPicker } from "../taxonomy/TermPicker";
 import {
   toolbarBtnClass,
   hexOrDefault,
@@ -1621,6 +1622,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
       ) : (
         <PostEditorBody editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} t={t} />
       )}
+      {/* Categories & Tags — the same box the collection-entry editor mounts; it saves on its own
+          button, separately from the post's Save/Publish. */}
+      <TermPicker contentType={post.kind} contentId={post.id} />
       <ConfirmDialog
         open={confirmingDelete}
         agentHandle="post-delete-confirm"

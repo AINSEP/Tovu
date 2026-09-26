@@ -134,7 +134,7 @@
 }
 .menu-item-advanced-fields input[type="text"],
 .menu-item-advanced-fields input:not([type]) { flex: 1 1 9rem; min-width: 7rem; font-size: 0.85rem; padding: 0.35rem 0.55rem; }
-/* Same shape as `styles.css`'s `.collections-term-checkbox` — inline-flex row, small gap, no box. */
+/* Same shape as `styles.css`'s `.term-picker-checkbox` — inline-flex row, small gap, no box. */
 .menu-item-advanced-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; }
 
 /* Preview fullscreen control. A translucent symbol floating on the preview itself (owner's ask,

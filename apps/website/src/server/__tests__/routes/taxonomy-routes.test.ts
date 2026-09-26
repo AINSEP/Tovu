@@ -486,6 +486,74 @@ test("taxonomy routes: tagging an entry needs the collections permission too, an
   assert.equal(((await res.json()) as { code: string }).code, "VALIDATION_ERROR");
 });
 
+/** Seeds one post and one page (the post/page editors' Categories & Tags box targets). */
+async function seedPostAndPage(deps: RouteDeps) {
+  for (const kind of ["post", "page"] as const) {
+    await deps.postRepo.save({
+      id: `${kind}-1`,
+      workspaceId: deps.workspaceId,
+      title: `Test ${kind}`,
+      slug: `test-${kind}-tagging`,
+      bodyJson: {},
+      status: "draft",
+      kind,
+      updatedAt: deps.clock.nowIso(),
+      version: 1,
+    });
+  }
+}
+
+async function contentTerms(baseUrl: string, cookie: string, contentType: string, contentId: string, path?: string, termIds?: string[]) {
+  if (path) {
+    return fetch(`${baseUrl}/api/admin/v1/taxonomy/${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ contentType, contentId, termIds }),
+    });
+  }
+  return fetch(`${baseUrl}/api/admin/v1/taxonomy/assigned-terms?contentType=${contentType}&contentId=${contentId}`, { headers: { cookie } });
+}
+
+test("taxonomy routes: a post and a page are each tagged, read back and untagged", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const [quick, vegan] = await seedTaggableEntry(deps, baseUrl, cookie);
+  await seedPostAndPage(deps);
+
+  for (const kind of ["post", "page"]) {
+    const id = `${kind}-1`;
+    assert.deepEqual(await (await contentTerms(baseUrl, cookie, kind, id)).json(), { termIds: [] });
+    assert.equal((await contentTerms(baseUrl, cookie, kind, id, "assign-terms", [quick!, vegan!])).status, 204);
+    assert.deepEqual(await (await contentTerms(baseUrl, cookie, kind, id)).json(), { termIds: [quick, vegan] });
+    assert.equal((await contentTerms(baseUrl, cookie, kind, id, "unassign-terms", [vegan!])).status, 204);
+    assert.deepEqual(await (await contentTerms(baseUrl, cookie, kind, id)).json(), { termIds: [quick] });
+  }
+  // Each post/page holds its own set; the entry was never touched.
+  assert.deepEqual((await assignedTerms(baseUrl, cookie)).body, { termIds: [] });
+});
+
+test("taxonomy routes: tagging a post or page needs content.write too", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const [quick] = await seedTaggableEntry(deps, baseUrl, cookie);
+  await seedPostAndPage(deps);
+
+  const realAuthorize = deps.authorize;
+  deps.authorize = async (params) => (params.permission === "content.write" ? { allowed: false, reason: "test_denied" } : realAuthorize(params));
+  for (const kind of ["post", "page"]) {
+    for (const path of ["assign-terms", "unassign-terms", undefined]) {
+      const res = await contentTerms(baseUrl, cookie, kind, `${kind}-1`, path, [quick!]);
+      assert.equal(res.status, 403, `${kind} ${path ?? "assigned-terms"}`);
+      const body = (await res.json()) as { code: string; error: string };
+      assert.equal(body.code, "FORBIDDEN");
+      assert.match(body.error, /'content\.write'/);
+    }
+  }
+  // A collection entry does not need content.write — its own permission is the collections one.
+  assert.equal((await postTerms(baseUrl, cookie, "assign-terms", [quick!])).status, 204);
+  deps.authorize = realAuthorize;
+});
+
 test("taxonomy routes: assigned-terms and unassign-terms validate their input", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

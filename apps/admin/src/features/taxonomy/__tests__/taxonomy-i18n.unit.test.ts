@@ -65,3 +65,29 @@ describe("TAXONOMY_DICT: t() falls back to COMMON_I18N", () => {
     expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
   });
 });
+
+/** The Categories & Tags box (`TermPicker.tsx`) is mounted by the post, page and entry editors;
+ *  every string it renders reads through this dictionary, so each must resolve in all 21 locales. */
+describe("TAXONOMY_DICT: the shared Categories & Tags box", () => {
+  const TERM_PICKER_KEYS = [
+    "Categories & Tags",
+    "No terms yet.",
+    "Saving…",
+    "Loading categories & tags…",
+    "Tick the categories and tags that apply, then save.",
+    "Save categories & tags",
+    "Categories & tags saved.",
+    "Failed to save categories & tags",
+    "Failed to load categories & tags",
+  ];
+
+  it("translates every string it renders in every locale", () => {
+    const untranslated: string[] = [];
+    for (const locale of Object.keys(TAXONOMY_DICT)) {
+      for (const key of TERM_PICKER_KEYS) {
+        if (t(locale, key) === key) untranslated.push(`${locale}: ${key}`);
+      }
+    }
+    expect(untranslated).toEqual([]);
+  });
+});

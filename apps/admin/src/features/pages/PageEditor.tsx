@@ -27,6 +27,7 @@ import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.h
 import type { ThemeTier } from "../../lib/api";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
+import { TermPicker } from "../taxonomy/TermPicker";
 import {
   isAutosaveDraftStale,
   PAGE_EXTERNAL_CHANGE_MESSAGE,
@@ -895,6 +896,10 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         embedPlaceholderDescriber={embedPlaceholderDescriber}
         interactiveEditorRef={interactiveEditorRef}
       />
+
+      {/* Categories & Tags — the same box the post and collection-entry editors mount; it saves on
+          its own button, separately from the page's Save/Publish. */}
+      <TermPicker contentType={page.kind} contentId={page.id} />
 
       <ConfirmDialog
         open={confirmingDelete}
