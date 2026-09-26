@@ -86,7 +86,7 @@ test("an operator can widen the allowlist explicitly, or empty it to disable eve
 
 test("the shared federation ceilings apply, and a malformed override falls back rather than throwing", () => {
   const defaults = resolveSupabaseMcpConnection(VALID_ENV);
-  assert.equal(defaults?.config.connectTimeoutMs, 15_000);
+  assert.equal(defaults?.config.connectTimeoutMs, 60_000);
   assert.equal(defaults?.config.callTimeoutMs, 30_000);
   assert.equal(defaults?.config.maxResultBytes, 64 * 1024);
 
