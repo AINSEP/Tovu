@@ -6,6 +6,12 @@ import { readOptionalString, validateSupportedProtocol, type SupportedExecutionP
 import { resolveProbeCredential, type ProbeCredentialResolution } from "./stored-credential-probe.js";
 
 /**
+ * Replaces the runtime's empty-key refusal ("…needs the key from this browser"), which predates
+ * BYOK keys moving server-side. Also a key in the admin's i18n dictionaries.
+ */
+export const NO_SERVER_KEY_MESSAGE = "No API key saved on the server. Save one first.";
+
+/**
  * Calls `listProviderModels` and shapes its result into this route's response body — isolated so
  * the two `?? []`/spread-if-present shapes don't add to the handler's own branching.
  *
@@ -22,10 +28,12 @@ async function fetchListModelsResponse(
     apiKey: credential.apiKey,
     ...(apiVersion ? { apiVersion } : {}),
   });
+  const missingKey = result.kind === "auth_failed" && !credential.apiKey.trim();
+  const message = missingKey ? NO_SERVER_KEY_MESSAGE : result.detail;
   return {
     ok: result.ok,
     models: (result.models ?? []).map((model) => model.id),
-    ...(result.detail ? { message: result.detail } : {}),
+    ...(message ? { message } : {}),
   };
 }
 

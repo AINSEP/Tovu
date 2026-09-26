@@ -778,25 +778,8 @@ export function VisitorCredentialForm({
             "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.",
           )}
         </p>
-        {/*
-          KNOWN COPY CONFLICT, stated here rather than papered over: the shared `ByokProviderForm`
-          below renders its own hint under the API-key field reading "Stored only by this host." That
-          string was written for its original caller (Settings → Execution mode, when that key was
-          browser-local; it has been server-stored per admin since 2026-08-05) and reads WRONG here,
-          where the whole point is that the key goes to the server.
-          Two host screens now need two different answers from one shared component.
-
-          Not fixed by hiding it with CSS and not fixed by forking the component — the standing
-          decision on this workstream is to reuse via `@jini-ai/ui` and push gaps UPSTREAM to Jini.
-          The correct fix is a prop on `ByokProviderForm` letting the host supply that hint, which is
-          a change in the Jini repo. Until that lands, this line is the compensating control: it
-          appears ABOVE the card so the operator reads the true statement first.
-        */}
-        <p>
-          {t(
-            'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.',
-          )}
-        </p>
+        {/* The shared form's "Stored only by this host." hint below is true here too: both BYOK keys
+            are stored on this server, encrypted. */}
       </SeeMore>
 
       {/* Same `jini-settings-byok` section wrapper `ExecutionTab` puts around this exact trio, so the

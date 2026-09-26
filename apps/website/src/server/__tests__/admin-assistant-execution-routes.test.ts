@@ -262,7 +262,8 @@ test("list-models surfaces the real local empty-api-key guard as ok:false, not a
   const body = (await res.json()) as { ok: boolean; models: string[]; message?: string };
   assert.equal(body.ok, false);
   assert.deepEqual(body.models, []);
-  assert.match(body.message ?? "", /no api key/i);
+  // Tovu's own wording, not the runtime's "needs the key from this browser" — keys live on the server.
+  assert.equal(body.message, "No API key saved on the server. Save one first.");
 });
 
 test("list-models rejects an unsupported protocol with 400 before any network access", async (t) => {

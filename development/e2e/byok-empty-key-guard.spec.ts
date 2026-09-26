@@ -50,9 +50,7 @@ test("empty-key guard: local rejection for every key-requiring protocol, both ro
       const modelsRes = await request.post(MODELS_PATH, { data: { protocol, baseUrl, apiKey } });
       const modelsBody = await modelsRes.json();
       expect(modelsBody.ok, `models: ${label}`).toBe(false);
-      expect(modelsBody.message, `models: ${label}`).toBe(
-        "No API key — model discovery needs the key from this browser.",
-      );
+      expect(modelsBody.message, `models: ${label}`).toBe("No API key saved on the server. Save one first.");
 
       const testConnRes = await request.post(TEST_CONN_PATH, {
         data: { protocol, baseUrl, apiKey, model: "some-model" },
@@ -90,7 +88,7 @@ test("zero-network proof: an empty key never reaches a real listener, even one t
     });
     const body = await res.json();
     expect(body.ok).toBe(false);
-    expect(body.message).toBe("No API key — model discovery needs the key from this browser.");
+    expect(body.message).toBe("No API key saved on the server. Save one first.");
     // The measured fact: the guard fired BEFORE the SSRF-allowed loopback path was ever
     // reached, even though that path is open for a non-empty key.
     expect(hitCount).toBe(0);

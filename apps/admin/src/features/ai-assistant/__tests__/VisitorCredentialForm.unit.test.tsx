@@ -205,7 +205,7 @@ describe("VisitorCredentialKeyFooter", () => {
   });
 
   it("translates the server's no-key model-discovery refusal (it is a dictionary key, not provider text)", () => {
-    const message = "No API key — model discovery needs the key from this browser.";
+    const message = "No API key saved on the server. Save one first.";
     render(
       <VisitorCredentialKeyFooter
         {...fakeController({ discovery: { status: "error", message } })}
@@ -213,7 +213,7 @@ describe("VisitorCredentialKeyFooter", () => {
       />,
     );
     expect(
-      screen.getByText("Kein API-Schlüssel — die Modellerkennung benötigt den Schlüssel aus diesem Browser."),
+      screen.getByText("Kein API-Schlüssel auf dem Server gespeichert. Speichern Sie zuerst einen."),
     ).toBeInTheDocument();
     expect(screen.queryByText(message)).not.toBeInTheDocument();
   });

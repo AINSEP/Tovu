@@ -29,8 +29,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
   es: {
-    "No API key — model discovery needs the key from this browser.":
-      "Sin clave de API: la detección de modelos necesita la clave desde este navegador.",
+    "No API key saved on the server. Save one first.": "No hay ninguna clave de API guardada en el servidor. Guarda una primero.",
     "failed to save the key": "no se pudo guardar la clave",
     "failed to save the settings": "no se pudo guardar la configuración",
     "Could not reach the provider with that key": "No se pudo contactar al proveedor con esa clave",
@@ -66,8 +65,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Esta clave es para tus visitantes, no para ti. Es lo que permite que las personas que leen tu sitio publicado hagan preguntas y obtengan respuestas. Se almacena en el servidor y se usa en cada conversación de un visitante.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "Es una clave distinta de la que está en Configuración → Modo de ejecución → BYOK. Esa es la tuya propia, se guarda cifrada en el servidor, solo para tu cuenta de administración, y alimenta al asistente en esta administración. Un sitio implementado nunca puede usarla, por eso guardar una clave ahí no activa el chat para visitantes.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Ignora la nota "Solo se almacena en este host" que aparece más abajo. Pertenece al componente de formulario compartido y es correcta en la pantalla de Configuración, no aquí. Esta clave se almacenará en el servidor, cifrada.',
     "See more about the visitor key": "Ver más sobre la clave del visitante",
     "See more": "Ver más",
     "See less": "Ver menos",
@@ -139,8 +136,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "No implementado",
   },
   id: {
-    "No API key — model discovery needs the key from this browser.":
-      "Tidak ada kunci API — penemuan model memerlukan kunci dari browser ini.",
+    "No API key saved on the server. Save one first.": "Tidak ada kunci API yang tersimpan di server. Simpan satu terlebih dahulu.",
     "failed to save the key": "gagal menyimpan kunci",
     "failed to save the settings": "gagal menyimpan pengaturan",
     "Could not reach the provider with that key": "Tidak dapat menghubungi penyedia dengan kunci itu",
@@ -183,8 +179,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Kunci ini untuk pengunjung Anda, bukan untuk Anda. Inilah yang memungkinkan orang yang membaca situs terbit Anda mengajukan pertanyaan dan mendapatkan jawaban. Kunci ini disimpan di server dan digunakan untuk setiap percakapan pengunjung.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "Ini adalah kunci yang berbeda dari yang ada di Pengaturan → Mode eksekusi → BYOK. Kunci itu adalah milik Anda sendiri, disimpan terenkripsi di server, hanya untuk akun admin Anda, dan menggerakkan asisten di admin ini. Situs yang sudah diterapkan tidak akan pernah bisa menggunakannya — itulah sebabnya menyimpan kunci di sana tidak mengaktifkan obrolan pengunjung.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Abaikan catatan "Hanya disimpan oleh host ini" di bawah. Catatan itu milik komponen formulir bersama dan akurat di layar Pengaturan, bukan di sini. Kunci ini akan disimpan di server, terenkripsi.',
     "See more about the visitor key": "Lihat selengkapnya tentang kunci pengunjung",
     "See more": "Lihat selengkapnya",
     "See less": "Lihat lebih sedikit",
@@ -232,8 +226,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Belum diterapkan",
   },
   de: {
-    "No API key — model discovery needs the key from this browser.":
-      "Kein API-Schlüssel — die Modellerkennung benötigt den Schlüssel aus diesem Browser.",
+    "No API key saved on the server. Save one first.": "Kein API-Schlüssel auf dem Server gespeichert. Speichern Sie zuerst einen.",
     "failed to save the key": "Schlüssel konnte nicht gespeichert werden",
     "failed to save the settings": "Einstellungen konnten nicht gespeichert werden",
     "Could not reach the provider with that key": "Der Anbieter konnte mit diesem Schlüssel nicht erreicht werden",
@@ -276,8 +269,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Dieser Schlüssel ist für Ihre Besucher, nicht für Sie. Er ermöglicht es Personen, die Ihre veröffentlichte Website lesen, Fragen zu stellen und Antworten zu erhalten. Er wird auf dem Server gespeichert und für jede Besucherunterhaltung verwendet.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "Es ist ein anderer Schlüssel als der unter Einstellungen → Ausführungsmodus → BYOK. Dieser gehört Ihnen, wird verschlüsselt auf dem Server gespeichert, nur für Ihr Admin-Konto, und betreibt den Assistenten in diesem Admin-Bereich. Eine bereitgestellte Website kann ihn niemals verwenden — deshalb aktiviert das Speichern eines Schlüssels dort nicht den Besucher-Chat.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Ignorieren Sie den Hinweis „Nur von diesem Host gespeichert“ unten. Er gehört zur gemeinsamen Formularkomponente und ist auf dem Einstellungen-Bildschirm zutreffend, nicht hier. Dieser Schlüssel wird verschlüsselt auf dem Server gespeichert.',
     "See more about the visitor key": "Mehr über den Besucherschlüssel erfahren",
     "See more": "Mehr anzeigen",
     "See less": "Weniger anzeigen",
@@ -325,8 +316,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nicht implementiert",
   },
   "zh-CN": {
-    "No API key — model discovery needs the key from this browser.":
-      "没有 API 密钥——模型发现需要来自此浏览器的密钥。",
+    "No API key saved on the server. Save one first.": "服务器上没有保存 API 密钥。请先保存一个。",
     "failed to save the key": "无法保存密钥",
     "failed to save the settings": "无法保存设置",
     "Could not reach the provider with that key": "无法使用该密钥连接提供商",
@@ -366,8 +356,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "此密钥是给您的访客使用的，不是给您自己用的。它让阅读您已发布网站的人能够提问并获得答案。它存储在服务器上，用于每一次访客对话。",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "它与「设置 → 执行模式 → BYOK」下的密钥不同。那个密钥是您自己的，加密保存在服务器上，仅供您的管理员账户使用，并驱动此管理后台中的助手。已部署的网站永远无法使用它——这就是为什么在那里保存密钥不会开启访客聊天。",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      '忽略下方的"仅由此主机存储"提示。该提示属于共享的表单组件，在设置页面上是准确的，但不适用于此处。此密钥将被加密存储在服务器上。',
     "See more about the visitor key": "了解更多关于访客密钥的信息",
     "See more": "查看更多",
     "See less": "收起",
@@ -413,8 +401,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未实现",
   },
   "zh-TW": {
-    "No API key — model discovery needs the key from this browser.":
-      "沒有 API 金鑰——模型探索需要來自此瀏覽器的金鑰。",
+    "No API key saved on the server. Save one first.": "伺服器上沒有儲存 API 金鑰。請先儲存一個。",
     "failed to save the key": "無法儲存金鑰",
     "failed to save the settings": "無法儲存設定",
     "Could not reach the provider with that key": "無法使用該金鑰連線至提供者",
@@ -454,8 +441,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "此金鑰是給您的訪客使用的，不是給您自己用的。它讓閱讀您已發布網站的人能夠提問並取得答案。它儲存在伺服器上，用於每一次訪客對話。",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "它與「設定 → 執行模式 → BYOK」下的金鑰不同。那個金鑰是您自己的，加密儲存在伺服器上，僅供您的管理員帳戶使用，並驅動此管理後台中的助理。已部署的網站永遠無法使用它——這就是為什麼在那裡儲存金鑰不會開啟訪客聊天。",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      '請忽略下方的「僅由此主機儲存」提示。此提示屬於共用的表單元件，在設定畫面上是正確的，但不適用於此處。此金鑰將被加密儲存在伺服器上。',
     "See more about the visitor key": "了解更多關於訪客金鑰的資訊",
     "See more": "顯示更多",
     "See less": "收合",
@@ -501,8 +486,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "尚未實作",
   },
   "pt-BR": {
-    "No API key — model discovery needs the key from this browser.":
-      "Sem chave de API — a descoberta de modelos precisa da chave deste navegador.",
+    "No API key saved on the server. Save one first.": "Nenhuma chave de API salva no servidor. Salve uma primeiro.",
     "failed to save the key": "não foi possível salvar a chave",
     "failed to save the settings": "não foi possível salvar as configurações",
     "Could not reach the provider with that key": "Não foi possível alcançar o provedor com essa chave",
@@ -545,8 +529,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Esta chave é para seus visitantes, não para você. É o que permite que as pessoas que leem seu site publicado façam perguntas e obtenham respostas. Ela é armazenada no servidor e usada em cada conversa de visitante.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "É uma chave diferente daquela em Configurações → Modo de execução → BYOK. Aquela é sua, é salva criptografada no servidor, apenas para a sua conta de administrador, e alimenta o assistente nesta administração. Um site implantado nunca pode usá-la — por isso salvar uma chave ali não ativa o chat do visitante.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Ignore a nota "Armazenada apenas por este host" abaixo. Ela pertence ao componente de formulário compartilhado e é precisa na tela de Configurações, não aqui. Esta chave será armazenada no servidor, criptografada.',
     "See more about the visitor key": "Ver mais sobre a chave do visitante",
     "See more": "Ver mais",
     "See less": "Ver menos",
@@ -594,8 +576,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Não implementado",
   },
   ru: {
-    "No API key — model discovery needs the key from this browser.":
-      "Нет API-ключа — для поиска моделей нужен ключ из этого браузера.",
+    "No API key saved on the server. Save one first.": "На сервере не сохранён API-ключ. Сначала сохраните ключ.",
     "failed to save the key": "не удалось сохранить ключ",
     "failed to save the settings": "не удалось сохранить настройки",
     "Could not reach the provider with that key": "Не удалось связаться с поставщиком с этим ключом",
@@ -638,8 +619,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Этот ключ предназначен для ваших посетителей, а не для вас. Именно он позволяет людям, читающим ваш опубликованный сайт, задавать вопросы и получать ответы. Он хранится на сервере и используется в каждой беседе с посетителем.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "Это другой ключ, отличный от того, что находится в разделе Настройки → Режим выполнения → BYOK. Тот ключ — ваш собственный, он хранится на сервере в зашифрованном виде, только для вашей учётной записи администратора, и используется ассистентом в этой админ-панели. Развёрнутый сайт никогда не сможет его использовать — поэтому сохранение ключа там не включает чат для посетителей.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Игнорируйте примечание «Хранится только на этом хосте» ниже. Оно относится к общему компоненту формы и верно для экрана настроек, но не здесь. Этот ключ будет храниться на сервере в зашифрованном виде.',
     "See more about the visitor key": "Подробнее о ключе для посетителей",
     "See more": "Показать больше",
     "See less": "Показать меньше",
@@ -687,8 +666,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реализовано",
   },
   fa: {
-    "No API key — model discovery needs the key from this browser.":
-      "کلید API وجود ندارد — کشف مدل‌ها به کلید از همین مرورگر نیاز دارد.",
+    "No API key saved on the server. Save one first.": "هیچ کلید API روی سرور ذخیره نشده است. ابتدا یک کلید ذخیره کنید.",
     "failed to save the key": "ذخیره‌سازی کلید ناموفق بود",
     "failed to save the settings": "ذخیره‌سازی تنظیمات ناموفق بود",
     "Could not reach the provider with that key": "با آن کلید نمی‌توان به ارائه‌دهنده دسترسی یافت",
@@ -730,8 +708,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "این کلید برای بازدیدکنندگان شماست، نه برای خودتان. این همان چیزی است که به افرادی که سایت منتشرشده‌ی شما را می‌خوانند اجازه می‌دهد سؤال بپرسند و پاسخ بگیرند. این کلید روی سرور ذخیره می‌شود و برای هر گفتگوی بازدیدکننده استفاده می‌شود.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "این کلید با کلیدی که در تنظیمات → حالت اجرا → BYOK قرار دارد، متفاوت است. آن کلید مال خودتان است، به‌صورت رمزگذاری‌شده روی سرور و فقط برای حساب مدیریت شما ذخیره می‌شود و دستیار این پنل مدیریت را تغذیه می‌کند. یک سایت مستقر هرگز نمی‌تواند از آن استفاده کند — به همین دلیل ذخیره‌ی کلید در آنجا گفتگوی بازدیدکننده را فعال نمی‌کند.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'یادداشت «فقط توسط این میزبان ذخیره شده» در پایین را نادیده بگیرید. این یادداشت متعلق به مؤلفه فرم مشترک است و در صفحه تنظیمات درست است، نه اینجا. این کلید به‌صورت رمزنگاری‌شده روی سرور ذخیره خواهد شد.',
     "See more about the visitor key": "بیشتر درباره‌ی کلید بازدیدکننده بخوانید",
     "See more": "بیشتر ببینید",
     "See less": "کمتر ببینید",
@@ -779,8 +755,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "پیاده‌سازی نشده",
   },
   ar: {
-    "No API key — model discovery needs the key from this browser.":
-      "لا يوجد مفتاح API — يحتاج اكتشاف النماذج إلى المفتاح من هذا المتصفح.",
+    "No API key saved on the server. Save one first.": "لا يوجد مفتاح API محفوظ على الخادم. احفظ مفتاحًا أولًا.",
     "failed to save the key": "تعذر حفظ المفتاح",
     "failed to save the settings": "تعذر حفظ الإعدادات",
     "Could not reach the provider with that key": "تعذر الوصول إلى المزوّد باستخدام ذلك المفتاح",
@@ -821,8 +796,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "هذا المفتاح مخصَّص لزوارك، وليس لك؛ فهو ما يتيح للأشخاص الذين يقرؤون موقعك المنشور طرح الأسئلة والحصول على إجابات. يُخزَّن على الخادم ويُستخدَم في كل محادثة مع زائر.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "إنه مفتاح مختلف عن ذلك الموجود ضمن الإعدادات → وضع التنفيذ → BYOK. ذلك المفتاح خاص بك، يُحفَظ مشفّرًا على الخادم لحساب الإدارة الخاص بك فقط، ويُشغِّل المساعد في لوحة الإدارة هذه. لا يمكن لموقع منشور أن يستخدمه أبدًا — ولهذا فإن حفظ مفتاح هناك لا يُفعِّل دردشة الزوار.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'تجاهل الملاحظة "يُخزَّن فقط بواسطة هذا المضيف" أدناه. فهي تخص مكوّن النموذج المشترك وتنطبق على شاشة الإعدادات، وليس هنا. سيُخزَّن هذا المفتاح على الخادم، مشفَّرًا.',
     "See more about the visitor key": "معرفة المزيد حول مفتاح الزائر",
     "See more": "عرض المزيد",
     "See less": "عرض أقل",
@@ -870,8 +843,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "غير منفَّذ",
   },
   ja: {
-    "No API key — model discovery needs the key from this browser.":
-      "API キーがありません — モデルの検出には、このブラウザーからのキーが必要です。",
+    "No API key saved on the server. Save one first.": "サーバーに API キーが保存されていません。先にキーを保存してください。",
     "failed to save the key": "キーを保存できませんでした",
     "failed to save the settings": "設定を保存できませんでした",
     "Could not reach the provider with that key": "そのキーではプロバイダーに接続できませんでした",
@@ -911,8 +883,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "このキーは訪問者のためのものであり、あなた自身のものではありません。公開サイトを読む人が質問して回答を得られるようにするためのものです。サーバーに保存され、訪問者とのすべての会話で使用されます。",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "これは「設定 → 実行モード → BYOK」にあるキーとは別のものです。そちらはあなた自身のキーで、暗号化されてサーバー上に、あなたの管理者アカウント専用として保存され、この管理画面内のアシスタントを動かします。デプロイ済みのサイトがそれを使うことは決してありません — そのため、そちらでキーを保存しても訪問者向けチャットは有効になりません。",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      '下にある「このホストにのみ保存」という注記は無視してください。それは共有フォームコンポーネントに属するもので、設定画面では正確ですが、ここでは当てはまりません。このキーは暗号化されてサーバーに保存されます。',
     "See more about the visitor key": "訪問者用キーの詳細を見る",
     "See more": "もっと見る",
     "See less": "閉じる",
@@ -960,8 +930,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "未実装",
   },
   ko: {
-    "No API key — model discovery needs the key from this browser.":
-      "API 키가 없습니다 — 모델 검색에는 이 브라우저의 키가 필요합니다.",
+    "No API key saved on the server. Save one first.": "서버에 저장된 API 키가 없습니다. 먼저 키를 저장하세요.",
     "failed to save the key": "키를 저장하지 못했습니다",
     "failed to save the settings": "설정을 저장하지 못했습니다",
     "Could not reach the provider with that key": "해당 키로 제공업체에 연결할 수 없습니다",
@@ -1001,8 +970,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "이 키는 사용자님이 아니라 방문자를 위한 것입니다. 게시된 사이트를 읽는 사람들이 질문하고 답변을 받을 수 있게 해 주는 키입니다. 서버에 저장되며 모든 방문자 대화에 사용됩니다.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "설정 → 실행 모드 → BYOK에 있는 키와는 다른 키입니다. 그 키는 사용자님 소유이며 서버에 암호화되어 사용자님의 관리자 계정 전용으로 저장되고, 이 관리자 페이지의 어시스턴트를 구동합니다. 배포된 사이트는 그 키를 절대 사용할 수 없습니다 — 그래서 그곳에 키를 저장해도 방문자 채팅이 켜지지 않습니다.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      '아래의 "이 호스트에만 저장됨" 안내는 무시하세요. 이는 공유 폼 컴포넌트에 속한 문구로, 설정 화면에서는 맞지만 여기서는 해당하지 않습니다. 이 키는 암호화되어 서버에 저장됩니다.',
     "See more about the visitor key": "방문자 키에 대해 더 알아보기",
     "See more": "더 보기",
     "See less": "간략히 보기",
@@ -1050,8 +1017,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "구현되지 않음",
   },
   pl: {
-    "No API key — model discovery needs the key from this browser.":
-      "Brak klucza API — wykrywanie modeli wymaga klucza z tej przeglądarki.",
+    "No API key saved on the server. Save one first.": "Na serwerze nie zapisano klucza API. Najpierw zapisz klucz.",
     "failed to save the key": "nie udało się zapisać klucza",
     "failed to save the settings": "nie udało się zapisać ustawień",
     "Could not reach the provider with that key": "Nie udało się połączyć z dostawcą za pomocą tego klucza",
@@ -1092,8 +1058,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Ten klucz jest przeznaczony dla Twoich odwiedzających, nie dla Ciebie. To on umożliwia osobom czytającym Twoją opublikowaną witrynę zadawanie pytań i otrzymywanie odpowiedzi. Jest przechowywany na serwerze i używany w każdej rozmowie z odwiedzającym.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "To inny klucz niż ten w Ustawienia → Tryb wykonania → BYOK. Tamten jest Twój własny, przechowywany na serwerze w postaci zaszyfrowanej, tylko dla Twojego konta administratora, i zasila asystenta w tym panelu administracyjnym. Wdrożona witryna nigdy nie może go użyć — dlatego zapisanie tam klucza nie włącza czatu dla odwiedzających.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Zignoruj poniższą notatkę „Przechowywane wyłącznie przez tego hosta”. Należy ona do współdzielonego komponentu formularza i jest trafna na ekranie Ustawień, ale nie tutaj. Ten klucz zostanie zapisany na serwerze, zaszyfrowany.',
     "See more about the visitor key": "Dowiedz się więcej o kluczu dla odwiedzających",
     "See more": "Pokaż więcej",
     "See less": "Pokaż mniej",
@@ -1141,8 +1105,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Niewdrożone",
   },
   hu: {
-    "No API key — model discovery needs the key from this browser.":
-      "Nincs API-kulcs — a modellek felderítéséhez a kulcs szükséges ebből a böngészőből.",
+    "No API key saved on the server. Save one first.": "Nincs API-kulcs mentve a szerveren. Először mentsen egyet.",
     "failed to save the key": "a kulcs mentése nem sikerült",
     "failed to save the settings": "a beállítások mentése nem sikerült",
     "Could not reach the provider with that key": "Ezzel a kulccsal nem sikerült elérni a szolgáltatót",
@@ -1183,8 +1146,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Ez a kulcs a látogatói számára van, nem az Ön számára. Ez teszi lehetővé, hogy a közzétett webhelyét olvasó emberek kérdéseket tegyenek fel és választ kapjanak. A szerveren tárolódik, és minden látogatói beszélgetéshez felhasználásra kerül.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "Ez eltér a Beállítások → Végrehajtási mód → BYOK alatt található kulcstól. Az a sajátja, titkosítva a szerveren tárolódik, kizárólag az Ön adminisztrátori fiókjához,, és az ebben az adminisztrációban lévő asszisztenst hajtja. Egy éles webhely soha nem használhatja azt — ezért nem kapcsolja be a látogatói csevegést, ha ott mentett el egy kulcsot.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Hagyja figyelmen kívül a lenti „Csak ez a hoszt tárolja” megjegyzést. Ez a megosztott űrlapkomponenshez tartozik, és a Beállítások képernyőn pontos, itt nem. Ez a kulcs titkosítva kerül tárolásra a szerveren.',
     "See more about the visitor key": "Tudjon meg többet a látogatói kulcsról",
     "See more": "Több megjelenítése",
     "See less": "Kevesebb megjelenítése",
@@ -1232,8 +1193,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Nincs megvalósítva",
   },
   fr: {
-    "No API key — model discovery needs the key from this browser.":
-      "Aucune clé API — la découverte des modèles nécessite la clé depuis ce navigateur.",
+    "No API key saved on the server. Save one first.": "Aucune clé API enregistrée sur le serveur. Enregistrez-en une d'abord.",
     "failed to save the key": "impossible d’enregistrer la clé",
     "failed to save the settings": "impossible d’enregistrer les paramètres",
     "Could not reach the provider with that key": "Impossible de joindre le fournisseur avec cette clé",
@@ -1274,8 +1234,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Cette clé est destinée à vos visiteurs, pas à vous. Elle permet aux personnes qui lisent votre site publié de poser des questions et d'obtenir des réponses. Elle est stockée sur le serveur et utilisée pour chaque conversation avec un visiteur.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "C'est une clé différente de celle sous Paramètres → Mode d'exécution → BYOK. Celle-là vous appartient, elle est enregistrée chiffrée sur le serveur, uniquement pour votre compte administrateur, et elle alimente l'assistant dans cette administration. Un site déployé ne peut jamais l'utiliser — c'est pourquoi enregistrer une clé là-bas n'active pas le chat des visiteurs.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      "Ignorez la note « Stocké uniquement par cet hôte » ci-dessous. Elle appartient au composant de formulaire partagé et s'applique à l'écran Paramètres, pas ici. Cette clé sera stockée sur le serveur, chiffrée.",
     "See more about the visitor key": "En savoir plus sur la clé visiteur",
     "See more": "Voir plus",
     "See less": "Voir moins",
@@ -1323,8 +1281,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implémenté",
   },
   uk: {
-    "No API key — model discovery needs the key from this browser.":
-      "Немає API-ключа — для пошуку моделей потрібен ключ із цього браузера.",
+    "No API key saved on the server. Save one first.": "На сервері не збережено API-ключ. Спочатку збережіть ключ.",
     "failed to save the key": "не вдалося зберегти ключ",
     "failed to save the settings": "не вдалося зберегти налаштування",
     "Could not reach the provider with that key": "Не вдалося зв’язатися з постачальником за допомогою цього ключа",
@@ -1364,8 +1321,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Цей ключ призначений для ваших відвідувачів, а не для вас. Саме він дозволяє людям, які читають ваш опублікований сайт, ставити запитання й отримувати відповіді. Він зберігається на сервері та використовується для кожної розмови з відвідувачем.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "Це інший ключ, ніж той, що в розділі Налаштування → Режим виконання → BYOK. Той ключ — ваш власний, зберігається на сервері в зашифрованому вигляді, лише для вашого облікового запису адміністратора, й живить асистента в цій адмін-панелі. Розгорнутий сайт ніколи не зможе його використати — тому збереження ключа там не вмикає чат для відвідувачів.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Ігноруйте примітку «Зберігається лише цим хостом» нижче. Вона стосується спільного компонента форми і є коректною на екрані Налаштувань, але не тут. Цей ключ буде збережено на сервері в зашифрованому вигляді.',
     "See more about the visitor key": "Дізнатися більше про ключ для відвідувачів",
     "See more": "Показати більше",
     "See less": "Показати менше",
@@ -1413,8 +1368,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Не реалізовано",
   },
   tr: {
-    "No API key — model discovery needs the key from this browser.":
-      "API anahtarı yok — model keşfi için bu tarayıcıdan anahtar gerekiyor.",
+    "No API key saved on the server. Save one first.": "Sunucuda kayıtlı API anahtarı yok. Önce bir anahtar kaydedin.",
     "failed to save the key": "anahtar kaydedilemedi",
     "failed to save the settings": "ayarlar kaydedilemedi",
     "Could not reach the provider with that key": "Bu anahtarla sağlayıcıya ulaşılamadı",
@@ -1455,8 +1409,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Bu anahtar sizin için değil, ziyaretçileriniz içindir. Yayınlanan sitenizi okuyan kişilerin soru sorup yanıt almasını sağlayan şey budur. Sunucuda saklanır ve her ziyaretçi konuşmasında kullanılır.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "Bu, Ayarlar → Yürütme modu → BYOK altındaki anahtardan farklı bir anahtardır. O anahtar size aittir, sunucuda şifrelenmiş olarak, yalnızca yönetici hesabınız için saklanır ve bu yönetim panelindeki asistanı çalıştırır. Dağıtılmış bir site onu asla kullanamaz — bu nedenle anahtarı orada kaydetmek ziyaretçi sohbetini açmaz.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Aşağıdaki "Yalnızca bu ana bilgisayar tarafından saklanır" notunu göz ardı edin. Bu not, paylaşılan form bileşenine aittir ve Ayarlar ekranında doğrudur, burada değil. Bu anahtar şifrelenerek sunucuda saklanacaktır.',
     "See more about the visitor key": "Ziyaretçi anahtarı hakkında daha fazla bilgi edinin",
     "See more": "Daha fazla göster",
     "See less": "Daha az göster",
@@ -1504,8 +1456,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Uygulanmadı",
   },
   th: {
-    "No API key — model discovery needs the key from this browser.":
-      "ไม่มีคีย์ API — การค้นหาโมเดลต้องใช้คีย์จากเบราว์เซอร์นี้",
+    "No API key saved on the server. Save one first.": "ไม่มีคีย์ API ที่บันทึกไว้บนเซิร์ฟเวอร์ โปรดบันทึกคีย์ก่อน",
     "failed to save the key": "บันทึกคีย์ไม่สำเร็จ",
     "failed to save the settings": "บันทึกการตั้งค่าไม่สำเร็จ",
     "Could not reach the provider with that key": "ไม่สามารถติดต่อผู้ให้บริการด้วยคีย์นั้นได้",
@@ -1545,8 +1496,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "คีย์นี้มีไว้สำหรับผู้เยี่ยมชมของคุณ ไม่ใช่สำหรับคุณ เป็นสิ่งที่ทำให้ผู้ที่อ่านเว็บไซต์ที่เผยแพร่ของคุณสามารถถามคำถามและได้รับคำตอบ คีย์นี้จัดเก็บไว้บนเซิร์ฟเวอร์และใช้สำหรับการสนทนาของผู้เยี่ยมชมทุกครั้ง",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "นี่คือคีย์ที่ต่างจากคีย์ในการตั้งค่า → โหมดการทำงาน → BYOK คีย์นั้นเป็นของคุณเอง จัดเก็บแบบเข้ารหัสบนเซิร์ฟเวอร์ สำหรับบัญชีผู้ดูแลของคุณเท่านั้น และขับเคลื่อนผู้ช่วยในระบบผู้ดูแลนี้ เว็บไซต์ที่ทำงานจริงจะไม่สามารถใช้คีย์นั้นได้เลย — นี่คือเหตุผลที่การบันทึกคีย์ไว้ที่นั่นไม่เปิดใช้งานแชทของผู้เยี่ยมชม",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'ไม่ต้องสนใจข้อความ "จัดเก็บโดยโฮสต์นี้เท่านั้น" ด้านล่าง ข้อความนี้เป็นของคอมโพเนนต์ฟอร์มที่ใช้ร่วมกันและถูกต้องบนหน้าจอการตั้งค่า แต่ไม่ใช่ที่นี่ คีย์นี้จะถูกจัดเก็บบนเซิร์ฟเวอร์แบบเข้ารหัส',
     "See more about the visitor key": "ดูข้อมูลเพิ่มเติมเกี่ยวกับคีย์ของผู้เยี่ยมชม",
     "See more": "ดูเพิ่มเติม",
     "See less": "ดูน้อยลง",
@@ -1594,8 +1543,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "ยังไม่ได้ใช้งาน",
   },
   it: {
-    "No API key — model discovery needs the key from this browser.":
-      "Nessuna chiave API — il rilevamento dei modelli richiede la chiave da questo browser.",
+    "No API key saved on the server. Save one first.": "Nessuna chiave API salvata sul server. Salvane prima una.",
     "failed to save the key": "impossibile salvare la chiave",
     "failed to save the settings": "impossibile salvare le impostazioni",
     "Could not reach the provider with that key": "Impossibile raggiungere il provider con quella chiave",
@@ -1636,8 +1584,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Questa chiave è per i tuoi visitatori, non per te. È ciò che consente alle persone che leggono il tuo sito pubblicato di fare domande e ottenere risposte. Viene archiviata sul server e utilizzata per ogni conversazione dei visitatori.",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "È una chiave diversa da quella in Impostazioni → Modalità di esecuzione → BYOK. Quella è tua, viene salvata cifrata sul server, solo per il tuo account amministratore, e alimenta l'assistente in questa amministrazione. Un sito distribuito non può mai usarla — per questo salvare una chiave lì non attiva la chat dei visitatori.",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'Ignora la nota "Archiviata solo da questo host" qui sotto. Appartiene al componente del modulo condiviso ed è accurata nella schermata Impostazioni, non qui. Questa chiave verrà archiviata sul server, crittografata.',
     "See more about the visitor key": "Scopri di più sulla chiave del visitatore",
     "See more": "Mostra di più",
     "See less": "Mostra meno",
@@ -1685,8 +1631,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "Non implementato",
   },
   hi: {
-    "No API key — model discovery needs the key from this browser.":
-      "कोई API कुंजी नहीं — मॉडल खोजने के लिए इस ब्राउज़र से कुंजी चाहिए।",
+    "No API key saved on the server. Save one first.": "सर्वर पर कोई API कुंजी सहेजी नहीं गई है। पहले एक कुंजी सहेजें।",
     "failed to save the key": "कुंजी सहेजी नहीं जा सकी",
     "failed to save the settings": "सेटिंग सहेजी नहीं जा सकीं",
     "Could not reach the provider with that key": "उस कुंजी से प्रदाता तक नहीं पहुंचा जा सका",
@@ -1729,8 +1674,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "यह कुंजी आपके विज़िटर के लिए है, आपके लिए नहीं। यह वही है जो आपकी प्रकाशित साइट पढ़ने वाले लोगों को सवाल पूछने और जवाब पाने देती है। यह सर्वर पर संग्रहीत होती है और हर विज़िटर बातचीत के लिए उपयोग की जाती है।",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "यह सेटिंग्स → निष्पादन मोड → BYOK में मौजूद कुंजी से अलग कुंजी है। वह कुंजी आपकी अपनी है, सर्वर पर एन्क्रिप्ट करके, केवल आपके एडमिन खाते के लिए सहेजी जाती है, और इस एडमिन में सहायक को शक्ति देती है। डिप्लॉय की गई साइट इसे कभी उपयोग नहीं कर सकती — इसीलिए वहां कुंजी सहेजने से विज़िटर चैट चालू नहीं होता।",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'नीचे दिए गए "केवल इस होस्ट द्वारा संग्रहीत" नोट को अनदेखा करें। यह साझा फ़ॉर्म घटक से संबंधित है और सेटिंग्स स्क्रीन पर सटीक है, यहां नहीं। यह कुंजी सर्वर पर एन्क्रिप्टेड रूप से संग्रहीत की जाएगी।',
     "See more about the visitor key": "विज़िटर कुंजी के बारे में अधिक जानें",
     "See more": "अधिक देखें",
     "See less": "कम देखें",
@@ -1778,8 +1721,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "लागू नहीं किया गया",
   },
   ur: {
-    "No API key — model discovery needs the key from this browser.":
-      "کوئی API کلید نہیں — ماڈلز کی دریافت کے لیے اسی براؤزر سے کلید درکار ہے۔",
+    "No API key saved on the server. Save one first.": "سرور پر کوئی API کلید محفوظ نہیں ہے۔ پہلے ایک کلید محفوظ کریں۔",
     "failed to save the key": "کلید محفوظ نہیں ہو سکی",
     "failed to save the settings": "ترتیبات محفوظ نہیں ہو سکیں",
     "Could not reach the provider with that key": "اس کلید کے ساتھ فراہم کنندہ تک رسائی نہیں ہو سکی",
@@ -1822,8 +1764,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "یہ کلید آپ کے وزیٹرز کے لیے ہے، آپ کے لیے نہیں۔ یہی وہ چیز ہے جو آپ کی شائع شدہ سائٹ پڑھنے والے لوگوں کو سوالات پوچھنے اور جوابات حاصل کرنے دیتی ہے۔ یہ سرور پر محفوظ ہوتی ہے اور ہر وزیٹر گفتگو کے لیے استعمال ہوتی ہے۔",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "یہ ترتیبات → ایگزیکیوشن موڈ → BYOK کے تحت موجود کلید سے مختلف کلید ہے۔ وہ آپ کی اپنی ہے، سرور پر خفیہ شدہ شکل میں، صرف آپ کے ایڈمن اکاؤنٹ کے لیے محفوظ ہوتی ہے، اور اس ایڈمن میں اسسٹنٹ کو طاقت دیتی ہے۔ کوئی ڈیپلائے شدہ سائٹ اسے کبھی استعمال نہیں کر سکتی — اسی لیے وہاں کلید محفوظ کرنے سے وزیٹر چیٹ فعال نہیں ہوتی۔",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'نیچے دیے گئے "صرف اسی ہوسٹ کے ذریعے محفوظ" نوٹ کو نظر انداز کریں۔ یہ مشترکہ فارم جزو سے تعلق رکھتا ہے اور ترتیبات کی اسکرین پر درست ہے، یہاں نہیں۔ یہ کلید سرور پر خفیہ کاری کے ساتھ محفوظ کی جائے گی۔',
     "See more about the visitor key": "وزیٹر کلید کے بارے میں مزید دیکھیں",
     "See more": "مزید دیکھیں",
     "See less": "کم دیکھیں",
@@ -1871,8 +1811,7 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not implemented": "نافذ نہیں کیا گیا",
   },
   bn: {
-    "No API key — model discovery needs the key from this browser.":
-      "কোনো API কী নেই — মডেল খুঁজে পেতে এই ব্রাউজার থেকে কী প্রয়োজন।",
+    "No API key saved on the server. Save one first.": "সার্ভারে কোনো API কী সংরক্ষিত নেই। আগে একটি কী সংরক্ষণ করুন।",
     "failed to save the key": "কী সংরক্ষণ করা যায়নি",
     "failed to save the settings": "সেটিংস সংরক্ষণ করা যায়নি",
     "Could not reach the provider with that key": "ওই কী দিয়ে প্রদানকারীর কাছে পৌঁছানো যায়নি",
@@ -1915,8 +1854,6 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "এই কী আপনার ভিজিটরদের জন্য, আপনার জন্য নয়। এটিই আপনার প্রকাশিত সাইট পড়া মানুষদের প্রশ্ন জিজ্ঞাসা করতে ও উত্তর পেতে দেয়। এটি সার্ভারে সংরক্ষিত থাকে এবং প্রতিটি ভিজিটর কথোপকথনে ব্যবহৃত হয়।",
     "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
       "সেটিংস → এক্সিকিউশন মোড → BYOK-এর অধীনে থাকা কী থেকে এটি ভিন্ন একটি কী। সেটি আপনার নিজের, সার্ভারে এনক্রিপ্ট করে, শুধু আপনার অ্যাডমিন অ্যাকাউন্টের জন্য সংরক্ষিত থাকে, এবং এই অ্যাডমিনের সহকারীকে চালায়। কোনো ডিপ্লয় করা সাইট কখনো এটি ব্যবহার করতে পারে না — তাই সেখানে কী সংরক্ষণ করলে ভিজিটর চ্যাট চালু হয় না।",
-    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
-      'নিচের "শুধু এই হোস্ট দ্বারা সংরক্ষিত" নোটটি উপেক্ষা করুন। এটি শেয়ার্ড ফর্ম কম্পোনেন্টের অংশ এবং সেটিংস স্ক্রিনে সঠিক, এখানে নয়। এই কী এনক্রিপ্ট করে সার্ভারে সংরক্ষণ করা হবে।',
     "See more about the visitor key": "ভিজিটর কী সম্পর্কে আরও দেখুন",
     "See more": "আরও দেখুন",
     "See less": "কম দেখুন",
