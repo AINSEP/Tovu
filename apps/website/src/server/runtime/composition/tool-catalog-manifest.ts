@@ -1,4 +1,5 @@
 import {
+  registerDerivedToolContributor,
   registerToolContributor,
   registerDuplicateResourceHandler,
   listDuplicateResourceHandlers,
@@ -43,6 +44,7 @@ import { contributeSiteInspectionTools } from "#src/features/site-inspection/ind
 import { contributeSitesTools } from "#src/features/sites/index";
 import { contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
+import { deriveTrashItemRegistrations, trashItemDerivedRisk } from "#src/features/trash/index";
 import { contributeSupabaseConnectTools } from "#src/features/supabase-connect/tool-registrations";
 import { contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
@@ -332,8 +334,10 @@ export function installFirstPartyToolContributors(): void {
   // never be one — `features/trash/__tests__/tool-registrations.purge-ban.test.ts` walks every
   // registration this function installs and fails if any handler can reach `purgeSelected`.
   // (`trash_item` is not a contributor: `buildAssistantToolRegistrations` derives it afterwards from
-  // the four per-domain delete tools — see `features/trash/trash-item-tool.ts`.)
+  // the four per-domain delete tools, through the derived-contributor seam registered just below —
+  // see `features/trash/trash-item-tool.ts`.)
   registerToolContributor(contributeTrashTools());
+  registerDerivedToolContributor({ domain: "trash-item", derive: deriveTrashItemRegistrations, risk: trashItemDerivedRisk });
   registerToolContributor(contributeWidgetsTools());
   registerToolContributor(contributeWorkspaceTools());
 

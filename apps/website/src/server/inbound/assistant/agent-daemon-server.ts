@@ -116,6 +116,7 @@ import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
 import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
+import { registerInstalledExtensionTools } from "../../runtime/composition/installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -1228,6 +1229,7 @@ async function start(): Promise<void> {
     registry,
     {
       ...routeDeps,
+      registerInstalled: registerInstalledExtensionTools,
       federation: {
         deps: federationDeps,
         resolveConnections: source.resolve,

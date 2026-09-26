@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createByokToolSurface } from "#src/assistant/index";
+import { registerInstalledExtensionTools } from "#src/server/runtime/composition/installed-extension-tools";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 import { MIN_EXPECTED_TOOL_COUNT, fakeEvalRouteDeps } from "../../../../../../../development/evals/tool-search-eval-registry.js";
@@ -46,7 +47,7 @@ interface SearchHit {
 
 function surface() {
   installFirstPartyToolContributors();
-  return createByokToolSurface(fakeEvalRouteDeps() as never);
+  return createByokToolSurface(fakeEvalRouteDeps() as never, { registerInstalledExtensions: registerInstalledExtensionTools });
 }
 
 async function rankedIds(query: string, limit = 5): Promise<SearchHit[]> {

@@ -161,7 +161,7 @@ import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 import { deriveContentReadRegistrations } from "./content-read-tool.js";
-import { listToolContributors, type ToolContributor } from "./tool-contribution-registry.js";
+import { listDerivedToolContributors, listToolContributors, type ToolContributor } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
@@ -213,7 +213,7 @@ import type { IdentityToolDeps } from "../features/identity/tool-registrations.j
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
 import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
-import { deriveTrashItemRegistrations, trashItemDerivedRisk, type TrashItemToolDeps } from "../features/trash/index.js";
+import type { TrashItemToolDeps } from "../features/trash/index.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
@@ -600,20 +600,6 @@ function allToolContributors(): readonly DomainSlice[] {
 }
 
 /**
- * Risk classifications for tools built by a post-processing pass in
- * {@link buildAssistantToolRegistrations} rather than by a domain slice, so
- * {@link allToolContributors} never sees them.
- *
- * `trash_item` is a tool of its own (a new id, a new schema, its own `deletes-durable-state`
- * declaration), so it is classified here and cross-checked like any other wired tool. The
- * `content_read.*` cards are deliberately absent: each is a relabel of member tools whose risk was
- * already checked under their original ids (see `content-read-tool.ts`).
- */
-const POST_PROCESSING_RISK: readonly { domain: string; risk: DerivedRiskByToolId }[] = [
-  { domain: "trash-item", risk: trashItemDerivedRisk },
-];
-
-/**
  * Every domain's risk classification folded into one map, refusing any id two domains both wire.
  *
  * Computed fresh per call (see {@link allToolContributors}) rather than once at module load — a
@@ -627,7 +613,11 @@ const POST_PROCESSING_RISK: readonly { domain: string; risk: DerivedRiskByToolId
  * to force.
  */
 function derivedRiskByToolId(): DerivedRiskByToolId {
-  return mergeDerivedRiskMaps([...allToolContributors(), ...POST_PROCESSING_RISK]);
+  // Derived (post-processing) contributors — today `trash_item`, a tool of its own (a new id, a new
+  // schema, its own `deletes-durable-state` declaration) — are classified and cross-checked like any
+  // other wired tool. The `content_read.*` cards are deliberately absent: each is a relabel of member
+  // tools whose risk was already checked under their original ids (see `content-read-tool.ts`).
+  return mergeDerivedRiskMaps([...allToolContributors(), ...listDerivedToolContributors()]);
 }
 
 /**
@@ -730,19 +720,24 @@ export function buildAssistantToolRegistrations(
     }
   }
 
-  // `trash_item` (2026-09-20) — see `features/trash/trash-item-tool.ts`'s header. A post-processing
-  // pass for the same reason `content_read` below is one: it reuses the four per-domain delete tools'
-  // ALREADY-BUILT handlers, so it can only be built once every contributor above has run. Pushed
-  // before the collapse's early return so both of this function's shapes include it.
-  for (const registration of deriveTrashItemRegistrations({ registrations, routeDeps: enrichedRouteDeps, surfaces })) {
-    const owner = ownerByToolId.get(registration.descriptor.id);
-    if (owner) {
-      throw new Error(
-        `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} domain and trash_item's post-processing pass — one tool id must resolve to exactly one handler`,
-      );
+  // Derived contributors (today `trash_item`, 2026-09-20 — see `features/trash/trash-item-tool.ts`'s
+  // header), registered by the composition root into `tool-contribution-registry.ts`. A
+  // post-processing pass for the same reason `content_read` below is one: it reuses the per-domain
+  // delete tools' ALREADY-BUILT handlers, so it can only be built once every contributor above has
+  // run. Pushed before the collapse's early return so both of this function's shapes include it.
+  // Each derive sees only the domain contributors' registrations, not an earlier derived pass's.
+  const contributed: readonly ToolRegistration[] = [...registrations];
+  for (const derived of listDerivedToolContributors()) {
+    for (const registration of derived.derive({ registrations: contributed, routeDeps: enrichedRouteDeps, surfaces })) {
+      const owner = ownerByToolId.get(registration.descriptor.id);
+      if (owner) {
+        throw new Error(
+          `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} domain and ${derived.domain}'s post-processing pass — one tool id must resolve to exactly one handler`,
+        );
+      }
+      ownerByToolId.set(registration.descriptor.id, derived.domain);
+      registrations.push(registration);
     }
-    ownerByToolId.set(registration.descriptor.id, "trash-item");
-    registrations.push(registration);
   }
 
   // `content_read` collapse (2026-09-08, ADS-memory/reports/2026-09-08-parent-tool-read-eval.md,

@@ -88,3 +88,45 @@ export function listToolContributors(): readonly ToolContributor[] {
 export function resetToolContributorsForTests(): void {
   contributors = [];
 }
+
+/** A post-processing contribution: tools DERIVED from the registrations every {@link ToolContributor}
+ * already built (today: `trash_item`, which reuses the per-domain delete tools' handlers — see
+ * `features/trash/trash-item-tool.ts`). Registered by the composition root
+ * (`installFirstPartyToolContributors`) for the same reason as {@link ToolContributor}: so
+ * `tool-registrations.ts` never imports the feature by value (that edge closed the `assistant ->
+ * trash -> comments -> plugins -> assistant` module cycle). `risk` is merged and cross-checked like
+ * any other domain's. */
+export interface DerivedToolContributor {
+  readonly domain: string;
+  readonly derive: (input: {
+    readonly registrations: readonly ToolRegistration[];
+    readonly routeDeps: AssistantToolRegistryDeps;
+    readonly surfaces: AssistantSurfaceDeps;
+  }) => ToolRegistration[];
+  readonly risk: DerivedRiskByToolId;
+}
+
+let derivedContributors: DerivedToolContributor[] = [];
+
+/** Registers one derived-tool contribution — same replace-by-`domain` semantics as
+ * {@link registerToolContributor}. */
+export function registerDerivedToolContributor(contributor: DerivedToolContributor): void {
+  const existing = derivedContributors.findIndex((candidate) => candidate.domain === contributor.domain);
+  if (existing >= 0) {
+    derivedContributors[existing] = contributor;
+    return;
+  }
+  derivedContributors.push(contributor);
+}
+
+/** Every derived-tool contributor registered so far, in registration order. */
+export function listDerivedToolContributors(): readonly DerivedToolContributor[] {
+  return derivedContributors;
+}
+
+/** Test-only reset of the derived-tool registry. Separate from {@link resetToolContributorsForTests}
+ * so a test that resets the domain contributors keeps whatever derived pass the composition root
+ * already installed. */
+export function resetDerivedToolContributorsForTests(): void {
+  derivedContributors = [];
+}

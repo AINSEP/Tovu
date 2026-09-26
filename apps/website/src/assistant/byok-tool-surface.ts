@@ -43,14 +43,13 @@ import {
 import type { ToolExecutor } from "@jini-ai/daemon";
 import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 
-import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-catalog-audit.js";
 import { withFederatedRefusalDiagnosis } from "./federated-refusal-diagnosis.js";
 import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
-import { attachAssistantToolExtensions } from "./installed-extension-tools.js";
+import { attachAssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
 import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
 import type { McpSessionPort } from "./mcp-federation/ports.js";
@@ -458,6 +457,22 @@ export function createByokToolSurface(
      */
     readonly installExtensions?: boolean;
     /**
+     * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
+     * injected by the composition root (`modules/assistant-byok.ts` passes
+     * `server/runtime/composition/installed-extension-tools.ts`'s `registerInstalledExtensionTools`)
+     * because its three registrars are feature code `assistant/` must not import by value (the
+     * `assistant <-> features/*` module cycles). Omitted, that pass registers nothing and `ready`
+     * resolves at once; federation is still attached unless `installExtensions: false`.
+     */
+    readonly registerInstalledExtensions?: InstalledExtensionRegistrar;
+    /**
+     * Registers the first-party federated MCP presets (today: `supabase-mcp-plugin.ts`'s
+     * `registerSupabaseMcpPreset`) before this surface is built — injected by the composition root
+     * for the same module-cycle reason as `registerInstalledExtensions`. Omitted, nothing is
+     * registered; the preset is itself a no-op unless `TOVU_SUPABASE_MCP_ENABLED` is set.
+     */
+    readonly registerFederationPresets?: () => void;
+    /**
      * Test seam, threaded straight into `CreateFederationRuntimeParams.connect` (see that field's
      * own doc): overrides the session factory federation's boot pass uses for EVERY connection in
      * the roster, so a test can hand it a fake `McpSessionPort` (e.g.
@@ -515,12 +530,11 @@ export function createByokToolSurface(
   // forwarded verbatim — omitted, the shared factory skips its own audit wrap the identical way this
   // function's inline one used to, matching this option's documented "neither half is logged"
   // contract.
-  // Idempotent (`supabase-mcp-plugin.ts`'s own doc), and cheap when
-  // `TOVU_SUPABASE_MCP_ENABLED` is unset — safe to call unconditionally, matching
-  // `agent-daemon-server.ts`'s own `start()`, which is what makes disclosing this as
-  // behavior-preserving for BYOK (a root that never called it before this slice) correct: nothing
-  // is spawned unless an operator has actually opted in.
-  registerSupabaseMcpPreset();
+  // Injected (see the option's doc). The real one is idempotent (`supabase-mcp-plugin.ts`'s own
+  // doc), and cheap when `TOVU_SUPABASE_MCP_ENABLED` is unset — safe to call unconditionally,
+  // matching `agent-daemon-server.ts`'s own `start()`: nothing is spawned unless an operator has
+  // actually opted in.
+  options.registerFederationPresets?.();
 
   // The stored-roster half of `external-mcp-connection-source.ts` — reads Settings → External
   // MCP's rows fresh on every `federation.resolveConnections()` call (boot, and every reload),
@@ -548,6 +562,7 @@ export function createByokToolSurface(
           registry,
           {
             ...deps,
+            registerInstalled: options.registerInstalledExtensions ?? (async () => {}),
             federation: {
               deps: buildExternalMcpFederationDeps({
                 authorize: routeDeps.authorize,

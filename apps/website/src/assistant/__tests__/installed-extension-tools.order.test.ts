@@ -5,6 +5,7 @@ import test from "node:test";
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import { registerInstalledExtensionTools } from "../../server/runtime/composition/installed-extension-tools.js";
 import { attachAssistantToolExtensions, type AttachAssistantToolExtensionsDeps } from "../installed-extension-tools.js";
 
 /**
@@ -53,6 +54,7 @@ test("federation.start() does not read the roster until installed-extension regi
       reachedDiscovery.resolve();
       return discovery.promise;
     },
+    registerInstalled: registerInstalledExtensionTools,
     federation: {
       deps: { authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws-order" },
       resolveConnections: async () => {

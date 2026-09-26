@@ -17,6 +17,7 @@ import {
   resetPublishContentContributorsForTests,
 } from "#src/features/publish-content/type-registry";
 import { attachAssistantToolExtensions } from "#src/assistant/installed-extension-tools";
+import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
 
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
@@ -221,6 +222,7 @@ async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnap
     registry,
     {
       ...routeDeps,
+      registerInstalled: registerInstalledExtensionTools,
       federation: {
         deps: buildExternalMcpFederationDeps({
           authorize: routeDeps.authorize,
