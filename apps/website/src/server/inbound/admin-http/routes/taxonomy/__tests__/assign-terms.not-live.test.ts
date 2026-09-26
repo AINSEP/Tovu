@@ -24,6 +24,8 @@ function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
     entryTermRepo: {} as any,
     taxonomyRevisionRepo: {} as any,
     postRepo,
+    entryRepo: {} as any,
+    contentTypeRepo: {} as any,
     stampWatermark: async () => {},
   };
 

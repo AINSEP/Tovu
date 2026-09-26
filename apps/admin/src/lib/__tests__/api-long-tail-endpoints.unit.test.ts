@@ -293,6 +293,20 @@ test("assignTerms POSTs the input verbatim to /taxonomy/assign-terms", async () 
   expect(body()).toEqual({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
 });
 
+test("unassignTerms POSTs the input verbatim to /taxonomy/unassign-terms", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.unassignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
+  expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/unassign-terms`);
+  expect(calls[0].init?.method).toBe("POST");
+  expect(body()).toEqual({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
+});
+
+test("assignedTerms GETs /taxonomy/assigned-terms with both ids encoded", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.assignedTerms({ contentType: "recipe", contentId: "e 1" });
+  expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/assigned-terms?contentType=recipe&contentId=e%201`);
+});
+
 test("planMergeTerm POSTs { intoTermId } to /taxonomy/terms/:id/merge/plan", async () => {
   const { calls, body } = stubFetchCapturing();
   await api.planMergeTerm({ fromTermId: "term1", intoTermId: "term2" });

@@ -12,7 +12,11 @@ import { registerAdminTaxonomyCreateTermRoute } from "../../inbound/admin-http/r
 import { registerAdminTaxonomyDeleteRoute } from "../../inbound/admin-http/routes/taxonomy/delete-taxonomy.js";
 import { registerAdminTaxonomyDeleteTermRoute } from "../../inbound/admin-http/routes/taxonomy/delete-term.js";
 import { registerAdminTaxonomyRenameTermRoute } from "../../inbound/admin-http/routes/taxonomy/rename-term.js";
-import { registerAdminTaxonomyAssignTermsRoute } from "../../inbound/admin-http/routes/taxonomy/assign-terms.js";
+import {
+  registerAdminTaxonomyAssignedTermsRoute,
+  registerAdminTaxonomyAssignTermsRoute,
+  registerAdminTaxonomyUnassignTermsRoute,
+} from "../../inbound/admin-http/routes/taxonomy/assign-terms.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
@@ -35,6 +39,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminTaxonomyCreateTermRoute(app, deps);
   registerAdminTaxonomyRenameTermRoute(app, deps);
   registerAdminTaxonomyAssignTermsRoute(app, deps);
+  registerAdminTaxonomyUnassignTermsRoute(app, deps);
+  registerAdminTaxonomyAssignedTermsRoute(app, deps);
   registerAdminTaxonomyDeleteRoute(app, deps);
   registerAdminTaxonomyDeleteTermRoute(app, deps);
   return { app, deps };
@@ -395,6 +401,102 @@ test("taxonomy routes: assign-terms rejects a content type not on the taxonomy a
   assert.equal(res.status, 400);
   const allowListBody = (await res.json()) as { code: string };
   assert.equal(allowListBody.code, "VALIDATION_ERROR");
+});
+
+/** Seeds a live `recipe` collection with one entry, a taxonomy and two terms. */
+async function seedTaggableEntry(deps: RouteDeps, baseUrl: string, cookie: string) {
+  const now = deps.clock.nowIso();
+  await deps.contentTypeRepo.save({ workspaceId: deps.workspaceId, key: "recipe", label: "Recipes", fields: [], status: "active", version: 1, tombstonedAt: null });
+  await deps.entryRepo.save({
+    id: "entry-1",
+    workspaceId: deps.workspaceId,
+    type: "recipe",
+    slug: "soup",
+    status: "draft",
+    title: "Soup",
+    bodyJson: null,
+    fieldsJson: {},
+    publishedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  });
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "tag", hierarchical: false }),
+  });
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const termIds: string[] = [];
+  for (const name of ["Quick", "Vegan"]) {
+    const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ name }),
+    });
+    termIds.push(((await termRes.json()) as { term: { id: string } }).term.id);
+  }
+  return termIds.sort();
+}
+
+async function postTerms(baseUrl: string, cookie: string, path: string, termIds: string[], contentType = "recipe") {
+  return fetch(`${baseUrl}/api/admin/v1/taxonomy/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ contentType, contentId: "entry-1", termIds }),
+  });
+}
+
+async function assignedTerms(baseUrl: string, cookie: string) {
+  const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assigned-terms?contentType=recipe&contentId=entry-1`, { headers: { cookie } });
+  return { status: res.status, body: (await res.json()) as { termIds?: string[]; code?: string } };
+}
+
+test("taxonomy routes: a collection entry is tagged, read back and untagged", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const [quick, vegan] = await seedTaggableEntry(deps, baseUrl, cookie);
+
+  assert.deepEqual(await assignedTerms(baseUrl, cookie), { status: 200, body: { termIds: [] } });
+  assert.equal((await postTerms(baseUrl, cookie, "assign-terms", [quick!, vegan!])).status, 204);
+  assert.deepEqual((await assignedTerms(baseUrl, cookie)).body, { termIds: [quick, vegan] });
+  assert.equal((await postTerms(baseUrl, cookie, "unassign-terms", [quick!])).status, 204);
+  assert.deepEqual((await assignedTerms(baseUrl, cookie)).body, { termIds: [vegan] });
+});
+
+test("taxonomy routes: tagging an entry needs the collections permission too, and its collection must be live", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const [quick] = await seedTaggableEntry(deps, baseUrl, cookie);
+
+  const realAuthorize = deps.authorize;
+  deps.authorize = async (params) => (params.permission === "admin.collections.manage" ? { allowed: false, reason: "test_denied" } : realAuthorize(params));
+  for (const path of ["assign-terms", "unassign-terms"]) {
+    const res = await postTerms(baseUrl, cookie, path, [quick!]);
+    assert.equal(res.status, 403);
+    assert.equal(((await res.json()) as { code: string }).code, "FORBIDDEN");
+  }
+  assert.equal((await assignedTerms(baseUrl, cookie)).status, 403);
+  deps.authorize = realAuthorize;
+
+  const collection = await deps.contentTypeRepo.findByKey({ workspaceId: deps.workspaceId, key: "recipe" });
+  await deps.contentTypeRepo.save({ ...collection!, status: "tombstone", tombstonedAt: deps.clock.nowIso() });
+  const res = await postTerms(baseUrl, cookie, "assign-terms", [quick!]);
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, "VALIDATION_ERROR");
+});
+
+test("taxonomy routes: assigned-terms and unassign-terms validate their input", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const read = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assigned-terms?contentType=recipe`, { headers: { cookie } });
+  assert.equal(read.status, 400);
+  const write = await fetch(`${baseUrl}/api/admin/v1/taxonomy/unassign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ contentType: "recipe" }),
+  });
+  assert.equal(write.status, 400);
 });
 
 // ---------------------------------------------------------------------------

@@ -3535,9 +3535,17 @@ export const api = {
       body: JSON.stringify({ newName }),
     }),
   /** Additive: upserts one `entry_terms` row per `termIds` entry (never clears an existing,
-   * unselected assignment — there is no remove-assignment route yet). */
+   * unselected assignment — {@link unassignTerms} removes). Posts, pages and collection entries. */
   assignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
     request<void>("/taxonomy/assign-terms", { method: "POST", body: JSON.stringify(input) }),
+  /** Removes each `termIds` assignment; one that is not there is a no-op. */
+  unassignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
+    request<void>("/taxonomy/unassign-terms", { method: "POST", body: JSON.stringify(input) }),
+  /** The term ids one post, page or entry holds now, sorted. */
+  assignedTerms: ({ contentType, contentId }: { contentType: string; contentId: string }) =>
+    request<{ termIds: string[] }>(
+      `/taxonomy/assigned-terms?contentType=${encodeURIComponent(contentType)}&contentId=${encodeURIComponent(contentId)}`
+    ),
   // Categories & Tags — merge-term ceremony (ADR-044, SPEC-018 C-207). 3-step plan/confirm/execute.
   planMergeTerm: (
     { fromTermId, intoTermId }: { fromTermId: string; intoTermId: string },

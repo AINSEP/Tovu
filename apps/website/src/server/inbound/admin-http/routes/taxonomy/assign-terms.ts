@@ -1,13 +1,16 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 
 import { EntityNotLiveError, ForbiddenError } from "@jini-ai/cms/core";
+import { createLiveCollectionTermPolicy } from "#src/features/taxonomy/collection-term-policy";
 import {
-  createPostBackedContentLookup,
+  createContentLookup,
+  isContentTypeOnAllowList,
   toTaxonomyOutbox,
   TaxonomyNotApplicableError,
   WorkspaceMismatchError,
   ContentTypeMismatchError,
   assignTerms,
+  unassignTerms,
   ContentRecordNotFoundError,
   TermRecordNotFoundError,
 } from "#src/features/taxonomy/index";
@@ -31,6 +34,54 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
   return { status: 500, code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
 }
 
+/** A collection entry also needs the collections permission — the one its own editor saves under. */
+const COLLECTIONS_PERMISSION = "admin.collections.manage";
+const TAXONOMY_PERMISSION = "admin.taxonomy.manage";
+
+/** Throws `ForbiddenError` when `contentType` is a collection and the caller may not manage
+ *  collections. Posts and pages need `admin.taxonomy.manage` only (Jini checks that one). */
+async function authorizeCollectionTarget(deps: TaxonomyRouteDeps, principalId: string, contentType: string): Promise<void> {
+  if (isContentTypeOnAllowList(contentType)) return;
+  const result = await deps.authorize({ principalId, permission: COLLECTIONS_PERMISSION, workspaceId: deps.workspaceId });
+  if (!result.allowed) {
+    throw new ForbiddenError(`principal '${principalId}' is not authorized for '${COLLECTIONS_PERMISSION}' (${result.reason})`, COLLECTIONS_PERMISSION, result.reason);
+  }
+}
+
+/** Jini's write deps for one assignment call: posts/pages and collection entries both resolve
+ *  (`createContentLookup`), and an entry takes any taxonomy while its collection is live. */
+function writeDeps(deps: TaxonomyRouteDeps) {
+  return {
+    authorize: (params: { principalId: string; permission: string }) => deps.authorize({ ...params, workspaceId: deps.workspaceId }),
+    clock: deps.clock,
+    idGen: deps.idGen,
+    taxonomies: deps.taxonomyRepo,
+    terms: deps.termRepo,
+    entryTerms: deps.entryTermRepo,
+    revisions: deps.taxonomyRevisionRepo,
+    stampWatermark: deps.stampWatermark,
+    outbox: toTaxonomyOutbox(deps),
+    workspaceId: deps.workspaceId,
+    contentLookup: createContentLookup({ postRepo: deps.postRepo, entryRepo: deps.entryRepo, workspaceId: deps.workspaceId }),
+    contentTypeTaxonomyPolicy: createLiveCollectionTermPolicy({ contentTypeRepo: deps.contentTypeRepo, workspaceId: deps.workspaceId }),
+  };
+}
+
+/** The shared `{ contentType, contentId, termIds }` body, or `null` after answering 400. */
+function readAssignmentBody(req: Request, res: Response): { contentType: string; contentId: string; termIds: string[] } | null {
+  const body = req.body ?? {};
+  if (typeof body.contentType !== "string" || typeof body.contentId !== "string" || !Array.isArray(body.termIds)) {
+    res.status(400).json({ error: "'contentType', 'contentId' (strings), and 'termIds' (array) are required", code: "VALIDATION_ERROR" });
+    return null;
+  }
+  return { contentType: body.contentType, contentId: body.contentId, termIds: body.termIds };
+}
+
+function sendError(res: Response, err: unknown): void {
+  const { status, code, message } = statusFor(err);
+  res.status(status).json({ error: message, code });
+}
+
 /**
  * @file design-spec.md §1.6/§2.8 — `POST /api/admin/v1/taxonomy/assign-terms` (the `<TermPicker>`
  * shared by Collections §1.6 and Categories & Tags §2.2, AC-17/AC-20/INV-05/REQ-13/REQ-14).
@@ -38,43 +89,67 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
  *
  * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 1 fix):
  * `assignTerms` now runs `validation-chain.ts`'s `validateContentJoin` allow-list/workspace/lens
- * chain via `createPostBackedContentLookup` (the "content repo port" the old disclosed-gap
- * comment said this needed).
+ * chain via a content lookup (the "content repo port" the old disclosed-gap comment said this
+ * needed). Since 2026-09-26 that lookup also resolves collection entries, admitted by the same
+ * live-collection policy publishing uses; tagging an entry also needs `admin.collections.manage`.
  */
 export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
   app.post("/api/admin/v1/taxonomy/assign-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const body = req.body ?? {};
-      if (typeof body.contentType !== "string" || typeof body.contentId !== "string" || !Array.isArray(body.termIds)) {
-        res.status(400).json({ error: "'contentType', 'contentId' (strings), and 'termIds' (array) are required", code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      await assignTerms({
-        deps: {
-          authorize: (params) => deps.authorize({ ...params, workspaceId: deps.workspaceId }),
-          clock: deps.clock,
-          idGen: deps.idGen,
-          taxonomies: deps.taxonomyRepo,
-          terms: deps.termRepo,
-          entryTerms: deps.entryTermRepo,
-          revisions: deps.taxonomyRevisionRepo,
-          stampWatermark: deps.stampWatermark,
-          outbox: toTaxonomyOutbox(deps),
-          workspaceId: deps.workspaceId,
-          contentLookup: createPostBackedContentLookup({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }),
-        },
-        principalId: principal.id,
-        contentType: body.contentType,
-        contentId: body.contentId,
-        termIds: body.termIds,
-      });
-
+      const body = readAssignmentBody(req, res);
+      if (!body) return;
+      await authorizeCollectionTarget(deps, principal.id, body.contentType);
+      await assignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
-      const { status, code, message } = statusFor(err);
-      res.status(status).json({ error: message, code });
+      sendError(res, err);
+    }
+  });
+}
+
+/**
+ * `POST /api/admin/v1/taxonomy/unassign-terms` — the removal half the entry editor's Categories &
+ * Tags control saves with (Jini `unassignTerms`: same permission, target and term checks as assign;
+ * removing a term that is not assigned is a no-op).
+ */
+export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+  app.post("/api/admin/v1/taxonomy/unassign-terms", async (req, res) => {
+    try {
+      const principal = getAuthedPrincipal(res);
+      const body = readAssignmentBody(req, res);
+      if (!body) return;
+      await authorizeCollectionTarget(deps, principal.id, body.contentType);
+      await unassignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
+      res.status(204).send();
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+}
+
+/**
+ * `GET /api/admin/v1/taxonomy/assigned-terms?contentType=&contentId=` — `{ termIds }`, the terms one
+ * post, page or entry holds now, so the editor shows them ticked. Same permissions as a write.
+ */
+export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+  app.get("/api/admin/v1/taxonomy/assigned-terms", async (req, res) => {
+    try {
+      const principal = getAuthedPrincipal(res);
+      const { contentType, contentId } = req.query;
+      if (typeof contentType !== "string" || typeof contentId !== "string" || contentType === "" || contentId === "") {
+        res.status(400).json({ error: "'contentType' and 'contentId' query parameters are required", code: "VALIDATION_ERROR" });
+        return;
+      }
+      const allowed = await deps.authorize({ principalId: principal.id, permission: TAXONOMY_PERMISSION, workspaceId: deps.workspaceId });
+      if (!allowed.allowed) {
+        throw new ForbiddenError(`principal '${principal.id}' is not authorized for '${TAXONOMY_PERMISSION}' (${allowed.reason})`, TAXONOMY_PERMISSION, allowed.reason);
+      }
+      await authorizeCollectionTarget(deps, principal.id, contentType);
+      const rows = await deps.entryTermRepo.listForContent({ contentType, contentId });
+      res.json({ termIds: rows.map((row) => row.termId).sort() });
+    } catch (err) {
+      sendError(res, err);
     }
   });
 }

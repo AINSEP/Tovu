@@ -1,4 +1,8 @@
-import { registerAdminTaxonomyAssignTermsRoute } from "#src/server/inbound/admin-http/routes/taxonomy/assign-terms";
+import {
+  registerAdminTaxonomyAssignedTermsRoute,
+  registerAdminTaxonomyAssignTermsRoute,
+  registerAdminTaxonomyUnassignTermsRoute,
+} from "#src/server/inbound/admin-http/routes/taxonomy/assign-terms";
 import { registerAdminTaxonomyCreateRoute } from "#src/server/inbound/admin-http/routes/taxonomy/create-taxonomy";
 import { registerAdminTaxonomyCreateTermRoute } from "#src/server/inbound/admin-http/routes/taxonomy/create-term";
 import { registerAdminTaxonomyDeleteRoute } from "#src/server/inbound/admin-http/routes/taxonomy/delete-taxonomy";
@@ -11,8 +15,8 @@ import type { ServerModuleHandle } from "./types.js";
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `taxonomy` server module (ADR-044 Categories & Tags).
  *
- * Owns the 7 plain taxonomy routes (list/create-taxonomy/create-term/rename-term/assign-terms/
- * delete-taxonomy/delete-term). The first 5 moved here verbatim from `app.ts`'s `createApp()`,
+ * Owns the 9 plain taxonomy routes (list/create-taxonomy/create-term/rename-term/assign-terms/
+ * unassign-terms/assigned-terms/delete-taxonomy/delete-term). The first 5 moved here verbatim from `app.ts`'s `createApp()`,
  * same registrar function bodies, no behavior change; `delete-taxonomy`/`delete-term` are new
  * (guarded-delete backend-gap closure, this dispatch — see those two route files' headers).
  *
@@ -32,6 +36,8 @@ export function createTaxonomyModule(deps: TaxonomyRouteDeps): ServerModuleHandl
       registerAdminTaxonomyCreateTermRoute(app, deps);
       registerAdminTaxonomyRenameTermRoute(app, deps);
       registerAdminTaxonomyAssignTermsRoute(app, deps);
+      registerAdminTaxonomyUnassignTermsRoute(app, deps);
+      registerAdminTaxonomyAssignedTermsRoute(app, deps);
       registerAdminTaxonomyDeleteRoute(app, deps);
       registerAdminTaxonomyDeleteTermRoute(app, deps);
     },

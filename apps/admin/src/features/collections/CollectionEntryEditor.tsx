@@ -190,10 +190,8 @@ function DynamicField(props: {
   );
 }
 
-/** Assign-only term picker (design-spec.md §1.6). Not pre-populated from existing assignments —
- * no "terms assigned to this entry" read route exists yet (only the write-only `assignTerms`
- * route). `assignTerms` itself is additive (upserts, never clears an unselected assignment), so
- * this control is deliberately framed as "assign", not "set", to avoid implying it can unassign. */
+/** Categories & tags for this entry (design-spec.md §1.6): the boxes start ticked for the terms it
+ * holds, and Save makes the entry hold exactly the ticked ones (`use-term-picker.hooks.ts`). */
 function TermPicker(props: {
   taxonomies: AdminTaxonomyWithTerms[];
   contentType: string;
@@ -205,7 +203,7 @@ function TermPicker(props: {
   useTermPickerHook?: typeof useWiredTermPicker;
 }) {
   const useTermPickerHook = props.useTermPickerHook ?? useWiredTermPicker;
-  const { selected, toggle, saving, message, error, assign } = useTermPickerHook({
+  const { selected, toggle, loading, dirty, saving, message, error, save } = useTermPickerHook({
     contentType: props.contentType,
     contentId: props.contentId,
   });
@@ -227,9 +225,7 @@ function TermPicker(props: {
     <div className="collections-term-picker">
       <h3>{t("Categories & Tags")}</h3>
       <p className="muted-cell">
-        {t(
-          "Assign existing terms to this entry. This adds assignments — it does not show or remove terms already assigned (no read route exists for that yet).",
-        )}
+        {loading ? t("Loading categories & tags…") : t("Tick the categories and tags this entry belongs to, then save.")}
       </p>
       {props.taxonomies.map(({ taxonomy, terms }) => (
         <fieldset key={taxonomy.id}>
@@ -248,10 +244,11 @@ function TermPicker(props: {
                   <input
                     type="checkbox"
                     checked={selected.has(term.id)}
+                    disabled={loading}
                     onChange={() => toggle(term.id)}
                     {...agentHandle(handle, {
                       role: "checkbox",
-                      label: `Assign the "${taxonomy.name}" term "${term.name}" to this entry`,
+                      label: `Tag this entry with the "${taxonomy.name}" term "${term.name}"`,
                     })}
                   />
                   {term.name}
@@ -271,14 +268,14 @@ function TermPicker(props: {
       <span className="editor-actions term-picker-actions">
         <button
           type="button"
-          onClick={assign}
-          disabled={saving || selected.size === 0}
-          {...agentHandle("term-picker-assign", {
+          onClick={save}
+          disabled={saving || !dirty}
+          {...agentHandle("term-picker-save", {
             role: "button",
-            label: "Assign every checked term above to this entry",
+            label: "Save this entry's categories and tags as checked above",
           })}
         >
-          {saving ? t("Assigning…") : t("Assign selected terms")}
+          {saving ? t("Saving…") : t("Save categories & tags")}
         </button>
         {message ? <span className="save-ok">{message}</span> : null}
         {error ? <span className="save-error">{error}</span> : null}

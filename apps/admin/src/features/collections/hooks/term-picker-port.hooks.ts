@@ -4,5 +4,7 @@
  * `development/docs/architecture/wired-hooks-convention.md`.
  */
 export interface TermPickerPort {
+  assignedTerms(input: { contentType: string; contentId: string }): Promise<{ termIds: string[] }>;
   assignTerms(input: { contentType: string; contentId: string; termIds: string[] }): Promise<void>;
+  unassignTerms(input: { contentType: string; contentId: string; termIds: string[] }): Promise<void>;
 }

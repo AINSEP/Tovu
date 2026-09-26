@@ -114,10 +114,12 @@ function termPickerController(overrides: Partial<TermPickerController> = {}): Te
   return {
     selected: new Set(),
     toggle: vi.fn(),
+    loading: false,
+    dirty: false,
     saving: false,
     message: null,
     error: null,
-    assign: vi.fn(async () => {}),
+    save: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -620,42 +622,50 @@ describe("TermPicker", () => {
     expect(toggle).toHaveBeenCalledWith("t1");
   });
 
-  it("'Assign selected terms' is disabled when nothing is selected", () => {
-    termPickerControllerRef.current = termPickerController({ selected: new Set() });
+  it("the entry's own terms show ticked; the boxes wait for them to load", () => {
+    termPickerControllerRef.current = termPickerController({ loading: true });
     renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByRole("button", { name: "Assign selected terms" })).toBeDisabled();
+    expect(screen.getByText("Loading categories & tags…")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Fiction" })).toBeDisabled();
   });
 
-  it("'Assign selected terms' is enabled once at least one term is selected", () => {
-    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]) });
+  it("'Save categories & tags' is disabled until the ticked set differs from the entry's", () => {
+    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), dirty: false });
     renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByRole("button", { name: "Assign selected terms" })).toBeEnabled();
+    expect(screen.getByText("Tick the categories and tags this entry belongs to, then save.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save categories & tags" })).toBeDisabled();
   });
 
-  it("shows 'Assigning…' and disables while saving, even with a selection", () => {
-    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), saving: true });
+  it("'Save categories & tags' is enabled once something changed, even an untick", () => {
+    termPickerControllerRef.current = termPickerController({ selected: new Set(), dirty: true });
     renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByRole("button", { name: "Assigning…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save categories & tags" })).toBeEnabled();
   });
 
-  it("clicking Assign calls assign()", async () => {
+  it("shows 'Saving…' and disables while saving", () => {
+    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), dirty: true, saving: true });
+    renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+
+  it("clicking Save calls save()", async () => {
     const user = userEvent.setup();
-    const assign = vi.fn(async () => {});
-    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), assign });
+    const save = vi.fn(async () => {});
+    termPickerControllerRef.current = termPickerController({ selected: new Set(["t1"]), dirty: true, save });
     renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    await user.click(screen.getByRole("button", { name: "Assign selected terms" }));
-    expect(assign).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Save categories & tags" }));
+    expect(save).toHaveBeenCalledTimes(1);
   });
 
   it("shows the hook's own message on success", () => {
-    termPickerControllerRef.current = termPickerController({ message: "Assigned 1 term(s)." });
+    termPickerControllerRef.current = termPickerController({ message: "Categories & tags saved." });
     renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByText("Assigned 1 term(s).")).toBeInTheDocument();
+    expect(screen.getByText("Categories & tags saved.")).toBeInTheDocument();
   });
 
   it("shows the hook's own error on failure", () => {
-    termPickerControllerRef.current = termPickerController({ error: "Failed to assign terms" });
+    termPickerControllerRef.current = termPickerController({ error: "Failed to save categories & tags" });
     renderEditor({ entry: ENTRY, taxonomies: [TAXONOMY] });
-    expect(screen.getByText("Failed to assign terms")).toBeInTheDocument();
+    expect(screen.getByText("Failed to save categories & tags")).toBeInTheDocument();
   });
 });

@@ -45,6 +45,9 @@ export const KEYS = {
     "entry",
     entryId ?? "new",
   ],
+  /** One entry's assigned term ids (`use-term-picker.hooks.ts`) — a sibling of `entry`, so an entry
+   *  save does not refetch it and a tag save does not refetch the entry. */
+  entryTerms: (contentTypeKey: string, entryId: string): QueryKey => ["content-types", contentTypeKey, "entry-terms", entryId],
 };
 
 /**

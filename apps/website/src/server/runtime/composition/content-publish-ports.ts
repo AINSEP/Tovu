@@ -1,7 +1,8 @@
 import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
 import type { FormDefinitionRepoPort } from "#src/features/forms/index";
 import type { PostRepoPort } from "#src/features/post/post";
-import { createContentLookup, type ContentTypeTaxonomyPolicyPort } from "#src/features/taxonomy/index";
+import { createLiveCollectionTermPolicy } from "#src/features/taxonomy/collection-term-policy";
+import { createContentLookup } from "#src/features/taxonomy/index";
 import type { EntryPublishPorts, PublishContentPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
 
 /**
@@ -51,25 +52,6 @@ export type ContentPublishPortKey =
   | "site-setting"
   | "active-theme";
 
-/** Widget types are entries too, but never carry terms. */
-const NO_TERMS_TYPES: ReadonlySet<string> = new Set(["widget", "widget_area"]);
-
-/**
- * Collection entries' term policy for publishing: any taxonomy on an entry whose collection exists
- * here and is not tombstoned. Only the publish path wires a policy, so it only lets through an
- * assignment the source already held; nothing narrower is recorded per collection to check against.
- * @complexity one indexed read per call.
- */
-function liveCollectionsTakeAnyTaxonomy(sources: ContentPublishSources): ContentTypeTaxonomyPolicyPort {
-  return {
-    async taxonomiesFor({ contentType }) {
-      if (NO_TERMS_TYPES.has(contentType)) return null;
-      const owner = await sources.contentTypeRepo.findByKey({ workspaceId: sources.workspaceId, key: contentType });
-      return owner && owner.status !== "tombstone" ? "all" : null;
-    },
-  };
-}
-
 /** @complexity O(1) — a field projection, no I/O. */
 export function buildContentPublishPorts(sources: ContentPublishSources): Pick<PublishContentPorts, ContentPublishPortKey> {
   const taxonomy: TaxonomyPublishPorts = {
@@ -79,7 +61,7 @@ export function buildContentPublishPorts(sources: ContentPublishSources): Pick<P
     revisions: sources.taxonomyRevisionRepo,
     stampWatermark: sources.stampWatermark,
     contentLookup: createContentLookup({ postRepo: sources.postRepo, entryRepo: sources.entryRepo, workspaceId: sources.workspaceId }),
-    contentTypeTaxonomyPolicy: liveCollectionsTakeAnyTaxonomy(sources),
+    contentTypeTaxonomyPolicy: createLiveCollectionTermPolicy(sources),
   };
   const widget: WidgetPublishPorts = {
     entries: sources.entryRepo,

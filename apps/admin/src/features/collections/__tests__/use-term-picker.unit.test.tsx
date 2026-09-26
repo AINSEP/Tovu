@@ -7,17 +7,11 @@ import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hook
 import type { TermPickerPort } from "../hooks/term-picker-port.hooks";
 
 /**
- * @file `useTermPicker` — `TermPicker`'s own selection state and `assignTerms` action.
- * Follows the fetch-mocking harness `use-migrate-forward-section.unit.test.ts` established for
- * this package.
+ * @file `useTermPicker` — `TermPicker`'s ticked set, loaded from the entry's own terms, and its save
+ * (assign the added ids, unassign the removed ones). Driven through `createFakeTermPickerPort`; one
+ * wired case at the bottom proves the real client's three routes.
  *
- * `mount()` below drives the wired hook (real `fetch`) — unchanged from before the `useWiredX`
- * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
- * coverage added alongside that conversion, proving the pure hook is independently testable
- * against `createFakeTermPickerPort` with no `fetch` stub at all.
- *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): `assignTerms` now goes through
- * `useFetchMutation`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper`: the read and the save go through `lib/fetch-query`, which needs its provider.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -37,232 +31,176 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   return { promise, resolve };
 }
 
-let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
-
-beforeEach(() => {
-  fetchMock = vi.fn();
-  // `useTermPicker` now also calls `useAdminLocale()` (real `fetch`, not this hook's own
-  // concern), which would otherwise consume one of this file's strictly-ordered
-  // `mockResolvedValueOnce` slots and shift every later assertion by one call. Routed to a fixed
-  // default-locale response outside `fetchMock`'s own call queue — same interceptor pattern
-  // `Members.unit.test.tsx` uses.
-  vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
-    if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
-      return Promise.resolve(
-        new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }),
-      );
-    }
-    return fetchMock(url, init);
-  });
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
-function mount() {
-  return renderHook(() => useWiredTermPicker({ contentType: "recipe", contentId: "e1" }), { wrapper });
+async function mountWith(port: TermPickerPort) {
+  const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+  await waitFor(() => expect(hook.result.current.loading).toBe(false));
+  return hook;
 }
 
-describe("initial state", () => {
-  it("starts with an empty selection, not saving, no message/error", () => {
-    const { result } = mount();
-    expect(result.current.selected.size).toBe(0);
-    expect(result.current.saving).toBe(false);
-    expect(result.current.message).toBeNull();
-    expect(result.current.error).toBeNull();
+describe("loading the entry's terms", () => {
+  it("starts loading, then shows the entry's own terms ticked and nothing to save", async () => {
+    const port = createFakeTermPickerPort({ assigned: ["t1", "t2"] });
+    const hook = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    expect(hook.result.current.loading).toBe(true);
+    await waitFor(() => expect(hook.result.current.loading).toBe(false));
+    expect(hook.result.current.selected).toEqual(new Set(["t1", "t2"]));
+    expect(hook.result.current.dirty).toBe(false);
+    expect(hook.result.current.error).toBeNull();
+  });
+
+  it("a failed read is reported with its own message", async () => {
+    const port = createFakeTermPickerPort({ loadError: new Error("read exploded") });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.error).toBe("read exploded"));
   });
 });
 
 describe("toggle", () => {
-  it("adds a term id not yet selected", () => {
-    const { result } = mount();
+  it("unticking a held term and ticking a new one both make it dirty; undoing both makes it clean", async () => {
+    const { result } = await mountWith(createFakeTermPickerPort({ assigned: ["t1"] }));
     act(() => result.current.toggle("t1"));
-    expect(result.current.selected.has("t1")).toBe(true);
-  });
-
-  it("removes a term id already selected", () => {
-    const { result } = mount();
-    act(() => result.current.toggle("t1"));
-    act(() => result.current.toggle("t1"));
-    expect(result.current.selected.has("t1")).toBe(false);
-  });
-
-  it("tracks multiple independent selections", () => {
-    const { result } = mount();
+    expect(result.current.selected).toEqual(new Set());
+    expect(result.current.dirty).toBe(true);
+    act(() => result.current.toggle("t2"));
+    expect(result.current.selected).toEqual(new Set(["t2"]));
     act(() => result.current.toggle("t1"));
     act(() => result.current.toggle("t2"));
-    expect(result.current.selected).toEqual(new Set(["t1", "t2"]));
+    expect(result.current.dirty).toBe(false);
   });
 });
 
-describe("assign", () => {
-  it("is a no-op with no fetch call when nothing is selected", async () => {
-    const { result } = mount();
+describe("save", () => {
+  it("is a no-op with nothing changed", async () => {
+    const port = createFakeTermPickerPort({ assigned: ["t1"] });
+    const { result } = await mountWith(port);
     await act(async () => {
-      await result.current.assign();
+      await result.current.save();
     });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(port.calls).toEqual([]);
   });
 
-  it("POSTs { contentType, contentId, termIds } for the selected terms", async () => {
-    const { result } = mount();
+  it("assigns the added ids and unassigns the removed ones, then reads back clean", async () => {
+    const port = createFakeTermPickerPort({ assigned: ["t1", "t2"] });
+    const { result } = await mountWith(port);
     act(() => result.current.toggle("t1"));
-    act(() => result.current.toggle("t2"));
-    fetchMock.mockResolvedValueOnce(jsonResponse({}));
+    act(() => result.current.toggle("t3"));
 
     await act(async () => {
-      await result.current.assign();
+      await result.current.save();
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
-    expect(String(call[0])).toContain("/taxonomy/assign-terms");
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
-      contentType: "recipe",
-      contentId: "e1",
-      termIds: ["t1", "t2"],
-    });
+    expect(port.calls).toEqual([
+      { kind: "assign", contentType: "recipe", contentId: "e1", termIds: ["t3"] },
+      { kind: "unassign", contentType: "recipe", contentId: "e1", termIds: ["t1"] },
+    ]);
+    expect(result.current.message).toBe("Categories & tags saved.");
+    await waitFor(() => expect(result.current.dirty).toBe(false));
+    expect(result.current.selected).toEqual(new Set(["t2", "t3"]));
   });
 
-  it("on success, sets a count-specific message and CLEARS the selection", async () => {
-    const { result } = mount();
+  it("removing every term only unassigns", async () => {
+    const port = createFakeTermPickerPort({ assigned: ["t1"] });
+    const { result } = await mountWith(port);
     act(() => result.current.toggle("t1"));
-    fetchMock.mockResolvedValueOnce(jsonResponse({}));
-
     await act(async () => {
-      await result.current.assign();
+      await result.current.save();
     });
-
-    expect(result.current.message).toBe("Assigned 1 term(s).");
-    expect(result.current.selected.size).toBe(0);
+    expect(port.calls).toEqual([{ kind: "unassign", contentType: "recipe", contentId: "e1", termIds: ["t1"] }]);
   });
 
-  it("sets busy (saving=true) during the request, then false after", async () => {
-    const { result } = mount();
+  it("on failure, reports the error and keeps the ticked set", async () => {
+    const port = createFakeTermPickerPort({ saveError: new Error("server exploded") });
+    const { result } = await mountWith(port);
     act(() => result.current.toggle("t1"));
-    let resolveAssign: ((r: Response) => void) | undefined;
-    fetchMock.mockImplementationOnce(() => new Promise((resolve) => (resolveAssign = resolve)));
-
-    let promise!: Promise<void>;
-    act(() => {
-      promise = result.current.assign();
-    });
-    expect(result.current.saving).toBe(true);
-
-    // `useFetchMutation` flips `saving` to `true` synchronously on `mutate()`, same as the
-    // pre-migration `setSaving(true)` did — but defers actually INVOKING `mutationFn` (and
-    // therefore this `fetch`) by one microtask, so `resolveAssign` is not assigned yet at this
-    // exact point. `await Promise.resolve()` lets that deferred call land before reaching for it.
     await act(async () => {
-      await Promise.resolve();
-      resolveAssign?.(jsonResponse({}));
-      await promise;
+      await result.current.save();
     });
-    expect(result.current.saving).toBe(false);
-  });
-
-  it("on failure, sets the fallback error and does NOT clear the selection", async () => {
-    const { result } = mount();
-    act(() => result.current.toggle("t1"));
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
-
-    await act(async () => {
-      await result.current.assign();
-    });
-
-    expect(result.current.error).toBe("Failed to assign terms");
-    expect(result.current.selected.has("t1")).toBe(true);
+    // `describeApiError` returns a plain `Error`'s own `.message` verbatim.
+    expect(result.current.error).toBe("server exploded");
     expect(result.current.message).toBeNull();
+    expect(result.current.selected.has("t1")).toBe(true);
+    expect(result.current.dirty).toBe(true);
   });
 
-  it("uses the server's own error message when present", async () => {
-    const { result } = mount();
-    act(() => result.current.toggle("t1"));
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "term not found" }, 404));
-
-    await act(async () => {
-      await result.current.assign();
-    });
-
-    expect(result.current.error).toBe("term not found");
-  });
-
-  it("a term checked while Assign is in flight stays checked (M1)", async () => {
-    const assignCalls: Array<{ contentType: string; contentId: string; termIds: string[] }> = [];
+  it("a term ticked while Save is in flight stays ticked, as an unsaved change (M1)", async () => {
+    const writes: string[][] = [];
     const inFlight = deferred<void>();
+    let held: string[] = [];
     const port: TermPickerPort = {
-      assignTerms: (input) => {
-        assignCalls.push(input);
-        return inFlight.promise;
+      assignedTerms: async () => ({ termIds: held }),
+      assignTerms: async (input) => {
+        writes.push(input.termIds);
+        await inFlight.promise;
+        held = [...held, ...input.termIds];
       },
+      unassignTerms: async () => {},
     };
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), {
-      wrapper,
-    });
+    const { result } = await mountWith(port);
 
     act(() => result.current.toggle("a"));
     act(() => {
-      void result.current.assign();
+      void result.current.save();
     });
     await waitFor(() => expect(result.current.saving).toBe(true));
-
     act(() => result.current.toggle("b"));
-
     inFlight.resolve();
     await waitFor(() => expect(result.current.saving).toBe(false));
 
-    expect([...result.current.selected]).toEqual(["b"]);
-    expect(assignCalls).toEqual([{ contentType: "recipe", contentId: "e1", termIds: ["a"] }]);
+    expect(writes).toEqual([["a"]]);
+    await waitFor(() => expect(result.current.selected).toEqual(new Set(["a", "b"])));
+    expect(result.current.dirty).toBe(true);
   });
 
-  it("clears a prior error/message when re-invoked", async () => {
-    const { result } = mount();
+  it("ticking after a save clears its message", async () => {
+    const { result } = await mountWith(createFakeTermPickerPort());
     act(() => result.current.toggle("t1"));
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
     await act(async () => {
-      await result.current.assign();
+      await result.current.save();
     });
-    expect(result.current.error).not.toBeNull();
-
+    expect(result.current.message).not.toBeNull();
     act(() => result.current.toggle("t2"));
-    fetchMock.mockResolvedValueOnce(jsonResponse({}));
-    await act(async () => {
-      await result.current.assign();
-    });
-    expect(result.current.error).toBeNull();
+    expect(result.current.message).toBeNull();
   });
 });
 
-describe("injected port (useWiredX conversion coverage)", () => {
-  it("assigns the selected terms through the injected port, without touching fetch", async () => {
-    const port = createFakeTermPickerPort();
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+describe("useWiredTermPicker (real client)", () => {
+  let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    // `useAdminLocale()`'s own settings read is answered outside `fetchMock`'s queue.
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+        return Promise.resolve(jsonResponse({ data: [] }));
+      }
+      return fetchMock(url, init);
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("reads assigned-terms, then saves through assign-terms and unassign-terms", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).includes("/assigned-terms") ? jsonResponse({ termIds: ["t1"] }) : new Response(null, { status: 204 })
+    );
+    const { result } = renderHook(() => useWiredTermPicker({ contentType: "recipe", contentId: "e1" }), { wrapper });
+    await waitFor(() => expect(result.current.selected).toEqual(new Set(["t1"])));
+    expect(String(fetchMock.mock.calls[0]![0])).toContain("/taxonomy/assigned-terms?contentType=recipe&contentId=e1");
 
     act(() => result.current.toggle("t1"));
     act(() => result.current.toggle("t2"));
     await act(async () => {
-      await result.current.assign();
+      await result.current.save();
     });
 
-    expect(port.calls).toEqual([{ contentType: "recipe", contentId: "e1", termIds: ["t1", "t2"] }]);
-    expect(result.current.message).toBe("Assigned 2 term(s).");
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("surfaces the injected port's rejection message, and does NOT clear the selection", async () => {
-    const port = createFakeTermPickerPort({ assignError: new Error("server exploded") });
-    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
-
-    act(() => result.current.toggle("t1"));
-    await act(async () => {
-      await result.current.assign();
-    });
-
-    // `describeApiError` returns a plain `Error`'s own `.message` verbatim (only `ApiError` gets
-    // the locale-aware fallback substituted, and only when its message is empty) — matching
-    // `use-term-picker.unit.test.ts`'s existing "uses the server's own error message when present"
-    // case above.
-    expect(result.current.error).toBe("server exploded");
-    expect(result.current.selected.has("t1")).toBe(true);
+    const writes = fetchMock.mock.calls
+      .filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")
+      .map(([url, init]) => [String(url).replace(/^.*\/taxonomy\//, ""), JSON.parse(String((init as RequestInit).body))]);
+    expect(writes).toEqual([
+      ["assign-terms", { contentType: "recipe", contentId: "e1", termIds: ["t2"] }],
+      ["unassign-terms", { contentType: "recipe", contentId: "e1", termIds: ["t1"] }],
+    ]);
   });
 });
