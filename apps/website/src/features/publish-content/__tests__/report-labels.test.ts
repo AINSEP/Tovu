@@ -168,21 +168,19 @@ function mediaRow(id: string, outcome: string, writes: boolean): Record<string, 
   return { entityType: "media", entityId: id, outcome, writes, reason: null };
 }
 
-test("keepChangingIncludedMedia keeps created/updated carried-along media, tagged with who uses it", () => {
+test("keepChangingIncludedMedia tags created/updated/overwritten carried-along media with who uses it, and drops unchanged", () => {
   const plan = planWith([
     mediaRow("m-new", "created", true),
     mediaRow("m-upd", "applied", true),
+    mediaRow("m-forced", "forced", true),
     mediaRow("m-same", "unchanged", false),
-    mediaRow("m-conf", "conflict", false),
-    mediaRow("m-block", "blocked", false),
     { entityType: "page", entityId: "pg1", outcome: "unchanged", writes: false, reason: null },
   ]);
   const includedFor = new Map([
     ["media:m-new", ["page:pg1"]],
     ["media:m-upd", ["page:pg1"]],
+    ["media:m-forced", ["page:pg1"]],
     ["media:m-same", ["page:pg1"]],
-    ["media:m-conf", ["page:pg1"]],
-    ["media:m-block", ["page:pg1"]],
   ]);
 
   const rows = rowsOf(keepChangingIncludedMedia(plan, includedFor));
@@ -192,9 +190,30 @@ test("keepChangingIncludedMedia keeps created/updated carried-along media, tagge
     [
       ["m-new", ["page:pg1"]],
       ["m-upd", ["page:pg1"]],
+      ["m-forced", ["page:pg1"]],
       ["pg1", null],
     ]
   );
+});
+
+/**
+ * A carried-along media row live reports as conflict/blocked is NOT hidden: the page would otherwise
+ * publish pointing at an image live doesn't have (or holds differently). It shows as an ordinary row
+ * — untagged, reason and `canOverwrite` intact — exactly like any conflicting media row, so the
+ * dialog gives it the plain reason and the "Overwrite on live" box.
+ */
+test("keepChangingIncludedMedia keeps a conflicting or blocked carried-along media row as an ordinary row", () => {
+  const conflict = { ...mediaRow("m-conf", "conflict", false), reason: "Edited on live", canOverwrite: true };
+  const blocked = { ...mediaRow("m-block", "blocked", false), reason: "Slug taken", canOverwrite: false };
+  const plan = planWith([conflict, blocked]);
+  const includedFor = new Map([
+    ["media:m-conf", ["page:pg1"]],
+    ["media:m-block", ["post:po1"]],
+  ]);
+
+  const rows = rowsOf(keepChangingIncludedMedia(plan, includedFor));
+
+  assert.deepEqual(rows, [conflict, blocked]);
 });
 
 test("keepChangingIncludedMedia leaves an ordinary media row alone whatever its outcome", () => {

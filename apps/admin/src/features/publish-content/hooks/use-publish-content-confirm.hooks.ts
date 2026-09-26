@@ -725,9 +725,15 @@ export function usePublishContentConfirm(props: {
     // The plan on screen is not yet the one the operator's latest tick describes.
     if (overwriteReplanPendingRef.current) return;
     const { plan } = phase;
-    const selectable = selectableRowKeys(toPublishReportRows(plan.details));
+    const planRows = toPublishReportRows(plan.details);
+    const selectable = selectableRowKeys(planRows);
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
     if (keep.length === 0) return;
+    // A carried-along media row is never selectable, so it is never in `keep` — but it still publishes
+    // while a page/post using it is kept, and the narrowed re-plan carries it again. Its "Overwrite on
+    // live" tick must survive with it, or that page publishes against the old live image.
+    const keepSet = new Set(keep);
+    const carriedKept = planRows.filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection(row, keepSet)).map((row) => row.key);
     setPhase({ kind: "confirming", plan });
     try {
       const confirmed =
@@ -741,7 +747,7 @@ export function usePublishContentConfirm(props: {
             await planInScope({
               peerId,
               selectedEntityKeys: keep,
-              ...overwriteKeysWithin(plan.overwriteEntityKeys, keep),
+              ...overwriteKeysWithin(plan.overwriteEntityKeys, [...keep, ...carriedKept]),
             });
       if (!live.current) return;
       if (!canConfirmPlan({ kind: "planned", plan: confirmed })) {

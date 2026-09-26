@@ -100,20 +100,23 @@ export function appendSkippedRowsToPeerPlan(plan: PeerPlanEnvelope, skipped: rea
   return { ...plan, details: { ...details, rows: [...details.rows, ...skippedRows] } };
 }
 
-/** The planner outcomes that change live: a brand-new row, or an update to one live already holds.
- *  `forced` is deliberately absent — a carried-along row offers no Overwrite tick, so it never is. */
-const CHANGING_OUTCOMES: ReadonlySet<string> = new Set(["created", "applied"]);
+/** The planner outcomes that change live: a brand-new row, an update to one live already holds, or
+ *  an operator-ticked overwrite of one live holds differently (`forced`). */
+const CHANGING_OUTCOMES: ReadonlySet<string> = new Set(["created", "applied", "forced"]);
 
 /**
  * Owner decision 2026-09-25 — the report half of "images go along with pages and posts"
- * (`export-bundle.ts`'s `includeReferencedMedia` is the bundle half). A media row that was carried
- * along for in-scope pages/posts is SHOWN only when live would actually change — created or updated
- * — and then carries `includedFor` (the referrer keys), which the dialog renders as a pre-ticked,
- * untickable row noting who uses it. Every other outcome for such a row is dropped from the report:
- * `unchanged` has nothing to say, and a `conflict`/`blocked` carried-along row writes nothing
- * (`writes: false`), so hiding it changes nothing the run does. A row NOT carried along — including
- * an ordinary media row — passes through exactly as it arrived.
+ * (`export-bundle.ts`'s `includeReferencedMedia` is the bundle half). For a media row that was
+ * carried along for in-scope pages/posts:
+ * - created, updated or forced: kept and tagged `includedFor` (the referrer keys), which the dialog
+ *   renders as a pre-ticked, untickable row noting who uses it;
+ * - unchanged: dropped — live already holds exactly this, so there is nothing to say;
+ * - anything else (conflict, blocked): kept UNTAGGED, exactly as it arrived. Live would not take this
+ *   media, so a page using it would publish pointing at an image live lacks or holds differently —
+ *   it must show as an ordinary skipped row with its plain reason and, when `canOverwrite`, the
+ *   "Overwrite on live" box, the same as any conflicting media row. Hiding it hid the problem.
  *
+ * A row NOT carried along — including an ordinary media row — passes through exactly as it arrived.
  * Returns the envelope unchanged when it is not the expected shape (mirrors {@link labelPeerPlanRows})
  * or when nothing was carried along.
  *
@@ -134,8 +137,10 @@ export function keepChangingIncludedMedia(
       continue;
     }
     const referrers = includedFor.get(entityKey(String(row.entityType ?? ""), String(row.entityId ?? "")));
+    const outcome = String(row.outcome);
     if (referrers === undefined) rows.push(row);
-    else if (CHANGING_OUTCOMES.has(String(row.outcome))) rows.push({ ...row, includedFor: referrers });
+    else if (CHANGING_OUTCOMES.has(outcome)) rows.push({ ...row, includedFor: referrers });
+    else if (outcome !== "unchanged") rows.push(row);
   }
   return { ...plan, details: { ...details, rows } };
 }

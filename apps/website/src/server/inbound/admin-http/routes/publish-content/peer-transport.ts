@@ -367,8 +367,9 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         // operator's row selection has nothing to say about whether it is still shown, but `scope`
         // itself still applies — a refused theme tree only belongs in a theme-files-scoped plan.
         //
-        // Last, a carried-along media row is kept only when live would change (created/updated) and
-        // is tagged with the pages/posts that use it — `report-labels.ts`'s `keepChangingIncludedMedia`.
+        // Last, a carried-along media row that live would write is tagged with the pages/posts that use
+        // it, an unchanged one is dropped, and a conflicting/blocked one stays as an ordinary row so the
+        // operator sees it — `report-labels.ts`'s `keepChangingIncludedMedia`.
         ...appendSkippedRowsToPeerPlan(
           keepChangingIncludedMedia(labelPeerPlanRows(result.plan, bundle.entities), includedFor),
           scoped.skipped

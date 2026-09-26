@@ -1462,3 +1462,62 @@ describe("PublishContentDialog — media carried along with pages", () => {
     expect(primaryButton().textContent).toBe("Publish 1 item");
   });
 });
+
+/**
+ * A carried-along media row live reports as a conflict is an ordinary skipped row (the server leaves
+ * it untagged — `report-labels.ts`'s `keepChangingIncludedMedia`), so the operator sees its reason
+ * and can tick "Overwrite on live". Once ticked, the re-plan answers it `forced` and tagged
+ * `includedFor` again. Deselecting an unrelated page must not then silently drop that tick from the
+ * narrowed confirm re-plan: the page that uses the media is still being published.
+ */
+describe("PublishContentDialog — a carried-along media conflict", () => {
+  const MEDIA_CLASH = "destination hash differs from both source and baseline — it was edited there";
+  const CARRIED_CONFLICT_REPORT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["media", "page"],
+    rows: [
+      { entityType: "media", entityId: "m-hero", entityLabel: "hero-png", outcome: "conflict", writes: false, reason: MEDIA_CLASH, canOverwrite: true },
+      { entityType: "page", entityId: "pg-home", entityLabel: "home", outcome: "applied", writes: true, reason: null },
+      { entityType: "page", entityId: "pg-about", entityLabel: "about", outcome: "created", writes: true, reason: null },
+    ],
+  };
+
+  /** The fake port has no carry-along rule of its own; this adds the one tag `push/plan` would. */
+  function carryingPort() {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: CARRIED_CONFLICT_REPORT });
+    const plan = port.planPublish;
+    port.planPublish = async (input) => {
+      const base = await plan(input);
+      const rows = base.details.rows.map((row) =>
+        row.entityId === "m-hero" && row.outcome === "forced" ? { ...row, includedFor: ["page:pg-home"] } : row
+      );
+      return { ...base, details: { ...base.details, rows } };
+    };
+    return port;
+  }
+
+  it("shows the conflict's reason and an Overwrite on live box, never a hidden or pre-ticked row", async () => {
+    await planFrom(carryingPort());
+
+    expect(within(reportRow("m-hero")).getByText(MEDIA_CLASH)).toBeTruthy();
+    expect(reportRow("m-hero").getAttribute("data-publish-disposition")).toBe("skipped");
+    expect(reportRow("m-hero").querySelector("input[data-publish-row-overwrite]")).toBeTruthy();
+    expect(reportRow("m-hero").querySelector("input[data-publish-row-select], input[data-publish-row-carried]")).toBeNull();
+  });
+
+  it("keeps the media's overwrite tick in a narrowed re-plan while the page using it is still checked", async () => {
+    const port = carryingPort();
+    const user = await planFrom(port);
+
+    await user.click(reportRow("m-hero").querySelector<HTMLInputElement>("input[data-publish-row-overwrite]")!);
+    await waitFor(() => expect(reportRow("m-hero").getAttribute("data-publish-disposition")).toBe("publish"));
+    await user.click(rowCheckbox("pg-about")!);
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+
+    const narrowed = port.calls.planPublish[port.calls.planPublish.length - 1];
+    expect(narrowed.selectedEntityKeys).toEqual(["page:pg-home"]);
+    expect(narrowed.overwriteEntityKeys).toEqual(["media:m-hero"]);
+  });
+});

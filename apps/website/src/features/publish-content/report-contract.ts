@@ -70,9 +70,11 @@ export interface PublishContentOutcomeRowDto {
   readonly referencedBy?: readonly PublishContentReferenceHolderDto[];
   /**
    * Owner decision 2026-09-25 — present ONLY on a media row a scoped pages/posts run carried along
-   * because those items reference it (`report-labels.ts`'s `keepChangingIncludedMedia`, added by the
-   * SOURCE after the peer plans — never by the planner itself): the referrers' `entityKey`s. The
-   * dialog renders such a row pre-ticked and untickable. Absent on every other row.
+   * because those items reference it AND live would write it (created/applied/forced) —
+   * `report-labels.ts`'s `keepChangingIncludedMedia`, added by the SOURCE after the peer plans, never
+   * by the planner itself: the referrers' `entityKey`s. The dialog renders such a row pre-ticked and
+   * untickable. Absent on every other row, including a conflicting/blocked carried row, which stays
+   * an ordinary row so the operator sees it.
    */
   readonly includedFor?: readonly string[];
 }
