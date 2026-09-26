@@ -18,13 +18,13 @@
     "@ag-ui/client": "^0.0.58",
     "@ag-ui/core": "^0.0.58",
     "@jini-ai/admin": "^0.3.10",
-    "@jini-ai/agent-runtime": "^0.3.7",
+    "@jini-ai/agent-runtime": "^0.3.8",
     "@jini-ai/agentic": "^0.3.7",
     "@jini-ai/chat": "^0.3.9",
-    "@jini-ai/cms": "^0.3.9",
+    "@jini-ai/cms": "^0.3.10",
     "@jini-ai/integrations": "^0.3.6",
     "@jini-ai/protocol": "^0.3.1",
-    "@jini-ai/ui": "^0.3.12",
+    "@jini-ai/ui": "^0.3.13",
     "@tanstack/react-query": "^5.101.4",
     "@tiptap/extension-code-block-lowlight": "3.27.2",
     "@tiptap/extension-drag-handle": "3.27.2",
@@ -76,6 +76,7 @@
     "@tiptap/extension-list-item": "3.27.2",
     "@tiptap/extension-list-keymap": "3.27.2",
     "@tiptap/extension-ordered-list": "3.27.2",
-    "@tiptap/extensions": "3.27.2"
+    "@tiptap/extensions": "3.27.2",
+    "@jini-ai/ui": "$@jini-ai/ui"
   }
 }

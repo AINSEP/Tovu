@@ -57,9 +57,7 @@ test("empty-key guard: local rejection for every key-requiring protocol, both ro
       });
       const testConnBody = await testConnRes.json();
       expect(testConnBody.ok, `test-connection: ${label}`).toBe(false);
-      expect(testConnBody.message, `test-connection: ${label}`).toBe(
-        "No API key — connection test needs the key from this browser.",
-      );
+      expect(testConnBody.message, `test-connection: ${label}`).toBe("No API key saved. Save one to test the connection.");
     }
   }
 });

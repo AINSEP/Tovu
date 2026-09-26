@@ -17,7 +17,7 @@
     "@jini-ai/agentic": "^0.3.7",
     "@jini-ai/chat": "^0.3.9",
     "@jini-ai/protocol": "^0.3.0",
-    "@jini-ai/ui": "^0.3.12",
+    "@jini-ai/ui": "^0.3.13",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
@@ -29,5 +29,8 @@
     "jsdom": "^29.1.1",
     "typescript": "^5.8.2",
     "vite": "^7.2.4"
+  },
+  "overrides": {
+    "@jini-ai/ui": "$@jini-ai/ui"
   }
 }

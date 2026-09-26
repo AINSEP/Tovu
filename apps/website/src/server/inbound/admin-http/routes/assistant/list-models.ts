@@ -6,8 +6,8 @@ import { readOptionalString, validateSupportedProtocol, type SupportedExecutionP
 import { resolveProbeCredential, type ProbeCredentialResolution } from "./stored-credential-probe.js";
 
 /**
- * Replaces the runtime's empty-key refusal ("…needs the key from this browser"), which predates
- * BYOK keys moving server-side. Also a key in the admin's i18n dictionaries.
+ * Replaces the runtime's host-neutral empty-key refusal ("No API key saved. Save one to load
+ * models.") with one that says where Tovu keeps keys. Also a key in the admin's i18n dictionaries.
  */
 export const NO_SERVER_KEY_MESSAGE = "No API key saved on the server. Save one first.";
 

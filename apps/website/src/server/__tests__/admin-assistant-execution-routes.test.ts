@@ -262,7 +262,7 @@ test("list-models surfaces the real local empty-api-key guard as ok:false, not a
   const body = (await res.json()) as { ok: boolean; models: string[]; message?: string };
   assert.equal(body.ok, false);
   assert.deepEqual(body.models, []);
-  // Tovu's own wording, not the runtime's "needs the key from this browser" — keys live on the server.
+  // Tovu's own wording, not the runtime's host-neutral one — keys live on the server.
   assert.equal(body.message, "No API key saved on the server. Save one first.");
 });
 
