@@ -196,11 +196,32 @@ async function walkThemeTree(absTreeDir: string): Promise<readonly WalkedThemeFi
 export interface SkippedThemeTree {
   readonly treeKey: string;
   readonly reason: string;
+  /** The tree's `theme.json` name, when it has one — see {@link themeDisplayName}. */
+  readonly label?: string;
 }
 
 /** @complexity O(1). */
 function treeTitle(treeKey: string): string {
   return `Theme: ${treeKey}`;
+}
+
+/**
+ * The walked tree's `theme.json` `name` (what the Themes screen calls it), or `undefined` when it has
+ * no readable one. Row display text only: {@link buildTreeState} keeps {@link treeTitle} in `state`,
+ * so a name change never changes a tree's hash (or disagrees with a live build that predates this).
+ *
+ * @complexity O(files) to find `theme.json`, plus O(its bytes) to read and parse it.
+ */
+async function themeDisplayName(walked: readonly WalkedThemeFile[]): Promise<string | undefined> {
+  const manifest = walked.find((file) => file.path === "theme.json");
+  if (!manifest) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(manifest.textSample ?? (await readFile(manifest.absPath, "utf8")));
+    const name = typeof parsed === "object" && parsed !== null ? (parsed as { name?: unknown }).name : undefined;
+    return typeof name === "string" && name.trim().length > 0 ? name.trim() : undefined;
+  } catch {
+    return undefined; // a malformed theme.json is the policy pass's and the theme loader's concern, not a label's.
+  }
 }
 
 /** @complexity O(n log n) in `files.length`. */
@@ -249,6 +270,7 @@ async function packOneThemeTree(input: {
   }
 
   const walked = await walkThemeTree(input.absDir);
+  const label = await themeDisplayName(walked);
   const policyInputs: FileTreeFileInput[] = walked.map((file) => ({
     path: file.path,
     size: file.size,
@@ -257,7 +279,7 @@ async function packOneThemeTree(input: {
   }));
   const blockReason = checkTreeFiles("theme-files", policyInputs);
   if (blockReason) {
-    return { skippedTree: { treeKey, reason: wrapTreePolicyReason(title, blockReason) } };
+    return { skippedTree: { treeKey, reason: wrapTreePolicyReason(title, blockReason), ...(label ? { label } : {}) } };
   }
 
   const sortedFiles = sortByPath(walked);
@@ -276,6 +298,7 @@ async function packOneThemeTree(input: {
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: sortedFiles.map((file) => file.sha256),
       state,
+      ...(label ? { displayLabel: label } : {}),
     },
   };
 }
@@ -505,7 +528,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   async function listSkipped(): Promise<readonly SkippedPackEntity[]> {
     if (!themePort) return [];
     const { skipped } = await packThemeFilesEntities({ themesDir: themePort.themesDir });
-    return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: treeTitle(tree.treeKey), reason: tree.reason }));
+    return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: tree.label ?? treeTitle(tree.treeKey), reason: tree.reason }));
   }
 
   /** The destination's tree, hashed like `pack()` hashes it. `version` is always 0 (plan §3): the

@@ -1,4 +1,4 @@
-import { entityDisplayLabel, entityKey } from "./planner.js";
+import { entityKey, packedEntityLabel } from "./planner.js";
 import type { PackedEntity, SkippedPackEntity } from "./type-registry.js";
 
 /**
@@ -19,7 +19,10 @@ import type { PackedEntity, SkippedPackEntity } from "./type-registry.js";
  * It is the destination's report. A label it supplied was derived from the same packed state this
  * side holds, so the two agree in every normal case — and where they could not (a row for an entity
  * that is somehow not in this bundle), the side that produced the row is the one with the context.
- * This module only ever FILLS IN a label, never overwrites one.
+ * This module only ever FILLS IN a label, never overwrites one — with one exception: an entity whose
+ * handler set its own `displayLabel` (a theme tree's `theme.json` name). That name lives outside
+ * `state`, so a live build that predates it names the row from `state` instead ("Theme: static/x");
+ * the source's own name for its own content wins there.
  *
  * Nothing here is load-bearing for safety: a label is display text. Every field a publish decision
  * actually turns on — `outcome`, `writes`, `reason`, the plan hash — is passed through untouched, and
@@ -49,14 +52,17 @@ export function labelPeerPlanRows(plan: PeerPlanEnvelope, entities: readonly Pac
   if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
 
   const labelByKey = new Map<string, string | null>();
+  const ownNamed = new Set<string>();
   for (const entity of entities) {
-    labelByKey.set(entityKey(entity.entityType, entity.id), entityDisplayLabel(entity.state));
+    labelByKey.set(entityKey(entity.entityType, entity.id), packedEntityLabel(entity));
+    if (entity.displayLabel !== undefined) ownNamed.add(entityKey(entity.entityType, entity.id));
   }
 
   const rows = details.rows.map((row) => {
     if (!isRecord(row)) return row;
-    if (typeof row.entityLabel === "string" && row.entityLabel.length > 0) return row;
-    const local = labelByKey.get(entityKey(String(row.entityType ?? ""), String(row.entityId ?? "")));
+    const key = entityKey(String(row.entityType ?? ""), String(row.entityId ?? ""));
+    if (typeof row.entityLabel === "string" && row.entityLabel.length > 0 && !ownNamed.has(key)) return row;
+    const local = labelByKey.get(key);
     return local === undefined || local === null ? row : { ...row, entityLabel: local };
   });
 

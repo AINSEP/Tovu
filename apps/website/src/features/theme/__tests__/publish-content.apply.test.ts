@@ -369,7 +369,8 @@ test("round trip: a destination still equal to its original plans 'applied', and
 
   const report = await planImport(bundleOf(entity), planDeps(fixture));
   assert.deepEqual(report.rows, [
-    { entityType: "theme-files", entityId: "static/basic", entityLabel: "Theme: static/basic", outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null },
+    // Named by its theme.json `name` (`PackedEntity.displayLabel`), not the tree key.
+    { entityType: "theme-files", entityId: "static/basic", entityLabel: "Basic", outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null },
   ]);
 
   await handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-rt" });

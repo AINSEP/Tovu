@@ -258,6 +258,11 @@ export interface PackedEntity {
    *  to receive back. Never `contentHash`'s CANONICALIZED form — that is a derived comparison key,
    *  not a wire shape a handler should have to reverse. */
   readonly state: Record<string, unknown>;
+  /** What a human calls this entity, when its handler knows a better name than any `state` field
+   *  (a theme tree's `theme.json` name). Display text only: outside `state`, so never hashed and
+   *  never applied — changing it can never make a row look changed. Omitted when `state` already
+   *  names the entity (`planner.ts`'s `packedEntityLabel`). */
+  readonly displayLabel?: string;
 }
 
 /**

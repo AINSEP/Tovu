@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { contentHash } from "#src/features/publish-content/content-hash";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
 
@@ -55,6 +56,53 @@ test("hash is stable across two packs of the same unchanged tree", async () => {
     const first = await packThemeFilesEntities({ themesDir });
     const second = await packThemeFilesEntities({ themesDir });
     assert.equal(first.entities[0]!.contentHash, second.entities[0]!.contentHash);
+  } finally {
+    rmSync(themesDir, { recursive: true, force: true });
+  }
+});
+
+test("a theme.json name labels the row without touching the packed state or its hash", async () => {
+  const themesDir = makeThemesDir();
+  try {
+    const themeDir = path.join(themesDir, "static", "basic");
+    mkdirSync(themeDir, { recursive: true });
+    writeFileSync(path.join(themeDir, "theme.json"), '{"id":"basic","name":"Basic Theme"}');
+
+    const entity = (await packThemeFilesEntities({ themesDir })).entities[0]!;
+    assert.equal(entity.displayLabel, "Basic Theme");
+    // `state` is exactly the pre-label shape, so the hash is the one every existing build computes.
+    assert.deepEqual(Object.keys(entity.state).sort(), ["files", "kind", "title", "treeKey"]);
+    assert.equal(entity.state.title, "Theme: static/basic");
+    const preLabelHash = contentHash("theme-files", {
+      title: "Theme: static/basic",
+      kind: "theme-files",
+      treeKey: "static/basic",
+      files: entity.state.files,
+    });
+    assert.equal(entity.contentHash, preLabelHash);
+    // …and the destination half, re-hashing the same tree, agrees: the row can never look changed.
+    const handler = contributeThemeFilesPublish().build({
+      workspaceId: "ws1",
+      clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      idGen: { newId: () => "id1" },
+      ports: { "theme-files": { themesDir } },
+    });
+    assert.equal((await handler.inspect("static/basic"))?.hash, entity.contentHash);
+  } finally {
+    rmSync(themesDir, { recursive: true, force: true });
+  }
+});
+
+test("a theme.json with no name (or none at all) sets no displayLabel", async () => {
+  const themesDir = makeThemesDir();
+  try {
+    mkdirSync(path.join(themesDir, "static", "plain"), { recursive: true });
+    writeFileSync(path.join(themesDir, "static", "plain", "theme.json"), '{"id":"plain","name":"  "}');
+    mkdirSync(path.join(themesDir, "static", "bare"), { recursive: true });
+    writeFileSync(path.join(themesDir, "static", "bare", "style.css"), "body{}");
+
+    const { entities } = await packThemeFilesEntities({ themesDir });
+    assert.deepEqual(entities.map((e) => [e.id, "displayLabel" in e]), [["static/bare", false], ["static/plain", false]]);
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }
@@ -155,6 +203,27 @@ test("the handler's listSkipped() reports a whole-tree refusal by its exact Skip
     // The disallowed-extension reason is terse and preformatted (no title prefix — the row's own
     // label column already carries it) via `file-tree-policy.ts`'s `wrapTreePolicyReason`.
     assert.equal(skipped[0]!.reason, "Can't publish: contains a video file (video.mp4)");
+  } finally {
+    rmSync(themesDir, { recursive: true, force: true });
+  }
+});
+
+test("the handler's listSkipped() names a refused tree by its theme.json name when it has one", async () => {
+  const themesDir = makeThemesDir();
+  try {
+    const themeDir = path.join(themesDir, "static", "kuinetic-showcase");
+    mkdirSync(themeDir, { recursive: true });
+    writeFileSync(path.join(themeDir, "theme.json"), '{"id":"kuinetic-showcase","name":"kUInetic Showcase"}');
+    writeFileSync(path.join(themeDir, "video.mp4"), "not-really-a-video");
+
+    const handler = contributeThemeFilesPublish().build({
+      workspaceId: "ws1",
+      clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      idGen: { newId: () => "id1" },
+      ports: { "theme-files": { themesDir } },
+    });
+    const skipped = await handler.listSkipped!();
+    assert.equal(skipped[0]!.label, "kUInetic Showcase");
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }

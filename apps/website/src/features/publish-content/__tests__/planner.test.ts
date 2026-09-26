@@ -33,6 +33,7 @@ import {
 import {
   entityDisplayLabel,
   entityKey,
+  packedEntityLabel,
   planImport,
   type BaselineRecord,
   type PlanImportDeps,
@@ -1060,6 +1061,15 @@ test("entityDisplayLabel returns null rather than an unusable label", () => {
   assert.equal(entityDisplayLabel({ slug: "   " }), null, "a whitespace-only slug is not a label");
   assert.equal(entityDisplayLabel({ slug: 42, title: "Fallback" }), "Fallback", "a non-string slug is skipped, not coerced");
   assert.equal(entityDisplayLabel({ slug: null }), null);
+});
+
+test("packedEntityLabel prefers a non-blank displayLabel, else names the entity from its state", () => {
+  const base = { entityType: "theme-files", id: "static/x", schemaVersion: 1, contentHash: "h", hashVersion: 1, requiredBlobs: [], state: { title: "Theme: static/x" } };
+  assert.equal(packedEntityLabel({ ...base, displayLabel: "X Theme" }), "X Theme");
+  assert.equal(packedEntityLabel(base), "Theme: static/x");
+  assert.equal(packedEntityLabel({ ...base, displayLabel: "  " }), "Theme: static/x", "blank is not a label");
+  // Off the network on a destination: a non-string is ignored, not coerced.
+  assert.equal(packedEntityLabel({ ...base, displayLabel: 7 as unknown as string }), "Theme: static/x");
 });
 
 test("every planned row carries the label its own packed state named it, whatever the outcome", async () => {

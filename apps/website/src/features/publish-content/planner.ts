@@ -246,6 +246,19 @@ export function entityDisplayLabel(state: Record<string, unknown>): string | nul
 }
 
 /**
+ * What to call one packed entity on screen: its handler's own {@link PackedEntity.displayLabel} when
+ * it set one, else {@link entityDisplayLabel} off its `state`. `displayLabel` came off the network on
+ * a destination, so anything but a non-blank string is ignored rather than trusted.
+ *
+ * @complexity O(1).
+ */
+export function packedEntityLabel(entity: PackedEntity): string | null {
+  const label: unknown = entity.displayLabel;
+  if (typeof label === "string" && label.trim().length > 0) return label;
+  return entityDisplayLabel(entity.state);
+}
+
+/**
  * Classifies exactly one entity — the per-row half of {@link planImport}'s pass 2. Never called for
  * an entity whose baseline already failed the {@link CONTENT_HASH_VERSION} check (pass 1 refuses the
  * whole run before this function is ever reached in that case).
@@ -269,7 +282,7 @@ async function planEntity(
   const identity = {
     entityType: entity.entityType,
     entityId: entity.id,
-    entityLabel: entityDisplayLabel(entity.state),
+    entityLabel: packedEntityLabel(entity),
   };
 
   if (!handler) {

@@ -226,3 +226,24 @@ test("keepChangingIncludedEntities passes an envelope it does not recognize stra
   const odd = { planId: "x", details: "not a report" };
   assert.equal(keepChangingIncludedEntities(odd, new Map([["media:m1", ["page:p"]]])), odd);
 });
+
+test("a source-set displayLabel names the row even over the peer's own state-derived label", () => {
+  // A live build that predates `displayLabel` names a theme row from `state.title` ("Theme: static/x");
+  // the source's `theme.json` name for its own tree wins. Rows without one keep the peer's label.
+  const named: PackedEntity = {
+    ...entity({ entityType: "theme-files", id: "static/tovu-theme", state: { title: "Theme: static/tovu-theme" } }),
+    displayLabel: "Tovu Theme",
+  };
+  const labelled = labelPeerPlanRows(
+    planWith([
+      { entityType: "theme-files", entityId: "static/tovu-theme", entityLabel: "Theme: static/tovu-theme", outcome: "applied", writes: true, reason: null },
+      { entityType: "post", entityId: "p1", entityLabel: "peer-name", outcome: "applied", writes: true, reason: null },
+    ]),
+    [...ENTITIES, named]
+  );
+
+  assert.deepEqual(
+    rowsOf(labelled).map((r) => [r.entityId, r.entityLabel]),
+    [["static/tovu-theme", "Tovu Theme"], ["p1", "peer-name"]]
+  );
+});
