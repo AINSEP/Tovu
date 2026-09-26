@@ -10,7 +10,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import type { MediaPublicUrlDeps } from "./tool-registrations.js";
-import { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
+import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
 /**

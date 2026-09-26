@@ -96,7 +96,7 @@ export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedCont
 ]);
 
 /**
- * Largest payload this tool will import. Not an independent number: it IS `../media/upload-limits.js`'s
+ * Largest payload this tool will import. Not an independent number: it IS `contracts/core/upload-limits.ts`'s
  * `TOVU_MAX_UPLOAD_BYTES` (this host's override of `@jini-ai/cms/media`'s 10 MiB
  * `DEFAULT_MAX_UPLOAD_BYTES`), the exact cap `tool-registrations.ts` now passes `uploadMedia` as
  * `maxUploadBytes` on the very next call — imported rather than restated so the two can never drift

@@ -15,7 +15,7 @@ import type { RouteDeps } from "../../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { resetToolContributorsForTests, registerToolContributor } from "../../../assistant/tool-contribution-registry.js";
 import { contributeMediaTools } from "../tool-registrations.js";
-import { TOVU_MAX_UPLOAD_BYTES } from "../upload-limits.js";
+import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
 
 /**
  * Covers `media_upload_asset`'s content-type recording (Defect 2 of the media-pipeline bug batch):

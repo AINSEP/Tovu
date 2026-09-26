@@ -1,4 +1,4 @@
-import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
 import { scanTextForSecrets } from "#src/features/webhooks/secret-scan-guard";
 
 /**

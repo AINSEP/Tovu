@@ -93,7 +93,7 @@ import { requireInputRecord, requireString, requireToolPermission, type ToolHand
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
-import { TOVU_MAX_UPLOAD_BYTES } from "./upload-limits.js";
+import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
 
