@@ -186,3 +186,84 @@ test("push/plan uploads a blob that exists only in the file index (never in the 
   assert.ok(uploadedBody?.dataBase64, "the peer must actually receive a PUT with bytes");
   assert.equal(Buffer.from(uploadedBody!.dataBase64!, "base64").toString("utf8"), content, "the uploaded bytes must be the real file contents");
 });
+
+// b692dbeef route wiring: a whole unit THIS side refused to pack never reaches the peer, so the only
+// way the admin table can show it is `push/plan` appending it to the peer's rows.
+test("push/plan appends a locally refused unit to the peer's plan as a non-selectable blocked row", async (t) => {
+  resetPublishContentContributorsForTests();
+  t.after(() => resetPublishContentContributorsForTests());
+
+  const canaryEntity: PackedEntity = {
+    entityType: "file-index-canary",
+    id: "canary-1",
+    schemaVersion: 1,
+    contentHash: "canary-hash",
+    hashVersion: CONTENT_HASH_VERSION,
+    requiredBlobs: [],
+    state: {},
+  };
+  const reason = "Theme: static/showcase was not published: \"clip.mp4\" has a file type ('mp4') that is not allowed for this tree";
+  registerPublishContentContributor({
+    entityType: "file-index-canary",
+    dependsOn: [],
+    build: () => ({
+      entityType: "file-index-canary",
+      schemaVersion: 1,
+      permission: "publish_content.read",
+      dependsOn: [],
+      async *pack() {
+        yield canaryEntity;
+      },
+      listSkipped: async () => [{ entityType: "file-index-canary", id: "static/showcase", label: "static/showcase", reason }],
+      inspect: async () => null,
+      precheck: async () => null,
+      apply: async () => {
+        throw new Error("not exercised by this test");
+      },
+    }),
+  });
+
+  const peerRow = { entityType: "file-index-canary", entityId: "canary-1", outcome: "applied", writes: true };
+  const httpClient: HttpClientPort = {
+    send: async (request) => {
+      if (request.url.includes("/capabilities")) {
+        return { status: 200, headers: {}, bodyText: JSON.stringify({ entityTypes: ["file-index-canary"], features: [] }) };
+      }
+      if (request.url.includes("/blobs/probe")) return { status: 200, headers: {}, bodyText: JSON.stringify({ missing: [] }) };
+      if (request.url.includes("/bundles")) return { status: 201, headers: {}, bodyText: JSON.stringify({ bundleId: "remote-bundle-1" }) };
+      if (request.url.includes("/import/plan")) {
+        return {
+          status: 200,
+          headers: {},
+          bodyText: JSON.stringify({
+            domain: "publish_content.import",
+            planId: "p1",
+            planHash: "h1",
+            details: { refused: false, refusalReason: null, applyOrder: [], rows: [peerRow] },
+          }),
+        };
+      }
+      throw new Error(`unexpected request: ${request.method} ${request.url}`);
+    },
+  };
+
+  const { app } = buildApp({ httpClient, fileBlobIndex: createFileBlobIndex() });
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, { method: "POST" });
+  const raw = await res.text();
+  assert.equal(res.status, 200, raw);
+  const body = JSON.parse(raw) as { details: { rows: Array<Record<string, unknown>> } };
+  assert.equal(body.details.rows.length, 2, raw);
+  assert.deepEqual(body.details.rows[1], {
+    entityType: "file-index-canary",
+    entityId: "static/showcase",
+    entityLabel: "static/showcase",
+    outcome: "blocked",
+    writes: false,
+    reason,
+    canOverwrite: false,
+    retires: null,
+  });
+});
