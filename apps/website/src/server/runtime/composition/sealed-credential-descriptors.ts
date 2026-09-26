@@ -13,12 +13,16 @@ import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
 import type { VendorId } from "#src/features/vendor-credentials/types";
 import { buildComposioConfigAad } from "#src/platform/connectors/composio-config-aad";
 import { buildConnectorCredentialAad } from "#src/platform/connectors/connector-credential-aad";
-import { deviceAad } from "./oauth-pending-store.sqlite.js";
-import type { SealedColumnDescriptor, SealedRowAadSelection, SealedRowIdentity } from "./sealed-credential-inventory.sqlite.js";
+import { deviceAad } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
+import type { SealedColumnDescriptor, SealedRowAadSelection, SealedRowIdentity } from "#src/platform/db/sqlite/sealed-credential-inventory.sqlite";
 
 /**
  * @file One {@link SealedColumnDescriptor} per sealed column the app knows how to open — the per-store
- * half of `sealed-credential-inventory.sqlite.ts`.
+ * half of `platform/db/sqlite/sealed-credential-inventory.sqlite.ts`.
+ *
+ * Lives in the composition root, not beside the inventory engine: it imports the AAD builder of every
+ * feature that seals a column, and `platform` importing `features`/`assistant` closed a module cycle
+ * per feature. The engine already takes this list as `descriptors`, so it stays feature-agnostic.
  *
  * Each descriptor mirrors its store's own open path exactly: the same AAD builder (imported, never
  * restated) and the same `aad_version` branch, with one deliberate difference — a version the store
