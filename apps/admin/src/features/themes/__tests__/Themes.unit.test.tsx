@@ -176,6 +176,13 @@ describe("View site link", () => {
   });
 });
 
+describe("Publish section button (plan-publish-sections-2026-09-25.md §2 S3)", () => {
+  it("renders the section's own Publish themes button", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
+    expect(screen.getByRole("button", { name: "Publish themes" })).toBeInTheDocument();
+  });
+});
+
 describe("tier tabs", () => {
   it("renders four tab-group tabs (not five raw tiers) plus a disabled Marketplace placeholder, each carrying its theme count", () => {
     render(

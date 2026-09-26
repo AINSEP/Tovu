@@ -1,6 +1,7 @@
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { useWiredMenus } from "./hooks/use-menus.hooks";
 import { ServerLabel } from "@/components/status-labels";
+import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 /**
  * @file Menus admin screens: list view (this file) + tree editor
@@ -36,6 +37,7 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
           <a className="btn-primary" href="/admin/menus/new">
             {t("Add New")}
           </a>
+          <PublishSectionButton entityType="menu" />
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}

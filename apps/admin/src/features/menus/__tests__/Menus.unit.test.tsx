@@ -113,6 +113,14 @@ describe("Move to trash", () => {
   });
 });
 
+describe("Publish section button (plan-publish-sections-2026-09-25.md §2 S3)", () => {
+  it("renders the section's own Publish menus button", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [ACTIVE_MENU] }));
+    render(<Menus />);
+    expect(await screen.findByRole("button", { name: "Publish menus" })).toBeInTheDocument();
+  });
+});
+
 describe("injected hook seam (useMenusHook)", () => {
   it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
     const controller: MenusController = {

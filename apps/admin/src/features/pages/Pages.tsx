@@ -10,6 +10,7 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import { ServerLabel } from "@/components/status-labels";
+import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import {
   pageRowMenuItems,
   pagePublicPath,
@@ -161,8 +162,8 @@ export function Pages(props: PagesProps) {
           <h1 className="page-title">{t("Pages")}</h1>
           <p className="page-description">{t("Manage every standalone page on this site.")}</p>
         </div>
-        {activeTab === "mine" ? (
-          <div className="page-actions">
+        <div className="page-actions">
+          {activeTab === "mine" ? (
             <button
               onClick={createPage}
               disabled={creating}
@@ -170,8 +171,9 @@ export function Pages(props: PagesProps) {
             >
               {creating ? t("Creating…") : t("New Page")}
             </button>
-          </div>
-        ) : null}
+          ) : null}
+          <PublishSectionButton entityType="page" />
+        </div>
       </div>
       <TabBar
         ariaLabel={t("Pages")}

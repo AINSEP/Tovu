@@ -18,6 +18,7 @@ import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provi
 import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "../../components/TabBar";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
+import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -1272,6 +1273,9 @@ function MediaPageShell({
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t("Media")}</h1>
           <p className="page-description">{t("Upload and manage image and video assets used across the site.")}</p>
+        </div>
+        <div className="page-actions">
+          <PublishSectionButton entityType="media" />
         </div>
       </div>
 

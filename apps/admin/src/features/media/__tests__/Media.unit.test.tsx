@@ -143,6 +143,13 @@ describe("page header", () => {
     expect(await screen.findByRole("heading", { name: "Media" })).toBeInTheDocument();
     expect(screen.getByText("Content")).toBeInTheDocument();
   });
+
+  it("renders the section's own Publish media button (plan-publish-sections-2026-09-25.md §2 S3)", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen();
+
+    expect(await screen.findByRole("button", { name: "Publish media" })).toBeInTheDocument();
+  });
 });
 
 describe("upload toolbar accessible names (regression: agent-driveability audit)", () => {

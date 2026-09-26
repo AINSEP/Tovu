@@ -267,6 +267,13 @@ describe("New Page action", () => {
   });
 });
 
+describe("Publish section button (plan-publish-sections-2026-09-25.md §2 S3)", () => {
+  it("renders the section's own Publish pages button", () => {
+    renderWith({});
+    expect(screen.getByRole("button", { name: "Publish pages" })).toBeInTheDocument();
+  });
+});
+
 describe("row menu — Publish/Unpublish visibility mirrors pageRowMenuItems", () => {
   it("offers Unpublish for a published page", async () => {
     const user = userEvent.setup();

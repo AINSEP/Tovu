@@ -9,6 +9,7 @@ import { useWiredRedirects } from "./hooks/use-redirects.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredHitCountCell } from "./hooks/use-hit-count-cell.hooks";
 import { useWiredImportRedirectsForm } from "./hooks/use-import-redirects-form.hooks";
+import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import {
   importRulesLabel,
   importResultSummary,
@@ -230,6 +231,9 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
             <code> auto_slug_change</code>
             {t(") also show up here.")}
           </p>
+        </div>
+        <div className="page-actions">
+          <PublishSectionButton entityType="redirect" />
         </div>
       </div>
       {error ? <div className="notice error">{describeApiError(error, "request failed")}</div> : null}

@@ -9,6 +9,7 @@ import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import type { Translate } from "../../lib/dictionary-translator";
 import { interpolate, splitOnPlaceholders } from "../../lib/template-i18n";
 import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./hooks/use-themes.hooks";
@@ -580,6 +581,9 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           <p className="page-description">
             {t("The active theme controls what visitors see across the entire public site.")}
           </p>
+        </div>
+        <div className="page-actions">
+          <PublishSectionButton entityType="theme-files" />
         </div>
       </div>
       <ThemesToolbar

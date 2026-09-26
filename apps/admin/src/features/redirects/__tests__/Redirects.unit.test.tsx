@@ -22,6 +22,19 @@ import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
  * which only resets after `createRedirect` resolves `true`.
  */
 
+describe("Publish section button (plan-publish-sections-2026-09-25.md §2 S3)", () => {
+  it("renders the section's own Publish redirects button", async () => {
+    const port = createFakeRedirectsPort();
+    render(
+      <FetchQueryProvider>
+        <Redirects useRedirectsHook={() => useRedirects(port, (k) => k, "en")} />
+      </FetchQueryProvider>,
+    );
+
+    expect(await screen.findByRole("button", { name: "Publish redirects" })).toBeInTheDocument();
+  });
+});
+
 describe("Redirects — create form", () => {
   it("keeps the operator's input after a failed create, and shows the banner", async () => {
     const user = userEvent.setup();

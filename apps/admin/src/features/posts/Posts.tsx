@@ -21,6 +21,7 @@ import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t as translate } from "./posts-i18n";
+import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 /**
  * @file The Posts list screen — markup only.
@@ -111,6 +112,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           >
             {creating ? t("Creating…") : t("New Post")}
           </button>
+          <PublishSectionButton entityType="post" />
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
