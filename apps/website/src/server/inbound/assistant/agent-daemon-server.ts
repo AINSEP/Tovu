@@ -69,6 +69,7 @@ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from 
 // one as an option. The ambient shim this repo used to carry declared it on `daemon`, and being a
 // shim it made that wrong claim typecheck cleanly.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
+import { getAgentDef, resolveAgentLaunch } from "@jini-ai/agent-runtime";
 import {
   createDiskAttachmentStore,
   createFrontendControl,
@@ -589,6 +590,12 @@ const assistantPromptAugmenter: PromptAugmenter = {
 
 const agentExecutor = createAgentExecutor({
   lifecycle,
+  // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
+  // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
+  // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
+  // shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown agent id.
+  getAgentDef,
+  resolveAgentLaunch,
   mcpJsonInjection: resolveMcpJsonInjection(daemonUrl),
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
