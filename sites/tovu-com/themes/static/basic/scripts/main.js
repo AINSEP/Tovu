@@ -26,11 +26,25 @@
   // sits at the end of `<body>` in every page template, so the DOM is already parsed when it runs.
   // Deliberately skips inline `<code>` that is not inside a `pre` — those are short, in-line
   // snippets a reader can select directly, not a whole block worth a dedicated control.
+  //
+  // The button is appended to a generated `.code-block-wrap` div around `pre` — a SIBLING of `pre`,
+  // not a child of it — rather than being appended to `pre` itself. `pre` is the element that
+  // scrolls horizontally (`overflow-x: auto` in theme.css, for long lines); a button positioned
+  // absolutely against a scrolling ancestor scrolls along with that ancestor's content instead of
+  // staying pinned to the corner, since it's still part of the same scrollable overflow area. The
+  // wrapper never scrolls, so the button's `top`/`right` (theme.css `.code-block-wrap .code-copy-btn`)
+  // stay resolved against the same fixed corner regardless of `pre`'s scroll position.
   function setupCodeCopyButtons() {
     var blocks = document.querySelectorAll('pre');
     for (var i = 0; i < blocks.length; i++) {
       (function (pre) {
-        if (!navigator.clipboard || pre.querySelector('.code-copy-btn')) return;
+        var wrap = pre.parentNode;
+        if (!navigator.clipboard || (wrap && wrap.classList.contains('code-block-wrap'))) return;
+        wrap = document.createElement('div');
+        wrap.className = 'code-block-wrap';
+        pre.parentNode.insertBefore(wrap, pre);
+        wrap.appendChild(pre);
+
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'code-copy-btn';
@@ -50,7 +64,7 @@
             }, 1500);
           });
         });
-        pre.appendChild(btn);
+        wrap.appendChild(btn);
         pre.classList.add('has-copy-btn');
       })(blocks[i]);
     }

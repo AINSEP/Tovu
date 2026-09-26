@@ -399,7 +399,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .docs-main pre {
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   padding: 18px 20px; overflow-x: auto; font: 13px/1.5 var(--font-mono); color: var(--fg);
-  white-space: pre; position: relative;
+  white-space: pre;
 }
 .docs-main pre code { white-space: inherit; line-height: inherit; padding: 0; }
 .docs-main h2 { font-size: 20px; margin: 40px 0 14px; }
@@ -452,7 +452,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    28.9px tall even though the visible glyphs rendered at `code`'s 13px/19.5px — double-spaced text
    sitting inside correctly-sized lines. Matches `.docs-main pre` below, which already sets its own
    font and never had this bug. */
-.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre; position: relative; font: 13px/1.5 var(--font-mono); }
+.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre; font: 13px/1.5 var(--font-mono); }
 .post-detail-body pre code { border: none; background: none; padding: 0; white-space: inherit; line-height: 1.5; }
 /* Live example frame (docs pages, 2026-09-23; white/gold made the default 2026-09-23 same day,
    owner approved the gold-frame prototype and asked to "update throughout") — wraps a rendered
@@ -518,40 +518,55 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .latest-posts .live-example::before { content: "Live example"; position: absolute; top: 10px; left: 16px; font: 11px/1 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 
 /* ---------- code block copy button ---------- */
-/* Shared by every `pre` context (`.docs-main pre`, `.post-detail-body pre`, and a bare `<pre>` in a
-   custom page body — see below) — the button is injected as a child of the `pre` element itself by
-   `scripts/main.js` (`setupCodeCopyButtons`), so one unscoped `pre .code-copy-btn` selector covers it
-   wherever a `pre` appears, instead of duplicating the rule per ancestor class. Tokens only
-   (`--surface`/`--border`/`--muted`/`--fg`/`--accent`) — no hard-coded colors — so the button reads
-   correctly in both the dark default and `:root[data-theme="light"]` without its own light/dark
-   branch.
-   `setupCodeCopyButtons` itself is unscoped too (`document.querySelectorAll('pre')`, every `pre` on
-   the page, by design — its own comment says docs articles AND post/page body both qualify), but the
-   two rules below were originally declared per wrapper context only (`.docs-main pre`/
-   `.post-detail-body pre`), which broke two ways for a page whose body HTML isn't wrapped in either:
-   `pages-default.html` injects page body content straight into `.post-detail` — never
-   `.post-detail-body` — so a page (e.g. /install) with its own `<pre>` in custom body HTML got (a) no
-   `position: relative` on its `pre`, so the button's `top/right` resolved against the initial
-   containing block and rendered pinned near the top of the whole document, detached from the code
-   block it belonged to (fixed 8476795c0), and (b) no `padding-right`, so the button sat on top of any
-   code line long enough to reach the block's right edge once `white-space: pre-wrap` (above) lets long
-   lines wrap in place instead of scrolling under it, rather than clearing space for it. Both rules are
-   keyed off the same `has-copy-btn` marker class the script stamps on every `pre` it touches — once,
-   only after a button actually lands — so any current or future page body with a bare `<pre>` is
-   covered without relying on that page's own styles to remember either declaration. */
-pre.has-copy-btn { position: relative; padding-right: 48px; }
-pre .code-copy-btn {
+/* `scripts/main.js` (`setupCodeCopyButtons`) wraps every `<pre>` on the page (docs articles,
+   `.post-detail-body` article content, and a bare `<pre>` in custom page body HTML alike — its own
+   comment explains why it's unscoped) in a generated `.code-block-wrap` div, and appends the button
+   to that wrapper as a SIBLING of `pre`, not a child of it. One unscoped `.code-block-wrap
+   .code-copy-btn` selector covers the button wherever a `pre` appears, instead of duplicating the
+   rule per ancestor class. Tokens only (`--surface`/`--border`/`--muted`/`--fg`/`--accent`) — no
+   hard-coded colors — so the button reads correctly in both the dark default and
+   `:root[data-theme="light"]` without its own light/dark branch.
+
+   The button used to be appended as a CHILD of `pre` itself (fixed 8476795c0: a bare `<pre>` in
+   custom page body HTML had no positioned ancestor at all, so the button's `top`/`right` resolved
+   against the initial containing block and rendered pinned near the top of the whole document).
+   That broke again once `pre` itself became the horizontally-scrolling element (8587caa6f, long
+   lines scroll instead of wrapping): an absolutely-positioned descendant of a scrolling box is still
+   part of that box's own scrollable content, so the button's on-screen position was computed once
+   against the unscrolled layout and then translated along with every scroll — mid-scroll it rendered
+   on top of whatever code text had scrolled under its old spot instead of staying pinned to the
+   corner. Moving the button OUT of the scrolling `pre` and into a non-scrolling wrapper is the fix:
+   `pre` still owns `overflow-x: auto` and scrolls its own content, but the button's containing block
+   (`.code-block-wrap`) never scrolls, so `top`/`right` stay resolved against the same fixed corner at
+   any scroll position.
+
+   This also collapses what used to be three separate `position: relative` declarations — one on
+   `.docs-main pre`, one on `.post-detail-body pre`, and one on the unscoped `pre.has-copy-btn`
+   catch-all for a bare `<pre>` in custom page body HTML (`pages-default.html` injects page body
+   content straight into `.post-detail`, never `.post-detail-body`) — into the single
+   `.code-block-wrap` rule below, since the wrapper is generated around every `pre` the script
+   touches regardless of ancestor context.
+
+   `padding-right` stays on `pre.has-copy-btn` itself, not the wrapper: it reserves blank space at
+   the end of the pre's own scrollable content so a long line's trailing characters, once scrolled
+   fully into view, don't land directly under the button's fixed on-screen corner. Keyed off the same
+   `has-copy-btn` marker class the script stamps on every `pre` it touches — once, only after a
+   button actually lands — so any current or future page body with a bare `<pre>` is covered without
+   relying on that page's own styles to remember the declaration. */
+.code-block-wrap { position: relative; }
+pre.has-copy-btn { padding-right: 48px; }
+.code-block-wrap .code-copy-btn {
   position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
   color: var(--muted); cursor: pointer; padding: 0; line-height: 0;
 }
-pre .code-copy-btn:hover { color: var(--fg); border-color: var(--border-strong); }
-pre .code-copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-pre .code-copy-btn svg { width: 15px; height: 15px; display: block; }
-pre .code-copy-btn .icon-check { display: none; color: var(--accent); }
-pre .code-copy-btn.copied .icon-copy { display: none; }
-pre .code-copy-btn.copied .icon-check { display: block; }
+.code-block-wrap .code-copy-btn:hover { color: var(--fg); border-color: var(--border-strong); }
+.code-block-wrap .code-copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.code-block-wrap .code-copy-btn svg { width: 15px; height: 15px; display: block; }
+.code-block-wrap .code-copy-btn .icon-check { display: none; color: var(--accent); }
+.code-block-wrap .code-copy-btn.copied .icon-copy { display: none; }
+.code-block-wrap .code-copy-btn.copied .icon-check { display: block; }
 /* `height: auto` added (2026-08-12, same dispatch as the admin editor's `.editor-body .tiptap
    img` fix) — confirmed live (headless Chromium against this exact stylesheet, a real PNG
    carrying `width`/`height` HTML attributes) that WITHOUT it, an image squashes instead of
