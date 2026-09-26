@@ -775,14 +775,15 @@ export function VisitorCredentialForm({
         </p>
         <p>
           {t(
-            "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.",
+            "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.",
           )}
         </p>
         {/*
           KNOWN COPY CONFLICT, stated here rather than papered over: the shared `ByokProviderForm`
           below renders its own hint under the API-key field reading "Stored only by this host." That
-          string is correct for its original caller (Settings → Execution mode, where the key really
-          is browser-local) and WRONG here, where the whole point is that the key goes to the server.
+          string was written for its original caller (Settings → Execution mode, when that key was
+          browser-local; it has been server-stored per admin since 2026-08-05) and reads WRONG here,
+          where the whole point is that the key goes to the server.
           Two host screens now need two different answers from one shared component.
 
           Not fixed by hiding it with CSS and not fixed by forking the component — the standing

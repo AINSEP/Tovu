@@ -130,6 +130,16 @@ describe("the public on/off switch", () => {
     expect(screen.getByText(/ships no assistant code and exposes no assistant endpoint/i)).toBeInTheDocument();
   });
 
+  it("says the owner's own BYOK key is stored on the server, not in this browser", async () => {
+    // The admin's own key moved server-side (per admin, encrypted) on 2026-08-05; this copy kept
+    // claiming "saved only in this browser" long after.
+    serveSettings({ publicEnabled: false });
+    const { container } = render(<AiAssistant />);
+
+    await waitFor(() => expect(screen.getByText(/stored on the server, encrypted, for your admin account only/i)).toBeInTheDocument());
+    expect(container.textContent).not.toMatch(/only in this browser/i);
+  });
+
   it("surfaces a permission failure in the operator's language", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: "nope", code: "FORBIDDEN" }, 403));
     render(<AiAssistant />);
