@@ -293,6 +293,51 @@ test("push/plan 400s on a malformed scope.entityKeys with the exact validation t
   }
 });
 
+test("push/plan 400s on a scope array over the 1000-entry cap", async (t) => {
+  registerFixtureContributors();
+  t.after(() => resetPublishContentContributorsForTests());
+  const { app } = buildApp(fakePeerHttpClient(() => {}));
+  const server = await startTestServer(app, t);
+
+  const tooMany = Array.from({ length: 1001 }, (_, i) => `page:p${i}`);
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ scope: { entityKeys: tooMany } }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), {
+    error: "'scope.entityKeys' must be a non-empty array of strings",
+    code: "VALIDATION_ERROR",
+  });
+});
+
+// A scope that names no field it understands must never widen to "everything": a typo'd key
+// (`types` for `entityTypes`) or a bare string would otherwise publish every section from a dialog
+// the operator opened for one. Refused, and nothing is staged.
+test("push/plan 400s, staging nothing, on a scope that is not an object or names neither field", async (t) => {
+  registerFixtureContributors();
+  t.after(() => resetPublishContentContributorsForTests());
+  let stagedCount = 0;
+  const { app } = buildApp(fakePeerHttpClient(() => (stagedCount += 1)));
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  for (const scope of ["page", ["page"], {}, { types: ["page"] }]) {
+    const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scope }),
+    });
+    assert.equal(res.status, 400, `${JSON.stringify(scope)} must be refused`);
+    assert.deepEqual(await res.json(), {
+      error: "'scope' must be an object with 'entityTypes' and/or 'entityKeys'",
+      code: "VALIDATION_ERROR",
+    });
+  }
+  assert.equal(stagedCount, 0, "a refused scope must not stage anything");
+});
+
 test("push/plan treats an absent scope as 'everything' — both types are staged", async (t) => {
   registerFixtureContributors();
   t.after(() => resetPublishContentContributorsForTests());

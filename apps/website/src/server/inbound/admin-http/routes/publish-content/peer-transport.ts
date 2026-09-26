@@ -159,14 +159,18 @@ function isNonEmptyStringArrayField(value: unknown): value is readonly string[] 
  * a caller sending `scope: {entityTypes: []}` almost certainly meant something else.
  *
  * @returns `{scope: null}` when the body carries no `scope`, `{scope}` (the validated
- *   {@link PublishScope}) when it is well-formed, or `{invalidField}` naming which field was wrong.
+ *   {@link PublishScope}) when it is well-formed, or `{invalidField}` naming which field was wrong
+ *   (`"scope"` itself when it is not an object or names neither field — never read as "everything").
  * @complexity O(n) in the submitted array lengths.
  */
-function readPublishScope(body: unknown): { scope: PublishScope | null } | { invalidField: "entityTypes" | "entityKeys" } {
+function readPublishScope(body: unknown): { scope: PublishScope | null } | { invalidField: "scope" | "entityTypes" | "entityKeys" } {
   const raw = (body ?? {}) as Record<string, unknown>;
   if (raw.scope === undefined || raw.scope === null) return { scope: null };
-  if (typeof raw.scope !== "object" || Array.isArray(raw.scope)) return { invalidField: "entityTypes" };
+  if (typeof raw.scope !== "object" || Array.isArray(raw.scope)) return { invalidField: "scope" };
   const scopeBody = raw.scope as Record<string, unknown>;
+  // A present scope naming neither field (`{}`, or a typo like `{types: [...]}`) would otherwise
+  // narrow nothing — silently widening a one-section dialog to "publish everything". Refused.
+  if (scopeBody.entityTypes === undefined && scopeBody.entityKeys === undefined) return { invalidField: "scope" };
 
   const scope: { entityTypes?: readonly string[]; entityKeys?: readonly string[] } = {};
   if (scopeBody.entityTypes !== undefined) {
@@ -255,7 +259,10 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const scopeResult = readPublishScope(req.body);
       if ("invalidField" in scopeResult) {
         res.status(400).json({
-          error: `'scope.${scopeResult.invalidField}' must be a non-empty array of strings`,
+          error:
+            scopeResult.invalidField === "scope"
+              ? "'scope' must be an object with 'entityTypes' and/or 'entityKeys'"
+              : `'scope.${scopeResult.invalidField}' must be a non-empty array of strings`,
           code: "VALIDATION_ERROR",
         });
         return;
