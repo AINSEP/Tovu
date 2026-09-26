@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ChangeSetRepoPort } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
 
 import { PublishContentApplyRowError } from "../apply-errors.js";
 import { contentHash } from "../content-hash.js";
@@ -86,6 +86,7 @@ function makeDeps(itemPorts: ItemPorts | undefined, overrides: Partial<TestDeps>
     clock: { nowIso: () => `2026-09-25T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
     idGen: { newId: () => "unused-in-these-tests" },
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    outbox: fakeOutbox(),
     itemPorts,
     ...overrides,
   };
@@ -108,10 +109,17 @@ function throwingChangeSets(): ChangeSetRepoPort {
   };
 }
 
-/** A working `ChangeSetRepoPort` — enough for the tests that expect `apply()` to succeed. */
-function workingChangeSets(): ChangeSetRepoPort {
+function fakeOutbox(): OutboxPort {
+  return { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} };
+}
+
+/** A working `ChangeSetRepoPort` — enough for the tests that expect `apply()` to succeed. `inserted`
+ *  collects every recorded change set so a test can read its summary and item version. */
+function workingChangeSets(inserted: Array<{ record: ChangeSetRecord; items: ChangeSetItemRecord[] }> = []): ChangeSetRepoPort {
   return {
-    insert: async () => {},
+    insert: async (record, items) => {
+      inserted.push({ record, items });
+    },
     findById: async () => null,
     findByIdempotencyKey: async () => null,
     listByWorkspace: async () => [],
@@ -129,13 +137,7 @@ function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts>> = 
     isTrashed: (row) => row.status === "trashed",
     include: (row) => row.status !== "hidden",
     fields: { id: "local", workspaceId: "local", slug: "transferred", title: "transferred", note: "provenance", status: "transferred", version: "local" },
-    address: {
-      field: "slug",
-      holder: async (ports, workspaceId, slug) => {
-        const holder = await ports.repo.findBySlug(workspaceId, slug);
-        return holder ? { id: holder.id } : null;
-      },
-    },
+    address: { field: "slug", holder: (ports, workspaceId, slug) => ports.repo.findBySlug(workspaceId, slug) },
     write: async (ctx) => {
       if (ctx.state.forceError === "blocked") throw new ItemValidationError("item validation failed");
       if (ctx.state.forceError === "conflict") throw new ItemConflictError("item write conflict");
@@ -236,6 +238,27 @@ test("precheck passes through a type-specific validate refusal after the generic
   assert.equal(reason, "item-specific refusal");
 });
 
+test("precheck compares the address holder by idOf, so a natural-key type is not refused by its own row", async () => {
+  const repo = new FakeItemRepo([{ id: "row-1", workspaceId: WORKSPACE_ID, slug: "taken", title: "Same", note: "", status: "active", version: 1 }]);
+  const handler = buildHandler(
+    baseConfig({
+      idOf: (row) => row.slug,
+      find: (ports, workspaceId, slug) => ports.repo.findBySlug(workspaceId, slug),
+      address: { field: "slug", holder: (ports, workspaceId, slug) => ports.repo.findBySlug(workspaceId, slug) },
+    }),
+    makeDeps({ repo })
+  );
+
+  assert.equal(await handler.precheck(packedEntity("taken", { slug: "taken", title: "Same" })), null);
+});
+
+test("precheck skips the address check for an empty value (nothing to collide on)", async () => {
+  const repo = new FakeItemRepo([{ id: "other", workspaceId: WORKSPACE_ID, slug: "", title: "Slugless", note: "", status: "active", version: 1 }]);
+  const handler = buildHandler(baseConfig(), makeDeps({ repo }));
+
+  assert.equal(await handler.precheck(packedEntity("x", { slug: "", title: "X" })), null);
+});
+
 test("precheck returns null when nothing blocks", async () => {
   const repo = new FakeItemRepo();
   const handler = buildHandler(baseConfig(), makeDeps({ repo }));
@@ -331,7 +354,9 @@ test("apply maps a configured conflict error class to a conflict row outcome", a
     (err: unknown) => {
       assert.ok(err instanceof PublishContentApplyRowError);
       assert.equal(err.rowOutcome, "conflict");
-      assert.equal(err.message, "item write conflict");
+      // Same sentence `apply-loop.ts` builds for post's conflict classes today, so M-POST can delete
+      // that special case without changing the reason text.
+      assert.equal(err.message, changedSincePlan("item", "x", "item write conflict"));
       return true;
     }
   );
@@ -376,7 +401,7 @@ test("undo.restore is called on rollback when a prior row existed", async () => 
         },
       },
     }),
-    makeDeps({ repo }, { changeSets: throwingChangeSets(), outbox: undefined })
+    makeDeps({ repo }, { changeSets: throwingChangeSets() })
   );
 
   await assert.rejects(
@@ -410,7 +435,7 @@ test("undo.remove is called on rollback when there was no prior row (a create)",
         },
       },
     }),
-    makeDeps({ repo }, { changeSets: throwingChangeSets(), outbox: undefined })
+    makeDeps({ repo }, { changeSets: throwingChangeSets() })
   );
 
   await assert.rejects(
@@ -431,7 +456,7 @@ test("with undo and a working change-set repo, apply succeeds and the row lands"
   const repo = new FakeItemRepo();
   const handler = buildHandler(
     baseConfig({ undo: { restore: async () => {}, remove: async () => {} } }),
-    makeDeps({ repo }, { changeSets: workingChangeSets(), outbox: undefined })
+    makeDeps({ repo }, { changeSets: workingChangeSets() })
   );
 
   const { changeSetId } = await handler.apply({
@@ -442,6 +467,59 @@ test("with undo and a working change-set repo, apply succeeds and the row lands"
   });
   assert.ok(changeSetId.length > 0);
   assert.equal((await repo.find(WORKSPACE_ID, "x"))?.title, "X");
+});
+
+test("with undo, the change set records write's version and the (async) summary, and apply returns write's extra fields", async () => {
+  const repo = new FakeItemRepo();
+  const inserted: Array<{ record: ChangeSetRecord; items: ChangeSetItemRecord[] }> = [];
+  const handler = buildHandler(
+    baseConfig({
+      write: async () => ({ version: 7, blobWritten: true }),
+      undo: { restore: async () => {}, remove: async () => {}, summary: async (ctx) => `custom summary for ${ctx.id}` },
+    }),
+    makeDeps({ repo }, { changeSets: workingChangeSets(inserted) })
+  );
+
+  const result = await handler.apply({ entity: packedEntity("x", { slug: "x", title: "X" }), expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" });
+
+  assert.equal(inserted.length, 1);
+  assert.equal(inserted[0]!.record.summary, "custom summary for x");
+  assert.equal(inserted[0]!.items[0]!.entityVersionAtApply, 7);
+  assert.equal(inserted[0]!.record.id, result.changeSetId);
+  assert.equal((result as { blobWritten?: boolean }).blobWritten, true);
+});
+
+test("with undo, apply refuses to run when authorize or outbox is not wired, before writing anything", async () => {
+  for (const missing of ["authorize", "outbox"] as const) {
+    const repo = new FakeItemRepo();
+    let writes = 0;
+    const handler = buildHandler(
+      baseConfig({
+        write: async () => {
+          writes += 1;
+        },
+        undo: { restore: async () => {}, remove: async () => {} },
+      }),
+      makeDeps({ repo }, { changeSets: workingChangeSets(), [missing]: undefined })
+    );
+
+    await assert.rejects(
+      () => handler.apply({ entity: packedEntity("x", { slug: "x", title: "X" }), expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" }),
+      /requires PublishContentDeps\.changeSets\/authorize\/outbox/
+    );
+    assert.equal(writes, 0, `no write may run when ${missing} is missing`);
+  }
+});
+
+test("without undo, changeSetId is what write returned, else the packed id", async () => {
+  const repo = new FakeItemRepo();
+  const returning = buildHandler(baseConfig({ write: async () => ({ changeSetId: "domain-row-9" }) }), makeDeps({ repo }));
+  const silent = buildHandler(baseConfig({ write: async () => {} }), makeDeps({ repo }));
+  const apply = (handler: PublishContentHandler) =>
+    handler.apply({ entity: packedEntity("x", { slug: "x", title: "X" }), expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" });
+
+  assert.equal((await apply(returning)).changeSetId, "domain-row-9");
+  assert.equal((await apply(silent)).changeSetId, "x");
 });
 
 // ---------------------------------------------------------------------------

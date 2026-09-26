@@ -56,6 +56,15 @@ export interface RepoWriteContext<Row, Ports> {
   readonly principalId: string;
 }
 
+/** What {@link RepoPublishTypeConfig.write} may return. `version` is the row's version after the
+ *  write (recorded on the change set as its revert guard when `undo` is set); any other field is
+ *  passed through on `apply()`'s result (e.g. media's `blobWritten`). */
+export interface RepoWriteResult {
+  readonly changeSetId?: string;
+  readonly version?: number;
+  readonly [extra: string]: unknown;
+}
+
 /**
  * One publishable type's contribution to {@link createRepoPublishHandler} — the config every
  * factory-built `contribute<Type>Publish()` writes instead of a hand-rolled
@@ -111,7 +120,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
       workspaceId: string,
       value: string,
       state: Record<string, unknown>
-    ) => Promise<{ id: string } | null>;
+    ) => Promise<Row | null>;
   };
   /** Type-specific refusals, run after every generic one. Returns a reason, or `null`. */
   readonly validate?: (input: {
@@ -124,7 +133,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** The one write. Throws domain errors; {@link errors} maps them to row outcomes. May return the
    *  domain's own id for the report row (`changeSetId`); the factory falls back to `id` when it
    *  doesn't, and ignores it entirely when {@link undo} is set (the gateway's own id wins there). */
-  readonly write: (ctx: RepoWriteContext<Row, Ports>) => Promise<{ changeSetId?: string } | void>;
+  readonly write: (ctx: RepoWriteContext<Row, Ports>) => Promise<RepoWriteResult | void>;
   /** When set, the factory wraps {@link write} in `executeCommand` (change set, `captureInverse` =
    *  {@link find}, rollback = `restore(prior)` or `remove(id)`). When unset, the domain write is
    *  trusted to record its own revision (redirect, menu — see those files' own disclosed reasoning
@@ -132,7 +141,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly undo?: {
     readonly restore: (ctx: RepoWriteContext<Row, Ports>, prior: Row) => Promise<void>;
     readonly remove: (ctx: RepoWriteContext<Row, Ports>, id: string) => Promise<void>;
-    readonly summary?: (ctx: RepoWriteContext<Row, Ports>) => string;
+    readonly summary?: (ctx: RepoWriteContext<Row, Ports>) => string | Promise<string>;
   };
   readonly errors?: { readonly blocked?: readonly ErrorClass[]; readonly conflict?: readonly ErrorClass[] };
 
@@ -191,13 +200,13 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
    *  genuine fault (including an already-thrown {@link PublishContentApplyRowError}, e.g. this
    *  factory's own CAS checks) through unchanged.
    *  @complexity O(config.errors' combined class count). */
-  function mapWriteError(err: unknown): Error {
+  function mapWriteError(err: unknown, id: string): Error {
     if (err instanceof PublishContentApplyRowError) return err;
     for (const cls of config.errors?.blocked ?? []) {
       if (err instanceof cls) return new PublishContentApplyRowError("blocked", (err as Error).message);
     }
     for (const cls of config.errors?.conflict ?? []) {
-      if (err instanceof cls) return new PublishContentApplyRowError("conflict", (err as Error).message);
+      if (err instanceof cls) return new PublishContentApplyRowError("conflict", changedSincePlan(entityType, id, (err as Error).message));
     }
     return err instanceof Error ? err : new Error(String(err));
   }
@@ -242,10 +251,10 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
 
       if (config.address) {
         const value = entity.state[config.address.field];
-        if (typeof value === "string") {
+        if (typeof value === "string" && value) {
           const holder = await config.address.holder(p, deps.workspaceId, value, entity.state);
-          if (holder && holder.id !== entity.id) {
-            return addressHeldByOther(entityType, config.address.field, value, holder.id);
+          if (holder && idOf(holder) !== entity.id) {
+            return addressHeldByOther(entityType, config.address.field, value, idOf(holder));
           }
         }
       }
@@ -308,7 +317,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
 
       /** Version-checks, calls `config.write`, and maps any thrown domain error — shared by both the
        *  plain and `executeCommand`-wrapped paths below so the CAS/error-mapping logic exists once. */
-      async function runWrite(existing: Row | null): Promise<{ changeSetId?: string }> {
+      async function runWrite(existing: Row | null): Promise<RepoWriteResult> {
         checkVersion(input.entity, input.expectedVersion, existing);
         const ctx: RepoWriteContext<Row, Ports> = {
           ports: p,
@@ -323,32 +332,32 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         try {
           return (await config.write(ctx)) ?? {};
         } catch (err) {
-          throw mapWriteError(err);
+          throw mapWriteError(err, input.entity.id);
         }
       }
 
       if (!config.undo) {
         const existing = await config.find(p, deps.workspaceId, input.entity.id);
         const written = await runWrite(existing);
-        return { changeSetId: written.changeSetId ?? input.entity.id };
+        return { ...written, changeSetId: written.changeSetId ?? input.entity.id };
       }
 
       const { changeSets, authorize, outbox } = deps;
-      if (!changeSets) {
+      if (!changeSets || !authorize || !outbox) {
         throw new Error(
-          `publish-content: ${entityType}.apply() requires PublishContentDeps.changeSets wired for undo support ` +
+          `publish-content: ${entityType}.apply() requires PublishContentDeps.changeSets/authorize/outbox ` +
             "— wire it from the real apply-loop composition root (features/publish-content/apply-loop.ts)."
         );
       }
       let prior: Row | null = null;
       const undo = config.undo;
-      const { changeSetId } = await executeCommand<{ changeSetId?: string }>({
+      const { result, changeSetId } = await executeCommand<RepoWriteResult>({
         deps: { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize },
         command: {
           workspaceId: deps.workspaceId,
           actor: { id: input.principalId, kind: "user" as const },
           summary:
-            undo.summary?.({
+            (await undo.summary?.({
               ports: p,
               deps,
               workspaceId: deps.workspaceId,
@@ -357,7 +366,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
               existing: null,
               expectedVersion: input.expectedVersion,
               principalId: input.principalId,
-            }) ?? `Import ${entityType} '${input.entity.id}' via publish-content`,
+            })) ?? `Import ${entityType} '${input.entity.id}' via publish-content`,
           permission: config.permission,
           idempotencyKey: input.idempotencyKey,
         },
@@ -370,6 +379,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
             return prior ? ({ ...prior } as unknown as JsonObject) : null;
           },
           execute: () => runWrite(prior),
+          captureEntityVersion: (written) => written.version ?? null,
           rollback: async () => {
             const ctx: RepoWriteContext<Row, Ports> = {
               ports: p,
@@ -386,7 +396,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
           },
         },
       });
-      return { changeSetId };
+      return { ...result, changeSetId };
     }
 
     return {
