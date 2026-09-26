@@ -342,8 +342,13 @@ test("an install that has never provisioned refuses the handshake without saying
   }
 });
 
+/** Each type's current `schemaVersion`; the door refuses any other before it reads the grant.
+ *  `post`/`page` went to 2 when they began carrying `termIds`. */
+const SCHEMA_VERSION: Readonly<Record<string, number>> = { post: 2, page: 2 };
+
 /** Stages a bundle carrying one entity of `entityType`, the way a push would. */
 function bundle(baseUrl: string, token: string, entityType: unknown): Promise<Response> {
+  const schemaVersion = (typeof entityType === "string" && SCHEMA_VERSION[entityType]) || 1;
   return fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
@@ -351,7 +356,7 @@ function bundle(baseUrl: string, token: string, entityType: unknown): Promise<Re
       artifactFormatVersion: 1,
       hashVersion: 1,
       sourceLabel: "test source",
-      entities: [{ entityType, id: "e-1", schemaVersion: 1, contentHash: "x", hashVersion: 1, requiredBlobs: [], state: {} }],
+      entities: [{ entityType, id: "e-1", schemaVersion, contentHash: "x", hashVersion: 1, requiredBlobs: [], state: {} }],
       blobManifest: [],
     }),
   });
@@ -390,7 +395,10 @@ test("an entity that declares no type at all is refused, not skipped", async () 
   try {
     const token = await tokenFor(baseUrl);
     const res = await bundle(baseUrl, token, undefined);
-    assert.equal(res.status, 403, await res.text());
+    // The body's own shape check refuses it before the grant's allowlist is reached.
+    const raw = await res.text();
+    assert.equal(res.status, 400, raw);
+    assert.equal((JSON.parse(raw) as { error: string }).error, "entities[0].entityType must be a non-empty string");
   } finally {
     await stop(server);
   }
