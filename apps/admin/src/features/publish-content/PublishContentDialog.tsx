@@ -258,9 +258,10 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                         )}
                       </td>
                       <td>{t(row.entityTypeLabel)}</td>
-                      {/* The id stays reachable as a tooltip — it is what a support conversation
-                          needs — but it is never what the column reads as. */}
-                      <td title={row.entityId}>{row.entityLabel}</td>
+                      {/* A long label is cut off with an ellipsis (publish-content.css), so the
+                          hover shows the same label in full. The id stays on the row's
+                          `data-entity-id`, never in the tooltip (owner report 2026-09-26). */}
+                      <td title={row.entityLabel}>{row.entityLabel}</td>
                       <td>
                         <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
                       </td>

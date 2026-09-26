@@ -370,15 +370,29 @@ describe("PublishContentDialog — row order (owner rule 2026-09-26)", () => {
 });
 
 describe("PublishContentDialog — the entity column names entities, never uuids", () => {
-  it("shows the entity's own slug, keeping the id reachable as a tooltip", async () => {
+  it("shows the entity's own slug, and keeps the id on the row, not in the tooltip", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
     await planFrom(port);
 
     const cell = reportRow(HELLO_WORLD).querySelectorAll("td")[2];
     expect(cell.textContent).toBe("hello-world");
-    expect(cell.getAttribute("title")).toBe(HELLO_WORLD);
     // The regression this column exists to close: the full uuid was the visible text.
     expect(cell.textContent).not.toBe(HELLO_WORLD);
+    expect(reportRow(HELLO_WORLD).getAttribute("data-entity-id")).toBe(HELLO_WORLD);
+  });
+
+  // Owner report 2026-09-26: a long name is cut off with an ellipsis, and hovering it showed the
+  // uuid. The hover reads the same label the cell does, in full.
+  it("hovering the entity cell shows its full display name, never the id", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    await planFrom(port);
+
+    for (const id of [HELLO_WORLD, ABOUT_US, UNNAMED_MEDIA]) {
+      const cell = reportRow(id).querySelectorAll("td")[2];
+      expect(cell.getAttribute("title")).toBe(cell.textContent);
+      expect(cell.getAttribute("title")).not.toBe(id);
+    }
+    expect(reportRow(HELLO_WORLD).querySelectorAll("td")[2].getAttribute("title")).toBe("hello-world");
   });
 
   it("falls back to a short id, never the whole uuid, for an entity with no human name", async () => {
