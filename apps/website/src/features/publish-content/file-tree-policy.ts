@@ -26,6 +26,15 @@ import { scanTextForSecrets } from "#src/features/webhooks/secret-scan-guard";
  *   names the offending path/fact only; the caller (which knows the tree's display title) prefixes
  *   it. Keeping the title out of this module is what lets `checkTreeFiles` stay a pure function of
  *   `(kind, files)`, with no caller-specific wording to keep in sync.
+ *
+ *   One exception: the disallowed-extension reason (the most common real refusal — a stray video or
+ *   other unpublishable file dropped into a theme folder) is returned already final, via
+ *   {@link wrapTreePolicyReason}'s sentinel, and a caller must pass every `checkTreeFiles` reason
+ *   through that function rather than concatenating a title itself. The row already shows the tree's
+ *   title in its own label column, so `"Theme: x was not published: ... has a file type ('mp4') that
+ *   is not allowed for this tree"` repeated the label and read as an internal validator message, not
+ *   something an operator asked for. Every other reason in this module (path shape, deny-list, caps,
+ *   secret scan) is unaffected and still gets the title prefix.
  */
 
 /** Every file-tree publish type this policy module knows about, per §1's inventory table. Only
@@ -185,6 +194,48 @@ function extensionOf(relPath: string): string {
   const base = relPath.slice(relPath.lastIndexOf("/") + 1);
   const dot = base.lastIndexOf(".");
   return dot <= 0 ? "" : base.slice(dot + 1).toLowerCase();
+}
+
+/** @complexity O(1). */
+function baseNameOf(relPath: string): string {
+  return relPath.slice(relPath.lastIndexOf("/") + 1);
+}
+
+/** Common video container extensions — the one file type an operator is most likely to accidentally
+ *  drop into a theme folder (a recorded demo, a hero clip meant for a CDN instead), which is why the
+ *  terse reason names it specifically rather than folding it into the generic "file type" wording. */
+const VIDEO_EXTENSIONS: ReadonlySet<string> = new Set(["mp4", "mov", "mkv", "avi", "webm", "m4v", "wmv", "flv"]);
+
+/** The sentinel prefix that marks a `checkTreeFiles` reason as already operator-facing and final —
+ *  see this file's header and {@link wrapTreePolicyReason}. Never itself compared against outside this
+ *  module; a caller calls {@link wrapTreePolicyReason} instead of checking for this directly. */
+const PREFORMATTED_REASON_PREFIX = "Can't publish:";
+
+/**
+ * The disallowed-extension reason, terse and operator-facing (this file's header exception) — no
+ * title, no path, no raw extension string, just what the operator would ask when told a publish
+ * failed: what kind of file, and which one.
+ *
+ * @complexity O(1).
+ */
+function disallowedExtensionReason(path: string): string {
+  const name = baseNameOf(path);
+  const ext = extensionOf(path);
+  return VIDEO_EXTENSIONS.has(ext)
+    ? `${PREFORMATTED_REASON_PREFIX} contains a video file (${name})`
+    : `${PREFORMATTED_REASON_PREFIX} contains a file type that isn't allowed (${name})`;
+}
+
+/**
+ * Wraps a `checkTreeFiles` reason with `title` for display, UNLESS the reason is already final
+ * (currently only {@link disallowedExtensionReason}'s output) — the one seam a caller uses instead of
+ * concatenating `"${title} was not published: ${reason}"` itself, so the sentinel that marks a
+ * preformatted reason lives in exactly one place.
+ *
+ * @complexity O(1).
+ */
+export function wrapTreePolicyReason(title: string, reason: string): string {
+  return reason.startsWith(PREFORMATTED_REASON_PREFIX) ? reason : `${title} was not published: ${reason}`;
 }
 
 /**
@@ -349,7 +400,7 @@ export function checkTreeFiles(kind: FileTreeKind, files: readonly FileTreeFileI
     if (spec.allowedExtensions) {
       const ext = extensionOf(file.path);
       if (!spec.allowedExtensions.includes(ext)) {
-        return `"${file.path}" has a file type ('${ext || "no extension"}') that is not allowed for this tree`;
+        return disallowedExtensionReason(file.path);
       }
     }
 

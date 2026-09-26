@@ -43,7 +43,7 @@ test("collectSkippedEntities gathers every authorized handler's listSkipped outp
           entityType: "theme-files",
           id: "static/kuinetic-showcase",
           label: "static/kuinetic-showcase",
-          reason: "Theme: static/kuinetic-showcase was not published: \"video.mp4\" has a file type ('mp4') that is not allowed for this tree",
+          reason: "Can't publish: contains a video file (video.mp4)",
         },
       ];
     },
@@ -61,7 +61,7 @@ test("collectSkippedEntities gathers every authorized handler's listSkipped outp
       entityType: "theme-files",
       id: "static/kuinetic-showcase",
       label: "static/kuinetic-showcase",
-      reason: "Theme: static/kuinetic-showcase was not published: \"video.mp4\" has a file type ('mp4') that is not allowed for this tree",
+      reason: "Can't publish: contains a video file (video.mp4)",
     },
   ]);
 });

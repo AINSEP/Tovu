@@ -202,7 +202,7 @@ test("push/plan appends a locally refused unit to the peer's plan as a non-selec
     requiredBlobs: [],
     state: {},
   };
-  const reason = "Theme: static/showcase was not published: \"clip.mp4\" has a file type ('mp4') that is not allowed for this tree";
+  const reason = "Can't publish: contains a video file (clip.mp4)";
   registerPublishContentContributor({
     entityType: "file-index-canary",
     dependsOn: [],

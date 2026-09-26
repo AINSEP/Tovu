@@ -15,6 +15,7 @@ import {
   MAX_SECRET_SCAN_BYTES,
   normalizeMode,
   resolveTreeRelativePath,
+  wrapTreePolicyReason,
   type FileTreeFileInput,
 } from "#src/features/publish-content/file-tree-policy";
 import type { FileBlobIndexPort } from "#src/features/publish-content/file-blob-index";
@@ -256,7 +257,7 @@ async function packOneThemeTree(input: {
   }));
   const blockReason = checkTreeFiles("theme-files", policyInputs);
   if (blockReason) {
-    return { skippedTree: { treeKey, reason: `${title} was not published: ${blockReason}` } };
+    return { skippedTree: { treeKey, reason: wrapTreePolicyReason(title, blockReason) } };
   }
 
   const sortedFiles = sortByPath(walked);
@@ -548,7 +549,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
       policyInputs.push({ path: file.path, size: file.size, mode: file.mode, textSample });
     }
     const policyReason = checkTreeFiles("theme-files", policyInputs);
-    return policyReason ? `${title} was not published: ${policyReason}` : null;
+    return policyReason ? wrapTreePolicyReason(title, policyReason) : null;
   }
 
   /**

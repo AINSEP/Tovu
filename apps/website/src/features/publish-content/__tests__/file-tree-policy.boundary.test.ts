@@ -220,10 +220,16 @@ test("checkTreeFiles blocks case-insensitively duplicate paths", () => {
   assert.match(reason ?? "", /differ only by letter case/);
 });
 
-test("checkTreeFiles blocks a disallowed extension for theme-files", () => {
+test("checkTreeFiles blocks a disallowed extension for theme-files, terse and preformatted", () => {
   const files: FileTreeFileInput[] = [{ path: "server.php", size: 10, mode: 0o644, textSample: "<?php ?>" }];
   const reason = checkTreeFiles("theme-files", files);
-  assert.match(reason ?? "", /not allowed for this tree/);
+  assert.equal(reason, "Can't publish: contains a file type that isn't allowed (server.php)");
+});
+
+test("checkTreeFiles names a video extension specifically", () => {
+  const files: FileTreeFileInput[] = [{ path: "assets/hero/x.mp4", size: 10, mode: 0o644 }];
+  const reason = checkTreeFiles("theme-files", files);
+  assert.equal(reason, "Can't publish: contains a video file (x.mp4)");
 });
 
 test("checkTreeFiles allows every extension for a code-class kind (agent-skill)", () => {

@@ -153,8 +153,9 @@ test("the handler's listSkipped() reports a whole-tree refusal by its exact Skip
     assert.equal(skipped[0]!.id, "static/kuinetic-showcase");
     // Same name every other theme row in the table carries (`treeTitle`), not the bare tree key.
     assert.equal(skipped[0]!.label, "Theme: static/kuinetic-showcase");
-    assert.match(skipped[0]!.reason, /^Theme: static\/kuinetic-showcase was not published: /);
-    assert.match(skipped[0]!.reason, /not allowed for this tree/);
+    // The disallowed-extension reason is terse and preformatted (no title prefix — the row's own
+    // label column already carries it) via `file-tree-policy.ts`'s `wrapTreePolicyReason`.
+    assert.equal(skipped[0]!.reason, "Can't publish: contains a video file (video.mp4)");
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }
