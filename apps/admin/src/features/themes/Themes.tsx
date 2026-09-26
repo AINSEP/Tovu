@@ -20,6 +20,7 @@ import {
   groupThemesByTabGroup,
   defaultThemeTabGroup,
   themeDisplayName,
+  sortThemesForDisplay,
   THEME_TAB_GROUPS,
   type ThemeTabGroup,
 } from "./rules";
@@ -576,7 +577,12 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   // was `disabled`, so `activeTab` provably named a real `ThemeTabGroup`. Enabling that tab made
   // `MARKETPLACE_TAB_ID` reachable here, and `grouped["marketplace"]` is `undefined` — the branch
   // below renders the marketplace instead, but this line still evaluates first.
-  const visibleThemes = grouped[activeTab as ThemeTabGroup] ?? [];
+  // Active theme first, then A-Z by display name (`sortThemesForDisplay`).
+  const visibleThemes = sortThemesForDisplay(
+    grouped[activeTab as ThemeTabGroup] ?? [],
+    settings.activeThemeId,
+    themeNames,
+  );
 
   return (
     <div className="page">

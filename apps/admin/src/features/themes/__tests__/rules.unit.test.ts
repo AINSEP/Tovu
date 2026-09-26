@@ -7,6 +7,7 @@ import {
   isActiveTheme,
   isStrandedActiveTheme,
   isThemeDisabled,
+  sortThemesForDisplay,
   THEME_TAB_GROUPS,
   themeDisplayName,
   themeNamesById,
@@ -180,5 +181,39 @@ describe("theme display names", () => {
     const names = { "tailark-dusk": "Northbound" };
     expect(themeDisplayName("tailark-dusk", names)).toBe("Northbound");
     expect(themeDisplayName("bare", names)).toBe("bare");
+  });
+});
+
+describe("sortThemesForDisplay", () => {
+  const names = {
+    "tovu-theme": "Tovu Theme",
+    "tailark-dusk": "Northbound",
+    onyx: "Onyx",
+    meridian: "Meridian",
+    kuinetic: "kUInetic Showcase",
+    "basic-2": "Basic-2",
+  };
+
+  it("puts the active theme first, then the rest A-Z by display name, ignoring case", () => {
+    const shown = ["basic-2", "kuinetic", "tailark-dusk", "onyx", "meridian", "tovu-theme"];
+    expect(sortThemesForDisplay(shown, "tovu-theme", names)).toEqual([
+      "tovu-theme",
+      "basic-2",
+      "kuinetic",
+      "meridian",
+      "tailark-dusk",
+      "onyx",
+    ]);
+  });
+
+  it("sorts an unnamed theme by its id, and breaks a name tie by id", () => {
+    const twins = { b: "Same", a: "Same" };
+    expect(sortThemesForDisplay(["zeta", "b", "alpha", "a"], "none", twins)).toEqual(["alpha", "a", "b", "zeta"]);
+  });
+
+  it("leaves the input array untouched", () => {
+    const shown = ["onyx", "meridian"];
+    sortThemesForDisplay(shown, "onyx", names);
+    expect(shown).toEqual(["onyx", "meridian"]);
   });
 });

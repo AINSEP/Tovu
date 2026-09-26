@@ -178,3 +178,23 @@ export function themeNamesById(themes: ReadonlyArray<{ id: string; name?: string
 export function themeDisplayName(themeId: string, themeNames: Record<string, string>): string {
   return themeNames[themeId] || themeId;
 }
+
+/**
+ * The order a tab's theme cards render in (2026-09-26 owner feedback): the active theme first, then
+ * the rest A-Z by {@link themeDisplayName} — case-insensitive and locale-aware, so "kUInetic
+ * Showcase" sorts under K — with the id as the tie-break so two same-named themes keep a stable
+ * order. Returns a new array; `themeIds` is left untouched.
+ *
+ * @complexity Time: O(n log n) in `themeIds.length`. Space: O(n).
+ */
+export function sortThemesForDisplay(
+  themeIds: readonly string[],
+  activeThemeId: string,
+  themeNames: Record<string, string>,
+): string[] {
+  const byName = (a: string, b: string) =>
+    themeDisplayName(a, themeNames).localeCompare(themeDisplayName(b, themeNames), undefined, {
+      sensitivity: "base",
+    }) || a.localeCompare(b);
+  return [...themeIds].sort((a, b) => Number(b === activeThemeId) - Number(a === activeThemeId) || byName(a, b));
+}
