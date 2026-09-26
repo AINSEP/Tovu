@@ -312,6 +312,27 @@ test("friendlyPublishReason rewrites every reason planner.ts and its handlers ca
   }
 });
 
+// Verbatim from the handlers' own templates (the entity type/id prefix included), not a hand-trimmed
+// variant: `post/publish-content.ts`'s trash precheck starts with "<type> '<id>'", and
+// `navigation/publish-content.ts`'s slug precheck starts with "menu slug", so an anchored pattern
+// written against a trimmed fixture passes its test and leaks the raw id in the real dialog.
+test("friendlyPublishReason rewrites the post trash and menu slug reasons exactly as their handlers word them", () => {
+  const cases: ReadonlyArray<[string, string]> = [
+    [
+      "page 'c0bf1802-f30a-4ac6-9de3-fa65e3667897' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content",
+      "This item is in the trash on the live site. Restore it there before publishing.",
+    ],
+    [
+      "menu slug 'main' is already held by a different menu ('c0bf1802-f30a-4ac6-9de3-fa65e3667897') at this destination",
+      "Another item on the live site already uses this name.",
+    ],
+  ];
+
+  for (const [raw, friendly] of cases) {
+    assert.equal(friendlyPublishReason(raw), friendly, raw);
+  }
+});
+
 test("friendlyPublishReason leaves an already-final \"Can't publish:\" reason untouched", () => {
   assert.equal(
     friendlyPublishReason("Can't publish: contains a video file (deadpool3-cinedaily-hero.mp4)"),
