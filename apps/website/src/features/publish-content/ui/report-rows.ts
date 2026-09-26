@@ -516,7 +516,8 @@ export function publishRowDisposition(row: PublishContentOutcomeRow): PublishRow
  * refusal reason on its own.
  *
  * @complexity O(n) in the report's row count, single pass, no sorting: the planner already emits
- * rows in `dependsOn` apply order and re-sorting here would hide that ordering from the operator.
+ * rows in `dependsOn` apply order and this keeps it. The dialog shows a sorted copy instead
+ * (`publish-order.ts`, owner rule 2026-09-26: to publish first, A–Z).
  */
 export function toPublishReportRows(report: PublishContentReport): readonly PublishReportRow[] {
   if (report.refused) return [];

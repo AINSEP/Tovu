@@ -39,7 +39,7 @@ describe("overwriteTooltipFor", () => {
 describe("liveGapLinesFor", () => {
   const t = (key: string): string => key;
 
-  it("writes one plain line per held-back type, plural name and count", () => {
+  it("writes one plain line per held-back type, plural name and count, A–Z by type name", () => {
     expect(
       liveGapLinesFor(
         [
@@ -49,8 +49,8 @@ describe("liveGapLinesFor", () => {
         t
       )
     ).toEqual([
-      "Forms (7) can't publish yet: the live site needs an update first.",
       "Entries (1) can't publish yet: the live site needs an update first.",
+      "Forms (7) can't publish yet: the live site needs an update first.",
     ]);
   });
 

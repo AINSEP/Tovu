@@ -42,6 +42,9 @@ export {
   toPublishReportRows,
 } from "./report-rows.js";
 
+export type { PublishOrderGroup, PublishOrderKey } from "./publish-order.js";
+export { publishOrderComparator, sortPublishReportRows } from "./publish-order.js";
+
 export type { CriteriaSelection, PublishCriteria, PublishRequestResult } from "./criteria.js";
 export {
   applyPublishCriteria,

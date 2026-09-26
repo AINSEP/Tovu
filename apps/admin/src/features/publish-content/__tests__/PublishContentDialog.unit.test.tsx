@@ -357,6 +357,18 @@ describe("PublishContentDialog — the rest of the surface", () => {
   });
 });
 
+describe("PublishContentDialog — row order (owner rule 2026-09-26)", () => {
+  it("lists what will publish first A–Z, then skipped, then up to date — via the shared comparator", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    await planFrom(port);
+
+    const order = [...document.querySelectorAll("tbody tr")].map((row) => row.getAttribute("data-entity-id"));
+    // `SELECTION_REPORT` arrives as hello-world, about-us, (unnamed media), logo-png, edited-there.
+    // The unnamed media row reads as its short id "33333333", which sorts before letters.
+    expect(order).toEqual([UNNAMED_MEDIA, ABOUT_US, HELLO_WORLD, "55555555-eeee-4eee-8eee-555555555555", "44444444-dddd-4ddd-8ddd-444444444444"]);
+  });
+});
+
 describe("PublishContentDialog — the entity column names entities, never uuids", () => {
   it("shows the entity's own slug, keeping the id reachable as a tooltip", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });

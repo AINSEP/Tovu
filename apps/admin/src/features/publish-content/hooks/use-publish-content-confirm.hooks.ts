@@ -8,8 +8,10 @@ import {
   countSelectedPublishing,
   planOnScreen,
   publishEntityTypePluralLabel,
+  publishOrderComparator,
   rowPublishesWithSelection,
   selectableRowKeys,
+  sortPublishReportRows,
   summarizePublishReport,
   toPublishReportRows,
   type CriteriaSelection,
@@ -28,6 +30,7 @@ import {
 
 import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
 
+import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
@@ -235,18 +238,20 @@ function primaryLabelFor(
  * the count sits in brackets so the sentence reads the same for 1 and for 7 in every locale (this
  * app's translator has no plurals or interpolation — see `primaryLabelFor`).
  *
- * @complexity O(n) in `entries.length`.
+ * Lines are A–Z by the translated type name — the shared publish-list order (`publish-order.ts`).
+ *
+ * @complexity O(n log n) in `entries.length`.
  */
 export function liveGapLinesFor(
   entries: readonly PublishContentNotSupportedByLive[] | undefined,
-  t: Translate
+  t: Translate,
+  locale?: string
 ): readonly string[] {
   return (entries ?? [])
     .filter((entry) => entry.count > 0)
-    .map(
-      (entry) =>
-        `${t(publishEntityTypePluralLabel(entry.entityType))} (${entry.count}) ${t("can't publish yet: the live site needs an update first.")}`
-    );
+    .map((entry) => ({ label: t(publishEntityTypePluralLabel(entry.entityType)), count: entry.count }))
+    .sort(publishOrderComparator(locale, (line) => ({ group: "blocked", label: line.label })))
+    .map((line) => `${line.label} (${line.count}) ${t("can't publish yet: the live site needs an update first.")}`);
 }
 
 /**
@@ -473,6 +478,7 @@ export function usePublishContentConfirm(props: {
 }): PublishContentConfirmView {
   const { onCancel, t } = props;
   const port = props.port ?? defaultPublishContentPort;
+  const locale = useWiredAdminLocale();
 
   // plan-publish-sections-2026-09-25.md §2 S2 — the ONE place `scope` reaches `port.planPublish`
   // from, so no bare `port.planPublish` call under this hook can forget it. `props.scope` is fixed
@@ -831,9 +837,11 @@ export function usePublishContentConfirm(props: {
   // one, so this file never has to re-enumerate them (and cannot get `planning`, which has no plan
   // yet, wrong).
   const visiblePlan = planOnScreen(phase);
-  const rows = visiblePlan === null ? EMPTY_ROWS : toPublishReportRows(visiblePlan.details);
+  // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
+  // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
+  const rows = visiblePlan === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(visiblePlan.details), locale);
   const summary = visiblePlan === null ? null : summarizePublishReport(rows);
-  const liveGapNotices = liveGapLinesFor(visiblePlan?.notSupportedByLive, t);
+  const liveGapNotices = liveGapLinesFor(visiblePlan?.notSupportedByLive, t, locale);
 
   // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
   // disagree with it or with the rows currently on screen.
