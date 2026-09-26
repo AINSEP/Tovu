@@ -231,7 +231,13 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       return;
     }
 
-    const targetInstallationId = await deps.targetInstallationId;
+    // No root key means no installation id, so no token can be verified here: pass it on like any
+    // other unverifiable token. Express 4 would otherwise leave the request hanging on the rejection.
+    const targetInstallationId = await deps.targetInstallationId.catch(() => null);
+    if (targetInstallationId === null) {
+      next();
+      return;
+    }
     const verified = await verifyPublishSession(
       { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
       { token, expectedAudience: targetInstallationId }

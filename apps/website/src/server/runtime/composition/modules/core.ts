@@ -43,6 +43,9 @@ export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
     keyring: deps.siteAssistantSecretKeyring,
     workspaceId: deps.workspaceId,
   });
+  // Marks a missing root key as handled at boot. Each consumer still awaits the same rejection and
+  // refuses that one request; without this, a keyless process logs an unhandled rejection at startup.
+  targetInstallationId.catch(() => undefined);
   const challengeStore = new InMemoryPublishChallengeStore(deps.clock);
   const grants = createPublishTrustGrantResolver();
   // The other half of the admission question. Its SQLite adapter proves the table is readable
