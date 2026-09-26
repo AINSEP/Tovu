@@ -112,6 +112,9 @@ export interface RepoPublishTypeConfig<Row, Ports> {
    *  else rethrows and aborts the run. `conflict` is matched first, so `blocked` may name a base class
    *  (e.g. Jini's `ToolInputError`) that a conflict class also extends. */
   readonly errors?: { readonly blocked?: readonly ErrorClass[]; readonly conflict?: readonly ErrorClass[] };
+  /** Builds every conflict this type reports (the version checks and `errors.conflict`). Defaults to a
+   *  plain `PublishContentApplyRowError`; a migrated type may keep its own exported subclass. */
+  readonly conflictError?: (message: string) => PublishContentApplyRowError;
 
   /** Type-specific handler methods, passed through unchanged. */
   readonly extend?: (ctx: { deps: PublishContentDeps; ports: () => Ports | undefined }) => Partial<
@@ -161,10 +164,15 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
   const hashOf = (row: Row) =>
     contentHash(entityType, config.legacyHashState ? config.legacyHashState(row, pick(row, packedFields)) : pick(row, hashedFields));
 
+  const conflict = (id: string, detail: string) => {
+    const message = changedSincePlan(entityType, id, detail);
+    return config.conflictError?.(message) ?? new PublishContentApplyRowError("conflict", message);
+  };
+
   function toRowError(err: unknown, id: string): unknown {
     if (err instanceof PublishContentApplyRowError || !(err instanceof Error)) return err;
     if (config.errors?.conflict?.some((cls) => err instanceof cls)) {
-      return new PublishContentApplyRowError("conflict", changedSincePlan(entityType, id, err.message));
+      return conflict(id, err.message);
     }
     if (config.errors?.blocked?.some((cls) => err instanceof cls)) return new PublishContentApplyRowError("blocked", err.message);
     return err;
@@ -246,7 +254,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
             : found === null
               ? `expected version ${expectedVersion}, but the row is gone`
               : found !== expectedVersion && `expected version ${expectedVersion}, found version ${found}`;
-        if (mismatch) throw new PublishContentApplyRowError("conflict", changedSincePlan(entityType, entity.id, mismatch));
+        if (mismatch) throw conflict(entity.id, mismatch);
         try {
           return (await config.write(ctx(existing))) ?? {};
         } catch (err) {
