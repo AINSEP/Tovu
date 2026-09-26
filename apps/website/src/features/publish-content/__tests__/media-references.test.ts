@@ -66,3 +66,30 @@ test("a state with no media reference contributes nothing", () => {
     []
   );
 });
+
+test("a link mark pointing at a media file contributes its key (a copied /m/ public URL pasted as a link)", () => {
+  const bodyJson = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Download the brochure", marks: [{ type: "link", attrs: { href: "/m/brochure-pdf/original" } }] },
+          { type: "text", text: " or the old one", marks: [{ type: "link", attrs: { href: "https://example.test/api/admin/v1/workspaces/w/media/asset-9/original" } }] },
+        ],
+      },
+    ],
+  };
+  assert.deepEqual(keys({ bodyJson }), ["asset-9", "brochure-pdf"]);
+});
+
+test("an html media marker is matched case-insensitively, the way the embed resolver reads it", () => {
+  const bodyHtml = `<div data-embed-config='{"type":"Media","slug":"hand-typed"}'></div>`;
+  assert.deepEqual(keys({ bodyHtml }), ["hand-typed"]);
+});
+
+test("an SEO share image given as an absolute /m/ URL contributes its key, not the URL scheme", () => {
+  assert.deepEqual(keys({ seoExtJson: JSON.stringify({ ogImage: "https://tovu.example/m/og-card/public.v3/image.webp" }) }), [
+    "og-card",
+  ]);
+});

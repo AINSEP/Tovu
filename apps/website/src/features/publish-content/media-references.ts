@@ -1,4 +1,4 @@
-import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
+import { embedMarkerTarget, scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
 
 /**
  * @file Which media a packed post/page state points at — owner decision 2026-09-25, "images go along
@@ -12,9 +12,17 @@ import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
  *   `widgets/resolver-service.ts` and `routes/site/media-rendition.ts` each carry a private copy of;
  *   neither is importable from here (both sit above `features/publish-content/` in the layering);
  * - a legacy `image` node's `attrs.src` — an admin `/media/{id}/…` URL or a public `/m/{key}/…` URL;
- * - an `"html"` body's `data-embed-config` media marker, by `id ?? slug` (the same precedence
- *   `resolver-service.ts`'s `parseMediaEmbedRef` resolves with), and any `/m/{key}/` URL in it;
- * - `seoExtJson.ogImage`/`twitterImage`, a `"{assetId}:{transformName}"` ref (`seo/types.ts`).
+ * - any mark's string attrs holding such a URL — a `link` mark whose `href` is a media file's copied
+ *   public URL (the Media panel shows it for exactly that);
+ * - an `"html"` body's `data-embed-config` media marker, by `id ?? slug` via `embedMarkerTarget` (the
+ *   same case-insensitive type match and precedence the embed resolver uses), and any `/m/{key}/` URL
+ *   in it;
+ * - `seoExtJson.ogImage`/`twitterImage`, a `"{assetId}:{transformName}"` ref or an absolute URL
+ *   (`seo/types.ts`).
+ *
+ * Not covered, because none of it is published by this feature at all: media a `widgetEmbed` node's
+ * widget entry holds (widgets are not a publish-content type), and an old slug kept alive only by
+ * `media_slug_history` (matched against the CURRENT slug only).
  *
  * Returns KEYS — an id or a slug — never resolved media: the caller matches them against the media
  * entities it actually holds, so a key naming nothing (a deleted asset, a stray URL) adds nothing.
@@ -41,8 +49,18 @@ function addUrlKeys(text: string, out: Set<string>): void {
   }
 }
 
-/** Walks a TipTap tree collecting every `image`/`media` node's `assetId` and legacy `src` key.
- *  @complexity O(n) in the tree's node count. */
+/** Adds every media URL key held in a mark's string attrs (a `link` mark's `href`, chiefly).
+ *  @complexity O(m) in the marks' total attr length. */
+function addMarkKeys(marks: unknown, out: Set<string>): void {
+  if (!Array.isArray(marks)) return;
+  for (const mark of marks) {
+    if (!isPlainObject(mark) || !isPlainObject(mark.attrs)) continue;
+    for (const value of Object.values(mark.attrs)) if (typeof value === "string") addUrlKeys(value, out);
+  }
+}
+
+/** Walks a TipTap tree collecting every `image`/`media` node's `assetId` and legacy `src` key, plus
+ *  any media URL in a mark's attrs. @complexity O(n) in the tree's size. */
 function addDocKeys(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
     for (const child of node) addDocKeys(child, out);
@@ -53,16 +71,16 @@ function addDocKeys(node: unknown, out: Set<string>): void {
     if (typeof node.attrs.assetId === "string") out.add(node.attrs.assetId);
     else if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
   }
+  addMarkKeys(node.marks, out);
   if (Array.isArray(node.content)) addDocKeys(node.content, out);
 }
 
 /** @complexity O(n) over `html`'s length (one shared marker scan plus one URL scan). */
 function addHtmlKeys(html: string, out: Set<string>): void {
   for (const marker of scanEmbedMarkers(html).markers) {
-    if (marker.type !== "media") continue;
-    const slug = typeof marker.config.slug === "string" ? marker.config.slug : undefined;
-    const ref = marker.id ?? slug;
-    if (ref) out.add(ref);
+    if (marker.type.toLowerCase() !== "media") continue;
+    const target = embedMarkerTarget(marker.type, marker.config);
+    if (target !== undefined && target.key !== "none") out.add(target.value);
   }
   addUrlKeys(html, out);
 }
@@ -82,6 +100,10 @@ function addSeoKeys(raw: unknown, out: Set<string>): void {
   for (const field of SEO_IMAGE_FIELDS) {
     const ref = seo[field];
     if (typeof ref !== "string") continue;
+    if (ref.includes("/")) {
+      addUrlKeys(ref, out); // an absolute URL, not a `"{assetId}:{transformName}"` ref
+      continue;
+    }
     const assetId = ref.split(":")[0];
     if (assetId) out.add(assetId);
   }
