@@ -18,7 +18,13 @@ import {
   type FileTreeFileInput,
 } from "#src/features/publish-content/file-tree-policy";
 import type { FileBlobIndexPort } from "#src/features/publish-content/file-blob-index";
-import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler } from "#src/features/publish-content/type-registry";
+import type {
+  PackedEntity,
+  PublishContentContributor,
+  PublishContentDeps,
+  PublishContentHandler,
+  SkippedPackEntity,
+} from "#src/features/publish-content/type-registry";
 
 import { MIGRATION_STAGING_DIR_PREFIX, PUBLISH_PREVIOUS_DIR, PUBLISH_STAGING_DIR, THEME_CATALOG_DIR } from "./theme.js";
 import { isGeneratedThemePath } from "./theme-files.js";
@@ -479,6 +485,25 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     for (const entity of entities) yield entity;
   }
 
+  /**
+   * `type-registry.ts`'s `PublishContentHandler.listSkipped` — every theme tree this machine found
+   * but refused to pack, for an export envelope to surface as a non-selectable, reason-carrying row.
+   *
+   * Re-walks every theme tree via {@link packThemeFilesEntities} rather than sharing a single pass
+   * with {@link pack}: `pack()` is a bare `AsyncIterable` with no room to also report a skip (this
+   * file's own header), and `PublishContentHandler` gives no caller a way to ask for both from one
+   * call. The extra walk costs one more `readFile`+`sha256` pass over every already-packed file,
+   * which is bounded by this machine's own theme corpus (never remote, never per-request-multiplied)
+   * — accepted here rather than restructuring `pack()`'s contract for every other handler to satisfy.
+   *
+   * @complexity O(trees) — see {@link packThemeFilesEntities}'s own doc.
+   */
+  async function listSkipped(): Promise<readonly SkippedPackEntity[]> {
+    if (!deps.themesDir) return [];
+    const { skipped } = await packThemeFilesEntities({ themesDir: deps.themesDir });
+    return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: tree.treeKey, reason: tree.reason }));
+  }
+
   /** The destination's tree, hashed like `pack()` hashes it. `version` is always 0 (plan §3): the
    *  apply loop re-inspects and compares hashes before every write. */
   async function inspect(id: string): Promise<{ version: number; hash: string } | null> {
@@ -672,6 +697,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     precheck,
     apply,
     seedHash,
+    listSkipped,
   };
 }
 

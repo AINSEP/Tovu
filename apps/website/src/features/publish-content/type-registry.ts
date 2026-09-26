@@ -392,6 +392,37 @@ export interface PublishContentHandler {
    * the generic seed-db lookup cannot see. Read-only; absent means "no seed to compare against".
    */
   seedHash?(id: string): Promise<string | null>;
+
+  /**
+   * `publish-files-plan-2026-09-24.md` §2/§6 — export side, read-only: every WHOLE unit this handler
+   * found on disk but could not pack (a `file-tree-policy.ts` refusal — an extension the tree's kind
+   * does not allow, a planted secret, an oversize cap), so an operator can see WHY it is missing from
+   * the publish table instead of it silently not appearing at all (this feature's own real bug: a
+   * theme with a video file, or one with a stray `.DS_Store` before that was fixed to be ignored
+   * instead of denied, vanished from the table with no explanation). `pack()`'s own `AsyncIterable`
+   * has no channel for this (see `features/theme/publish-content.ts`'s header) — this is the separate
+   * seam a caller building an export envelope (`export-bundle.ts`) reads instead. A handler backed by
+   * nothing that can be whole-unit-refused (most content types) simply omits this method.
+   */
+  listSkipped?(): Promise<readonly SkippedPackEntity[]>;
+}
+
+/**
+ * One whole unit a {@link PublishContentHandler.listSkipped} found but refused to pack — the shape an
+ * export envelope surfaces to an operator as a non-selectable, reason-carrying row, matching
+ * `planner.ts`'s `PublishContentOutcomeRow` (`outcome: "blocked"`) closely enough that
+ * `planner.ts`/`report-labels.ts` can turn one into the other with no lossy mapping.
+ */
+export interface SkippedPackEntity {
+  readonly entityType: string;
+  readonly id: string;
+  /** What a human calls this unit, or `null` when it has nothing more readable than `id` — same
+   *  fallback contract as `planner.ts`'s `entityDisplayLabel`. */
+  readonly label: string | null;
+  /** Human-readable reason, already prefixed with the unit's own title (matching every other
+   *  `SkippedThemeTree.reason` this feature already produces) — never re-derived or re-worded by a
+   *  caller. */
+  readonly reason: string;
 }
 
 /**

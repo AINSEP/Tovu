@@ -40,6 +40,7 @@ const ENVELOPE: PublishContentExportEnvelope = {
     entity({ entityType: "post", id: "p1" }),
   ],
   blobManifest: ["sha-a", "sha-b"],
+  skipped: [],
 };
 
 test("keeps exactly the selected entities and drops every other one", () => {
@@ -75,6 +76,15 @@ test("a key naming nothing in the bundle adds nothing to it", () => {
     narrowed.entities.map((e) => e.id),
     ["p1"]
   );
+});
+
+test("never narrows `skipped` — a skipped unit was never selectable in the first place", () => {
+  const withSkipped: PublishContentExportEnvelope = {
+    ...ENVELOPE,
+    skipped: [{ entityType: "theme-files", id: "static/x", label: "static/x", reason: "blocked" }],
+  };
+  const narrowed = selectBundleEntities(withSkipped, new Set(["post:p1"]));
+  assert.deepEqual(narrowed.skipped, withSkipped.skipped);
 });
 
 test("carries the envelope's own versions and label through untouched", () => {

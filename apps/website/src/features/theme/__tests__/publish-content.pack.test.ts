@@ -9,7 +9,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
-import { packThemeFilesEntities } from "../publish-content.js";
+import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
 
 function makeThemesDir(): string {
   return mkdtempSync(path.join(tmpdir(), "theme-publish-content-"));
@@ -130,6 +130,43 @@ test("a tier folder that does not exist yet contributes no entities and no error
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }
+});
+
+test("the handler's listSkipped() reports a whole-tree refusal by its exact SkippedThemeTree reason", async () => {
+  const themesDir = makeThemesDir();
+  try {
+    const themeDir = path.join(themesDir, "static", "kuinetic-showcase");
+    mkdirSync(themeDir, { recursive: true });
+    writeFileSync(path.join(themeDir, "theme.json"), '{"id":"kuinetic-showcase"}');
+    writeFileSync(path.join(themeDir, "video.mp4"), "not-really-a-video");
+
+    const handler = contributeThemeFilesPublish().build({
+      workspaceId: "ws1",
+      postRepo: undefined as never,
+      clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      idGen: { newId: () => "id1" },
+      themesDir,
+    });
+    const skipped = await handler.listSkipped!();
+    assert.equal(skipped.length, 1);
+    assert.equal(skipped[0]!.entityType, "theme-files");
+    assert.equal(skipped[0]!.id, "static/kuinetic-showcase");
+    assert.equal(skipped[0]!.label, "static/kuinetic-showcase");
+    assert.match(skipped[0]!.reason, /^Theme: static\/kuinetic-showcase was not published: /);
+    assert.match(skipped[0]!.reason, /not allowed for this tree/);
+  } finally {
+    rmSync(themesDir, { recursive: true, force: true });
+  }
+});
+
+test("the handler's listSkipped() is empty when there is no themesDir configured", async () => {
+  const handler = contributeThemeFilesPublish().build({
+    workspaceId: "ws1",
+    postRepo: undefined as never,
+    clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+    idGen: { newId: () => "id1" },
+  });
+  assert.deepEqual(await handler.listSkipped!(), []);
 });
 
 test("the handlebars tier is never packed (deliberate narrowing per the plan)", async () => {

@@ -12,7 +12,7 @@ import {
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
-import { labelPeerPlanRows } from "#src/features/publish-content/report-labels";
+import { appendSkippedRowsToPeerPlan, labelPeerPlanRows } from "#src/features/publish-content/report-labels";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import {
   PublishContentPeerCredentialMissingError,
@@ -281,7 +281,14 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         // The peer's plan, with each row named from the bundle we just sent it — a live site
         // deployed before `entityLabel` existed answers rows with no label, and this side can name
         // its own content regardless. See `features/publish-content/report-labels.ts`.
-        ...labelPeerPlanRows(result.plan, bundle.entities),
+        //
+        // Then: every whole unit THIS instance refused to pack (`fullBundle.skipped` — e.g. a theme
+        // tree `file-tree-policy.ts` blocked) appended as its own non-selectable row. It never
+        // reached the peer's bundle at all, so the peer's own plan has no way to report it — this is
+        // the one place a caller holds both reports at once. Read off `fullBundle`, not the
+        // (possibly selection-narrowed) `bundle`: a skipped unit was never selectable, so an
+        // operator's row selection has nothing to say about whether it is still shown.
+        ...appendSkippedRowsToPeerPlan(labelPeerPlanRows(result.plan, bundle.entities), fullBundle.skipped),
       });
     } catch (err) {
       respondWithError(res, err);

@@ -637,6 +637,12 @@ export async function pullBundleFromPeer(deps: PeerCallDeps): Promise<PublishCon
     sourceLabel: typeof body.sourceLabel === "string" ? body.sourceLabel : deps.credential.label,
     entities: body.entities as PublishContentExportEnvelope["entities"],
     blobManifest: (body.blobManifest as unknown[]).filter((sha): sha is string => typeof sha === "string"),
+    // `GET .../export` (the streaming route, `routes/publish-content/export.ts`) does not serialize
+    // `skipped` today — only `buildExportBundle` (the push driver) collects it. A pull therefore
+    // never surfaces a source-side refusal; out of scope here (this file's own header: the pull path
+    // stages an envelope and defers all classification to this instance's own `planImport`, which has
+    // no `skipped` concept yet either). Defaulting to empty is a display gap, never a safety one.
+    skipped: [],
   };
 }
 

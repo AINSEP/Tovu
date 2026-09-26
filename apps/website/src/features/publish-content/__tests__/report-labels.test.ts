@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { CONTENT_HASH_VERSION } from "../content-hash.js";
-import { labelPeerPlanRows } from "../report-labels.js";
-import type { PackedEntity } from "../type-registry.js";
+import { appendSkippedRowsToPeerPlan, labelPeerPlanRows } from "../report-labels.js";
+import type { PackedEntity, SkippedPackEntity } from "../type-registry.js";
 
 /**
  * @file `labelPeerPlanRows` — the source side naming the rows of a report the DESTINATION produced.
@@ -105,4 +105,55 @@ test("passes a refused report through with no rows invented", () => {
   const labelled = labelPeerPlanRows(refused, ENTITIES);
   assert.deepEqual(rowsOf(labelled), []);
   assert.equal((labelled.details as { refusalReason: string }).refusalReason, "version mismatch");
+});
+
+/**
+ * @file `appendSkippedRowsToPeerPlan` — the other half of "this side has local context the
+ * destination's report doesn't": a whole theme tree refused by `file-tree-policy.ts` at THIS
+ * instance's own export step never reaches the peer's bundle at all (`export-bundle.ts`'s
+ * `SkippedPackEntity`), so the peer's plan can never report it. This is where those locally-known
+ * refusals join the same `rows` array the dialog already renders a non-selectable `blocked` row from.
+ */
+const SKIPPED: readonly SkippedPackEntity[] = [
+  {
+    entityType: "theme-files",
+    id: "static/kuinetic-showcase",
+    label: "static/kuinetic-showcase",
+    reason: "Theme: static/kuinetic-showcase was not published: \"video.mp4\" has a file type ('mp4') that is not allowed for this tree",
+  },
+];
+
+test("appendSkippedRowsToPeerPlan adds one non-writing blocked row per skipped unit", () => {
+  const withSkipped = appendSkippedRowsToPeerPlan(planWith([{ entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null }]), SKIPPED);
+
+  assert.deepEqual(rowsOf(withSkipped), [
+    { entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null },
+    {
+      entityType: "theme-files",
+      entityId: "static/kuinetic-showcase",
+      entityLabel: "static/kuinetic-showcase",
+      outcome: "blocked",
+      writes: false,
+      reason: SKIPPED[0]!.reason,
+      canOverwrite: false,
+      retires: null,
+    },
+  ]);
+});
+
+test("appendSkippedRowsToPeerPlan is a no-op with an empty skipped list", () => {
+  const plan = planWith([{ entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null }]);
+  assert.equal(appendSkippedRowsToPeerPlan(plan, []), plan);
+});
+
+test("appendSkippedRowsToPeerPlan passes an envelope it does not recognize straight through", () => {
+  for (const plan of [{}, { details: null }, { details: { rows: "not an array" } }]) {
+    assert.equal(appendSkippedRowsToPeerPlan(plan, SKIPPED), plan);
+  }
+});
+
+test("appendSkippedRowsToPeerPlan adds nothing to a refused report", () => {
+  const refused = { planId: "p", planHash: "h", details: { refused: true, refusalReason: "version mismatch", applyOrder: [], rows: [] } };
+  const withSkipped = appendSkippedRowsToPeerPlan(refused, SKIPPED);
+  assert.deepEqual(rowsOf(withSkipped), []);
 });

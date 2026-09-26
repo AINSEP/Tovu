@@ -1,5 +1,5 @@
 import { entityDisplayLabel, entityKey } from "./planner.js";
-import type { PackedEntity } from "./type-registry.js";
+import type { PackedEntity, SkippedPackEntity } from "./type-registry.js";
 
 /**
  * @file Naming the rows of a report THIS instance did not produce.
@@ -61,4 +61,41 @@ export function labelPeerPlanRows(plan: PeerPlanEnvelope, entities: readonly Pac
   });
 
   return { ...plan, details: { ...details, rows } };
+}
+
+/**
+ * Appends one non-writing `blocked` row per locally-known skip to a peer's plan — the other half of
+ * this file's "this side has context the destination's report doesn't" job.
+ *
+ * A push plans on the DESTINATION, but a whole unit `file-tree-policy.ts` refused at THIS instance's
+ * own export step (`export-bundle.ts`'s `SkippedPackEntity`) never reaches the peer's bundle at all —
+ * it was excluded before packing, so the peer's own `planImport` has nothing to report it from. This
+ * function is where that locally-known refusal joins the SAME `rows` array the admin dialog already
+ * renders a non-selectable `blocked` row from (`ui/report-rows.ts`'s `DISPOSITION_BY_OUTCOME`), so no
+ * new rendering path is needed for it to show up with its reason.
+ *
+ * Returns the envelope unchanged when it is not the expected shape (mirrors {@link labelPeerPlanRows}
+ * — a peer that answered something unrecognized is the route's problem to report), when there is
+ * nothing to append, or when the report is `refused`: a refused report's `rows` is always empty by
+ * construction (`planner.ts`'s own invariant), and this function must never be what breaks that.
+ *
+ * @complexity O(s) in the skipped-unit count; O(r + s) space for the copied `rows` array.
+ */
+export function appendSkippedRowsToPeerPlan(plan: PeerPlanEnvelope, skipped: readonly SkippedPackEntity[]): PeerPlanEnvelope {
+  if (skipped.length === 0) return plan;
+  const details = plan.details;
+  if (!isRecord(details) || !Array.isArray(details.rows) || details.refused === true) return plan;
+
+  const skippedRows = skipped.map((entity) => ({
+    entityType: entity.entityType,
+    entityId: entity.id,
+    entityLabel: entity.label,
+    outcome: "blocked" as const,
+    writes: false,
+    reason: entity.reason,
+    canOverwrite: false,
+    retires: null,
+  }));
+
+  return { ...plan, details: { ...details, rows: [...details.rows, ...skippedRows] } };
 }

@@ -1,7 +1,13 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { entityKey } from "./planner.js";
-import { buildPublishContentCatalog, type PackedEntity, type PublishContentDeps } from "./type-registry.js";
+import {
+  buildPublishContentCatalog,
+  type PackedEntity,
+  type PublishContentDeps,
+  type PublishContentHandler,
+  type SkippedPackEntity,
+} from "./type-registry.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -83,6 +89,49 @@ export interface PublishContentExportEnvelope {
   readonly entities: readonly PackedEntity[];
   /** De-duplicated union of every packed entity's `requiredBlobs`, in first-seen order. */
   readonly blobManifest: readonly string[];
+  /** Every whole unit an authorized handler found but refused to pack (`SkippedPackEntity`, e.g. a
+   *  theme tree `file-tree-policy.ts` blocked) — collected by {@link collectSkippedEntities}. Never
+   *  narrowed by {@link selectBundleEntities}: a skipped unit was never selectable in the first
+   *  place, so an operator's row selection has nothing to say about it. */
+  readonly skipped: readonly SkippedPackEntity[];
+}
+
+/**
+ * Every whole unit an authorized handler refused to pack, across every registered type — the
+ * `listSkipped()` counterpart to {@link packAuthorizedEntities}'s `pack()` loop, kept as its own
+ * function (rather than folded into that generator) because a skip is collected EAGERLY per handler
+ * (one `listSkipped()` call), not streamed per entity the way packed entities are.
+ *
+ * Takes an already-resolved `handlers` list, not a `PublishContentDeps` bag, so this stays testable
+ * without the real registered-contributor graph — {@link buildExportBundle} is what resolves the
+ * catalog and passes its `handlers` through, exactly as `packAuthorizedEntities` does for its own
+ * loop.
+ *
+ * The SAME per-type authorization gate as `packAuthorizedEntities`: a principal not authorized for a
+ * type never learns that type refused something, for the identical reason that principal never sees
+ * that type's entities either.
+ *
+ * @complexity O(t) `authorize()` calls plus one `listSkipped()` call per authorized handler that has
+ * one.
+ */
+export async function collectSkippedEntities(input: {
+  readonly handlers: readonly PublishContentHandler[];
+  readonly authorize: PublishContentAuthorize;
+  readonly workspaceId: string;
+  readonly principalId: string;
+}): Promise<readonly SkippedPackEntity[]> {
+  const skipped: SkippedPackEntity[] = [];
+  for (const handler of input.handlers) {
+    if (!handler.listSkipped) continue;
+    const typeAuth = await input.authorize({
+      principalId: input.principalId,
+      permission: handler.permission,
+      workspaceId: input.workspaceId,
+    });
+    if (!typeAuth.allowed) continue;
+    skipped.push(...(await handler.listSkipped()));
+  }
+  return skipped;
 }
 
 /**
@@ -131,11 +180,22 @@ export async function buildExportBundle(
     entities.push(entity);
     for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
   }
+  // A second, fresh catalog read (rule 2, this file's header) — cheap (small handler count) and
+  // kept separate from the `pack()` loop above rather than sharing one catalog build, since a skip
+  // is collected eagerly per handler while packed entities stream per entity.
+  const { handlers } = buildPublishContentCatalog(deps.publishContentDeps);
+  const skipped = await collectSkippedEntities({
+    handlers,
+    authorize: deps.authorize,
+    workspaceId: deps.workspaceId,
+    principalId: deps.principalId,
+  });
   return {
     artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
     hashVersion: CONTENT_HASH_VERSION,
     sourceLabel: deps.sourceLabel,
     entities,
     blobManifest: Array.from(requiredBlobs),
+    skipped,
   };
 }
