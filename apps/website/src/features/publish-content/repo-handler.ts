@@ -35,6 +35,9 @@ export interface RepoWriteContext<Row, Ports> {
   readonly existing: Row | null;
   readonly expectedVersion: number | undefined;
   readonly principalId: string;
+  /** With `undo`: registers an undo for a side effect of `write` beyond the row (e.g. post's term
+   *  assignments). The gateway's rollback runs these, last first, before `restore`/`remove`. */
+  readonly onRollback: (undo: () => Promise<void>) => void;
 }
 
 /** What `write` may return. `version` is the row's version after the write (the change set's revert
@@ -118,7 +121,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
 
   /** Type-specific handler methods, passed through unchanged. */
   readonly extend?: (ctx: { deps: PublishContentDeps; ports: () => Ports | undefined }) => Partial<
-    Pick<PublishContentHandler, "planRetire" | "retire" | "referencesTo" | "repointReferences" | "seedHash" | "listSkipped">
+    Pick<PublishContentHandler, "planRetire" | "retire" | "referencesTo" | "repointReferences" | "seedHash" | "listSkipped" | "isApplyConflict">
   >;
 }
 
@@ -234,6 +237,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       const p = ports();
       if (!p) throw unwired(`PublishContentDeps.ports.${portsKey}`);
       const { entity, expectedVersion } = input;
+      const rollbacks: Array<() => Promise<void>> = [];
       const ctx = (existing: Row | null): RepoWriteContext<Row, Ports> => ({
         ports: p,
         deps,
@@ -243,6 +247,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         existing,
         expectedVersion,
         principalId: input.principalId,
+        onRollback: (undo) => void rollbacks.push(undo),
       });
 
       /** The three CAS failures (plan §2.2 step 2), then the write with its errors mapped. */
@@ -291,7 +296,10 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
           },
           execute: () => write(prior),
           captureEntityVersion: (written) => written.version ?? null,
-          rollback: () => (prior ? undo.restore(ctx(prior), prior) : undo.remove(ctx(null))),
+          rollback: async () => {
+            for (const sideEffect of rollbacks.reverse()) await sideEffect();
+            await (prior ? undo.restore(ctx(prior), prior) : undo.remove(ctx(null)));
+          },
         },
       });
       return { ...result, changeSetId };

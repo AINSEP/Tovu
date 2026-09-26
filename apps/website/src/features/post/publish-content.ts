@@ -1,13 +1,16 @@
 import { executeCommand } from "@jini-ai/cms/core";
 
-import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { contentHash } from "#src/features/publish-content/content-hash";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
+import { addressHeldByOther, trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
+import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type {
   PublishContentContributor,
   PublishContentDeps,
-  PublishContentHandler,
+  PublishContentPorts,
   PackedEntity,
   RetireTarget,
+  TaxonomyPublishPorts,
 } from "#src/features/publish-content/type-registry";
 import { prepareTermSync, readTermIds, withTermIds } from "#src/features/taxonomy/publish-term-ids";
 
@@ -15,35 +18,42 @@ import { importPostEntity, isTrashed, restorePostForward, retirePostForReplaceme
 import type { PostKind, PostRecord } from "./post.js";
 
 /**
- * @file Task 2 of the publish-content (Publish Content) feature —
- * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 2's
- * "`contributePostPublish()` / `contributePagePublish()` returning data only".
+ * @file `post`'s and `page`'s publish-content contributions, built on `createRepoPublishHandler`
+ * (`features/publish-content/repo-handler.ts`; M-POST of
+ * `ADS-memory/.local-artifacts/plan-publish-all-types-2026-09-25.md`). One table, one config,
+ * distinguished only by `PostKind`.
  *
- * A NEW file, deliberately NOT added to `features/post/tool-registrations.ts` (unlike the otherwise
- * near-identical `contributePostDuplicateHandlers` precedent there).
+ * Both contributors return DATA and import only `type-registry.ts`'s TYPES, never
+ * `registerPublishContentContributor` — the composition root
+ * (`server/runtime/composition/publish-content-manifest.ts`) registers them. See `type-registry.ts`'s
+ * header for the module cycle a value edge would reopen, and
+ * `__tests__/post-no-direct-registry-import.boundary.test.ts` for the check.
  *
- * `apply()` (Task 8, 2026-09-18) is the one function here that writes — through `createPost`/
- * `updatePost` (the real domain functions, never the raw repo) wrapped in `executeCommand` (plan
- * §1.4), exactly like every other admin write route in this codebase. It requires
- * `PublishContentDeps.changeSets`/`authorize` to be wired — see its own doc below for why those stay
- * optional on the shared `PublishContentDeps` interface, and for the two authorship rules (Task 15)
- * it has to get right on the create path.
+ * ## The write
  *
- * Both contributors return DATA (plain `{entityType, dependsOn, build}` objects) and import only
- * `type-registry.ts`'s TYPES — never `registerPublishContentContributor` itself. Wiring the actual
- * registration call is the composition root's job
- * (`server/runtime/composition/publish-content-manifest.ts`), exactly like
- * `contributePostDuplicateHandlers()`'s own relationship to `registerDuplicateResourceHandler`. See
- * `type-registry.ts`'s header for why a value edge from here would reopen a real module cycle, and
- * `__tests__/post-no-direct-registry-import.boundary.test.ts` for the check that enforces it.
+ * `importPostEntity` (never the raw repo) inside `executeCommand` (`undo`), so an import is auditable
+ * and revertible like an admin edit. Authorship (Task 15): `command.actor` is always the IMPORTING
+ * operator (`executeCommand` authorizes that principal; a remote peer's author id is not a principal
+ * here), while the SOURCE author travels on `record.createdByPrincipalId`, applied only on create
+ * (`toImportableRecord`). `CommandActor.kind` has no `"api_key"`, so it is `"user"` like every admin route.
+ *
+ * ## Terms (plan §3.7, schemaVersion 2)
+ *
+ * `termIds` rides on the row NON-enumerably ({@link withTerms}): packed and hashed, left out when the
+ * row has none (so an untagged row keeps its schemaVersion-1 hash), and never spread into a change
+ * set's inverse or a restored row. The write syncs the assignments after the post lands; the gateway
+ * rollback unassigns them first.
+ *
+ * ## Precheck
+ *
+ * Every refusal (empty slug, slug held, trashed destination, kind change) is enforced again inside
+ * `importPostEntity`; precheck exists so an operator sees it in the plan. A body-format change (`doc`
+ * vs `html`) is NOT refused (D2, 2026-09-24): it is an ordinary hashed change.
  */
 
 /**
- * `post`'s and `page`'s declared prerequisite types (plan §3's own worked example: "post ->
- * [media, term]"). A Page's body can embed media exactly like a Post's can (same table, same
- * `bodyJson` shape; `PostKind` only changes which admin list surfaces a row — see `post.ts`'s own
- * doc). `term` because the state carries `termIds` (plan §3.7), and assigning one checks the term
- * exists at write time.
+ * `post`'s and `page`'s declared prerequisite types. A page's body embeds media exactly like a post's;
+ * `term` because the state carries `termIds`, and assigning one checks the term exists at write time.
  */
 const POST_AND_PAGE_DEPENDS_ON: readonly string[] = ["media", "term"];
 
@@ -133,8 +143,8 @@ const PACKED_POST_FIELDS = Object.freeze(
 export type PublishablePostState = Pick<PostRecord, (typeof PACKED_POST_FIELDS)[number]>;
 
 /**
- * Projects a `PostRecord` onto {@link PublishablePostState} — the ONE row projection behind `pack`,
- * `inspect` and the content hash (`buildHandler`'s `stateOf` adds only the row's `termIds`).
+ * Projects a `PostRecord` onto {@link PublishablePostState} — the ONE row projection behind the
+ * packed state and the content hash (plus the row's `termIds`).
  *
  * Undefined optional fields are normalized to `null` so a row whose optional column was never set
  * and one whose column holds SQL `NULL` hash identically across two instances whose adapters
@@ -191,275 +201,117 @@ function toImportableRecord(
   };
 }
 
-/** Shared pack/inspect/precheck implementation behind both `"post"` and `"page"` contributors —
- *  mirrors `tool-registrations.ts`'s own `duplicatePostOrPage` precedent of one shared function
- *  parameterized by `kind`, rather than two near-duplicate handler bodies.
- *
- *  Deliberately reads `PostRepoPort` directly rather than going through `post.ts`'s
- *  `getAdminPostById`/`listAdminPosts` domain wrappers — those add admin-view formatting (public
- *  URL resolution, etc.) this feature has no use for, and this file's whole point is to stay off
- *  any code path currently in flux (this file's own header). */
-function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentHandler {
-  const entityType = kind; // "post" | "page" — PostKind's two values are exactly this feature's two entityTypes.
-  // 2 = the state may carry `termIds` (plan §3.7). The planner refuses a bundle whose version is not
-  // exactly this, so an instance still on 1 refuses every post/page until it is deployed.
-  const schemaVersion = 2;
-  // F2 — `post`'s port, keyed by entityType on the shared bag (`type-registry.ts`'s
-  // `PublishContentPorts`). Read once so every function below shares the same narrowing; absent
-  // behaves exactly like every other optional port on this interface: `pack`/`inspect`/`precheck`
-  // degrade to "nothing to report" (this file's own guards, below), `apply`/`retire` throw loudly.
+/** A row as this transport sees it: see this file's header for `termIds`. */
+type PostRow = PostRecord & { readonly termIds?: readonly string[] };
+
+/** The post port plus the taxonomy ports `termIds` needs. */
+type PostPorts = PublishContentPorts["post"] & { readonly term?: TaxonomyPublishPorts };
+
+/** Attaches the row's sorted `termIds`, non-enumerable (this file's header), to a copy of `row`. */
+async function withTerms(termPorts: TaxonomyPublishPorts | undefined, row: PostRecord): Promise<PostRow> {
+  const termIds = await readTermIds(termPorts, row.kind, row.id);
+  return termIds ? Object.defineProperty({ ...row }, "termIds", { value: termIds, enumerable: false }) : row;
+}
+
+/** The packed state of `row` (what `pack` ships and hashes), for `planRetire`/`retire`'s hashes. */
+async function packedStateOf(termPorts: TaxonomyPublishPorts | undefined, row: PostRecord): Promise<Record<string, unknown>> {
+  return withTermIds(toPublishableState(row), await readTermIds(termPorts, row.kind, row.id));
+}
+
+/** The apply-time ports, or the error that names what is missing. */
+function applyPorts(ports: PostPorts, deps: PublishContentDeps, kind: PostKind) {
+  const { forgetRemoved } = ports;
+  if (!forgetRemoved) {
+    throw new Error(
+      `publish-content: ${kind}.apply() requires PublishContentDeps.changeSets/authorize/` +
+        "outbox and ports.post.repo/forgetRemoved — wire them from the real apply-loop composition " +
+        "root (features/publish-content/apply-loop.ts)."
+    );
+  }
+  return { repo: ports.repo, clock: deps.clock, outbox: gatewayDeps(deps, kind).outbox, forgetRemoved };
+}
+
+function contributePostKind(kind: PostKind): PublishContentContributor {
+  return createRepoPublishHandler<PostRow, PostPorts>({
+    entityType: kind, // PostKind's two values are exactly this feature's two entityTypes
+    schemaVersion: 2,
+    // The same permission `content_post_create`/`content_post_update` declare.
+    permission: "content.write",
+    dependsOn: POST_AND_PAGE_DEPENDS_ON,
+    ports: (deps) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
+    portsKey: "post",
+    list: async (p, workspaceId) => {
+      const rows = (await p.repo.list({ workspaceId })).filter((row) => row.kind === kind && !isTrashed(row));
+      return Promise.all(rows.map((row) => withTerms(p.term, row)));
+    },
+    find: async (p, workspaceId, id) => {
+      const row = await p.repo.findById({ workspaceId, id });
+      return row && row.kind === kind ? withTerms(p.term, row) : null;
+    },
+    isTrashed,
+    fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
+    omitWhenAbsent: ["termIds"],
+    references: (entity) => collectBodyReferences(entity.state),
+    // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
+    // checks run before the kind check on an unfiltered read, as before the migration.
+    validate: async ({ ports, workspaceId, entity }) => {
+      const slug = entity.state.slug;
+      if (typeof slug !== "string" || slug.length === 0) return `${kind} entity '${entity.id}' has no usable slug to check for a collision`;
+      const holder = await ports.repo.findBySlug({ workspaceId, slug });
+      if (holder && holder.id !== entity.id) return addressHeldByOther(kind, "slug", slug, holder.id);
+      const existing = await ports.repo.findById({ workspaceId, id: entity.id });
+      if (existing && isTrashed(existing)) return trashedAtDestination(kind, entity.id);
+      if (existing && existing.kind !== kind) {
+        return `'${entity.id}' is a '${existing.kind}' at this destination but a '${kind}' at the source — kind is fixed at creation and cannot be changed by publishing`;
+      }
+      return null;
+    },
+    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }) => {
+      const { repo, outbox } = applyPorts(ports, deps, kind);
+      const terms = await prepareTermSync({ ports: ports.term, deps, entityType: kind, entityId: id, principalId, contentType: kind, wanted: state.termIds });
+      // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.
+      onRollback(terms.revert);
+      const imported = await importPostEntity({
+        deps: { repo, clock: deps.clock, outbox, beforeSaveHook: deps.beforeSaveHook },
+        // The revision ledger's actor is the IMPORTING operator; the source author is on the record.
+        input: { workspaceId, record: toImportableRecord({ state, workspaceId, id, existing }), expectedVersion, actorId: principalId },
+      });
+      await terms.apply();
+      return { version: imported.post.version };
+    },
+    undo: {
+      // Forward, not verbatim: see `restorePostForward`'s doc.
+      restore: async ({ ports, deps, principalId }, prior) => {
+        await restorePostForward({ deps: applyPorts(ports, deps, kind), input: { prior, actorId: principalId } });
+      },
+      // A create has no pre-image, so the row must never have existed: `hardDelete` removes it with
+      // the revision it appended and the slug it reserved (trashing it would leave a "restorable"
+      // row and keep the slug reserved against the retry).
+      remove: async ({ ports, workspaceId, id }) => {
+        if (await ports.repo.findById({ workspaceId, id })) await ports.repo.hardDelete({ workspaceId, id });
+      },
+    },
+    errors: { conflict: [PostConflictError, PostNotFoundError] },
+    extend: ({ deps }) => ({
+      ...postRetireMethods(deps, kind),
+      // `retire()`'s own conflicts reach the apply loop raw. `PostVersionConflictError` extends
+      // `PostConflictError`.
+      isApplyConflict: (error): error is Error => error instanceof PostConflictError || error instanceof PostNotFoundError,
+    }),
+  });
+}
+
+/** S4 (`publish-overwrite-live-plan-2026-09-24.md`): retire the live row a slug-clash overwrite replaces. */
+function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
+  const entityType = kind;
   const postRepo = deps.ports.post?.repo;
-  // Categories/tags ride inside the post (`taxonomy/publish-term-ids.ts`). Without taxonomy ports a
-  // bag packs and syncs no terms, the same "absent = not part of this bag" rule as every port.
-  const termPorts = deps.ports.term;
-
-  /** The packed state: {@link toPublishableState} plus sorted `termIds`, left out when there are
-   *  none so an untagged row keeps its schemaVersion-1 hash. */
-  async function stateOf(row: PostRecord): Promise<Record<string, unknown>> {
-    return withTermIds(toPublishableState(row), await readTermIds(termPorts, row.kind, row.id));
-  }
-
-  async function* pack(): AsyncIterable<PackedEntity> {
-    if (!postRepo) return;
-    const rows = await postRepo.list({ workspaceId: deps.workspaceId });
-    for (const row of rows) {
-      if (row.kind !== kind) continue;
-      // Trash is not content to publish. `PostRepoPort` is deliberately trash-BLIND (see
-      // `PostRecord.deletedAt`'s own doc), so this filter has to live here, exactly the way every
-      // other trash-aware read in `post.ts` applies its own. Without it a binned post would be
-      // shipped and then land at the destination as live content, since `deletedAt` is not a field
-      // this transport carries.
-      if (isTrashed(row)) continue;
-      const state = await stateOf(row);
-      yield {
-        entityType,
-        id: row.id,
-        schemaVersion,
-        contentHash: contentHash(entityType, state),
-        hashVersion: CONTENT_HASH_VERSION,
-        // Blob-reference detection (which media sha256s a body embeds) is Task 12's job (plan §5
-        // risk #5: media is not a registered type until ids are preserved) — an empty list here is
-        // a disclosed gap, not a silent one; see `PackedEntity.requiredBlobs`'s own doc.
-        requiredBlobs: [],
-        state,
-      };
-    }
-  }
-
-  async function inspect(id: string): Promise<{ version: number; hash: string } | null> {
-    if (!postRepo) return null;
-    const found = await postRepo.findById({ workspaceId: deps.workspaceId, id });
-    if (!found || found.kind !== kind) return null;
-    return { version: found.version, hash: contentHash(entityType, await stateOf(found)) };
-  }
-
-  /**
-   * Reports, WITHOUT writing anything, every condition under which `apply()` would refuse this
-   * entity — a slug already held here, a destination row in the trash, a kind that cannot be
-   * changed. Each of these is a real, ordinary outcome of importing real-world data, not a
-   * programming error, so they come back as a human-readable reason rather than a throw
-   * (`PublishContentHandler.precheck`'s own contract).
-   *
-   * A body-format difference (`doc` vs `html`) is deliberately NOT one of these — D2 (2026-09-24
-   * owner decision, publish-types-plan §6) — publishing now REPLACES an existing row whose format
-   * differs, the same as any other content change, instead of refusing it. `entity.state.bodyFormat`
-   * already participates in the content hash (`POST_FIELD_DISPOSITIONS`), so a format-only change
-   * still surfaces as an ordinary `conflict`/`applied` outcome through the planner's normal hash
-   * comparison — it is never silently skipped, only no longer specially blocked. See
-   * `features/post/post.ts`'s `importPostEntity` for the matching second-guard removal that makes
-   * the actual write succeed, not only the plan.
-   *
-   * Every guard below is enforced a SECOND time inside `importPostEntity`, which is what actually
-   * makes them safe: `apply()` can be reached without a precheck, and the destination can change
-   * between the two calls. This function exists so an operator sees the problem in the plan rather
-   * than as a failed row mid-run.
-   *
-   * @complexity O(1) — two indexed repo reads.
-   */
-  async function precheck(entity: PackedEntity): Promise<string | null> {
-    if (!postRepo) return `${entityType} entity '${entity.id}' cannot be prechecked — no post repo wired for this deps bag`;
-    const slug = entity.state.slug;
-    if (typeof slug !== "string" || slug.length === 0) {
-      return `${entityType} entity '${entity.id}' has no usable slug to check for a collision`;
-    }
-    const holder = await postRepo.findBySlug({ workspaceId: deps.workspaceId, slug });
-    if (holder && holder.id !== entity.id) {
-      return `slug '${slug}' is already held by a different ${entityType} ('${holder.id}')`;
-    }
-
-    const existing = await postRepo.findById({ workspaceId: deps.workspaceId, id: entity.id });
-    if (!existing) return null;
-    if (isTrashed(existing)) {
-      return `${entityType} '${entity.id}' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content`;
-    }
-    if (existing.kind !== kind) {
-      return `'${entity.id}' is a '${existing.kind}' at this destination but a '${kind}' at the source — kind is fixed at creation and cannot be changed by publishing`;
-    }
-    return null;
-  }
-
-  /**
-   * Task 8's real apply path: every write goes through `executeCommand` (plan §1.4) wrapping
-   * `createPost`/`updatePost` — never `deps.postRepo` directly, so this write is auditable and
-   * revertible exactly like an ordinary admin edit (a `change_sets` row with an inverse).
-   *
-   * `deps.changeSets`/`deps.authorize`/`deps.outbox` are all OPTIONAL on `PublishContentDeps`
-   * (`type-registry.ts`'s own "absent behaves like it always did" convention for this interface) —
-   * only a real `ContentTransportApplyPort`/`PublishContentApplyPort` composition
-   * (`features/publish-content/apply-loop.ts`) supplies them, because only `apply()` routes a write
-   * through the command gateway. `pack`/`inspect`/`precheck` never read any of the three, so a
-   * caller that only needs those (Task 4's export route, Task 5/7's planner) is unaffected by them
-   * being absent. Narrowed into local `const`s immediately below rather than read off `deps` again
-   * later — TypeScript does not carry a closured parameter's narrowing across the rest of this
-   * function body, and `updatePost`'s own `UpdatePostDeps.outbox` is REQUIRED (unlike this
-   * interface's optional `outbox`), so the narrowing has to happen once, here.
-   *
-   * ## Authorship (Task 15) — the two ids this function must NOT conflate
-   *
-   * `input.principalId` (who is RUNNING this import) and the imported post's OWN author are
-   * different facts and travel through two completely separate fields:
-   * - `command.actor.id` is always `input.principalId` — the real, authenticated, authorized
-   *   operator — for BOTH branches below. This is what `executeCommand`'s own `authorize()` call
-   *   checks permission for for the change-set audit trail; it must never be an arbitrary id
-   *   from a remote peer's own identity system that does not exist as a principal here (see the
-   *   next paragraph for why the plan's own draft phrasing on this point cannot be followed literally).
-   * - `createPost`'s `input.actorId` (the ONLY thing that becomes `PostRecord.createdByPrincipalId`,
-   *   `content-hash.ts`'s excluded-from-hashing field) is read straight from the SOURCE entity's own
-   *   `createdByPrincipalId` on the `created` path — never from `input.principalId` — per plan §4
-   *   task 15: "do not let an importer re-stamp every post with the importing operator's id."
-   *   `updatePost` never touches `createdByPrincipalId` at all (write-once, `UpdatePostInput` has no
-   *   such field), so the `applied`/`forced` branch needs no special-casing for this — its own
-   *   `actorId: input.principalId` only ever reaches the revision ledger, exactly as plan §4 task 15
-   *   describes ("Revision-ledger actorId here is the IMPORTING OPERATOR").
-   *
-   * Disclosed deviation from the plan §1.4/§4 task 8 draft wording ("actor: {id: principal.id, kind:
-   * 'api_key'}"): `CommandActor.kind` (`@jini-ai/cms/core`) is a real, closed union of `"user" |
-   * "agent"` — there is no `"api_key"` member, and every other admin-write route in this codebase
-   * (`routes/posts/{create,update}.ts`) uses `kind: "user"` regardless of whether the underlying
-   * credential was a session cookie or an API key (the two are indistinguishable once resolved to a
-   * `PrincipalRecord` — `dev-auth.ts`'s own doc). Using the SOURCE author as `command.actor.id`
-   * instead (a plausible misreading of "the importer must copy the source's author") would also have
-   * been a live bug: `executeCommand`'s `authorize()` call checks `command.actor.id`'s OWN
-   * permissions, and a remote peer's author id is not a principal that exists in this instance's
-   * identity system at all — every `created` import would then fail `ForbiddenError` (or worse,
-   * silently authorize against an id that happens to collide). `kind: "user"` matches this
-   * codebase's real type and every other real call site.
-   *
-   * @complexity O(1) plus `executeCommand`'s own cost (one `authorize()` call, one domain write, one
-   * change-set insert) — no loop, no batching; the apply LOOP (`apply-loop.ts`) is what iterates a
-   * report's rows and calls this once per row.
-   */
-  async function apply(input: {
-    entity: PackedEntity;
-    expectedVersion: number | undefined;
-    principalId: string;
-    idempotencyKey: string;
-  }): Promise<{ changeSetId: string }> {
-    const { changeSets, authorize, outbox } = deps;
-    const forgetRemovedPost = deps.ports.post?.forgetRemoved;
-    if (!changeSets || !authorize || !outbox || !postRepo || !forgetRemovedPost) {
-      throw new Error(
-        `publish-content: ${entityType}.apply() requires PublishContentDeps.changeSets/authorize/` +
-          "outbox and ports.post.repo/forgetRemoved — wire them from the real apply-loop composition " +
-          "root (features/publish-content/apply-loop.ts)."
-      );
-    }
-    const gatewayDeps = { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize };
-    const summary = `Import ${entityType} '${input.entity.id}' via publish-content`;
-    const actor = { id: input.principalId, kind: "user" as const };
-    const isCreate = input.expectedVersion === undefined;
-
-    // Read once BEFORE the gateway so the imported record can be assembled against what this
-    // destination actually holds (its own `ext`, its own write-once authorship). `importPostEntity`
-    // re-reads inside the mutation and owns the AUTHORITATIVE decision — this read only shapes the
-    // record handed to it, and a row that changes between the two is caught there by
-    // `expectedVersion`.
-    let priorPost = await postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
-    const record = toImportableRecord({
-      state: input.entity.state,
-      workspaceId: deps.workspaceId,
-      id: input.entity.id,
-      existing: priorPost,
-    });
-    // Checked before the post is written, so a missing term or permission blocks the row whole.
-    const terms = await prepareTermSync({
-      ports: termPorts,
-      deps,
-      entityType,
-      entityId: input.entity.id,
-      principalId: input.principalId,
-      contentType: kind,
-      wanted: input.entity.state.termIds,
-    });
-
-    const { changeSetId } = await executeCommand({
-      deps: gatewayDeps,
-      command: {
-        workspaceId: deps.workspaceId,
-        actor,
-        summary,
-        permission: "content.write",
-        idempotencyKey: input.idempotencyKey,
-      },
-      mutation: {
-        entityType,
-        entityId: input.entity.id,
-        operation: isCreate ? "create" : "update",
-        captureInverse: async () => {
-          priorPost = await postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
-          return priorPost ? { ...priorPost } : null;
-        },
-        execute: async () => {
-          const imported = await importPostEntity({
-            deps: { repo: postRepo, clock: deps.clock, outbox, beforeSaveHook: deps.beforeSaveHook },
-            input: {
-              workspaceId: deps.workspaceId,
-              record,
-              expectedVersion: input.expectedVersion,
-              // The revision ledger's actor is always the IMPORTING OPERATOR — see this function's
-              // own doc. The SOURCE's author travels separately, on `record.createdByPrincipalId`.
-              actorId: input.principalId,
-            },
-          });
-          await terms.apply();
-          return imported;
-        },
-        captureEntityVersion: (result) => result.post.version,
-        rollback: async () => {
-          // Terms first: Jini resolves the post to (un)assign, and a create's undo deletes it.
-          await terms.revert();
-          // Compensating undo for a change-set record that failed AFTER the write landed. An
-          // update restores the prior record forward — see `restorePostForward`'s own doc for why
-          // "forward" rather than the verbatim restore `command.ts:82` asks for.
-          if (priorPost) {
-            await restorePostForward({
-              deps: { repo: postRepo, clock: deps.clock, outbox, forgetRemoved: forgetRemovedPost },
-              input: { prior: priorPost, actorId: input.principalId },
-            });
-            return;
-          }
-          // A create has no pre-image, so the correct undo is for the row never to have existed:
-          // `PostRepoPort.hardDelete` removes it outright, with the revision the create appended
-          // and the slug it reserved. Until 2026-09-20 the port had no row removal and this trashed
-          // the row instead, which was the wrong shape twice over — it recorded a creation the
-          // system had just decided did not happen, left it sitting in the Trash for a user to
-          // "restore", and kept its slug reserved against the retry of the very import that failed.
-          // The one thing it must not become is a no-op: leaving the row live would publish content
-          // at the destination with no change-set record to revert it by.
-          const orphan = await postRepo.findById({ workspaceId: deps.workspaceId, id: input.entity.id });
-          if (!orphan) return;
-          await postRepo.hardDelete({ workspaceId: deps.workspaceId, id: input.entity.id });
-        },
-      },
-    });
-    return { changeSetId };
-  }
+  const stateOf = (row: PostRecord) => packedStateOf(deps.ports.term, row);
 
   /**
    * S4's read half (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — reports the live row a
    * slug-clash overwrite would retire, or `null` when there is none. Never writes.
    *
-   * The three conditions under which there is nothing to retire, matching {@link precheck}'s own
+   * The three conditions under which there is nothing to retire, matching precheck's own
    * slug-taken branch it is meant to answer for:
    * - the slug is free, or already held by `entity` itself — nothing to overwrite;
    * - `entity.id` already exists at this destination — a same-id collision needs a different remedy
@@ -467,7 +319,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
    * - the slug is {@link ROOT_SLUG} — the home page has no other address to move to
    *   ({@link retirePostForReplacement}'s own refusal, mirrored here so the box is never even offered).
    *
-   * @complexity O(1) — two indexed repo reads, same as `precheck()`.
+   * @complexity O(1) — two indexed repo reads, same as precheck.
    */
   async function planRetire(entity: PackedEntity): Promise<RetireTarget | null> {
     if (!postRepo) return null;
@@ -490,7 +342,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
 
   /**
    * S4's write half — retires `target` (moves it to Trash under a renamed slug, never in place)
-   * through the same `executeCommand` gateway {@link apply} uses, wrapping
+   * through the same `executeCommand` gateway `apply()` uses, wrapping
    * {@link retirePostForReplacement} exactly the way `routes/pages/delete.ts:46-92` wraps
    * `deletePost`: `operation: "delete"`, inverse is the holder's own prior `deletedAt` — `null` for a
    * live holder, its trash time for one that was already trashed. A revert must put the row back
@@ -507,7 +359,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
    * caught there, not here.
    *
    * `undo()` restores `holder` forward through {@link restorePostForward} — the same primitive
-   * `apply()`'s own `rollback` uses — and is also what the gateway's `mutation.rollback` calls on a
+   * the apply rollback uses — and is also what the gateway's `mutation.rollback` calls on a
    * change-set-record failure, so every path that can need to "put this retire back" restores
    * identically.
    *
@@ -585,22 +437,7 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
 
     return { changeSetId, undo: undoRetire };
   }
-
-  return {
-    entityType,
-    schemaVersion,
-    permission: "content.write",
-    dependsOn: POST_AND_PAGE_DEPENDS_ON,
-    pack,
-    inspect,
-    precheck,
-    apply,
-    planRetire,
-    retire,
-    references: (entity) => collectBodyReferences(entity.state),
-    // `PostVersionConflictError` is covered via its `extends PostConflictError`.
-    isApplyConflict: (error): error is Error => error instanceof PostConflictError || error instanceof PostNotFoundError,
-  };
+  return { planRetire, retire };
 }
 
 /**
@@ -612,22 +449,8 @@ function todayStamp(nowIso: string): string {
   return nowIso.slice(0, 10).replace(/-/g, "");
 }
 
-/**
- * `post`'s publish-content contribution. Resolves to `content.write` — the SAME permission
- * `content_post_create`/`content_post_update` already declare (no new permission invented for this
- * feature, mirroring `contributePostDuplicateHandlers`'s identical reasoning).
- *
- * Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`), NOT
- * from within `features/post` itself — see this file's own header.
- */
-export function contributePostPublish(): PublishContentContributor {
-  return { entityType: "post", dependsOn: POST_AND_PAGE_DEPENDS_ON, build: (deps) => buildHandler(deps, "post") };
-}
+/** `post`'s publish-content contribution. */
+export const contributePostPublish = (): PublishContentContributor => contributePostKind("post");
 
-/**
- * `page`'s publish-content contribution — same table, same repo, same handler shape as
- * {@link contributePostPublish}, distinguished only by `PostKind`. See that function's own doc.
- */
-export function contributePagePublish(): PublishContentContributor {
-  return { entityType: "page", dependsOn: POST_AND_PAGE_DEPENDS_ON, build: (deps) => buildHandler(deps, "page") };
-}
+/** `page`'s publish-content contribution: same table, same repo, same config as {@link contributePostPublish}. */
+export const contributePagePublish = (): PublishContentContributor => contributePostKind("page");
