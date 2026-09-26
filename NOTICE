@@ -30,12 +30,12 @@ Vendored at:
   content/themes/static/tailark-quartz-dark/scripts/vendor/motion.js
   content/themes/static/tailark-quartz-libre/scripts/vendor/motion.js
   content/themes/__original-themes__/static/basic/js/vendor/motion.js
-  sites/tovu-com/themes/static/basic/scripts/vendor/motion.js
+  sites/tovu-com/themes/static/tovu-theme/scripts/vendor/motion.js
   sites/tovu-com/themes/static/basic-2/scripts/vendor/motion.js
   sites/tovu-com/themes/static/tailark-dusk/scripts/vendor/motion.js
   sites/tovu-com/themes/static/tailark-quartz-dark/scripts/vendor/motion.js
   sites/tovu-com/themes/static/tailark-quartz-libre/scripts/vendor/motion.js
-  sites/tovu-com/themes/__original-themes__/static/basic/js/vendor/motion.js
+  sites/tovu-com/themes/__original-themes__/static/tovu-theme/js/vendor/motion.js
 
 (The paths under `sites/` are per-site copies of the themes under `content/`;
 Tovu copies a theme into a site rather than inheriting it.)
@@ -49,7 +49,7 @@ Text:      `kuinetic-LICENSE.md`, beside each vendored copy.
 
 Vendored at:
   content/themes/static/basic/scripts/vendor/kuinetic.all.js
-  sites/tovu-com/themes/static/basic/scripts/vendor/kuinetic.all.js
+  sites/tovu-com/themes/static/tovu-theme/scripts/vendor/kuinetic.all.js
 
 --------------------------------------------------------------------------------
 3. Remix Icon  (https://remixicon.com)  -- version 4.9.1
