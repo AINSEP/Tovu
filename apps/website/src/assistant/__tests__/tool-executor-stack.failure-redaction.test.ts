@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createToolRegistry, isReadOnlyTool, type Principal, type RunRef, type SurfaceEmitter, type ToolRegistry } from "@jini-ai/core";
-import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
+import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/http-kit";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
@@ -17,7 +17,7 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-t
 import { constrainPrincipalToReadOnlyTools, readOnlyRemedyRefusalMessage, refuseNonReadOnlyDispatch } from "../read-only-tool-constraint.js";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { createAssistantToolExecutor } from "../tool-executor-stack.js";
-import { readToolErrorId, TOOL_ERROR_ID_PATTERN, type ToolFailureRecord } from "../tool-failure-redaction.js";
+import { isRedactedToolFailure, readToolErrorId, TOOL_ERROR_ID_PATTERN, type ToolFailureRecord } from "../tool-failure-redaction.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 
 /**
@@ -115,6 +115,55 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
   const loggedText = loggedArgs.map((args) => args.map(String).join(" ")).join("\n");
   containsNoSecret(loggedText);
   assert.match(loggedText, new RegExp(FIXED_ID));
+});
+
+test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Error <ID>: …' with no secret, not INTERNAL_ERROR", async (t) => {
+  const registry = createToolRegistry();
+  registerThrowingTool(registry);
+  const toolExecutor = createAssistantToolExecutor({
+    registry,
+    surfaceExchanges: createSurfaceExchangeStore(),
+    toolFailures: { mintErrorId: () => FIXED_ID, onFailure: () => undefined },
+  });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const { run } = await lifecycle.start({ contextRef: "ctx-model-safe-failure" });
+  t.mock.method(console, "error", () => undefined);
+
+  const result = await delegatedToolExecuteRoute.handle(
+    { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} },
+    { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: isRedactedToolFailure },
+  );
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error.code, "TOOL_EXECUTION_FAILED");
+  assert.match(result.error.message, new RegExp(`^Error ${FIXED_ID}: upstream call failed`));
+  containsNoSecret(result.error.message);
+});
+
+test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even with the wiring", async () => {
+  const registry = createToolRegistry();
+  registerThrowingTool(registry);
+  // The BARE executor — no redaction layer, so no ERR id — standing in for any path that skipped it.
+  const toolExecutor = createToolExecutor({ registry });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const { run } = await lifecycle.start({ contextRef: "ctx-unredacted-failure" });
+
+  const result = await delegatedToolExecuteRoute.handle(
+    { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} },
+    {
+      lifecycle,
+      toolExecutor,
+      resolvePrincipal: () => PRINCIPAL,
+      isModelSafeToolFailure: isRedactedToolFailure,
+      onInternalError: () => undefined,
+    },
+  );
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error.code, "INTERNAL_ERROR");
+  containsNoSecret(JSON.stringify(result));
 });
 
 // ---------------------------------------------------------------------------

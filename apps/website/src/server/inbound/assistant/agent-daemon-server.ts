@@ -159,6 +159,7 @@ import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pe
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
+import { isRedactedToolFailure } from "#src/assistant/tool-failure-redaction";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -1100,7 +1101,13 @@ registerAgentRoutes(app, { listAgents: listAssistantAgents, rescanAgents: rescan
 // `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
 // gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
 // omitting it silently disables the gateway rather than silently widening it.
-registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry }, adapter);
+// `isModelSafeToolFailure` lets a failure `withRedactedToolFailures` already redacted (it carries an
+// `ERR-…` id) reach the model as `Error <ID>: <reason>` rather than http-kit's opaque INTERNAL_ERROR.
+registerDelegatedToolRoutes(
+  app,
+  { lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry, isModelSafeToolFailure: isRedactedToolFailure },
+  adapter,
+);
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape

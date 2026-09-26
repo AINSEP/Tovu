@@ -68,6 +68,20 @@ export function readToolErrorId(result: ToolExecutionResult): string | undefined
   return typeof id === "string" ? id : undefined;
 }
 
+/**
+ * `@jini-ai/http-kit`'s `isModelSafeToolFailure` predicate for the delegated-tool route: `true` only
+ * for a failure this decorator already redacted and minted an ID for, so the model gets
+ * `Error <ID>: <reason>` instead of an opaque `INTERNAL_ERROR`. A failure without the ID never
+ * passed through this layer and keeps http-kit's SEC-005 redaction.
+ *
+ * @param result - The settled result the route is about to map.
+ * @returns Whether the route may show `result.error` to the model verbatim.
+ * @complexity O(1).
+ */
+export function isRedactedToolFailure(result: ToolExecutionResult): boolean {
+  return readToolErrorId(result) !== undefined;
+}
+
 /** The value-free server-side record for one internal failure — everything needed to find the
  *  tool, run, principal, execution and full (already redacted) message under its ID, with no secret
  *  value ever entering it. `message` is the text AFTER {@link redactSecretShapes}. */
