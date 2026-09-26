@@ -6,9 +6,10 @@
  * type-specific handler already throws today (`features/post/publish-content.ts`,
  * `features/media/publish-content.ts`, `features/navigation/publish-content.ts`) keeps matching
  * `ui/report-rows.ts`'s `REASON_REWRITES` regexes verbatim once that handler migrates onto the
- * factory — see each builder's own doc for the exact existing sentence it mirrors. Builders with no
- * existing wording (`missingDependency`, `malformedKey`, `tombstonedAtDestination`) are new; G2 adds
- * their `ui/report-rows.ts` rewrite once a real type config uses one.
+ * factory — see each builder's own doc for the exact existing sentence it mirrors. Each builder has a
+ * planned user: `malformedKey` (M-RED, redirect's existing sentence), `tombstonedAtDestination`
+ * (H-CT, content-type), `missingDependency` (H-EN, collection-entry). G2 adds the `ui/report-rows.ts`
+ * rewrites for the last two.
  *
  * Zero imports — mirrors `apply-errors.ts`'s own zero-import property (that file's header explains
  * why: it lets both `repo-handler.ts` and any type-specific `publish-content.ts` value-import this

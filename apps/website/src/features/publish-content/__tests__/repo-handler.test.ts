@@ -189,6 +189,31 @@ test("pack skips trashed and include-false rows, and hashes only transferred fie
   assert.deepEqual(packed[0]!.state, { slug: "a", title: "A", note: "note-1", status: "active" });
 });
 
+test("pack honours packOrder, requiredBlobs and legacyHashState; extend's methods reach the handler", async () => {
+  const repo = new FakeItemRepo([
+    { id: "a", workspaceId: WORKSPACE_ID, slug: "a", title: "A", note: "n", status: "active", version: 1 },
+    { id: "b", workspaceId: WORKSPACE_ID, slug: "b", title: "B", note: "n", status: "active", version: 1 },
+  ]);
+  const seedHash = async () => "seed";
+  const handler = buildHandler(
+    baseConfig({
+      packOrder: (rows) => [...rows].reverse(),
+      requiredBlobs: (row) => [`sha-${row.id}`],
+      // Post's legacy rule: hash every packed field, provenance included.
+      legacyHashState: (_row, packedState) => packedState,
+      extend: () => ({ seedHash }),
+    }),
+    makeDeps({ repo })
+  );
+
+  const packed = await collect(handler.pack());
+  assert.deepEqual(packed.map((entity) => entity.id), ["b", "a"]);
+  assert.deepEqual(packed[1]!.requiredBlobs, ["sha-a"]);
+  assert.equal(packed[1]!.contentHash, contentHash("item", { slug: "a", title: "A", note: "n", status: "active" }));
+  assert.equal((await handler.inspect("a"))?.hash, packed[1]!.contentHash);
+  assert.equal(handler.seedHash, seedHash);
+});
+
 // ---------------------------------------------------------------------------
 // 2. Missing ports: pack empty, inspect null, precheck notWired text, apply throws
 // ---------------------------------------------------------------------------
@@ -429,9 +454,9 @@ test("undo.remove is called on rollback when there was no prior row (a create)",
         restore: async () => {
           throw new Error("restore should not be called when there was no prior row");
         },
-        remove: async (ctx, id) => {
-          removeCalledWithId = id;
-          ctx.ports.repo.remove(id);
+        remove: async (ctx) => {
+          removeCalledWithId = ctx.id;
+          ctx.ports.repo.remove(ctx.id);
         },
       },
     }),
