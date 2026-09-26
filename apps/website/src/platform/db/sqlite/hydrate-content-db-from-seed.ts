@@ -12,7 +12,7 @@ import { dirname } from "node:path";
  * `sites/<site>/content.seed.db`, committed to git. Nothing previously connected it to the
  * `content.db` a deployed container actually boots from: a fresh volume mount has neither file, and
  * the site came up empty. This function is that missing connection — same shape as
- * `features/theme/seed-site-themes.ts`'s `seedSiteThemes()`, which solved the identical problem one
+ * `platform/site-dir/seed-site-themes.ts`'s `seedSiteThemes()`, which solved the identical problem one
  * layer over for `themes/`: a read-only stock source shipped in the image, copied into the site's
  * own mutable copy exactly once, on the boot where that copy does not exist yet.
  *

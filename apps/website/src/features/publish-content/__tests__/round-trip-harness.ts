@@ -12,7 +12,7 @@ import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
-import { buildContentPublishPorts } from "../content-ports.js";
+import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { CONTENT_HASH_VERSION } from "../content-hash.js";
 import { entityKey, planImport, type PublishContentReport } from "../planner.js";
 import {

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
-import type { ExportReport } from "#src/platform/export/index";
+import type { ExportReport } from "#src/features/site-export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -1611,7 +1611,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   publishContentPeerHttpClient: HttpClientPort;
   /**
-   * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
+   * The static-site export engine (`src/features/site-export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`
    * (shared by that route AND the `deployment_trigger_export` agent tool). The indirection began as
    * a REQUIRED fix for THOSE two consumers, not a style choice: an eager import of `exportSite`
@@ -1622,7 +1622,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * engine's whole graph at all (see `export-run.ts`'s file header, which owns the full trace).
    * Always the real `exportSite` in both `server/app.ts`'s `createRouteDeps()` and
    * `server/deps.ts`'s `createSqliteRouteDeps()` — the two places safe to import
-   * `#src/platform/export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
+   * `#src/features/site-export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
    * Typed structurally via `ExportEngine`, imported `type`-only (erased, zero runtime edge) so this
    * field costs this file nothing even though `export-run.ts` sits under `features/`.
    *
@@ -1630,7 +1630,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * used to open with stopped being true on 2026-08-16 (generalized 2026-08-20): `site-exporter.ts`
    * boots the app via the injected `createSiteApp` field below instead, so it no longer imports
    * `server/app.ts` at all. `server/app.ts`'s own `createRouteDeps()` now builds its `runExportSite` /
-   * `exportSiteBound` from a plain static `import { exportSite } from "#src/platform/export/index"`
+   * `exportSiteBound` from a plain static `import { exportSite } from "#src/features/site-export/index"`
    * (see that file's `runExportSite` const doc for the full verification) rather than the lazy
    * `require()` this doc previously described — "safe to import directly" is no longer just a
    * standing option, `server/app.ts` now does it. `server/deps.ts`'s SQLite composition root followed
@@ -1700,7 +1700,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   adminAssistantEnabled: boolean;
   /**
    * Boots a real `Express` app — the SAME factory `server/app.ts` exports as `createApp`, injected
-   * here rather than imported directly by `src/platform/export/site-exporter.ts` (`exportSite` needs to boot
+   * here rather than imported directly by `src/features/site-export/site-exporter.ts` (`exportSite` needs to boot
    * an in-process copy of the app to crawl it over real HTTP — see that file's own header). A direct
    * `require("../server/app")` there was the one runtime edge closing `export -> server` (2026-08-16
    * architecture audit: dependency-cruiser flagged module cycle, propagation cost measured at 29.05%
@@ -1750,7 +1750,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   resolveStorefrontProducts: () => Promise<SiteProduct[]>;
   /**
    * The same `resolveActiveThemeId` (`features/presentation/active-theme-id.ts`) the live public
-   * routes resolve the active theme with, injected here for `platform/export/route-manifest.ts` to
+   * routes resolve the active theme with, injected here for `features/site-export/route-manifest.ts` to
    * reuse — mirroring `resolveStorefrontProducts`/`createSiteApp` immediately above, but for a
    * different reason: `resolveActiveThemeId` has no `server/**`-only type to avoid (unlike
    * `SiteProduct`), the issue is purely module direction. `route-manifest.ts` lives under
@@ -1764,7 +1764,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   resolveActiveThemeId: () => Promise<string>;
   /**
    * The same `listPublishedPosts` (`features/post/post.ts`) the live public routes render
-   * posts/pages with, injected here for `platform/export/route-manifest.ts` to reuse — same
+   * posts/pages with, injected here for `features/site-export/route-manifest.ts` to reuse — same
    * module-direction reason as `resolveActiveThemeId` immediately above:  `features/post` depends on
    * `platform` (via `platform/db`, `platform/routing`), so `route-manifest.ts` importing it directly
    * would close a `platform <-> features/post` runtime cycle. NULLARY, closed over the same `const

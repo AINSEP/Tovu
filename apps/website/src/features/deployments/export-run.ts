@@ -12,10 +12,10 @@
  * must never import from `src/server/**` — doing so is exactly the "back-edge into the composition
  * root" `development/scripts/check-architecture.ts` measures.
  *
- * THIS FILE ALSO NEVER IMPORTS `#src/platform/export/index` (the real `exportSite`/`ExportReport`), and that
+ * THIS FILE ALSO NEVER IMPORTS `#src/features/site-export/index` (the real `exportSite`/`ExportReport`), and that
  * is not the same "narrow-slice style" choice — it is a REQUIRED fix for a real bug the first
  * version of this file shipped with, now history. That first version imported `exportSite` directly,
- * and back then `src/platform/export/site-exporter.ts` imported `createApp` from `server/app.ts`,
+ * and back then `src/features/site-export/site-exporter.ts` imported `createApp` from `server/app.ts`,
  * whose module body ended with an EAGER `export const app = createApp();` that ran the whole
  * app-boot call graph (including, via the BYOK execution mode, `buildAssistantToolRegistrations`) as
  * a side effect of merely LOADING `server/app.ts` — closing a real cycle: `assistant/
@@ -29,7 +29,7 @@
  * Both halves of that cycle are gone now: `site-exporter.ts` has taken `routeDeps.createSiteApp()`
  * instead of importing `createApp` from `app.ts` since 2026-08-16, and the eager `export const app =
  * createApp();` itself was removed on 2026-09-16 (t91 F4.1). This file still never imports
- * `#src/platform/export/index` directly — the injection below stays, not because the crash could
+ * `#src/features/site-export/index` directly — the injection below stays, not because the crash could
  * still happen, but because it keeps `features/deployments` from depending on the export engine's
  * whole graph at all.
  *
@@ -38,10 +38,10 @@
  * `ExportSiteOptions`/`ExportReport`), and `RouteDeps.runExportSite`
  * (`server/routes/types.ts`) is where the real `exportSite` function is bound — exactly once, in
  * `server/app.ts`'s `createRouteDeps()` and `server/deps.ts`'s `createSqliteRouteDeps()`, the two
- * places that are safe to import `#src/platform/export/index` directly (neither is reachable FROM
+ * places that are safe to import `#src/features/site-export/index` directly (neither is reachable FROM
  * `assistant/tool-registrations.ts`, so no cycle closes). Both callers of `startExportRun` —
  * `export-site.ts`'s POST handler and this domain's `deployment_trigger_export` handler — pass
- * `routeDeps.runExportSite` straight through; neither imports `#src/platform/export/index` either.
+ * `routeDeps.runExportSite` straight through; neither imports `#src/features/site-export/index` either.
  *
  * DISCLOSED CROSS-PROCESS GAP: this module's `currentRun` is a plain in-memory module variable, so
  * it is single-flight-correct only WITHIN one OS process. Tovu's admin HTTP server and the
@@ -97,7 +97,7 @@ export interface ExportRunSnapshot {
 }
 
 /**
- * A structural mirror of `src/platform/export/site-exporter.ts`'s `ExportReport` — only the fields
+ * A structural mirror of `src/features/site-export/site-exporter.ts`'s `ExportReport` — only the fields
  * {@link summarizeCompletedReport} actually reads. Declared locally, never imported, per this
  * file's header. The real `ExportReport` satisfies this structurally (it has every field below,
  * with compatible types), so passing the real `exportSite` as an {@link ExportEngine} type-checks
@@ -113,7 +113,7 @@ export interface ExportRunReportLike {
 }
 
 /**
- * The injected shape of `src/platform/export/site-exporter.ts`'s `exportSite`, generic over whatever
+ * The injected shape of `src/features/site-export/site-exporter.ts`'s `exportSite`, generic over whatever
  * `routeDeps` type the caller carries (in every real caller, `RouteDeps` itself — see this file's
  * header for why that is never spelled out by name here).
  */

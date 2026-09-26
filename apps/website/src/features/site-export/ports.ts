@@ -17,7 +17,8 @@
  * The concrete reader (`route-manifest.ts`) reuses the exact selection logic real routes use — never
  * re-derives it — so the manifest can never enumerate a route the live server would not actually
  * serve, or miss one it would. `resolveActiveTheme` is a direct import from feature-owned
- * `#src/features/theme/index` (no cycle risk — `features/theme` does not depend on `platform`).
+ * `#src/features/theme/index` (see `route-manifest.ts`'s header for why this library now lives in
+ * `features/`).
  * `resolveActiveThemeId`/`listPublishedPosts`/`resolveStorefrontProducts` are all reached via
  * `RouteDeps` injection (`deps.resolveActiveThemeId()` etc.) rather than a direct import — see
  * `route-manifest.ts`'s own file header for why (2026-09-03: the first two moved from direct import

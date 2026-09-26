@@ -13,7 +13,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
  * `createApp(routeDeps)` subscribes the site's handlers (SEO sitemap invalidation, forms notify mail,
  * webhook fan-out, newsletter batches, the `workspace.created` log) onto `routeDeps.bus`. The serving
  * process builds its app once, then builds it AGAIN through `routeDeps.createSiteApp()` for every
- * static export (`platform/export/site-exporter.ts`) and every `fetchPublishedPage` inspection call
+ * static export (`features/site-export/site-exporter.ts`) and every `fetchPublishedPage` inspection call
  * (`features/site-inspection/published-page.ts`). Each of those rebuilds used to add one more copy of
  * each handler to the same bus, so after N exports one event ran every handler N+1 times.
  */

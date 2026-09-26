@@ -4,7 +4,7 @@ import path from "node:path";
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import { firstExportFailure, type ExportReport } from "#src/platform/export/index";
+import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
 
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
@@ -19,7 +19,7 @@ import type { SourceControlCredentialSetRepoPort } from "./types.js";
  *
  * Purpose:
  * "Wrap it, do not reimplement," same discipline `adapter.ts`'s own header states — this module runs
- * Tovu's real static exporter (`#src/platform/export`'s `exportSite`, the SAME engine every publish target and
+ * Tovu's real static exporter (`#src/features/site-export`'s `exportSite`, the SAME engine every publish target and
  * the admin's manual export route already drive), maps the resulting `ExportReport` into the flat
  * `{path, data}` shape {@link GitHubCommitAdapter.commit} takes, and hands that off. It does no GitHub
  * HTTP itself — that lives in `github-git-provider.ts`, injected here as {@link CommitSiteDeps.gitAdapter}.
@@ -274,12 +274,12 @@ function cleanupCommitRunDir(outputDir: string): void {
 
 /*
  * `firstExportFailure` used to be resolved at CALL time here, via
- * `require("#src/platform/export/index")` inside a `firstExportFailureLazily` helper, to break a
+ * `require("#src/features/site-export/index")` inside a `firstExportFailureLazily` helper, to break a
  * circular import: `assistant/tool-registrations.ts -> features/source-control/tool-registrations.ts
- * -> commit-site.ts -> #src/platform/export/index -> ... -> server/app.ts -> ... assistant`. It is a
+ * -> commit-site.ts -> #src/features/site-export/index -> ... -> server/app.ts -> ... assistant`. It is a
  * plain static import again as of 2026-09-05, for two measured reasons.
  *
- * 1. That cycle is gone. `platform/export/site-exporter.ts` dropped its `server/app.ts` back-edge in
+ * 1. That cycle is gone. `features/site-export/site-exporter.ts` dropped its `server/app.ts` back-edge in
  *    the 2026-08-16 rework (see that file's own "No import of `server/app.ts` here, static OR lazy"
  *    note), and a dependency-cruiser reachability pass over the export barrel's 67-module runtime
  *    closure — type-only edges excluded — found NOTHING under `apps/website/src/server/**`,
@@ -376,7 +376,7 @@ async function exportForCommit(input: CommitSiteInput): Promise<CommitExportResu
   // Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
   // architecture audit) — this used to check only `routes.failed`, so a page could export fine
   // while its own stylesheet or hero image 404s and the commit would still go through. See
-  // `firstExportFailure`'s own doc (`#src/platform/export/index`) for the shared check both this function
+  // `firstExportFailure`'s own doc (`#src/features/site-export/index`) for the shared check both this function
   // and `static-publish/adapter.ts`'s `publishStaticSite` now use.
   const failure = firstExportFailure(report);
   if (failure) {

@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { seedSiteThemes } from "#src/features/theme/index";
 import { openContentDb } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
+import { seedSiteThemes } from "./seed-site-themes.js";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
 import { resolveProductRoot } from "./product-root.js";
 import { readTemplate } from "./read-template.js";

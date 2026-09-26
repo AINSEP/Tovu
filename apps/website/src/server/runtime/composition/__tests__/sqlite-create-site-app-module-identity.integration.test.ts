@@ -23,7 +23,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
  * @file Behavioral regression for t91 F4.1-A: a SQLite composition's `createSiteApp()`/`runExportSite`
  * must build the site app from THIS process's own module graph, not a second copy `require()` built
  * under tsx. Before the fix, `deps.ts`'s `createSiteAppLazily`/`runExportSiteLazily` resolved
- * `app.ts`/`platform/export` at call time via `createRequire(import.meta.url)`, which under
+ * `app.ts`/`features/site-export` at call time via `createRequire(import.meta.url)`, which under
  * `node --import tsx` loads a SECOND, CommonJS-compiled copy of that module and its whole graph —
  * empty routing `phaseRegistry`, empty page-head `contributors`, and a second, empty
  * `busesWithSiteEventHandlers` WeakSet (`app.ts`'s module state). The deps-first import order above

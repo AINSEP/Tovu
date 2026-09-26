@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { buildContentPublishPorts, type ContentPublishSources } from "#src/features/publish-content/content-ports";
+import { buildContentPublishPorts, type ContentPublishSources } from "#src/server/runtime/composition/content-publish-ports";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { RouteDeps } from "#src/server/routes/types";
 

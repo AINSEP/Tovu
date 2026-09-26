@@ -38,7 +38,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
-import { buildContentPublishPorts } from "#src/features/publish-content/content-ports";
+import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
@@ -59,7 +59,7 @@ import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credential
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
-import { exportSite } from "#src/platform/export/index";
+import { exportSite } from "#src/features/site-export/index";
 import {
   createInMemoryChatStoreFactory,
   createInMemoryAgentSessionStore,
@@ -1265,7 +1265,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),
     // 2026-09-03 — see `routes/types.ts`'s `resolveActiveThemeId`/`listPublishedPosts` docs: closes
     // the `platform <-> features/presentation`/`platform <-> features/post` module cycles
-    // `check:architecture` flagged (`platform/export/route-manifest.ts` no longer imports either
+    // `check:architecture` flagged (`features/site-export/route-manifest.ts` no longer imports either
     // function directly). Same nullary-closure-over-`routeDeps` shape as `resolveStorefrontProducts`
     // immediately above.
     resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),
@@ -1333,8 +1333,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * lazy `require()`, to break a cycle that no longer exists.
  *
  * THE CYCLE THIS USED TO BREAK, AND WHY IT'S GONE. The original justification (2026-08-15, this
- * doc's own prior text): `platform/export/site-exporter.ts` imported `createApp` from THIS file, so
- * a static `import { exportSite } from "#src/platform/export/index"` here would have closed
+ * doc's own prior text): `features/site-export/site-exporter.ts` imported `createApp` from THIS file, so
+ * a static `import { exportSite } from "#src/features/site-export/index"` here would have closed
  *
  *     server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts
  *
@@ -1345,12 +1345,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * `site-exporter.ts` no longer imports `server/app.ts` at all, static OR lazy — it boots the app via
  * `options.routeDeps.createSiteApp()`, injected through `RouteDeps` (see that file's own header
  * comment and `routes/types.ts`'s `createSiteApp` doc). This file's lazy `require()` for the
- * OPPOSITE direction (this file calling INTO `platform/export`) was never actually needed once that
+ * OPPOSITE direction (this file calling INTO `features/site-export`) was never actually needed once that
  * injection landed — it just never got revisited, including across two path-rewrite commits
  * (`03cc71442`, `e031173e4`) that mechanically edited these very lines without re-checking the cycle
  * claim.
  *
- * VERIFIED 2026-09-05, not assumed: `platform/export`'s complete runtime closure (`ports.ts`,
+ * VERIFIED 2026-09-05, not assumed: `features/site-export`'s complete runtime closure (`ports.ts`,
  * `route-manifest.ts`, `site-exporter.ts`, `export-failure-summary.ts`, `index.ts`, and everything
  * THEY import — `features/theme`, `features/post`, `features/presentation`, `features/redirects`,
  * `platform/routing`, `contracts/core`) contains zero imports of this file or any `#src/server/**`
@@ -1362,10 +1362,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * imports every one of those modules' own dependencies anyway (`#src/features/theme/index`,
  * `#src/features/post/index`, `#src/features/presentation/index`, `#src/features/redirects/index`,
  * `#src/platform/routing/index`, `#src/contracts/core/**` are all imported above), so this static
- * import adds `platform/export`'s own 5 files to this file's runtime closure and nothing else.
+ * import adds `features/site-export`'s own 5 files to this file's runtime closure and nothing else.
  *
  * Also fixes a real defect, not just cleanup: the lazy `require()` ran tsx's CJS loader over
- * `platform/export`'s whole barrel graph inside processes that had already loaded the same files
+ * `features/site-export`'s whole barrel graph inside processes that had already loaded the same files
  * via tsx's ESM loader (any in-process test that calls `routeDeps.exportSiteBound`/`runExportSite`,
  * e.g. `commit-site.ts`, `static-publish/adapter.ts`), producing two V8 coverage images per file that
  * lcov merges into one corrupted `SF:` block — see
@@ -1399,7 +1399,7 @@ const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
  * Attaches the site's outbox event handlers to `routeDeps.bus`, once per bus (2026-09-14).
  *
  * `createApp` runs more than once on the same `routeDeps` in one process: the serving app first, then
- * `routeDeps.createSiteApp()` for every static export (`platform/export/site-exporter.ts`) and every
+ * `routeDeps.createSiteApp()` for every static export (`features/site-export/site-exporter.ts`) and every
  * published-page fetch (`features/site-inspection/published-page.ts`). These subscriptions used to
  * sit inline in `createApp`, so each rebuild added another copy of every handler to the same bus and
  * one event then ran each handler once per build (a duplicate forms notify mail per export, for
@@ -1644,7 +1644,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Deliberately NOT gated by one `authorize()` call here: it authorizes each section against that
   // section's own domain permission. See that route file's header for why that difference matters.
   registerAdminSiteProfileRoute(app, routeDeps);
-  // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/platform/export/`).
+  // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/features/site-export/`).
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
   registerAdminExportSiteRoutes(app, routeDeps);

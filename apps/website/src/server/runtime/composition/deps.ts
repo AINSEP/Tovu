@@ -25,7 +25,7 @@ import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-con
 import { SqlitePublishTrustRevocationStore } from "#src/platform/db/sqlite/publish-trust-revocations.sqlite";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
-import { buildContentPublishPorts } from "#src/features/publish-content/content-ports";
+import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -51,13 +51,14 @@ import {
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
-import { discoverAllBuiltInThemes, rescanThemes, seedSiteThemes } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
+import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
 import { resolveSiteRoot, resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
@@ -247,7 +248,7 @@ import { createSqliteDeviceAuthorizationStore, createSqlitePendingAuthorizationS
 // copy of that module and its whole graph, so the site app built here read empty copies of the
 // routing, page-head and event-subscription registries — exports and site inspection served no
 // redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
-import { exportSite } from "#src/platform/export/index";
+import { exportSite } from "#src/features/site-export/index";
 import { createApp } from "./app.js";
 
 /**

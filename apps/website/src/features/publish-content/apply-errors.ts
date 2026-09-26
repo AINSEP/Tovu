@@ -18,9 +18,10 @@
  * resources instead of one bespoke branch per resource").
  *
  * So the loop checks for THIS base class instead. A new content type raises it (or a subclass) and
- * needs no edit to `apply-loop.ts` at all. `post`'s two pre-existing classes keep their own named
- * special case in that predicate, because retrofitting them onto this base would mean editing
- * `post.ts`'s error hierarchy — a much larger, shared, unrelated surface — for no behavioural gain.
+ * needs no edit to `apply-loop.ts` at all. `post`'s two pre-existing classes keep their own special
+ * case, named by the post handler's `isApplyConflict` rather than by the loop, because retrofitting
+ * them onto this base would mean editing `post.ts`'s error hierarchy — a much larger, shared,
+ * unrelated surface — for no behavioural gain.
  *
  * ## Dependency direction
  *

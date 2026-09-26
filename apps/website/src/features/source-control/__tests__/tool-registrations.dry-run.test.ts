@@ -8,7 +8,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import type { ExportReport } from "#src/platform/export/index";
+import type { ExportReport } from "#src/features/site-export/index";
 
 import type { ExportSiteBoundFn, GitHubCommitAdapter } from "../commit-site.js";
 import { createSourceControlCredential } from "../store.js";

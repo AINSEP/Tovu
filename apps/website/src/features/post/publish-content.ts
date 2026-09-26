@@ -598,6 +598,8 @@ function buildHandler(deps: PublishContentDeps, kind: PostKind): PublishContentH
     planRetire,
     retire,
     references: (entity) => collectBodyReferences(entity.state),
+    // `PostVersionConflictError` is covered via its `extends PostConflictError`.
+    isApplyConflict: (error): error is Error => error instanceof PostConflictError || error instanceof PostNotFoundError,
   };
 }
 

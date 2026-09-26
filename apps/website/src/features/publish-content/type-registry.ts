@@ -144,7 +144,7 @@ export interface PublishContentPorts {
     readonly fileBlobIndex?: FileBlobIndexPort;
   };
   // Factory-built types (`repo-handler.ts`) below — every root builds these through ONE function,
-  // `content-ports.ts`'s `buildContentPublishPorts`, so a new line here is one edit there.
+  // `server/runtime/composition/content-publish-ports.ts`'s `buildContentPublishPorts`, so a new line here is one edit there.
   readonly form: { readonly repo: FormDefinitionRepoPort };
   readonly "content-type": { readonly repo: ContentTypeRepoPort & ContentTypeListPort; readonly indexProvisioner: IndexProvisionerPort };
   readonly taxonomy: TaxonomyPublishPorts;
@@ -187,7 +187,7 @@ export interface TaxonomyPublishPorts {
   readonly stampWatermark: () => void;
   /** Resolves posts/pages and collection entries (Jini `createContentLookup`). */
   readonly contentLookup: ContentLookupPort;
-  /** Which collection types take terms: every live one (`content-ports.ts`). */
+  /** Which collection types take terms: every live one (`server/runtime/composition/content-publish-ports.ts`). */
   readonly contentTypeTaxonomyPolicy: ContentTypeTaxonomyPolicyPort;
 }
 
@@ -448,6 +448,16 @@ export interface PublishContentHandler {
    * and the destination need not validate it. A type that uses nothing omits this method.
    */
   references?(entity: PackedEntity): readonly PublishContentReference[];
+
+  /**
+   * True for one of this type's OWN errors that means "this row changed on the destination during
+   * apply": the apply loop downgrades the row to `conflict` (reason prefixed "changed on the
+   * destination during apply") instead of aborting the run. Only for errors that predate
+   * `PublishContentApplyRowError` (`post`/`page`'s `PostConflictError`/`PostNotFoundError`); a new
+   * type raises that class instead and omits this. Lets the generic loop stay free of any one
+   * type's error classes.
+   */
+  isApplyConflict?(error: unknown): error is Error;
 }
 
 /** One entity a {@link PublishContentHandler.references} names: its type, and a key it answers to —

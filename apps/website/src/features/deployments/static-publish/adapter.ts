@@ -12,15 +12,15 @@ import {
   type DeployTarget,
 } from "@jini-ai/devops/deploy";
 
-import type { ExportReport } from "#src/platform/export/index";
+import type { ExportReport } from "#src/features/site-export/index";
 /**
- * Imported from the LEAF `export-failure-summary.ts`, not from `#src/platform/export/index`.
+ * Imported from the LEAF `export-failure-summary.ts`, not from `#src/features/site-export/index`.
  *
  * This is a runtime import, and that is the point: it adds exactly ONE module to this file's eager
  * graph. Importing the same function through the barrel would add 65 (`express`, better-sqlite3,
  * drizzle, handlebars, liquidjs and the whole theme/post/db graph, via `site-exporter.ts`), on a
  * module reached from `assistant/tool-registrations.ts`. Avoiding that cost — not a cycle — is why
- * this function was previously resolved by a call-time `require("#src/platform/export/index")`.
+ * this function was previously resolved by a call-time `require("#src/features/site-export/index")`.
  *
  * The `require()` is gone because it was corrupting coverage: under `tsx` it loaded the barrel and
  * its whole graph a second time through the CJS hook, and the two images merged into one broken
@@ -34,7 +34,7 @@ import type { ExportReport } from "#src/platform/export/index";
  * `#src/features/theme/index` — nothing under `server/` or `assistant/`. The leaf module imports
  * nothing at runtime at all, so it cannot participate in a cycle regardless.
  */
-import { firstExportFailure, type ExportFailureSummary } from "#src/platform/export/export-failure-summary";
+import { firstExportFailure, type ExportFailureSummary } from "#src/features/site-export/export-failure-summary";
 
 import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target.js";
 import type {
@@ -55,7 +55,7 @@ import type {
  *
  * Purpose:
  * "Wrap it, do not reimplement" — this module does no GitHub/Vercel HTTP itself. It (a) runs
- * Tovu's real static exporter (`src/platform/export`'s `exportSite`, the same engine
+ * Tovu's real static exporter (`src/features/site-export`'s `exportSite`, the same engine
  * `routes/admin/system/export-site.ts` already drives) with a base path computed FOR the publish
  * target, (b) maps the resulting `ExportReport` into `DeployFile[]` using the `data`/`outputFile`
  * fields `site-exporter.ts` added specifically for this ("reachable as DATA for a future
@@ -440,7 +440,7 @@ async function resolvePublishCredentialForSite(
  * Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
  * architecture audit) — this used to check only `routes.failed`, so a page could export fine while
  * its own stylesheet or hero image 404s and publishing would still report success. See
- * `firstExportFailure`'s own doc (`#src/platform/export/export-failure-summary`) for the shared check both this
+ * `firstExportFailure`'s own doc (`#src/features/site-export/export-failure-summary`) for the shared check both this
  * function and `commit-site.ts`'s `commitSiteToSourceControl` now use.
  */
 async function runExportForPublish(

@@ -2,10 +2,14 @@ import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } f
 import type { FormDefinitionRepoPort } from "#src/features/forms/index";
 import type { PostRepoPort } from "#src/features/post/post";
 import { createContentLookup, type ContentTypeTaxonomyPolicyPort } from "#src/features/taxonomy/index";
-import type { EntryPublishPorts, PublishContentPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "./type-registry.js";
+import type { EntryPublishPorts, PublishContentPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
 
 /**
  * @file The one place the factory-built types (`repo-handler.ts`) get their ports from.
+ *
+ * Composition wiring, so it lives in the composition root (moved 2026-09-26 from
+ * `features/publish-content/content-ports.ts`): it builds taxonomy's `createContentLookup`, and
+ * `features/publish-content` value-importing `features/taxonomy` closed a module cycle.
  *
  * Every composition root (`composition/deps.ts`, `composition/app.ts`, `publish-content-seed-hash.ts`)
  * and the route bag (`routes/publish-content/deps.ts`) spreads `...buildContentPublishPorts(sources)`

@@ -22,7 +22,7 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
  *
  * Lives in `static-publish/`, not this domain's sibling `features/deployments/export-run.ts` — a
  * DIFFERENT sub-feature (this file's own imports are `static-publish/adapter.ts`'s `publishStaticSite`
- * only, never `#src/platform/export/index`), but the SAME reasoning `export-run.ts`'s header gives for its own
+ * only, never `#src/features/site-export/index`), but the SAME reasoning `export-run.ts`'s header gives for its own
  * placement applies here too: `server/routes/admin/system/publish-site.ts` (a `src/server/**` file)
  * is free to import FROM this domain, but `publish-agent-tools.ts`'s own `tool-registrations.ts`-style
  * rule (see `deployments/tool-registrations.ts`'s file header) forbids the reverse — a domain's

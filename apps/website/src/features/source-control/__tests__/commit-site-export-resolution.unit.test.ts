@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 /**
- * @file Pins that `commit-site.ts` reaches `#src/platform/export/index` through the ordinary ESM
+ * @file Pins that `commit-site.ts` reaches `#src/features/site-export/index` through the ordinary ESM
  * import graph, not through a call-time `require()`.
  *
  * Why this is a real property and not a style rule: under `tsx`, a `require()` of a first-party
@@ -19,8 +19,8 @@ import test from "node:test";
  * (`ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md`, "Route A").
  *
  * The `require()` was there to break a documented import cycle
- * (`commit-site.ts -> #src/platform/export/index -> ... -> server/app.ts -> ... -> src/assistant ->
- * ... -> commit-site.ts`). That cycle no longer exists: `platform/export/site-exporter.ts` dropped
+ * (`commit-site.ts -> #src/features/site-export/index -> ... -> server/app.ts -> ... -> src/assistant ->
+ * ... -> commit-site.ts`). That cycle no longer exists: `features/site-export/site-exporter.ts` dropped
  * its `server/app.ts` back-edge in the 2026-08-16 rework, and a dependency-cruiser reachability
  * pass over the export barrel's 67-module runtime closure (type-only edges excluded) found nothing
  * under `apps/website/src/server/**`, `apps/website/src/assistant/**`,
@@ -35,20 +35,20 @@ import test from "node:test";
  * very `require()` this test forbids, recreating the defect inside the coverage run it protects.
  *
  * `features/deployments/static-publish/adapter.ts` carried the identical helper and was previously
- * excluded here, because importing `#src/platform/export/index` statically would have pulled 65
+ * excluded here, because importing `#src/features/site-export/index` statically would have pulled 65
  * modules (better-sqlite3, drizzle, handlebars, liquidjs and the whole theme/post/db graph) into
  * its 7-module eager load graph — a real cost on a module reached from
  * `assistant/tool-registrations.ts`, and an owner decision rather than a mechanical one.
  *
  * Resolved 2026-09-05 by removing the cost instead of paying it: `firstExportFailure` and its
  * `ExportFailureSummary` result type now live in the leaf module
- * `platform/export/export-failure-summary.ts`, which imports nothing at runtime (its only
+ * `features/site-export/export-failure-summary.ts`, which imports nothing at runtime (its only
  * dependency, `ExportReport`, is an `import type` and therefore erased). `site-exporter.ts`
- * re-exports both, so the barrel's public surface and `platform/export/__tests__/index.test.ts`'s
+ * re-exports both, so the barrel's public surface and `features/site-export/__tests__/index.test.ts`'s
  * identity assertion are unchanged. `adapter.ts` imports the leaf directly, which adds ONE module
  * to its eager graph rather than 65. Both call sites are therefore listed below.
  *
- * Note for anyone extending this: `platform/export` is NOT in `.dependency-cruiser.mjs`'s
+ * Note for anyone extending this: `features/site-export` is NOT in `.dependency-cruiser.mjs`'s
  * `GUARDED_MODULES`, so there is no `no-deep-imports:export` rule and the leaf import needs no
  * exemption. The 2026-09-05 report predicted one would be required; that prediction was wrong,
  * verified by reading the config's module list.

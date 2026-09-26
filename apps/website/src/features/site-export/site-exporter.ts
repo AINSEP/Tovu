@@ -328,7 +328,7 @@ const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
  * from executing once emitted into an `href`, the exact gap `a69f5892`/`0a41515c` (2026-09-03)
  * closed for every other comparable sink in `features/theme/static-render.ts` and
  * `server/inbound/public-http/http/site/render.ts`. THIS is a third, deliberate duplicate of
- * those two files' own byte-identical `safeHref` — not a shared import, because `platform/export`
+ * those two files' own byte-identical `safeHref` — not a shared import, because `features/site-export`
  * pulling a private helper out of either of those modules would need it exported first, widening
  * a surface neither module wants widened for one more caller; those two files already document
  * this exact "duplicate, don't share" precedent for the identical reason. If this logic changes,

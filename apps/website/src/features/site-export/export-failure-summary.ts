@@ -9,7 +9,7 @@
  * (better-sqlite3, drizzle, handlebars, liquidjs) — 65 modules to run ten lines of array reads.
  *
  * That cost is why `features/deployments/static-publish/adapter.ts` resolved this function with a
- * call-time `require("#src/platform/export/index")` instead of an import: its own eager graph is 7
+ * call-time `require("#src/features/site-export/index")` instead of an import: its own eager graph is 7
  * modules, and it is reached from `assistant/tool-registrations.ts`, so a static import of the
  * barrel would have grown that graph nearly tenfold at boot. Under `tsx` a `require()` of a
  * first-party `.ts` module is served by tsx's CJS hook, which transpiles the module and everything

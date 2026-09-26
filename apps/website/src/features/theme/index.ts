@@ -195,11 +195,6 @@ export { resolveThemeLayout, isPageFilePath, isPartialFilePath, type ThemeLayout
 // already matches against, instead of a hardcoded v1-only literal.
 export { tokenStylesheetSentinel } from "./static-asset-contract.js";
 
-// 2026-08-27 (`infra/` -> `sites/<name>/` move) — the first-boot copy that gets a site's themes out
-// of the package tree an upgrade replaces. Re-exported so `server/deps.ts`'s composition root does
-// not deep-import it, same reasoning as every export above.
-export { seedSiteThemes, type SeedSiteThemesResult, type SeedSiteThemesStatus } from "./seed-site-themes.js";
-
 // 2026-08-30 — the shared "can this file's identity (name/existence) change" gate, extracted from
 // `server/inbound/admin-http/routes/themes/explore.ts` so `tool-registrations.ts`'s
 // `theme_rename_file`/`theme_delete_file` can call the SAME decision `explore.ts`'s own rename/delete

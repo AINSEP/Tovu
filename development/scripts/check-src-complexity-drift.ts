@@ -94,7 +94,6 @@ const SCOPES = [
   "apps/website/src/features",
   "apps/website/src/widgets",
   "apps/website/src/seo",
-  "apps/website/src/platform/export",
   "apps/website/src/analytics",
   "apps/website/src/media",
   "apps/site-chat/src",

@@ -10,7 +10,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import { SqliteRedirectRepo, type RedirectsWriteDeps } from "#src/features/redirects/index";
-import { buildContentPublishPorts } from "#src/features/publish-content/content-ports";
+import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";

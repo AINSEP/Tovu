@@ -4,6 +4,10 @@ import { dirname, join } from "node:path";
 /**
  * @file `seedSiteThemes()` — the one-time copy that gets a site's themes OUT of the Tovu package.
  *
+ * A plain filesystem copy with no theme-domain logic, so it lives in `platform/site-dir` beside its
+ * caller `init-site.ts` (moved 2026-09-26 from `features/theme/`: `platform` importing
+ * `features/theme` closed a module cycle).
+ *
  * ---------------------------------------------------------------------------
  * The bug this exists to fix
  * ---------------------------------------------------------------------------

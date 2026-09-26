@@ -33,8 +33,11 @@ import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } fr
  * per the established Option-A structural-injection technique (see
  * `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md` for the
  * same technique applied to a different `features/post` cycle).
- * `resolveActiveTheme`/`isStandaloneThemePage` stay as direct imports from `#src/features/theme/index`
- * — `features/theme` does not depend on `platform` at runtime, so that edge closes no cycle.
+ * `resolveActiveTheme`/`isStandaloneThemePage` stay as direct imports from `#src/features/theme/index`.
+ * That edge is why this library moved out of `platform/export/` into `features/site-export/`
+ * (2026-09-26): once `features/theme` reached `platform` at runtime (through its publish-content
+ * adapters), `platform -> features/theme` closed a module cycle. The header text above describes
+ * the pre-move layering; the two injected deps stay injected.
  *
  * The one non-obvious piece of domain knowledge this file owns: a static theme's `pages/*.html`
  * folder (`DiscoveredTheme.pages`, `features/theme/theme.ts`) holds BOTH real standalone pages
