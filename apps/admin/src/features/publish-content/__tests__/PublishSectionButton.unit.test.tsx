@@ -26,7 +26,16 @@ describe("PublishSectionButton", () => {
     expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
   });
 
-  it("clicking it opens the dialog scoped to just that entity type", async () => {
+  // Every section, not just one: a hook that scoped every button to the same type would pass a
+  // single-type check while "Publish themes" opened a pages-only dialog.
+  it.each([
+    ["page", "Publish pages"],
+    ["post", "Publish posts"],
+    ["media", "Publish media"],
+    ["menu", "Publish menus"],
+    ["redirect", "Publish redirects"],
+    ["theme-files", "Publish themes"],
+  ] as const)("clicking the %s section's button opens the dialog scoped to just that entity type", async (entityType, label) => {
     const user = userEvent.setup();
     const requestPublishSpy = vi.spyOn(publishRequestStore, "requestPublish").mockResolvedValue({
       opened: true,
@@ -40,9 +49,11 @@ describe("PublishSectionButton", () => {
       nextStep: "",
     });
 
-    render(<PublishSectionButton entityType="page" />);
-    await user.click(screen.getByRole("button", { name: "Publish pages" }));
+    render(<PublishSectionButton entityType={entityType} />);
+    await user.click(screen.getByRole("button", { name: label }));
 
-    expect(requestPublishSpy).toHaveBeenCalledWith({}, { entityTypes: ["page"] });
+    expect(requestPublishSpy).toHaveBeenCalledTimes(1);
+    expect(requestPublishSpy).toHaveBeenCalledWith({}, { entityTypes: [entityType] });
+    requestPublishSpy.mockRestore();
   });
 });
