@@ -53,7 +53,9 @@ export interface PublishReportRow {
   readonly outcome: PublishContentOutcomeRow["outcome"];
   readonly disposition: PublishRowDisposition;
   readonly dispositionLabel: string;
-  /** Never `null` for a `skipped` row — see {@link MISSING_REASON}. */
+  /** Never `null` for a `skipped` row — see {@link MISSING_REASON}. Rewritten for a non-technical
+   *  owner by {@link friendlyPublishReason} before it ever reaches this shape; the planner's own raw
+   *  wording (ids, "peer", "baseline") never renders. */
   readonly reason: string | null;
   /** The planner's own `writes` flag, carried through unmodified. */
   readonly appliesOnExecute: boolean;
@@ -94,6 +96,120 @@ export interface PublishReportSummary {
  * missing is at least honest about which of the two it is.
  */
 const MISSING_REASON = "No reason recorded.";
+
+/** The one reason prefix that is already final, operator-facing copy — `file-tree-policy.ts`'s
+ *  {@link import("../file-tree-policy.js").wrapTreePolicyReason}. {@link friendlyPublishReason}
+ *  must never rewrite it a second time. */
+const ALREADY_FINAL_PREFIX = "Can't publish:";
+
+/**
+ * One raw-reason pattern this dialog is known to receive, and the owner-facing sentence it becomes.
+ * Order matters: {@link friendlyPublishReason} returns the first match, so a narrower pattern (e.g.
+ * the two conflict wordings) is listed before anything broader it could also satisfy.
+ */
+interface ReasonRewrite {
+  readonly pattern: RegExp;
+  readonly friendly: string;
+}
+
+/**
+ * The closed set of reason strings `planner.ts` and its registered handlers (`post`, `media`,
+ * `redirects`, `navigation`, `theme`) can currently produce for a `skipped` or `forced` row, each
+ * paired with the plain sentence a non-technical owner should read instead. Every raw string here is
+ * quoted verbatim (minus the interpolated id/type) from where it is thrown, so this list is the
+ * traceable map from "what the code says" to "what the dialog shows" — updating a handler's wording
+ * means updating the matching pattern here, not guessing at a new regex blind.
+ *
+ * publish-content-copy-2026-09-25.md — every entry drops ids, "peer", "baseline" and "entity", and
+ * names the available action ("tick Overwrite") only where the row that carries the reason actually
+ * offers that control ({@link PublishReportRow.overwritable}).
+ */
+const REASON_REWRITES: readonly ReasonRewrite[] = [
+  {
+    pattern: /^no registered publish-content handler for entity type/,
+    friendly: "This kind of content can't be published from here yet.",
+  },
+  {
+    pattern: /^required blob '.+' is not available/,
+    friendly: "A file this item needs hasn't finished syncing here yet. Try publishing again shortly.",
+  },
+  // planner.ts's two conflict wordings (baseline recorded vs. none) — same cause to the operator
+  // ("this destination row doesn't match what we agreed on last"), same action either way.
+  {
+    pattern: /has been edited on the destination since the last sync with this peer/,
+    friendly: "Different version already on the live site. Tick Overwrite to replace it.",
+  },
+  {
+    pattern: /no prior sync baseline for .+ with this peer — the destination already holds different content/,
+    friendly: "Different version already on the live site. Tick Overwrite to replace it.",
+  },
+  {
+    pattern: /^slug '.+' is already held by a different \w+/,
+    friendly: "Another item on the live site already uses this name.",
+  },
+  {
+    pattern: /^'.+' is in the trash at this destination/,
+    friendly: "This item is in the trash on the live site. Restore it there before publishing.",
+  },
+  {
+    pattern: /^'.+' is a '.+' at this destination but a '.+' at the source/,
+    friendly: "This item's type doesn't match the live site's version, so it can't be published over it.",
+  },
+  {
+    pattern: /has no usable slug to check for a collision/,
+    friendly: "This item has no name set, so it can't be checked against the live site.",
+  },
+  {
+    pattern: /cannot be prechecked — no \w+ wired for this deps bag/,
+    friendly: "Publishing isn't available for this item right now.",
+  },
+  {
+    pattern: /has a malformed natural key/,
+    friendly: "This item's data is incomplete and can't be published.",
+  },
+  {
+    pattern: /is not a valid theme tree address/,
+    friendly: "This theme's files aren't in a valid location.",
+  },
+  {
+    pattern: /this site has no themes folder/,
+    friendly: "This site doesn't have a themes folder set up.",
+  },
+  {
+    pattern: /themes folder spans two disks/,
+    friendly: "The site's themes folder isn't set up correctly.",
+  },
+];
+
+/** Matches `file-tree-policy.ts`'s generic `"<title> was not published: <detail>"` wrapping — every
+ *  `checkTreeFiles` reason this module has no specific rewrite for yet (a path-shape or deny-list
+ *  detail, all of which name a raw relative path). Kept last and generic on purpose: the title is
+ *  real information ("Theme: static/basic") worth keeping, the raw path/segment detail after the
+ *  colon is not. */
+const GENERIC_TREE_WRAP_PATTERN = /^(.+) was not published: .+$/;
+
+/**
+ * Rewrites one raw planner/handler reason into the sentence the dialog shows an owner — terse, free
+ * of ids and sync-protocol terms ("baseline", "peer", "entity"), and naming the action when the
+ * matched cause has one. `file-tree-policy.ts`'s own `"Can't publish: ..."` sentinel is already
+ * exactly this (that module's header explains why it alone gets to skip the title wrapper) and is
+ * returned unchanged rather than double-translated.
+ *
+ * Anything matching none of {@link REASON_REWRITES} or {@link GENERIC_TREE_WRAP_PATTERN} — a future
+ * handler's wording this file has not seen yet, or a test fixture that is not real handler text —
+ * passes through unchanged rather than being mangled by a guess.
+ *
+ * @complexity O(1) — a fixed, small number of regex tests against one string.
+ */
+export function friendlyPublishReason(reason: string): string {
+  if (reason.startsWith(ALREADY_FINAL_PREFIX)) return reason;
+  for (const { pattern, friendly } of REASON_REWRITES) {
+    if (pattern.test(reason)) return friendly;
+  }
+  const wrapped = reason.match(GENERIC_TREE_WRAP_PATTERN);
+  if (wrapped) return `${wrapped[1]} can't be published — one of its files isn't allowed.`;
+  return reason;
+}
 
 /** How much of an id to show when an entity has no human identifier at all. Eight hex characters is
  *  the git-short-sha convention and stays unique enough to tell two rows apart on one screen, which
@@ -187,6 +303,7 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
   if (report.refused) return [];
   return report.rows.map((row) => {
     const disposition = publishRowDisposition(row);
+    const rawReason = disposition === "skipped" ? (row.reason ?? MISSING_REASON) : row.reason;
     return {
       key: `${row.entityType}:${row.entityId}`,
       entityType: row.entityType,
@@ -196,7 +313,7 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
       outcome: row.outcome,
       disposition,
       dispositionLabel: LABEL_BY_OUTCOME[row.outcome],
-      reason: disposition === "skipped" ? (row.reason ?? MISSING_REASON) : row.reason,
+      reason: rawReason === null ? null : friendlyPublishReason(rawReason),
       appliesOnExecute: row.writes,
       overwritable: disposition === "skipped" && row.canOverwrite === true,
       retiresLabel: retiresLabelFor(row),

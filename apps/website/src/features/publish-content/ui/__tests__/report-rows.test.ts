@@ -14,6 +14,7 @@ import type { PublishContentOutcomeRow, PublishContentReport } from "../contract
 import { entityKey } from "../../planner.js";
 import {
   countSelectedPublishing,
+  friendlyPublishReason,
   publishRowDisposition,
   selectableRowKeys,
   summarizePublishReport,
@@ -239,4 +240,111 @@ test("referencedByLabels names every live holder of this row's retire target, fa
 test("referencedByLabels is empty for a row with no referencedBy at all", () => {
   const [none] = toPublishReportRows(report([row({ outcome: "created", entityId: "b" })]));
   assert.deepEqual(none.referencedByLabels, []);
+});
+
+// ---------------------------------------------------------------------------
+// friendlyPublishReason (publish-content-copy-2026-09-25.md) — the planner's and its handlers' own
+// jargon-heavy reason strings, rewritten for a non-technical owner.
+// ---------------------------------------------------------------------------
+
+test("friendlyPublishReason rewrites every reason planner.ts and its handlers can currently produce", () => {
+  const cases: ReadonlyArray<[string, string]> = [
+    [
+      "no registered publish-content handler for entity type 'widget' on this instance",
+      "This kind of content can't be published from here yet.",
+    ],
+    [
+      "required blob 'abc123' is not available on this instance",
+      "A file this item needs hasn't finished syncing here yet. Try publishing again shortly.",
+    ],
+    [
+      "required blob 'abc123' is not available on this destination",
+      "A file this item needs hasn't finished syncing here yet. Try publishing again shortly.",
+    ],
+    [
+      "post 'p1' has been edited on the destination since the last sync with this peer",
+      "Different version already on the live site. Tick Overwrite to replace it.",
+    ],
+    [
+      "no prior sync baseline for media 'c0bf1802-f30a-4ac6-9de3-fa65e3667897' with this peer — the destination already holds different content",
+      "Different version already on the live site. Tick Overwrite to replace it.",
+    ],
+    [
+      "slug 'about' is already held by a different post ('post-2')",
+      "Another item on the live site already uses this name.",
+    ],
+    [
+      "'post-1' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content",
+      "This item is in the trash on the live site. Restore it there before publishing.",
+    ],
+    [
+      "'p1' is a 'post' at this destination but a 'page' at the source — kind is fixed at creation and cannot be changed by publishing",
+      "This item's type doesn't match the live site's version, so it can't be published over it.",
+    ],
+    [
+      "post entity 'p1' has no usable slug to check for a collision",
+      "This item has no name set, so it can't be checked against the live site.",
+    ],
+    [
+      "media entity 'm1' cannot be prechecked — no mediaRepo wired for this deps bag",
+      "Publishing isn't available for this item right now.",
+    ],
+    [
+      "redirect entity 'r1' has a malformed natural key (expected 'matchType:fromPattern')",
+      "This item's data is incomplete and can't be published.",
+    ],
+    [
+      "Theme: static/basic was not published: 'basic' is not a valid theme tree address",
+      "This theme's files aren't in a valid location.",
+    ],
+    [
+      "Theme: static/basic was not published: this site has no themes folder",
+      "This site doesn't have a themes folder set up.",
+    ],
+    [
+      "live's themes folder spans two disks; nothing was written",
+      "The site's themes folder isn't set up correctly.",
+    ],
+  ];
+
+  for (const [raw, friendly] of cases) {
+    assert.equal(friendlyPublishReason(raw), friendly, raw);
+  }
+});
+
+test("friendlyPublishReason leaves an already-final \"Can't publish:\" reason untouched", () => {
+  assert.equal(
+    friendlyPublishReason("Can't publish: contains a video file (deadpool3-cinedaily-hero.mp4)"),
+    "Can't publish: contains a video file (deadpool3-cinedaily-hero.mp4)"
+  );
+  assert.equal(
+    friendlyPublishReason("Can't publish: contains a file type that isn't allowed (notes.exe)"),
+    "Can't publish: contains a file type that isn't allowed (notes.exe)"
+  );
+});
+
+test("friendlyPublishReason falls back to a generic sentence for an unrecognized file-tree wrap", () => {
+  assert.equal(
+    friendlyPublishReason("Theme: static/basic was not published: \"x/../y\" contains a '..' segment, which is never allowed"),
+    "Theme: static/basic can't be published — one of its files isn't allowed."
+  );
+});
+
+test("friendlyPublishReason passes through text it does not recognize, unchanged", () => {
+  assert.equal(friendlyPublishReason("some future handler's own wording"), "some future handler's own wording");
+});
+
+test("toPublishReportRows rewrites a skipped row's reason for a non-technical owner", () => {
+  const [shaped] = toPublishReportRows(
+    report([
+      row({
+        outcome: "conflict",
+        entityType: "media",
+        entityId: "c0bf1802-f30a-4ac6-9de3-fa65e3667897",
+        reason:
+          "no prior sync baseline for media 'c0bf1802-f30a-4ac6-9de3-fa65e3667897' with this peer — the destination already holds different content",
+      }),
+    ])
+  );
+  assert.equal(shaped.reason, "Different version already on the live site. Tick Overwrite to replace it.");
 });

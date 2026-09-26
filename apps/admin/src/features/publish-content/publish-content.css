@@ -42,30 +42,75 @@
   border-radius: var(--r-lg);
 }
 
-/* The type column is a short word ('post', 'media') and should not claim a share of the row. */
+/* publish-content-copy-2026-09-25.md — this table's own six columns were overflowing the dialog:
+   `.list-table`'s shared `table-layout: auto` (`styles.css`) sizes every column from its content, and
+   with two free-text columns (Entity, Why) competing for room the browser grew the table past the
+   dialog's own capped width, squeezed "Why" to an unreadable strip, and pushed "Overwrite on live"
+   against the dialog's right edge with nothing to clip it back (owner, 2026-09-25, `.table-scroll`'s
+   own horizontal scrollbar never became visible enough to notice, so it read as a bug, not a scroll).
+   `table-layout: fixed` sizes every column from its `<thead>` cell's own width — the table algorithm
+   always reads the FIRST row, so a width has to live on the `<th>`, not the `<td>`, to have any effect
+   — and gives whichever column declares no width at all, `.publish-content-reason`, the entire
+   remainder. That is exactly the "wraps and gets the room" property `.publish-content-reason` already
+   claimed below; before this rule it was competing for space like every other column and losing.
+   Every width here is a PERCENTAGE of the table's own rendered width rather than a fixed `rem`, so the
+   five fixed columns and the one flexible one shrink together in proportion at 390px mobile instead of
+   the fixed-`rem` columns eating a bigger and bigger share of an ever-narrower table (that mismatch —
+   `rem` columns fixed, only Entity/What-happens as `%` — was what left nothing for Why on mobile in an
+   earlier draft of this fix). Scoped to `.publish-content-report .list-table`, never bare `.list-table`,
+   so none of the other ~15 admin screens sharing that class lose their own `auto` content-sizing. */
+.publish-content-report .list-table {
+  table-layout: fixed;
+}
+
+.publish-content-report .list-table th:nth-child(2) {
+  width: 10%;
+}
+
+/* The type column is a short word ('post', 'media', 'theme-files') and should not claim a share of
+   the row; ellipsis is a defensive floor, not the expected case — every real value fits. */
 .publish-content-report td:nth-child(2) {
   font-size: var(--text-2xs);
   color: var(--muted);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.publish-content-report .list-table th:nth-child(3) {
+  width: 22%;
 }
 
 /* The entity column now carries a slug or a title, not a uuid — monospace and `break-all` were
-   there to make an opaque id scannable and would only make readable words harder to read. The width
-   cap stops one long slug from taking the reason column's room. */
+   there to make an opaque id scannable and would only make readable words harder to read. The column
+   width (set on the `<th>` above — see this file's header) stops one long slug from taking the reason
+   column's room; `overflow`/`text-overflow` here still do the actual per-cell clipping. */
 .publish-content-report td:nth-child(3) {
-  max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.publish-content-report .list-table th:nth-child(4) {
+  width: 22%;
+}
+
 /* The checkbox column: as narrow as the control, centred, and never a click target wider than it
-   looks. */
+   looks. A percentage (not the old fixed `rem`) so it shrinks with every other column at 390px rather
+   than holding its full desktop width while the flexible Why column gives up all of its own — see
+   this file's header. */
 .publish-content-report .publish-content-select {
-  width: 2.25rem;
+  width: 8%;
   padding-right: 0;
   text-align: center;
   vertical-align: middle;
+}
+
+/* The "Overwrite on live" column: only rendered while at least one row in the current plan offers it
+   (`PublishContentDialog.tsx`'s `showOverwriteColumn`), so it costs no width the rest of the time. */
+.publish-content-report .publish-content-overwrite {
+  width: 14%;
+  white-space: normal;
 }
 
 .publish-content-report .publish-content-select input {
@@ -78,7 +123,12 @@
 }
 
 /* The reason column carries the only text in this dialog an operator has to actually read — a
-   skipped row's explanation — so it gets the room, and wraps rather than truncating. */
+   skipped row's explanation — so it gets the room, and wraps rather than truncating. It is
+   deliberately the one column above with no declared `width`: under the fixed table layout this file's
+   header explains, an unspecified column receives whatever the other five leave behind, which is what
+   makes it the room-getting column rather than a fixed share. `max-width` stays as a defensive cap for
+   an unusually wide window — the dialog itself is already capped at 48rem, so 22rem is rarely the
+   binding constraint, but a column with no other ceiling should still have one. */
 .publish-content-reason {
   white-space: normal;
   max-width: 22rem;
