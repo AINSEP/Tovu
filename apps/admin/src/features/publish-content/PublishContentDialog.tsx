@@ -238,6 +238,19 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                             aria-label={`${t("Publish")} ${row.entityType} ${row.entityLabel}`}
                           />
                         )}
+                        {/* Owner decision 2026-09-25 — media carried along with the pages/posts
+                            that use it: shown ticked while one of them is, and never clickable
+                            itself (it follows those rows, not the operator). */}
+                        {row.includedFor.length > 0 && (
+                          <input
+                            type="checkbox"
+                            checked={view.carriedAlongKeys.has(row.key)}
+                            disabled
+                            readOnly
+                            data-publish-row-carried=""
+                            aria-label={`${t("Publish")} ${row.entityType} ${row.entityLabel}`}
+                          />
+                        )}
                       </td>
                       <td>{row.entityType}</td>
                       {/* The id stays reachable as a tooltip — it is what a support conversation
@@ -246,7 +259,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                       <td>
                         <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
                       </td>
-                      <td className="publish-content-reason">{row.reason ?? ""}</td>
+                      <td className="publish-content-reason">{row.usedByNote ? t(row.usedByNote) : (row.reason ?? "")}</td>
                       {showOverwriteColumn && (
                         <td className="publish-content-overwrite">
                           {/* Only an offered row (overwritable, or already ticked) carries this

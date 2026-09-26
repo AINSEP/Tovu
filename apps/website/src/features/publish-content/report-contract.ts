@@ -68,6 +68,13 @@ export interface PublishContentOutcomeRowDto {
    * before choosing to overwrite it.
    */
   readonly referencedBy?: readonly PublishContentReferenceHolderDto[];
+  /**
+   * Owner decision 2026-09-25 — present ONLY on a media row a scoped pages/posts run carried along
+   * because those items reference it (`report-labels.ts`'s `keepChangingIncludedMedia`, added by the
+   * SOURCE after the peer plans — never by the planner itself): the referrers' `entityKey`s. The
+   * dialog renders such a row pre-ticked and untickable. Absent on every other row.
+   */
+  readonly includedFor?: readonly string[];
 }
 
 /** The only report shape serialized for publish-content clients. */

@@ -355,3 +355,160 @@ test("push/plan treats an absent scope as 'everything' — both types are staged
     ["page:p1", "page:p2", "theme-files:static/basic"]
   );
 });
+
+/**
+ * Owner decision 2026-09-25 — "images go along with pages and posts". A pages-scoped push stages the
+ * media its pages reference (and only those), and the report shows a carried-along media row ONLY
+ * when live would change — created or updated — tagged with the pages that use it.
+ */
+function registerPagesWithMedia(): void {
+  resetPublishContentContributorsForTests();
+  const withState = (entityType: string, id: string, state: Record<string, unknown>): PackedEntity => ({
+    ...entity(entityType, id),
+    state,
+  });
+  const fixture = (entityType: string, dependsOn: string[], rows: PackedEntity[]): PublishContentContributor => ({
+    entityType,
+    dependsOn,
+    build: () => ({
+      entityType,
+      schemaVersion: 1,
+      permission: "publish_content.read",
+      dependsOn,
+      async *pack() {
+        for (const e of rows) yield e;
+      },
+      inspect: async () => null,
+      precheck: async () => null,
+      apply: async () => {
+        throw new Error("not exercised by this test");
+      },
+    }),
+  });
+  registerPublishContentContributor(
+    fixture("media", [], [
+      withState("media", "m-new", { slug: "new-shot" }),
+      withState("media", "m-same", { slug: "same-shot" }),
+      withState("media", "m-unused", { slug: "unused-shot" }),
+    ])
+  );
+  registerPublishContentContributor(
+    fixture("page", ["media"], [
+      withState("page", "p1", {
+        bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "m-new" } }] },
+        bodyHtml: null,
+      }),
+      withState("page", "p2", { bodyJson: null, bodyHtml: `<img src="/m/same-shot/original">` }),
+    ])
+  );
+}
+
+/** A peer that plans every staged entity: `m-same` is already on live, everything else is new. */
+function planningPeerHttpClient(onBundle: (entities: PackedEntity[]) => void): HttpClientPort {
+  let staged: PackedEntity[] = [];
+  return {
+    send: async (request) => {
+      if (request.url.includes("/capabilities")) {
+        return { status: 200, headers: {}, bodyText: JSON.stringify({ entityTypes: ["page", "media"], features: [] }) };
+      }
+      if (request.url.includes("/bundles")) {
+        staged = (JSON.parse(String(request.body ?? "{}")) as { entities?: PackedEntity[] }).entities ?? [];
+        onBundle(staged);
+        return { status: 201, headers: {}, bodyText: JSON.stringify({ bundleId: "remote-bundle-1" }) };
+      }
+      if (request.url.includes("/import/plan")) {
+        const rows = staged.map((e) => ({
+          entityType: e.entityType,
+          entityId: e.id,
+          outcome: e.id === "m-same" ? "unchanged" : "created",
+          writes: e.id !== "m-same",
+          reason: null,
+        }));
+        return {
+          status: 200,
+          headers: {},
+          bodyText: JSON.stringify({
+            domain: "publish_content.import",
+            planId: "p1",
+            planHash: "h1",
+            details: { refused: false, refusalReason: null, applyOrder: ["media", "page"], rows },
+          }),
+        };
+      }
+      throw new Error(`unexpected request: ${request.method} ${request.url}`);
+    },
+  };
+}
+
+test("a pages-scoped plan carries referenced media along and shows only the media live would change", async (t) => {
+  registerPagesWithMedia();
+  t.after(() => resetPublishContentContributorsForTests());
+
+  let stagedEntities: PackedEntity[] = [];
+  const { app } = buildApp(planningPeerHttpClient((entities) => (stagedEntities = entities)));
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ scope: { entityTypes: ["page"] } }),
+  });
+  const raw = await res.text();
+  assert.equal(res.status, 200, raw);
+  assert.deepEqual(
+    stagedEntities.map((e) => `${e.entityType}:${e.id}`).sort(),
+    ["media:m-new", "media:m-same", "page:p1", "page:p2"],
+    "referenced media are staged; an unreferenced one never is"
+  );
+  const body = JSON.parse(raw) as { details: { rows: Array<{ entityId: string; includedFor?: string[] }> } };
+  assert.deepEqual(
+    body.details.rows.map((row) => [row.entityId, row.includedFor ?? null]),
+    [
+      ["m-new", ["page:p1"]],
+      ["p1", null],
+      ["p2", null],
+    ],
+    "the already-up-to-date media row is not shown"
+  );
+});
+
+test("a deselected page's media is not staged on the narrowed re-plan", async (t) => {
+  registerPagesWithMedia();
+  t.after(() => resetPublishContentContributorsForTests());
+
+  let stagedEntities: PackedEntity[] = [];
+  const { app } = buildApp(planningPeerHttpClient((entities) => (stagedEntities = entities)));
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ scope: { entityTypes: ["page"] }, selectedEntityKeys: ["page:p2"] }),
+  });
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.deepEqual(stagedEntities.map((e) => `${e.entityType}:${e.id}`).sort(), ["media:m-same", "page:p2"]);
+});
+
+test("an unscoped plan adds nothing — every media row is an ordinary row", async (t) => {
+  registerPagesWithMedia();
+  t.after(() => resetPublishContentContributorsForTests());
+
+  const { app } = buildApp(planningPeerHttpClient(() => {}));
+  const server = await startTestServer(app, t);
+  await createPeer(server);
+
+  const res = await fetch(`${server}${BASE}/peer-1/push/plan`, { method: "POST" });
+  const body = (await res.json()) as { details: { rows: Array<{ entityId: string; includedFor?: string[] }> } };
+  assert.deepEqual(
+    body.details.rows.map((row) => [row.entityId, row.includedFor ?? null]),
+    [
+      ["m-new", null],
+      ["m-same", null],
+      ["m-unused", null],
+      ["p1", null],
+      ["p2", null],
+    ]
+  );
+});

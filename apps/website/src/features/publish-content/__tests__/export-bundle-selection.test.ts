@@ -3,7 +3,12 @@ import test from "node:test";
 
 import { CONTENT_HASH_VERSION } from "../content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
-import { applyPublishScope, selectBundleEntities, type PublishContentExportEnvelope } from "../export-bundle.js";
+import {
+  applyPublishScope,
+  includeReferencedMedia,
+  selectBundleEntities,
+  type PublishContentExportEnvelope,
+} from "../export-bundle.js";
 import { entityKey } from "../planner.js";
 import type { PackedEntity } from "../type-registry.js";
 
@@ -166,4 +171,64 @@ test("applyPublishScope carries envelope metadata through untouched and never mu
   assert.equal(scoped.sourceLabel, SCOPED_ENVELOPE.sourceLabel);
   assert.equal(SCOPED_ENVELOPE.entities.length, 3, "the original envelope is never mutated");
   assert.equal(SCOPED_ENVELOPE.skipped.length, 1, "the original envelope is never mutated");
+});
+
+/**
+ * @file `includeReferencedMedia` — owner decision 2026-09-25: a scoped "Publish pages"/"Publish
+ * posts" (or per-item) run carries along the media its in-scope pages/posts actually reference, and
+ * nothing else. Matched by media id OR slug (a `/m/{slug}/…` URL), never adding a media row the
+ * narrowed bundle already holds, and never touching anything that is not referenced.
+ */
+function stated(entityType: string, id: string, state: Record<string, unknown>, requiredBlobs: readonly string[] = []): PackedEntity {
+  return { ...entity({ entityType, id, requiredBlobs }), state };
+}
+
+const REF_SOURCE: PublishContentExportEnvelope = {
+  ...ENVELOPE,
+  entities: [
+    stated("media", "m1", { slug: "logo" }, ["sha-a"]),
+    stated("media", "m2", { slug: "hero" }, ["sha-b"]),
+    stated("media", "m3", { slug: "unused" }, ["sha-c"]),
+    stated("page", "pg1", { bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "m1" } }] } }),
+    stated("page", "pg2", { bodyHtml: `<img src="/m/hero/original">`, seoExtJson: JSON.stringify({ ogImage: "m1:public" }) }),
+    stated("redirect", "r1", { bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "m3" } }] } }),
+  ],
+  blobManifest: ["sha-a", "sha-b", "sha-c"],
+};
+
+test("includeReferencedMedia adds exactly the media the kept pages reference, by id or slug", () => {
+  const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["page"] });
+  const { envelope, includedFor } = includeReferencedMedia(scoped, REF_SOURCE);
+
+  assert.deepEqual(
+    envelope.entities.map((e) => entityKey(e.entityType, e.id)).sort(),
+    ["media:m1", "media:m2", "page:pg1", "page:pg2"]
+  );
+  assert.deepEqual(envelope.blobManifest.slice().sort(), ["sha-a", "sha-b"], "an unreferenced asset's bytes never travel");
+  assert.deepEqual(Object.fromEntries(includedFor), { "media:m1": ["page:pg1", "page:pg2"], "media:m2": ["page:pg2"] });
+});
+
+test("includeReferencedMedia follows the operator's row selection — a deselected page brings nothing", () => {
+  const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["page"] });
+  const selected = selectBundleEntities(scoped, new Set([entityKey("page", "pg1")]));
+  const { envelope, includedFor } = includeReferencedMedia(selected, REF_SOURCE);
+
+  assert.deepEqual(envelope.entities.map((e) => entityKey(e.entityType, e.id)).sort(), ["media:m1", "page:pg1"]);
+  assert.deepEqual(Object.fromEntries(includedFor), { "media:m1": ["page:pg1"] });
+});
+
+test("includeReferencedMedia never reads references off a type that is not a page or post", () => {
+  const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["redirect"] });
+  const { envelope, includedFor } = includeReferencedMedia(scoped, REF_SOURCE);
+
+  assert.deepEqual(envelope.entities.map((e) => e.id), ["r1"]);
+  assert.equal(includedFor.size, 0);
+});
+
+test("includeReferencedMedia leaves a media row the bundle already holds as an ordinary row", () => {
+  const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["page", "media"] });
+  const { envelope, includedFor } = includeReferencedMedia(scoped, REF_SOURCE);
+
+  assert.equal(envelope.entities.length, scoped.entities.length, "nothing is added twice");
+  assert.equal(includedFor.size, 0, "an in-scope media row is the operator's own choice, not an add-on");
 });

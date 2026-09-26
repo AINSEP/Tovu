@@ -99,3 +99,43 @@ export function appendSkippedRowsToPeerPlan(plan: PeerPlanEnvelope, skipped: rea
 
   return { ...plan, details: { ...details, rows: [...details.rows, ...skippedRows] } };
 }
+
+/** The planner outcomes that change live: a brand-new row, or an update to one live already holds.
+ *  `forced` is deliberately absent — a carried-along row offers no Overwrite tick, so it never is. */
+const CHANGING_OUTCOMES: ReadonlySet<string> = new Set(["created", "applied"]);
+
+/**
+ * Owner decision 2026-09-25 — the report half of "images go along with pages and posts"
+ * (`export-bundle.ts`'s `includeReferencedMedia` is the bundle half). A media row that was carried
+ * along for in-scope pages/posts is SHOWN only when live would actually change — created or updated
+ * — and then carries `includedFor` (the referrer keys), which the dialog renders as a pre-ticked,
+ * untickable row noting who uses it. Every other outcome for such a row is dropped from the report:
+ * `unchanged` has nothing to say, and a `conflict`/`blocked` carried-along row writes nothing
+ * (`writes: false`), so hiding it changes nothing the run does. A row NOT carried along — including
+ * an ordinary media row — passes through exactly as it arrived.
+ *
+ * Returns the envelope unchanged when it is not the expected shape (mirrors {@link labelPeerPlanRows})
+ * or when nothing was carried along.
+ *
+ * @complexity O(r) in the report's row count; O(r) space for the copied `rows` array.
+ */
+export function keepChangingIncludedMedia(
+  plan: PeerPlanEnvelope,
+  includedFor: ReadonlyMap<string, readonly string[]>
+): PeerPlanEnvelope {
+  if (includedFor.size === 0) return plan;
+  const details = plan.details;
+  if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
+
+  const rows: unknown[] = [];
+  for (const row of details.rows) {
+    if (!isRecord(row)) {
+      rows.push(row);
+      continue;
+    }
+    const referrers = includedFor.get(entityKey(String(row.entityType ?? ""), String(row.entityId ?? "")));
+    if (referrers === undefined) rows.push(row);
+    else if (CHANGING_OUTCOMES.has(String(row.outcome))) rows.push({ ...row, includedFor: referrers });
+  }
+  return { ...plan, details: { ...details, rows } };
+}

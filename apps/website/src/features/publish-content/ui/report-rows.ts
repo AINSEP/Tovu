@@ -80,6 +80,16 @@ export interface PublishReportRow {
    * row that retires nothing, and for a retire target with no live references at all.
    */
   readonly referencedByLabels: readonly string[];
+  /**
+   * Owner decision 2026-09-25 — the `entityKey`s of the in-scope pages/posts a carried-along media
+   * row was brought along for (`PublishContentOutcomeRowDto.includedFor`). Empty for every other row.
+   * A non-empty list makes the row pre-ticked and untickable: never {@link selectable}, but counted as
+   * publishing while any of these keys is still ticked ({@link countSelectedPublishing}).
+   */
+  readonly includedFor: readonly string[];
+  /** The dialog's note for a carried-along row — see {@link usedByNoteFor}. `null` on every other
+   *  row. English source text; the dialog translates it. */
+  readonly usedByNote: string | null;
 }
 
 /** What the counts under the table add up to. */
@@ -264,6 +274,18 @@ function referencedByLabelsFor(row: PublishContentOutcomeRow): readonly string[]
   return holders.map((holder) => labelOrShortId(holder.entityLabel, holder.entityId));
 }
 
+/**
+ * The note a carried-along media row shows, named by the types of the pages/posts that use it.
+ *
+ * @complexity O(k) in the referrer count.
+ */
+function usedByNoteFor(includedFor: readonly string[]): string | null {
+  if (includedFor.length === 0) return null;
+  const types = new Set(includedFor.map((key) => key.slice(0, key.indexOf(":"))));
+  if (types.has("page") && types.has("post")) return "Used by these pages and posts";
+  return types.has("post") ? "Used by these posts" : "Used by these pages";
+}
+
 const DISPOSITION_BY_OUTCOME: Readonly<Record<PublishContentOutcomeRow["outcome"], PublishRowDisposition>> = {
   created: "publish",
   applied: "publish",
@@ -306,12 +328,13 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
   return report.rows.map((row) => {
     const disposition = publishRowDisposition(row);
     const rawReason = disposition === "skipped" ? (row.reason ?? MISSING_REASON) : row.reason;
+    const includedFor = row.includedFor ?? [];
     return {
       key: `${row.entityType}:${row.entityId}`,
       entityType: row.entityType,
       entityId: row.entityId,
       entityLabel: displayLabelFor(row),
-      selectable: disposition === "publish",
+      selectable: disposition === "publish" && includedFor.length === 0,
       outcome: row.outcome,
       disposition,
       dispositionLabel: LABEL_BY_OUTCOME[row.outcome],
@@ -320,6 +343,8 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
       overwritable: disposition === "skipped" && row.canOverwrite === true,
       retiresLabel: retiresLabelFor(row),
       referencedByLabels: referencedByLabelsFor(row),
+      includedFor,
+      usedByNote: usedByNoteFor(includedFor),
     };
   });
 }
@@ -360,16 +385,29 @@ export function selectableRowKeys(rows: readonly PublishReportRow[]): readonly s
 }
 
 /**
+ * Whether this row publishes given the operator's current selection: a selectable row when it is
+ * ticked, a carried-along row ({@link PublishReportRow.includedFor}) while any page/post that uses it
+ * is ticked — the same rule `push/plan`'s narrowed re-plan applies when it re-derives what to carry.
+ *
+ * @complexity O(k) in the row's referrer count.
+ */
+export function rowPublishesWithSelection(row: PublishReportRow, selected: ReadonlySet<string>): boolean {
+  if (row.selectable) return selected.has(row.key);
+  return row.disposition === "publish" && row.includedFor.some((key) => selected.has(key));
+}
+
+/**
  * How many rows this run would actually write given the operator's current selection — the number
  * the primary button commits to out loud.
  *
  * Counts the INTERSECTION rather than `selected.size`: a key left over from a previous plan, or one
- * naming a row that is no longer selectable, must not inflate the promise on the button.
+ * naming a row that is no longer selectable, must not inflate the promise on the button. A
+ * carried-along row counts through {@link rowPublishesWithSelection}.
  *
- * @complexity O(n), single pass.
+ * @complexity O(n·k), single pass; `k` is a carried-along row's referrer count.
  */
 export function countSelectedPublishing(rows: readonly PublishReportRow[], selected: ReadonlySet<string>): number {
   let count = 0;
-  for (const row of rows) if (row.selectable && selected.has(row.key)) count += 1;
+  for (const row of rows) if (rowPublishesWithSelection(row, selected)) count += 1;
   return count;
 }

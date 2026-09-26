@@ -1,5 +1,6 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
+import { collectReferencedMediaKeys } from "./media-references.js";
 import { entityKey } from "./planner.js";
 import {
   buildPublishContentCatalog,
@@ -198,6 +199,80 @@ export function applyPublishScope(
   const skipped = envelope.skipped.filter((entry) => matchesScope(entry.entityType, entry.id));
 
   return { ...envelope, entities, blobManifest: Array.from(requiredBlobs), skipped };
+}
+
+/** Types whose packed state can embed media (`features/post/publish-content.ts` — both declare
+ *  `dependsOn: ["media"]` and share the one `bodyJson`/`bodyHtml`/`seoExtJson` state shape
+ *  {@link collectReferencedMediaKeys} reads). A type outside this set never pulls media in. */
+const MEDIA_REFERRER_TYPES: ReadonlySet<string> = new Set(["page", "post"]);
+
+const MEDIA_ENTITY_TYPE = "media";
+
+/** What {@link includeReferencedMedia} returns: the widened envelope, plus which in-scope
+ *  pages/posts each ADDED media entity was carried along for (keyed and valued by
+ *  {@link entityKey}). A media row the envelope already held is never in `includedFor`. */
+export interface ReferencedMediaInclusion {
+  readonly envelope: PublishContentExportEnvelope;
+  readonly includedFor: ReadonlyMap<string, readonly string[]>;
+}
+
+/**
+ * Owner decision 2026-09-25 — "images go along with pages and posts". Widens an already-scoped (and
+ * already row-selected) envelope with every media entity from `source` that a page or post still in
+ * `envelope` references ({@link collectReferencedMediaKeys}), matched by media id or slug.
+ *
+ * Runs AFTER {@link applyPublishScope} and {@link selectBundleEntities} on `push/plan`, so what is
+ * carried along is derived from the pages/posts actually being published: a deselected page brings
+ * nothing, and select-all, confirm's narrowed re-plan and execute all see the same rule because the
+ * bundle the peer plans IS the bundle it executes. Never adds anything but referenced media (and
+ * `source` never holds a trashed row — every handler's `pack()` skips them), and never adds a media
+ * row `envelope` already holds: an in-scope media row is the operator's own choice, not an add-on.
+ *
+ * Added media come FIRST, ahead of the kept entities, matching the `dependsOn` apply order a page
+ * needs (media before the page embedding it). Whether an added row is then SHOWN is decided after
+ * the peer plans it — `report-labels.ts`'s `keepChangingIncludedMedia`.
+ *
+ * @complexity O(e + s + b) time — one pass over the kept entities, one over `source`, plus the total
+ * size `b` of the referrer states scanned; O(m) extra space in the referenced key count.
+ */
+export function includeReferencedMedia(
+  envelope: PublishContentExportEnvelope,
+  source: PublishContentExportEnvelope
+): ReferencedMediaInclusion {
+  const referrersByMediaKey = new Map<string, string[]>();
+  for (const entity of envelope.entities) {
+    if (!MEDIA_REFERRER_TYPES.has(entity.entityType)) continue;
+    const referrer = entityKey(entity.entityType, entity.id);
+    for (const key of collectReferencedMediaKeys(entity.state)) {
+      const list = referrersByMediaKey.get(key) ?? [];
+      list.push(referrer);
+      referrersByMediaKey.set(key, list);
+    }
+  }
+  if (referrersByMediaKey.size === 0) return { envelope, includedFor: new Map() };
+
+  const alreadyHeld = new Set(envelope.entities.map((entity) => entityKey(entity.entityType, entity.id)));
+  const added: PackedEntity[] = [];
+  const includedFor = new Map<string, readonly string[]>();
+  for (const media of source.entities) {
+    if (media.entityType !== MEDIA_ENTITY_TYPE) continue;
+    const key = entityKey(media.entityType, media.id);
+    if (alreadyHeld.has(key)) continue;
+    const slug = typeof media.state.slug === "string" ? media.state.slug : null;
+    const referrers = new Set([
+      ...(referrersByMediaKey.get(media.id) ?? []),
+      ...(slug === null ? [] : (referrersByMediaKey.get(slug) ?? [])),
+    ]);
+    if (referrers.size === 0) continue;
+    added.push(media);
+    includedFor.set(key, [...referrers].sort());
+  }
+  if (added.length === 0) return { envelope, includedFor };
+
+  const entities = [...added, ...envelope.entities];
+  const requiredBlobs = new Set<string>();
+  for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
+  return { envelope: { ...envelope, entities, blobManifest: Array.from(requiredBlobs) }, includedFor };
 }
 
 /**

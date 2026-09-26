@@ -1408,3 +1408,40 @@ describe("PublishContentDialog — criteria-driven open (publish-criteria plan �
     expect(result.willPublish).toEqual(expect.arrayContaining(["Home", "Main Menu"]));
   });
 });
+
+/**
+ * Owner decision 2026-09-25 — media carried along with a scoped pages/posts run (`includedFor` on the
+ * row, set by `push/plan`) shows as a normal row, pre-ticked and untickable, noting who uses it, and
+ * counts toward the button only while a page that uses it is still ticked.
+ */
+const CARRIED_MEDIA_REPORT: PublishContentReport = {
+  refused: false,
+  refusalReason: null,
+  applyOrder: ["media", "page"],
+  rows: [
+    { entityType: "media", entityId: "m-hero", entityLabel: "hero-png", outcome: "created", writes: true, reason: null, includedFor: ["page:pg-home"] },
+    { entityType: "page", entityId: "pg-home", entityLabel: "home", outcome: "applied", writes: true, reason: null },
+    { entityType: "page", entityId: "pg-about", entityLabel: "about", outcome: "created", writes: true, reason: null },
+  ],
+};
+
+describe("PublishContentDialog — media carried along with pages", () => {
+  it("renders the carried-along media row ticked, untickable, and noted", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: CARRIED_MEDIA_REPORT });
+    await planFrom(port);
+
+    const box = rowCheckbox("m-hero");
+    expect(box?.checked).toBe(true);
+    expect(box?.disabled).toBe(true);
+    expect(within(reportRow("m-hero")).getByText("Used by these pages")).toBeTruthy();
+    expect(primaryButton().textContent).toBe("Publish 3 items");
+  });
+
+  it("stops counting the media once the page that uses it is unticked", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: CARRIED_MEDIA_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(rowCheckbox("pg-home")!);
+    expect(primaryButton().textContent).toBe("Publish 1 item");
+  });
+});

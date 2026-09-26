@@ -369,3 +369,47 @@ test("toPublishReportRows rewrites a skipped row's reason for a non-technical ow
   );
   assert.equal(shaped.reason, "Different version already on the live site. Tick Overwrite to replace it.");
 });
+
+/**
+ * Owner decision 2026-09-25 — media carried along with a scoped pages/posts run
+ * (`report-labels.ts`'s `keepChangingIncludedMedia` sets `includedFor`). Pre-ticked and untickable:
+ * never selectable, but counted as publishing whenever a page/post that uses it is still ticked.
+ */
+test("a carried-along media row is untickable and notes the pages that use it", () => {
+  const [media] = toPublishReportRows(
+    report([row({ outcome: "created", entityType: "media", entityId: "m1", includedFor: ["page:pg1", "page:pg2"] })])
+  );
+  assert.equal(media?.selectable, false);
+  assert.equal(media?.disposition, "publish");
+  assert.deepEqual(media?.includedFor, ["page:pg1", "page:pg2"]);
+  assert.equal(media?.usedByNote, "Used by these pages");
+});
+
+test("the carried-along note names posts, or both, by the referrers' own types", () => {
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "created", entityType: "media", entityId: "m1", includedFor: ["post:p1"] }),
+      row({ outcome: "applied", entityType: "media", entityId: "m2", includedFor: ["page:pg1", "post:p1"] }),
+      row({ outcome: "created", entityType: "media", entityId: "m3" }),
+    ])
+  );
+  assert.deepEqual(
+    rows.map((r) => r.usedByNote),
+    ["Used by these posts", "Used by these pages and posts", null]
+  );
+  assert.deepEqual(rows[2]?.includedFor, [], "an ordinary row carries no referrers");
+  assert.equal(rows[2]?.selectable, true);
+});
+
+test("a carried-along row counts toward the button only while a page that uses it is ticked", () => {
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "created", entityType: "media", entityId: "m1", includedFor: ["page:pg1"] }),
+      row({ outcome: "created", entityType: "page", entityId: "pg1" }),
+      row({ outcome: "created", entityType: "page", entityId: "pg2" }),
+    ])
+  );
+  assert.deepEqual(selectableRowKeys(rows), ["page:pg1", "page:pg2"], "the media row is never a selection key");
+  assert.equal(countSelectedPublishing(rows, new Set(["page:pg1", "page:pg2"])), 3);
+  assert.equal(countSelectedPublishing(rows, new Set(["page:pg2"])), 1);
+});

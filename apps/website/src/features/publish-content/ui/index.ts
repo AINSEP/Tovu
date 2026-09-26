@@ -35,6 +35,7 @@ export type { PublishReportRow, PublishReportSummary, PublishRowDisposition } fr
 export {
   countSelectedPublishing,
   publishRowDisposition,
+  rowPublishesWithSelection,
   selectableRowKeys,
   summarizePublishReport,
   toPublishReportRows,

@@ -2,7 +2,12 @@ import type { Response } from "express";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { stageBundle } from "#src/features/publish-content/bundle-staging";
-import { applyPublishScope, buildExportBundle, selectBundleEntities } from "#src/features/publish-content/export-bundle";
+import {
+  applyPublishScope,
+  buildExportBundle,
+  includeReferencedMedia,
+  selectBundleEntities,
+} from "#src/features/publish-content/export-bundle";
 import type { PublishScope } from "#src/features/publish-content/ui/contract";
 import {
   confirmPeerImport,
@@ -13,7 +18,11 @@ import {
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
-import { appendSkippedRowsToPeerPlan, labelPeerPlanRows } from "#src/features/publish-content/report-labels";
+import {
+  appendSkippedRowsToPeerPlan,
+  keepChangingIncludedMedia,
+  labelPeerPlanRows,
+} from "#src/features/publish-content/report-labels";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import {
   PublishContentPeerCredentialMissingError,
@@ -292,7 +301,13 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       // A selection narrows what is STAGED, before the peer plans it — so a deselected entity is
       // never uploaded, never planned and never applied, rather than being filtered out by some
       // later step that could forget. See `export-bundle.ts`'s `selectBundleEntities`.
-      const bundle = selectedEntityKeys === null ? scoped : selectBundleEntities(scoped, new Set(selectedEntityKeys));
+      const selected = selectedEntityKeys === null ? scoped : selectBundleEntities(scoped, new Set(selectedEntityKeys));
+      // Owner decision 2026-09-25: a SCOPED run carries along the media its (still-selected) pages
+      // and posts reference, drawn from the full bundle — derived after the selection, so a
+      // deselected page brings nothing and a narrowed re-plan re-derives the same rule. An unscoped
+      // run already holds every media row as an ordinary one. See `includeReferencedMedia`.
+      const { envelope: bundle, includedFor } =
+        scopeResult.scope === null ? { envelope: selected, includedFor: new Map<string, readonly string[]>() } : includeReferencedMedia(selected, fullBundle);
 
       const result = await pushBundleToPeer(
         {
@@ -351,7 +366,13 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         // (possibly selection-narrowed) `bundle`: a skipped unit was never selectable, so an
         // operator's row selection has nothing to say about whether it is still shown, but `scope`
         // itself still applies — a refused theme tree only belongs in a theme-files-scoped plan.
-        ...appendSkippedRowsToPeerPlan(labelPeerPlanRows(result.plan, bundle.entities), scoped.skipped),
+        //
+        // Last, a carried-along media row is kept only when live would change (created/updated) and
+        // is tagged with the pages/posts that use it — `report-labels.ts`'s `keepChangingIncludedMedia`.
+        ...appendSkippedRowsToPeerPlan(
+          keepChangingIncludedMedia(labelPeerPlanRows(result.plan, bundle.entities), includedFor),
+          scoped.skipped
+        ),
       });
     } catch (err) {
       respondWithError(res, err);

@@ -7,6 +7,7 @@ import {
   confirmationTokenFor,
   countSelectedPublishing,
   planOnScreen,
+  rowPublishesWithSelection,
   selectableRowKeys,
   summarizePublishReport,
   toPublishReportRows,
@@ -92,6 +93,10 @@ export interface PublishContentConfirmView {
   /** The keys of the rows this run would publish — every {@link PublishReportRow.selectable} row the
    *  operator has not unchecked. Rows that are not selectable are never in here. */
   readonly selectedKeys: ReadonlySet<string>;
+  /** Owner decision 2026-09-25 — the carried-along media rows ({@link PublishReportRow.includedFor})
+   *  that currently publish, because a page/post that uses them is still ticked. Their checkbox is
+   *  shown ticked (and never clickable) exactly when the row is in here. */
+  readonly carriedAlongKeys: ReadonlySet<string>;
   readonly onToggleRow: (key: string) => void;
   /** Checks every selectable row, or unchecks every one of them when any is currently checked. */
   readonly onToggleAll: () => void;
@@ -382,8 +387,10 @@ function buildCriteriaPublishResult(
   const willPublish: string[] = [];
   const willOverwrite: string[] = [];
   const leftAlone: { label: string; reason: string }[] = [];
+  const selected = new Set(selectableRowKeys(rows).filter((key) => !selection.deselectedKeys.has(key)));
   for (const row of rows) {
-    if (row.selectable && !selection.deselectedKeys.has(row.key)) {
+    // A carried-along media row publishes with the pages/posts that use it (`rowPublishesWithSelection`).
+    if (rowPublishesWithSelection(row, selected)) {
       willPublish.push(row.entityLabel);
       if (row.outcome === "forced") willOverwrite.push(row.entityLabel);
     } else if (row.disposition === "skipped") {
@@ -795,6 +802,9 @@ export function usePublishContentConfirm(props: {
   const selectableKeys = selectableRowKeys(rows);
   const selectedKeys: ReadonlySet<string> = new Set(selectableKeys.filter((key) => !deselectedKeys.has(key)));
   const selectedPublishing = countSelectedPublishing(rows, selectedKeys);
+  const carriedAlongKeys: ReadonlySet<string> = new Set(
+    rows.filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection(row, selectedKeys)).map((row) => row.key)
+  );
   const allSelected = selectableKeys.length > 0 && selectedKeys.size === selectableKeys.length;
   const someSelected = selectedKeys.size > 0 && !allSelected;
 
@@ -963,6 +973,7 @@ export function usePublishContentConfirm(props: {
     rows,
     summary,
     selectedKeys,
+    carriedAlongKeys,
     onToggleRow,
     onToggleAll,
     selectionEnabled,
