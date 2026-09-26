@@ -73,6 +73,12 @@ export {
 } from "./active-site.js";
 export { duplicateSite, type DuplicateSiteRequired, type DuplicateSiteResult } from "./duplicate-site.js";
 /**
+ * `site-switcher-enabled.ts` joined 2026-09-26 from `server/runtime/composition/`: its callers are
+ * the admin "Sites" route module and `assistant/tool-registrations.ts`, and the latter importing the
+ * composition root was an `assistant <-> server` module cycle.
+ */
+export { isSiteSwitcherEnabled } from "./site-switcher-enabled.js";
+/**
  * `runtimeSchemaVersion` joined 2026-09-21: `features/site-backup/tool-registrations.ts` stamps it
  * into every backup plan, and it is the first `features/**` caller of `schema-guard.ts`. The guard
  * itself (`compareSchemaVersion`) stays boot-only, off this barrel (`no-deep-imports:platform/site-dir`

@@ -19,8 +19,9 @@ import {
  * `features/**` is allowed to import `platform/**` (`.dependency-cruiser.mjs`'s
  * `feature-no-server-or-framework-imports` only forbids `apps/website/src/server`/Express/
  * `apps/admin`). `isSiteSwitcherEnabled` is deliberately NOT defaulted here: its real
- * implementation lives under `server/runtime/composition/` (`site-switcher-enabled.ts`), which
- * THAT rule DOES forbid a `features/**` module from importing. Exactly like
+ * implementation (`platform/site-dir/site-switcher-enabled.ts`, formerly under
+ * `server/runtime/composition/`, which THAT rule forbids a `features/**` module from importing) is
+ * supplied from outside. Exactly like
  * `assistant/tool-registrations.ts`'s own `StaticPublishToolDeps.vendorCredentials` (built once in
  * that file, into `enrichedRouteDeps`, because `features/deployments/publish-agent-tools.ts` cannot
  * import `features/vendor-credentials` without closing a module cycle), this domain's

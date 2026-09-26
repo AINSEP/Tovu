@@ -10,8 +10,8 @@ import {
   ValidationError,
   type ServingSiteListEntry,
   type SiteListEntry,
+  isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
 } from "#src/platform/site-dir/index";
-import { isSiteSwitcherEnabled as isSiteSwitcherEnabledReal } from "#src/server/runtime/composition/site-switcher-enabled";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";

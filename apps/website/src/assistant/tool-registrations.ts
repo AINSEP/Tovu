@@ -198,14 +198,11 @@ import type { SettingsToolDeps } from "../features/settings/tool-registrations.j
 import type { SiteInspectionToolDeps } from "../features/site-inspection/index.js";
 import type { SitesToolDeps } from "../features/sites/index.js";
 // This file's own real wiring for `SitesToolDeps.isSiteSwitcherEnabled` — that field is deliberately
-// NOT defaulted inside `features/sites/deps.ts`, because its real implementation lives under
-// `server/runtime/composition/`, which `.dependency-cruiser.mjs`'s `feature-no-server-or-framework-
-// imports` rule forbids a `features/**` module from importing. This IS the one place allowed to see
-// both sides — the same reasoning this file's own doc gives for being the sole place that sees
-// every domain's narrow type at once, and the same shape `StaticPublishToolDeps.vendorCredentials`
-// below already uses for the identical "features/deployments cannot import features/vendor-
-// credentials without closing a module cycle" problem.
-import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../server/runtime/composition/site-switcher-enabled.js";
+// NOT defaulted inside `features/sites/deps.ts`; this file fills it into `enrichedRouteDeps`, the
+// same shape `StaticPublishToolDeps.vendorCredentials` below already uses. The flag lives in
+// `platform/site-dir` (it used to live under `server/runtime/composition/`, which made this import
+// an `assistant <-> server` module cycle).
+import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../platform/site-dir/index.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";

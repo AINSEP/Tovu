@@ -222,9 +222,8 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * wiring `platform/site-dir/duplicate-site.ts`'s `duplicateSite` to the assistant, for the "a
  * designer/developer wants one site per client" workflow the admin Sites screen's own
  * `listSites`/`createSite` already serve. `features/sites/deps.ts`'s `SitesToolDeps` deliberately
- * does not default `isSiteSwitcherEnabled` itself (its real implementation lives under
- * `server/runtime/composition/`, off limits to `features/**` per `.dependency-cruiser.mjs`'s
- * `feature-no-server-or-framework-imports`) — `assistant/tool-registrations.ts`'s
+ * does not default `isSiteSwitcherEnabled` itself (its real implementation is
+ * `platform/site-dir/site-switcher-enabled.ts`) — `assistant/tool-registrations.ts`'s
  * `buildAssistantToolRegistrations` fills it into `enrichedRouteDeps`, the same seam that already
  * supplies `StaticPublishToolDeps.vendorCredentials` for the identical shape of problem.
  *
