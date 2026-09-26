@@ -71,7 +71,7 @@ Resolution lives in `src/site-dir/site-root.ts` (`resolveSiteRoot`), in preceden
 |---|---|
 | `TOVU_SITE_DIR` | absolute path to a site folder — what a container volume or Tovu-Runner passes |
 | `TOVU_SITE` | just the folder name under `<cwd>/sites/` |
-| default | `<cwd>/sites/tovu-com` |
+| default | `<cwd>/sites/tovu-dev` |
 
 `tovu serve <dir>` / `tovu init <dir>` take the directory directly and ignore both variables — the
 CLI is the same model with the path passed explicitly.

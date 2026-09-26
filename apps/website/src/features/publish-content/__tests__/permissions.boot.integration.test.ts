@@ -16,7 +16,7 @@ import "#src/features/publish-content/permissions";
  * @file Task 9 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §1.2/§4 task 9.
  *
- * ## Why this runs against a COPY of the real `sites/tovu-com/content.db`, not a fresh or simulated one
+ * ## Why this runs against a COPY of the real `sites/tovu-dev/content.db`, not a fresh or simulated one
  *
  * `publish_content.read`/`publish_content.apply` are granted directly to the built-in `admin`
  * role (`permissions.ts`), not fanned out from an existing anchor permission, so — unlike
@@ -30,7 +30,7 @@ import "#src/features/publish-content/permissions";
  * synthetic fixture can't reproduce.
  *
  * The real file is only ever READ (via `fs.copyFileSync`) into a throwaway temp directory. Nothing
- * in this file opens `sites/tovu-com/content.db` itself for writing, or at all.
+ * in this file opens `sites/tovu-dev/content.db` itself for writing, or at all.
  */
 
 /** Walked up from this test's own directory rather than guessed, same discipline as
@@ -38,12 +38,12 @@ import "#src/features/publish-content/permissions";
  *  ENOENT instead of silently testing the wrong file. */
 const REAL_CONTENT_DB_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../../../../../../sites/tovu-com/content.db"
+  "../../../../../../sites/tovu-dev/content.db"
 );
 
 /** The workspace slug/id this repo's real `content.db` seeds itself under (`workspaces.slug =
  *  'local-tovu'`, `workspaces.id = 'workspace-local'`) — verified directly against the file with
- *  `sqlite3 sites/tovu-com/content.db "select id, slug from workspaces"` while writing this test. */
+ *  `sqlite3 sites/tovu-dev/content.db "select id, slug from workspaces"` while writing this test. */
 const REAL_WORKSPACE_ID = "workspace-local";
 
 const PUBLISH_CONTENT_READ = "publish_content.read";

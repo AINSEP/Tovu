@@ -22,7 +22,7 @@ import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-co
  * @file Task 10 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 10.
  *
- * The real SQLite adapter against a COPY of this repo's real `sites/tovu-com/content.db` — the same
+ * The real SQLite adapter against a COPY of this repo's real `sites/tovu-dev/content.db` — the same
  * discipline (and the same copy helper shape) as `features/publish-content/__tests__/
  * permissions.boot.integration.test.ts`. The original is only ever READ, via `copyFileSync`.
  *
@@ -36,7 +36,7 @@ import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-co
 
 const REAL_CONTENT_DB_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../../../../../../../sites/tovu-com/content.db"
+  "../../../../../../../sites/tovu-dev/content.db"
 );
 
 const WORKSPACE_ID = "workspace-local";

@@ -12,7 +12,7 @@
  * and `duplicateSite` (`bcf09c62`) landed sixteen minutes later still excluding only `content.db`.
  *
  * A site directory is also where every backup, snapshot, and derived output lands. Observed in
- * `sites/tovu-com/` at the time of writing: `chat.db` + `chat.db-wal`/`-shm` + `chat.db.bak`,
+ * `sites/tovu-dev/` at the time of writing: `chat.db` + `chat.db-wal`/`-shm` + `chat.db.bak`,
  * `content.db.bak`, `content.db.predelete.bak`, `content.db.bak-<timestamp>`, `content.seed.db`,
  * seven `restore-point-*.db` snapshots (written BESIDE `content.db` by design — Jini
  * `infra/src/db/sqlite/db-ops.ts`), plus `ops/`'s operational journals and `out/`'s publish and

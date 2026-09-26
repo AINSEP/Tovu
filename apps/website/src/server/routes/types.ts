@@ -1664,7 +1664,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * inputs, so calling it twice was harmless there. They silently DISAGREE for `tovu serve <dir>`:
    * `cli/commands/serve.ts` resolves the served site directly from the CLI's `<dir>` argument
    * (`bootSiteDir`), never touching `TOVU_SITE_DIR`/`TOVU_SITE`, so a bare `describeSiteBinding()`
-   * call re-derives an unrelated `<process.cwd()>/sites/tovu-com` instead — reporting the wrong site
+   * call re-derives an unrelated `<process.cwd()>/sites/tovu-dev` instead — reporting the wrong site
    * as "currently serving" and, for the Sites-switcher's write operations, targeting the wrong
    * `sites/` tree entirely (2026-09-06 composition-root fix). `cli/commands/serve.ts` supplies this
    * field explicitly (`switcherCompatible: false` — see that flag's own doc); every other boot path

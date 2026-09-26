@@ -473,7 +473,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  * That last word is load-bearing and is the whole reason this function consults
  * `project-delete-guard.ts` rather than calling `fs.rm` on whatever id arrives. A tracked row can
  * point at a folder the app merely adopted (`seedDevFallbackSite` seeds exactly one such row,
- * `<repo>/sites/tovu-com`, someone's real 44 MB site), and for those the delete means "take this
+ * `<repo>/sites/tovu-dev`, someone's real 44 MB site), and for those the delete means "take this
  * card off my Projects screen" — the row goes, every byte stays. The renderer says which of the two
  * a given card will do, from the same guard's answer carried on `SiteRecord.deleteErasesFiles`,
  * so the confirm overlay never promises a consequence this function will not deliver.

@@ -465,7 +465,7 @@ function seedDevFallbackSite(projectsPath: string, devFallbackDir: string, class
   // Through the automatic adder, not `trackSite`: it re-asks `isSiteDirKnown` inside the lock, so a
   // dismissal another instance records between the check above and this line still holds. It also
   // records `adopted`, which is the only correct value here — this row points at a folder that
-  // already held a site before this app ever ran (`<repo>/sites/tovu-com` in a checkout, someone's
+  // already held a site before this app ever ran (`<repo>/sites/tovu-dev` in a checkout, someone's
   // real content), and deleting its card must never delete it.
   return adoptDiscoveredSites(projectsPath, [devFallbackDir]).length > 0;
 }
@@ -488,7 +488,7 @@ interface DiscoverSiteDirsInput {
  *
  * Deliberately ONE level deep under each root. A recursive walk would descend into every site's own
  * `uploads/` and `node_modules/`, which is unbounded work at boot for directories that cannot be
- * sites; the flat layout is the convention `devFallbackDir` (`<repo>/sites/tovu-com`) already
+ * sites; the flat layout is the convention `devFallbackDir` (`<repo>/sites/tovu-dev`) already
  * follows. `knownDirs` covers the sites that do not live under any root — `site-dir-store.ts`'s
  * recently-opened list, which own-server mode has been writing all along.
  *

@@ -25,7 +25,7 @@
  * out of this script — see this change's own report for the open coordination item.
  *
  * Usage: `npm run seed:site` (or `node --import tsx development/scripts/seed-site.mjs [--site <name>]`).
- * `--site` defaults to `TOVU_SITE`, then `"tovu-com"` — the same precedence
+ * `--site` defaults to `TOVU_SITE`, then `"tovu-dev"` — the same precedence
  * `platform/site-dir/site-root.ts`'s `resolveSiteRoot()` uses for its own `TOVU_SITE` fallback.
  * The tsx loader is there because this script imports one TypeScript module, the site-title pin reset
  * it shares with `duplicateSite` (SPEC-050 REQ-12/REQ-14), so both copy paths run the same SQL.
@@ -105,7 +105,7 @@ const PRUNE_TABLES = [
 /** @returns {{ siteName: string, liveDir: string, liveDbPath: string, seedDbPath: string }} */
 function resolvePaths() {
   const siteFlagIndex = process.argv.indexOf("--site");
-  const siteName = siteFlagIndex !== -1 ? process.argv[siteFlagIndex + 1] : (process.env.TOVU_SITE ?? "tovu-com");
+  const siteName = siteFlagIndex !== -1 ? process.argv[siteFlagIndex + 1] : (process.env.TOVU_SITE ?? "tovu-dev");
   const liveDir = path.join(REPO_ROOT, "sites", siteName);
   return {
     siteName,

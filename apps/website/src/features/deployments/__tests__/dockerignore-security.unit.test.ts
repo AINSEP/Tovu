@@ -95,9 +95,9 @@ const MUST_BE_IGNORED = [
   "chat.db-wal",
   "content.db",
   "content.db-wal",
-  "sites/tovu-com/content.db",
-  "sites/tovu-com/content.db-wal",
-  "sites/tovu-com/content.db-shm",
+  "sites/tovu-dev/content.db",
+  "sites/tovu-dev/content.db-wal",
+  "sites/tovu-dev/content.db-shm",
   "apps/website/sites/tovu-com/content.db",
   "apps/website/sites/tovu-com/content.db-wal",
   "apps/website/sites/tovu-com/content.db-shm",
@@ -115,7 +115,7 @@ const MUST_NOT_BE_IGNORED = [
   "apps/site-chat/package.json",
   "packages/sdk/package.json",
   "apps/website/src/index.ts",
-  "sites/tovu-com/content.seed.db",
+  "sites/tovu-dev/content.seed.db",
   ".env.example",
 ];
 

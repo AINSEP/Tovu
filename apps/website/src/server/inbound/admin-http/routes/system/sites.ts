@@ -44,7 +44,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  *   `{cwd, env}`; see that field's own doc), plus `listed`: whether that directory is a REGISTERED
  *   site, i.e. one `tovu serve` would accept. It legitimately may not be — `listSites` skips any
  *   directory without a valid `.site-meta.json` commit marker, and this repo's own live
- *   `sites/tovu-com` carries neither marker file, so it was being served while `listSites` returned
+ *   `sites/tovu-dev` carries neither marker file, so it was being served while `listSites` returned
  *   nothing and the screen rendered "All sites 0" (2026-09-05).
  *   `currentSite.dirOverridden` reports the `TOVU_SITE_DIR` precedence trap — see {@link
  *   SiteBinding.dirOverridden}: with it set, an activate is inert and the UI must say so.

@@ -35,7 +35,7 @@ import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "
 
 // `resolveAgentPluginLayout()` (called with no args, deep inside `resolveAgentPluginPromptPrefix`,
 // exactly as `onStarted` itself calls it) resolves `sites/<name>/agent-plugins` (default site name
-// `tovu-com`, per `resolveSiteRoot()` — the `infra/agent-plugins` root it used before 2026-08-27 is
+// `tovu-dev`, per `resolveSiteRoot()` — the `infra/agent-plugins` root it used before 2026-08-27 is
 // gone) relative to `process.cwd()` — this file relies on being invoked from the repo root, the
 // standard `node --import tsx --test <path>` invocation this repo's own test scripts use.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../../..");
@@ -80,7 +80,7 @@ test("resolveAgentPluginPromptPrefix resolves the REAL installed ui-ux-design SK
   // Read the real, already-installed SKILL.md independently off disk, exactly as
   // `resolve-agent-plugin-refs.real-install.unit.test.ts` does, so the assertion below compares
   // against bytes this test read itself rather than a value the code under test merely produced.
-  const layoutRoot = path.join(REPO_ROOT, "sites", "tovu-com", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256");
+  const layoutRoot = path.join(REPO_ROOT, "sites", "tovu-dev", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256");
   let digestDirs: string[];
   try {
     digestDirs = await readdir(layoutRoot);

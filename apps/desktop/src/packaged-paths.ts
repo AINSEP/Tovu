@@ -84,7 +84,7 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
   if (!input.isPackaged) {
     return {
       payloadRoot: input.repoRoot,
-      devFallbackSiteDir: path.join(input.repoRoot, "sites", "tovu-com"),
+      devFallbackSiteDir: path.join(input.repoRoot, "sites", "tovu-dev"),
       siteScanRoots: [path.join(input.repoRoot, "sites")],
       // `tsx` over current TypeScript: a checkout's `dist/` is only as fresh as its last manual
       // `npm run build`, which is why source mode exists at all (see `resolveDevCliEntry`).
@@ -98,7 +98,7 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
 
   return {
     payloadRoot: path.join(input.resourcesPath, "tovu"),
-    // `<repo>/sites/tovu-com` has no packaged counterpart. `null` rather than a path that cannot
+    // `<repo>/sites/tovu-dev` has no packaged counterpart. `null` rather than a path that cannot
     // exist: `resolveDevFallback` already documents and handles the absent case, so this stays a
     // missing precedence tier instead of a tier that always fails classification.
     devFallbackSiteDir: null,

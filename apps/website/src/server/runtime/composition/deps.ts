@@ -564,7 +564,7 @@ export interface CreateSqliteRouteDepsOverrides {
    * Install-dir-relative themes path — `cli/commands/{serve,export}.ts` supply `<dir>/themes`, for
    * exactly the reason `uploadsDir` above exists (CR-R01): the default {@link siteThemesDir} is
    * `process.cwd()`-relative, so `tovu serve <dir>` invoked from outside `<dir>` would otherwise
-   * seed and serve a `sites/tovu-com/themes` next to wherever the operator happened to be standing
+   * seed and serve a `sites/tovu-dev/themes` next to wherever the operator happened to be standing
    * rather than the site it was told to run. Omitted, it falls back to {@link siteThemesDir}.
    */
   themesDir: string;

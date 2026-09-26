@@ -86,7 +86,7 @@ test("createSite + listSites: a created site is listed with the right name/dir/d
     assert.equal(sites[0]?.displayName, "my-second-site", "createSite passes `name` through as initSite's display-name default");
     assert.match(sites[0]?.createdAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
     // `resolveSiteRoot({cwd})` with no TOVU_SITE_DIR/TOVU_SITE override resolves to
-    // `<cwd>/sites/tovu-com` (`site-root.ts`'s own default), never this freshly created site.
+    // `<cwd>/sites/tovu-dev` (`site-root.ts`'s own default), never this freshly created site.
     assert.equal(sites[0]?.active, false);
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
@@ -128,8 +128,8 @@ test("createSite: the resulting content.db has a published kind:'page' row at sl
 
 test("describeSiteBinding: falls back to the default site name when neither override is set", () => {
   const binding = describeSiteBinding({ cwd: "/repo", env: {} });
-  assert.equal(binding.dir, path.join("/repo", "sites", "tovu-com"));
-  assert.equal(binding.name, "tovu-com");
+  assert.equal(binding.dir, path.join("/repo", "sites", "tovu-dev"));
+  assert.equal(binding.name, "tovu-dev");
   assert.equal(binding.dirOverridden, false);
 });
 
@@ -200,7 +200,7 @@ test("describeSiteBinding: agrees with listSites()'s own `active` flag for a rea
 /**
  * `includeServingSite` — the served-but-unregistered case (2026-09-05 sites-listing fix).
  *
- * This repo's own `sites/tovu-com` carries neither `config.json` nor `.site-meta.json` (verified on
+ * This repo's own `sites/tovu-dev` carries neither `config.json` nor `.site-meta.json` (verified on
  * disk), so `readSiteDir` rejects it and `listSites` silently drops it — the admin Sites screen
  * rendered "All sites 0" while that very directory was being served. These tests fix the shape of
  * the composer that closes that gap WITHOUT loosening the validator: `listSites` keeps meaning
@@ -208,10 +208,10 @@ test("describeSiteBinding: agrees with listSites()'s own `active` flag for a rea
  * "unregistered"` so the fact never goes missing.
  */
 
-/** A serving directory that exists but carries no init markers — exactly `sites/tovu-com`. */
+/** A serving directory that exists but carries no init markers — exactly `sites/tovu-dev`. */
 function mkUnregisteredServingDir(): { cwd: string; dir: string } {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-unregistered-"));
-  const dir = path.join(cwd, "sites", "tovu-com");
+  const dir = path.join(cwd, "sites", "tovu-dev");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "content.db"), "not a real db, but the folder is plainly in use");
   return { cwd, dir };
@@ -227,11 +227,11 @@ test("includeServingSite: appends the served directory as `unregistered` when it
     const composed = includeServingSite({ sites: listSites({ cwd, env: {} }), binding });
 
     assert.equal(composed.length, 1, "the site being served must appear in the listing");
-    assert.equal(composed[0]?.name, "tovu-com");
+    assert.equal(composed[0]?.name, "tovu-dev");
     assert.equal(composed[0]?.dir, dir);
     assert.equal(composed[0]?.registration, "unregistered", "the card must still be able to say `tovu serve` would reject this folder");
     assert.equal(composed[0]?.active, true, "the only entry this ever appends is the one being served");
-    assert.equal(composed[0]?.displayName, "tovu-com", "no config.json exists to read a display name from — the folder name is the honest answer");
+    assert.equal(composed[0]?.displayName, "tovu-dev", "no config.json exists to read a display name from — the folder name is the honest answer");
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
   }
@@ -293,7 +293,7 @@ test("includeServingSite: keeps every registered sibling, and the appended entry
       [
         ["site-a", "registered", false],
         ["site-b", "registered", false],
-        ["tovu-com", "unregistered", true],
+        ["tovu-dev", "unregistered", true],
       ],
       "the two real sites keep their own state; only the served folder is added, and only it is active",
     );

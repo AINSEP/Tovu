@@ -78,7 +78,7 @@ RUN npm run build
 # `<site>/content.db` on that one site's first boot only — see its own header for why a later boot
 # must never repeat that copy: content.db is live production data by then. Looped rather than a
 # single explicit COPY: correct for however many sites happen to have a committed seed (today, just
-# tovu-com) with no name to update here as sites are added or removed; a no-op when none exist yet.
+# tovu-dev) with no name to update here as sites are added or removed; a no-op when none exist yet.
 #
 # The `uploads/` copy alongside it (2026-09-02) closes a real production incident: `content.seed.db`
 # ships `media`/`asset_blobs` ROWS (neither table is pruned by `seed-site.mjs`), but until this line

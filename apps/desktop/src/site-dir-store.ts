@@ -262,7 +262,7 @@ interface InitSiteDirInput {
  * serve` does (see `buildCliEnv`'s own doc: `program.ts` statically imports `init.js` and `serve.js`
  * both, unconditionally), so an empty `TOVU_SITE_DIR` here crashes `init` exactly the way it used to
  * crash `serve` before that fix existed — confirmed live, 2026-09-05, from a cwd with no
- * `sites/tovu-com` (own-server mode's actual cwd): "Open Site…"/"Open Recent" onto an empty folder
+ * `sites/tovu-dev` (own-server mode's actual cwd): "Open Site…"/"Open Recent" onto an empty folder
  * calls this function, and used to die with an uncaught `TypeError` before `runInitCommand` ran.
  *
  * @param input.cliMode `"source"` or `"compiled"` — see `tovu-server.ts`'s `buildCliSpawnPlan`;
@@ -450,7 +450,7 @@ interface ResolveSiteDirInput {
  *    policy `input.onMissingSite` declares for this one — see this function's own param doc for why
  *    that is `"fail"` in production, not `"init"`.
  * 2. The most recent remembered folder that is still a site — so the user is asked exactly once.
- * 3. `devFallbackDir` (`<repo>/sites/tovu-com` in a checkout), when it is a site. Correct for a
+ * 3. `devFallbackDir` (`<repo>/sites/tovu-dev` in a checkout), when it is a site. Correct for a
  *    developer, absent in a packaged app, which is why it cannot be the only answer. See
  *    {@link resolveDevFallback}.
  * 4. Ask, via `pickDir`. An empty folder becomes a new site; a folder of unrelated files is refused.

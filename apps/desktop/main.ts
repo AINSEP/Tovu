@@ -199,7 +199,7 @@ const SITES_RENDERER_PATH = path.join(__dirname, "dist", "renderer", "index.html
 const SITES_PRELOAD_PATH = path.join(__dirname, "dist", "preload", "preload.mjs");
 
 /** The Tovu mark for the macOS dock tile — see {@link applyDockIcon}. Copied into this directory
- *  from the tovu-com theme rather than referenced out of `sites/tovu-com/`, which is a user's live
+ *  from the tovu-theme theme rather than referenced out of `sites/tovu-dev/`, which is a user's live
  *  site folder and not an asset source this app may depend on. */
 const APP_ICON_PATH = path.join(__dirname, "src", "renderer", "public", "brand", "tovu-app-icon.png");
 

@@ -189,14 +189,14 @@ export function pinPlainHttpIntoEnv(env: NodeJS.ProcessEnv = process.env): void 
  * `themesDir` and the content-db path explicitly, but it set no `TOVU_SITE_DIR`, so everything else
  * this process derives from `siteDir()` — `chat.db`, `ops/database-journal.db`, `features/skills`,
  * `features/agent-plugins`, and `chat-attachment-directory.ts`'s staging root — still resolved
- * against `<process.cwd()>/sites/tovu-com`, an unrelated directory whenever this command runs from
+ * against `<process.cwd()>/sites/tovu-dev`, an unrelated directory whenever this command runs from
  * outside it. The daemon child did NOT share that fate: `daemon-supervisor.ts`'s
  * `buildDaemonSpawnEnvOverrides` sets `TOVU_SITE_DIR: input.siteDir` on the child when the parent
  * has none, and `startAssistantDaemon` below passes `target`. So the two processes disagreed, by
  * construction, on every one of those paths. Measured, before this function existed, for
  * `tovu serve /tmp/client-a`:
  *
- *     API  reads   : <repo>/sites/tovu-com/uploads/chat-attachments
+ *     API  reads   : <repo>/sites/tovu-dev/uploads/chat-attachments
  *     daemon writes: /tmp/client-a/uploads/chat-attachments
  *
  * — the admin's attachment read-back route (`registerAdminChatAttachmentReadRoute`) looking in a
@@ -310,10 +310,10 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
     uploadsDir: path.join(target, "uploads"),
     // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
     // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
-    // `sites/tovu-com/themes` beside the operator's shell instead of the site it was given.
+    // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
     themesDir: path.join(target, "themes"),
     // 2026-09-06 composition-root fix: without this, `RouteDeps.siteBinding` fell back to
-    // `describeSiteBinding()`, which re-derives `<process.cwd()>/sites/tovu-com` — unrelated to
+    // `describeSiteBinding()`, which re-derives `<process.cwd()>/sites/tovu-dev` — unrelated to
     // `target` whenever this command is invoked from outside `target`'s own parent directory. The
     // admin Sites screen then reported the WRONG site as "currently serving", and (had a caller
     // exercised Create/Activate against it) `sites.ts`/`sites_duplicate_site` would have written

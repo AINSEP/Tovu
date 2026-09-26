@@ -217,7 +217,7 @@ function describeUnregisteredServingSite(binding: SiteBinding, stat: fs.Stats): 
  *
  * ## Why this exists rather than a change to `listSites`
  *
- * This repo's own `sites/tovu-com` carries neither marker file, so `readSiteDir` rejects it,
+ * This repo's own `sites/tovu-dev` carries neither marker file, so `readSiteDir` rejects it,
  * `listSites` drops it, and the screen showed "All sites 0" while that exact folder was being
  * served. Loosening `readSiteDir` would have fixed the screen by breaking the contract two write
  * paths depend on: Activate uses `listSites` as its existence check, and `sites_duplicate_site`
@@ -296,7 +296,7 @@ export interface SiteBinding {
  * Separate from {@link listSites}'s per-entry `active` flag because the two answer different
  * questions, and the difference is exactly what the admin Sites screen has to be honest about:
  * `active` can be `false` on EVERY row (the live site directory carries no `.site-meta.json`
- * commit marker, so `listSites` skips it — the pre-marker `sites/tovu-com` in this repo is that
+ * commit marker, so `listSites` skips it — the pre-marker `sites/tovu-dev` in this repo is that
  * case today), and a screen that only had the list would then render "no sites" while a site is
  * plainly being served.
  *
@@ -314,7 +314,7 @@ export interface SiteBinding {
  * falls back to this function. The daemon is also where `sites_duplicate_site` actually executes —
  * so the guard `features/sites/tool-registrations.ts` raises for a non-switchable binding was
  * enforced by the HTTP routes and bypassed by the agent tool. A path comparison alone cannot close
- * it: `tovu serve ./sites/tovu-com` names a directory that IS `<cwd>/sites`-relative, yet was still
+ * it: `tovu serve ./sites/tovu-dev` names a directory that IS `<cwd>/sites`-relative, yet was still
  * pinned by argument rather than chosen through the switcher, and the two processes must agree
  * about that either way.
  */

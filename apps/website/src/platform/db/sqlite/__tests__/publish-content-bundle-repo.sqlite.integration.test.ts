@@ -11,7 +11,7 @@ import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-
 
 const REAL_CONTENT_DB_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../../../../../../../sites/tovu-com/content.db"
+  "../../../../../../../sites/tovu-dev/content.db"
 );
 
 function copyRealContentDbToTempDir(): { readonly dir: string; readonly dbPath: string } {

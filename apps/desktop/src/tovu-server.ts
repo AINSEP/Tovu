@@ -247,7 +247,7 @@ function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
  * MODULE-LOAD-TIME `export const app = createApp();` fired for ANY `tovu` invocation — `init`
  * included — not just when `serve`'s action handler actually ran. Confirmed live, 2026-09-05: `tovu
  * init` run with this shell's own `buildCliEnv` (no `TOVU_SITE_DIR`) from a cwd with no
- * `sites/tovu-com` crashed the same way `serve` did — same stack (`assistant-byok.ts`'s
+ * `sites/tovu-dev` crashed the same way `serve` did — same stack (`assistant-byok.ts`'s
  * `resolveToolAttemptAuditSink` → `defaultContentDbPath` → `siteDir()` → `resolveSiteRoot()`'s
  * cwd-relative fallback), before `runInitCommand` ever got a chance to run. That eager export was
  * removed on 2026-09-16 (t91 F4.1), so the crash no longer reproduces from `apps/website` — but the
@@ -360,7 +360,7 @@ interface BuildServeEnvInput {
  *   chain reached that file, before `cli/commands/serve.ts`'s own `runServeCommand()` body ever ran
  *   — and that default `createApp()` call composed `assistant-byok.ts`'s audit sink unconditionally
  *   (`resolveToolAttemptAuditSink` → `defaultContentDbPath` → `siteDir()` → `resolveSiteRoot()`),
- *   which fell back to `<cwd>/sites/tovu-com` whenever `TOVU_SITE_DIR` was unset. Own-server mode's
+ *   which fell back to `<cwd>/sites/tovu-dev` whenever `TOVU_SITE_DIR` was unset. Own-server mode's
  *   cwd is whatever launched Electron, not the repo root, so that fallback directory did not exist
  *   and the child crashed at import time with "Cannot open database because the directory does not
  *   exist" — before printing a boot line, before `runServeCommand` got a chance to do anything. That

@@ -29,7 +29,7 @@ import path from "node:path";
  */
 
 /** The folder name under `sites/` used when neither `TOVU_SITE_DIR` nor `TOVU_SITE` is set. */
-export const DEFAULT_SITE_NAME = "tovu-com";
+export const DEFAULT_SITE_NAME = "tovu-dev";
 
 export interface ResolveSiteRootOptional {
   /** Defaults to `process.cwd()` — injectable so callers are testable without `process.chdir()`. */

@@ -286,7 +286,7 @@ test("checkMcpJsonSecretPlaceholders allows empty/placeholder env values and blo
 });
 
 test("THEME_FILE_TREE_ALLOWED_EXTENSIONS covers every extension used by the real static/tovu-theme theme", () => {
-  const themeDir = path.resolve(import.meta.dirname, "../../../../../../sites/tovu-com/themes/static/tovu-theme");
+  const themeDir = path.resolve(import.meta.dirname, "../../../../../../sites/tovu-dev/themes/static/tovu-theme");
   let files: string[];
   try {
     files = listFilesRecursive(themeDir);

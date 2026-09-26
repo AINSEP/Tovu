@@ -23,7 +23,7 @@ function packagedRoots() {
 test("dev mode reproduces exactly what main.ts derived from REPO_ROOT before this module existed", () => {
   const roots = devRoots();
   assert.equal(roots.payloadRoot, REPO_ROOT);
-  assert.equal(roots.devFallbackSiteDir, path.join(REPO_ROOT, "sites", "tovu-com"));
+  assert.equal(roots.devFallbackSiteDir, path.join(REPO_ROOT, "sites", "tovu-dev"));
   assert.deepEqual(roots.siteScanRoots, [path.join(REPO_ROOT, "sites")]);
   assert.equal(roots.defaultCliMode, "source");
 });

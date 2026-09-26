@@ -188,7 +188,7 @@ button { font: inherit; color: inherit; }
    else in this file (it means "live"), so the ring itself stays `currentColor` and only the dot
    carries the accent — a brand mark, not a status. */
 /*
- * The Tovu mark, from the tovu-com theme's own `assets/logo.png` (128x128, transparent) with its
+ * The Tovu mark, from the tovu-theme theme's own `assets/logo.png` (128x128, transparent) with its
  * 256px sibling for retina. It replaces the CSS-drawn circle-and-dot Tovu-Runner used, which was
  * never an image at all — Runner's `gold-runner-*.png` brand files were in `public/` but referenced
  * by nothing, and have been deleted rather than carried over unused.

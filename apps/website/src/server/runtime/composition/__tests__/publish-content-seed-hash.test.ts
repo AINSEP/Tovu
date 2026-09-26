@@ -15,14 +15,14 @@ import { installFirstPartyPublishContentTypes } from "../publish-content-manifes
 import { createSqlitePublishContentSeedHash } from "../publish-content-seed-hash.js";
 
 /**
- * @file D1 against the REAL tracked seed (`sites/tovu-com/content.seed.db`, the file the Dockerfile
- * ships as `content/seed-sites/tovu-com/content.seed.db`). A "live" `content.db` is hydrated from
+ * @file D1 against the REAL tracked seed (`sites/tovu-dev/content.seed.db`, the file the Dockerfile
+ * ships as `content/seed-sites/tovu-dev/content.seed.db`). A "live" `content.db` is hydrated from
  * the same file exactly the way `hydrateContentDbFromSeed()` does it (a plain copy, then the
  * ordinary migrating `openContentDb()`), and the seed lookup must answer the live row's own
  * `inspect()` hash for an untouched row — and stop matching the moment the live row is edited.
  */
 
-const SEED = join(process.cwd(), "sites/tovu-com/content.seed.db");
+const SEED = join(process.cwd(), "sites/tovu-dev/content.seed.db");
 const WORKSPACE = "workspace-local";
 const clock = { nowIso: () => "2026-09-24T00:00:00.000Z" };
 const idGen = { newId: () => "id-1" };

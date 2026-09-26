@@ -30,7 +30,7 @@ const TARGET_ORIGIN = "https://destination.test";
 const CAPABILITIES = ["publish_content.read", "publish_content.apply"] as const;
 const A_SHA = "a".repeat(64);
 const NOW = "2026-09-19T12:00:00.000Z";
-const SOURCE_DB = join(process.cwd(), "sites", "tovu-com", "content.db");
+const SOURCE_DB = join(process.cwd(), "sites", "tovu-dev", "content.db");
 
 function testKeyring(rootKeyHex: string): KeyringPort {
   const rootKey = Buffer.from(rootKeyHex, "hex");

@@ -46,7 +46,7 @@ import { SiteFlagIcon } from "./sites-visuals";
  * `Serving now` badge.
  *
  * That was only possible because the served site now REACHES this grid. It did not before:
- * `listSites` requires `config.json` + `.site-meta.json`, this repo's own `sites/tovu-com` has
+ * `listSites` requires `config.json` + `.site-meta.json`, this repo's own `sites/tovu-dev` has
  * neither, so the grid rendered zero cards on a server that was plainly serving it — which is what
  * the removed panel existed to confess. `includeServingSite` (`site-registry.ts`) now composes the
  * served directory into the listing, and {@link SiteCard} carries the one fact that panel's amber

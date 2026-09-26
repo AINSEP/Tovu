@@ -431,8 +431,8 @@ export interface DaemonSpawnEnvInput {
  *
  * `TOVU_SITE_DIR` (2026-08-29 follow-up fix): the child previously inherited only `process.env`
  * unchanged, so it resolved its OWN site via `resolveSiteRoot()`'s cwd-relative fallback
- * (`<cwd>/sites/tovu-com`) — agreeing with the parent only by the accident of sharing its cwd. Two
- * confirmed live failures: Tovu-Runner's cwd has no `sites/tovu-com` at all (crash-loop), and this
+ * (`<cwd>/sites/tovu-dev`) — agreeing with the parent only by the accident of sharing its cwd. Two
+ * confirmed live failures: Tovu-Runner's cwd has no `sites/tovu-dev` at all (crash-loop), and this
  * repo's own root DOES have one as a fixture, so a `tovu serve <other-dir>` run from here bound its
  * port cleanly while silently attached to the WRONG site's database — the exact wrong-site-data
  * hazard the original port fix closed, just moved one layer down. Omitted (not overridden) whenever

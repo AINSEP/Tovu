@@ -15,11 +15,11 @@ import { DEFAULT_SITE_NAME, resolveSiteRoot } from "../../site-root.js";
  */
 
 test("defaults to sites/<DEFAULT_SITE_NAME> under the given cwd", () => {
-  assert.equal(resolveSiteRoot({ cwd: "/srv/tovu", env: {} }), path.resolve("/srv/tovu/sites/tovu-com"));
+  assert.equal(resolveSiteRoot({ cwd: "/srv/tovu", env: {} }), path.resolve("/srv/tovu/sites/tovu-dev"));
 });
 
 test("DEFAULT_SITE_NAME is the folder name the default resolves to", () => {
-  assert.equal(DEFAULT_SITE_NAME, "tovu-com");
+  assert.equal(DEFAULT_SITE_NAME, "tovu-dev");
   assert.equal(resolveSiteRoot({ cwd: "/srv/tovu", env: {} }), path.resolve("/srv/tovu/sites", DEFAULT_SITE_NAME));
 });
 

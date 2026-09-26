@@ -16,7 +16,7 @@ const OTHER_WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
 
 test("defaults to sites/<DEFAULT_SITE_NAME>/skills under the given cwd", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
-  assert.equal(layout.root, path.resolve("/srv/tovu-site/sites/tovu-com/skills"));
+  assert.equal(layout.root, path.resolve("/srv/tovu-site/sites/tovu-dev/skills"));
 });
 
 test("the default root follows TOVU_SITE, so a second local site gets its own skills tree", () => {
@@ -62,14 +62,14 @@ test("two workspaces resolve to entirely disjoint trees", () => {
 test("forWorkspace accepts this instance's real, non-UUID workspace id", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
   const ws = layout.forWorkspace("workspace-local");
-  assert.equal(ws.root, path.resolve("/srv/tovu-site/sites/tovu-com/skills/ws/workspace-local"));
+  assert.equal(ws.root, path.resolve("/srv/tovu-site/sites/tovu-dev/skills/ws/workspace-local"));
 });
 
 test("forWorkspace normalizes an uppercase id to a lowercase path segment", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
   assert.equal(
     layout.forWorkspace("WORKSPACE-LOCAL").root,
-    path.resolve("/srv/tovu-site/sites/tovu-com/skills/ws/workspace-local"),
+    path.resolve("/srv/tovu-site/sites/tovu-dev/skills/ws/workspace-local"),
   );
 });
 

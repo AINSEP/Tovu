@@ -84,7 +84,7 @@ export interface DeleteActionCopy {
  *
  * Two different consequences must not hide behind one word. A project this app provisioned is
  * genuinely deleted — the folder, the database, the uploads, unrecoverably — and "Delete" in red is
- * the honest label. A project the app only adopted (the seeded `sites/tovu-com` card, or any folder
+ * the honest label. A project the app only adopted (the seeded `sites/tovu-dev` card, or any folder
  * that already held a site when it was picked) loses nothing but its card, so the control says
  * "Remove", explains that the files stay, and is not styled as a destructive action, because it
  * is not one. Calling both of them "Delete" would train the operator to read the scarier meaning
