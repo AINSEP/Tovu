@@ -1,3 +1,4 @@
+import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
 import { tombstonedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
@@ -29,6 +30,15 @@ import type { TrashableEntryRecord } from "./trash-aware-memory-repo.js";
  */
 
 const WIDGET_TYPES = ["widget", "widget_area"];
+
+/** Why a `collection-entry` entity naming a widget type is refused, or `null`. `list` never packs
+ *  those types; this refuses them inbound too, since `widget`/`widget-area` write them under their
+ *  own permissions and a grant limited to `collection-entry` must not reach them. */
+function widgetTypeRefusal(id: string, state: Record<string, unknown>): string | null {
+  return WIDGET_TYPES.includes(state.type as string)
+    ? `collection-entry '${id}' has type '${String(state.type)}', which is a widget type and publishes on its own, not as a collection entry`
+    : null;
+}
 
 /** An entry row plus its sorted term ids (`undefined` when it has none). */
 type EntryRow = TrashableEntryRecord & { termIds?: string[] };
@@ -85,10 +95,14 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     // Its collection, plus whatever its body embeds and its categories/tags.
     references: (entity) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences(entity.state)],
     validate: async ({ ports, workspaceId, entity }) => {
+      const widgetType = widgetTypeRefusal(entity.id, entity.state);
+      if (widgetType) return widgetType;
       const owner = await ports.contentTypes.findByKey({ workspaceId, key: entity.state.type as string });
       return owner?.status === "tombstone" ? tombstonedAtDestination("content-type", owner.key) : null;
     },
     write: async ({ ports, deps, workspaceId, id, state, expectedVersion, principalId }) => {
+      const widgetType = widgetTypeRefusal(id, state);
+      if (widgetType) throw new PublishContentApplyRowError("blocked", widgetType);
       const gateway = gatewayDeps(deps, "collection-entry");
       // Checked before the entry is written, so a missing term or permission blocks the row whole.
       const terms = await prepareTermSync({

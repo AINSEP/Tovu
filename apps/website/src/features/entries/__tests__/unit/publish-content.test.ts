@@ -159,3 +159,33 @@ test("collection-entry termIds: packed sorted, synced exactly on the destination
   assert.deepEqual(await assigned(), ["t-hot", "t-quick"]);
   assert.deepEqual((await plan(await packAll(source), dest)).rows.map((r) => r.outcome).filter((o) => o !== "unchanged"), []);
 });
+
+// Widgets and widget areas are entries too, but they publish as `widget`/`widget-area` under their
+// own permissions. A `collection-entry` entity naming one of their types must not write them: a
+// publishing grant limited to `collection-entry` would otherwise edit widgets it never named.
+async function widgetSmuggle() {
+  registerOnly([contributeCollectionEntryPublish()]);
+  const dst = await instance();
+  await dst.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "widget", label: "Widgets", fields: [], status: "active", version: 1, tombstonedAt: null });
+  const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes: dst.contentTypes } }, "dst");
+  const handler = contributeCollectionEntryPublish().build(dest);
+  const state = { type: "widget", slug: "evil", title: "Evil", status: "published", bodyJson: null, fieldsJson: { ext: { site: {} } } };
+  const entity = { entityType: "collection-entry", id: "w-evil", schemaVersion: 2, contentHash: "x", hashVersion: 1, requiredBlobs: [], state };
+  return { dst, handler, entity };
+}
+
+test("collection-entry: an entity of a widget type is refused at precheck", async () => {
+  const { handler, entity } = await widgetSmuggle();
+  assert.equal(
+    await handler.precheck(entity),
+    "collection-entry 'w-evil' has type 'widget', which is a widget type and publishes on its own, not as a collection entry"
+  );
+});
+
+test("collection-entry: an entity of a widget type is refused at apply and writes nothing", async () => {
+  const { dst, handler, entity } = await widgetSmuggle();
+  await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: "operator-1" }), {
+    message: "collection-entry 'w-evil' has type 'widget', which is a widget type and publishes on its own, not as a collection entry",
+  });
+  assert.equal(await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: "w-evil" }), null);
+});

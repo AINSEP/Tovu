@@ -78,3 +78,18 @@ test("content-type: a tombstoned destination type refuses; a key registered afte
   await fresh.destRepo.save(contentType({ label: "Someone else's" }));
   await assert.rejects(applyReport(report, entities, fresh.dest), (err: Error & { rowOutcome?: string }) => err.rowOutcome === "conflict");
 });
+
+// `widget`/`widget_area` are seeded per instance and never pack; an inbound entity naming one must
+// not reach them either, or a grant limited to `content-type` could deprecate the widget schema.
+test("content-type: an inbound entity for a seeded widget key is refused at precheck and apply, and changes nothing", async () => {
+  const { dest, destRepo } = await sites([]);
+  await destRepo.save(contentType({ key: "widget", label: "Widget", fields: [] }));
+  const handler = contributeContentTypePublish().build(dest);
+  const state = { key: "widget", label: "Widget", fields: [], status: "deprecated" };
+  const entity = { entityType: "content-type", id: "widget", schemaVersion: 1, contentHash: "x", hashVersion: 1, requiredBlobs: [], state };
+  const reason = "content-type 'widget' is seeded on every instance and is never published";
+
+  assert.equal(await handler.precheck(entity), reason);
+  await assert.rejects(handler.apply({ entity, expectedVersion: 3, principalId: "operator-1" }), { message: reason });
+  assert.equal((await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "widget" }))?.status, "active");
+});

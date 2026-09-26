@@ -1,5 +1,6 @@
 import { ToolInputError } from "@jini-ai/core";
 
+import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { tombstonedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
@@ -25,6 +26,11 @@ import {
  */
 const SEEDED_KEYS = new Set(["widget", "widget_area"]);
 
+/** Refuses a seeded key inbound too: `widget`/`widget-area` own those schemas, and a grant limited to
+ *  `content-type` must not reach them. */
+const seededKeyRefusal = (key: string): string | null =>
+  SEEDED_KEYS.has(key) ? `content-type '${key}' is seeded on every instance and is never published` : null;
+
 export const contributeContentTypePublish = (): PublishContentContributor =>
   createRepoPublishHandler<ContentTypeRecord, PublishContentPorts["content-type"]>({
     entityType: "content-type",
@@ -43,8 +49,11 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
       version: "local",
       tombstonedAt: "local",
     },
-    validate: async ({ entity, existing }) => (existing?.status === "tombstone" ? tombstonedAtDestination("content-type", entity.id) : null),
+    validate: async ({ entity, existing }) =>
+      seededKeyRefusal(entity.id) ?? (existing?.status === "tombstone" ? tombstonedAtDestination("content-type", entity.id) : null),
     write: async ({ ports, deps, workspaceId, id: key, state, existing, principalId: actorId }) => {
+      const seeded = seededKeyRefusal(key);
+      if (seeded) throw new PublishContentApplyRowError("blocked", seeded);
       const gateway = gatewayDeps(deps, "content-type");
       const outbox = toContentTypeOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId });
       const writeDeps = { repo: ports.repo, clock: deps.clock, ids: deps.idGen, authorize: gateway.authorize, indexProvisioner: ports.indexProvisioner, outbox };
