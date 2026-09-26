@@ -140,8 +140,12 @@ const REASON_REWRITES: readonly ReasonRewrite[] = [
     friendly: "This kind of content can't be published from here yet.",
   },
   {
+    // Owner decision 2026-09-25: a push plans ON the live site, so "this instance"/"this destination"
+    // in the raw text is LIVE — and the push driver uploads every required file before planning, so
+    // a file still absent there is one this site could not send. The old "hasn't finished syncing
+    // here yet" named the wrong side.
     pattern: /^required blob '.+' is not available/,
-    friendly: "A file this item needs hasn't finished syncing here yet. Try publishing again shortly.",
+    friendly: "A file this item needs is missing on the live site, and couldn't be sent from here.",
   },
   // planner.ts's two conflict wordings (baseline recorded vs. none) — same cause to the operator
   // ("this destination row doesn't match what we agreed on last"), same action either way.

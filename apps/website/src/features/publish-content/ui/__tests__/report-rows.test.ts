@@ -255,11 +255,11 @@ test("friendlyPublishReason rewrites every reason planner.ts and its handlers ca
     ],
     [
       "required blob 'abc123' is not available on this instance",
-      "A file this item needs hasn't finished syncing here yet. Try publishing again shortly.",
+      "A file this item needs is missing on the live site, and couldn't be sent from here.",
     ],
     [
       "required blob 'abc123' is not available on this destination",
-      "A file this item needs hasn't finished syncing here yet. Try publishing again shortly.",
+      "A file this item needs is missing on the live site, and couldn't be sent from here.",
     ],
     [
       "post 'p1' has been edited on the destination since the last sync with this peer",
