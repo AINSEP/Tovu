@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import { ForbiddenError, type ClockPort, type IdGeneratorPort } from "@jini-ai/cms/core";
 
 import { PublishContentApplyRowError } from "./apply-errors.js";
 import { loadActiveBundle } from "./bundle-staging.js";
@@ -186,6 +186,10 @@ interface ApplyRowContext {
  * {@link PublishContentApplyRowError}; a handler whose errors predate it (`post`/`page`) names them
  * through its own `isApplyConflict`. See this file's header for why the two are phrased differently.
  *
+ * A permission refusal from `executeCommand` (`ForbiddenError`) is `blocked` for every type: the
+ * gateway authorizes before it writes, so the refused command wrote nothing, and one row the
+ * operator (or a publishing grant) may not write must not abort everything else.
+ *
  * @complexity O(1).
  */
 function classifyApplyRowFailure(
@@ -195,6 +199,9 @@ function classifyApplyRowFailure(
 ): { outcome: "conflict" | "blocked"; reason: string } | null {
   if (error instanceof PublishContentApplyRowError) {
     return { outcome: error.rowOutcome, reason: error.message };
+  }
+  if (error instanceof ForbiddenError) {
+    return { outcome: "blocked", reason: error.message };
   }
   if (handler.isApplyConflict?.(error)) {
     return {

@@ -110,6 +110,8 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
   createRepoPublishHandler<WidgetRow, WidgetPublishPorts>({
     entityType: "widget",
     permission: "widgets.update",
+    // `importWidgetInstance` asks `widgets.create` for a widget new to the destination.
+    alsoAuthorizes: ["widgets.create"],
     dependsOn: ["form"],
     ports: (deps) => deps.ports.widget,
     list: async (p, workspaceId) =>

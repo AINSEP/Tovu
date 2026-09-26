@@ -355,58 +355,63 @@ export function withPublishTrustAuthorize(res: Response, deps: GatewayDeps): Gat
  * - It answers ONLY for a permission that some REGISTERED publish-content type declares. The set is
  *   owned by this codebase and computed from the registry per request; a grant cannot name a
  *   permission, and an unregistered permission is denied here exactly as before.
- * - It answers YES only for a type whose `entityType` the grant itself names, so a grant limited to
- *   `post` cannot write `media` even though both declare `content.write`. The permission alone is
- *   too coarse to express that; pairing it with the entity type is what makes it exact. The entity
- *   type is taken from the CALLER (`executeCommand`'s `mutation.entityType`) and checked against
- *   the registry, never inferred from the permission — inferring it is what made this claim false
- *   until 2026-09-20 (see the `authorize` closure below).
+ * - It answers YES only for a publish type the grant itself names, so a grant limited to `post`
+ *   cannot write `media` even though both declare `content.write`. The permission alone is too
+ *   coarse to express that; pairing it with the type is what makes it exact. The type is the
+ *   `publishType` stamp the registry puts on every call a handler makes (`type-registry.ts`'s
+ *   `stampPublishType`) — never the domain's own `entityType`, which is often a different name
+ *   (`form_definition`, `presentation`, `setting-value`) or absent. Reading that one is what refused
+ *   forms and the active theme on live (2026-09-26).
  * - It requires `publish_content.apply`. A read-only grant authorizes no write.
  *
  * The blast radius is bounded twice over independently of this function: the token only resolves at
  * all on a `PUBLISH_TRUST_ROUTES` path, and the entities that reach the apply loop can only be ones
  * already admitted by the bundle door's own `entityTypes` check.
  *
- * @param typePermissions - `entityType -> permission`, from the registered contributors. Keyed by
- * entity type because that is what is unique per contributor; see `registeredTypePermissions`.
+ * @param typePermissions - publish type -> every permission its writes may ask for
+ * (`publishTypePermissions`), from the registered contributors; see `type-registry.ts`'s `registeredPublishTypePermissions`.
  * @returns The ORIGINAL bag untouched when this request carries no publishing credential.
- * @complexity O(1) per authorize call — one map lookup and one array scan of at most 2 entries.
+ * @complexity O(p) per authorize call — one map lookup and a scan of that type's few permissions.
  */
 export function withPublishTrustContentAuthorize<
   TAuthorize extends (params: never) => Promise<{ allowed: boolean; reason: string }>,
   T extends { authorize?: TAuthorize },
->(res: Response, deps: T, typePermissions: ReadonlyMap<string, string>): T {
+>(res: Response, deps: T, typePermissions: ReadonlyMap<string, readonly string[]>): T {
   const context = getPublishTrustContext(res);
   if (!context) return deps;
 
   const granted = publishTrustAuthorizeFor(context);
   const authorize = async (params: {
     permission: string;
-    entityType?: string;
+    publishType?: string;
   }): Promise<{ allowed: boolean; reason: string }> => {
-    // The entity type comes from the CALLER — `executeCommand` always passes `mutation.entityType`,
-    // and each contributor's `apply()` states its own (`post`, `page`, `media`). It is not derived
-    // from the permission, because `content.write` is declared by all three and so cannot identify
-    // one (sol review 2026-09-20, Medium finding 6). A caller that states no entity type, or one
-    // this instance has no registered handler for, or one whose registered permission is not the
-    // one being asked for, is not answered here at all: it falls through to `granted`, which denies
-    // `content.write`. Fail-closed, and unchanged for every non-publish-content caller.
-    const entityType = params.entityType;
-    if (entityType === undefined) return granted(params);
-    if (typePermissions.get(entityType) !== params.permission) return granted(params);
+    // A call with no stamp did not come from a registered handler, so it is not answered here: it
+    // falls through to `granted`, which denies every content permission. Fail-closed, and unchanged
+    // for every non-publish-content caller.
+    const { publishType, permission } = params;
+    if (publishType === undefined) return granted(params);
+    const permissions = typePermissions.get(publishType);
+    if (!permissions?.includes(permission)) {
+      return {
+        allowed: false,
+        reason: permissions
+          ? `'${permission}' is not a permission '${publishType}' publishes with`
+          : `'${publishType}' is not a registered publish type`,
+      };
+    }
 
     const allowed =
-      context.capabilities.includes("publish_content.apply") && context.entityTypes.includes(entityType);
+      context.capabilities.includes("publish_content.apply") && context.entityTypes.includes(publishType);
     return {
       allowed,
       reason: allowed
-        ? `granted by the publishing grant for '${entityType}'`
-        : `this publishing grant does not cover '${entityType}'`,
+        ? `granted by the publishing grant for '${publishType}'`
+        : `this publishing grant does not cover '${publishType}'`,
     };
   };
 
   // The cast is to the CALLER's own authorize signature, which this function deliberately does not
-  // depend on: it reads `permission` and nothing else, so it substitutes safely for any authorize
+  // depend on: it reads `permission` and the registry's `publishType` stamp, so it substitutes safely for any authorize
   // whose parameter object carries one. `PublishTrustAuthorize`'s own doc records the same reasoning
   // for the same reason.
   return { ...deps, authorize: authorize as unknown as TAuthorize };

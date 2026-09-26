@@ -343,6 +343,12 @@ export interface PublishContentHandler {
    *  must be refused media by construction" true, the identical reasoning
    *  `DuplicateResourceHandler.permission` already establishes for `content_duplicate`. */
   readonly permission: string;
+  /** Every OTHER permission this type's writes (`apply`/`retire`/`repointReferences`) ask
+   *  `authorize` for, e.g. a widget create asking `widgets.create` while {@link permission} is
+   *  `widgets.update`. A publishing grant answers only {@link publishTypePermissions} for a type, so
+   *  an undeclared one is denied there (RBAC is unaffected). `publish-trust-apply-coverage.test.ts`
+   *  fails when a type asks for one it did not declare. */
+  readonly alsoAuthorizes?: readonly string[];
   /** Types that must be applied BEFORE this one, by `entityType` (e.g. `post` depending on
    *  `["media", "term"]`) — the planner topologically sorts on this at publish time (rule 4 above),
    *  so adding a new type's ordering constraint never touches the planner itself. */
@@ -572,12 +578,57 @@ export function buildPublishContentCatalog(deps: PublishContentDeps): PublishCon
     }
   }
 
-  const handlers = snapshot.map((contributor) => contributor.build(deps));
+  const handlers = snapshot.map((contributor) => contributor.build(stampPublishType(deps, contributor.entityType)));
   return {
     handlers,
     handlerByType: new Map(handlers.map((handler) => [handler.entityType, handler] as const)),
     applyOrder,
   };
+}
+
+/** What {@link stampPublishType} adds to every `authorize` call a handler makes. */
+export interface PublishTypeStamp {
+  /** The publish type whose handler is writing — set by the registry, never by domain code. */
+  readonly publishType?: string;
+}
+
+/**
+ * Each handler's `authorize` names ITS publish type on every call, whatever domain service makes it.
+ *
+ * A domain write asks `authorize` with its own entity type (`form_definition`, `presentation`,
+ * `setting-value`, or none), which need not match the publish-type name. A publishing grant is
+ * keyed by publish type, so it reads this stamp instead (`publish-trust-auth.ts`'s
+ * `withPublishTrustContentAuthorize`). The stamp spreads LAST, so a caller cannot set it. RBAC
+ * ignores the extra field.
+ *
+ * @complexity O(1) — one object spread per call.
+ */
+function stampPublishType(deps: PublishContentDeps, publishType: string): PublishContentDeps {
+  const { authorize } = deps;
+  if (!authorize) return deps;
+  const stamped: AuthorizeFn = (params) => authorize({ ...params, publishType } as Parameters<AuthorizeFn>[0]);
+  return { ...deps, authorize: stamped };
+}
+
+/** Every permission a publishing grant may answer for `handler`'s writes: its own
+ *  {@link PublishContentHandler.permission} plus {@link PublishContentHandler.alsoAuthorizes}. */
+export function publishTypePermissions(handler: PublishContentHandler): readonly string[] {
+  return [handler.permission, ...(handler.alsoAuthorizes ?? [])];
+}
+
+/**
+ * Publish type -> {@link publishTypePermissions} for every registered type, read fresh (rule 2).
+ * What `withPublishTrustContentAuthorize` answers a publishing grant from.
+ *
+ * Keyed by PUBLISH TYPE, which is unique per contributor — never by permission, which is not.
+ * `post`, `page` and `media` all declare `content.write`, so a permission-keyed map collapsed to a
+ * single `content.write -> media` entry and a post-only grant was denied its own writes (sol review
+ * 2026-09-20, Medium finding 6).
+ *
+ * @complexity O(types) handler builds, each cheap (no I/O).
+ */
+export function registeredPublishTypePermissions(deps: PublishContentDeps): ReadonlyMap<string, readonly string[]> {
+  return new Map(contributors.map((contributor) => [contributor.entityType, publishTypePermissions(contributor.build(deps))] as const));
 }
 
 let contributors: PublishContentContributor[] = [];

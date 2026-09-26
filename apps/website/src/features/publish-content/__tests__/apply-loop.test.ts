@@ -1032,6 +1032,102 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
   );
 });
 
+// A permission refused for ONE row (`executeCommand`'s `ForbiddenError`) used to abort the whole run
+// with a 500 — what a form row did on live on 2026-09-26. It wrote nothing (authorize runs first), so
+// it is that row's `blocked`, and the rest of the run still applies.
+test("a write refused permission blocks that ONE row with the refusal as its reason; the rest of the run applies", async () => {
+  resetPublishContentContributorsForTests();
+  registerPublishContentContributor(contributePostPublish());
+  registerTermTypes();
+  registerPublishContentContributor(contributeMediaPublish());
+
+  const postRepo = new InMemoryPostRepo([]);
+  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const blobStore = new InMemoryBlobStore();
+  const clock = makeClock();
+  const outbox = new InMemoryOutbox();
+  const baselineRepo = new InMemoryPublishContentBaselineRepo();
+  const bundleRepo = new InMemoryPublishContentBundleRepo();
+  const runRepo = new InMemoryPublishContentRunRepo();
+  const publishContentDeps: PublishContentDeps = {
+    workspaceId: WORKSPACE_ID,
+    clock,
+    idGen: makeCounterIdGen("cs"),
+    outbox,
+    changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    // Both types ask `content.write`; only the registry's stamp tells them apart.
+    authorize: (async (params: { publishType?: string }) =>
+      params.publishType === "media"
+        ? { allowed: false, reason: "this publishing grant does not cover 'media'" }
+        : { allowed: true, reason: "test" }) as never,
+    ports: {
+      post: { repo: postRepo, forgetRemoved: async () => {} },
+      media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore },
+    },
+  };
+  const applyPort = createPublishContentApplyPort({
+    workspaceId: WORKSPACE_ID,
+    bundleRepo,
+    baselineRepo,
+    runRepo,
+    publishContentDeps,
+    clock,
+    idGen: makeCounterIdGen("run"),
+  });
+
+  const photoBytes = new TextEncoder().encode("a real imported photo's bytes");
+  const photoSha256 = "86d9075d85c1cce55da0605a557dceaea6c27f18df8702ce86accccce8a41aa9";
+  await blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256: photoSha256, bytes: photoBytes });
+  const mediaRecord: MediaRecord = {
+    id: "refused-photo",
+    workspaceId: WORKSPACE_ID,
+    title: "Refused Photo",
+    slug: "refused-photo",
+    alt: "",
+    caption: "",
+    credit: "",
+    source: { sha256: photoSha256 },
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+    width: 800,
+    height: 600,
+    cssClass: null,
+    htmlAttributes: null,
+  };
+  const entities: PackedEntity[] = [
+    {
+      entityType: "media",
+      id: mediaRecord.id,
+      schemaVersion: 1,
+      contentHash: contentHash("media", { ...mediaRecord }),
+      hashVersion: CONTENT_HASH_VERSION,
+      requiredBlobs: [photoSha256],
+      state: { ...mediaRecord } as unknown as Record<string, unknown>,
+    },
+    packedFrom(makePost({ id: "healthy-a", title: "Healthy A" })),
+  ];
+  const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
+  const bundleId = await stage(bundleRepo, clock, entities);
+
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
+  assert.equal(run?.phase, "applied");
+  const rows = (JSON.parse(run!.reportJson) as PublishContentReport).rows;
+  assert.deepEqual(
+    rows.map((row) => [row.entityType, row.outcome, row.reason]),
+    [
+      ["media", "blocked", `principal '${OPERATOR_PRINCIPAL_ID}' is not authorized for 'content.write' (this publishing grant does not cover 'media')`],
+      ["post", "created", null],
+    ]
+  );
+  assert.equal(await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "refused-photo" }), null);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "healthy-a" }))?.title, "Healthy A");
+  assert.equal(result.changeSetIds.length, 1);
+});
+
 // ---------------------------------------------------------------------------
 // D1 — the seed version is the apply-time virtual baseline too, not only the plan-time one.
 // ---------------------------------------------------------------------------

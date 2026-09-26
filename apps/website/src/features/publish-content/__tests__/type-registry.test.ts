@@ -22,6 +22,7 @@ import {
   listPublishContentContributors,
   PublishContentCatalogConfigurationError,
   registerPublishContentContributor,
+  registeredPublishTypePermissions,
   resetPublishContentContributorsForTests,
   type PublishContentDeps,
   type PublishContentContributor,
@@ -131,4 +132,57 @@ test("buildPublishContentCatalog derives deterministic apply order without reord
 
   assert.deepEqual(catalog.applyOrder, ["media", "post"]);
   assert.deepEqual(catalog.handlers.map((handler) => handler.entityType), ["post", "media"]);
+});
+
+// ---------------------------------------------------------------------------
+// The publish-type stamp a publishing grant authorizes by
+// ---------------------------------------------------------------------------
+
+test("every authorize call a built handler makes names its publish type, and a caller cannot override it", async () => {
+  const seen: unknown[] = [];
+  registerPublishContentContributor({
+    entityType: "form",
+    dependsOn: [],
+    build: (deps) => ({
+      ...fakeContributor("form").build(deps),
+      apply: async () => {
+        // A domain service asks with its OWN entity type, and here even tries to name another type.
+        await deps.authorize!({ principalId: "p", permission: "admin.forms.manage", workspaceId: "w", entityType: "form_definition", publishType: "post" } as never);
+        return { changeSetId: "c" };
+      },
+    }),
+  });
+  const deps = {
+    workspaceId: "w",
+    clock: { nowIso: () => "2026-09-26T00:00:00.000Z" },
+    idGen: { newId: () => "id" },
+    authorize: async (params: unknown) => {
+      seen.push(params);
+      return { allowed: true, reason: "test" };
+    },
+    ports: {},
+  } as unknown as PublishContentDeps;
+
+  await buildPublishContentCatalog(deps).handlerByType.get("form")!.apply({} as never);
+
+  assert.deepEqual(seen, [
+    { principalId: "p", permission: "admin.forms.manage", workspaceId: "w", entityType: "form_definition", publishType: "form" },
+  ]);
+});
+
+test("registeredPublishTypePermissions lists each type's permission plus what it also authorizes", () => {
+  registerPublishContentContributor(fakeContributor("post"));
+  registerPublishContentContributor({
+    entityType: "widget",
+    dependsOn: [],
+    build: (deps) => ({ ...fakeContributor("widget").build(deps), permission: "widgets.update", alsoAuthorizes: ["widgets.create"] }),
+  });
+
+  assert.deepEqual(
+    [...registeredPublishTypePermissions({ workspaceId: "w", ports: {} } as unknown as PublishContentDeps)],
+    [
+      ["post", ["content.write"]],
+      ["widget", ["widgets.update", "widgets.create"]],
+    ]
+  );
 });

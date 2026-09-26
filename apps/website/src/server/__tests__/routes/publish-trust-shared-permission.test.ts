@@ -34,10 +34,10 @@ const REGISTERED: readonly (readonly [string, string])[] = [
   ["media", CONTENT_WRITE],
 ];
 
-/** Mirrors `routes/publish-content/import.ts`'s `registeredTypePermissions`. Keyed by entity type,
- *  which is unique per contributor — keying by permission collapses all three onto one entry. */
-function registeredTypePermissions(): ReadonlyMap<string, string> {
-  return new Map(REGISTERED.map(([entityType, permission]) => [entityType, permission]));
+/** Mirrors `type-registry.ts`'s `registeredPublishTypePermissions`. Keyed by publish type, which is
+ *  unique per contributor — keying by permission collapses all three onto one entry. */
+function registeredTypePermissions(): ReadonlyMap<string, readonly string[]> {
+  return new Map(REGISTERED.map(([publishType, permission]) => [publishType, [permission]]));
 }
 
 function publishingResponse(entityTypes: readonly string[]) {
@@ -61,7 +61,7 @@ function authorizeFor(grantedTypes: readonly string[]) {
     registeredTypePermissions()
   ).authorize as unknown as (params: {
     permission: string;
-    entityType?: string;
+    publishType?: string;
   }) => Promise<{ allowed: boolean; reason: string }>;
   assert.ok(wrapped, "a publishing context must replace the ordinary authorization function");
   return wrapped;
@@ -70,7 +70,7 @@ function authorizeFor(grantedTypes: readonly string[]) {
 test("a post-only grant may write a post, even though page and media declare the same permission", async () => {
   const authorize = authorizeFor(["post"]);
 
-  assert.deepEqual(await authorize({ permission: CONTENT_WRITE, entityType: "post" }), {
+  assert.deepEqual(await authorize({ permission: CONTENT_WRITE, publishType: "post" }), {
     allowed: true,
     reason: "granted by the publishing grant for 'post'",
   });
@@ -79,11 +79,11 @@ test("a post-only grant may write a post, even though page and media declare the
 test("a post-only grant may NOT write a page or media through the shared permission", async () => {
   const authorize = authorizeFor(["post"]);
 
-  assert.deepEqual(await authorize({ permission: CONTENT_WRITE, entityType: "page" }), {
+  assert.deepEqual(await authorize({ permission: CONTENT_WRITE, publishType: "page" }), {
     allowed: false,
     reason: "this publishing grant does not cover 'page'",
   });
-  assert.deepEqual(await authorize({ permission: CONTENT_WRITE, entityType: "media" }), {
+  assert.deepEqual(await authorize({ permission: CONTENT_WRITE, publishType: "media" }), {
     allowed: false,
     reason: "this publishing grant does not cover 'media'",
   });
@@ -92,30 +92,28 @@ test("a post-only grant may NOT write a page or media through the shared permiss
 test("each granted type is answered for itself — the narrowing is per type, not per permission", async () => {
   const postAndPage = authorizeFor(["post", "page"]);
 
-  assert.equal((await postAndPage({ permission: CONTENT_WRITE, entityType: "post" })).allowed, true);
-  assert.equal((await postAndPage({ permission: CONTENT_WRITE, entityType: "page" })).allowed, true);
-  assert.equal((await postAndPage({ permission: CONTENT_WRITE, entityType: "media" })).allowed, false);
+  assert.equal((await postAndPage({ permission: CONTENT_WRITE, publishType: "post" })).allowed, true);
+  assert.equal((await postAndPage({ permission: CONTENT_WRITE, publishType: "page" })).allowed, true);
+  assert.equal((await postAndPage({ permission: CONTENT_WRITE, publishType: "media" })).allowed, false);
 });
 
-test("an entity type with no registered handler falls through to the grant's own capability check, which denies", async () => {
+test("a publish type with no registered handler is refused, even when the grant names it", async () => {
   const authorize = authorizeFor(["post", "widget"]);
 
-  // `PUBLISHING_CAPABILITIES` does not contain `content.write` and `grant.ts` refuses a grant
-  // naming it at parse, so the fall-through path denies by construction.
   assert.deepEqual(
-    await authorize({ permission: CONTENT_WRITE, entityType: "widget" }),
-    { allowed: false, reason: `'${CONTENT_WRITE}' is outside this publishing grant` },
+    await authorize({ permission: CONTENT_WRITE, publishType: "widget" }),
+    { allowed: false, reason: "'widget' is not a registered publish type" },
     "a grant naming a type this instance does not publish must not be answered by the type narrowing"
   );
 });
 
-test("a caller that states no entity type is not answered by the grant — the permission alone is too coarse", async () => {
+test("a caller with no publish-type stamp is not answered by the grant — the permission alone is too coarse", async () => {
   const authorize = authorizeFor(["post"]);
 
   assert.deepEqual(
     await authorize({ permission: CONTENT_WRITE }),
     { allowed: false, reason: `'${CONTENT_WRITE}' is outside this publishing grant` },
-    "without an entity type there is no exact pairing to authorize, so this must fail closed"
+    "without a publish type there is no exact pairing to authorize, so this must fail closed"
   );
 });
 
@@ -136,10 +134,10 @@ test("a read-only grant authorizes no write for a type it names", async () => {
     registeredTypePermissions()
   ).authorize as unknown as (params: {
     permission: string;
-    entityType?: string;
+    publishType?: string;
   }) => Promise<{ allowed: boolean; reason: string }>;
 
-  assert.deepEqual(await wrapped({ permission: CONTENT_WRITE, entityType: "post" }), {
+  assert.deepEqual(await wrapped({ permission: CONTENT_WRITE, publishType: "post" }), {
     allowed: false,
     reason: "this publishing grant does not cover 'post'",
   });

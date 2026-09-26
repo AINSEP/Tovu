@@ -12,6 +12,7 @@ import { buildExportBundle } from "#src/features/publish-content/export-bundle";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { pushBundleToPeer, confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport";
 import { saveConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
+import { entityKey } from "#src/features/publish-content/planner";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { connectDestination, disconnectDestination, findCandidateDestination } from "#src/features/publish-trust/connect";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
@@ -224,6 +225,35 @@ async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, rootKey
   return { connected, site, keyring };
 }
 
+/** Step 4-5: resolve a credential by handshake, export everything that differs, and drive the
+ *  destination's gated ceremony over HTTP. Returns the destination's execute response. */
+async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: { id: string }, overwriteEntityKeys: readonly string[] = []) {
+  const credential = await resolvePublishDestinationCredential(
+    { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_ROOT_KEY), httpClient: s.httpClient },
+    { workspaceId: s.sourceDeps.workspaceId, id: site.id }
+  );
+  const workspace = await s.sourceDeps.workspaceRepo.findById(s.sourceDeps.workspaceId);
+  const bundle = await buildExportBundle({
+    workspaceId: s.sourceDeps.workspaceId,
+    principalId: "test-operator",
+    authorize: async () => ({ allowed: true }) as never,
+    publishContentDeps: toPublishContentDeps(s.sourceDeps),
+    sourceLabel: workspace?.name ?? "source",
+  });
+  const transport = {
+    httpClient: s.httpClient,
+    credential,
+    blobSource: s.sourceDeps.blobStore,
+    computeStorageKey: (sha256: string) => `blobs/${sha256}`,
+  };
+  const pushed = await pushBundleToPeer(transport, { bundle, overwriteEntityKeys });
+  const { confirmationToken } = await confirmPeerImport(transport, {
+    planId: pushed.plan.planId as string,
+    planHash: pushed.plan.planHash as string,
+  });
+  return executePeerImport(transport, { bundleId: pushed.bundleId, confirmationToken, overwriteEntityKeys });
+}
+
 test("the address to confirm comes from the deploy config the repo already carries", async () => {
   const io = memoryIo({
     "fly.toml": ['app = "tovu"', "[env]", '  TOVU_PUBLIC_URL = "https://tovu.example"'].join("\n"),
@@ -324,6 +354,48 @@ test("a fresh install connects and then publishes, with no key displayed or copi
     });
     assert.ok(landed, "the post written on this computer must exist on the destination");
     assert.equal(landed.title, "Written on this computer");
+  } finally {
+    await s.teardown();
+  }
+});
+
+// 2026-09-26: forms and the active theme were refused on live. Their writes ask `authorize` with a
+// domain entity type (`form_definition`, `presentation`) that is not their publish-type name, so the
+// grant lookup missed and a form row 500'd the whole run.
+test("forms and the active theme publish through a publishing grant", async () => {
+  const s = await scenario();
+  try {
+    const { site } = await connectAndDeploy(s);
+    const workspaceId = s.sourceDeps.workspaceId;
+    const now = new Date().toISOString();
+    await s.sourceDeps.formDefinitionRepo.create({
+      id: "form-written-here",
+      workspaceId,
+      name: "Contact",
+      slug: "contact-written-here",
+      fields: [{ id: "email", label: "Email", type: "email", required: true }],
+      notify: { enabled: false, recipients: [] },
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    });
+    const presentation = await s.sourceDeps.presentationRepo.findByWorkspaceId(workspaceId);
+    assert.ok(presentation);
+    assert.notEqual(presentation.activeThemeId, "tailark-dusk");
+    await s.sourceDeps.presentationRepo.save({ ...presentation, activeThemeId: "tailark-dusk", updatedAt: now });
+
+    // Both sides hold an active theme and have never synced, so it plans a conflict until ticked.
+    const applied = await publishEverything(s, site, [entityKey("active-theme", "site")]);
+    assert.ok(Array.isArray(applied.changeSetIds), JSON.stringify(applied));
+
+    const form = await s.destinationDeps.formDefinitionRepo.findBySlug({
+      workspaceId: s.destinationDeps.workspaceId,
+      slug: "contact-written-here",
+    });
+    assert.equal(form?.name, "Contact", "the form must land on the destination");
+    const landed = await s.destinationDeps.presentationRepo.findByWorkspaceId(s.destinationDeps.workspaceId);
+    assert.equal(landed?.activeThemeId, "tailark-dusk", "the active theme must switch on the destination");
   } finally {
     await s.teardown();
   }

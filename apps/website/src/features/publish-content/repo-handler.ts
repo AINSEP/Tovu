@@ -55,6 +55,8 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly schemaVersion?: number;
   /** The type's own write permission: the handler's `permission` and, with `undo`, the command's. */
   readonly permission: string;
+  /** The other permissions `write` asks for ({@link PublishContentHandler.alsoAuthorizes}). */
+  readonly alsoAuthorizes?: readonly string[];
   /** Types that must apply first. Only references the destination validates at write time. */
   readonly dependsOn?: readonly string[];
 
@@ -309,6 +311,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       entityType,
       schemaVersion,
       permission,
+      ...(config.alsoAuthorizes ? { alsoAuthorizes: config.alsoAuthorizes } : {}),
       dependsOn,
       pack,
       inspect,

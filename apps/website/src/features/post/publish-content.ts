@@ -12,7 +12,7 @@ import type {
   RetireTarget,
   TaxonomyPublishPorts,
 } from "#src/features/publish-content/type-registry";
-import { prepareTermSync, readTermIds, withTermIds } from "#src/features/taxonomy/publish-term-ids";
+import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/publish-term-ids";
 
 import { importPostEntity, isTrashed, restorePostForward, retirePostForReplacement, PostConflictError, PostNotFoundError, ROOT_SLUG } from "./post.js";
 import type { PostKind, PostRecord } from "./post.js";
@@ -237,6 +237,8 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     schemaVersion: 2,
     // The same permission `content_post_create`/`content_post_update` declare.
     permission: "content.write",
+    // Carried `termIds` sync through the taxonomy chokepoint.
+    alsoAuthorizes: [TERM_SYNC_PERMISSION],
     dependsOn: POST_AND_PAGE_DEPENDS_ON,
     ports: (deps) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
     portsKey: "post",

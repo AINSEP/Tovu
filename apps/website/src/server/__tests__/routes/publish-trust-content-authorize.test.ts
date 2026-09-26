@@ -12,7 +12,7 @@ import { withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http
  * retain the type narrowing at this call site.
  */
 
-type Authorize = (params: { permission: string; entityType?: string }) => Promise<{ allowed: boolean; reason: string }>;
+type Authorize = (params: { permission: string; entityType?: string; publishType?: string }) => Promise<{ allowed: boolean; reason: string }>;
 
 function publishingResponse(entityTypes: readonly string[]) {
   return {
@@ -37,22 +37,50 @@ test("a publishing grant authorizes only the registered entity types it names", 
     publishingResponse(["post"]) as never,
     deps,
     new Map([
-      ["post", "content.post.write"],
-      ["media", "content.media.write"],
+      ["post", ["content.post.write"]],
+      ["media", ["content.media.write"]],
     ])
   ).authorize;
 
   assert.ok(authorize, "publishing context must replace the ordinary authorization function");
 
-  const refused = await authorize({ permission: "content.media.write", entityType: "media" });
+  const refused = await authorize({ permission: "content.media.write", publishType: "media" });
   assert.deepEqual(refused, {
     allowed: false,
     reason: "this publishing grant does not cover 'media'",
   });
 
-  const allowed = await authorize({ permission: "content.post.write", entityType: "post" });
+  const allowed = await authorize({ permission: "content.post.write", publishType: "post" });
   assert.deepEqual(allowed, {
     allowed: true,
     reason: "granted by the publishing grant for 'post'",
+  });
+});
+
+// The type is the registry's `publishType` stamp, never the domain's own `entityType`: a form's write
+// says `form_definition`, and reading that refused every form on live (2026-09-26).
+test("a publishing grant answers by the publish-type stamp, and refuses what no registered type declares", async () => {
+  const deps = { authorize: (async () => ({ allowed: true, reason: "ordinary RBAC grant" })) as Authorize };
+  const authorize = withPublishTrustContentAuthorize(
+    publishingResponse(["form"]) as never,
+    deps,
+    new Map([["form", ["admin.forms.manage"]]])
+  ).authorize!;
+
+  assert.deepEqual(await authorize({ permission: "admin.forms.manage", entityType: "form_definition", publishType: "form" }), {
+    allowed: true,
+    reason: "granted by the publishing grant for 'form'",
+  });
+  assert.deepEqual(await authorize({ permission: "admin.forms.manage", entityType: "form" }), {
+    allowed: false,
+    reason: "'admin.forms.manage' is outside this publishing grant",
+  });
+  assert.deepEqual(await authorize({ permission: "admin.users.manage", publishType: "form" }), {
+    allowed: false,
+    reason: "'admin.users.manage' is not a permission 'form' publishes with",
+  });
+  assert.deepEqual(await authorize({ permission: "admin.forms.manage", publishType: "forms" }), {
+    allowed: false,
+    reason: "'forms' is not a registered publish type",
   });
 });

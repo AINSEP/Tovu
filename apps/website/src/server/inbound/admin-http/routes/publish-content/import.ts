@@ -21,7 +21,7 @@ import type { PublishContentReport } from "#src/features/publish-content/planner
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal, type CredentialKindForbiddenBody } from "#src/server/inbound/admin-http/dev-auth";
 import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
-import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
+import { registeredPublishTypePermissions } from "#src/features/publish-content/type-registry";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
 import { toPublishContentReportDto } from "./report-dto.js";
 
@@ -93,24 +93,6 @@ function statusFor(err: unknown): { status: number; code: string } {
 }
 
 export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = (app: Express, deps) => {
-  /** `entityType -> permission` for every registered type, so the publishing attenuation can answer
-   *  a type's OWN write permission for exactly the types a grant names, and nothing else. Built per
-   *  request from the bag the handlers will actually run against, the same way the export route and
-   *  the planner already resolve contributors.
-   *
-   *  Keyed by ENTITY TYPE, which is unique per contributor — never by permission, which is not.
-   *  `post`, `page` and `media` all declare `content.write`, so a permission-keyed map collapsed to
-   *  a single `content.write -> media` entry and every post and page write resolved to the wrong
-   *  type: a legitimately post-only grant was denied its own writes (sol review 2026-09-20, Medium
-   *  finding 6). */
-  function registeredTypePermissions(publishContentDeps: ReturnType<typeof toPublishContentDeps>): ReadonlyMap<string, string> {
-    const byEntityType = new Map<string, string>();
-    for (const contributor of listPublishContentContributors()) {
-      byEntityType.set(contributor.entityType, contributor.build(publishContentDeps).permission);
-    }
-    return byEntityType;
-  }
-
   function buildHooks(bundleId: string, actorId: string, res: Response, forcedEntityKeys?: ReadonlySet<string>) {
     const publishContentDeps = toPublishContentDeps(deps);
     return buildPublishContentImportHooks({
@@ -122,7 +104,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       // The apply loop authorizes each entity against its TYPE's own write permission. For a human
       // that is RBAC, unchanged. For a publishing credential it has to be the grant, or the
       // ceremony fails at execute — see `withPublishTrustContentAuthorize`'s own doc.
-      publishContentDeps: withPublishTrustContentAuthorize(res, publishContentDeps, registeredTypePermissions(publishContentDeps)),
+      publishContentDeps: withPublishTrustContentAuthorize(res, publishContentDeps, registeredPublishTypePermissions(publishContentDeps)),
       bundleRepo: deps.publishContentBundleRepo,
       baselineRepo: deps.publishContentBaselineRepo,
       blobStore: deps.blobStore,

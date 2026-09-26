@@ -2,7 +2,7 @@ import { collectBodyReferences } from "#src/features/publish-content/content-ref
 import { tombstonedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
 import type { EntryPublishPorts, PublishContentContributor } from "#src/features/publish-content/type-registry";
-import { prepareTermSync, readTermIds } from "#src/features/taxonomy/publish-term-ids";
+import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "#src/features/taxonomy/publish-term-ids";
 import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "#src/features/taxonomy/index";
 
 import {
@@ -44,6 +44,8 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     // 2 = the state may carry `termIds`. Exact-match, so an instance built before this refuses.
     schemaVersion: 2,
     permission: "admin.collections.manage",
+    // Carried `termIds` sync through the taxonomy chokepoint.
+    alsoAuthorizes: [TERM_SYNC_PERMISSION],
     // The owning type and assigned terms are checked at write time; media and relation ids resolve at render.
     dependsOn: ["content-type", "term"],
     ports: (deps) => deps.ports["collection-entry"],

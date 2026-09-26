@@ -12,7 +12,8 @@ import { assignTerms, toTaxonomyOutbox, unassignTerms } from "./index.js";
  * `unassignTerms`, the same chokepoint the admin route and the agent tool use.
  */
 
-const TAXONOMY_PERMISSION = "admin.taxonomy.manage";
+/** What a term sync asks `authorize` for. A type that carries `termIds` lists it in `alsoAuthorizes`. */
+export const TERM_SYNC_PERMISSION = "admin.taxonomy.manage";
 
 /** The live terms assigned to one piece of content, sorted, or `undefined` when there are none (or
  *  the bag has no taxonomy ports, so terms are not part of it). @complexity one indexed query. */
@@ -69,11 +70,11 @@ export async function prepareTermSync(input: {
   if (!authorize || !outbox) {
     throw new Error(`publish-content: ${entityType}.apply() requires PublishContentDeps.authorize/outbox to sync term assignments.`);
   }
-  const allowed = await authorize({ principalId, permission: TAXONOMY_PERMISSION, workspaceId });
+  const allowed = await authorize({ principalId, permission: TERM_SYNC_PERMISSION, workspaceId });
   if (!allowed.allowed) {
     throw new PublishContentApplyRowError(
       "blocked",
-      `${entityType} '${entityId}' has category or tag changes, and you need '${TAXONOMY_PERMISSION}' to publish them (${allowed.reason})`
+      `${entityType} '${entityId}' has category or tag changes, and you need '${TERM_SYNC_PERMISSION}' to publish them (${allowed.reason})`
     );
   }
   for (const termId of add) {
