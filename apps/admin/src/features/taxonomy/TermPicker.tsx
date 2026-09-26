@@ -7,6 +7,9 @@ import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
  * §1.6) — markup only. The boxes start ticked for the terms the content holds, and Save makes it hold
  * exactly the ticked ones; state, loads and the save live in `hooks/use-term-picker.hooks.ts`.
  *
+ * Each row also takes a typed name — ticks the matching term or creates it — when the admin may
+ * create terms (see the hook's header).
+ *
  * Mount it only for content that exists (a saved post/page/entry has an id to tag).
  */
 export function TermPicker(props: {
@@ -18,10 +21,11 @@ export function TermPicker(props: {
   useTermPickerHook?: typeof useWiredTermPicker;
 }) {
   const useTermPickerHook = props.useTermPickerHook ?? useWiredTermPicker;
-  const { taxonomies, hidden, subject, selected, toggle, loading, dirty, saving, message, error, save, t } = useTermPickerHook({
+  const picker = useTermPickerHook({
     contentType: props.contentType,
     contentId: props.contentId,
   });
+  const { taxonomies, hidden, subject, selected, toggle, loading, dirty, saving, message, error, save, t } = picker;
 
   if (hidden) return null;
 
@@ -32,6 +36,10 @@ export function TermPicker(props: {
     taxonomies.flatMap(({ terms }) => terms.map((term) => term.id)),
   );
   let termHandleIndex = 0;
+  const taxonomyIds = taxonomies.map(({ taxonomy }) => taxonomy.id);
+  const addInputHandles = buildAgentListHandles("term-picker-new-term", taxonomyIds);
+  const addTriggerHandles = buildAgentListHandles("term-picker-open-new-term", taxonomyIds);
+  const addButtonHandles = buildAgentListHandles("term-picker-add-term", taxonomyIds);
 
   return (
     <section className="card term-picker">
@@ -43,38 +51,101 @@ export function TermPicker(props: {
           kept for the group's accessible name (its `<legend>`); `styles.css`'s `.term-picker-group`
           strips its browser border and floats the legend so it sits in the row like any label. */}
       <div className="term-picker-groups">
-        {taxonomies.map(({ taxonomy, terms }) => (
-          <fieldset key={taxonomy.id} className="term-picker-group">
-            <legend className="field-label">{taxonomy.name}</legend>
-            {terms.length === 0 ? (
-              <p className="field-hint">{t("No terms yet.")}</p>
-            ) : (
-              <div className="term-picker-terms">
-                {terms.map((term) => {
-                  // Consumed in rendered (taxonomy, then term) order, matching how `termHandles`
-                  // was built above via the identical `flatMap` order.
-                  const handle = termHandles[termHandleIndex];
-                  termHandleIndex += 1;
-                  return (
-                    <label key={term.id} className="form-checkbox-field">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(term.id)}
-                        disabled={loading}
-                        onChange={() => toggle(term.id)}
-                        {...agentHandle(handle, {
-                          role: "checkbox",
-                          label: `Tag this ${subject} with the "${taxonomy.name}" term "${term.name}"`,
-                        })}
-                      />
-                      {term.name}
-                    </label>
-                  );
-                })}
+        {taxonomies.map(({ taxonomy, terms }, groupIndex) => {
+          const id = taxonomy.id;
+          const showInput = picker.showAddInput(id);
+          const suggestions = picker.suggestions(id);
+          const createError = picker.createError(id);
+          return (
+            <fieldset key={id} className="term-picker-group">
+              <legend className="field-label">{taxonomy.name}</legend>
+              <div className="term-picker-body">
+                {terms.length === 0 && !showInput ? <p className="field-hint">{t("No terms yet.")}</p> : null}
+                {terms.length > 0 ? (
+                  <div className="term-picker-terms">
+                    {terms.map((term) => {
+                      // Consumed in rendered (taxonomy, then term) order, matching how `termHandles`
+                      // was built above via the identical `flatMap` order.
+                      const handle = termHandles[termHandleIndex];
+                      termHandleIndex += 1;
+                      return (
+                        <label key={term.id} className="form-checkbox-field">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(term.id)}
+                            disabled={loading}
+                            onChange={() => toggle(term.id)}
+                            {...agentHandle(handle, {
+                              role: "checkbox",
+                              label: `Tag this ${subject} with the "${taxonomy.name}" term "${term.name}"`,
+                            })}
+                          />
+                          {term.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                {picker.showAddTrigger(id) ? (
+                  <button
+                    type="button"
+                    className="btn-ghost term-picker-add-trigger"
+                    onClick={() => picker.setAddOpen(id, true)}
+                    {...agentHandle(addTriggerHandles[groupIndex]!, {
+                      role: "button",
+                      label: `Open the box for adding a new "${taxonomy.name}" term to this ${subject}`,
+                    })}
+                  >
+                    {t("+ Add term")}
+                  </button>
+                ) : null}
+                {showInput ? (
+                  // Not a `<form>`: the box can sit inside an editor's own form; the hook's key
+                  // handler stops Enter from submitting it.
+                  <span className="term-picker-add">
+                    <input
+                      aria-label={t("Term name")}
+                      placeholder={t("Type a name, then press Enter")}
+                      value={picker.newTermName(id)}
+                      list={suggestions.length > 0 ? `term-picker-suggestions-${id}` : undefined}
+                      disabled={loading}
+                      onChange={(e) => picker.setNewTermName(id, e.target.value)}
+                      onKeyDown={(e) => picker.onNewTermKeyDown(id, e)}
+                      {...agentHandle(addInputHandles[groupIndex]!, {
+                        role: "field",
+                        label: `A "${taxonomy.name}" term name to tag this ${subject} with — an existing one is ticked, a new one is created then ticked; press Enter`,
+                      })}
+                    />
+                    {suggestions.length > 0 ? (
+                      <datalist id={`term-picker-suggestions-${id}`}>
+                        {suggestions.map((name) => (
+                          <option key={name} value={name} />
+                        ))}
+                      </datalist>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => void picker.addTerm(id)}
+                      disabled={loading || picker.creating(id) || !picker.newTermName(id).trim()}
+                      {...agentHandle(addButtonHandles[groupIndex]!, {
+                        role: "button",
+                        label: `Tick the typed "${taxonomy.name}" term, creating it if it does not exist yet`,
+                      })}
+                    >
+                      {picker.creating(id) ? t("Saving…") : t("Add term")}
+                    </button>
+                  </span>
+                ) : null}
+                {createError ? (
+                  <span className="save-error" role="alert">
+                    {createError}
+                  </span>
+                ) : null}
               </div>
-            )}
-          </fieldset>
-        ))}
+            </fieldset>
+          );
+        })}
       </div>
       {/* `term-picker-actions` is a spacing-only hook layered on `.editor-actions`, same pattern
           as `FormEditor.tsx`'s `.form-actions`: `.editor-actions` sets direction/gap/alignment but

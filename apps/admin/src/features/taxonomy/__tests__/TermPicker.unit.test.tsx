@@ -43,6 +43,17 @@ function controller(overrides: Partial<TermPickerController> = {}): TermPickerCo
     error: null,
     save: vi.fn(async () => {}),
     t: (key) => key,
+    canCreate: false,
+    showAddInput: () => false,
+    showAddTrigger: () => false,
+    setAddOpen: vi.fn(),
+    newTermName: () => "",
+    setNewTermName: vi.fn(),
+    onNewTermKeyDown: vi.fn(),
+    addTerm: vi.fn(async () => {}),
+    creating: () => false,
+    createError: () => null,
+    suggestions: () => [],
     ...overrides,
   };
 }
@@ -140,6 +151,66 @@ describe("TermPicker", () => {
       "data-agent-label",
       "Save this page's categories and tags as checked above",
     );
+  });
+
+  describe("adding a term by name", () => {
+    it("an empty taxonomy the admin can add to shows the input instead of 'No terms yet.'", () => {
+      renderPicker({ taxonomies: [EMPTY_TAXONOMY], canCreate: true, showAddInput: (id) => id === "tax2" });
+      expect(screen.queryByText("No terms yet.")).not.toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Term name" })).toHaveAttribute("placeholder", "Type a name, then press Enter");
+    });
+
+    it("typing, keys and the Add button all go to the hook, per taxonomy", async () => {
+      const user = userEvent.setup();
+      const setNewTermName = vi.fn();
+      const onNewTermKeyDown = vi.fn();
+      const addTerm = vi.fn(async () => {});
+      renderPicker({ showAddInput: () => true, newTermName: () => "Noir", setNewTermName, onNewTermKeyDown, addTerm });
+      const input = screen.getByRole("textbox", { name: "Term name" });
+      expect(input).toHaveValue("Noir");
+      await user.type(input, "x");
+      expect(setNewTermName).toHaveBeenCalledWith("tax1", "Noirx");
+      expect(onNewTermKeyDown).toHaveBeenCalledWith("tax1", expect.objectContaining({ key: "x" }));
+      await user.click(screen.getByRole("button", { name: "Add term" }));
+      expect(addTerm).toHaveBeenCalledWith("tax1");
+    });
+
+    it("Add is disabled with nothing typed", () => {
+      renderPicker({ showAddInput: () => true });
+      expect(screen.getByRole("button", { name: "Add term" })).toBeDisabled();
+    });
+
+    it("shows 'Saving…' on Add while that taxonomy's term is being created", () => {
+      renderPicker({ showAddInput: () => true, newTermName: () => "Noir", creating: () => true });
+      expect(screen.getByRole("button", { name: "Saving…", hidden: false })).toBeDisabled();
+    });
+
+    it("offers the hook's suggestions to the input", () => {
+      renderPicker({ showAddInput: () => true, suggestions: () => ["Fiction", "Non-fiction"] });
+      const input = screen.getByRole("combobox", { name: "Term name" });
+      const list = document.getElementById(input.getAttribute("list")!);
+      expect([...list!.querySelectorAll("option")].map((option) => option.value)).toEqual(["Fiction", "Non-fiction"]);
+    });
+
+    it("a category box's '+ Add term' opens its input", async () => {
+      const user = userEvent.setup();
+      const setAddOpen = vi.fn();
+      renderPicker({ showAddTrigger: () => true, setAddOpen });
+      await user.click(screen.getByRole("button", { name: "+ Add term" }));
+      expect(setAddOpen).toHaveBeenCalledWith("tax1", true);
+    });
+
+    it("shows that taxonomy's create error", () => {
+      renderPicker({ showAddInput: () => true, createError: (id) => (id === "tax1" ? "create exploded" : null) });
+      expect(screen.getByRole("alert")).toHaveTextContent("create exploded");
+    });
+
+    it("without the permission, shows neither the input nor the trigger", () => {
+      renderPicker({ taxonomies: [TAXONOMY, EMPTY_TAXONOMY] });
+      expect(screen.queryByRole("textbox", { name: "Term name" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "+ Add term" })).not.toBeInTheDocument();
+      expect(screen.getByText("No terms yet.")).toBeInTheDocument();
+    });
   });
 
   it("renders its copy through the hook's translator", () => {

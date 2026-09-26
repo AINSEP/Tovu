@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
-import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError } from "../rules";
+import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName } from "../rules";
 
 /**
  * @file Pure logic for `features/taxonomy/rules.ts`.
@@ -240,5 +240,28 @@ describe("describeTrashError", () => {
       alreadyGone: false,
       message: "failed to delete",
     });
+  });
+});
+
+describe("splitTermNames", () => {
+  it("a tag box splits on commas, trims, drops blanks and case-insensitive repeats", () => {
+    expect(splitTermNames(" Noir, , noir,Crime ,", false)).toEqual(["Noir", "Crime"]);
+  });
+
+  it("a category box takes the whole text as one name", () => {
+    expect(splitTermNames(" Arts, Crafts ", true)).toEqual(["Arts, Crafts"]);
+    expect(splitTermNames("   ", true)).toEqual([]);
+  });
+});
+
+describe("findTermByName", () => {
+  const terms = [{ id: "t1", taxonomyId: "tax1", parentId: null, name: "Fiction ", status: "active", updatedAt: "", version: 1 }] as AdminTerm[];
+
+  it("matches ignoring case and surrounding spaces", () => {
+    expect(findTermByName(terms, " fICTION")?.id).toBe("t1");
+  });
+
+  it("is undefined for a name no term has", () => {
+    expect(findTermByName(terms, "Fict")).toBeUndefined();
   });
 });

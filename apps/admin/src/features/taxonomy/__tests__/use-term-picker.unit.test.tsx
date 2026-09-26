@@ -187,6 +187,7 @@ describe("save", () => {
     const inFlight = deferred<void>();
     let held: string[] = [];
     const port: TermPickerPort = {
+      ...createFakeTermPickerPort(),
       listTaxonomies: async () => ({ items: [] }),
       assignedTerms: async () => ({ termIds: held }),
       assignTerms: async (input) => {
@@ -221,6 +222,174 @@ describe("save", () => {
     expect(result.current.message).not.toBeNull();
     act(() => result.current.toggle("t2"));
     expect(result.current.message).toBeNull();
+  });
+});
+
+const TOPIC: AdminTaxonomyWithTerms = {
+  taxonomy: { id: "tax2", name: "Topic", hierarchical: true, status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1 },
+  terms: [{ id: "c1", taxonomyId: "tax2", parentId: null, name: "News", status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1 }],
+};
+const EMPTY_TOPIC: AdminTaxonomyWithTerms = { taxonomy: { ...TOPIC.taxonomy, id: "tax3", name: "Section" }, terms: [] };
+
+function key(value: string) {
+  return { key: value, preventDefault: vi.fn() };
+}
+
+describe("adding a term by name", () => {
+  it("a new name is created in that taxonomy through the create-term port, ticked, and saved with Save", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "  Mystery "));
+    await act(async () => {
+      await result.current.addTerm("tax1");
+    });
+    expect(port.created).toEqual([{ taxonomyId: "tax1", name: "Mystery", parentId: undefined }]);
+    expect(result.current.selected).toEqual(new Set(["fake-1"]));
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.newTermName("tax1")).toBe("");
+    // Created, but not yet on the content: that waits for Save, like every other tick.
+    expect(port.calls).toEqual([]);
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(port.calls).toEqual([{ kind: "assign", contentType: "recipe", contentId: "e1", termIds: ["fake-1"] }]);
+  });
+
+  it("a name that already exists (any case) ticks that term instead of creating a duplicate", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", " FICTION "));
+    await act(async () => {
+      await result.current.addTerm("tax1");
+    });
+    expect(port.created).toEqual([]);
+    expect(result.current.selected).toEqual(new Set(["t1"]));
+    expect(result.current.newTermName("tax1")).toBe("");
+  });
+
+  it("re-adding an already-ticked term keeps it ticked (never unticks it)", async () => {
+    const { result } = await mountWith(createFakeTermPickerPort({ taxonomies: [GENRE], assigned: ["t1"] }));
+    act(() => result.current.setNewTermName("tax1", "fiction"));
+    await act(async () => {
+      await result.current.addTerm("tax1");
+    });
+    expect(result.current.selected).toEqual(new Set(["t1"]));
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("a tag box takes several comma-separated names at once, reusing the existing one", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "Mystery, fiction, ,mystery, Noir"));
+    await act(async () => {
+      await result.current.addTerm("tax1");
+    });
+    expect(port.created.map((call) => call.name)).toEqual(["Mystery", "Noir"]);
+    expect(result.current.selected).toEqual(new Set(["fake-1", "t1", "fake-2"]));
+  });
+
+  it("a blank name does nothing", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "   "));
+    await act(async () => {
+      await result.current.addTerm("tax1");
+    });
+    expect(port.created).toEqual([]);
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("Enter adds; a comma adds in a tag box but types normally in a category box", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE, TOPIC] });
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "Mystery"));
+    const comma = key(",");
+    await act(async () => {
+      result.current.onNewTermKeyDown("tax1", comma);
+    });
+    await waitFor(() => expect(port.created.map((call) => call.name)).toEqual(["Mystery"]));
+    expect(comma.preventDefault).toHaveBeenCalled();
+
+    act(() => result.current.setAddOpen("tax2", true));
+    act(() => result.current.setNewTermName("tax2", "Sports"));
+    const categoryComma = key(",");
+    act(() => result.current.onNewTermKeyDown("tax2", categoryComma));
+    expect(categoryComma.preventDefault).not.toHaveBeenCalled();
+    const enter = key("Enter");
+    await act(async () => {
+      result.current.onNewTermKeyDown("tax2", enter);
+    });
+    await waitFor(() => expect(port.created.map((call) => call.name)).toEqual(["Mystery", "Sports"]));
+    expect(enter.preventDefault).toHaveBeenCalled();
+
+    const other = key("a");
+    act(() => result.current.onNewTermKeyDown("tax1", other));
+    expect(other.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("a tag box and an empty taxonomy always show the input; a category box with terms shows it behind '+ Add term', which closes after an add", async () => {
+    const { result } = await mountWith(createFakeTermPickerPort({ taxonomies: [GENRE, TOPIC, EMPTY_TOPIC] }));
+    await waitFor(() => expect(result.current.canCreate).toBe(true));
+    expect(result.current.showAddInput("tax1")).toBe(true);
+    expect(result.current.showAddTrigger("tax1")).toBe(false);
+    expect(result.current.showAddInput("tax3")).toBe(true);
+    expect(result.current.showAddTrigger("tax3")).toBe(false);
+    expect(result.current.showAddInput("tax2")).toBe(false);
+    expect(result.current.showAddTrigger("tax2")).toBe(true);
+
+    act(() => result.current.setAddOpen("tax2", true));
+    expect(result.current.showAddInput("tax2")).toBe(true);
+    expect(result.current.showAddTrigger("tax2")).toBe(false);
+    act(() => result.current.setNewTermName("tax2", "Sports"));
+    await act(async () => {
+      await result.current.addTerm("tax2");
+    });
+    expect(result.current.showAddInput("tax2")).toBe(false);
+    expect(result.current.showAddTrigger("tax2")).toBe(true);
+
+    act(() => result.current.setAddOpen("tax2", true));
+    act(() => result.current.onNewTermKeyDown("tax2", key("Escape")));
+    expect(result.current.showAddInput("tax2")).toBe(false);
+    act(() => result.current.onNewTermKeyDown("tax1", key("Escape")));
+    expect(result.current.showAddInput("tax1")).toBe(true);
+  });
+
+  it("without the term-create permission, no add input or trigger shows anywhere", async () => {
+    const { result } = await mountWith(createFakeTermPickerPort({ taxonomies: [GENRE, TOPIC, EMPTY_TOPIC], permissions: ["comments.read"] }));
+    await waitFor(() => expect(result.current.taxonomies).toHaveLength(3));
+    expect(result.current.canCreate).toBe(false);
+    for (const id of ["tax1", "tax2", "tax3"]) {
+      expect(result.current.showAddInput(id)).toBe(false);
+      expect(result.current.showAddTrigger(id)).toBe(false);
+    }
+  });
+
+  it("the create permission itself, or the owner wildcard, shows the inputs", async () => {
+    const own = await mountWith(createFakeTermPickerPort({ taxonomies: [GENRE], permissions: ["admin.taxonomy.manage"] }));
+    await waitFor(() => expect(own.result.current.canCreate).toBe(true));
+    const owner = await mountWith(createFakeTermPickerPort({ taxonomies: [GENRE], permissions: ["*"] }));
+    await waitFor(() => expect(owner.result.current.canCreate).toBe(true));
+  });
+
+  it("a failed create is reported on that taxonomy only, keeps the typed name, and ticks nothing", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE, TOPIC], createError: "create exploded" });
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "Mystery"));
+    await act(async () => {
+      await result.current.addTerm("tax1");
+    });
+    expect(result.current.createError("tax1")).toBe("create exploded");
+    expect(result.current.createError("tax2")).toBeNull();
+    expect(result.current.newTermName("tax1")).toBe("Mystery");
+    expect(result.current.dirty).toBe(false);
+    act(() => result.current.setNewTermName("tax1", "Myst"));
+    expect(result.current.createError("tax1")).toBeNull();
+  });
+
+  it("suggests that taxonomy's terms not ticked yet", async () => {
+    const two: AdminTaxonomyWithTerms = { ...GENRE, terms: [...GENRE.terms, { ...GENRE.terms[0]!, id: "t2", name: "Poetry" }] };
+    const { result } = await mountWith(createFakeTermPickerPort({ taxonomies: [two], assigned: ["t1"] }));
+    await waitFor(() => expect(result.current.suggestions("tax1")).toEqual(["Poetry"]));
   });
 });
 

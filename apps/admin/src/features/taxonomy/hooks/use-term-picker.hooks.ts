@@ -3,7 +3,8 @@ import { describeApiError, type AdminTaxonomyWithTerms } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
-import { KEYS, termPickerSubject } from "../rules";
+import { hasPermission } from "@/lib/permissions";
+import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
 import type { TermPickerPort } from "./term-picker-port.hooks";
@@ -24,6 +25,15 @@ import type { TermPickerPort } from "./term-picker-port.hooks";
  * difference — `assignTerms` for the added ids, `unassignTerms` for the removed ones — then re-reads.
  * The draft is kept after a save, so a box ticked while the save was in flight stays ticked (M1) and
  * simply shows as a new unsaved change.
+ *
+ * Adding a term by name (2026-09-26): each taxonomy row has an add input — always shown for a tag
+ * box (`hierarchical: false`) and for a taxonomy with no terms yet, behind "+ Add term" for a
+ * category box that already has some. Enter (or a comma, in a tag box) adds what was typed: a name
+ * that matches an existing term, ignoring case, just ticks that term; a new one is created through
+ * the Categories & Tags screen's own create-term port (`port.createTerm`, invalidating `KEYS.list`
+ * the same way) and then ticked. The create is immediate — a term needs an id before it can be
+ * ticked — but putting it on this content still waits for Save, like every other tick. The input
+ * shows only when the admin holds `admin.taxonomy.manage` (UX only; the route is the boundary).
  */
 
 export interface TermPickerController {
@@ -44,6 +54,25 @@ export interface TermPickerController {
   save: () => Promise<void>;
   /** This feature's dictionary, bound to the admin locale. */
   t: Translate;
+  /** The admin may create terms — without it no add input or trigger shows. */
+  canCreate: boolean;
+  /** This taxonomy's add input is on screen. */
+  showAddInput: (taxonomyId: string) => boolean;
+  /** This (category) taxonomy shows "+ Add term" to open its add input. */
+  showAddTrigger: (taxonomyId: string) => boolean;
+  setAddOpen: (taxonomyId: string, open: boolean) => void;
+  /** What is typed in this taxonomy's add input. */
+  newTermName: (taxonomyId: string) => string;
+  setNewTermName: (taxonomyId: string, name: string) => void;
+  /** Enter adds what was typed; so does a comma in a tag box. Escape closes an opened category input. */
+  onNewTermKeyDown: (taxonomyId: string, event: { key: string; preventDefault(): void }) => void;
+  /** Ticks the typed name's existing term, or creates it and ticks it. */
+  addTerm: (taxonomyId: string) => Promise<void>;
+  /** A term is being created in this taxonomy. */
+  creating: (taxonomyId: string) => boolean;
+  createError: (taxonomyId: string) => string | null;
+  /** This taxonomy's terms not ticked yet — the add input's suggestions. */
+  suggestions: (taxonomyId: string) => string[];
 }
 
 export interface TermPickerDependencies {
@@ -78,6 +107,12 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   const [draft, setDraft] = useState<Set<string> | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const selected = draft ?? assigned;
+  const permissionsQuery = useFetchQuery({ key: KEYS.permissions, fetch: () => port.me() });
+  const canCreate = hasPermission(permissionsQuery.data?.effectivePermissions ?? [], TAXONOMY_MANAGE_PERMISSION);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [openAdds, setOpenAdds] = useState<ReadonlySet<string>>(new Set());
+  /** The taxonomy the last create was for — `createMutation`'s error and pending state belong to it. */
+  const [createTarget, setCreateTarget] = useState<string | null>(null);
 
   const saveMutation = useFetchMutation({
     run: async (input: { add: string[]; remove: string[] }) => {
@@ -86,6 +121,77 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     },
     invalidates: [key],
   });
+
+  const createMutation = useFetchMutation({
+    run: (input: { taxonomyId: string; name: string }) => port.createTerm(input),
+    invalidates: [KEYS.list],
+  });
+
+  function tick(termIds: string[]) {
+    setMessage(null);
+    setDraft((current) => new Set([...(current ?? assigned), ...termIds]));
+  }
+
+  function groupOf(taxonomyId: string) {
+    return taxonomies.find((group) => group.taxonomy.id === taxonomyId);
+  }
+
+  function setNewTermName(taxonomyId: string, name: string) {
+    if (createTarget === taxonomyId) setCreateTarget(null);
+    setNames((current) => ({ ...current, [taxonomyId]: name }));
+  }
+
+  function setAddOpen(taxonomyId: string, open: boolean) {
+    setOpenAdds((current) => {
+      const next = new Set(current);
+      if (open) next.add(taxonomyId);
+      else next.delete(taxonomyId);
+      return next;
+    });
+  }
+
+  async function addTerm(taxonomyId: string) {
+    const group = groupOf(taxonomyId);
+    if (!group) return;
+    const wanted = splitTermNames(names[taxonomyId] ?? "", group.taxonomy.hierarchical);
+    if (wanted.length === 0) return;
+    setCreateTarget(taxonomyId);
+    const ids: string[] = [];
+    try {
+      for (const name of wanted) {
+        const existing = findTermByName(group.terms, name);
+        ids.push(existing ? existing.id : (await createMutation.mutate({ taxonomyId, name })).term.id);
+      }
+    } catch {
+      // already surfaced through createMutation.error -> createError below; the terms added
+      // before the failure stay ticked and the typed text stays for a retry
+      tick(ids);
+      return;
+    }
+    tick(ids);
+    setCreateTarget(null);
+    setNames((current) => ({ ...current, [taxonomyId]: "" }));
+    setAddOpen(taxonomyId, false);
+  }
+
+  function onNewTermKeyDown(taxonomyId: string, event: { key: string; preventDefault(): void }) {
+    const hierarchical = groupOf(taxonomyId)?.taxonomy.hierarchical ?? true;
+    if (event.key === "Escape") {
+      // Closes a category box's opened input; one that is always shown just stays.
+      setAddOpen(taxonomyId, false);
+      return;
+    }
+    if (event.key !== "Enter" && !(event.key === "," && !hierarchical)) return;
+    // Also keeps Enter from submitting an editor form the box sits inside.
+    event.preventDefault();
+    void addTerm(taxonomyId);
+  }
+
+  function showAddInput(taxonomyId: string): boolean {
+    const group = groupOf(taxonomyId);
+    if (!canCreate || !group) return false;
+    return !group.taxonomy.hierarchical || group.terms.length === 0 || openAdds.has(taxonomyId);
+  }
 
   function toggle(termId: string) {
     setMessage(null);
@@ -132,6 +238,21 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     error,
     save,
     t: (key) => t(locale, key),
+    canCreate,
+    showAddInput,
+    showAddTrigger: (taxonomyId) => canCreate && Boolean(groupOf(taxonomyId)) && !showAddInput(taxonomyId),
+    setAddOpen,
+    newTermName: (taxonomyId) => names[taxonomyId] ?? "",
+    setNewTermName,
+    onNewTermKeyDown,
+    addTerm,
+    creating: (taxonomyId) => createTarget === taxonomyId && createMutation.status === "pending",
+    createError: (taxonomyId) =>
+      createTarget === taxonomyId && createMutation.error
+        ? describeApiError(createMutation.error, t(locale, "Failed to create term"))
+        : null,
+    suggestions: (taxonomyId) =>
+      (groupOf(taxonomyId)?.terms ?? []).filter((term) => !selected.has(term.id)).map((term) => term.name),
   };
 }
 

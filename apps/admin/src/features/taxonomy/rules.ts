@@ -30,7 +30,13 @@ export const KEYS = {
    *  on purpose: deleting or merging a term changes what content holds, so a list refresh should
    *  refresh these too; a tag save invalidates only its own key. */
   assignedTerms: (contentType: string, contentId: string): QueryKey => ["taxonomies", "assigned", contentType, contentId],
+  /** The admin's own effective permissions — whether the Categories & Tags box offers "add a term". */
+  permissions: ["taxonomy", "permissions"] as QueryKey,
 };
+
+/** The permission the create-term route checks (`routes/taxonomy/create-term.ts`). The box only
+ *  hides its add input without it; the route is still the boundary. */
+export const TAXONOMY_MANAGE_PERMISSION = "admin.taxonomy.manage";
 
 /**
  * This feature's name on `lib/content-refresh-bus`, so a narrowed notification can say "taxonomy
@@ -200,4 +206,34 @@ export function describeTrashError(e: Error | null, fallback: string): { already
  */
 export function termPickerSubject(contentType: string): "post" | "page" | "entry" {
   return contentType === "post" || contentType === "page" ? contentType : "entry";
+}
+
+/**
+ * The term names typed into the Categories & Tags box's add input: trimmed, blanks dropped, and
+ * de-duplicated case-insensitively. A tag box (`hierarchical: false`) splits on commas so
+ * "a, b, c" adds three tags; a category box takes the text as one name.
+ *
+ * @complexity O(n) in the text's length.
+ */
+export function splitTermNames(text: string, hierarchical: boolean): string[] {
+  const names: string[] = [];
+  for (const raw of hierarchical ? [text] : text.split(",")) {
+    const name = raw.trim();
+    if (name && !names.some((seen) => sameTermName(seen, name))) names.push(name);
+  }
+  return names;
+}
+
+function sameTermName(a: string, b: string): boolean {
+  return a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+}
+
+/**
+ * The term in `terms` with this name, ignoring case and surrounding spaces — so typing "fiction"
+ * ticks the existing "Fiction" instead of creating a duplicate.
+ *
+ * @complexity O(n), n = `terms.length`.
+ */
+export function findTermByName(terms: readonly AdminTerm[], name: string): AdminTerm | undefined {
+  return terms.find((term) => sameTermName(term.name, name));
 }

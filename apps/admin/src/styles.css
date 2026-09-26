@@ -2911,6 +2911,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 }
 .term-picker-group > legend { float: left; padding: 0; }
 .term-picker-terms { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+/* The row's right-hand cell: its ticks, then the add input (or a category box's "+ Add term"). */
+.term-picker-body { display: grid; gap: var(--space-2); justify-items: start; min-width: 0; }
+.term-picker-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 100%; }
+.term-picker-add input { width: 18rem; max-width: 100%; }
 @media (max-width: 640px) {
   .term-picker-group { grid-template-columns: 1fr; }
 }

@@ -1,5 +1,6 @@
 import { api, type AdminTaxonomyWithTerms } from "@/lib/api";
 import type { TermPickerPort } from "./term-picker-port.hooks";
+import { createFakeNewTermFormPort, defaultNewTermFormPort, type AdminTermCreateCall } from "./new-term-form-dependencies.hooks";
 
 /**
  * @file The only place `use-term-picker.hooks.ts` reaches `lib/api` — see `term-picker-
@@ -12,6 +13,8 @@ export const defaultTermPickerPort: TermPickerPort = {
   assignedTerms: (input) => api.assignedTerms(input),
   assignTerms: (input) => api.assignTerms(input),
   unassignTerms: (input) => api.unassignTerms(input),
+  me: () => api.me(),
+  createTerm: defaultNewTermFormPort.createTerm,
 };
 
 /** Seed state for {@link createFakeTermPickerPort}. */
@@ -26,6 +29,10 @@ export interface FakeTermPickerPortOptions {
   taxonomiesError?: Error;
   /** When set, `assignTerms()`/`unassignTerms()` reject with this instead of resolving. */
   saveError?: Error;
+  /** The admin's effective permissions. Defaults to the owner wildcard `["*"]`. */
+  permissions?: string[];
+  /** When set, `createTerm()` rejects with this message (see `createFakeNewTermFormPort`). */
+  createError?: string;
 }
 
 type TermWrite = { kind: "assign" | "unassign"; contentType: string; contentId: string; termIds: string[] };
@@ -38,7 +45,10 @@ type TermWrite = { kind: "assign" | "unassign"; contentType: string; contentId: 
 export function createFakeTermPickerPort(options: FakeTermPickerPortOptions = {}): TermPickerPort & {
   /** Every assign/unassign call this fake has received, in call order. */
   readonly calls: TermWrite[];
+  /** Every term `createTerm()` has created, in call order — ids are `fake-1`, `fake-2`, …. */
+  readonly created: AdminTermCreateCall[];
 } {
+  const termPort = createFakeNewTermFormPort({ createError: options.createError });
   const calls: TermWrite[] = [];
   const assigned = new Set(options.assigned ?? []);
   const write = async (kind: TermWrite["kind"], input: Omit<TermWrite, "kind">) => {
@@ -52,6 +62,11 @@ export function createFakeTermPickerPort(options: FakeTermPickerPortOptions = {}
 
   return {
     calls,
+    created: termPort.created,
+    createTerm: (target, callOptions) => termPort.createTerm(target, callOptions),
+    async me() {
+      return { effectivePermissions: options.permissions ?? ["*"] };
+    },
     async listTaxonomies() {
       if (options.taxonomiesError) throw options.taxonomiesError;
       return { items: options.taxonomies ?? [] };

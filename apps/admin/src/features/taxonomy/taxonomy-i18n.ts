@@ -1125,6 +1125,36 @@ for (const [locale, translations] of Object.entries(TERM_PICKER_I18N)) {
   Object.assign(TAXONOMY_DICT[locale], translations);
 }
 
+// 2026-09-26: the box's own add input (`TermPicker.tsx`) — type a name to tick or create a term.
+// "Term name", "+ Add term", "Add term" and "Failed to create term" are the Categories & Tags
+// screen's own strings above, reused as-is.
+const TERM_PICKER_ADD_I18N: Record<string, Record<string, string>> = {
+  "es": { "Type a name, then press Enter": "Escribe un nombre y pulsa Intro" },
+  "id": { "Type a name, then press Enter": "Ketik nama, lalu tekan Enter" },
+  "de": { "Type a name, then press Enter": "Namen eingeben, dann Eingabetaste drücken" },
+  "zh-CN": { "Type a name, then press Enter": "输入名称，然后按回车键" },
+  "zh-TW": { "Type a name, then press Enter": "輸入名稱，然後按 Enter 鍵" },
+  "pt-BR": { "Type a name, then press Enter": "Digite um nome e pressione Enter" },
+  "ru": { "Type a name, then press Enter": "Введите название и нажмите Enter" },
+  "fa": { "Type a name, then press Enter": "یک نام بنویسید، سپس Enter را بزنید" },
+  "ar": { "Type a name, then press Enter": "اكتب اسمًا ثم اضغط Enter" },
+  "ja": { "Type a name, then press Enter": "名前を入力して Enter キーを押してください" },
+  "ko": { "Type a name, then press Enter": "이름을 입력한 뒤 Enter 키를 누르세요" },
+  "pl": { "Type a name, then press Enter": "Wpisz nazwę i naciśnij Enter" },
+  "hu": { "Type a name, then press Enter": "Írj be egy nevet, majd nyomd meg az Entert" },
+  "fr": { "Type a name, then press Enter": "Saisissez un nom, puis appuyez sur Entrée" },
+  "uk": { "Type a name, then press Enter": "Введіть назву й натисніть Enter" },
+  "tr": { "Type a name, then press Enter": "Bir ad yazın, ardından Enter'a basın" },
+  "th": { "Type a name, then press Enter": "พิมพ์ชื่อ แล้วกด Enter" },
+  "it": { "Type a name, then press Enter": "Digita un nome, poi premi Invio" },
+  "hi": { "Type a name, then press Enter": "नाम लिखें, फिर Enter दबाएँ" },
+  "ur": { "Type a name, then press Enter": "نام لکھیں، پھر Enter دبائیں" },
+  "bn": { "Type a name, then press Enter": "একটি নাম লিখুন, তারপর Enter চাপুন" },
+};
+for (const [locale, translations] of Object.entries(TERM_PICKER_ADD_I18N)) {
+  Object.assign(TAXONOMY_DICT[locale], translations);
+}
+
 /** `TAXONOMY_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
  *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
