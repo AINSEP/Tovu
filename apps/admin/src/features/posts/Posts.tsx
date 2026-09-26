@@ -105,6 +105,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           <p className="page-description">{t("Manage and publish every post on this site.")}</p>
         </div>
         <div className="page-actions">
+          <PublishSectionButton entityType="post" />
           <button
             onClick={createPost}
             disabled={creating}
@@ -112,7 +113,6 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           >
             {creating ? t("Creating…") : t("New Post")}
           </button>
-          <PublishSectionButton entityType="post" />
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}

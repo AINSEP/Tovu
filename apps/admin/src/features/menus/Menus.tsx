@@ -34,10 +34,10 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
           <p className="page-description">{t("Build navigation menus for your theme's header and footer.")}</p>
         </div>
         <div className="page-actions">
+          <PublishSectionButton entityType="menu" />
           <a className="btn-primary" href="/admin/menus/new">
             {t("Add New")}
           </a>
-          <PublishSectionButton entityType="menu" />
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
