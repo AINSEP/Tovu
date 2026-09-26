@@ -120,25 +120,30 @@ test("checkTreePath no longer blocks a .DS_Store path — it is ignored upstream
   assert.equal(checkTreePath("render/.DS_Store"), null);
 });
 
-test("checkTreeFiles silently ignores OS junk files: no block, no count against tree caps", () => {
+// The walker is the ONE place junk is ignored. `checkTreeFiles` also runs on the destination over a
+// file list the source sent, and every file in that list gets written — so a junk name reaching it
+// is refused, never waved through past the '..', cap, extension and scan checks.
+test("checkTreeFiles refuses an OS junk file that reached it, with a plain reason", () => {
   const files: FileTreeFileInput[] = [
     { path: "theme.json", size: 10, mode: 0o644, textSample: '{"id":"basic"}' },
-    { path: ".DS_Store", size: 6148, mode: 0o644 },
     { path: "render/.DS_Store", size: 6148, mode: 0o644 },
-    { path: "Thumbs.db", size: 100, mode: 0o644 },
-    { path: "._theme.json", size: 100, mode: 0o644 },
   ];
-  assert.equal(checkTreeFiles("theme-files", files), null);
+  assert.equal(checkTreeFiles("theme-files", files), `"render/.DS_Store" is a system file that is never published`);
+  assert.equal(
+    checkTreeFiles("theme-files", [{ path: "._id_rsa.png", size: 1, mode: 0o644 }]),
+    `"._id_rsa.png" is a system file that is never published`
+  );
 });
 
-test("checkTreeFiles ignores a junk file even when it alone would fail a real rule", () => {
-  // An oversized/disallowed-extension junk file must never block the tree — it is dropped before
-  // any cap, extension, or scan check ever sees it.
-  const oversized: FileTreeFileInput[] = [
-    { path: "theme.json", size: 10, mode: 0o644 },
-    { path: ".DS_Store", size: FILE_TREE_LIMITS.maxFileBytes + 1, mode: 0o644 },
-  ];
-  assert.equal(checkTreeFiles("theme-files", oversized), null);
+test("checkTreeFiles still runs the '..' and size checks on a junk-looking name", () => {
+  assert.equal(
+    checkTreeFiles("theme-files", [{ path: "../outside/._x.png", size: 1, mode: 0o644 }]),
+    `"../outside/._x.png" contains a '..' segment, which is never allowed`
+  );
+  assert.notEqual(
+    checkTreeFiles("theme-files", [{ path: "Thumbs.db", size: FILE_TREE_LIMITS.maxTreeBytes + 1, mode: 0o644 }]),
+    null
+  );
 });
 
 // (d) A planted credential in theme.css blocks the tree with the exact reason.

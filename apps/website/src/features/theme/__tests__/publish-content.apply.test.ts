@@ -196,6 +196,25 @@ test("precheck() blocks a '../x' path in the state with the exact reason", async
   assert.equal(reason, `Theme: static/basic was not published: "../x" contains a '..' segment, which is never allowed`);
 });
 
+// An OS junk name is skipped by the SOURCE walker, never by the destination's policy check: `apply()`
+// stages every incoming file, so a check that ignored `._x` would let it skip the '..' guard and be
+// written outside the staging folder.
+test("precheck() blocks a '..' path even when its file name looks like OS junk", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const files = [...(entity.state.files as Array<Record<string, unknown>>), { path: "../escape/._x.png", sha256: "0".repeat(64), size: 1, mode: 0o644 }];
+  const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, files }));
+  assert.equal(reason, `Theme: static/basic was not published: "../escape/._x.png" contains a '..' segment, which is never allowed`);
+});
+
+test("precheck() blocks an incoming OS junk file instead of staging it unchecked", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const files = [...(entity.state.files as Array<Record<string, unknown>>), { path: ".DS_Store", sha256: "0".repeat(64), size: 1, mode: 0o644 }];
+  const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, files }));
+  assert.equal(reason, `Theme: static/basic was not published: ".DS_Store" is a system file that is never published`);
+});
+
 test("precheck() blocks a state whose treeKey does not match the entity id", async () => {
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);

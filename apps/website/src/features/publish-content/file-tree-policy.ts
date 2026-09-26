@@ -112,9 +112,10 @@ const MCP_CONFIG_NAME_PATTERN = /^\.mcp\..*\.json$/;
  * contributor never means to publish and that reappear on disk on their own (macOS recreates
  * `.DS_Store` the moment a folder is opened in Finder again). These are IGNORED, not denied: a
  * caller walking a tree ({@link ../../theme/publish-content.ts}'s `walkThemeTree`) excludes them
- * before a file ever becomes a candidate at all, and {@link checkTreeFiles} drops them from every
- * check (caps, extension, scan) as defense-in-depth for a walker that forgot to. Never blocking the
- * WHOLE tree for one of these is the point of this set existing separately from
+ * before a file ever becomes a candidate at all. {@link checkTreeFiles} REFUSES one that still
+ * reaches it (a sender whose walker did not skip it): the destination writes every file it is sent,
+ * so a filtered-out name would be written without any check. Never blocking a tree the WALKER
+ * found one of these in is the point of this set existing separately from
  * {@link deniedFileNameReason} — see `publish-files-plan-2026-09-24.md`'s real-world case: a theme's
  * `.DS_Store`, recreated by Finder, silently refused a legitimate publish with no reason shown.
  *
@@ -311,14 +312,7 @@ export interface FileTreeFileInput {
  *   secret scan (§(p) pattern count times sample length) per qualifying file; `b` is the sum of every
  *   scanned file's `textSample` length.
  */
-export function checkTreeFiles(kind: FileTreeKind, allFiles: readonly FileTreeFileInput[]): string | null {
-  // Defense-in-depth (this module's own header: the destination never trusts the source's own
-  // filtering): an OS junk file is dropped BEFORE it can count toward a cap, fail an extension
-  // allow-list, or reach the secret scan — see `isIgnoredTreeFileName`'s own doc for why this is an
-  // ignore, never a whole-tree DENY. A real walker (`walkThemeTree`) already excludes these; this is
-  // what keeps a future/careless file-tree kind's own walker from reopening the same bug.
-  const files = allFiles.filter((file) => !isIgnoredTreeFileName(file.path.slice(file.path.lastIndexOf("/") + 1)));
-
+export function checkTreeFiles(kind: FileTreeKind, files: readonly FileTreeFileInput[]): string | null {
   const limits = FILE_TREE_LIMITS;
   if (files.length > limits.maxTreeFiles) {
     return `this tree has ${files.length} files, more than the ${limits.maxTreeFiles}-file limit`;
@@ -334,6 +328,12 @@ export function checkTreeFiles(kind: FileTreeKind, allFiles: readonly FileTreeFi
   for (const file of files) {
     const shapeReason = checkTreePath(file.path);
     if (shapeReason) return shapeReason;
+    // A walker skips OS junk before this runs (`isIgnoredTreeFileName`), so one reaching here came
+    // from a sender that did not — on the destination, every listed file is written. Refused, never
+    // filtered: filtering would let it skip every check below and still be staged.
+    if (isIgnoredTreeFileName(file.path.slice(file.path.lastIndexOf("/") + 1))) {
+      return `"${file.path}" is a system file that is never published`;
+    }
 
     const lower = file.path.toLowerCase();
     const earlier = seenLowercase.get(lower);
