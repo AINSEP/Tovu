@@ -22,7 +22,8 @@ import { embedMarkerTarget, scanEmbedMarkers } from "#src/contracts/core/embeds/
  *
  * Not covered: an old slug kept alive only by `media_slug_history` (matched against the CURRENT slug
  * only). Media an embedded widget holds is not read here: the widget itself is carried
- * (`content-references.ts`), and a widget's config names no media the carry follows.
+ * (`content-references.ts`), and its own `references()` reads its config's media URLs through
+ * {@link collectMediaUrlKeys}.
  *
  * Returns KEYS — an id or a slug — never resolved media: the caller matches them against the media
  * entities it actually holds, so a key naming nothing (a deleted asset, a stray URL) adds nothing.
@@ -57,6 +58,14 @@ function addMarkKeys(marks: unknown, out: Set<string>): void {
     if (!isPlainObject(mark) || !isPlainObject(mark.attrs)) continue;
     for (const value of Object.values(mark.attrs)) if (typeof value === "string") addUrlKeys(value, out);
   }
+}
+
+/** Every media key a free-text string names by a `/m/` or `/media/` URL (a text widget's body, a
+ *  social link's `url`). @complexity O(n) in the string's length. */
+export function collectMediaUrlKeys(text: string): ReadonlySet<string> {
+  const keys = new Set<string>();
+  addUrlKeys(text, keys);
+  return keys;
 }
 
 /** Walks a TipTap tree collecting every `image`/`media` node's `assetId` and legacy `src` key, plus

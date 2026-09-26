@@ -54,6 +54,21 @@ test("a widget carries the form, menu or term its config names", () => {
   assert.deepEqual(referencesOf(widget, "widget", { widgetType: "text", config: { body: "hi" } }), []);
 });
 
+test("a widget carries the media files its settings link to, read through its type's config schema", () => {
+  const widget = contributeWidgetPublish();
+  const body = "Menu: https://example.com/m/lunch-menu/original.v1/menu.pdf and /media/m2/thumb.webp";
+  assert.deepEqual(referencesOf(widget, "widget", { widgetType: "text", config: { body } }), ["media:lunch-menu", "media:m2"]);
+  const links = [
+    { platform: "resume", url: "/m/cv/original.v2/cv.pdf" },
+    { platform: "github", url: "https://github.com/x" },
+  ];
+  assert.deepEqual(referencesOf(widget, "widget", { widgetType: "social-links", config: { links } }), ["media:cv"]);
+  // Only declared free-text fields: an undeclared key and a ref field are not read for URLs.
+  const where = { note: "/m/hidden/x.png" };
+  assert.deepEqual(referencesOf(widget, "widget", { widgetType: "recent-entries", config: { maxItems: 3, where, categoryTermId: "/m/t/x" } }), ["term:/m/t/x"]);
+  assert.deepEqual(referencesOf(widget, "widget", { widgetType: "unknown", config: { body: "/m/a/x.png" } }), []);
+});
+
 test("a widget area carries the widgets it places", () => {
   const placements = [
     { placementId: "p1", widgetEntryId: "w1", enabled: true },

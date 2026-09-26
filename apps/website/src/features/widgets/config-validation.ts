@@ -26,6 +26,8 @@ interface WidgetConfigJsonSchema {
   readonly maxItems?: number;
   readonly minimum?: number;
   readonly maximum?: number;
+  /** A field naming other content by id (`registry.ts`'s `categoryTermId`/`menuRef`/`formDefinitionId`). */
+  readonly "x-ref-target"?: string;
 }
 
 export interface WidgetConfigFieldError {
@@ -155,4 +157,27 @@ export function validateWidgetConfig(required: {
   const errors: WidgetConfigFieldError[] = [];
   walk(required.config, required.schema as WidgetConfigJsonSchema, "config", errors);
   return { valid: errors.length === 0, fieldErrors: errors };
+}
+
+/** Pushes each declared free-text string under `schema` (recursion into declared `properties` and
+ *  `items` only). @complexity O(n) over the config's declared nodes. */
+function collectStrings(value: unknown, schema: WidgetConfigJsonSchema, out: string[]): void {
+  if (schema.type === "string" && typeof value === "string" && schema["x-ref-target"] === undefined) out.push(value);
+  else if (schema.type === "array" && Array.isArray(value) && schema.items) for (const item of value) collectStrings(item, schema.items, out);
+  else if (schema.type === "object" && isPlainObject(value))
+    for (const [key, propSchema] of Object.entries(schema.properties ?? {})) collectStrings(value[key], propSchema, out);
+}
+
+/**
+ * Every free-text string `config` holds where its type's `configSchema` declares one — a `text`
+ * widget's `body`, each social link's `url`. Ref fields (`x-ref-target`) are left out (they name
+ * other content by id) and so is anything the schema does not declare (`recent-entries`' `where`).
+ * The publish carry-along (`publish-content.ts`) reads media URLs out of these.
+ *
+ * @complexity O(n) over the config's declared nodes.
+ */
+export function collectWidgetConfigStrings(required: { schema: Record<string, unknown>; config: Record<string, unknown> }): string[] {
+  const out: string[] = [];
+  collectStrings(required.config, required.schema as WidgetConfigJsonSchema, out);
+  return out;
 }

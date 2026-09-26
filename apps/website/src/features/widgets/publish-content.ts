@@ -1,9 +1,10 @@
 import { collectPlacementReferences } from "#src/features/publish-content/content-references";
+import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, PublishContentReference, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
 
 import { ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError, type EntryRecord } from "../entries/index.js";
-import { validateWidgetConfig } from "./config-validation.js";
+import { collectWidgetConfigStrings, validateWidgetConfig } from "./config-validation.js";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
 import {
   WidgetAreaConflictError,
@@ -26,7 +27,9 @@ import { importWidgetInstance } from "./write-service.js";
  * - `widget`: one `type='widget'` entry, keeping the source id (placements name it), addressed by
  *   slug. Packs the decoded payload (`widgetType`, `config`), not the stored JSON string, so key order
  *   never reads as a change. Only `active` instances outside the Trash travel. Config is
- *   schema-checked at write time, but the ids inside it (menu, media) resolve at render.
+ *   schema-checked at write time, but the ids inside it (menu, media) resolve at render. A scoped
+ *   publish carries what the config names (`references`): its form, menu or term, and any media file
+ *   a free-text field links to by URL.
  *   A `contact-form` widget's `formDefinitionId` is the exception: a form's id is minted per instance
  *   (forms travel by slug), so the packed config names the form by slug and the write turns it back
  *   into the destination's own id — hence `dependsOn: ["form"]`.
@@ -87,6 +90,16 @@ async function swapFormRef(
   return { ...config, [FORM_REF]: (await swap(ref)) ?? ref };
 }
 
+/** The media a widget's free-text config fields link to by `/m/` or `/media/` URL (a text widget's
+ *  body, a social link's `url`), found through its type's `configSchema`. No v1 type stores a media
+ *  id, so URLs are the only way a widget's settings name an image or file. */
+function widgetMediaReferences(widgetType: string, config: Record<string, unknown>): PublishContentReference[] {
+  const registration = findWidgetTypeRegistration(widgetType);
+  if (!registration) return [];
+  const keys = new Set(collectWidgetConfigStrings({ schema: registration.configSchema, config }).flatMap((text) => [...collectMediaUrlKeys(text)]));
+  return [...keys].map((key) => ({ entityType: "media", key }));
+}
+
 /** The row as it packs: its form reference as the form's slug. */
 async function portableRow(p: WidgetPublishPorts, workspaceId: string, row: WidgetRow): Promise<WidgetRow> {
   const config = await swapFormRef(row.widgetType, row.config, async (id) => (await p.forms.findById({ workspaceId, id }))?.slug);
@@ -127,10 +140,11 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     },
     references: (entity) => {
       const config = (entity.state.config ?? {}) as Record<string, unknown>;
-      return Object.entries(WIDGET_CONFIG_REFERENCES).flatMap(([field, entityType]) => {
+      const refs = Object.entries(WIDGET_CONFIG_REFERENCES).flatMap(([field, entityType]) => {
         const key = config[field];
         return typeof key === "string" && key.length > 0 ? [{ entityType, key }] : [];
       });
+      return [...refs, ...widgetMediaReferences(String(entity.state.widgetType), config)];
     },
     validate: async ({ entity }) => {
       const widgetType = entity.state.widgetType as WidgetTypeKey;
