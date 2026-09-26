@@ -124,8 +124,8 @@
   padding: 0.5rem 0.75rem; font-size: var(--text-sm); color: var(--fg); cursor: pointer;
 }
 .select-option:hover, .select-option.is-highlighted { background: var(--surface-2); }
-/* Selected row — the same low-alpha `color-mix` tint idiom `styles.css` already uses for a primary-
-   family fill (its `button:disabled` rule, `color-mix(in oklab, var(--primary) 30%, var(--surface))`)
+/* Selected row — the same low-alpha `color-mix` tint idiom `styles.css` uses for tinted fills
+   (`color-mix(in oklab, var(--primary) 30%, var(--surface))` here)
    rather than a flat `--primary-dim` background, so this reads as "the primary color, faded" and
    not a generic separate tint. Text goes fully `--primary` (not mixed) — the row still needs to
    read clearly at 13px, and the tinted background alone already carries the "faded" quality. */
