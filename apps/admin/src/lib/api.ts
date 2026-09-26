@@ -1322,6 +1322,9 @@ export type ThemeTier = "declarative" | "templated" | "handlebars" | "static" | 
 /** Themes admin screen (2026-08-10) — one available theme's id plus its capability tier. */
 export interface AdminThemeSummary {
   id: string;
+  /** `theme.json`'s display name (the server falls back to the id) — what the owner sees; the id
+   *  stays the key. Optional so a response or test double without it still type-checks. */
+  name?: string;
   tier: ThemeTier;
   /** Manifest schema version (`2`, or `undefined` for v1) — mirrored client-side from
    *  `#src/contracts/headless`'s `HeadlessThemeSummary.apiVersion` (2026-08-19 architecture audit finding 1),

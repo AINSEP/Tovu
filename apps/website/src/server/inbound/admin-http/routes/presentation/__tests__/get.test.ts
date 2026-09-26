@@ -139,3 +139,12 @@ test("presentation get: a stored retired theme id (`basic`, renamed `tovu-theme`
   assert.equal(body.settings.activeThemeId, "tovu-theme");
   assert.ok(body.activeThemeTemplates.length > 0, "the renamed theme's own templates must be offered");
 });
+
+test("presentation get: every available theme carries its theme.json display name", async (t) => {
+  const app = buildApp();
+  const { status, json } = await get(t, app);
+  assert.equal(status, 200, JSON.stringify(json));
+  const body = json as { availableThemes: Array<{ id: string; name: string }> };
+  const tovu = body.availableThemes.find((theme) => theme.id === "tovu-theme");
+  assert.equal(tovu?.name, "Tovu Theme");
+});

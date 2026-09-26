@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { commentsStatMeta, pagesStatMeta, postsStatMeta, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
+import { activeThemeName, commentsStatMeta, pagesStatMeta, postsStatMeta, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 
 /**
  * @file Direct coverage for the stat-card meta formatters extracted out of `Dashboard`'s own body
@@ -114,5 +114,14 @@ describe("siteKeyBannerCopy (site-key plan §A.6)", () => {
     expect(siteKeyBannerCopy("active", identityT)).toBe("");
     expect(siteKeyBannerCopy("missing", identityT)).toBe("");
     expect(siteKeyBannerCopy(undefined, identityT)).toBe("");
+  });
+});
+
+describe("activeThemeName", () => {
+  it("names the active theme by its display name, falling back to the id", () => {
+    const settings = { activeThemeId: "tailark-dusk" };
+    expect(activeThemeName({ settings, availableThemes: [{ id: "tailark-dusk", name: "Northbound" }] })).toBe("Northbound");
+    expect(activeThemeName({ settings, availableThemes: [{ id: "tailark-dusk" }] })).toBe("tailark-dusk");
+    expect(activeThemeName({ settings })).toBe("tailark-dusk");
   });
 });

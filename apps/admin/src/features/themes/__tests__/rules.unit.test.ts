@@ -8,6 +8,8 @@ import {
   isStrandedActiveTheme,
   isThemeDisabled,
   THEME_TAB_GROUPS,
+  themeDisplayName,
+  themeNamesById,
   themeTabGroup,
   themeTier,
 } from "../rules";
@@ -164,5 +166,19 @@ describe("the no-theme sentinel", () => {
     const shadowed = { [NO_THEME_ID]: "code" } as const;
     expect(themeTabGroup(NO_THEME_ID, shadowed)).toBe("code");
     expect(defaultThemeTabGroup(themeOff, shadowed)).toBe(THEME_TAB_GROUPS[0]);
+  });
+});
+
+describe("theme display names", () => {
+  it("maps each named theme's id to its name and leaves unnamed ones out", () => {
+    expect(themeNamesById([{ id: "tovu-theme", name: "Tovu Theme" }, { id: "bare" }, { id: "empty", name: "" }])).toEqual({
+      "tovu-theme": "Tovu Theme",
+    });
+  });
+
+  it("shows the name as authored, and the id when the theme has no name", () => {
+    const names = { "tailark-dusk": "Northbound" };
+    expect(themeDisplayName("tailark-dusk", names)).toBe("Northbound");
+    expect(themeDisplayName("bare", names)).toBe("bare");
   });
 });

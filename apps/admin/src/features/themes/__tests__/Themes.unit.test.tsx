@@ -107,6 +107,15 @@ describe("stranded active theme", () => {
 });
 
 describe("theme grid", () => {
+  it("titles each card with the theme's display name as authored, falling back to the id", () => {
+    render(<Themes useThemesHook={() => baseController({ themeNames: { "tovu-official": "Tovu Theme" } })} />);
+    expect(screen.getByRole("heading", { name: "Tovu Theme" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "column" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "tovu-official" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activate Tovu Theme" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explore Tovu Theme" })).toBeInTheDocument();
+  });
+
   it("names the picker so assistive tech can identify it — regression for a previously nameless <div>", () => {
     render(<Themes useThemesHook={() => baseController()} />);
     expect(screen.getByRole("group", { name: "Themes" })).toBeInTheDocument();

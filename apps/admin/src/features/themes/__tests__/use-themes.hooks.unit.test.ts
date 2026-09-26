@@ -32,12 +32,13 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
     const getPresentationSpy = vi.spyOn(api, "getPresentation");
     const port = createFakeThemesPort({
       availableThemeIds: ["basic", "quartz"],
-      availableThemes: [{ id: "basic", tier: "declarative" }, { id: "quartz", tier: "static" }],
+      availableThemes: [{ id: "basic", name: "Basic", tier: "declarative" }, { id: "quartz", tier: "static" }],
     });
     const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
 
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
     expect(result.current.themeTiers).toEqual({ basic: "declarative", quartz: "static" });
+    expect(result.current.themeNames).toEqual({ basic: "Basic" });
     expect(getPresentationSpy).not.toHaveBeenCalled();
   });
 

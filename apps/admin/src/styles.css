@@ -2530,7 +2530,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .theme-card.active::before { animation: none; --border-beam-angle: 45deg; }
 }
-.theme-card h3 { margin-top: 0; font-family: var(--font-display); font-size: 1.15rem; text-transform: capitalize; }
+.theme-card h3 { margin-top: 0; font-family: var(--font-display); font-size: 1.15rem; }
 .theme-card p { font-size: 0.9rem; line-height: 1.45; opacity: 0.85; }
 .theme-card button { background: color-mix(in oklch, currentColor 16%, transparent); color: currentColor; border: 1px solid color-mix(in oklch, currentColor 30%, transparent); }
 .theme-card button:hover { background: color-mix(in oklch, currentColor 26%, transparent); opacity: 1; }

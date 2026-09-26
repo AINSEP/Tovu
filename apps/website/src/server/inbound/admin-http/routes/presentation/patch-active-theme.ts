@@ -92,7 +92,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
       // response keeps the tab-grouping data in sync without a follow-up GET.
       const availableThemes = deps.themes
         .filter((t) => t.status === "valid")
-        .map((t) => ({ id: t.manifest.id, tier: t.manifest.tier, apiVersion: t.manifest.apiVersion }));
+        .map((t) => ({ id: t.manifest.id, name: t.manifest.name, tier: t.manifest.tier, apiVersion: t.manifest.apiVersion }));
 
       res.json(
         toAdminPresentationResponse({

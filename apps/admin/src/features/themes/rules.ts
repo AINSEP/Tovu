@@ -158,3 +158,23 @@ export function defaultThemeTabGroup(
   if (isThemeDisabled(settings)) return THEME_TAB_GROUPS[0]!;
   return themeTabGroup(settings.activeThemeId, themeTiers);
 }
+
+/**
+ * Theme id -> display name, for every theme whose summary carries one. A summary without a name is
+ * left out, so {@link themeDisplayName} falls back to the id for it.
+ *
+ * @complexity Time/space: O(n) in `themes.length`.
+ */
+export function themeNamesById(themes: ReadonlyArray<{ id: string; name?: string }>): Record<string, string> {
+  return Object.fromEntries(themes.filter((theme) => theme.name).map((theme) => [theme.id, theme.name!]));
+}
+
+/**
+ * What the owner sees for a theme: its `theme.json` name as authored ("Tovu Theme", "Northbound"),
+ * or the id when the theme has no name.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function themeDisplayName(themeId: string, themeNames: Record<string, string>): string {
+  return themeNames[themeId] || themeId;
+}

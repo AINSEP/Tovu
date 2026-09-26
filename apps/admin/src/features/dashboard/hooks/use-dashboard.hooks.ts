@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { describeApiError, type AdminPost, type AdminSiteTokenState } from "@/lib/api";
-import { mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
+import { activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -96,6 +96,9 @@ export interface DashboardController {
   media: StatState;
   comments: StatState;
   themeId: string | null;
+  /** The active theme's `theme.json` display name, or its id when it has none — what the
+   *  Appearance card shows. `null` until the presentation read settles. */
+  themeName: string | null;
   themeError: string | null;
   /** `null` until at least one of `listPosts`/`listPages` settles — the caller renders a loading
    *  state for the "Recently updated" panel. */
@@ -143,6 +146,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   const [media, setMedia] = useState<StatState>(PENDING);
   const [comments, setComments] = useState<StatState>(PENDING);
   const [themeId, setThemeId] = useState<string | null>(null);
+  const [themeName, setThemeName] = useState<string | null>(null);
   const [themeError, setThemeError] = useState<string | null>(null);
   const [recent, setRecent] = useState<AdminPost[] | null>(null);
   // `null` until the status fetch settles (or forever, if it fails — swallowed below since the
@@ -194,7 +198,10 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
 
     port
       .getPresentation()
-      .then((r) => setThemeId(r.settings.activeThemeId))
+      .then((r) => {
+        setThemeId(r.settings.activeThemeId);
+        setThemeName(activeThemeName(r));
+      })
       .catch((e) => setThemeError(describeApiError(e, translate(locale, "failed to load the active theme"))));
 
     // No `.catch()` sets an error state here — a failed status read means no banner (see this
@@ -218,6 +225,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
     media,
     comments,
     themeId,
+    themeName,
     themeError,
     recent,
     t,

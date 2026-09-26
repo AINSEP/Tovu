@@ -40,6 +40,7 @@ describe("useDashboard — injected port", () => {
       media: [{ status: "active" }, { status: "active" }, { status: "trashed" }],
       pendingCommentsCount: 4,
       activeThemeId: "quartz-libre",
+      activeThemeName: "Meridian",
     });
 
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
@@ -51,6 +52,7 @@ describe("useDashboard — injected port", () => {
     expect(result.current.media.value).toBe(2);
     expect(result.current.comments.value).toBe(4);
     expect(result.current.themeId).toBe("quartz-libre");
+    expect(result.current.themeName).toBe("Meridian");
     expect(networkMock).not.toHaveBeenCalled();
   });
 

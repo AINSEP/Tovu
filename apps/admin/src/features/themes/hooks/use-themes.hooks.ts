@@ -4,6 +4,7 @@ import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { themeNamesById } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
@@ -45,6 +46,9 @@ export interface ThemesController {
    * `theme.json` — falls back to `"declarative"`.
    */
   themeTiers?: Record<string, ThemeTier>;
+  /** Theme id -> `theme.json` display name, from the same `availableThemes` list. Optional for the
+   *  same reason `themeTiers` is; an id absent here shows as itself (`themeDisplayName`). */
+  themeNames?: Record<string, string>;
   error: string | null;
   /** The theme id currently being activated, or `null` when no activation is in flight. */
   busyTheme: string | null;
@@ -96,6 +100,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [settings, setSettings] = useState<PresentationSettings | null>(null);
   const [themes, setThemes] = useState<string[]>([]);
   const [themeTiers, setThemeTiers] = useState<Record<string, ThemeTier>>({});
+  const [themeNames, setThemeNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
@@ -131,6 +136,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
         setSettings(r.settings);
         setThemes(r.availableThemeIds);
         setThemeTiers(Object.fromEntries(r.availableThemes.map((t) => [t.id, t.tier])));
+        setThemeNames(themeNamesById(r.availableThemes));
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load themes"));
   }, [port]);
@@ -153,6 +159,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
       setSettings(fresh.settings);
       setThemes(fresh.availableThemeIds);
       setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
+      setThemeNames(themeNamesById(fresh.availableThemes));
       setRescanNotice(describeRescan(r));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to rescan themes");
@@ -227,6 +234,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
       setSettings(fresh.settings);
       setThemes(fresh.availableThemeIds);
       setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
+      setThemeNames(themeNamesById(fresh.availableThemes));
       await loadMarketplace();
       if (!downloadSettlement.isCurrent(generation)) return;
       setRescanNotice(installedNotice(r, themeId));
@@ -243,6 +251,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     settings,
     themes,
     themeTiers,
+    themeNames,
     error,
     busyTheme,
     activate,

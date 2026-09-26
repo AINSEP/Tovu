@@ -105,6 +105,10 @@ export type HeadlessThemeTier = "declarative" | "templated" | "handlebars" | "st
 
 export interface HeadlessThemeSummary {
   id: HeadlessThemeId;
+  /** The theme's display name — `theme.json`'s `name`, or the id when the manifest has none
+   *  (`ThemeManifest.name`'s own fallback, `theme.ts`). What the admin shows the owner; the id
+   *  stays the key. */
+  name: string;
   tier: HeadlessThemeTier;
   /**
    * The theme's manifest `apiVersion` (`2`, or `undefined` for v1) — 2026-08-19 architecture audit

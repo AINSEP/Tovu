@@ -19,6 +19,7 @@ import {
   isThemeDisabled,
   groupThemesByTabGroup,
   defaultThemeTabGroup,
+  themeDisplayName,
   THEME_TAB_GROUPS,
   type ThemeTabGroup,
 } from "./rules";
@@ -201,6 +202,7 @@ function withThemeDefaults(controller: ThemesController) {
   return {
     ...controller,
     themeTiers: controller.themeTiers ?? {},
+    themeNames: controller.themeNames ?? {},
     rescanning: controller.rescanning ?? false,
     rescanNotice: controller.rescanNotice ?? null,
     marketplace: controller.marketplace ?? [],
@@ -390,12 +392,14 @@ function MarketplaceGrid({
  *  card-action switch) scores independently of `Themes`'s own complexity. */
 function ThemeGrid({
   visibleThemes,
+  themeNames,
   settings,
   busyTheme,
   activate,
   t,
 }: {
   visibleThemes: string[];
+  themeNames: Record<string, string>;
   settings: PresentationSettings;
   busyTheme: string | null;
   activate: (themeId: string) => Promise<void>;
@@ -421,10 +425,11 @@ function ThemeGrid({
       {visibleThemes.map((themeId, index) => {
         const active = isActiveTheme(settings, themeId);
         const handleBase = cardHandles[index]!;
+        const name = themeDisplayName(themeId, themeNames);
         return (
           <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
             <ThemeCardPreview themeId={themeId} agentHandleBase={handleBase} t={t} />
-            <h3>{themeId}</h3>
+            <h3>{name}</h3>
             <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
             {/* Activate stays left, Explore is pushed right. Explore takes the app's existing
                 secondary/outline shape (white surface, bordered — see `.btn-explore` in styles.css)
@@ -440,7 +445,7 @@ function ThemeGrid({
                   className="btn-primary"
                   disabled={busyTheme !== null}
                   onClick={() => activate(themeId)}
-                  aria-label={actionButtonAriaLabel(t("Activate"), t("Activating…"), busyTheme === themeId, themeId)}
+                  aria-label={actionButtonAriaLabel(t("Activate"), t("Activating…"), busyTheme === themeId, name)}
                   {...agentHandle(`${handleBase}-activate`, { role: "button", label: `Activate the "${themeId}" theme` })}
                 >
                   {busyTheme === themeId ? t("Activating…") : t("Activate")}
@@ -450,7 +455,7 @@ function ThemeGrid({
                 type="button"
                 className="btn-explore"
                 onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
-                aria-label={`${t("Explore")} ${themeId}`}
+                aria-label={`${t("Explore")} ${name}`}
                 {...agentHandle(`${handleBase}-explore`, { role: "button", label: `Explore the "${themeId}" theme's files` })}
               >
                 {t("Explore")}
@@ -537,6 +542,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     settings,
     themes,
     themeTiers,
+    themeNames,
     error,
     busyTheme,
     activate,
@@ -623,7 +629,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           t={t}
         />
       ) : (
-        <ThemeGrid visibleThemes={visibleThemes} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
+        <ThemeGrid visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
       )}
     </div>
   );

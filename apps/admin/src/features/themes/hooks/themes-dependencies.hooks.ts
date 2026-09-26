@@ -20,7 +20,7 @@ export const defaultThemesPort: ThemesPort = {
 export interface FakeThemesPortOptions {
   settings?: PresentationSettings;
   availableThemeIds?: string[];
-  availableThemes?: Array<{ id: string; tier: ThemeTier }>;
+  availableThemes?: Array<{ id: string; name?: string; tier: ThemeTier }>;
   marketplace?: Array<{ id: string; name: string; tier: string; description?: string; idTaken: boolean }>;
   /** Lets a test script what a rescan/download reports without the fake reimplementing the
    *  server's own theme-directory scan. */

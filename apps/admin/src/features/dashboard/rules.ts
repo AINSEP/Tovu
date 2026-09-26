@@ -45,6 +45,16 @@ export function activityRowHref(row: Pick<AdminPost, "id" | "kind" | "slug">): s
   return row.kind === "page" ? "/admin/pages" : `/admin/posts/${row.slug}`;
 }
 
+/** The Appearance card's theme label — the active theme's `theme.json` display name, or its id when
+ *  the presentation read carries no name for it. */
+export function activeThemeName(presentation: {
+  settings: { activeThemeId: string };
+  availableThemes?: ReadonlyArray<{ id: string; name?: string }>;
+}): string {
+  const id = presentation.settings.activeThemeId;
+  return presentation.availableThemes?.find((theme) => theme.id === id)?.name || id;
+}
+
 /** The Posts stat card's meta line — blank while `published` is still pending (`null`). */
 export function postsStatMeta(published: number | null, t: Translate): string {
   return published === null ? "" : t("{count} published").replace("{count}", String(published));

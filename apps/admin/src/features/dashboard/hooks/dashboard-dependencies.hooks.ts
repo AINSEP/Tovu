@@ -39,6 +39,8 @@ export interface FakeDashboardPortOptions {
    *  rows, matching the port's own `items: unknown[]` narrowing. */
   pendingCommentsCount?: number;
   activeThemeId?: string;
+  /** The active theme's display name; omitted, the fake's summary carries no name. */
+  activeThemeName?: string;
   /** Defaults to `false` — a test seeds `true` to exercise the default-password banner. */
   usesDefaultPassword?: boolean;
   /** The caller's own id the fake reports. Defaults to `"fake-user-1"`. */
@@ -81,7 +83,9 @@ export function createFakeDashboardPort(options: FakeDashboardPortOptions = {}):
     },
     async getPresentation() {
       if (options.getPresentationError) throw options.getPresentationError;
-      return { settings: { activeThemeId: options.activeThemeId ?? "fake-theme" } };
+      const activeThemeId = options.activeThemeId ?? "fake-theme";
+      const availableThemes = options.activeThemeName ? [{ id: activeThemeId, name: options.activeThemeName }] : [];
+      return { settings: { activeThemeId }, availableThemes };
     },
     async getPasswordStatus() {
       if (options.getPasswordStatusError) throw options.getPasswordStatusError;

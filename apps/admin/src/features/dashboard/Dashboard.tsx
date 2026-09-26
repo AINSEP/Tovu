@@ -95,7 +95,7 @@ function RecentActivityBody(props: {
 }
 
 /** The Appearance panel's body — active theme, or its own error. */
-function AppearanceBody(props: { themeError: string | null; themeId: string | null; t: Translate }) {
+function AppearanceBody(props: { themeError: string | null; themeName: string | null; t: Translate }) {
   const { t } = props;
   if (props.themeError) {
     return (
@@ -109,7 +109,7 @@ function AppearanceBody(props: { themeError: string | null; themeId: string | nu
       <p>
         {t("Active theme")}
         <br />
-        <strong style={{ color: "var(--fg)", fontSize: "var(--text-md)" }}>{props.themeId ?? "…"}</strong>
+        <strong style={{ color: "var(--fg)", fontSize: "var(--text-md)" }}>{props.themeName ?? "…"}</strong>
       </p>
       <p>{t("Your public site is live and serving this theme.")}</p>
     </>
@@ -177,7 +177,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
     drafts,
     media,
     comments,
-    themeId,
+    themeName,
     themeError,
     recent,
     t,
@@ -275,7 +275,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
             </a>
           </div>
           <div className="dash-panel-body">
-            <AppearanceBody themeError={themeError} themeId={themeId} t={t} />
+            <AppearanceBody themeError={themeError} themeName={themeName} t={t} />
           </div>
         </div>
       </div>
