@@ -21,7 +21,7 @@ import {
   sqliteContentSite,
   WORKSPACE_ID,
 } from "../../publish-content/__tests__/round-trip-harness.js";
-import { set, type SettingDefinitionRecord, type SettingValueSchema } from "../index.js";
+import { clear, set, type SettingDefinitionRecord, type SettingValueSchema } from "../index.js";
 import { contributeSiteSettingPublish } from "../publish-content.js";
 
 /**
@@ -85,6 +85,20 @@ async function write(site: Site, id: string, value: JsonValue): Promise<void> {
       principals: {} as never,
     },
     input: { namespace: id.slice(0, at), key: id.slice(at + 1), scope: "workspace", value, workspaceId: WORKSPACE_ID, callerPrincipalId: "owner", authWorkspaceId: WORKSPACE_ID },
+  });
+}
+
+async function clearValue(site: Site, id: string): Promise<void> {
+  const at = id.indexOf(":");
+  await clear({
+    deps: {
+      repo: site.settings,
+      clock: { nowIso: () => "2026-09-03T00:00:00.000Z" },
+      ids: { newId: () => `rev-${Math.random()}` },
+      authorize: async () => ({ allowed: true, reason: "test" }),
+      principals: {} as never,
+    },
+    input: { namespace: id.slice(0, at), key: id.slice(at + 1), scope: "workspace", workspaceId: WORKSPACE_ID, callerPrincipalId: "owner", authWorkspaceId: WORKSPACE_ID },
   });
 }
 
@@ -191,6 +205,42 @@ test("settings round-trip: created, then unchanged; the ledger records the write
   const forced = await plan(edited, destinationDeps, ["site-setting:core.site:title"]);
   await applyReport(forced, edited, destinationDeps);
   assert.equal(await workspaceValue(destination, "core.site.title"), "Tovu 2");
+});
+
+test("a setting cleared on the source clears on the live site through the ledger, then re-plans unchanged", async () => {
+  const { source, destination, sourceDeps, destinationDeps } = await sites();
+  await write(source, "core.site:title", "Tovu");
+  await write(source, "site.seo:title_template", "%s | Tovu");
+  const { entities } = await roundTrip(sourceDeps, destinationDeps);
+  assert.ok(entities.every((e) => !("cleared" in e.state)), "a set row's state (and hash) carries no `cleared` key");
+
+  await clearValue(source, "core.site:title");
+  const cleared = await packAll(sourceDeps);
+  assert.deepEqual(cleared.find((e) => e.id === "core.site:title")!.state, { label: "Site title", value: null, cleared: true });
+  // The harness keeps no baseline, so any change to a row the destination holds plans as a conflict.
+  const report = await plan(cleared, destinationDeps, ["site-setting:core.site:title"]);
+  assert.deepEqual(report.rows.map((r) => [r.entityId, r.outcome, r.writes]), [
+    ["core.site:title", "forced", true],
+    ["site.seo:title_template", "unchanged", false],
+  ]);
+  await applyReport(report, cleared, destinationDeps);
+
+  const row = await destination.settings.getWorkspaceValue({ workspaceId: WORKSPACE_ID, settingId: "core.site.title" });
+  assert.equal(row?.state, "cleared");
+  assert.deepEqual((await destination.settings.listRevisions({ settingId: "core.site.title" })).map((r) => r.op), ["set", "clear"]);
+  assert.deepEqual((await plan(await packAll(sourceDeps), destinationDeps)).rows.map((r) => r.outcome), ["unchanged", "unchanged"]);
+});
+
+test("a cleared setting the live site never had lands as a clear too; a never-set one packs nothing", async () => {
+  const { source, destination, sourceDeps, destinationDeps } = await sites();
+  await write(source, "site.seo:twitter_site", "@tovu");
+  await clearValue(source, "site.seo:twitter_site");
+  // The source definition is secret in `sites()`; this test needs it publishable on both sides.
+  await definition(source, "site.seo", "twitter_site");
+  const { first, second } = await roundTrip(sourceDeps, destinationDeps);
+  assert.deepEqual(first.rows.map((r) => [r.entityId, r.outcome]), [["site.seo:twitter_site", "created"]]);
+  assert.equal((await destination.settings.getWorkspaceValue({ workspaceId: WORKSPACE_ID, settingId: "site.seo.twitter_site" }))?.state, "cleared");
+  assert.deepEqual(second.rows.map((r) => r.outcome), ["unchanged"]);
 });
 
 test("a title the destination's bounds reject is blocked, not written", async () => {

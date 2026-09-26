@@ -5,6 +5,7 @@ import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-con
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
 import {
+  clear,
   DefinitionNotFoundError,
   DefinitionTombstonedError,
   ForbiddenError,
@@ -34,8 +35,11 @@ import {
  * are site behaviour, not identity. Only workspace values travel; a user's own preference never does.
  *
  * Addressed by `namespace:key`. Version is the value row's `seq` (the ledger revision that wrote it);
- * `set` records a `setting_revisions` row like any admin edit. A key cleared on the source is not
- * cleared on the live site.
+ * `set` records a `setting_revisions` row like any admin edit. A key cleared on the source (its
+ * workspace row is `state='cleared'`) packs as `{ value: null, cleared: true }` and the destination
+ * clears its own through `clear`, which records the revision too. A key never set on the source packs
+ * nothing, so a fresh install never wipes the live site's values. `cleared` is left out of a set
+ * row's state, so every hash packed before it existed stays the same.
  */
 
 /** `namespace:key` -> the label the publish dialog shows. */
@@ -53,6 +57,8 @@ export interface SiteSettingRow {
   readonly key: string;
   readonly label: string;
   readonly value: JsonValue | null;
+  /** Only on a cleared workspace row; absent (not `false`) on a set one. */
+  readonly cleared?: true;
   readonly version: number;
 }
 
@@ -85,13 +91,15 @@ async function publishableDefinition(ports: Ports, workspaceId: string, id: stri
   return ok ? definition : null;
 }
 
-/** @complexity two indexed reads. */
+/** The workspace row, set or cleared; `null` when the key was never written here.
+ *  @complexity two indexed reads. */
 async function findSetting(ports: Ports, workspaceId: string, id: string): Promise<SiteSettingRow | null> {
   const definition = await publishableDefinition(ports, workspaceId, id);
   if (!definition) return null;
   const row = await ports.settings.getWorkspaceValue({ workspaceId, settingId: definition.settingId });
-  if (!row || row.state !== "set") return null;
-  return { key: id, label: PUBLISHABLE_SETTINGS[id]!, value: row.valueJson, version: row.seq };
+  if (!row) return null;
+  const label = PUBLISHABLE_SETTINGS[id]!;
+  return row.state === "cleared" ? { key: id, label, value: null, cleared: true, version: row.seq } : { key: id, label, value: row.valueJson, version: row.seq };
 }
 
 /** Plain refusals, rewritten for the owner by `ui/report-rows.ts`. */
@@ -113,7 +121,8 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
     find: findSetting,
     idOf: (row) => row.key,
     include: (row) => !(row.key === OG_IMAGE && pointsAtThisComputer(row.value)),
-    fields: { key: "local", label: "provenance", value: "transferred", version: "local" },
+    fields: { key: "local", label: "provenance", value: "transferred", cleared: "transferred", version: "local" },
+    omitWhenAbsent: ["cleared"],
     references: (entity) => {
       // `<media id>:<transform>`; a slug or URL names nothing a scoped publish can carry.
       const ref = entity.id === OG_IMAGE ? entity.state.value : null;
@@ -129,17 +138,12 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
       if (!(await publishableDefinition(ports, workspaceId, id))) throw new PublishContentApplyRowError("blocked", notPublishable(id));
       if (id === OG_IMAGE && pointsAtThisComputer(state.value)) throw new PublishContentApplyRowError("blocked", localOnly(id));
       const { authorize } = gatewayDeps(deps, "site-setting");
-      const { revisionSeq } = await set({
-        deps: { repo: ports.settings, clock: deps.clock, ids: deps.idGen, authorize, principals: ports.principals },
-        input: {
-          ...splitKey(id),
-          scope: "workspace",
-          value: (state.value ?? null) as JsonValue,
-          workspaceId,
-          callerPrincipalId: principalId,
-          authWorkspaceId: workspaceId,
-        },
-      });
+      const writeDeps = { repo: ports.settings, clock: deps.clock, ids: deps.idGen, authorize, principals: ports.principals };
+      const target = { ...splitKey(id), scope: "workspace" as const, workspaceId, callerPrincipalId: principalId, authWorkspaceId: workspaceId };
+      const { revisionSeq } =
+        state.cleared === true
+          ? await clear({ deps: writeDeps, input: target })
+          : await set({ deps: writeDeps, input: { ...target, value: (state.value ?? null) as JsonValue } });
       return { version: revisionSeq };
     },
     errors: {
