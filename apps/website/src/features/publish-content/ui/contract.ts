@@ -63,6 +63,30 @@ export interface PublishContentPlanResult {
   readonly overwriteEntityKeys?: readonly string[];
 }
 
+/**
+ * `plan-publish-sections-2026-09-25.md` §1 — narrows `push/plan` to a subset of the corpus, applied on
+ * the SERVER before staging (§1's decision: faster, and every existing row-selection/overwrite/refusal
+ * mechanism stays correct with no changes because the staged bundle already only holds in-scope rows).
+ *
+ * Absent means "publish everything", the same "absent, not an empty real answer" contract
+ * `selectedEntityKeys` already reads by. A present field must be a non-empty array (empty means the
+ * request is malformed, not "select nothing" — that ambiguity is `selectedEntityKeys`'s job, not
+ * this one's) of at most 1000 entries; the peer transport route 400s otherwise.
+ *
+ * Kept separate from `PublishCriteria` (`criteria.ts`) on purpose: criteria is chat's *starting
+ * selection* (it still plans/uploads/shows every type, only unticking non-matching rows); scope is
+ * *what this dialog is about* (it narrows what is staged at all). Chat's behaviour does not change.
+ *
+ * `entityTypes` and `entityKeys` both narrow (AND, not OR) when both are given: a themes-only scope
+ * with an `entityKeys` list still only ever shows theme rows, and an id from a different type in that
+ * list matches nothing. `entityKeys` matches `planner.ts`'s `entityKey(type, id)` shape, same as
+ * `selectedEntityKeys`.
+ */
+export interface PublishScope {
+  readonly entityTypes?: readonly string[];
+  readonly entityKeys?: readonly string[];
+}
+
 /** `POST .../publish-content/peers/:peerId/push/confirm`. The token is the ONLY thing that authorizes an
  *  execute — see `phase.ts`. */
 export interface PublishContentConfirmResult {

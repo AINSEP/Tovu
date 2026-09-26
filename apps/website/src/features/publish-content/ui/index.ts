@@ -28,6 +28,7 @@ export type {
   PublishContentPeerSummary,
   PublishContentPlanResult,
   PublishContentReport,
+  PublishScope,
 } from "./contract.js";
 
 export type { PublishReportRow, PublishReportSummary, PublishRowDisposition } from "./report-rows.js";
