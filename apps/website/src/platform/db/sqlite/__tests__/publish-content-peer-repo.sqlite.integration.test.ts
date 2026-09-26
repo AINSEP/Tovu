@@ -3,7 +3,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -17,14 +16,15 @@ import {
 } from "#src/features/publish-content/peers";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
+import { workspaces } from "#src/platform/db/schema.sqlite";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 10.
  *
- * The real SQLite adapter against a COPY of this repo's real `sites/tovu-dev/content.db` — the same
- * discipline (and the same copy helper shape) as `features/publish-content/__tests__/
- * permissions.boot.integration.test.ts`. The original is only ever READ, via `copyFileSync`.
+ * The real SQLite adapter against a fresh file-backed content.db built from the real Drizzle
+ * migrations. Not a copy of a site's `content.db`: that file is untracked (absent in a clean clone)
+ * and holds whatever peers its owner has added, which broke exact-list assertions here.
  *
  * What only a real database can prove, and what the in-memory adapter therefore cannot:
  * - the `(workspace_id, label)` UNIQUE index really rejects a duplicate, and the driver error that
@@ -34,25 +34,19 @@ import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-co
  * - the ciphertext really is at rest in the file, so the sealing is not an in-memory illusion.
  */
 
-const REAL_CONTENT_DB_PATH = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../../../../../../sites/tovu-dev/content.db"
-);
-
 const WORKSPACE_ID = "workspace-local";
 const API_KEY = "tovu_live_0123456789abcdef";
 
-/** Copies the real content.db (plus WAL/SHM sidecars, so the copy reflects the same committed state)
- *  into a throwaway temp dir. Never opens the original. */
-function copyRealContentDbToTempDir(): { readonly dir: string; readonly dbPath: string } {
-  assert.ok(fs.existsSync(REAL_CONTENT_DB_PATH), `expected the real content.db at ${REAL_CONTENT_DB_PATH}`);
+/** Builds a fresh file-backed content.db in a throwaway temp dir from the real migrations, holding
+ *  only the workspace row the peers' FK needs. A file (not `:memory:`) so a second connection can
+ *  prove the bytes landed on disk. */
+function createFreshContentDbInTempDir(): { readonly dir: string; readonly dbPath: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "publish-content-peer-repo-test-"));
   const dbPath = path.join(dir, "content.db");
-  fs.copyFileSync(REAL_CONTENT_DB_PATH, dbPath);
-  for (const sidecar of ["-wal", "-shm"]) {
-    const source = `${REAL_CONTENT_DB_PATH}${sidecar}`;
-    if (fs.existsSync(source)) fs.copyFileSync(source, `${dbPath}${sidecar}`);
-  }
+  openContentDb(dbPath)
+    .insert(workspaces)
+    .values({ id: WORKSPACE_ID, name: WORKSPACE_ID, slug: WORKSPACE_ID, createdAt: "2026-09-18T00:00:00.000Z" })
+    .run();
   return { dir, dbPath };
 }
 
@@ -69,7 +63,7 @@ function makeDeps(dbPath: string, idPrefix: string) {
 }
 
 test("a peer round-trips through the real publish_content_peers table, sealed at rest", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+  const { dir, dbPath } = createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     const created = await createPublishContentPeer(deps, {
@@ -106,7 +100,7 @@ test("a peer round-trips through the real publish_content_peers table, sealed at
 });
 
 test("the real (workspace_id, label) UNIQUE index produces the driver error the store translates", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+  const { dir, dbPath } = createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     const input = {
@@ -127,7 +121,7 @@ test("the real (workspace_id, label) UNIQUE index produces the driver error the 
 });
 
 test("a row whose sealed group is absent reads back as hasCredential:false, not as a torn record", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+  const { dir, dbPath } = createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     await createPublishContentPeer(deps, {
@@ -150,7 +144,7 @@ test("a row whose sealed group is absent reads back as hasCredential:false, not 
 });
 
 test("update and delete hit the real table by (workspace_id, id)", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+  const { dir, dbPath } = createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     await createPublishContentPeer(deps, {
