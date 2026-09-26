@@ -157,6 +157,7 @@ import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exc
 import { buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
@@ -446,6 +447,13 @@ registry.register(
 );
 
 /**
+ * Runs whose tab bound with a token this daemon does not know — the tab outlived a restart and has
+ * not reconnected yet. Their frontend tools say "reload the admin page" instead of the bare "no
+ * frontend is bound". See `lost-frontend-binding.ts`.
+ */
+const lostFrontendBindings = createLostFrontendBindings();
+
+/**
  * Agent-driven control of the admin's own browser tab and chat pane — `page.navigate`,
  * `page.scroll_to`, `page.find_elements`, `chat.send_message`, `admin.capture_screenshot`, and the
  * rest of {@link FRONTEND_CONTROL_CAPABILITIES} (`page.*` plus all seven of `chat.*`'s verbs — as
@@ -495,8 +503,9 @@ const frontendControl = createFrontendControl({
   // Page text is untrusted input to whatever model reads the result back. `page.find_elements`
   // returns labels and values written by the page itself, so bound what one call can return.
   maxOutputBytes: 64 * 1024,
-  onBindError: ({ runId, error }) => {
-    console.error(`[agent-daemon] run ${runId}: could not bind to a frontend surface`, error);
+  onBindError: (context) => {
+    console.error(`[agent-daemon] run ${context.runId}: could not bind to a frontend surface`, context.error);
+    lostFrontendBindings.noteBindError(context);
   },
 });
 // `withPageNavigateErrorRewrap` (Tovu-side, `assistant/rewrap-page-navigate-error.ts`) rewraps ONLY
@@ -505,7 +514,7 @@ const frontendControl = createFrontendControl({
 // `PostRecord.status === "published"` CMS-content concept — see that module's own header for the
 // full rationale. Every other registration passes through unchanged.
 for (const registration of withPageNavigateErrorRewrap(frontendControl.toolRegistrations)) {
-  registry.register(registration);
+  registry.register(lostFrontendBindings.wrap(registration));
 }
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
 // and mints them only AFTER authorization resolves, so an unknown tool id or a throwing

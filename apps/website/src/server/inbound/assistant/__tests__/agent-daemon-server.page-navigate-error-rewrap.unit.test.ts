@@ -57,6 +57,11 @@ describe("the toolRegistrations registration loop", () => {
   });
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {
-    assert.match(registrationLoopSource, /registry\.register\(registration\)/);
+    assert.match(registrationLoopSource, /registry\.register\(lostFrontendBindings\.wrap\(registration\)\)/);
+  });
+
+  test("a run whose bind token was unknown gets the reload message: bind errors are recorded and every tool is wrapped", () => {
+    assert.match(DAEMON_ENTRY_SOURCE, /const lostFrontendBindings = createLostFrontendBindings\(\)/);
+    assert.match(DAEMON_ENTRY_SOURCE, /onBindError: \(context\) => \{\n[^\n]*\n\s*lostFrontendBindings\.noteBindError\(context\)/);
   });
 });
