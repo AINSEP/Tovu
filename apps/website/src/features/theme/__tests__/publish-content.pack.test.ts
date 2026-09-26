@@ -151,7 +151,8 @@ test("the handler's listSkipped() reports a whole-tree refusal by its exact Skip
     assert.equal(skipped.length, 1);
     assert.equal(skipped[0]!.entityType, "theme-files");
     assert.equal(skipped[0]!.id, "static/kuinetic-showcase");
-    assert.equal(skipped[0]!.label, "static/kuinetic-showcase");
+    // Same name every other theme row in the table carries (`treeTitle`), not the bare tree key.
+    assert.equal(skipped[0]!.label, "Theme: static/kuinetic-showcase");
     assert.match(skipped[0]!.reason, /^Theme: static\/kuinetic-showcase was not published: /);
     assert.match(skipped[0]!.reason, /not allowed for this tree/);
   } finally {

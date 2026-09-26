@@ -501,7 +501,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   async function listSkipped(): Promise<readonly SkippedPackEntity[]> {
     if (!deps.themesDir) return [];
     const { skipped } = await packThemeFilesEntities({ themesDir: deps.themesDir });
-    return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: tree.treeKey, reason: tree.reason }));
+    return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: treeTitle(tree.treeKey), reason: tree.reason }));
   }
 
   /** The destination's tree, hashed like `pack()` hashes it. `version` is always 0 (plan §3): the
