@@ -108,17 +108,37 @@ const DENY_EXTENSIONS: ReadonlySet<string> = new Set(["pem", "key", "p12", "pfx"
 const MCP_CONFIG_NAME_PATTERN = /^\.mcp\..*\.json$/;
 
 /**
+ * OS-generated junk names (macOS Finder, Windows Explorer, AppleDouble sidecar files) that a real
+ * contributor never means to publish and that reappear on disk on their own (macOS recreates
+ * `.DS_Store` the moment a folder is opened in Finder again). These are IGNORED, not denied: a
+ * caller walking a tree ({@link ../../theme/publish-content.ts}'s `walkThemeTree`) excludes them
+ * before a file ever becomes a candidate at all, and {@link checkTreeFiles} drops them from every
+ * check (caps, extension, scan) as defense-in-depth for a walker that forgot to. Never blocking the
+ * WHOLE tree for one of these is the point of this set existing separately from
+ * {@link deniedFileNameReason} — see `publish-files-plan-2026-09-24.md`'s real-world case: a theme's
+ * `.DS_Store`, recreated by Finder, silently refused a legitimate publish with no reason shown.
+ *
+ * @complexity O(1).
+ */
+export function isIgnoredTreeFileName(name: string): boolean {
+  if (name === ".DS_Store" || name === "Thumbs.db" || name === "desktop.ini") return true;
+  if (name === ".Spotlight-V100" || name === ".Trashes") return true;
+  if (name.startsWith("._")) return true; // AppleDouble sidecar, e.g. "._photo.png".
+  return false;
+}
+
+/**
  * Whether `name` (a bare file name, not a path) is denied at ANY depth within a tree, and why.
  * `.env`/`.env.*` (any suffix), `.npmrc`/`.netrc` (package manager credentials), `.mcp.*.json`
  * (MCP server env — never THIS shape; an agent-plugin's own `mcp.json`/`.mcp.json` is a different,
  * unprefixed name and is checked by {@link checkMcpJsonSecretPlaceholders} instead),
- * `.fs-custom-root.json` (a local absolute path), macOS's `.DS_Store`, and any `id_rsa`/`id_ed25519`
- * private key file (with or without an extension, e.g. `id_rsa.bak`).
+ * `.fs-custom-root.json` (a local absolute path), and any `id_rsa`/`id_ed25519` private key file
+ * (with or without an extension, e.g. `id_rsa.bak`). macOS's `.DS_Store` and its siblings are NOT
+ * here — see {@link isIgnoredTreeFileName}: they are silently excluded, never a whole-tree DENY.
  *
  * @complexity O(1).
  */
 function deniedFileNameReason(name: string): string | null {
-  if (name === ".DS_Store") return "is a macOS Finder metadata file";
   if (name === ".env" || name.startsWith(".env.")) return "looks like an environment file";
   if (name === ".npmrc" || name === ".netrc") return "is a package-manager credential file";
   if (MCP_CONFIG_NAME_PATTERN.test(name)) return "is an MCP server configuration file, which can hold secrets";
@@ -291,7 +311,14 @@ export interface FileTreeFileInput {
  *   secret scan (§(p) pattern count times sample length) per qualifying file; `b` is the sum of every
  *   scanned file's `textSample` length.
  */
-export function checkTreeFiles(kind: FileTreeKind, files: readonly FileTreeFileInput[]): string | null {
+export function checkTreeFiles(kind: FileTreeKind, allFiles: readonly FileTreeFileInput[]): string | null {
+  // Defense-in-depth (this module's own header: the destination never trusts the source's own
+  // filtering): an OS junk file is dropped BEFORE it can count toward a cap, fail an extension
+  // allow-list, or reach the secret scan — see `isIgnoredTreeFileName`'s own doc for why this is an
+  // ignore, never a whole-tree DENY. A real walker (`walkThemeTree`) already excludes these; this is
+  // what keeps a future/careless file-tree kind's own walker from reopening the same bug.
+  const files = allFiles.filter((file) => !isIgnoredTreeFileName(file.path.slice(file.path.lastIndexOf("/") + 1)));
+
   const limits = FILE_TREE_LIMITS;
   if (files.length > limits.maxTreeFiles) {
     return `this tree has ${files.length} files, more than the ${limits.maxTreeFiles}-file limit`;

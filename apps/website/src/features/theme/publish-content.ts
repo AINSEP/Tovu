@@ -11,6 +11,7 @@ import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content
 import {
   checkTreeFiles,
   checkTreePath,
+  isIgnoredTreeFileName,
   MAX_SECRET_SCAN_BYTES,
   normalizeMode,
   resolveTreeRelativePath,
@@ -151,6 +152,11 @@ async function walkThemeTree(absTreeDir: string): Promise<readonly WalkedThemeFi
       const absPath = path.join(absDir, entry.name);
       const relPath = relDir.length > 0 ? `${relDir}/${entry.name}` : entry.name;
       if (entry.isSymbolicLink()) continue; // never followed, never part of the tree.
+      // OS junk (macOS's `.DS_Store`, `.Spotlight-V100`, `.Trashes`, AppleDouble `._*`; Windows'
+      // `Thumbs.db`/`desktop.ini`) is excluded HERE, at the source of the file list every downstream
+      // consumer (state, upload, contentHash, `inspect()`'s live re-hash) builds from — never a
+      // whole-tree DENY (`file-tree-policy.ts`'s own header on `isIgnoredTreeFileName`).
+      if (isIgnoredTreeFileName(entry.name)) continue;
       if (entry.isDirectory()) {
         await recurse(absPath, relPath);
         continue;

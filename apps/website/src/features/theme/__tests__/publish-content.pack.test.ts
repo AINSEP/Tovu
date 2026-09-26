@@ -79,6 +79,30 @@ test("a planted .env blocks the whole tree — no entity, reported in skipped", 
   }
 });
 
+test("a .DS_Store (and other OS junk) is ignored during pack — never blocks the tree, never uploaded", async () => {
+  const themesDir = makeThemesDir();
+  try {
+    const themeDir = path.join(themesDir, "static", "basic");
+    mkdirSync(path.join(themeDir, "render"), { recursive: true });
+    writeFileSync(path.join(themeDir, "theme.json"), '{"id":"basic"}');
+    writeFileSync(path.join(themeDir, ".DS_Store"), "junk");
+    writeFileSync(path.join(themeDir, "render", ".DS_Store"), "junk");
+    writeFileSync(path.join(themeDir, "Thumbs.db"), "junk");
+    writeFileSync(path.join(themeDir, "._theme.json"), "junk");
+
+    const fileBlobIndex = createFileBlobIndex();
+    const { entities, skipped } = await packThemeFilesEntities({ themesDir, fileBlobIndex });
+    assert.equal(skipped.length, 0);
+    assert.equal(entities.length, 1);
+    const files = (entities[0]!.state.files as { path: string }[]).map((f) => f.path);
+    assert.deepEqual(files, ["theme.json"]);
+    // Never indexed for upload — asserting the index holds exactly the one real file's blob.
+    assert.equal(fileBlobIndex.size, 1);
+  } finally {
+    rmSync(themesDir, { recursive: true, force: true });
+  }
+});
+
 test("fills the file blob index as it packs, keyed by each file's real sha256", async () => {
   const themesDir = makeThemesDir();
   try {

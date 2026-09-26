@@ -13,6 +13,7 @@ import {
   checkTreePath,
   FILE_TREE_KINDS,
   FILE_TREE_LIMITS,
+  isIgnoredTreeFileName,
   normalizeMode,
   resolveTreeRelativePath,
   THEME_FILE_TREE_ALLOWED_EXTENSIONS,
@@ -52,8 +53,6 @@ test("checkTreePath blocks every deny-listed segment, name and extension", () =>
     "vendor/node_modules/x.js",
     ".publish-staging/x",
     ".publish-previous/x",
-    ".DS_Store",
-    "render/.DS_Store",
     ".env",
     ".env.production",
     ".npmrc",
@@ -99,6 +98,47 @@ test("checkTreePath accepts an ordinary theme source path", () => {
   assert.equal(checkTreePath("render/pages/index.html"), null);
   assert.equal(checkTreePath("theme.json"), null);
   assert.equal(checkTreePath("preview/screenshot.png"), null);
+});
+
+// OS junk files are IGNORED (silently excluded before packing), never a whole-tree DENY reason —
+// `render/.DS_Store` recreated by Finder must not make `checkTreePath` refuse the path either, since
+// a walker (`walkThemeTree`) is what keeps it out of a tree at all; `checkTreePath` on its own is a
+// per-path shape check a caller could still run directly.
+test("isIgnoredTreeFileName recognizes every documented OS junk name", () => {
+  assert.ok(isIgnoredTreeFileName(".DS_Store"));
+  assert.ok(isIgnoredTreeFileName("Thumbs.db"));
+  assert.ok(isIgnoredTreeFileName("desktop.ini"));
+  assert.ok(isIgnoredTreeFileName("._resource-fork"));
+  assert.ok(isIgnoredTreeFileName(".Spotlight-V100"));
+  assert.ok(isIgnoredTreeFileName(".Trashes"));
+  assert.equal(isIgnoredTreeFileName("theme.json"), false);
+  assert.equal(isIgnoredTreeFileName(".env"), false);
+});
+
+test("checkTreePath no longer blocks a .DS_Store path — it is ignored upstream, not denied here", () => {
+  assert.equal(checkTreePath(".DS_Store"), null);
+  assert.equal(checkTreePath("render/.DS_Store"), null);
+});
+
+test("checkTreeFiles silently ignores OS junk files: no block, no count against tree caps", () => {
+  const files: FileTreeFileInput[] = [
+    { path: "theme.json", size: 10, mode: 0o644, textSample: '{"id":"basic"}' },
+    { path: ".DS_Store", size: 6148, mode: 0o644 },
+    { path: "render/.DS_Store", size: 6148, mode: 0o644 },
+    { path: "Thumbs.db", size: 100, mode: 0o644 },
+    { path: "._theme.json", size: 100, mode: 0o644 },
+  ];
+  assert.equal(checkTreeFiles("theme-files", files), null);
+});
+
+test("checkTreeFiles ignores a junk file even when it alone would fail a real rule", () => {
+  // An oversized/disallowed-extension junk file must never block the tree — it is dropped before
+  // any cap, extension, or scan check ever sees it.
+  const oversized: FileTreeFileInput[] = [
+    { path: "theme.json", size: 10, mode: 0o644 },
+    { path: ".DS_Store", size: FILE_TREE_LIMITS.maxFileBytes + 1, mode: 0o644 },
+  ];
+  assert.equal(checkTreeFiles("theme-files", oversized), null);
 });
 
 // (d) A planted credential in theme.css blocks the tree with the exact reason.
