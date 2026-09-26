@@ -34,49 +34,57 @@ export function TermPicker(props: {
   let termHandleIndex = 0;
 
   return (
-    <div className="term-picker">
-      <h3>{t("Categories & Tags")}</h3>
-      <p className="muted-cell">
+    <section className="card term-picker">
+      <h3 className="card-title">{t("Categories & Tags")}</h3>
+      <p className="card-lead">
         {loading ? t("Loading categories & tags…") : t("Tick the categories and tags that apply, then save.")}
       </p>
-      {taxonomies.map(({ taxonomy, terms }) => (
-        <fieldset key={taxonomy.id}>
-          <legend>{taxonomy.name}</legend>
-          {terms.length === 0 ? (
-            <p className="muted-cell">{t("No terms yet.")}</p>
-          ) : (
-            terms.map((term) => {
-              // Consumed in rendered (taxonomy, then term) order, matching how `termHandles` was
-              // built above via the identical `flatMap` order.
-              const handle = termHandles[termHandleIndex];
-              termHandleIndex += 1;
-              return (
-                <label key={term.id} className="term-picker-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(term.id)}
-                    disabled={loading}
-                    onChange={() => toggle(term.id)}
-                    {...agentHandle(handle, {
-                      role: "checkbox",
-                      label: `Tag this ${subject} with the "${taxonomy.name}" term "${term.name}"`,
-                    })}
-                  />
-                  {term.name}
-                </label>
-              );
-            })
-          )}
-        </fieldset>
-      ))}
+      {/* One row per taxonomy: its name on the left, its terms on the right. The `<fieldset>` is
+          kept for the group's accessible name (its `<legend>`); `styles.css`'s `.term-picker-group`
+          strips its browser border and floats the legend so it sits in the row like any label. */}
+      <div className="term-picker-groups">
+        {taxonomies.map(({ taxonomy, terms }) => (
+          <fieldset key={taxonomy.id} className="term-picker-group">
+            <legend className="field-label">{taxonomy.name}</legend>
+            {terms.length === 0 ? (
+              <p className="field-hint">{t("No terms yet.")}</p>
+            ) : (
+              <div className="term-picker-terms">
+                {terms.map((term) => {
+                  // Consumed in rendered (taxonomy, then term) order, matching how `termHandles`
+                  // was built above via the identical `flatMap` order.
+                  const handle = termHandles[termHandleIndex];
+                  termHandleIndex += 1;
+                  return (
+                    <label key={term.id} className="form-checkbox-field">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(term.id)}
+                        disabled={loading}
+                        onChange={() => toggle(term.id)}
+                        {...agentHandle(handle, {
+                          role: "checkbox",
+                          label: `Tag this ${subject} with the "${taxonomy.name}" term "${term.name}"`,
+                        })}
+                      />
+                      {term.name}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </fieldset>
+        ))}
+      </div>
       {/* `term-picker-actions` is a spacing-only hook layered on `.editor-actions`, same pattern
           as `FormEditor.tsx`'s `.form-actions`: `.editor-actions` sets direction/gap/alignment but
-          deliberately no outer margin, and this row follows a stack of `<fieldset>`s with nothing
-          else separating them. Scoped here rather than added to `.editor-actions` itself, which is
+          deliberately no outer margin, and this row follows the taxonomy rows with nothing else
+          separating them. Scoped here rather than added to `.editor-actions` itself, which is
           shared with screens where a blanket top margin would be wrong. */}
       <span className="editor-actions term-picker-actions">
         <button
           type="button"
+          className="btn-primary"
           onClick={save}
           disabled={saving || !dirty}
           {...agentHandle("term-picker-save", {
@@ -89,6 +97,6 @@ export function TermPicker(props: {
         {message ? <span className="save-ok">{message}</span> : null}
         {error ? <span className="save-error">{error}</span> : null}
       </span>
-    </div>
+    </section>
   );
 }

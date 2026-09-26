@@ -2942,8 +2942,26 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .collections-dynamic-field { display: flex; flex-direction: column; gap: 0.3rem; }
 /* Same consolidation as `.login-card label` above. */
 .collections-dynamic-field label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.term-picker { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; }
-.term-picker-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem 0.8rem 0.2rem 0; font-size: 0.85rem; }
+/* Categories & Tags box (`features/taxonomy/TermPicker.tsx`). The frame, heading and lead are the
+   shared `.card`/`.card-title`/`.card-lead`; the term rows reuse `.field-label`, `.field-hint` and
+   `.form-checkbox-field`. What is left here is layout only: the gap above the card, and one row
+   per taxonomy (name left, terms right) separated by the card's own hairline. */
+.term-picker { margin-top: var(--space-4); }
+.term-picker-groups { margin-top: var(--space-4); border-top: 1px solid var(--border); }
+/* The `<fieldset>` stays for the group's accessible name; its UA border/padding/margin go, and
+   `min-width: 0` undoes the fieldset's `min-content` default so long term lists wrap. The legend is
+   floated because a non-floated legend is drawn on the fieldset's border and is never a grid item —
+   floated, it becomes an ordinary first cell (float itself has no effect inside a grid). */
+.term-picker-group {
+  display: grid; grid-template-columns: minmax(6rem, 10rem) 1fr; align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0; padding: var(--space-3) 0; border: 0; border-bottom: 1px solid var(--border); min-width: 0;
+}
+.term-picker-group > legend { float: left; padding: 0; }
+.term-picker-terms { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+@media (max-width: 640px) {
+  .term-picker-group { grid-template-columns: 1fr; }
+}
 /* Same `.editor-actions` flush-spacing fix as `FormEditor.tsx`'s `.form-actions` — see
    `features/taxonomy/TermPicker.tsx` for why this is scoped here rather than added to
    `.editor-actions` itself (that class is shared with ~30 other, structurally different callers
