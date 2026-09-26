@@ -29,7 +29,7 @@ import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
 import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
-import { publishScopeTitleKey } from "../publish-scope";
+import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
 
 /**
  * @file The colocated `PublishContentDialog` behaviour — Escape-to-cancel, plus plan -> confirm ->
@@ -147,6 +147,9 @@ export interface PublishContentConfirmView {
    *  screen's `t()` resolves the same way it resolves every other string here. Always
    *  `publishScopeTitleKey(props.scope)`; unlike `primaryLabel`, it never changes once a plan lands. */
   readonly title: string;
+  /** Owner decision 2026-09-25 — the description line under the title, an English copy key naming
+   *  what this dialog sends: `publishScopeDescriptionKey(props.scope)`. */
+  readonly description: string;
   readonly primaryLabel: string;
   readonly primaryDisabled: boolean;
   readonly onPrimary: () => void;
@@ -991,6 +994,7 @@ export function usePublishContentConfirm(props: {
     overwriteMismatch,
     overwriteUnavailable,
     title: publishScopeTitleKey(props.scope),
+    description: publishScopeDescriptionKey(props.scope),
     primaryLabel: primaryLabelFor(phase, selectedPublishing, connectOffer, connecting, t, props.scope),
     primaryDisabled: connectOffer
       ? connecting || connectOffer.candidateUrl === null

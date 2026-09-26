@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PUBLISH_SECTION_LABEL_KEYS, publishScopeTitleKey } from "../publish-scope";
+import { PUBLISH_SECTION_LABEL_KEYS, publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
 
 /**
  * @file `plan-publish-sections-2026-09-25.md` §2 S2 — the pure label rules the dialog title, the
@@ -45,5 +45,28 @@ describe("PUBLISH_SECTION_LABEL_KEYS", () => {
       redirect: "Publish redirects",
       "theme-files": "Publish themes",
     });
+  });
+});
+
+/** Owner decision 2026-09-25 — the dialog's description line says what THIS dialog sends, not the
+ *  all-content sentence in every section. */
+describe("publishScopeDescriptionKey", () => {
+  it("keeps the all-content sentence when nothing is narrowed", () => {
+    const all = "Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.";
+    expect(publishScopeDescriptionKey(undefined)).toBe(all);
+    expect(publishScopeDescriptionKey({ entityTypes: ["page", "post"] })).toBe(all);
+  });
+
+  it("names the section a single-type scope sends", () => {
+    expect(publishScopeDescriptionKey({ entityTypes: ["page"] })).toBe("Sends your pages to the live site.");
+    expect(publishScopeDescriptionKey({ entityTypes: ["post"] })).toBe("Sends your posts to the live site.");
+    expect(publishScopeDescriptionKey({ entityTypes: ["media"] })).toBe("Sends your media to the live site.");
+    expect(publishScopeDescriptionKey({ entityTypes: ["menu"] })).toBe("Sends your menus to the live site.");
+    expect(publishScopeDescriptionKey({ entityTypes: ["redirect"] })).toBe("Sends your redirects to the live site.");
+    expect(publishScopeDescriptionKey({ entityTypes: ["theme-files"] })).toBe("Sends your themes to the live site.");
+  });
+
+  it("reads as one item for an entityKeys scope", () => {
+    expect(publishScopeDescriptionKey({ entityTypes: ["page"], entityKeys: ["page:1"] })).toBe("Sends this item to the live site.");
   });
 });

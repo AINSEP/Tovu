@@ -934,6 +934,23 @@ describe("PublishContentDialog — scope (plan-publish-sections §2 S2)", () => 
     expect(primaryButton().textContent).toBe("Publish pages");
   });
 
+  it("the description line names what a section's dialog sends (owner decision 2026-09-25)", () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER });
+    renderDialog(port, { scope: { entityTypes: ["redirect"] } });
+
+    expect(screen.getByText("Sends your redirects to the live site.")).toBeTruthy();
+    expect(screen.queryByText(/Sends your posts, pages and media/)).toBeNull();
+  });
+
+  it("an unscoped dialog keeps the all-content description", () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER });
+    renderDialog(port);
+
+    expect(
+      screen.getByText("Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.")
+    ).toBeTruthy();
+  });
+
   it("an entityKeys scope titles the dialog 'Publish item'", () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER });
     renderDialog(port, { scope: { entityTypes: ["page"], entityKeys: ["page:page-1"] } });

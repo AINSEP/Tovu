@@ -52,6 +52,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Publicar redirecciones",
     "Publish themes": "Publicar temas",
     "Publish item": "Publicar elemento",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Envía tus páginas al sitio en vivo.",
+    "Sends your posts to the live site.": "Envía tus entradas al sitio en vivo.",
+    "Sends your media to the live site.": "Envía tu multimedia al sitio en vivo.",
+    "Sends your menus to the live site.": "Envía tus menús al sitio en vivo.",
+    "Sends your redirects to the live site.": "Envía tus redirecciones al sitio en vivo.",
+    "Sends your themes to the live site.": "Envía tus temas al sitio en vivo.",
+    "Sends this item to the live site.": "Envía este elemento al sitio en vivo.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Usado por estas páginas",
     "Used by these posts": "Usado por estas entradas",
@@ -108,6 +116,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Terbitkan pengalihan",
     "Publish themes": "Terbitkan tema",
     "Publish item": "Terbitkan item",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Mengirim halaman Anda ke situs live.",
+    "Sends your posts to the live site.": "Mengirim pos Anda ke situs live.",
+    "Sends your media to the live site.": "Mengirim media Anda ke situs live.",
+    "Sends your menus to the live site.": "Mengirim menu Anda ke situs live.",
+    "Sends your redirects to the live site.": "Mengirim pengalihan Anda ke situs live.",
+    "Sends your themes to the live site.": "Mengirim tema Anda ke situs live.",
+    "Sends this item to the live site.": "Mengirim item ini ke situs live.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Dipakai oleh halaman ini",
     "Used by these posts": "Dipakai oleh pos ini",
@@ -162,6 +178,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Weiterleitungen veröffentlichen",
     "Publish themes": "Themes veröffentlichen",
     "Publish item": "Element veröffentlichen",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Sendet deine Seiten an die Live-Website.",
+    "Sends your posts to the live site.": "Sendet deine Beiträge an die Live-Website.",
+    "Sends your media to the live site.": "Sendet deine Medien an die Live-Website.",
+    "Sends your menus to the live site.": "Sendet deine Menüs an die Live-Website.",
+    "Sends your redirects to the live site.": "Sendet deine Weiterleitungen an die Live-Website.",
+    "Sends your themes to the live site.": "Sendet deine Themes an die Live-Website.",
+    "Sends this item to the live site.": "Sendet dieses Element an die Live-Website.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Von diesen Seiten verwendet",
     "Used by these posts": "Von diesen Beiträgen verwendet",
@@ -216,6 +240,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "发布重定向",
     "Publish themes": "发布主题",
     "Publish item": "发布项目",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "将你的页面发送到线上网站。",
+    "Sends your posts to the live site.": "将你的文章发送到线上网站。",
+    "Sends your media to the live site.": "将你的媒体发送到线上网站。",
+    "Sends your menus to the live site.": "将你的菜单发送到线上网站。",
+    "Sends your redirects to the live site.": "将你的重定向发送到线上网站。",
+    "Sends your themes to the live site.": "将你的主题发送到线上网站。",
+    "Sends this item to the live site.": "将此项发送到线上网站。",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "被这些页面使用",
     "Used by these posts": "被这些文章使用",
@@ -270,6 +302,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "發布重新導向",
     "Publish themes": "發布主題",
     "Publish item": "發布項目",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "將你的頁面傳送到線上網站。",
+    "Sends your posts to the live site.": "將你的文章傳送到線上網站。",
+    "Sends your media to the live site.": "將你的媒體傳送到線上網站。",
+    "Sends your menus to the live site.": "將你的選單傳送到線上網站。",
+    "Sends your redirects to the live site.": "將你的重新導向傳送到線上網站。",
+    "Sends your themes to the live site.": "將你的佈景主題傳送到線上網站。",
+    "Sends this item to the live site.": "將此項目傳送到線上網站。",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "被這些頁面使用",
     "Used by these posts": "被這些文章使用",
@@ -324,6 +364,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Publicar redirecionamentos",
     "Publish themes": "Publicar temas",
     "Publish item": "Publicar item",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Envia suas páginas para o site ao vivo.",
+    "Sends your posts to the live site.": "Envia seus posts para o site ao vivo.",
+    "Sends your media to the live site.": "Envia suas mídias para o site ao vivo.",
+    "Sends your menus to the live site.": "Envia seus menus para o site ao vivo.",
+    "Sends your redirects to the live site.": "Envia seus redirecionamentos para o site ao vivo.",
+    "Sends your themes to the live site.": "Envia seus temas para o site ao vivo.",
+    "Sends this item to the live site.": "Envia este item para o site ao vivo.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Usado por estas páginas",
     "Used by these posts": "Usado por estes posts",
@@ -378,6 +426,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Опубликовать перенаправления",
     "Publish themes": "Опубликовать темы",
     "Publish item": "Опубликовать элемент",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Отправляет ваши страницы на рабочий сайт.",
+    "Sends your posts to the live site.": "Отправляет ваши записи на рабочий сайт.",
+    "Sends your media to the live site.": "Отправляет ваши медиафайлы на рабочий сайт.",
+    "Sends your menus to the live site.": "Отправляет ваши меню на рабочий сайт.",
+    "Sends your redirects to the live site.": "Отправляет ваши перенаправления на рабочий сайт.",
+    "Sends your themes to the live site.": "Отправляет ваши темы на рабочий сайт.",
+    "Sends this item to the live site.": "Отправляет этот элемент на рабочий сайт.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Используется этими страницами",
     "Used by these posts": "Используется этими записями",
@@ -432,6 +488,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "انتشار تغییر مسیرها",
     "Publish themes": "انتشار پوسته‌ها",
     "Publish item": "انتشار مورد",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "صفحه‌های شما را به سایت زنده می‌فرستد.",
+    "Sends your posts to the live site.": "نوشته‌های شما را به سایت زنده می‌فرستد.",
+    "Sends your media to the live site.": "رسانه‌های شما را به سایت زنده می‌فرستد.",
+    "Sends your menus to the live site.": "منوهای شما را به سایت زنده می‌فرستد.",
+    "Sends your redirects to the live site.": "تغییرمسیرهای شما را به سایت زنده می‌فرستد.",
+    "Sends your themes to the live site.": "پوسته‌های شما را به سایت زنده می‌فرستد.",
+    "Sends this item to the live site.": "این مورد را به سایت زنده می‌فرستد.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "استفاده‌شده در این صفحه‌ها",
     "Used by these posts": "استفاده‌شده در این نوشته‌ها",
@@ -486,6 +550,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "نشر عمليات إعادة التوجيه",
     "Publish themes": "نشر السمات",
     "Publish item": "نشر العنصر",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "يرسل صفحاتك إلى الموقع المباشر.",
+    "Sends your posts to the live site.": "يرسل مقالاتك إلى الموقع المباشر.",
+    "Sends your media to the live site.": "يرسل وسائطك إلى الموقع المباشر.",
+    "Sends your menus to the live site.": "يرسل قوائمك إلى الموقع المباشر.",
+    "Sends your redirects to the live site.": "يرسل عمليات إعادة التوجيه إلى الموقع المباشر.",
+    "Sends your themes to the live site.": "يرسل قوالبك إلى الموقع المباشر.",
+    "Sends this item to the live site.": "يرسل هذا العنصر إلى الموقع المباشر.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "تستخدمه هذه الصفحات",
     "Used by these posts": "تستخدمه هذه المقالات",
@@ -540,6 +612,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "リダイレクトを公開",
     "Publish themes": "テーマを公開",
     "Publish item": "項目を公開",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "ページを公開サイトに送信します。",
+    "Sends your posts to the live site.": "投稿を公開サイトに送信します。",
+    "Sends your media to the live site.": "メディアを公開サイトに送信します。",
+    "Sends your menus to the live site.": "メニューを公開サイトに送信します。",
+    "Sends your redirects to the live site.": "リダイレクトを公開サイトに送信します。",
+    "Sends your themes to the live site.": "テーマを公開サイトに送信します。",
+    "Sends this item to the live site.": "この項目を公開サイトに送信します。",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "これらのページで使用",
     "Used by these posts": "これらの投稿で使用",
@@ -594,6 +674,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "리디렉션 게시",
     "Publish themes": "테마 게시",
     "Publish item": "항목 게시",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "페이지를 라이브 사이트로 보냅니다.",
+    "Sends your posts to the live site.": "게시물을 라이브 사이트로 보냅니다.",
+    "Sends your media to the live site.": "미디어를 라이브 사이트로 보냅니다.",
+    "Sends your menus to the live site.": "메뉴를 라이브 사이트로 보냅니다.",
+    "Sends your redirects to the live site.": "리디렉션을 라이브 사이트로 보냅니다.",
+    "Sends your themes to the live site.": "테마를 라이브 사이트로 보냅니다.",
+    "Sends this item to the live site.": "이 항목을 라이브 사이트로 보냅니다.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "이 페이지에서 사용됨",
     "Used by these posts": "이 게시물에서 사용됨",
@@ -648,6 +736,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Opublikuj przekierowania",
     "Publish themes": "Opublikuj motywy",
     "Publish item": "Opublikuj element",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Wysyła twoje strony na stronę produkcyjną.",
+    "Sends your posts to the live site.": "Wysyła twoje wpisy na stronę produkcyjną.",
+    "Sends your media to the live site.": "Wysyła twoje multimedia na stronę produkcyjną.",
+    "Sends your menus to the live site.": "Wysyła twoje menu na stronę produkcyjną.",
+    "Sends your redirects to the live site.": "Wysyła twoje przekierowania na stronę produkcyjną.",
+    "Sends your themes to the live site.": "Wysyła twoje motywy na stronę produkcyjną.",
+    "Sends this item to the live site.": "Wysyła ten element na stronę produkcyjną.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Używane przez te strony",
     "Used by these posts": "Używane przez te wpisy",
@@ -702,6 +798,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Átirányítások közzététele",
     "Publish themes": "Témák közzététele",
     "Publish item": "Elem közzététele",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Elküldi az oldalaidat az élő webhelyre.",
+    "Sends your posts to the live site.": "Elküldi a bejegyzéseidet az élő webhelyre.",
+    "Sends your media to the live site.": "Elküldi a médiafájljaidat az élő webhelyre.",
+    "Sends your menus to the live site.": "Elküldi a menüidet az élő webhelyre.",
+    "Sends your redirects to the live site.": "Elküldi az átirányításaidat az élő webhelyre.",
+    "Sends your themes to the live site.": "Elküldi a témáidat az élő webhelyre.",
+    "Sends this item to the live site.": "Elküldi ezt az elemet az élő webhelyre.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Ezek az oldalak használják",
     "Used by these posts": "Ezek a bejegyzések használják",
@@ -756,6 +860,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Publier les redirections",
     "Publish themes": "Publier les thèmes",
     "Publish item": "Publier l'élément",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Envoie vos pages vers le site en ligne.",
+    "Sends your posts to the live site.": "Envoie vos articles vers le site en ligne.",
+    "Sends your media to the live site.": "Envoie vos médias vers le site en ligne.",
+    "Sends your menus to the live site.": "Envoie vos menus vers le site en ligne.",
+    "Sends your redirects to the live site.": "Envoie vos redirections vers le site en ligne.",
+    "Sends your themes to the live site.": "Envoie vos thèmes vers le site en ligne.",
+    "Sends this item to the live site.": "Envoie cet élément vers le site en ligne.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Utilisé par ces pages",
     "Used by these posts": "Utilisé par ces articles",
@@ -810,6 +922,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Опублікувати переспрямування",
     "Publish themes": "Опублікувати теми",
     "Publish item": "Опублікувати елемент",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Надсилає ваші сторінки на робочий сайт.",
+    "Sends your posts to the live site.": "Надсилає ваші записи на робочий сайт.",
+    "Sends your media to the live site.": "Надсилає ваші медіафайли на робочий сайт.",
+    "Sends your menus to the live site.": "Надсилає ваші меню на робочий сайт.",
+    "Sends your redirects to the live site.": "Надсилає ваші переспрямування на робочий сайт.",
+    "Sends your themes to the live site.": "Надсилає ваші теми на робочий сайт.",
+    "Sends this item to the live site.": "Надсилає цей елемент на робочий сайт.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Використовується цими сторінками",
     "Used by these posts": "Використовується цими записами",
@@ -864,6 +984,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Yönlendirmeleri yayımla",
     "Publish themes": "Temaları yayımla",
     "Publish item": "Ögeyi yayımla",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Sayfalarınızı canlı siteye gönderir.",
+    "Sends your posts to the live site.": "Yazılarınızı canlı siteye gönderir.",
+    "Sends your media to the live site.": "Medyanızı canlı siteye gönderir.",
+    "Sends your menus to the live site.": "Menülerinizi canlı siteye gönderir.",
+    "Sends your redirects to the live site.": "Yönlendirmelerinizi canlı siteye gönderir.",
+    "Sends your themes to the live site.": "Temalarınızı canlı siteye gönderir.",
+    "Sends this item to the live site.": "Bu öğeyi canlı siteye gönderir.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Bu sayfalar tarafından kullanılıyor",
     "Used by these posts": "Bu yazılar tarafından kullanılıyor",
@@ -918,6 +1046,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "เผยแพร่การเปลี่ยนเส้นทาง",
     "Publish themes": "เผยแพร่ธีม",
     "Publish item": "เผยแพร่รายการ",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "ส่งหน้าของคุณไปยังเว็บไซต์จริง",
+    "Sends your posts to the live site.": "ส่งโพสต์ของคุณไปยังเว็บไซต์จริง",
+    "Sends your media to the live site.": "ส่งสื่อของคุณไปยังเว็บไซต์จริง",
+    "Sends your menus to the live site.": "ส่งเมนูของคุณไปยังเว็บไซต์จริง",
+    "Sends your redirects to the live site.": "ส่งการเปลี่ยนเส้นทางของคุณไปยังเว็บไซต์จริง",
+    "Sends your themes to the live site.": "ส่งธีมของคุณไปยังเว็บไซต์จริง",
+    "Sends this item to the live site.": "ส่งรายการนี้ไปยังเว็บไซต์จริง",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "ใช้โดยหน้าเหล่านี้",
     "Used by these posts": "ใช้โดยโพสต์เหล่านี้",
@@ -972,6 +1108,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "Pubblica reindirizzamenti",
     "Publish themes": "Pubblica temi",
     "Publish item": "Pubblica elemento",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "Invia le tue pagine al sito online.",
+    "Sends your posts to the live site.": "Invia i tuoi articoli al sito online.",
+    "Sends your media to the live site.": "Invia i tuoi media al sito online.",
+    "Sends your menus to the live site.": "Invia i tuoi menu al sito online.",
+    "Sends your redirects to the live site.": "Invia i tuoi reindirizzamenti al sito online.",
+    "Sends your themes to the live site.": "Invia i tuoi temi al sito online.",
+    "Sends this item to the live site.": "Invia questo elemento al sito online.",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "Usato da queste pagine",
     "Used by these posts": "Usato da questi articoli",
@@ -1026,6 +1170,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "रीडायरेक्ट प्रकाशित करें",
     "Publish themes": "थीम प्रकाशित करें",
     "Publish item": "आइटम प्रकाशित करें",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "आपके पेज लाइव साइट पर भेजता है।",
+    "Sends your posts to the live site.": "आपकी पोस्ट लाइव साइट पर भेजता है।",
+    "Sends your media to the live site.": "आपका मीडिया लाइव साइट पर भेजता है।",
+    "Sends your menus to the live site.": "आपके मेनू लाइव साइट पर भेजता है।",
+    "Sends your redirects to the live site.": "आपके रीडायरेक्ट लाइव साइट पर भेजता है।",
+    "Sends your themes to the live site.": "आपकी थीम लाइव साइट पर भेजता है।",
+    "Sends this item to the live site.": "यह आइटम लाइव साइट पर भेजता है।",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "इन पेजों द्वारा उपयोग किया गया",
     "Used by these posts": "इन पोस्ट द्वारा उपयोग किया गया",
@@ -1080,6 +1232,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "ری ڈائریکٹس شائع کریں",
     "Publish themes": "تھیمز شائع کریں",
     "Publish item": "آئٹم شائع کریں",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "آپ کے صفحات لائیو سائٹ پر بھیجتا ہے۔",
+    "Sends your posts to the live site.": "آپ کی پوسٹس لائیو سائٹ پر بھیجتا ہے۔",
+    "Sends your media to the live site.": "آپ کا میڈیا لائیو سائٹ پر بھیجتا ہے۔",
+    "Sends your menus to the live site.": "آپ کے مینو لائیو سائٹ پر بھیجتا ہے۔",
+    "Sends your redirects to the live site.": "آپ کے ری ڈائریکٹس لائیو سائٹ پر بھیجتا ہے۔",
+    "Sends your themes to the live site.": "آپ کی تھیمز لائیو سائٹ پر بھیجتا ہے۔",
+    "Sends this item to the live site.": "یہ آئٹم لائیو سائٹ پر بھیجتا ہے۔",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "ان صفحات میں استعمال ہوا",
     "Used by these posts": "ان پوسٹس میں استعمال ہوا",
@@ -1134,6 +1294,14 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Publish redirects": "রিডাইরেক্ট প্রকাশ করুন",
     "Publish themes": "থিম প্রকাশ করুন",
     "Publish item": "আইটেম প্রকাশ করুন",
+    // Owner decision 2026-09-25 — the Publish dialog's description line, per section.
+    "Sends your pages to the live site.": "আপনার পৃষ্ঠাগুলো লাইভ সাইটে পাঠায়।",
+    "Sends your posts to the live site.": "আপনার পোস্টগুলো লাইভ সাইটে পাঠায়।",
+    "Sends your media to the live site.": "আপনার মিডিয়া লাইভ সাইটে পাঠায়।",
+    "Sends your menus to the live site.": "আপনার মেনুগুলো লাইভ সাইটে পাঠায়।",
+    "Sends your redirects to the live site.": "আপনার রিডাইরেক্টগুলো লাইভ সাইটে পাঠায়।",
+    "Sends your themes to the live site.": "আপনার থিমগুলো লাইভ সাইটে পাঠায়।",
+    "Sends this item to the live site.": "এই আইটেমটি লাইভ সাইটে পাঠায়।",
     // Owner decision 2026-09-25 — the note on media carried along with the pages/posts that use it.
     "Used by these pages": "এই পৃষ্ঠাগুলোতে ব্যবহৃত",
     "Used by these posts": "এই পোস্টগুলোতে ব্যবহৃত",

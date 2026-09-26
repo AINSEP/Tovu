@@ -112,7 +112,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id={titleId}>{t(view.title)}</h2>
-        <p>{t("Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.")}</p>
+        <p>{t(view.description)}</p>
         <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
 
         {view.peers.length > 1 && (

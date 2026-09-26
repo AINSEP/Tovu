@@ -35,9 +35,47 @@ export const PUBLISH_SECTION_LABEL_KEYS: Record<string, string> = {
  * @complexity O(1).
  */
 export function publishScopeTitleKey(scope: PublishScope | undefined): string {
-  if (scope?.entityKeys !== undefined && scope.entityKeys.length > 0) return "Publish item";
-  if (scope?.entityTypes !== undefined && scope.entityTypes.length === 1) {
-    return PUBLISH_SECTION_LABEL_KEYS[scope.entityTypes[0]] ?? "Publish all content";
-  }
-  return "Publish all content";
+  const section = scopeSection(scope);
+  if (section === ITEM) return "Publish item";
+  return (section === ALL ? undefined : PUBLISH_SECTION_LABEL_KEYS[section]) ?? "Publish all content";
+}
+
+/** Owner decision 2026-09-25 — the dialog's description line, per section. The unscoped sentence is
+ *  unchanged; a section's own line names only what that dialog sends. */
+const ALL_CONTENT_DESCRIPTION = "Sends your posts, pages and media to the live site. Deploy ships code; publish ships content.";
+const PUBLISH_SECTION_DESCRIPTION_KEYS: Record<string, string> = {
+  page: "Sends your pages to the live site.",
+  post: "Sends your posts to the live site.",
+  media: "Sends your media to the live site.",
+  menu: "Sends your menus to the live site.",
+  redirect: "Sends your redirects to the live site.",
+  "theme-files": "Sends your themes to the live site.",
+};
+
+/**
+ * The English copy key for the dialog's description line — the same scope resolution as
+ * {@link publishScopeTitleKey}, so a dialog's title and its description can never name different
+ * sections.
+ *
+ * @complexity O(1).
+ */
+export function publishScopeDescriptionKey(scope: PublishScope | undefined): string {
+  const section = scopeSection(scope);
+  if (section === ITEM) return "Sends this item to the live site.";
+  return (section === ALL ? undefined : PUBLISH_SECTION_DESCRIPTION_KEYS[section]) ?? ALL_CONTENT_DESCRIPTION;
+}
+
+const ITEM = Symbol("item");
+const ALL = Symbol("all");
+
+/**
+ * The one scope resolution behind {@link publishScopeTitleKey} and {@link publishScopeDescriptionKey}
+ * (rules on {@link publishScopeTitleKey}): a single item, everything, or one section's entity type.
+ *
+ * @complexity O(1).
+ */
+function scopeSection(scope: PublishScope | undefined): typeof ITEM | typeof ALL | string {
+  if (scope?.entityKeys !== undefined && scope.entityKeys.length > 0) return ITEM;
+  if (scope?.entityTypes !== undefined && scope.entityTypes.length === 1) return scope.entityTypes[0];
+  return ALL;
 }
