@@ -413,3 +413,37 @@ test("a carried-along row counts toward the button only while a page that uses i
   assert.equal(countSelectedPublishing(rows, new Set(["page:pg1", "page:pg2"])), 3);
   assert.equal(countSelectedPublishing(rows, new Set(["page:pg2"])), 1);
 });
+
+/**
+ * Owner decision 2026-09-25 — a theme blocked by the per-file size limit or by a secret-looking file
+ * names the file, the way the video reason already does. Every raw wording below is quoted from
+ * `file-tree-policy.ts` (`checkTreeFiles`/`checkTreePath`) wrapped by `wrapTreePolicyReason`. The
+ * secret scan's own pattern name is never shown, and neither is any matched text.
+ */
+test("friendlyPublishReason names the file a theme's size limit refused", () => {
+  assert.equal(
+    friendlyPublishReason(
+      "Theme: static/basic was not published: \"assets/img/hero.png\" is 99999999 bytes, larger than the 52428800-byte per-file limit"
+    ),
+    "Can't publish: a file is too large (hero.png)"
+  );
+});
+
+test("friendlyPublishReason names the secret-looking file that refused a theme, never what matched", () => {
+  const cases: ReadonlyArray<readonly [string, string]> = [
+    ["\"config/.env\" looks like an environment file", ".env"],
+    ["\".env.local\" looks like an environment file", ".env.local"],
+    ["\".npmrc\" is a package-manager credential file", ".npmrc"],
+    ["\".mcp.prod.json\" is an MCP server configuration file, which can hold secrets", ".mcp.prod.json"],
+    ["\"keys/id_rsa\" looks like a private SSH key", "id_rsa"],
+    ["\"certs/site.pem\" has a '.pem' extension, which is never published", "site.pem"],
+    ["\"assets/app.js\" looks like it holds a key (aws-access-key-id)", "app.js"],
+  ];
+  for (const [detail, name] of cases) {
+    assert.equal(
+      friendlyPublishReason(`Theme: static/basic was not published: ${detail}`),
+      `Can't publish: a file looks like it contains a key or password (${name})`,
+      detail
+    );
+  }
+});

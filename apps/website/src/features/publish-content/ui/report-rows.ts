@@ -201,13 +201,37 @@ const REASON_REWRITES: readonly ReasonRewrite[] = [
 const GENERIC_TREE_WRAP_PATTERN = /^(.+) was not published: .+$/;
 
 /**
+ * Owner decision 2026-09-25 — a tree refusal that is about ONE file names that file, the way
+ * `file-tree-policy.ts`'s already-final video reason does, instead of the generic "one of its files
+ * isn't allowed". Each pattern matches a `wrapTreePolicyReason`-wrapped `checkTreeFiles`/
+ * `checkTreePath` detail, quoted from that module, and captures the offending path; only the file's
+ * own name is shown. The secret scan's pattern name (and so anything about what matched) is dropped.
+ */
+interface NamedFileRewrite {
+  readonly pattern: RegExp;
+  readonly friendly: (fileName: string) => string;
+}
+
+const TOO_LARGE = (name: string): string => `Can't publish: a file is too large (${name})`;
+const LOOKS_SECRET = (name: string): string => `Can't publish: a file looks like it contains a key or password (${name})`;
+
+const NAMED_FILE_REWRITES: readonly NamedFileRewrite[] = [
+  { pattern: /^.+ was not published: "(.+)" is \d+ bytes, larger than the \d+-byte per-file limit$/, friendly: TOO_LARGE },
+  {
+    pattern:
+      /^.+ was not published: "(.+)" (?:looks like it holds a key \(.+\)|looks like an environment file|is a package-manager credential file|is an MCP server configuration file, which can hold secrets|looks like a private SSH key|has a '\.(?:pem|key|p12|pfx)' extension, which is never published)$/,
+    friendly: LOOKS_SECRET,
+  },
+];
+
+/**
  * Rewrites one raw planner/handler reason into the sentence the dialog shows an owner — terse, free
  * of ids and sync-protocol terms ("baseline", "peer", "entity"), and naming the action when the
  * matched cause has one. `file-tree-policy.ts`'s own `"Can't publish: ..."` sentinel is already
  * exactly this (that module's header explains why it alone gets to skip the title wrapper) and is
  * returned unchanged rather than double-translated.
  *
- * Anything matching none of {@link REASON_REWRITES} or {@link GENERIC_TREE_WRAP_PATTERN} — a future
+ * Anything matching none of {@link REASON_REWRITES}, {@link NAMED_FILE_REWRITES} or {@link GENERIC_TREE_WRAP_PATTERN} — a future
  * handler's wording this file has not seen yet, or a test fixture that is not real handler text —
  * passes through unchanged rather than being mangled by a guess.
  *
@@ -217,6 +241,10 @@ export function friendlyPublishReason(reason: string): string {
   if (reason.startsWith(ALREADY_FINAL_PREFIX)) return reason;
   for (const { pattern, friendly } of REASON_REWRITES) {
     if (pattern.test(reason)) return friendly;
+  }
+  for (const { pattern, friendly } of NAMED_FILE_REWRITES) {
+    const path = reason.match(pattern)?.[1];
+    if (path !== undefined) return friendly(path.slice(path.lastIndexOf("/") + 1));
   }
   const wrapped = reason.match(GENERIC_TREE_WRAP_PATTERN);
   if (wrapped) return `${wrapped[1]} can't be published — one of its files isn't allowed.`;
