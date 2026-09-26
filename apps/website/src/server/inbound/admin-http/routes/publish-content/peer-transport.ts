@@ -2,7 +2,8 @@ import type { Response } from "express";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { stageBundle } from "#src/features/publish-content/bundle-staging";
-import { buildExportBundle, selectBundleEntities } from "#src/features/publish-content/export-bundle";
+import { applyPublishScope, buildExportBundle, selectBundleEntities } from "#src/features/publish-content/export-bundle";
+import type { PublishScope } from "#src/features/publish-content/ui/contract";
 import {
   confirmPeerImport,
   executePeerImport,
@@ -138,6 +139,47 @@ function readSelectedEntityKeys(body: unknown): readonly string[] | null | typeo
   return raw.selectedEntityKeys;
 }
 
+/** `scope`'s per-field cap, matching {@link readOverwriteEntityKeys}'s 1000-entry bound below. */
+const MAX_SCOPE_ARRAY_LENGTH = 1000;
+
+/** @complexity O(1). */
+function isNonEmptyStringArrayField(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.length > 0 && value.length <= MAX_SCOPE_ARRAY_LENGTH && value.every((v) => typeof v === "string");
+}
+
+/**
+ * Reads `push/plan`'s optional `scope` (`plan-publish-sections-2026-09-25.md` §1) — the section (or
+ * section-plus-rows) this plan is about, applied BEFORE `selectedEntityKeys` narrows further (this
+ * file's own `push/plan` handler). Absent/`null` means "publish everything", the same "absent, not an
+ * empty real answer" contract every other optional array field on this route reads by.
+ *
+ * A present `entityTypes` or `entityKeys` must be a non-empty array of strings (at most
+ * {@link MAX_SCOPE_ARRAY_LENGTH} entries): an empty array is refused rather than silently treated as
+ * "everything" or "nothing", since `selectedEntityKeys` already uses an empty array for "nothing" and
+ * a caller sending `scope: {entityTypes: []}` almost certainly meant something else.
+ *
+ * @returns `{scope: null}` when the body carries no `scope`, `{scope}` (the validated
+ *   {@link PublishScope}) when it is well-formed, or `{invalidField}` naming which field was wrong.
+ * @complexity O(n) in the submitted array lengths.
+ */
+function readPublishScope(body: unknown): { scope: PublishScope | null } | { invalidField: "entityTypes" | "entityKeys" } {
+  const raw = (body ?? {}) as Record<string, unknown>;
+  if (raw.scope === undefined || raw.scope === null) return { scope: null };
+  if (typeof raw.scope !== "object" || Array.isArray(raw.scope)) return { invalidField: "entityTypes" };
+  const scopeBody = raw.scope as Record<string, unknown>;
+
+  const scope: { entityTypes?: readonly string[]; entityKeys?: readonly string[] } = {};
+  if (scopeBody.entityTypes !== undefined) {
+    if (!isNonEmptyStringArrayField(scopeBody.entityTypes)) return { invalidField: "entityTypes" };
+    scope.entityTypes = scopeBody.entityTypes;
+  }
+  if (scopeBody.entityKeys !== undefined) {
+    if (!isNonEmptyStringArrayField(scopeBody.entityKeys)) return { invalidField: "entityKeys" };
+    scope.entityKeys = scopeBody.entityKeys;
+  }
+  return { scope };
+}
+
 /** Distinguishes "the body carried a malformed set of ticks" (a 400) from "the body carried none"
  *  (`null`, force nothing) — the same two-outcome shape {@link readSelectedEntityKeys} above uses. */
 const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
@@ -210,6 +252,14 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         res.status(400).json({ error: "'selectedEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
       }
+      const scopeResult = readPublishScope(req.body);
+      if ("invalidField" in scopeResult) {
+        res.status(400).json({
+          error: `'scope.${scopeResult.invalidField}' must be a non-empty array of strings`,
+          code: "VALIDATION_ERROR",
+        });
+        return;
+      }
       const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
       if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
         res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
@@ -226,11 +276,16 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         publishContentDeps: toPublishContentDeps(deps),
         sourceLabel: workspace?.name ?? deps.workspaceId,
       });
+      // `scope` narrows first (`plan-publish-sections-2026-09-25.md` §1 — "Publish pages" never even
+      // uploads a media blob), THEN `selectedEntityKeys` narrows that result further, so an operator's
+      // row selection inside a scoped dialog can only ever shrink what the scope already allowed.
+      // `skipped` is narrowed by `scope` alone: a skipped unit was never selectable in the first place
+      // (`export-bundle.ts`'s own `selectBundleEntities` doc), so a row selection has nothing to add.
+      const scoped = scopeResult.scope === null ? fullBundle : applyPublishScope(fullBundle, scopeResult.scope);
       // A selection narrows what is STAGED, before the peer plans it — so a deselected entity is
       // never uploaded, never planned and never applied, rather than being filtered out by some
       // later step that could forget. See `export-bundle.ts`'s `selectBundleEntities`.
-      const bundle =
-        selectedEntityKeys === null ? fullBundle : selectBundleEntities(fullBundle, new Set(selectedEntityKeys));
+      const bundle = selectedEntityKeys === null ? scoped : selectBundleEntities(scoped, new Set(selectedEntityKeys));
 
       const result = await pushBundleToPeer(
         {
@@ -282,13 +337,14 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         // deployed before `entityLabel` existed answers rows with no label, and this side can name
         // its own content regardless. See `features/publish-content/report-labels.ts`.
         //
-        // Then: every whole unit THIS instance refused to pack (`fullBundle.skipped` — e.g. a theme
+        // Then: every whole unit THIS instance refused to pack (`scoped.skipped` — e.g. a theme
         // tree `file-tree-policy.ts` blocked) appended as its own non-selectable row. It never
         // reached the peer's bundle at all, so the peer's own plan has no way to report it — this is
-        // the one place a caller holds both reports at once. Read off `fullBundle`, not the
+        // the one place a caller holds both reports at once. Read off `scoped`, not the
         // (possibly selection-narrowed) `bundle`: a skipped unit was never selectable, so an
-        // operator's row selection has nothing to say about whether it is still shown.
-        ...appendSkippedRowsToPeerPlan(labelPeerPlanRows(result.plan, bundle.entities), fullBundle.skipped),
+        // operator's row selection has nothing to say about whether it is still shown, but `scope`
+        // itself still applies — a refused theme tree only belongs in a theme-files-scoped plan.
+        ...appendSkippedRowsToPeerPlan(labelPeerPlanRows(result.plan, bundle.entities), scoped.skipped),
       });
     } catch (err) {
       respondWithError(res, err);
