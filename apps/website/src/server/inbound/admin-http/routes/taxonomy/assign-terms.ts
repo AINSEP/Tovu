@@ -1,10 +1,8 @@
 import type { Express, Request, Response } from "express";
 
 import { EntityNotLiveError, ForbiddenError } from "@jini-ai/cms/core";
-import { createLiveCollectionTermPolicy } from "#src/features/taxonomy/collection-term-policy";
+import { authorizeContentEdit, createContentTargetPorts } from "#src/features/taxonomy/collection-term-policy";
 import {
-  createContentLookup,
-  isContentTypeOnAllowList,
   toTaxonomyOutbox,
   TaxonomyNotApplicableError,
   WorkspaceMismatchError,
@@ -34,24 +32,10 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
   return { status: 500, code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
 }
 
-/** Tagging content also needs the permission its own editor saves under: `content.write` for a
- *  post or page, `admin.collections.manage` for a collection entry. */
-const CONTENT_PERMISSION = "content.write";
-const COLLECTIONS_PERMISSION = "admin.collections.manage";
 const TAXONOMY_PERMISSION = "admin.taxonomy.manage";
 
-/** Throws `ForbiddenError` unless the caller may edit `contentType`'s content — on top of
- *  `admin.taxonomy.manage`, which Jini checks for the write itself. */
-async function authorizeContentTarget(deps: TaxonomyRouteDeps, principalId: string, contentType: string): Promise<void> {
-  const permission = isContentTypeOnAllowList(contentType) ? CONTENT_PERMISSION : COLLECTIONS_PERMISSION;
-  const result = await deps.authorize({ principalId, permission, workspaceId: deps.workspaceId });
-  if (!result.allowed) {
-    throw new ForbiddenError(`principal '${principalId}' is not authorized for '${permission}' (${result.reason})`, permission, result.reason);
-  }
-}
-
-/** Jini's write deps for one assignment call: posts/pages and collection entries both resolve
- *  (`createContentLookup`), and an entry takes any taxonomy while its collection is live. */
+/** Jini's write deps for one assignment call: posts/pages and collection entries both resolve,
+ *  and an entry takes any taxonomy while its collection is live (`createContentTargetPorts`). */
 function writeDeps(deps: TaxonomyRouteDeps) {
   return {
     authorize: (params: { principalId: string; permission: string }) => deps.authorize({ ...params, workspaceId: deps.workspaceId }),
@@ -64,8 +48,7 @@ function writeDeps(deps: TaxonomyRouteDeps) {
     stampWatermark: deps.stampWatermark,
     outbox: toTaxonomyOutbox(deps),
     workspaceId: deps.workspaceId,
-    contentLookup: createContentLookup({ postRepo: deps.postRepo, entryRepo: deps.entryRepo, workspaceId: deps.workspaceId }),
-    contentTypeTaxonomyPolicy: createLiveCollectionTermPolicy({ contentTypeRepo: deps.contentTypeRepo, workspaceId: deps.workspaceId }),
+    ...createContentTargetPorts(deps),
   };
 }
 
@@ -102,7 +85,7 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeContentTarget(deps, principal.id, body.contentType);
+      await authorizeContentEdit(deps, principal.id, body.contentType);
       await assignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
@@ -122,7 +105,7 @@ export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: Taxo
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeContentTarget(deps, principal.id, body.contentType);
+      await authorizeContentEdit(deps, principal.id, body.contentType);
       await unassignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
@@ -148,7 +131,7 @@ export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: Taxo
       if (!allowed.allowed) {
         throw new ForbiddenError(`principal '${principal.id}' is not authorized for '${TAXONOMY_PERMISSION}' (${allowed.reason})`, TAXONOMY_PERMISSION, allowed.reason);
       }
-      await authorizeContentTarget(deps, principal.id, contentType);
+      await authorizeContentEdit(deps, principal.id, contentType);
       const rows = await deps.entryTermRepo.listForContent({ contentType, contentId });
       res.json({ termIds: rows.map((row) => row.termId).sort() });
     } catch (err) {

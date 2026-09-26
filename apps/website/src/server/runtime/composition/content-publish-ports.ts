@@ -1,8 +1,7 @@
 import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
 import type { FormDefinitionRepoPort } from "#src/features/forms/index";
 import type { PostRepoPort } from "#src/features/post/post";
-import { createLiveCollectionTermPolicy } from "#src/features/taxonomy/collection-term-policy";
-import { createContentLookup } from "#src/features/taxonomy/index";
+import { createContentTargetPorts } from "#src/features/taxonomy/collection-term-policy";
 import type { EntryPublishPorts, PublishContentPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
 
 /**
@@ -60,8 +59,7 @@ export function buildContentPublishPorts(sources: ContentPublishSources): Pick<P
     entryTerms: sources.entryTermRepo,
     revisions: sources.taxonomyRevisionRepo,
     stampWatermark: sources.stampWatermark,
-    contentLookup: createContentLookup({ postRepo: sources.postRepo, entryRepo: sources.entryRepo, workspaceId: sources.workspaceId }),
-    contentTypeTaxonomyPolicy: createLiveCollectionTermPolicy(sources),
+    ...createContentTargetPorts(sources),
   };
   const widget: WidgetPublishPorts = {
     entries: sources.entryRepo,

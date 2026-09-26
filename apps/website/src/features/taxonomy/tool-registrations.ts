@@ -11,7 +11,9 @@
  * Authorization shape, mixed and deliberately so: `createTaxonomy`/`createTerm`/`renameTerm`/
  * `assignTerms` each call `authorizeTaxonomyManage` (`admin.taxonomy.manage`) as their own first line
  * (confirmed directly against `write-service.ts`), so those four handlers must NOT re-check
- * (ADR-021 §2 "one evaluator"). `listTaxonomiesWithTerms` (`list.ts`) has no such call of its own —
+ * (ADR-021 §2 "one evaluator"). The tagging tools (`taxonomy_assign_terms`/`taxonomy_unassign_terms`)
+ * first check a DIFFERENT permission, the content's own edit one (`authorizeContentEdit`), exactly as
+ * the admin assign/unassign routes do. `listTaxonomiesWithTerms` (`list.ts`) has no such call of its own —
  * its file header says so explicitly ("no authorization of its own") — so `taxonomy_list`'s handler
  * performs that identical inline check itself, mirroring `taxonomy/list.ts`'s admin route.
  * `taxonomy_plan_merge_term` is a THIRD shape: `core/gated-mutations/gateway.ts`'s `plan()` itself
@@ -50,10 +52,10 @@ import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../post/index.js";
+import { authorizeContentEdit, createContentTargetPorts, type CollectionOwnerLookupPort } from "./collection-term-policy.js";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";
 import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
-  createPostBackedContentLookup,
   listTaxonomiesWithTerms,
   confirmMergeTerm,
   executeMergeTerm,
@@ -66,6 +68,7 @@ import {
   renameTerm,
   type TaxonomyListPort,
   type TermListPort,
+  type EntryRecordLookupPort,
   type EntryTermRepoPort,
   type TaxonomyRepoPort,
   type TaxonomyRevisionRepoPort,
@@ -99,6 +102,10 @@ export interface TaxonomyToolDeps {
    * doc comment. */
   outbox: OutboxPort;
   postRepo: PostRepoPort;
+  /** With `contentTypeRepo`, lets the tagging tools reach collection entries — the same
+   * `createContentTargetPorts` the admin assign/unassign routes use. */
+  entryRepo: EntryRecordLookupPort;
+  contentTypeRepo: CollectionOwnerLookupPort;
   gatedMutations: { gatewayDeps: GatewayDeps };
   /** See `RouteDeps.stampWatermark`'s doc comment (`server/routes/types.ts`) — same field, this
    * domain's tool-calling deps bag is structurally satisfied by the same composition-root object
@@ -151,7 +158,7 @@ function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
     stampWatermark: routeDeps.stampWatermark,
     outbox: toTaxonomyOutbox(routeDeps),
     workspaceId: routeDeps.workspaceId,
-    contentLookup: createPostBackedContentLookup({ postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId }),
+    ...createContentTargetPorts(routeDeps),
   };
 }
 
@@ -221,6 +228,9 @@ export function buildTaxonomyRegistrations(
       }
       const termIds = input.termIds as string[];
 
+      // The content's own edit permission first, as the admin route does; assignTerms then checks
+      // admin.taxonomy.manage itself.
+      await authorizeContentEdit(routeDeps, ctx.principal.id, contentType);
       await assignTerms({ deps: taxonomyDeps(routeDeps), principalId: ctx.principal.id, contentType, contentId, termIds });
       return { contentType, contentId, assignedTermIds: termIds };
     },
@@ -234,6 +244,7 @@ export function buildTaxonomyRegistrations(
       }
       const termIds = input.termIds as string[];
 
+      await authorizeContentEdit(routeDeps, ctx.principal.id, contentType);
       // `taxonomyDeps(routeDeps)` is typed as the base `WriteServiceDeps` (its `entryTerms` narrowed
       // to plain `EntryTermRepoPort`), but `unassignTerms` needs the `UnassignableEntryTermRepoPort`
       // capability too — override `entryTerms` back to `routeDeps.entryTermRepo`'s own wider type

@@ -5,6 +5,8 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
+import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
+import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "../../contracts/core/tool-surface-exchanges.js";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
 import { taxonomyAgentToolCatalog, type AgentToolDefinition as TaxonomyAgentToolDefinition } from "../../features/taxonomy/agent-tools.js";
@@ -46,19 +48,23 @@ const WORKSPACE_ID = "ws-taxonomy-tools";
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-07-29T00:00:00.000Z";
 
-function fakeRouteDeps(options: { allow?: boolean } = {}) {
+/** `allow: false` denies every permission; `deny` denies only the permissions it names. */
+function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
   const allow = options.allow ?? true;
+  const denied = new Set(options.deny ?? []);
   const taxonomyRepo = new InMemoryTaxonomyRepo();
   const termRepo = new InMemoryTermRepo();
   const entryTermRepo = new InMemoryEntryTermRepo();
   const taxonomyRevisionRepo = new InMemoryTaxonomyRevisionRepo();
   const postRepo = new InMemoryPostRepo();
+  const entryRepo = new InMemoryEntryRepo();
+  const contentTypeRepo = new InMemoryContentTypeRepo();
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   let counter = 0;
   const authorize = async (params: Record<string, unknown>) => {
     authorizeCalls.push(params);
-    return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
+    return allow && !denied.has(params.permission as string) ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   };
   const clock = { nowIso: () => NOW };
   const idGen = { newId: () => `id-${++counter}` };
@@ -73,12 +79,14 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     entryTermRepo,
     taxonomyRevisionRepo,
     postRepo,
+    entryRepo,
+    contentTypeRepo,
     authorize,
     stampWatermark: noopStampWatermark,
     gatedMutations: { gatewayDeps: { clock, idGen, authorize, tokens: new InMemoryTokenStore() } },
   };
 
-  return { deps: deps as unknown as RouteDeps, taxonomyRepo, termRepo, entryTermRepo, taxonomyRevisionRepo, postRepo, authorizeCalls };
+  return { deps: deps as unknown as RouteDeps, taxonomyRepo, termRepo, entryTermRepo, taxonomyRevisionRepo, postRepo, contentTypeRepo, authorizeCalls };
 }
 
 /** Seeds one real 'post' row through the real chokepoint, for assign-terms/merge-overlap tests. */
@@ -258,14 +266,17 @@ test("taxonomy_create_taxonomy: calls authorize() with admin.taxonomy.manage (cr
 });
 
 for (const fixture of [
-  { toolId: "taxonomy_create_taxonomy", input: { name: "Category", hierarchical: true } },
-  { toolId: "taxonomy_rename_term", input: { termId: "nonexistent", newName: "New Name" } },
-  { toolId: "taxonomy_assign_terms", input: { contentType: "post", contentId: "nonexistent", termIds: [] } },
-  { toolId: "taxonomy_unassign_terms", input: { contentType: "post", contentId: "nonexistent", termIds: [] } },
+  { toolId: "taxonomy_create_taxonomy", input: { name: "Category", hierarchical: true }, permission: "admin.taxonomy.manage" },
+  { toolId: "taxonomy_rename_term", input: { termId: "nonexistent", newName: "New Name" }, permission: "admin.taxonomy.manage" },
+  // Tagging checks the content's own edit permission first, as the admin routes do.
+  { toolId: "taxonomy_assign_terms", input: { contentType: "post", contentId: "nonexistent", termIds: [] }, permission: "content.write" },
+  { toolId: "taxonomy_unassign_terms", input: { contentType: "post", contentId: "nonexistent", termIds: [] }, permission: "content.write" },
 ]) {
   test(`${fixture.toolId}: a denied principal is rejected`, async () => {
     const { deps } = fakeRouteDeps({ allow: false });
-    await assert.rejects(() => wired(fixture.toolId, deps).handler(executionContext(fixture.input)), /is not authorized for 'admin\.taxonomy\.manage'/);
+    await assert.rejects(() => wired(fixture.toolId, deps).handler(executionContext(fixture.input)), {
+      message: `principal '${PRINCIPAL_ID}' is not authorized for '${fixture.permission}' (insufficient_permission)`,
+    });
   });
 }
 
@@ -291,9 +302,13 @@ test("taxonomy_unassign_terms: calls authorize() with admin.taxonomy.manage (una
     executionContext({ contentType: "post", contentId: postId, termIds: [term.term.id] }),
   )) as { contentType: string; contentId: string; unassignedTermIds: string[] };
 
-  assert.ok(authorizeCalls.length >= 1);
-  assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
-  assert.equal(authorizeCalls[0].permission, "admin.taxonomy.manage");
+  assert.deepEqual(
+    authorizeCalls.map((call) => [call.principalId, call.permission]),
+    [
+      [PRINCIPAL_ID, "content.write"],
+      [PRINCIPAL_ID, "admin.taxonomy.manage"],
+    ],
+  );
   assert.equal(result.contentId, postId);
   assert.deepEqual(result.unassignedTermIds, [term.term.id]);
   assert.equal(await entryTermRepo.countByTerm({ termId: term.term.id }), 0, "the assignment row must actually be gone");
@@ -302,6 +317,94 @@ test("taxonomy_unassign_terms: calls authorize() with admin.taxonomy.manage (una
   // taxonomy_assign_terms' own idempotent-add discipline in the opposite direction).
   await wired("taxonomy_unassign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [term.term.id] }));
   assert.equal(await entryTermRepo.countByTerm({ termId: term.term.id }), 0);
+});
+
+/** A live `recipe` collection holding one entry, plus a taxonomy with two terms made through the tools. */
+async function seedTaggableEntry(deps: RouteDeps, contentTypeRepo: InMemoryContentTypeRepo) {
+  const entryRepo = (deps as unknown as { entryRepo: InMemoryEntryRepo }).entryRepo;
+  await contentTypeRepo.save({ workspaceId: WORKSPACE_ID, key: "recipe", label: "Recipes", fields: [], status: "active", version: 1, tombstonedAt: null });
+  await entryRepo.save({
+    id: "entry-1",
+    workspaceId: WORKSPACE_ID,
+    type: "recipe",
+    slug: "soup",
+    status: "draft",
+    title: "Soup",
+    bodyJson: null,
+    fieldsJson: {},
+    publishedAt: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 1,
+  });
+  const taxonomy = (await wired("taxonomy_create_taxonomy", deps).handler(executionContext({ name: "Tag", hierarchical: false }))) as { taxonomy: { id: string } };
+  const termIds: string[] = [];
+  for (const name of ["Quick", "Vegan"]) {
+    const created = (await wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId: taxonomy.taxonomy.id, name }))) as { term: { id: string } };
+    termIds.push(created.term.id);
+  }
+  return termIds;
+}
+
+/** How many pieces of content hold each term — each test below tags one piece of content only. */
+async function termCounts(entryTermRepo: InMemoryEntryTermRepo, termIds: string[]): Promise<number[]> {
+  return Promise.all(termIds.map((termId) => entryTermRepo.countByTerm({ termId })));
+}
+
+test("taxonomy_assign_terms / taxonomy_unassign_terms: a collection entry is tagged and untagged, checking admin.collections.manage", async () => {
+  const { deps, entryTermRepo, contentTypeRepo, authorizeCalls } = fakeRouteDeps();
+  const [quick, vegan] = await seedTaggableEntry(deps, contentTypeRepo);
+  const target = { contentType: "recipe", contentId: "entry-1" };
+
+  authorizeCalls.length = 0;
+  assert.deepEqual(await wired("taxonomy_assign_terms", deps).handler(executionContext({ ...target, termIds: [quick, vegan] })), {
+    ...target,
+    assignedTermIds: [quick, vegan],
+  });
+  assert.deepEqual(authorizeCalls.map((call) => call.permission), ["admin.collections.manage", "admin.taxonomy.manage"]);
+  assert.deepEqual(await termCounts(entryTermRepo, [quick!, vegan!]), [1, 1]);
+
+  assert.deepEqual(await wired("taxonomy_unassign_terms", deps).handler(executionContext({ ...target, termIds: [quick] })), {
+    ...target,
+    unassignedTermIds: [quick],
+  });
+  assert.deepEqual(await termCounts(entryTermRepo, [quick!, vegan!]), [0, 1]);
+});
+
+test("taxonomy_assign_terms / taxonomy_unassign_terms: tagging an entry without admin.collections.manage is refused and changes nothing", async () => {
+  const { deps, entryTermRepo, contentTypeRepo } = fakeRouteDeps({ deny: ["admin.collections.manage"] });
+  const [quick] = await seedTaggableEntry(deps, contentTypeRepo);
+
+  for (const toolId of ["taxonomy_assign_terms", "taxonomy_unassign_terms"]) {
+    await assert.rejects(() => wired(toolId, deps).handler(executionContext({ contentType: "recipe", contentId: "entry-1", termIds: [quick] })), {
+      message: `principal '${PRINCIPAL_ID}' is not authorized for 'admin.collections.manage' (insufficient_permission)`,
+    });
+  }
+  assert.deepEqual(await termCounts(entryTermRepo, [quick!]), [0]);
+});
+
+test("taxonomy_assign_terms: tagging a post without content.write is refused and changes nothing", async () => {
+  const { deps, entryTermRepo, contentTypeRepo } = fakeRouteDeps({ deny: ["content.write"] });
+  const [quick] = await seedTaggableEntry(deps, contentTypeRepo);
+  const postId = await seedPost(deps);
+
+  await assert.rejects(() => wired("taxonomy_assign_terms", deps).handler(executionContext({ contentType: "post", contentId: postId, termIds: [quick] })), {
+    message: `principal '${PRINCIPAL_ID}' is not authorized for 'content.write' (insufficient_permission)`,
+  });
+  assert.deepEqual(await termCounts(entryTermRepo, [quick!]), [0]);
+});
+
+test("taxonomy_assign_terms: an entry whose collection is tombstoned is refused", async () => {
+  const { deps, entryTermRepo, contentTypeRepo } = fakeRouteDeps();
+  const [quick] = await seedTaggableEntry(deps, contentTypeRepo);
+  const collection = await contentTypeRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" });
+  await contentTypeRepo.save({ ...collection!, status: "tombstone", tombstonedAt: NOW });
+
+  await assert.rejects(() => wired("taxonomy_assign_terms", deps).handler(executionContext({ contentType: "recipe", contentId: "entry-1", termIds: [quick] })), {
+    name: "TaxonomyNotApplicableError",
+    message: "taxonomy 'id-1' is not on the allow-list for content type 'recipe'",
+  });
+  assert.deepEqual(await termCounts(entryTermRepo, [quick!]), [0]);
 });
 
 test("taxonomy_plan_merge_term: gateway.plan() authorizes with admin.taxonomy.manage before computing anything", async () => {

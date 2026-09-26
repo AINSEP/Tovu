@@ -74,6 +74,7 @@ export type {
   EntryTermRepoPort,
   ContentLookupPort,
   ContentRecordLookupPort,
+  EntryRecordLookupPort,
   ContentTypeTaxonomyPolicyPort,
   TaxonomyRevisionRow,
   TaxonomyRevisionRepoPort,
