@@ -56,7 +56,7 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  * green active button. So we save some space."
  *
  * It could only go once the served site actually reached the grid, and it did not: `listSites`
- * requires `config.json` + `.site-meta.json`, this repo's own `sites/tovu-dev` has neither, so the
+ * requires `config.json` + `.site-meta.json`, this repo's own dev site folder has neither, so the
  * grid was empty and that panel was the screen HONESTLY reporting a backend gap. Deleting it alone
  * would have deleted the truth and kept the bug. `includeServingSite` (`site-registry.ts`) closed
  * the gap first; the served folder is now a card like any other, wearing the green `Serving now`
@@ -91,7 +91,7 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  * that implies something happened when it did not, and each has its own home here:
  *
  * 1. **The served folder may not be a real site directory.** `listSites` only counts a directory
- *    once it carries `config.json` + `.site-meta.json`, and this repo's own `sites/tovu-dev` has
+ *    once it carries `config.json` + `.site-meta.json`, and this repo's own dev site folder has
  *    neither. It now gets a card regardless (`includeServingSite`), so the fix for "the grid is
  *    empty on a running server" must not become a new lie: that card wears a `Not initialized`
  *    badge, because `tovu serve` would still refuse the folder. See `AllSitesTab.tsx`.

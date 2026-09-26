@@ -499,7 +499,7 @@ export interface AdminSiteBinding {
    *  would be ignored on the next boot. The screen must say so rather than offer a dead button. */
   dirOverridden: boolean;
   /** Whether `dir` appears in `sites[]` at all. `false` for a site created before the
-   *  `.site-meta.json` marker existed (this repo's own `sites/tovu-dev`), which is how the list can
+   *  `.site-meta.json` marker existed (this repo's own dev site folder), which is how the list can
    *  come back EMPTY on a server that is plainly serving something. */
   listed: boolean;
 }

@@ -5276,7 +5276,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * card idiom they describe is the one an eventual "duplicate this site" tile would reuse. */
 
 /* ---- All sites: the empty state ------------------------------------------------------------- */
-/* Hit on the REAL install, not a theoretical edge: this repo's `sites/tovu-dev` predates the
+/* Hit on the REAL install, not a theoretical edge: this repo's dev site folder predates the
  * `.site-meta.json` commit marker `listSites` requires, so the grid is legitimately empty while a
  * site is plainly being served. Dashed, low-contrast, and narrow — it is an invitation, not an
  * error, and the `.notice` treatments are already spoken for by things that ARE warnings. */
