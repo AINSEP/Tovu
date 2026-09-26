@@ -1,0 +1,33 @@
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="brand"><span class="mark"><img src="/theme-assets/tovu-theme/assets/logo.png" srcset="/theme-assets/tovu-theme/assets/logo@2x.png 2x" width="28" height="28" alt="" /></span>Tovu</div>
+      </div>
+      <!-- 'Pricing'/'Product' — removed 2026-08-31, and pricing itself has since been cut entirely
+           (theme.json's `publishedPages` no longer lists it as of the 2026-09-03 cleanup pass): there
+           is no page left to link this column to.
+
+           2026-09-03: converted from hardcoded `<a>`s to a menu embed ("Footer Resources", created
+           through the admin menus API), matching the Legal column below and every nav in this theme —
+           the goal is that every footer link is editable from the admin, not fixed in this file. The
+           marker's `id` is the menu's own SLUG ("footer-resources"), not its DB id: `menuId` resolves
+           by slug first, id second (`resolveStaticMenusForRender`, pages.ts's own doc on that order) —
+           a menu created through the admin API gets an opaque generated id, so the slug is the only
+           stable, human-authored handle this file can reference; verified live that the real stored
+           menu (not this fallback markup) is what renders. `/documentation` (a 301 to the canonical
+           `/docs`) has been replaced by `/docs` directly in the menu's own stored target; `/blog` (now
+           unpublished, 404) replaced by `/articles`, the real post-listing page — see theme.json's
+           `templates` (`listing-default.html`) and the site's own `/articles` Page. -->
+      <div class="footer-col"><h4>Resources</h4><div data-embed-config='{"type":"menu","id":"footer-resources"}'><a href="/docs">Docs</a><a href="/articles">Articles</a><a href="about.html">About</a></div></div>
+      <!-- Hidden at the owner's request (2026-08-31), not removed: kept commented out so it is
+           easy to restore. /signin is still live at its URL — this only takes it off the footer
+           nav, so it is reachable by direct link/URL only, not by clicking through the site. -->
+      <!-- <div class="footer-col"><h4>Account</h4><a href="signin.html">Sign in</a></div> -->
+      <div class="footer-col"><h4>Legal</h4><div data-embed-config='{"type":"menu","id":"menu-footer-nav"}'><a href="#">Privacy</a><a href="#">Terms</a></div></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Tovu. All rights reserved.</span>
+    </div>
+  </div>
+</footer>
