@@ -28,4 +28,14 @@ export const destroyClientWhenUpstreamCloses: ConfigureProxy = (proxy) => {
       if (!res.writableEnded) res.destroy();
     });
   });
+  // The browser's reconnect then lands while the API is still down, and Vite answers it with a
+  // 500 — which `EventSource` treats as final: it closes for good and never reconnects once the
+  // API is back. Dropping the connection instead is what an unreachable server looks like, and
+  // `EventSource` keeps retrying that. Registered before Vite's own `error` listener, which then
+  // finds the response destroyed and writes nothing. Other requests keep Vite's 500.
+  proxy.on("error", (_err, req, res) => {
+    // A `Socket` here is a WebSocket upgrade, which has no headers to check.
+    if (!("headersSent" in res) || res.headersSent) return;
+    if (String(req.headers.accept ?? "").includes("text/event-stream")) res.destroy();
+  });
 };

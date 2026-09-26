@@ -83,6 +83,41 @@ test("the client's SSE stream ends when the upstream dies mid-stream", async () 
   expect(outcome).toBe("closed");
 }, 20_000);
 
+async function deadPort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as { port: number };
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return port;
+}
+
+function outcomeOf(port: number, urlPath: string, headers: Record<string, string>): Promise<string> {
+  return new Promise((resolve) => {
+    const req = get({ host: "127.0.0.1", port, path: urlPath, headers }, (res) => {
+      res.resume();
+      resolve(`status ${res.statusCode}`);
+    });
+    req.on("error", () => resolve("connection dropped"));
+    cleanups.push(() => req.destroy());
+  });
+}
+
+test("an SSE reconnect while the upstream is down drops the connection, so EventSource keeps retrying", async () => {
+  // `EventSource` retries a network error on its own but gives up for good on an HTTP error
+  // status — and Vite answers an unreachable upstream with a 500.
+  const proxyPort = await startProxy(await deadPort());
+
+  expect(await outcomeOf(proxyPort, "/api/stream", { Accept: "text/event-stream" })).toBe("connection dropped");
+  // The drop came from the hook, not from the proxy process dying under Vite's own error handler.
+  expect(await outcomeOf(proxyPort, "/api/plain", { Accept: "application/json" })).toBe("status 500");
+}, 20_000);
+
+test("a non-SSE request to a down upstream still gets Vite's 500", async () => {
+  const proxyPort = await startProxy(await deadPort());
+
+  expect(await outcomeOf(proxyPort, "/api/plain", { Accept: "application/json" })).toBe("status 500");
+}, 20_000);
+
 test("a normal response still arrives whole", async () => {
   const upstream = await startUpstream();
   const proxyPort = await startProxy(upstream.port);
