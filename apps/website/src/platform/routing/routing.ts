@@ -19,7 +19,8 @@
  * wiring live here (that is out of scope for this v0 build) — this file is
  * pure resolution logic over injected ports and in-module registries.
  */
-import { isTrashed, type PostRecord } from "../../features/post/index.js";
+import { isTrashed } from "../../contracts/core/soft-delete.js";
+import type { PostRecord } from "../../features/post/index.js";
 
 import type { RouteResolverDeps } from "./ports.js";
 import type {

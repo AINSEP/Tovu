@@ -1,5 +1,7 @@
 import type { ClockPort, JsonObject, OutboxPort, UUID } from "@jini-ai/cms/core";
 
+import { isTrashed } from "../../contracts/core/soft-delete.js";
+
 export type PostStatus = "draft" | "published";
 
 /**
@@ -417,10 +419,9 @@ export interface PostRepoPort {
   transaction<T>(fn: () => Promise<T>): Promise<T>;
 }
 
-/** True when a row is in the trash — the single predicate every trash-aware read below applies. */
-export function isTrashed(post: Pick<PostRecord, "deletedAt">): boolean {
-  return post.deletedAt !== undefined && post.deletedAt !== null;
-}
+/** True when a row is in the trash — the single predicate every trash-aware read below applies.
+ *  Lives in `contracts/core/soft-delete.ts` so `platform/routing` can share it without importing this feature. */
+export { isTrashed };
 
 export interface CreatePostInput {
   workspaceId: UUID;
