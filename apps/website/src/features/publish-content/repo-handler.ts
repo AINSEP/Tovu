@@ -58,6 +58,8 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** `undefined` = not wired on this instance: pack yields nothing, inspect is `null`, precheck
    *  refuses, apply throws. */
   readonly ports: (deps: PublishContentDeps) => Ports | undefined;
+  /** The `PublishContentDeps.ports` key the not-wired messages name. Defaults to `entityType`. */
+  readonly portsKey?: string;
   readonly list: (ports: Ports, workspaceId: string) => Promise<readonly Row[]>;
   /** Must also return a trashed row, so precheck can refuse it rather than plan a create. */
   readonly find: (ports: Ports, workspaceId: string, id: string) => Promise<Row | null>;
@@ -137,6 +139,7 @@ export function okOrThrow<T>(result: { ok: true; value: T } | { ok: false; error
 /** Builds a `PublishContentContributor` from a {@link RepoPublishTypeConfig}. */
 export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConfig<Row, Ports>): PublishContentContributor {
   const { entityType, permission } = config;
+  const portsKey = config.portsKey ?? entityType;
   const schemaVersion = config.schemaVersion ?? 1;
   const dependsOn = config.dependsOn ?? [];
   const idOf = config.idOf ?? ((row: Row) => (row as { id: string }).id);
@@ -197,7 +200,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     /** Order (plan §2.2): not wired, address held, destination trashed, then `validate`. */
     async function precheck(entity: PackedEntity): Promise<string | null> {
       const p = ports();
-      if (!p) return notWired(entityType, entity.id, `${entityType} ports`);
+      if (!p) return notWired(entityType, entity.id, `${portsKey} port`);
       const { address } = config;
       const value = address ? entity.state[address.field] : undefined;
       if (address && typeof value === "string" && value) {
@@ -221,7 +224,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       const unwired = (what: string) =>
         new Error(`publish-content: ${entityType}.apply() requires ${what} — wire it from the apply-loop composition root (features/publish-content/apply-loop.ts).`);
       const p = ports();
-      if (!p) throw unwired("its ports");
+      if (!p) throw unwired(`PublishContentDeps.ports.${portsKey}`);
       const { entity, expectedVersion } = input;
       const ctx = (existing: Row | null): RepoWriteContext<Row, Ports> => ({
         ports: p,

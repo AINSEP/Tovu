@@ -225,7 +225,7 @@ test("missing ports: pack yields nothing, inspect is null, precheck refuses, app
   assert.equal(await handler.inspect("missing"), null);
 
   const reason = await handler.precheck(packedEntity("missing", { slug: "x", title: "X" }));
-  assert.equal(reason, notWired("item", "missing", "item ports"));
+  assert.equal(reason, notWired("item", "missing", "item port"));
 
   await assert.rejects(() =>
     handler.apply({ entity: packedEntity("missing", { slug: "x", title: "X" }), expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" })
