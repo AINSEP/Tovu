@@ -293,6 +293,27 @@ test("active theme: a missing theme folder is refused; once it is there the swit
   assert.equal((await destination.presentation.findByWorkspaceId(WORKSPACE_ID))!.activeThemeId, "tovu-theme");
 });
 
+test("active theme: the row is named by the theme's theme.json name, without touching its state or hash", async () => {
+  const { source, destination, sourceDeps, destinationDeps } = await sites();
+  source.themes.push({ ...theme("static", "basic"), manifest: { id: "basic", name: "Tovu Theme" } } as unknown as DiscoveredTheme);
+  await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "basic", updatedAt: at });
+  destination.themes.push(theme("static", "paper"));
+  await destination.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
+
+  const [named] = await packAll(sourceDeps);
+  assert.equal(named!.displayLabel, "Tovu Theme");
+  assert.deepEqual(named!.state, { label: "tovu-theme", themeId: "tovu-theme", tree: "static/basic" });
+
+  // The same active theme with no readable name hashes identically and keeps the id as its label.
+  source.themes.splice(0, source.themes.length, theme("static", "basic"));
+  const [unnamed] = await packAll(sourceDeps);
+  assert.equal(unnamed!.displayLabel, undefined);
+  assert.equal(unnamed!.contentHash, named!.contentHash);
+
+  const report = await plan([named!], destinationDeps, ["active-theme:site"]);
+  assert.equal(report.rows[0]!.entityLabel, "Tovu Theme");
+});
+
 test("active theme: a destination with no presentation row is refused cleanly", async () => {
   const { source, destination, sourceDeps, destinationDeps } = await sites();
   await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });

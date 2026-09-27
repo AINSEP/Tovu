@@ -89,6 +89,9 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly legacyHashState?: (row: Row, packedState: Record<string, unknown>) => Record<string, unknown>;
   /** Defaults to `[]`. */
   readonly requiredBlobs?: (row: Row) => readonly string[];
+  /** A better on-screen name than any packed field (`PackedEntity.displayLabel`). Display only:
+   *  never hashed or applied. `undefined` leaves the row named from its state. */
+  readonly displayLabel?: (row: Row) => string | undefined;
 
   /** A second unique address (slug, key, name). Precheck refuses when `holder` returns a row with a
    *  different `idOf`. An empty value is not checked. When the address stays held by a trashed row,
@@ -192,6 +195,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       if (!p) return;
       const rows = (await config.list(p, workspaceId)).filter((row) => !config.isTrashed?.(row) && (config.include?.(row) ?? true));
       for (const row of config.packOrder ? config.packOrder(rows) : rows) {
+        const displayLabel = config.displayLabel?.(row);
         yield {
           entityType,
           id: idOf(row),
@@ -200,6 +204,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
           hashVersion: CONTENT_HASH_VERSION,
           requiredBlobs: config.requiredBlobs?.(row) ?? [],
           state: pick(row, packedFields),
+          ...(displayLabel ? { displayLabel } : {}),
         };
       }
     }

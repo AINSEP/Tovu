@@ -7,6 +7,7 @@ import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-con
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
 import { writableThemeIds } from "./active-theme.js";
+import type { DiscoveredTheme } from "./theme.js";
 import { RENAMED_THEME_IDS, themeIdCandidates } from "./theme-id-aliases.js";
 
 /**
@@ -34,15 +35,27 @@ export interface ActiveThemeRow {
   readonly themeId: string;
   /** The theme's `<tier>/<folder>` (its `theme-files` key), or `null` when this site has no such folder. */
   readonly tree: string | null;
+  /** The theme's `theme.json` name, for the publish dialog only — never packed, so never hashed. */
+  readonly themeName: string | null;
   readonly version: number;
 }
 
 type Ports = PublishContentPorts["active-theme"];
 
 /** @complexity O(themes). */
-function treeOf(ports: Ports, themeId: string): string | null {
-  const theme = ports.themes.find((t) => t.status === "valid" && themeIdCandidates(themeId).includes(t.manifest.id));
+function installedTheme(ports: Ports, themeId: string): DiscoveredTheme | undefined {
+  return ports.themes.find((t) => t.status === "valid" && themeIdCandidates(themeId).includes(t.manifest.id));
+}
+
+/** @complexity O(1). */
+function treeOf(theme: DiscoveredTheme | undefined): string | null {
   return theme ? `${path.basename(path.dirname(theme.dir))}/${path.basename(theme.dir)}` : null;
+}
+
+/** @complexity O(1). */
+function nameOf(theme: DiscoveredTheme | undefined): string | null {
+  const name: unknown = theme?.manifest.name;
+  return typeof name === "string" && name.trim().length > 0 ? name.trim() : null;
 }
 
 /** @complexity one indexed read plus O(themes). */
@@ -51,7 +64,8 @@ async function findActiveTheme(ports: Ports, workspaceId: string, id: string): P
   const record = await ports.presentation.findByWorkspaceId(workspaceId);
   if (!record) return null;
   const themeId = RENAMED_THEME_IDS[record.activeThemeId] ?? record.activeThemeId;
-  return { id, label: themeId, themeId, tree: treeOf(ports, themeId), version: Date.parse(record.updatedAt) || 0 };
+  const theme = installedTheme(ports, themeId);
+  return { id, label: themeId, themeId, tree: treeOf(theme), themeName: nameOf(theme), version: Date.parse(record.updatedAt) || 0 };
 }
 
 /** Plain refusal, rewritten for the owner by `ui/report-rows.ts`. */
@@ -68,7 +82,9 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
       return row ? [row] : [];
     },
     find: findActiveTheme,
-    fields: { id: "local", label: "provenance", themeId: "transferred", tree: "provenance", version: "local" },
+    fields: { id: "local", label: "provenance", themeId: "transferred", tree: "provenance", themeName: "local", version: "local" },
+    // The dialog names the row "Tovu Theme", not the id `label` still packs (so hashes stay put).
+    displayLabel: (row) => row.themeName ?? undefined,
     references: (entity) => (typeof entity.state.tree === "string" ? [{ entityType: "theme-files", key: entity.state.tree }] : []),
     write: async ({ ports, deps, workspaceId, state, principalId }) => {
       const themeId = state.themeId as string;
