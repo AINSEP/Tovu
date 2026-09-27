@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
@@ -75,7 +75,7 @@ async function deps(opts: { wired?: boolean; staged?: boolean } = {}): Promise<P
     ports:
       opts.wired === false
         ? {}
-        : { media: { repo: new InMemoryVersionedMediaRepo([structuredClone(PHOTO), structuredClone(BARE)]), assetBlobRepo: new InMemoryAssetBlobRepo([]), blobStore } },
+        : { media: { repo: new InMemoryVersionedMediaRepo([structuredClone(PHOTO), structuredClone(BARE)]), assetBlobRepo: new InMemoryAssetBlobRepo([]), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
   };
 }
 

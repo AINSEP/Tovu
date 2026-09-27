@@ -182,6 +182,10 @@ export interface PublishContentConfirmView {
   /** The server's own lines for each live menu the run could not repoint (plan §2.7) — reported,
    *  never silent. Empty outside the `done` phase and for a live built before the repoint pass. */
   readonly doneNotices: readonly string[];
+  /** The live site's post-publish safety check: one line per published item that landed but won't
+   *  show correctly there (e.g. a video whose type is unknown, a missing poster). Empty outside the
+   *  `done` phase and for a live built before the check. */
+  readonly doneProblems: readonly string[];
   /** One line per type the live site can't take yet (`plan.notSupportedByLive`) — those rows never
    *  reach the report, so this is the only place they show. Empty when the live took everything. */
   readonly liveGapNotices: readonly string[];
@@ -1133,6 +1137,7 @@ export function usePublishContentConfirm(props: {
     doneMessage: doneMessageFor(phase, t),
     // De-duplicated: a grant that doesn't cover menus refuses every menu with the same line.
     doneNotices: phase.kind === "done" ? [...new Set(phase.result.menuLinksNotUpdated ?? [])] : [],
+    doneProblems: phase.kind === "done" ? [...new Set(phase.result.verificationProblems ?? [])] : [],
     liveGapNotices,
     connectOffer,
   };

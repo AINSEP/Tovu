@@ -147,6 +147,10 @@ export interface PublishContentApplyPort {
      *  fails the run (`type-registry.ts`'s `RepointResult.notUpdated`, `apply-loop.ts`'s own
      *  per-handler catch). */
     menuLinksNotUpdated: readonly string[];
+    /** Post-publish safety check (2026-09-26) — operator-facing lines for published content that
+     *  landed but will not show correctly here (`PublishContentHandler.verifyApplied`). Empty when
+     *  every check passed; never fails the run. */
+    verificationProblems: readonly string[];
   }>;
 }
 
@@ -212,6 +216,7 @@ export function buildPublishContentImportHooks(
     repointChangeSetIds: readonly string[];
     menuLinksUpdated: number;
     menuLinksNotUpdated: readonly string[];
+    verificationProblems: readonly string[];
   }
 > {
   /** Re-derives the current `PublishContentReport` from live state, never cached across calls (this
@@ -303,17 +308,24 @@ export function buildPublishContentImportHooks(
       // row the operator confirmed as `conflict` (no write) could re-derive as `applied` (a write)
       // and be applied unseen: the operator authorises one write set and gets another.
       const report = verified.details;
-      const { runId, changeSetIds, retiredChangeSetIds, repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } =
-        await input.applyPort.applyReport({
-          report,
-          principalId: input.actorId,
-          bundleId: input.bundleId,
-          restorePointId,
-          // This hooks bag's OWN authorize, which the route may have attenuated for a publishing
-          // credential. Threaded rather than left to the port because the port is built once per
-          // process and this decision is per request.
-          ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
-        });
+      const {
+        runId,
+        changeSetIds,
+        retiredChangeSetIds,
+        repointChangeSetIds,
+        menuLinksUpdated,
+        menuLinksNotUpdated,
+        verificationProblems,
+      } = await input.applyPort.applyReport({
+        report,
+        principalId: input.actorId,
+        bundleId: input.bundleId,
+        restorePointId,
+        // This hooks bag's OWN authorize, which the route may have attenuated for a publishing
+        // credential. Threaded rather than left to the port because the port is built once per
+        // process and this decision is per request.
+        ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
+      });
       return {
         restorePointId,
         runId,
@@ -322,6 +334,7 @@ export function buildPublishContentImportHooks(
         repointChangeSetIds,
         menuLinksUpdated,
         menuLinksNotUpdated,
+        verificationProblems,
       };
     },
     resolveActorClassIdentity,

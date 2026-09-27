@@ -29,6 +29,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
+  InMemoryMediaContentTypeStore,
   InMemoryBlobStore,
   InMemoryVersionedMediaRepo,
   type AssetBlobRecord,
@@ -124,7 +125,7 @@ async function makeFixture(
     outbox,
     changeSets,
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
-    ports: { media: { repo: mediaRepo, assetBlobRepo, blobStore } },
+    ports: { media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
   };
   return { deps, mediaRepo, assetBlobRepo, blobStore, changeSets };
 }

@@ -1,5 +1,5 @@
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/post";
-import type { AssetBlobRepoPort, BlobStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
+import type { AssetBlobRepoPort, BlobStorePort, MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
 import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
 import type { FormDefinitionRepoPort } from "#src/features/forms/index";
@@ -123,6 +123,9 @@ export interface PublishContentPorts {
     readonly repo: VersionedMediaRepoPort;
     readonly assetBlobRepo: AssetBlobRepoPort;
     readonly blobStore: BlobStorePort;
+    /** Where an imported blob's sniffed type is recorded — what the embed resolver reads to render a
+     *  video as `<video>` rather than an image. */
+    readonly contentTypeStore: MediaContentTypeStorePort;
   };
   /** `features/redirects/publish-content.ts`'s one real dependency: the same write-chokepoint deps
    *  bag `createRedirect`/`updateRedirect` themselves take. */
@@ -426,6 +429,16 @@ export interface PublishContentHandler {
     principalId: string;
     runId: string;
   }): Promise<RepointResult>;
+  /**
+   * Post-publish safety check (2026-09-26): after every row has landed, confirms this type's
+   * entities from the run are actually servable here — e.g. a media item's bytes are present and its
+   * content type is recorded, so an embed renders the right element. `entities` are the run's
+   * entities of this type whose row did not end `blocked`/`conflict` (those are reported already),
+   * including `unchanged` ones, so a check can repair state an older build left behind. Returns
+   * operator-facing lines, one per problem; empty when all is well. Called by the apply loop once,
+   * after the repoint pass; a throw is caught and reported, never fails the run (the content landed).
+   */
+  verifyApplied?(input: { entities: readonly PackedEntity[] }): Promise<readonly string[]>;
 
   /**
    * S-F4 (`publish-files-plan-2026-09-24.md` §4) — the hash `id` had when this destination was first

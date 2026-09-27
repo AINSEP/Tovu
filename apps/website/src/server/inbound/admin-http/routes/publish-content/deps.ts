@@ -75,6 +75,7 @@ export type PublishContentRouteDeps = Pick<
   | "siteAssistantSecretKeyring"
   | "mediaRepo"
   | "assetBlobRepo"
+  | "mediaContentTypeStore"
   | "redirectsWriteDeps"
   | "menuRepo"
   | "navLocationBindingRepo"
@@ -121,7 +122,12 @@ export function toPublishContentDeps(deps: PublishContentRouteDeps): PublishCont
     // `toPublishContentApplyDeps`), never here — this route bag only ever packs/inspects/prechecks.
     ports: {
       post: { repo: deps.postRepo },
-      media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore },
+      media: {
+        repo: deps.mediaRepo,
+        assetBlobRepo: deps.assetBlobRepo,
+        blobStore: deps.blobStore,
+        contentTypeStore: deps.mediaContentTypeStore,
+      },
       redirect: deps.redirectsWriteDeps,
       menu: { repo: deps.menuRepo, bindingRepo: deps.navLocationBindingRepo },
       "theme-files": { themesDir: deps.themesDir, fileBlobIndex: deps.fileBlobIndex },

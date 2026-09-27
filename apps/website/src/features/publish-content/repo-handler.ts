@@ -126,7 +126,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
 
   /** Type-specific handler methods, passed through unchanged. */
   readonly extend?: (ctx: { deps: PublishContentDeps; ports: () => Ports | undefined }) => Partial<
-    Pick<PublishContentHandler, "planRetire" | "retire" | "referencesTo" | "repointReferences" | "seedHash" | "listSkipped" | "isApplyConflict">
+    Pick<PublishContentHandler, "planRetire" | "retire" | "referencesTo" | "repointReferences" | "verifyApplied" | "seedHash" | "listSkipped" | "isApplyConflict">
   >;
 }
 

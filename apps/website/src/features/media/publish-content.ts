@@ -1,10 +1,12 @@
 import { createRepoPublishHandler, type FieldDisposition } from "#src/features/publish-content/repo-handler";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
 import { importMediaEntity } from "./import-media-entity.js";
-import { computeBlobStorageKey } from "./index.js";
+import { computeBlobStorageKey, sniffContentType } from "./index.js";
 import type { MediaRecord } from "./index.js";
+import { verifyPublishedMedia } from "./verify-published-media.js";
 
 /**
  * @file `media`'s publish-content contribution, built on `createRepoPublishHandler`
@@ -115,6 +117,12 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     omitWhenAbsent: Object.keys(MEDIA_FIELDS),
     legacyHashState: (row) => ({ ...row }),
     requiredBlobs: (row) => [row.source.sha256],
+    // Other media this item names by a `/m/{key}/` URL in its own `htmlAttributes` — a video's
+    // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.
+    references: (entity) =>
+      typeof entity.state.htmlAttributes === "string"
+        ? [...collectMediaUrlKeys(entity.state.htmlAttributes)].map((key) => ({ entityType: "media", key }))
+        : [],
     // `media.slug` may be empty on pre-backfill rows; the factory skips an empty address.
     address: { field: "slug", holder: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }) },
     // Also checked by the planner's `hasBlob` pass, but that depends on the caller wiring the probe;
@@ -128,7 +136,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       return null;
     },
     write: async ({ ports, deps, workspaceId, id, state, expectedVersion, principalId }) => {
-      const { repo: mediaRepo, assetBlobRepo, blobStore } = ports;
+      const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
       const storageKey = computeBlobStorageKey({ workspaceId, sha256: record.source?.sha256 ?? "" });
       // `null` carries a missing staged object into `importMediaEntity`, which owns that refusal.
@@ -150,6 +158,11 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       if (outcome.status === "blocked") {
         throw new MediaApplyBlockedError(`blocked:${outcome.code}`, `media '${id}' cannot be applied — ${outcome.reason}`);
       }
+      // Every other write path (upload, import, duplicate) records the sniffed type; without it the
+      // destination's embed resolver cannot tell a video from an image. Sniffed from the bytes just
+      // imported, never carried from the source (the store's own invariant). `bytes` is non-null
+      // here: `importMediaEntity` blocks a missing one.
+      if (bytes) await contentTypeStore.set({ workspaceId, sha256: record.source.sha256, contentType: sniffContentType(bytes) });
       const saved = await mediaRepo.findById({ workspaceId, id });
       // `blobWritten`: true when this import created the `asset_blobs` row, false when the bytes were
       // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.
@@ -169,4 +182,10 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       },
     },
     conflictError: (message) => new MediaApplyConflictError(message),
+    extend: ({ deps, ports }) => ({
+      verifyApplied: async ({ entities }) => {
+        const p = ports();
+        return p ? verifyPublishedMedia(p, deps.workspaceId, entities) : [];
+      },
+    }),
   });

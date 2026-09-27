@@ -118,7 +118,7 @@ async function makeFixture(options: { sourceFiles?: Record<string, string>; dest
     ports: {
       // `blobStore` lives on `ports.media` — theme's own port has no store of its own; see
       // `theme/publish-content.ts`'s comment above `buildHandler`.
-      media: { repo: undefined as never, assetBlobRepo: undefined as never, blobStore },
+      media: { repo: undefined as never, assetBlobRepo: undefined as never, blobStore, contentTypeStore: undefined as never },
       "theme-files": { themesDir: destThemes },
     },
   };

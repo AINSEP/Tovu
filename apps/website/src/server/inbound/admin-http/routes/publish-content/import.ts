@@ -261,6 +261,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
                 repointChangeSetIds: readonly string[];
                 menuLinksUpdated: number;
                 menuLinksNotUpdated: readonly string[];
+                verificationProblems: readonly string[];
               }
             >,
             confirmationToken,

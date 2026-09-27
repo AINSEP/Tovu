@@ -19,6 +19,7 @@
  * not itself carry a permanently-disabled "broken" code path.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
@@ -29,7 +30,7 @@ import { isTrashed } from "#src/features/post/post";
 import type { PostRecord } from "#src/features/post/post";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, computeBlobStorageKey, type MediaRecord } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
@@ -923,7 +924,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
         // See the harness bag above for why `apply()` requires this.
         forgetRemoved: async () => {},
       },
-      media: { repo: mediaRepo, assetBlobRepo, blobStore },
+      media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
     },
   };
   const applyPort = createPublishContentApplyPort({
@@ -1030,6 +1031,86 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
     null,
     "a blocked row must never record a baseline — that would tell the NEXT run we agreed on it"
   );
+  assert.deepEqual(result.verificationProblems, [], "a blocked row carries its own reason; the post-publish check never repeats it");
+});
+
+// Post-publish safety check (2026-09-26): a published video whose poster never arrived used to go
+// live silently broken. The run still completes (the content landed), and the result names it.
+test("after applying, the run reports a published media item whose poster is not on the site", async () => {
+  resetPublishContentContributorsForTests();
+  registerPublishContentContributor(contributeMediaPublish());
+
+  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const assetBlobRepo = new InMemoryAssetBlobRepo();
+  const blobStore = new InMemoryBlobStore();
+  const contentTypeStore = new InMemoryMediaContentTypeStore();
+  const clock = makeClock();
+  const outbox = new InMemoryOutbox();
+  const baselineRepo = new InMemoryPublishContentBaselineRepo();
+  const bundleRepo = new InMemoryPublishContentBundleRepo();
+  const runRepo = new InMemoryPublishContentRunRepo();
+  const publishContentDeps: PublishContentDeps = {
+    workspaceId: WORKSPACE_ID,
+    clock,
+    idGen: makeCounterIdGen("cs"),
+    outbox,
+    changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
+    ports: { media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } },
+  };
+  const applyPort = createPublishContentApplyPort({
+    workspaceId: WORKSPACE_ID,
+    bundleRepo,
+    baselineRepo,
+    runRepo,
+    publishContentDeps,
+    clock,
+    idGen: makeCounterIdGen("run"),
+  });
+
+  const videoBytes = new Uint8Array([0x00, 0x00, 0x00, 0x18, ...new TextEncoder().encode("ftypisom-and-the-rest")]);
+  const videoSha256 = createHash("sha256").update(videoBytes).digest("hex");
+  const video: MediaRecord = {
+    id: "promo-video",
+    workspaceId: WORKSPACE_ID,
+    title: "Promo",
+    slug: "promo-01",
+    alt: "",
+    caption: "",
+    credit: "",
+    source: { sha256: videoSha256 },
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    htmlAttributes: 'poster="/m/promo-poster/public.v1/image.webp"',
+  };
+  const entities: PackedEntity[] = [
+    {
+      entityType: "media",
+      id: video.id,
+      schemaVersion: 1,
+      contentHash: contentHash("media", { ...video }),
+      hashVersion: CONTENT_HASH_VERSION,
+      requiredBlobs: [videoSha256],
+      state: { ...video } as unknown as Record<string, unknown>,
+    },
+  ];
+  await blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256: videoSha256, bytes: videoBytes });
+  const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
+  const bundleId = await stage(bundleRepo, clock, entities);
+
+  const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
+
+  assert.equal((await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" }))?.phase, "applied");
+  assert.deepEqual(result.verificationProblems, [
+    "Media 'promo-01' uses 'promo-poster' in its HTML attributes, but 'promo-poster' is not on the site, so it will not load.",
+  ]);
+  // And the apply recorded the type the embed resolver reads, so the video itself renders as one.
+  assert.equal((await contentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [videoSha256] })).get(videoSha256), "video/mp4");
 });
 
 // A permission refused for ONE row (`executeCommand`'s `ForbiddenError`) used to abort the whole run
@@ -1062,7 +1143,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
         : { allowed: true, reason: "test" }) as never,
     ports: {
       post: { repo: postRepo, forgetRemoved: async () => {} },
-      media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore },
+      media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
     },
   };
   const applyPort = createPublishContentApplyPort({

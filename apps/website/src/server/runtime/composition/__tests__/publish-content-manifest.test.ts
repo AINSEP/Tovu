@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
@@ -118,7 +118,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
-    ports: { media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore } },
+    ports: { media: { repo: mediaRepo, assetBlobRepo: new InMemoryAssetBlobRepo(), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
   };
 
   const { changeSetId } = await contributor.build(deps).apply({
@@ -288,7 +288,7 @@ test("the registered theme-files contributor's apply() is a real write path, not
       changeSets: new InMemoryChangeSetRepo([], [], outbox),
       authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
       ports: {
-        media: { repo: undefined as never, assetBlobRepo: undefined as never, blobStore },
+        media: { repo: undefined as never, assetBlobRepo: undefined as never, blobStore, contentTypeStore: undefined as never },
         "theme-files": { themesDir: destThemes },
       },
     };

@@ -126,4 +126,8 @@ export interface PublishContentExecuteResult {
   /** Operator-facing lines for a holder that could not be repointed. Absent from a live built before
    *  this feature. */
   readonly menuLinksNotUpdated?: readonly string[];
+  /** Post-publish safety check — published content that landed but will not show correctly on live
+   *  (e.g. a video whose type is unknown, a poster that is missing). Absent from a live built before
+   *  this check. */
+  readonly verificationProblems?: readonly string[];
 }

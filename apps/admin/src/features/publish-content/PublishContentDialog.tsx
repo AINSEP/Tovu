@@ -244,6 +244,16 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
             {line}
           </p>
         ))}
+        {view.doneProblems.length > 0 && (
+          <div className="notice error" role="alert">
+            <p>{t("Published, but these won't show correctly on the live site:")}</p>
+            <ul>
+              {view.doneProblems.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {view.liveGapNotices.map((line) => (
           <p key={line} className="notice publish-content-live-gap" role="status">
             {line}

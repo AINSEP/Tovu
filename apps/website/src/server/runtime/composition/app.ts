@@ -857,6 +857,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // reads off `RouteDeps.changeSets`.
   const changeSets = new InMemoryChangeSetRepo([], [], outbox);
   const assetBlobRepo = new InMemoryAssetBlobRepo([]);
+  // Shared by the render path and publish's media apply, which records what render reads.
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const blobStore = new InMemoryBlobStore();
   const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
   const publishContentBaselineRepo = new InMemoryPublishContentBaselineRepo();
@@ -894,7 +896,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
           // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
           remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
         },
-        media: { repo: mediaRepo, assetBlobRepo, blobStore },
+        media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
         redirect: redirectsWriteDeps,
         menu: { repo: menuRepo, bindingRepo: navLocationBindingRepo },
         ...buildContentPublishPorts({
@@ -1098,7 +1100,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     mediaRepo,
     assetBlobRepo,
     assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
-    mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
+    mediaContentTypeStore,
     blobStore,
     // ADR-027 §4 transform registry + rendition generation (new in this task): in-memory registry
     // rows (no SQLite adapter yet, same disclosed precedent as the media repos above) and the

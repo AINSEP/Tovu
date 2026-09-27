@@ -1656,6 +1656,8 @@ export function createSqliteRouteDeps(
   // identically — one instance simply matches this root's own stated convention.
   const mediaRepo = new SqliteMediaRepo(db);
   const assetBlobRepo = new SqliteAssetBlobRepo(db);
+  // One instance for the render path and publish's media apply, which records what render reads.
+  const mediaContentTypeStore = new SqliteMediaContentTypeStore(db);
   const publishContentBundleRepo = new SqlitePublishContentBundleRepo(db);
   const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(db);
   const publishContentRunRepo = new SqlitePublishContentRunRepo(db);
@@ -1698,7 +1700,7 @@ export function createSqliteRouteDeps(
           // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
           remove: removeEntityWithoutBlocker(bindRemoveEntity(trash, POST_ENTITY_TYPE)),
         },
-        media: { repo: mediaRepo, assetBlobRepo, blobStore },
+        media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
         redirect: redirectsWriteDeps,
         menu: { repo: menuRepo, bindingRepo: navLocationBindingRepo },
         ...buildContentPublishPorts({
@@ -1933,7 +1935,7 @@ export function createSqliteRouteDeps(
     mediaRepo,
     assetBlobRepo,
     assetRenditionRepo,
-    mediaContentTypeStore: new SqliteMediaContentTypeStore(db),
+    mediaContentTypeStore,
     // 2026-08-12: wiring products into template render data. Plain Drizzle repos over the SAME
     // `db` every other adapter above already shares — no plugin/`declareDataModule()` bootstrap
     // needed (unlike `store`/`lipay`), so this is as cheap as `mediaRepo` above, not a `store`-

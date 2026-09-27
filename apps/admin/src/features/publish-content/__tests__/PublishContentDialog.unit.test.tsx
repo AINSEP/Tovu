@@ -1254,6 +1254,38 @@ describe("PublishContentDialog — menu-link repoint copy (R6)", () => {
     expect(await screen.findByText("Published 1 change.")).toBeTruthy();
     expect(screen.getByText(NOT_UPDATED)).toBeTruthy();
   });
+
+  // 2026-09-26: a published video went live as a broken image and nothing said so. The live site's
+  // post-publish check now names such items; the dialog shows them as an alert, never a plain note.
+  it("shows the live site's post-publish problems as an alert under the done banner", async () => {
+    const PROBLEM = "Media 'promo-01' uses 'promo-poster' in its HTML attributes, but 'promo-poster' is not on the site, so it will not load.";
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: MIXED_REPORT,
+      executeResult: { restorePointId: "rp-9", runId: "run-9", changeSetIds: ["cs-1"], verificationProblems: [PROBLEM, PROBLEM] },
+    });
+    const user = await planFrom(port);
+
+    await user.click(primaryButton());
+    expect(await screen.findByText("Published 1 change.")).toBeTruthy();
+    const alert = screen.getByText("Published, but these won't show correctly on the live site:").closest("[role='alert']");
+    expect(alert).toBeTruthy();
+    expect(alert!.querySelectorAll("li")).toHaveLength(1);
+    expect(alert!.textContent).toContain(PROBLEM);
+  });
+
+  it("shows no problems alert when the live site's check found nothing", async () => {
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: MIXED_REPORT,
+      executeResult: { restorePointId: "rp-9", runId: "run-9", changeSetIds: ["cs-1"], verificationProblems: [] },
+    });
+    const user = await planFrom(port);
+
+    await user.click(primaryButton());
+    expect(await screen.findByText("Published 1 change.")).toBeTruthy();
+    expect(screen.queryByText("Published, but these won't show correctly on the live site:")).toBeNull();
+  });
 });
 
 // c7n-ow-review2 (2026-09-24): the S9 review's defects, each RED against 6ed1e20fc before its fix.

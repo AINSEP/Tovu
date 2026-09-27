@@ -487,6 +487,8 @@ const COMMON_EXTRA_KEYS = [
   // count. Appended at the end, same rule as every block above.
   "Menu links follow:",
   "Menu links updated:",
+  // 2026-09-26: the done banner's post-publish safety-check lead-in. Appended at the end, same rule.
+  "Published, but these won't show correctly on the live site:",
 ] as const;
 
 const COMMON_EXTRA_VALUES: Record<string, readonly string[]> = {

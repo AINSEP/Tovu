@@ -95,6 +95,7 @@ export function createSqlitePublishContentSeedHash(input: CreateSqlitePublishCon
             repo: new SqliteMediaRepo(seedDb),
             assetBlobRepo: unusedBySeedInspect("media.assetBlobRepo"),
             blobStore: unusedBySeedInspect("media.blobStore"),
+            contentTypeStore: unusedBySeedInspect("media.contentTypeStore"),
           },
           menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect("menu.bindingRepo") },
           redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },

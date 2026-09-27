@@ -572,6 +572,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           repointChangeSetIds: [],
           menuLinksUpdated: 0,
           menuLinksNotUpdated: [],
+          verificationProblems: [],
         };
       }
 
@@ -730,6 +731,32 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         return { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated };
       }
 
+      // Post-publish safety check (2026-09-26) — after every row landed, each handler that can
+      // confirms its entities are servable here (`PublishContentHandler.verifyApplied`). Rows that
+      // ended `blocked`/`conflict` are left out: they carry their own reason already. A failing check
+      // is reported, never thrown: the content already landed.
+      async function runVerifyPass(): Promise<string[]> {
+        const problems: string[] = [];
+        for (const handler of handlerByType.values()) {
+          if (!handler.verifyApplied) continue;
+          const entities = report.rows.flatMap((row) => {
+            if (row.entityType !== handler.entityType) return [];
+            const key = entityKey(row.entityType, row.entityId);
+            const outcome = effectiveRowsByKey.get(key)?.outcome ?? row.outcome;
+            const entity = entityByKey.get(key);
+            return entity && outcome !== "blocked" && outcome !== "conflict" ? [entity] : [];
+          });
+          if (entities.length === 0) continue;
+          try {
+            problems.push(...(await handler.verifyApplied({ entities })));
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            problems.push(`${capitalize(handler.entityType)} could not be checked after publishing: ${message}`);
+          }
+        }
+        return problems;
+      }
+
       let activeItemKey: string | null = null;
 
       try {
@@ -779,6 +806,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       }
 
       const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass();
+      const verificationProblems = await runVerifyPass();
 
       await saveSnapshot("applied", input.clock.nowIso());
       return {
@@ -788,6 +816,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         repointChangeSetIds,
         menuLinksUpdated,
         menuLinksNotUpdated,
+        verificationProblems,
       };
     },
   };
