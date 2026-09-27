@@ -3617,6 +3617,12 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   padding: 2px 17px 16px 63px;
 }
 .agent-plugin-row-detail[hidden] { display: none; }
+/* The one thing the collapsed summary clips to a line — wraps freely here, first, above every
+   chip group; no clamp, no ellipsis. */
+.agent-plugin-detail-description {
+  margin: 0;
+  font-size: 12.5px; line-height: 1.5; color: var(--jini-text);
+}
 .agent-plugin-detail-group { display: flex; flex-direction: column; gap: 7px; }
 .agent-plugin-detail-label {
   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;

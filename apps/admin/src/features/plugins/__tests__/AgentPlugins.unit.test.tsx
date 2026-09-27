@@ -117,7 +117,11 @@ describe("AgentPlugins", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     const compliance = row("Site Compliance");
     expect(within(compliance).getByText("v1.0.0")).toBeInTheDocument();
-    expect(within(compliance).getByText("Evidence-based compliance screening.")).toBeInTheDocument();
+    // Scoped: the row's always-rendered (collapsed, `hidden`) detail panel carries this same
+    // string a second time — see `.agent-plugin-detail-description`'s own test below.
+    expect(
+      within(compliance).getByText("Evidence-based compliance screening.", { selector: ".agent-plugin-row-desc" }),
+    ).toBeInTheDocument();
 
     // No version chip for a plugin whose installed package carries none — honest omission, not a
     // stale placeholder (same "no invented value" rule the old card's own comment stated).
@@ -250,6 +254,36 @@ describe("AgentPlugins", () => {
     // heading would assert the question was asked and answered "none".
     expect(within(row("Fly.io Deploy")).getByText("fly-deploy")).toBeInTheDocument();
     expect(within(expandedRow).queryByText("MCP servers")).not.toBeInTheDocument();
+
+    // The full description repeats, UNCLAMPED, at the top of the expanded area — the same text the
+    // collapsed summary clips to one line is not lost, it just needs the expander to read in full.
+    // Scoped with `selector` because the collapsed summary's own (clamped) copy of the identical
+    // string is still in the DOM, hidden only by CSS `-webkit-line-clamp`, not removed.
+    const fullDescription = within(expandedRow).getByText("Evidence-based compliance screening.", {
+      selector: ".agent-plugin-detail-description",
+    });
+    expect(fullDescription).toBeVisible();
+    const componentsLabel = within(expandedRow).getByText("Portable components");
+    expect(fullDescription.compareDocumentPosition(componentsLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("puts the full description in a hover tooltip on the row's clamped summary line", () => {
+    renderAgentPlugins();
+
+    const summaryDescription = within(row("Site Compliance")).getByText("Evidence-based compliance screening.", {
+      selector: ".agent-plugin-row-desc",
+    });
+    expect(summaryDescription).toHaveAttribute("title", "Evidence-based compliance screening.");
+  });
+
+  it("renders no description line, tooltip, or expanded paragraph for a plugin whose manifest carries none", async () => {
+    renderAgentPlugins({ expandedIds: new Set(["tovu-deploy-fly"]) });
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
+
+    const flyRow = row("Fly.io Deploy");
+    expect(within(flyRow).getByRole("button", { name: "Fly.io Deploy" })).toHaveAttribute("aria-expanded", "true");
+    expect(flyRow.querySelector(".agent-plugin-row-desc")).toBeNull();
+    expect(flyRow.querySelector(".agent-plugin-detail-description")).toBeNull();
   });
 
   it("calls the controller with the row's own id when the expander is activated", async () => {

@@ -216,7 +216,14 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
                 </>
               ) : null}
             </span>
-            {plugin.description ? <span className="agent-plugin-row-desc">{plugin.description}</span> : null}
+            {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
+                a hover tooltip, not a substitute for the unclamped copy below in the expanded
+                panel (screen readers and touch have no hover; that copy is the real fix). */}
+            {plugin.description ? (
+              <span className="agent-plugin-row-desc" title={plugin.description}>
+                {plugin.description}
+              </span>
+            ) : null}
           </span>
           <span className="agent-plugin-row-chevron">
             <ChevronIcon />
@@ -276,6 +283,11 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
       </div>
 
       <div className="agent-plugin-row-detail" id={detailId} hidden={!expanded}>
+        {/* The summary line above clips this same string to one line (`.agent-plugin-row-desc`,
+            `-webkit-line-clamp: 1`) — a hover tooltip covers a sighted mouse user, but expanding
+            the row is the only path assistive tech and touch have, so the full text repeats here,
+            unclamped, first — before every other per-plugin fact this panel already held. */}
+        {plugin.description ? <p className="agent-plugin-detail-description">{plugin.description}</p> : null}
         <DetailChips label={t("Portable components")} values={plugin.skills.map((skill) => skill.name)} />
         <DetailChips label={t("MCP servers")} values={plugin.mcpServerIds} />
         <DetailChips label={t("Keywords")} values={plugin.keywords} />
