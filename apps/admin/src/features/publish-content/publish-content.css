@@ -77,10 +77,10 @@
   text-overflow: ellipsis;
 }
 
-/* The Item column got most of the old Why column's room: names were cut off at 22% (owner
-   screenshot 2026-09-26). */
+/* The Item column got part of the old Why column's room: names were cut off at 22% (owner
+   screenshot 2026-09-26). The rest goes to "What happens", which now carries the reasons. */
 .publish-content-report .list-table th:nth-child(3) {
-  width: 36%;
+  width: 30%;
 }
 
 /* The entity column now carries a slug or a title, not a uuid — monospace and `break-all` were
@@ -151,6 +151,7 @@
   content: "▸";
   display: inline-block;
   width: 1em;
+  font-size: 1.15em;
   transition: transform 0.16s ease;
 }
 
