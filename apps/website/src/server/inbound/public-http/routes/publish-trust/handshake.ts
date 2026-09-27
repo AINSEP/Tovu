@@ -62,6 +62,16 @@ const PUBLISH_TRUST_HANDSHAKE_PER_IP: RateLimitProfile = {
  *  configured" and "a grant that is not yours". The real reason goes to the server's own log. */
 const HANDSHAKE_REFUSAL = { error: "the publishing handshake was refused", code: "UNAUTHENTICATED" } as const;
 
+/** What every handshake route answers when this install has no usable root key, so it has no
+ *  installation id to state or sign against. Says nothing about any grant, like `/identity`. */
+const NO_SITE_TOKEN = {
+  error: "This site has no usable Site Token yet, so it cannot accept publishes. Set one up on this site first.",
+  code: "SECRET_STORE_UNCONFIGURED",
+} as const;
+
+/** Any other failure. Fixed text: the real error goes to the server log only. */
+const HANDSHAKE_FAILED = { error: "the publishing handshake failed", code: "INTERNAL_ERROR" } as const;
+
 /** Everything the handshake needs. `targetInstallationId` is this install's own derived id,
  *  resolved once at composition rather than per request. */
 export interface PublishTrustHandshakeDeps {
@@ -130,22 +140,46 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
     return false;
   }
 
-  app.get("/api/publish-trust/v1/identity", async (req, res) => {
+  /** This install's id, or `null` after sending the 503 when the root key is missing. */
+  async function installationIdOrRefuse(res: Response): Promise<string | null> {
+    const id = await deps.targetInstallationId.catch(() => null);
+    if (id === null) res.status(503).json(NO_SITE_TOKEN);
+    return id;
+  }
+
+  /** Express 4 does not catch a rejected async handler: the caller would hang and the process
+   *  would log an unhandled rejection. Every handler here answers instead. */
+  function answered(handler: (req: Request, res: Response) => Promise<void>) {
+    return async (req: Request, res: Response): Promise<void> => {
+      try {
+        await handler(req, res);
+      } catch (err) {
+        console.error(`[publish-trust] handshake ${req.method} ${req.path} failed:`, err);
+        res.status(500).json(HANDSHAKE_FAILED);
+      }
+    };
+  }
+
+  app.get("/api/publish-trust/v1/identity", answered(async (req, res) => {
+    const installationId = await installationIdOrRefuse(res);
+    if (installationId === null) return;
     res.json({
-      installationId: await deps.targetInstallationId,
+      installationId,
       workspaceId: deps.workspaceId,
       origin: originOf(req),
     });
-  });
+  }));
 
-  app.post("/api/publish-trust/v1/challenge", async (req, res) => {
+  app.post("/api/publish-trust/v1/challenge", answered(async (req, res) => {
     if (!withinRateLimit(req, res)) return;
 
+    const targetInstallationId = await installationIdOrRefuse(res);
+    if (targetInstallationId === null) return;
     const record = await issuePublishChallenge({
       store: deps.challengeStore,
       clock: deps.clock,
       idGen: deps.idGen,
-      targetInstallationId: await deps.targetInstallationId,
+      targetInstallationId,
     });
 
     // The audience travels with the nonce so the source can build the canonical string without a
@@ -155,9 +189,9 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       targetInstallationId: record.targetInstallationId,
       expiresAt: record.expiresAtIso,
     });
-  });
+  }));
 
-  app.post("/api/publish-trust/v1/session", async (req, res) => {
+  app.post("/api/publish-trust/v1/session", answered(async (req, res) => {
     if (!withinRateLimit(req, res)) return;
 
     const response = asChallengeResponse(req.body);
@@ -176,7 +210,8 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       return;
     }
 
-    const targetInstallationId = await deps.targetInstallationId;
+    const targetInstallationId = await installationIdOrRefuse(res);
+    if (targetInstallationId === null) return;
     const verification = await verifyChallengeResponse(
       { store: deps.challengeStore, clock: deps.clock },
       { grant, targetInstallationId, response }
@@ -197,5 +232,5 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
     );
 
     res.json({ token, expiresAt: payload.expiresAtIso, capabilities: payload.capabilities });
-  });
+  }));
 }

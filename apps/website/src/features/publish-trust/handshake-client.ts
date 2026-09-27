@@ -117,6 +117,18 @@ function siteNameOf(baseUrl: string): string {
   }
 }
 
+/** True when a destination's 503 body carries the code `handshake.ts` sends for a missing root key.
+ *  Only the code is read; the destination's own wording never reaches the owner.
+ *  @complexity O(n) in the body length. */
+function isNoSiteTokenBody(bodyText: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(bodyText);
+    return typeof parsed === "object" && parsed !== null && (parsed as { code?: unknown }).code === "SECRET_STORE_UNCONFIGURED";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * One handshake call, with every failure already turned into a sentence.
  *
@@ -159,6 +171,14 @@ async function callHandshake(
     throw new PublishTrustHandshakeError(
       `${site} doesn't recognise this computer yet. Connect it, then deploy the site once.`,
       "not-connected"
+    );
+  }
+  if (response.status === 503 && isNoSiteTokenBody(response.bodyText)) {
+    // `handshake.ts` answers this when the destination has no usable root key. No retry fixes it,
+    // so the sentence names the fix instead of "try again".
+    throw new PublishTrustHandshakeError(
+      `${site} has no Site Token set up yet, so it cannot accept publishes. Set one up on that site, then try again.`,
+      "refused"
     );
   }
   if (response.status < 200 || response.status >= 300) {

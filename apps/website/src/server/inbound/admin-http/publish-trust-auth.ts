@@ -238,11 +238,13 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       next();
       return;
     }
+    // The session key is derived per request, so a root key lost after boot rejects here: the same
+    // "cannot verify" answer as above, never a rejected middleware.
     const verified = await verifyPublishSession(
       { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
       { token, expectedAudience: targetInstallationId }
-    );
-    if (!verified.ok) {
+    ).catch(() => null);
+    if (verified === null || !verified.ok) {
       next();
       return;
     }
