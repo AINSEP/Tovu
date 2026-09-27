@@ -25,11 +25,13 @@ var kuinetic = (() => {
     Animator: () => Animator,
     CHANNEL: () => CHANNEL,
     COMBOS: () => COMBOS,
+    KUI_EVENT: () => KUI_EVENT,
     PRESETS: () => PRESETS,
     PRIMITIVES: () => PRIMITIVES,
     Registry: () => Registry,
     collectingReporter: () => collectingReporter,
     consoleReporter: () => consoleReporter,
+    control: () => control,
     createActivationBinder: () => createActivationBinder,
     createAnimator: () => createAnimator,
     createRegistry: () => createRegistry,
@@ -38,75 +40,431 @@ var kuinetic = (() => {
     inertInstance: () => inertInstance,
     kuinetic: () => kuinetic,
     play: () => play,
+    resolveActivationSpec: () => resolveActivationSpec,
     resolveTargets: () => resolveTargets,
     silentReporter: () => silentReporter,
     toAttributeValue: () => toAttributeValue
   });
 
-  // src/core/attrs.ts
-  var ATTR = {
-    /** Authored. The rich grammar. */
-    source: "data-kui",
-    /** Library-owned and unstable: normalized effect names, for CSS hooks and debugging. */
-    normalized: "data-kui-fx",
-    state: "data-kui-state",
-    on: "data-kui-on",
-    timeline: "data-kui-timeline",
-    threshold: "data-kui-threshold",
-    stagger: "data-kui-stagger",
-    cloak: "data-kui-cloak",
-    /** Reduced-motion policy, stamped from the primitive so the CSS layer can act on it. */
-    rm: "data-kui-rm"
+  // src/core/target.ts
+  function selectorBreadth(selector, doc) {
+    try {
+      if (doc.documentElement.matches(selector)) return "document-wide";
+      if (doc.body?.matches(selector)) return "document-wide";
+      return "ok";
+    } catch {
+      return "invalid";
+    }
+  }
+  function resolveTarget(selector, ctx, effect) {
+    if (!selector) return selector;
+    const breadth = selectorBreadth(selector, ctx.doc);
+    if (breadth === "invalid") {
+      ctx.warn(`${effect} target "${selector}" is not a valid selector and will be ignored`);
+      return "";
+    }
+    if (breadth === "document-wide") {
+      ctx.warn(`${effect} target "${selector}" matches the whole document and will be ignored`);
+      return "";
+    }
+    return selector;
+  }
+  var SCOPE_PARAM = {
+    type: "keyword",
+    default: "",
+    cssProperty: "--kui-scope",
+    keywords: ["self", "page"]
   };
+  function scopeParam(params, fallback) {
+    const authored = params.text("scope");
+    if (authored === "page") return "page";
+    if (authored === "self") return "self";
+    return fallback;
+  }
+  function queryScoped(el, ctx, selector, scope) {
+    return [...(scope === "page" ? ctx.doc : el).querySelectorAll(selector)];
+  }
 
-  // src/core/element-config.ts
-  var ACTIVATIONS = /* @__PURE__ */ new Set(["load", "enter", "hover", "focus", "click", "manual"]);
-  var TIMELINES = /* @__PURE__ */ new Set(["time", "view", "scroll", "pointer", "pin"]);
-  function readAttributes(el) {
+  // src/core/event-sources.ts
+  function createEventSourceBindings() {
+    const bindings = /* @__PURE__ */ new Map();
+    function retain(source, type, run) {
+      let types = bindings.get(source);
+      if (!types) {
+        types = /* @__PURE__ */ new Map();
+        bindings.set(source, types);
+      }
+      let binding = types.get(type);
+      if (!binding) {
+        const runs = /* @__PURE__ */ new Set();
+        const listener = () => {
+          for (const callback of [...runs]) callback();
+        };
+        binding = { listener, runs };
+        types.set(type, binding);
+        source.addEventListener(type, listener, { passive: true });
+      }
+      binding.runs.add(run);
+      let retained = true;
+      return () => {
+        if (!retained) return;
+        retained = false;
+        binding.runs.delete(run);
+        if (binding.runs.size > 0) return;
+        source.removeEventListener(type, binding.listener);
+        types?.delete(type);
+        if (types?.size === 0) bindings.delete(source);
+      };
+    }
     return {
-      source: el.getAttribute(ATTR.source) ?? "",
-      on: el.getAttribute(ATTR.on),
-      timeline: el.getAttribute(ATTR.timeline),
-      threshold: el.getAttribute(ATTR.threshold)
+      bind({ sources, types, run }) {
+        const cleanups = [];
+        for (const source of sources) {
+          for (const type of types) cleanups.push(retain(source, type, run));
+        }
+        return () => {
+          for (const cleanup of cleanups) cleanup();
+        };
+      },
+      destroy() {
+        for (const [source, types] of bindings) {
+          for (const [type, binding] of types) source.removeEventListener(type, binding.listener);
+        }
+        bindings.clear();
+      }
     };
   }
-  function resolveConfig(attributes, parsed) {
-    const rawTimeline = parsed.timeline ?? attributes.timeline ?? "time";
-    const [head = "time", ...rest] = rawTimeline.trim().split(/\s+/);
-    const authored = parsed.activation ?? readActivation(attributes.on);
+  function resolveEventSources({ el, from, reporter }) {
+    if (!from) return [el];
+    const doc = el.ownerDocument;
+    const breadth = selectorBreadth(from, doc);
+    if (breadth !== "ok") {
+      const reason = breadth === "invalid" ? "is not a valid selector" : "matches the whole document";
+      reporter?.warn(`activation source "${from}" ${reason} and will be ignored`, el);
+      return [];
+    }
+    const sources = [...doc.querySelectorAll(from)];
+    if (sources.length === 0) reporter?.warn(`activation source "${from}" matched nothing`, el);
+    return sources;
+  }
+
+  // src/core/threshold-reachability.ts
+  var RATIO_EPSILON = 1e-6;
+  function maxReachableRatio(entry) {
+    const root = entry.rootBounds;
+    const box = entry.boundingClientRect;
+    if (!root || box.width <= 0 || box.height <= 0) return void 0;
+    return Math.min(1, root.width / box.width) * Math.min(1, root.height / box.height);
+  }
+  function formatThreshold(ratio) {
+    return `${Math.round(ratio * 1e3) / 10}%`;
+  }
+  function checkThresholdReachability(binding, entry, ratio) {
+    const reporter = binding.reporter;
+    if (!reporter || ratio <= 0 || binding.thresholdWarned) return;
+    if (entry.isIntersecting) {
+      binding.sawIntersecting = true;
+      return;
+    }
+    if (!binding.sawIntersecting || binding.entered) return;
+    const max = maxReachableRatio(entry);
+    if (max === void 0 || max >= ratio - RATIO_EPSILON) return;
+    binding.thresholdWarned = true;
+    reporter.warn(
+      `threshold:${formatThreshold(ratio)} can never be met on this element \u2014 it is larger than the root it scrolls through, so its intersection ratio maxes out around ${formatThreshold(max)} and never reaches ${formatThreshold(ratio)}. An IntersectionObserver only reports ratio crossings, so the library cannot soften this from here \u2014 author a smaller threshold, or make the element (or its scrolling root) fit the other.`,
+      entry.target
+    );
+  }
+
+  // src/core/travel.ts
+  var TRAVEL_WINDOW_MS = 200;
+  function createTravelTracker() {
+    const positions = /* @__PURE__ */ new WeakMap();
+    let side;
+    let at = Number.NEGATIVE_INFINITY;
+    let holders = 0;
+    const onScroll = (event) => {
+      const target = event.target;
+      const now = scrollPositionOf(target);
+      if (!now) return;
+      const last = positions.get(target);
+      positions.set(target, now);
+      if (!last) return;
+      const dy = now.y - last.y;
+      const dx = now.x - last.x;
+      const delta = Math.abs(dy) >= Math.abs(dx) ? dy : dx;
+      if (delta === 0) return;
+      side = delta > 0 ? "after" : "before";
+      at = event.timeStamp;
+    };
+    const stop = () => {
+      holders = 0;
+      side = void 0;
+      at = Number.NEGATIVE_INFINITY;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("scroll", onScroll, { capture: true });
+      }
+    };
     return {
-      activation: authored ?? "enter",
-      activationAuthored: authored !== void 0,
-      timeline: TIMELINES.has(head) ? head : "time",
-      range: rest.join(" "),
-      threshold: parsed.threshold ?? attributes.threshold ?? "0%"
+      arrivedFrom: (time2) => time2 - at <= TRAVEL_WINDOW_MS ? side : void 0,
+      retain() {
+        if (holders++ > 0 || typeof window === "undefined") return;
+        window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+        const start = scrollPositionOf(window.document);
+        if (start) positions.set(window.document, start);
+      },
+      release() {
+        if (holders === 0 || --holders > 0) return;
+        stop();
+      },
+      reset: stop
     };
   }
-  function readActivation(attribute) {
-    return attribute && ACTIVATIONS.has(attribute) ? attribute : void 0;
-  }
-  function toThresholdRatio(raw) {
-    const value = Number.parseFloat(raw);
-    if (Number.isNaN(value)) return 0;
-    const ratio = raw.includes("%") ? value / 100 : value;
-    return Math.min(1, Math.max(0, ratio));
+  function scrollPositionOf(target) {
+    if (target === window || target === window.document) {
+      return { x: window.scrollX, y: window.scrollY };
+    }
+    if (target instanceof Element) return { x: target.scrollLeft, y: target.scrollTop };
+    return void 0;
   }
 
   // src/core/activation.ts
-  var NOOP = () => {
+  var PAIR_SEPARATOR = "/";
+  var NAMED_TRIGGERS = {
+    load: { kind: "immediate" },
+    manual: { kind: "manual" },
+    enter: { kind: "observed", when: "enter" },
+    leave: { kind: "observed", when: "leave" },
+    hover: { kind: "events", types: ["pointerenter", "focusin"] },
+    unhover: { kind: "events", types: ["pointerleave", "focusout"] },
+    focus: { kind: "events", types: ["focusin"] },
+    blur: { kind: "events", types: ["focusout"] },
+    click: { kind: "events", types: ["click"] }
   };
-  var ACTIVATION_EVENTS = {
-    load: [],
-    enter: [],
-    manual: [],
-    hover: ["pointerenter", "focusin"],
-    focus: ["focusin"],
+  var SUPPORT_PROXIES = {
+    load: ["load"],
+    manual: ["manual"],
+    enter: ["enter"],
+    leave: ["enter"],
+    hover: ["hover"],
+    unhover: ["hover"],
+    focus: ["focus"],
+    blur: ["focus"],
     click: ["click"]
   };
+  var EVENT_DRIVEN = ["hover", "focus", "click"];
+  var KNOWN_EVENTS = [
+    "click",
+    "dblclick",
+    "auxclick",
+    "contextmenu",
+    "pointerdown",
+    "pointerup",
+    "pointerenter",
+    "pointerleave",
+    "pointerover",
+    "pointerout",
+    "pointermove",
+    "pointercancel",
+    "gotpointercapture",
+    "lostpointercapture",
+    "mousedown",
+    "mouseup",
+    "mouseenter",
+    "mouseleave",
+    "mouseover",
+    "mouseout",
+    "mousemove",
+    "focusin",
+    "focusout",
+    "focus",
+    "blur",
+    "keydown",
+    "keyup",
+    "keypress",
+    "input",
+    "beforeinput",
+    "change",
+    "submit",
+    "reset",
+    "invalid",
+    "select",
+    "search",
+    "touchstart",
+    "touchend",
+    "touchmove",
+    "touchcancel",
+    "wheel",
+    "scroll",
+    "scrollend",
+    "dragstart",
+    "drag",
+    "dragend",
+    "dragenter",
+    "dragover",
+    "dragleave",
+    "drop",
+    "animationstart",
+    "animationend",
+    "animationiteration",
+    "animationcancel",
+    "transitionstart",
+    "transitionend",
+    "transitionrun",
+    "transitioncancel",
+    "play",
+    "playing",
+    "pause",
+    "ended",
+    "timeupdate",
+    "seeked",
+    "volumechange",
+    "ratechange",
+    "loadeddata",
+    "loadedmetadata",
+    "canplay",
+    "canplaythrough",
+    "waiting",
+    "stalled",
+    "toggle",
+    "beforetoggle",
+    "close",
+    "cancel",
+    "copy",
+    "cut",
+    "paste",
+    "load",
+    "error",
+    "abort",
+    "resize",
+    "fullscreenchange"
+  ];
+  var EVENT_NAME_RE = /^[A-Za-z][A-Za-z0-9._:-]*$/;
+  var SUGGESTION_DISTANCE = 2;
+  function isNamedActivation(name) {
+    return Object.hasOwn(NAMED_TRIGGERS, name);
+  }
+  function triggerFor(name) {
+    if (isNamedActivation(name)) return NAMED_TRIGGERS[name];
+    return { kind: "events", types: [name] };
+  }
+  function resolveActivationSpec(activation) {
+    const names = String(activation).split(PAIR_SEPARATOR);
+    const [start = "", end] = names;
+    return {
+      source: activation,
+      names,
+      start: triggerFor(start),
+      ...end === void 0 ? {} : { end: triggerFor(end) }
+    };
+  }
+  function validateActivation(value) {
+    const names = value.split(PAIR_SEPARATOR);
+    if (names.length > 2) {
+      return [
+        `activation "${value}" has more than one "${PAIR_SEPARATOR}" \u2014 expected "start${PAIR_SEPARATOR}end"`
+      ];
+    }
+    const malformed = names.filter((name) => !EVENT_NAME_RE.test(name));
+    if (malformed.length > 0) {
+      return [`activation "${value}" is not an event name or a "start${PAIR_SEPARATOR}end" pair`];
+    }
+    const end = names[1];
+    if (end !== void 0 && (end === "load" || end === "manual")) {
+      return [`activation "${value}" cannot end on "${end}" \u2014 an exit needs an event to fire on`];
+    }
+    return [];
+  }
+  function startKindOf(activation) {
+    return resolveActivationSpec(activation).start.kind;
+  }
+  function isOneShot(spec) {
+    return spec.end === void 0 && spec.start.kind === "observed";
+  }
+  function authorisingActivations(name) {
+    return isNamedActivation(name) ? SUPPORT_PROXIES[name] : EVENT_DRIVEN;
+  }
+  function isKnownEventType(type) {
+    if (/[-:.]/.test(type)) return true;
+    return KNOWN_EVENTS.includes(type);
+  }
+  function suggestActivation(name) {
+    let best;
+    let bestDistance = SUGGESTION_DISTANCE + 1;
+    for (const candidate of [...Object.keys(NAMED_TRIGGERS), ...KNOWN_EVENTS]) {
+      const distance3 = editDistance(name, candidate);
+      if (distance3 >= bestDistance) continue;
+      bestDistance = distance3;
+      best = candidate;
+    }
+    return bestDistance <= SUGGESTION_DISTANCE && bestDistance * 2 < name.length ? best : void 0;
+  }
+  function editDistance(a, b) {
+    let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const row = [i];
+      for (let j = 1; j <= b.length; j++) {
+        const substitution = previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
+        row.push(Math.min(previous[j] + 1, row[j - 1] + 1, substitution));
+      }
+      previous = row;
+    }
+    return previous[b.length];
+  }
+  var NOOP = () => {
+  };
+  var RATIO_EPSILON2 = 1e-6;
+  function meetsThreshold(entry, ratio) {
+    if (!entry.isIntersecting) return false;
+    if (ratio <= 0) return true;
+    return entry.intersectionRatio >= ratio - RATIO_EPSILON2;
+  }
+  function deliverEntry(binding, entry, ratio, arrivedFrom) {
+    checkThresholdReachability(binding, entry, ratio);
+    if (binding.onCross) return deliverCrossing(binding, entry, ratio, arrivedFrom);
+    const inside = meetsThreshold(entry, ratio);
+    if (inside === binding.entered) return;
+    binding.entered = inside;
+    const side = inside ? binding.onEnter : binding.onLeave;
+    if (!side) return;
+    side();
+    if (binding.oneShot) binding.release();
+  }
+  function deliverCrossing(binding, entry, ratio, arrivedFrom) {
+    const side = sideOf(entry);
+    if (!meetsThreshold(entry, ratio)) return deliverLeaving(binding, side, arrivedFrom);
+    if (binding.entered) return;
+    const crossing = (arrivedFrom ?? binding.outside) === "before" ? "enter-back" : "enter";
+    binding.entered = true;
+    binding.outside = void 0;
+    binding.onCross?.(crossing);
+  }
+  function deliverLeaving(binding, side, arrivedFrom) {
+    if (side) binding.outside = side;
+    if (!binding.entered) return;
+    binding.entered = false;
+    const leavingTo = side ?? oppositeSide(arrivedFrom);
+    binding.onCross?.(leavingTo === "after" ? "leave-back" : "leave");
+  }
+  function oppositeSide(side) {
+    if (!side) return void 0;
+    return side === "after" ? "before" : "after";
+  }
+  function sideOf(entry) {
+    const root = entry.rootBounds;
+    const box = entry.boundingClientRect;
+    if (!root || !box) return void 0;
+    if (box.bottom <= root.top || box.right <= root.left) return "before";
+    if (box.top >= root.bottom || box.left >= root.right) return "after";
+    return void 0;
+  }
   function createActivationBinder(options = {}) {
     const observers = /* @__PURE__ */ new Map();
     const callbacks = /* @__PURE__ */ new WeakMap();
+    const eventBindings = createEventSourceBindings();
     const createObserver = options.createObserver ?? defaultObserverFactory();
+    const travel = createTravelTracker();
+    const reporter = options.reporter;
     function observerFor(threshold) {
       if (!createObserver) return void 0;
       const ratio = toThresholdRatio(threshold);
@@ -116,10 +474,8 @@ var kuinetic = (() => {
       const observer = createObserver(
         (entries) => {
           for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
             const binding = callbacks.get(entry.target);
-            binding?.activate();
-            binding?.release();
+            if (binding) deliverEntry(binding, entry, ratio, travel.arrivedFrom(entry.time));
           }
         },
         { threshold: ratio }
@@ -128,17 +484,20 @@ var kuinetic = (() => {
       observers.set(key, shared);
       return { key, shared };
     }
-    function bindObserved(el, threshold, onActivate) {
-      const binding = observerFor(threshold);
+    function bindObserved(el, spec, request) {
+      const binding = observerFor(request.threshold);
       if (!binding) {
-        onActivate();
+        if (spec.failOpen) request.activate();
         return NOOP;
       }
       const { key, shared } = binding;
+      const tracksTravel = Boolean(spec.onCross);
+      if (tracksTravel) travel.retain();
       let active = true;
       const release = () => {
         if (!active) return;
         active = false;
+        if (tracksTravel) travel.release();
         callbacks.delete(el);
         shared.observer.unobserve(el);
         shared.count--;
@@ -146,197 +505,1195 @@ var kuinetic = (() => {
         shared.observer.disconnect();
         observers.delete(key);
       };
-      callbacks.set(el, { activate: onActivate, release });
+      callbacks.set(el, {
+        onEnter: spec.onEnter,
+        onLeave: spec.onLeave,
+        ...spec.onCross ? { onCross: spec.onCross } : {},
+        oneShot: spec.oneShot,
+        release,
+        entered: false,
+        reporter,
+        sawIntersecting: false,
+        thresholdWarned: false
+      });
       shared.count++;
       shared.observer.observe(el);
       return release;
     }
-    function bindEvents(el, activation, onActivate) {
-      const types = ACTIVATION_EVENTS[activation];
-      if (types.length === 0) return NOOP;
-      const handler = () => onActivate();
-      for (const type of types) el.addEventListener(type, handler, { passive: true });
-      return () => {
-        for (const type of types) el.removeEventListener(type, handler);
-      };
-    }
     return {
-      bind(el, activation, threshold, onActivate) {
-        if (activation === "load") {
-          onActivate();
-          return NOOP;
+      bind(el, activation, request) {
+        const spec = resolveActivationSpec(activation);
+        const sides = sidesOf(spec, request);
+        const cleanups = [];
+        let eventSources;
+        const observed = observedSides(sides);
+        if (observed) {
+          const failOpen = spec.start.kind === "observed";
+          const crossing = request.cross;
+          cleanups.push(
+            bindObserved(
+              el,
+              {
+                ...observed,
+                ...crossing ? { onCross: crossing } : {},
+                oneShot: crossing ? false : isOneShot(spec),
+                failOpen
+              },
+              request
+            )
+          );
         }
-        if (activation === "enter") return bindObserved(el, threshold, onActivate);
-        return bindEvents(el, activation, onActivate);
+        for (const side of sides) {
+          const { trigger } = side;
+          if (trigger.kind === "events") {
+            eventSources ??= resolveEventSources({ el, from: request.from, reporter });
+            cleanups.push(eventBindings.bind({ sources: eventSources, types: trigger.types, run: side.run }));
+          } else if (trigger.kind === "immediate") side.run();
+        }
+        return cleanups.length === 0 ? NOOP : () => {
+          for (const cleanup of cleanups) cleanup();
+        };
       },
       destroy() {
         for (const { observer } of observers.values()) observer.disconnect();
         observers.clear();
+        eventBindings.destroy();
+        travel.reset();
       }
     };
+  }
+  function sidesOf(spec, request) {
+    const sides = [{ trigger: spec.start, run: () => request.activate() }];
+    const deactivate = request.deactivate;
+    if (spec.end && deactivate) sides.push({ trigger: spec.end, run: () => deactivate() });
+    return sides;
+  }
+  function observedSides(sides) {
+    const observed = {};
+    let found = false;
+    for (const side of sides) {
+      if (side.trigger.kind !== "observed") continue;
+      found = true;
+      if (side.trigger.when === "enter") observed.onEnter = side.run;
+      else observed.onLeave = side.run;
+    }
+    return found ? observed : void 0;
+  }
+  function toThresholdRatio(raw) {
+    const value = Number.parseFloat(raw);
+    if (Number.isNaN(value)) return 0;
+    const ratio = raw.includes("%") ? value / 100 : value;
+    return Math.min(1, Math.max(0, ratio));
   }
   function defaultObserverFactory() {
     if (typeof IntersectionObserver === "undefined") return void 0;
     return (callback, init) => new IntersectionObserver(callback, init);
   }
-
-  // src/core/capabilities.ts
-  function supports(property, value) {
-    if (typeof CSS === "undefined" || typeof CSS.supports !== "function") return false;
-    try {
-      return CSS.supports(property, value);
-    } catch {
-      return false;
+  function warnAboutActivation(request) {
+    warnUnsupported(request);
+    warnUnknownEvents(request);
+  }
+  function warnUnsupported({ el, spec, supported, reporter }) {
+    if (supported.length === 0) return;
+    for (const name of spec.names) {
+      if (authorisingActivations(name).some((named) => supported.includes(named))) continue;
+      reporter.warn(
+        `activation "${name}" is not supported by this effect (supports: ${supported.join(", ")})`,
+        el
+      );
     }
   }
-  var cached;
-  function detect(force = false) {
-    if (cached && !force) return cached;
-    cached = {
-      viewTimeline: supports("animation-timeline", "view()"),
-      scrollTimeline: supports("animation-timeline", "scroll()"),
-      animationRange: supports("animation-range", "entry 0% cover 30%"),
-      // `translate`/`rotate`/`scale` as independent properties is what makes the channel model
-      // possible at all — under the `transform` shorthand every effect would collide.
-      individualTransforms: supports("translate", "0 10px") && supports("scale", "1.1"),
-      scrollTimelineName: supports("scroll-timeline-name", "--x"),
-      viewTransitions: typeof document !== "undefined" && "startViewTransition" in document,
-      intersectionObserver: typeof IntersectionObserver !== "undefined",
-      reducedMotion: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
-    };
-    return cached;
-  }
-
-  // src/core/channels.ts
-  function findConflicts(claims) {
-    const conflicts = [];
-    const seen = /* @__PURE__ */ new Map();
-    for (const claim of claims) {
-      for (const channel of claim.channels) {
-        const owner = seen.get(channel);
-        if (owner === void 0) {
-          seen.set(channel, claim.name);
-          continue;
-        }
-        conflicts.push({ channel, effects: [owner, claim.name] });
-      }
+  function warnUnknownEvents({ el, spec, reporter }) {
+    if (!("onclick" in el)) return;
+    for (const name of spec.names) {
+      if (isNamedActivation(name) || isKnownEventType(name) || `on${name}` in el) continue;
+      const suggestion = suggestActivation(name);
+      const hint = suggestion ? `; did you mean "${suggestion}"?` : "";
+      const problem = `no DOM event named "${name}" \u2014 data-kui-on binds it anyway, so nothing will start it`;
+      reporter.warn(`${problem}${hint}`, el);
     }
-    return conflicts;
-  }
-  function describeConflicts(conflicts) {
-    return conflicts.map((c) => `"${c.effects[0]}" and "${c.effects[1]}" both animate ${c.channel}`).join("; ");
   }
 
-  // src/core/params.ts
-  var DANGEROUS = /[;<]|\/\*|url\s*\(|expression\s*\(|@import|image-set\s*\(/i;
-  var ABSOLUTE_OR_PROTOCOL_RELATIVE = /^(?:[a-z][a-z0-9+.-]*:|[/\\]{2})/i;
-  var MAX_VALUE_LENGTH = 200;
-  var NUM = String.raw`-?(?:\d+(?:\.\d+)?|\.\d+)`;
-  var LENGTH_UNITS = "px|rem|em|vh|vw|vmin|vmax|ch|ex|cm|mm|in|pt|pc|q|%";
-  var PATTERNS = {
-    length: new RegExp(`^(?:0|${NUM}(?:${LENGTH_UNITS}))$`, "i"),
-    time: new RegExp(`^${NUM}(?:ms|s)$`, "i"),
-    number: new RegExp(`^${NUM}$`),
-    percentage: new RegExp(`^${NUM}%$`),
-    angle: new RegExp(`^${NUM}(?:deg|rad|turn|grad)$`, "i")
+  // src/core/attrs.ts
+  var ATTR = {
+    /** Authored. The rich grammar. */
+    source: "data-kui",
+    /**
+     * Authored. Names the composition in this element's {@link source} so other elements can reuse
+     * it by name. An element carrying it is a definition — data, never animated. See `core/bundles.ts`.
+     */
+    define: "data-kui-define",
+    /** Library-owned and unstable: normalized effect names, for CSS hooks and debugging. */
+    normalized: "data-kui-fx",
+    state: "data-kui-state",
+    on: "data-kui-on",
+    timeline: "data-kui-timeline",
+    threshold: "data-kui-threshold",
+    stagger: "data-kui-stagger",
+    cloak: "data-kui-cloak",
+    /** Reduced-motion policy, stamped from the primitive so the CSS layer can act on it. */
+    rm: "data-kui-rm",
+    /** Library-owned: comma list of `target:` selectors on this host that matched nothing (D). */
+    unmatched: "data-kui-unmatched",
+    /** Library-owned: a structural role the library assigned to a child (`front`,`back`,`control`,`bar`). */
+    part: "data-kui-part"
   };
-  var HEX_COLOR = /^#[0-9a-f]{3,8}$/i;
-  var COLOR_FUNCTIONS = /^(?:rgba?|hsla?|okl(?:ch|ab)|l(?:ch|ab)|color)\([^()]*\)$/i;
-  var COLOR_KEYWORD = /^[a-z]+$/i;
-  var EASING_KEYWORD = /^(?:linear|ease|step-start|step-end|spring|bounce|[a-z]+-(?:in|out|in-out))$/i;
-  var EASING_FUNCTION = /^(?:cubic-bezier|steps|linear)\([^()]*\)$/i;
-  var CALC_TYPES = /* @__PURE__ */ new Set(["length", "percentage", "number"]);
-  var CALC_CHARACTER = /^[\d.\s+\-*/%a-z,]$/i;
-  var CUSTOM_PROPERTY_NAME = /^--[\w-]+$/;
-  function validate(raw, spec) {
-    const value = raw.trim();
-    const rejection = screen(value, spec);
-    if (rejection) return rejection;
-    if (spec.type === "keyword") return checkKeyword(value, spec);
-    if (spec.type === "text") return { value, ok: true };
-    if (isAcceptable(value, spec.type)) return checkNumericConstraints(value, spec);
-    return reject(spec, `not a valid ${spec.type}`);
+
+  // src/core/breakpoints.ts
+  var BREAKPOINTS = {
+    sm: "40rem",
+    md: "48rem",
+    lg: "64rem",
+    xl: "80rem",
+    "2xl": "96rem"
+  };
+  var BREAKPOINT_NAMES = Object.keys(BREAKPOINTS);
+  var GATE_AXES = [
+    ["above", "below"],
+    ["wide", "narrow"]
+  ];
+  function axisOf(direction) {
+    return GATE_AXES.find((axis) => axis.includes(direction));
   }
-  function screen(value, spec) {
-    if (!value) return reject(spec, "empty value");
-    if (value.length > MAX_VALUE_LENGTH) {
-      return reject(spec, `value exceeds ${MAX_VALUE_LENGTH} characters`);
-    }
-    if (DANGEROUS.test(value)) return reject(spec, "value contains disallowed CSS syntax");
-    return null;
+  function isBreakpoint(value) {
+    return Object.hasOwn(BREAKPOINTS, value);
   }
-  function isAcceptable(value, type) {
-    if (type === "color") return isColor(value);
-    if (type === "easing") return EASING_KEYWORD.test(value) || EASING_FUNCTION.test(value);
-    const pattern = PATTERNS[type];
-    if (!pattern) return false;
-    if (pattern.test(value)) return true;
-    return CALC_TYPES.has(type) && isSafeCalc(value) && isWellFormedCalc(value);
+  function breakpointRank(name) {
+    return BREAKPOINT_NAMES.indexOf(name);
   }
-  function isColor(value) {
-    return HEX_COLOR.test(value) || COLOR_FUNCTIONS.test(value) || COLOR_KEYWORD.test(value);
+  function gateProperty(direction, breakpoint) {
+    return `--kui-${direction}-${breakpoint}`;
   }
-  function checkKeyword(value, spec) {
-    if (spec.values?.includes(value)) return { value, ok: true };
-    return reject(spec, `expected one of ${spec.values?.join(", ") ?? "(none declared)"}`);
+  function breakpointQuery(breakpoint) {
+    return `(min-width: ${BREAKPOINTS[breakpoint]})`;
   }
-  function isSameOriginPath(value) {
-    return !ABSOLUTE_OR_PROTOCOL_RELATIVE.test(value);
+  function gatedAnimationName(keyframes, gate) {
+    if (!gate) return keyframes;
+    let expression = keyframes;
+    if (gate.narrow) expression = `var(${gateProperty("narrow", gate.narrow)}, ${expression})`;
+    if (gate.wide) expression = `var(${gateProperty("wide", gate.wide)}, ${expression})`;
+    if (gate.below) expression = `var(${gateProperty("below", gate.below)}, ${expression})`;
+    if (gate.above) expression = `var(${gateProperty("above", gate.above)}, ${expression})`;
+    return expression;
   }
-  function checkNumericConstraints(value, spec) {
-    if (spec.type !== "number") return { value, ok: true };
-    const numeric = Number(value);
-    if (spec.finite && !Number.isFinite(numeric)) return reject(spec, "expected a finite number");
-    if (spec.integer && !Number.isInteger(numeric)) return reject(spec, "expected an integer");
-    if (spec.minimum !== void 0 && numeric < spec.minimum) {
-      return reject(spec, `expected at least ${spec.minimum}`);
-    }
-    if (spec.maximum !== void 0 && numeric > spec.maximum) {
-      return reject(spec, `expected at most ${spec.maximum}`);
-    }
-    return { value, ok: true };
-  }
-  function reject(spec, reason) {
-    return { value: spec.default, ok: false, reason };
-  }
-  function isSafeCalc(value) {
-    if (!value.startsWith("calc(") || !value.endsWith(")")) return false;
-    const end = value.length - 1;
-    let index = "calc(".length;
-    while (index < end) {
-      index = nextCalcToken(value, index, end);
-      if (index < 0) return false;
-    }
+  function gateMatches(gate, win) {
+    if (!gate) return true;
+    if (typeof win?.matchMedia !== "function") return true;
+    const atLeast = (breakpoint) => win.matchMedia(breakpointQuery(breakpoint)).matches;
+    if (gate.above && !atLeast(gate.above)) return false;
+    if (gate.below && atLeast(gate.below)) return false;
     return true;
   }
-  function nextCalcToken(value, index, end) {
-    if (value.startsWith("var(", index)) return consumeVar(value, index, end);
-    return CALC_CHARACTER.test(value[index]) ? index + 1 : -1;
+  function gatesOverlap(a, b) {
+    if (!a || !b) return true;
+    const span = (gate, [upper, lower]) => [
+      gate[upper] ? breakpointRank(gate[upper]) : -1,
+      gate[lower] ? breakpointRank(gate[lower]) : BREAKPOINT_NAMES.length
+    ];
+    const overlapsOn = (axis) => {
+      const [aStart, aEnd] = span(a, axis);
+      const [bStart, bEnd] = span(b, axis);
+      return aStart < bEnd && bStart < aEnd;
+    };
+    return GATE_AXES.every(overlapsOn);
   }
-  function consumeVar(value, start, end) {
-    const close = value.indexOf(")", start + "var(".length);
-    if (close < 0 || close >= end) return -1;
-    const name = value.slice(start + "var(".length, close);
-    return CUSTOM_PROPERTY_NAME.test(name) ? close + 1 : -1;
+  function breakpointsIn(gates) {
+    const named = /* @__PURE__ */ new Set();
+    for (const gate of gates) {
+      if (gate.above) named.add(gate.above);
+      if (gate.below) named.add(gate.below);
+    }
+    return [...named];
   }
-  function isWellFormedCalc(value) {
-    const body = value.slice("calc(".length, -1).trim();
-    return body !== "" && !/[+\-*/]$/.test(body);
+  function createGateWatcher(win, onChange) {
+    const watched = /* @__PURE__ */ new Map();
+    const bound = /* @__PURE__ */ new Map();
+    function bind(breakpoint) {
+      if (typeof win?.matchMedia !== "function" || bound.has(breakpoint)) return;
+      const query = win.matchMedia(breakpointQuery(breakpoint));
+      if (typeof query.addEventListener !== "function") return;
+      const handler = () => {
+        for (const [el, names] of [...watched]) {
+          if (names.includes(breakpoint)) onChange(el);
+        }
+      };
+      query.addEventListener("change", handler);
+      bound.set(breakpoint, () => query.removeEventListener("change", handler));
+    }
+    return {
+      watch(el, breakpoints) {
+        if (breakpoints.length === 0) {
+          watched.delete(el);
+          return;
+        }
+        watched.set(el, [...breakpoints]);
+        for (const breakpoint of breakpoints) bind(breakpoint);
+      },
+      unwatch(el) {
+        watched.delete(el);
+      },
+      destroy() {
+        for (const unbind of bound.values()) unbind();
+        bound.clear();
+        watched.clear();
+      }
+    };
   }
-  function resolveParams(authored, schema, warn) {
-    const out = {};
-    for (const [key, raw] of Object.entries(authored)) {
-      const spec = Object.hasOwn(schema, key) ? schema[key] : void 0;
-      if (!spec) {
-        warn(`unknown parameter "${key}" (known: ${Object.keys(schema).join(", ") || "none"})`);
+
+  // src/core/spring.ts
+  var DEFAULT_SPRING = {
+    stiffness: 180,
+    damping: 24,
+    mass: 1,
+    restVelocity: 0.05,
+    restDisplacement: 0.05
+  };
+  var SUBSTEP = 1 / 240;
+  var MAX_STEP = 0.25;
+  function stepSpring(state, target, config, dt) {
+    let { value, velocity } = state;
+    let remaining = Math.min(Math.max(dt, 0), MAX_STEP);
+    while (remaining > 0) {
+      const step = Math.min(SUBSTEP, remaining);
+      const force = -config.stiffness * (value - target) - config.damping * velocity;
+      velocity += force / config.mass * step;
+      value += velocity * step;
+      remaining -= step;
+    }
+    return { value, velocity };
+  }
+  function isSettled(state, target, config) {
+    return Math.abs(state.velocity) < config.restVelocity && Math.abs(state.value - target) < config.restDisplacement;
+  }
+  var MAX_SETTLE_MS = 1e4;
+  function createSpringRunner(config, onChange, deps) {
+    const safeConfig = validConfig(config) ? config : DEFAULT_SPRING;
+    if (safeConfig !== config) deps.warn?.("invalid spring configuration; using defaults");
+    let state = { value: 0, velocity: 0 };
+    let target = 0;
+    let handle = null;
+    let lastTime = 0;
+    let startedAt = 0;
+    function frame(time2) {
+      handle = null;
+      const dt = (time2 - lastTime) / 1e3;
+      lastTime = time2;
+      state = stepSpring(state, target, safeConfig, dt);
+      if (!finiteState(state) || !Number.isFinite(target)) {
+        abortRun("spring produced non-finite state");
+        return;
+      }
+      if (time2 - startedAt >= MAX_SETTLE_MS) {
+        abortRun(`spring exceeded ${MAX_SETTLE_MS}ms settle budget`);
+        return;
+      }
+      if (isSettled(state, target, safeConfig)) {
+        state = { value: target, velocity: 0 };
+        onChange(state.value, true);
+        return;
+      }
+      onChange(state.value, false);
+      schedule();
+    }
+    function schedule() {
+      if (handle !== null) return;
+      handle = deps.requestFrame(frame);
+    }
+    function start() {
+      startedAt = deps.now();
+      if (handle === null) lastTime = startedAt;
+      schedule();
+    }
+    function abortRun(message) {
+      state = { value: Number.isFinite(target) ? target : 0, velocity: 0 };
+      deps.warn?.(message);
+      onChange(state.value, true);
+    }
+    return {
+      to(next, velocity) {
+        target = next;
+        if (velocity !== void 0) state = { ...state, velocity };
+        start();
+      },
+      set(value, velocity = 0) {
+        state = { value, velocity };
+      },
+      current: () => ({ ...state }),
+      stop() {
+        if (handle !== null) deps.cancelFrame(handle);
+        handle = null;
+      }
+    };
+  }
+  function validConfig(config) {
+    return Object.values(config).every(Number.isFinite) && config.stiffness > 0 && config.damping > 0 && config.mass > 0 && config.restVelocity > 0 && config.restDisplacement > 0;
+  }
+  function finiteState(state) {
+    return Number.isFinite(state.value) && Number.isFinite(state.velocity);
+  }
+  function defaultSpringDeps() {
+    const raf = globalThis.requestAnimationFrame;
+    if (typeof raf !== "function") {
+      return {
+        requestFrame: (callback) => globalThis.setTimeout(() => callback(Date.now()), 16),
+        cancelFrame: (handle) => globalThis.clearTimeout(handle),
+        now: () => Date.now()
+      };
+    }
+    return {
+      requestFrame: (callback) => raf(callback),
+      cancelFrame: (handle) => globalThis.cancelAnimationFrame(handle),
+      now: () => performance.now()
+    };
+  }
+
+  // src/core/easing.ts
+  var NATIVE_EASINGS = /* @__PURE__ */ new Set([
+    "linear",
+    "ease",
+    "ease-in",
+    "ease-out",
+    "ease-in-out",
+    "step-start",
+    "step-end"
+  ]);
+  var SPRING_PREFIX = "spring(";
+  var DEFAULT_RATIO = 2 / 3;
+  var DEFAULT_STIFFNESS = 180;
+  var DEFAULT_MASS = 1;
+  var DEFAULT_DAMPING = 2 * DEFAULT_RATIO * Math.sqrt(DEFAULT_STIFFNESS * DEFAULT_MASS);
+  var MIN_RATIO = 0.15;
+  var MAX_RATIO = 4;
+  var MAX_BOUNCE = 1 - MIN_RATIO;
+  var PHYSICS_KEYS = ["stiffness", "damping", "mass"];
+  var SPRING_KEYS = ["bounce", ...PHYSICS_KEYS];
+  var SIM_STEP = 1 / 240;
+  var MAX_SIM_STEPS = 4e4;
+  var REST_DISPLACEMENT = 1e-3;
+  var REST_VELOCITY = 1e-3;
+  var MIN_SAMPLES = 16;
+  var MAX_SAMPLES = 64;
+  var SAMPLES_PER_PERIOD = 10;
+  var PRECISION = 1e3;
+  function isSpringToken(token) {
+    return token.startsWith(SPRING_PREFIX) && token.endsWith(")");
+  }
+  function cssEasingValue(easing) {
+    if (NATIVE_EASINGS.has(easing)) return easing;
+    if (isSpringToken(easing)) return springLinearCurve(springDampingRatio(easing));
+    if (easing.includes("(")) return easing;
+    return `var(--kui-ease-${easing}, ease-out)`;
+  }
+  var WAAPI_FALLBACK = "ease-out";
+  function waapiEasingValue(easing, el, warn) {
+    if (!easing) return void 0;
+    if (NATIVE_EASINGS.has(easing)) return easing;
+    if (isSpringToken(easing)) return springLinearCurve(springDampingRatio(easing));
+    if (easing.includes("(")) return easing;
+    const defined = customEasing(easing, el);
+    if (defined) return defined;
+    warn(`easing "${easing}" has no --kui-ease-${easing} definition \u2014 using ${WAAPI_FALLBACK}`);
+    return WAAPI_FALLBACK;
+  }
+  function customEasing(name, el) {
+    const view = el.ownerDocument.defaultView;
+    if (!view) return "";
+    return view.getComputedStyle(el).getPropertyValue(`--kui-ease-${name}`).trim();
+  }
+  function springTokenProblems(token) {
+    if (!isSpringToken(token)) return [];
+    const { values, problems } = readArguments(token);
+    resolveRatio(values, problems);
+    return problems;
+  }
+  function springDampingRatio(token) {
+    const { values, problems } = readArguments(token);
+    return resolveRatio(values, problems);
+  }
+  function readArguments(token) {
+    const values = /* @__PURE__ */ new Map();
+    const problems = [];
+    const body = token.slice(SPRING_PREFIX.length, -1).trim();
+    if (body) {
+      for (const part of body.split(/\s+/)) readArgument(part, values, problems);
+    }
+    return { values, problems };
+  }
+  function readArgument(part, values, problems) {
+    const colon = part.indexOf(":");
+    const key = colon < 0 ? part : part.slice(0, colon);
+    const raw = colon < 0 ? "" : part.slice(colon + 1);
+    if (!SPRING_KEYS.includes(key)) {
+      problems.push(`unknown spring parameter "${part}" \u2014 expected ${SPRING_KEYS.join(", ")}`);
+      return;
+    }
+    const numeric = Number(raw);
+    if (raw === "" || !Number.isFinite(numeric) || numeric < 0) {
+      problems.push(`spring "${key}" expects a non-negative number \u2014 got "${raw}"`);
+      return;
+    }
+    if (values.has(key)) problems.push(`duplicate spring parameter "${key}"`);
+    values.set(key, numeric);
+  }
+  function resolveRatio(values, problems) {
+    const bounce = values.get("bounce");
+    const hasPhysics = PHYSICS_KEYS.some((key) => values.has(key));
+    if (bounce !== void 0) {
+      if (hasPhysics) {
+        problems.push(
+          `spring "bounce" and "${PHYSICS_KEYS.join('"/"')}" describe the same curve two ways \u2014 "bounce" wins`
+        );
+      }
+      return 1 - clampBounce(bounce, problems);
+    }
+    if (!hasPhysics) return DEFAULT_RATIO;
+    const stiffness = values.get("stiffness") ?? DEFAULT_STIFFNESS;
+    const mass = values.get("mass") ?? DEFAULT_MASS;
+    const damping = values.get("damping") ?? DEFAULT_DAMPING;
+    return clampRatio(damping / (2 * Math.sqrt(stiffness * mass)), problems);
+  }
+  function clampBounce(bounce, problems) {
+    if (bounce <= MAX_BOUNCE) return bounce;
+    problems.push(
+      `spring "bounce:${bounce}" is past ${MAX_BOUNCE} \u2014 a spring that bouncy never settles inside one animation, so it is capped at ${MAX_BOUNCE}`
+    );
+    return MAX_BOUNCE;
+  }
+  function clampRatio(ratio, problems) {
+    if (!Number.isFinite(ratio)) {
+      problems.push("spring constants do not describe a spring \u2014 using the default curve");
+      return DEFAULT_RATIO;
+    }
+    if (ratio >= MIN_RATIO && ratio <= MAX_RATIO) return ratio;
+    const clamped = Math.min(Math.max(ratio, MIN_RATIO), MAX_RATIO);
+    problems.push(
+      `spring damping ratio ${round(ratio)} is outside ${MIN_RATIO}\u2013${MAX_RATIO} \u2014 clamped to ${round(clamped)} so the curve settles`
+    );
+    return clamped;
+  }
+  var curves = /* @__PURE__ */ new Map();
+  function springLinearCurve(dampingRatio) {
+    const key = Math.round(dampingRatio * PRECISION);
+    const cached2 = curves.get(key);
+    if (cached2 !== void 0) return cached2;
+    const curve = buildCurve(key / PRECISION);
+    curves.set(key, curve);
+    return curve;
+  }
+  function buildCurve(ratio) {
+    const trajectory = simulate(ratio);
+    const count = sampleCount(ratio, (trajectory.length - 1) * SIM_STEP);
+    const stops = [];
+    for (let index = 0; index <= count; index++) {
+      stops.push(String(round(sampleAt(trajectory, index / count))));
+    }
+    stops[0] = "0";
+    stops[count] = "1";
+    return `linear(${stops.join(", ")})`;
+  }
+  function simulate(ratio) {
+    const config = {
+      stiffness: 1,
+      damping: 2 * ratio,
+      mass: 1,
+      restVelocity: REST_VELOCITY,
+      restDisplacement: REST_DISPLACEMENT
+    };
+    const values = [0];
+    let state = { value: 0, velocity: 0 };
+    for (let step = 0; step < MAX_SIM_STEPS; step++) {
+      state = stepSpring(state, 1, config, SIM_STEP);
+      values.push(state.value);
+      if (isSettled(state, 1, config)) break;
+    }
+    return values;
+  }
+  function sampleCount(ratio, settleTime) {
+    if (ratio >= 1) return MIN_SAMPLES;
+    const period = 2 * Math.PI / Math.sqrt(1 - ratio * ratio);
+    const stops = MIN_SAMPLES + Math.round(SAMPLES_PER_PERIOD * settleTime / period);
+    return Math.min(stops, MAX_SAMPLES);
+  }
+  function sampleAt(values, fraction) {
+    const position = fraction * (values.length - 1);
+    const low = Math.floor(position);
+    const high = Math.min(low + 1, values.length - 1);
+    const start = values[low];
+    return start + (values[high] - start) * (position - low);
+  }
+  function round(value) {
+    return Math.round(value * PRECISION) / PRECISION;
+  }
+
+  // src/core/repeat.ts
+  var INFINITE = "infinite";
+  var COUNT_RE = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
+  var PROGRESS_DRIVEN = /* @__PURE__ */ new Set(["view", "scroll", "pin"]);
+  var PLAYBACK_KEYS = /* @__PURE__ */ new Set(["repeat", "yoyo"]);
+  function isPlaybackKey(key) {
+    return PLAYBACK_KEYS.has(key);
+  }
+  function applyPlayback(spec, key, value, context) {
+    if (spec[key] !== void 0) {
+      context.warn(`duplicate parameter "${key}" in "${context.segment}"`);
+    }
+    if (key === "yoyo") applyYoyo(spec, value, context);
+    else applyRepeat(spec, value, context);
+  }
+  function applyRepeat(spec, value, context) {
+    if (value === INFINITE) {
+      spec.repeat = INFINITE;
+      return;
+    }
+    if (!COUNT_RE.test(value)) {
+      context.warn(countRefusal(value, context.segment));
+      return;
+    }
+    if (Number(value) === 0) {
+      context.warn(
+        `"repeat:0" in "${context.segment}" means the effect never plays \u2014 with animation-fill-mode: both it jumps straight to its end state. Write "repeat:1" to play it once, or drop the key.`
+      );
+    }
+    spec.repeat = value;
+  }
+  function applyYoyo(spec, value, context) {
+    if (value !== "true" && value !== "false") {
+      context.warn(
+        `"yoyo:${value}" in "${context.segment}" is not a boolean \u2014 expected yoyo:true or yoyo:false`
+      );
+      return;
+    }
+    spec.yoyo = value === "true";
+  }
+  function countRefusal(value, segment) {
+    if (value.startsWith("-")) {
+      return `"repeat:${value}" in "${segment}" is negative \u2014 a play count cannot be. Write "repeat:infinite" to loop forever, or a non-negative number such as repeat:3.`;
+    }
+    return `"repeat:${value}" in "${segment}" is not a play count \u2014 expected a non-negative number such as repeat:3, or repeat:infinite`;
+  }
+  function resolvePlayback(input) {
+    const warnings = [];
+    if (input.repeat === void 0 && input.yoyo === void 0) return { warnings };
+    if (input.renderer !== "css-keyframes") return { warnings: [rendererRefusal(input)] };
+    if (input.repeat === INFINITE && PROGRESS_DRIVEN.has(input.timeline)) {
+      warnings.push(infiniteTimelineRefusal(input.name, input.timeline));
+      return { yoyo: input.yoyo, warnings };
+    }
+    const hidden = endsHidden(input);
+    if (hidden) warnings.push(hidden);
+    return { repeat: input.repeat, yoyo: input.yoyo, warnings };
+  }
+  function endsHidden(input) {
+    if (!input.cloak || input.yoyo !== true) return null;
+    const count = repeatCount(input.repeat);
+    if (count === void 0 || count === 0 || count % 2 !== 0) return null;
+    return `"${input.name}" with yoyo:true and an even repeat:${input.repeat} ends on a reversed iteration, and this effect's from-state is one the visitor is not meant to see \u2014 the element finishes hidden. Use an odd count (repeat:${count + 1}) to end at the rest state.`;
+  }
+  function rendererRefusal(input) {
+    const authored = [
+      input.repeat === void 0 ? "" : `repeat:${input.repeat}`,
+      input.yoyo === void 0 ? "" : `yoyo:${input.yoyo}`
+    ].filter(Boolean).join(" and ");
+    return `"${input.name}" is rendered in JavaScript and compiles no animation-iteration-count, so ${authored} does nothing \u2014 it plays once. Repeat is a CSS-keyframes capability; a JS-rendered effect that loops does it through a parameter of its own (typewriter's "loop:"), if it has one.`;
+  }
+  function infiniteTimelineRefusal(name, timeline) {
+    const because = timeline === "pin" ? `a pin scrubs a single playthrough with a negative animation-delay, so no iteration past the first is ever reachable` : `a "${timeline}" timeline is a finite range driven by scroll position rather than a clock, and an infinite iteration count collapses the animation's active duration to zero there \u2014 the element renders frozen at its end state`;
+    return `"${name}" has repeat:infinite on a "${timeline}" timeline: ${because}. Dropping the repeat, so it plays once across the range \u2014 put an infinite loop on a "time" timeline instead.`;
+  }
+  function repeatCount(repeat) {
+    if (repeat === void 0 || repeat === INFINITE) return void 0;
+    return Number(repeat);
+  }
+  function isInfiniteRepeat(repeat) {
+    return repeat === INFINITE;
+  }
+  function directionValue(yoyo) {
+    return yoyo ? "alternate" : "normal";
+  }
+  function playbackExpression(duration, repeat) {
+    const count = repeatCount(repeat);
+    if (count === void 0 || count === 1) return duration;
+    return `${duration} * ${count}`;
+  }
+
+  // src/core/toggle-actions.ts
+  var CROSSINGS = ["enter", "leave", "enter-back", "leave-back"];
+  var VERBS = /* @__PURE__ */ new Set([
+    "play",
+    "pause",
+    "resume",
+    "reverse",
+    "reset",
+    "restart",
+    "complete",
+    "none"
+  ]);
+  var PLAYHEAD_VERBS = /* @__PURE__ */ new Set([
+    "pause",
+    "resume",
+    "reset",
+    "restart",
+    "complete"
+  ]);
+  var SEPARATOR = "/";
+  function parseToggleActions(value, warnings = []) {
+    const parts = value.split(SEPARATOR);
+    if (parts.length > CROSSINGS.length) {
+      warnings.push(
+        `"actions:${value}" has ${String(parts.length)} verbs \u2014 there are four crossings (${CROSSINGS.join(SEPARATOR)}), so the extras are ignored`
+      );
+    }
+    const actions = {
+      "enter": "none",
+      "leave": "none",
+      "enter-back": "none",
+      "leave-back": "none"
+    };
+    for (const [index, crossing] of CROSSINGS.entries()) {
+      const raw = parts[index]?.trim();
+      if (raw === void 0 || raw === "") continue;
+      actions[crossing] = toVerb(raw, crossing, warnings);
+    }
+    return actions;
+  }
+  function toVerb(raw, crossing, warnings) {
+    if (VERBS.has(raw)) return raw;
+    warnings.push(
+      `unrecognised action "${raw}" for the "${crossing}" crossing \u2014 expected ${[...VERBS].join(", ")}`
+    );
+    return "none";
+  }
+  function validateToggleActions(value) {
+    const warnings = [];
+    parseToggleActions(value, warnings);
+    return warnings;
+  }
+  function usesPlayhead(actions) {
+    for (const crossing of CROSSINGS) {
+      if (PLAYHEAD_VERBS.has(actions[crossing])) return actions[crossing];
+    }
+    return void 0;
+  }
+  function warnAboutToggleActions(request) {
+    if (!request.observed) {
+      return [
+        `"actions:" describes the four crossings of a scroll trigger, but this element activates on "${request.activation}" \u2014 nothing here is ever reached. Use on:enter or on:enter/leave`
+      ];
+    }
+    const verb = usesPlayhead(request.actions);
+    if (verb === void 0) return [];
+    const warnings = [];
+    if (request.progressDriven) {
+      warnings.push(
+        `"actions:" asks to ${verb} an element whose progress is driven by scroll position rather than by a clock \u2014 its playhead belongs to the scroller and would be overwritten on the next frame`
+      );
+    }
+    const js = request.jsEffectNames;
+    if (js.length > 0) {
+      const one = js.length === 1;
+      warnings.push(
+        `"actions:" asks to ${verb}, which needs a playhead, and "${js.join(" ")}" ${one ? "is" : "are"} rendered in JavaScript and expose${one ? "s" : ""} none \u2014 that crossing does nothing for ${one ? "it" : "them"}`
+      );
+    }
+    return warnings;
+  }
+  function applyToggleVerb(verb, target) {
+    if (verb === "play") target.activate();
+    else if (verb === "reverse") target.reverse();
+    else if (PLAYHEAD_VERBS.has(verb)) applyPlayheadVerb(verb, target);
+  }
+  function applyPlayheadVerb(verb, target) {
+    if (!target.started) {
+      if (startsIt(verb)) target.activate();
+      return;
+    }
+    if (verb === "restart" || verb === "complete") target.activate();
+    for (const control2 of target.controls) applyToPlayhead(verb, control2);
+  }
+  function startsIt(verb) {
+    return verb === "resume" || verb === "restart" || verb === "complete";
+  }
+  function applyToPlayhead(verb, control2) {
+    if (verb === "pause") control2.pause();
+    else if (verb === "resume") control2.resume();
+    else if (verb === "complete") control2.seek(1);
+    else {
+      control2.seek(0);
+      if (verb === "reset") control2.pause();
+      else control2.resume();
+    }
+  }
+
+  // src/core/types.ts
+  var CHANNEL = {
+    opacity: "opacity",
+    translate: "translate",
+    scale: "scale",
+    rotate: "rotate",
+    filter: "filter",
+    clip: "clip",
+    background: "background",
+    color: "color",
+    stroke: "stroke",
+    text: "text",
+    /**
+     * Skew is the one transform CSS never gave an independent property to — there is no `skew:`
+     * beside `translate:`/`rotate:`/`scale:`, so it can only be written through the `transform`
+     * shorthand. That makes it its own channel: anything writing `transform` clobbers the whole
+     * shorthand, so every primitive that does is on this channel, whatever the transform is for.
+     * `scroll-skew` is one member; `flip-face` (`effects/three-d`) and `flip-3d`
+     * (`effects/catalog/core`, the `flip-in-*`/`flip-out-*` family) are the other two — both need
+     * the `perspective()` transform *function* for an element to have depth on itself, which
+     * likewise only exists inside `transform`.
+     */
+    skew: "skew"
+  };
+  function inertInstance(destroy = () => {
+  }) {
+    return {
+      activate() {
+      },
+      cancel() {
+      },
+      finish() {
+      },
+      finished: Promise.resolve(),
+      destroy
+    };
+  }
+  var SEGMENT_HOIST_KEYS = [
+    "activation",
+    "actions",
+    "timeline",
+    "threshold",
+    "cascade",
+    "spread",
+    "order",
+    "cols",
+    "along"
+  ];
+
+  // src/core/parse.ts
+  var TIME_RE = /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:ms|s)$/;
+  var EASING_FUNCTIONS = ["cubic-bezier(", "steps(", "linear(", "spring("];
+  var EASING_KEYWORDS = /* @__PURE__ */ new Set([
+    "linear",
+    "ease",
+    "ease-in",
+    "ease-out",
+    "ease-in-out",
+    "step-start",
+    "step-end",
+    "expo-in",
+    "expo-out",
+    "expo-in-out",
+    "back-in",
+    "back-out",
+    "back-in-out",
+    "quart-out",
+    "circ-out",
+    "spring",
+    "bounce"
+  ]);
+  function splitTopLevel(input, delimiter, warnings = []) {
+    const parts = [];
+    const scanner = { depth: 0, quote: null, escaped: false };
+    let buffer = "";
+    for (const char of input) {
+      if (isSeparator(char, delimiter, scanner)) {
+        if (buffer.trim()) parts.push(buffer.trim());
+        buffer = "";
         continue;
       }
-      if (spec.type === "text") continue;
-      const result = validate(raw, spec);
-      if (result.ok) out[spec.cssProperty] = result.value;
-      else warn(`parameter "${key}": ${result.reason} \u2014 got "${raw}", using default "${spec.default}"`);
+      buffer += char;
     }
-    return out;
+    if (buffer.trim()) parts.push(buffer.trim());
+    if (scanner.quote) warnings.push(`unterminated ${scanner.quote} quote in "${input}"`);
+    else if (scanner.depth > 0) warnings.push(`unclosed "(" in "${input}"`);
+    return parts;
+  }
+  function isSeparator(char, delimiter, scanner) {
+    if (scanner.quote) return advanceQuote(char, scanner);
+    if (char === '"' || char === "'") {
+      scanner.quote = char;
+      return false;
+    }
+    if (char === "(") scanner.depth++;
+    else if (char === ")") scanner.depth = Math.max(0, scanner.depth - 1);
+    if (scanner.depth !== 0) return false;
+    return delimiter === " " ? /\s/.test(char) : char === delimiter;
+  }
+  function advanceQuote(char, scanner) {
+    if (scanner.escaped) scanner.escaped = false;
+    else if (char === "\\") scanner.escaped = true;
+    else if (char === scanner.quote) scanner.quote = null;
+    return false;
+  }
+  function splitPair(token) {
+    let depth = 0;
+    for (let i = 0; i < token.length; i++) {
+      const char = token[i];
+      if (char === "(") depth++;
+      else if (char === ")") depth = Math.max(0, depth - 1);
+      else if (char === ":" && depth === 0) {
+        const key = token.slice(0, i).trim();
+        const value = unquote(token.slice(i + 1).trim());
+        return key && value ? [key, value] : null;
+      }
+    }
+    return null;
+  }
+  function unquote(value) {
+    const first = value[0];
+    if ((first === '"' || first === "'") && value.endsWith(first) && value.length > 1) {
+      return value.slice(1, -1).replaceAll(`\\${first}`, first);
+    }
+    return value;
+  }
+  function parseActivationAttribute(input) {
+    const warnings = [];
+    const tokens = splitTopLevel(input ?? "", " ", warnings);
+    const [activation, ...options] = tokens;
+    if (!activation) return { warnings };
+    warnings.push(...validateActivation(activation));
+    let from;
+    for (const option of options) {
+      const pair = splitPair(option);
+      if (!pair || pair[0] !== "from") {
+        warnings.push(`unrecognised activation option "${option}"`);
+        continue;
+      }
+      if (from !== void 0) {
+        warnings.push(`duplicate activation option "from" in "${input}"`);
+        continue;
+      }
+      from = pair[1];
+    }
+    if (warnings.length > 0) return { warnings };
+    return { activation, ...from === void 0 ? {} : { from }, warnings };
+  }
+  function classify(token) {
+    const pair = splitPair(token);
+    if (pair) return { kind: "pair", key: pair[0], value: pair[1] };
+    if (TIME_RE.test(token)) return { kind: "time", value: token };
+    if (isEasing(token)) return { kind: "easing", value: token };
+    return { kind: "unknown", value: token };
+  }
+  function isEasing(token) {
+    if (EASING_KEYWORDS.has(token)) return true;
+    return EASING_FUNCTIONS.some((fn) => token.startsWith(fn) && token.endsWith(")"));
+  }
+  function parse(input) {
+    const result = { specs: [], warnings: [] };
+    for (const segment of splitTopLevel(input ?? "", ",", result.warnings)) {
+      const spec = parseSegment(segment, result);
+      if (spec) result.specs.push(spec);
+    }
+    return result;
+  }
+  function parseSegment(segment, result) {
+    const tokens = splitTopLevel(segment, " ", result.warnings);
+    const name = tokens.shift();
+    if (splitPair(name)) {
+      if (applyGroupOnlySegment(name, tokens, result)) return null;
+      result.warnings.push(`effect name expected, got "${name}"`);
+      return null;
+    }
+    const spec = { name, params: {} };
+    let timeCount = 0;
+    const sink = hasTargetToken(tokens) ? { specs: [], warnings: [] } : null;
+    for (const raw of tokens) {
+      const token = classify(raw);
+      if (token.kind === "time") timeCount = applyTime(spec, token.value, timeCount, result.warnings);
+      else applyToken(token, spec, { segment, result, sink });
+    }
+    attachSegmentHoists(spec, sink, result);
+    return spec;
+  }
+  function attachSegmentHoists(spec, sink, result) {
+    if (!sink) return;
+    result.warnings.push(...sink.warnings);
+    const hoists = collectHoists(sink);
+    if (hoists) spec.hoists = hoists;
+  }
+  function hasTargetToken(tokens) {
+    return tokens.some((t) => splitPair(t)?.[0] === "target");
+  }
+  function collectHoists(sink) {
+    const hoists = {};
+    let any = false;
+    for (const key of SEGMENT_HOIST_KEYS) {
+      const value = sink[key];
+      if (value === void 0) continue;
+      hoists[key] = value;
+      any = true;
+    }
+    return any ? hoists : void 0;
+  }
+  var SEGMENT_SCOPABLE_HOISTS = /* @__PURE__ */ new Set([
+    "on",
+    "actions",
+    "timeline",
+    "threshold",
+    "cascade",
+    "spread",
+    "order",
+    "cols",
+    "along"
+  ]);
+  function applyGroupOnlySegment(first, rest, result) {
+    const pairs = [];
+    for (const token of [first, ...rest]) {
+      const pair = splitPair(token);
+      if (!pair || !GROUP_ONLY_HOISTS.has(pair[0]) || !Object.hasOwn(HOISTS, pair[0])) return false;
+      pairs.push(pair);
+    }
+    for (const [key, value] of pairs) HOISTS[key](result, value);
+    return true;
+  }
+  var GROUP_ONLY_HOISTS = /* @__PURE__ */ new Set([
+    "cascade",
+    "spread",
+    "order",
+    "cols",
+    "along"
+  ]);
+  function applyTime(spec, value, seen, warnings) {
+    if (seen === 0) spec.duration = value;
+    else if (seen === 1) spec.delay = value;
+    else warnings.push(`third time value "${value}" ignored (expected duration then delay)`);
+    return seen + 1;
+  }
+  function applyToken(token, spec, context) {
+    const { segment, result, sink } = context;
+    if (token.kind === "easing") {
+      applyEasing(token.value, spec, segment, result);
+      return;
+    }
+    if (token.kind === "unknown") {
+      result.warnings.push(
+        `unrecognised token "${token.value}" in "${segment}" \u2014 expected [duration] [delay] [easing] or key:value`
+      );
+      return;
+    }
+    if (applyLifted(token.key, token.value, spec, context)) return;
+    if (Object.hasOwn(HOISTS, token.key)) {
+      const dest = sink && SEGMENT_SCOPABLE_HOISTS.has(token.key) ? sink : result;
+      HOISTS[token.key](dest, token.value);
+      return;
+    }
+    if (token.key in spec.params) {
+      result.warnings.push(`duplicate parameter "${token.key}" in "${segment}"`);
+    }
+    spec.params[token.key] = token.value;
+  }
+  function applyEasing(value, spec, segment, result) {
+    if (spec.easing) result.warnings.push(`duplicate easing "${value}" in "${segment}"`);
+    for (const problem of springTokenProblems(value)) {
+      result.warnings.push(`${problem} in "${segment}"`);
+    }
+    spec.easing = value;
+  }
+  function applyLifted(key, value, spec, context) {
+    const { segment, result } = context;
+    if (key === "at") {
+      if (spec.at !== void 0) result.warnings.push(`duplicate parameter "at" in "${segment}"`);
+      spec.at = value;
+      return true;
+    }
+    if (isGateDirection(key)) {
+      applyGate(spec, key, value, context);
+      return true;
+    }
+    if (isPlaybackKey(key)) {
+      applyPlayback(spec, key, value, {
+        segment,
+        warn: (message) => result.warnings.push(message)
+      });
+      return true;
+    }
+    return false;
+  }
+  var GATE_DIRECTIONS = /* @__PURE__ */ new Set(["above", "below", "wide", "narrow"]);
+  function isGateDirection(key) {
+    return GATE_DIRECTIONS.has(key);
+  }
+  function applyGate(spec, direction, value, context) {
+    const { segment, result } = context;
+    if (!isBreakpoint(value)) {
+      result.warnings.push(
+        `unknown breakpoint "${value}" in "${segment}" \u2014 expected one of ${BREAKPOINT_NAMES.join(", ")}`
+      );
+      return;
+    }
+    const gate = spec.gate ??= {};
+    if (gate[direction] !== void 0) {
+      result.warnings.push(`duplicate parameter "${direction}" in "${segment}"`);
+    }
+    gate[direction] = value;
+    warnOnEmptyBand(gate, axisOf(direction), segment, result);
+  }
+  function warnOnEmptyBand(gate, axis, segment, result) {
+    const [upperName, lowerName] = axis;
+    const upperValue = gate[upperName];
+    const lowerValue = gate[lowerName];
+    if (!upperValue || !lowerValue || breakpointRank(upperValue) < breakpointRank(lowerValue)) return;
+    result.warnings.push(
+      `"${upperName}:${upperValue} ${lowerName}:${lowerValue}" in "${segment}" can never match \u2014 "${upperName}" must name a smaller breakpoint than "${lowerName}"`
+    );
+  }
+  var RM_POLICIES = /* @__PURE__ */ new Set(["shorten", "crossfade", "disable"]);
+  var HOISTS = {
+    /**
+     * The activation list is open: any event type `addEventListener` accepts starts an animation,
+     * and `start/end` pairs it with an exit. So this no longer checks the value against a closed set
+     * of six names — `on:input` and `on:cart:updated` are both legitimate and unguessable from here.
+     *
+     * What it still rejects is text that cannot be an event type at all, because that is where the
+     * open list would otherwise turn a typo into silence rather than a warning. The complementary
+     * check — "this document has never heard of that event" — needs an element and lives in
+     * `animator.ts`.
+     */
+    on(result, value) {
+      const problems = validateActivation(value);
+      if (problems.length > 0) {
+        result.warnings.push(...problems);
+        return;
+      }
+      assignOnce(result, "activation", value, "activations");
+    },
+    timeline(result, value) {
+      assignOnce(result, "timeline", value, "timelines");
+    },
+    /**
+     * What to do at each of a scroll trigger's four crossings —
+     * `actions:play/pause/resume/reset`, in the order enter, leave, enter-back, leave-back.
+     *
+     * Element-scoped for `on:`'s reason and then some: it *refines* `on:`, and an element has one
+     * activation to refine. Validated here against the closed verb set, exactly as `rm:` is and for
+     * the same reason — there is nothing a later stage could know about the word `pasue` that this
+     * one does not. The checks that need the element's compiled plan (is this activation even
+     * observed? can these effects be paused at all?) live in `toggle-actions.ts` and run from
+     * `animator.ts`.
+     */
+    actions(result, value) {
+      const problems = validateToggleActions(value);
+      if (problems.length > 0) {
+        result.warnings.push(...problems);
+        return;
+      }
+      assignOnce(result, "actions", value, "crossing actions");
+    },
+    threshold(result, value) {
+      assignOnce(result, "threshold", value, "thresholds");
+    },
+    /**
+     * Deliberately unvalidated here. `data-kui-stagger` has always written its step straight into
+     * `--kui-stagger`, which is what makes `var(--speed)` and `calc(90ms * 2)` work today, and the
+     * two spellings have to accept the same values or "move it into `data-kui`" would silently be a
+     * narrowing. `stagger.ts` owns the one screen both spellings get.
+     */
+    cascade(result, value) {
+      warnStepMode(result, "spread", "cascade", value);
+      assignOnce(result, "cascade", value, "stagger steps");
+    },
+    /**
+     * The total-time spelling of the same setting — GSAP's `stagger.amount` beside `cascade`'s
+     * `stagger.each`. `cascade:50ms` on a 200-item list takes ten seconds; `spread:600ms` takes six
+     * hundred milliseconds however many items there are, because `stagger.ts` divides the budget by
+     * the group's largest rank.
+     *
+     * Unvalidated here for exactly `cascade`'s reason: the value is divided inside a `calc()` and
+     * written to `--kui-stagger`, so `var(--speed)` and `calc(1s - 200ms)` have to survive.
+     */
+    spread(result, value) {
+      warnStepMode(result, "cascade", "spread", value);
+      assignOnce(result, "spread", value, "stagger budgets");
+    },
+    /**
+     * Also unvalidated here, for a different reason: the legal set depends on the *group size*
+     * (`order:7` is in range for eight children and clamped for three), which only `stagger.ts`
+     * knows. Validating the keyword half here and the index half there would split one diagnostic
+     * across two modules.
+     */
+    order(result, value) {
+      assignOnce(result, "order", value, "stagger orders");
+    },
+    /**
+     * The group's column count, which is what makes `order:center` mean the middle *cell* rather than
+     * the middle *index*. Unvalidated here for `order`'s reason: `cols:auto` is only resolvable
+     * against a laid-out group, and the count that is legal depends on the group size, so the whole
+     * diagnostic lives in `stagger.ts` where both are known.
+     */
+    cols(result, value) {
+      assignOnce(result, "cols", value, "stagger column counts");
+    },
+    /**
+     * The axis a grid stagger is restricted to.
+     *
+     * Spelled `along:` rather than GSAP's `axis:` for the same reason `order:` is not `from:`: `axis`
+     * is a parameter on four primitives (`parallax`, `slat-assemble`, and both draggables) and a
+     * hoisted key never reaches `spec.params`, so lifting the word element-wide would make
+     * `data-kui="parallax-y axis:x"` unwritable. `data-kui-stagger` accepts both spellings.
+     */
+    along(result, value) {
+      assignOnce(result, "along", value, "stagger axes");
+    },
+    /**
+     * The one hoist that is not a move.
+     *
+     * `data-kui-rm` is *output*, not input: `style-plan.ts` stamps it from `plan.reducedMotion`,
+     * which `compile.ts` folds out of the composed primitives' own declared policies, and ~40
+     * selectors in `base.css` key on it. No author has ever written it, so there was nothing to
+     * hoist — what this adds is the ability to *choose* the policy, which the library had no
+     * spelling for at all. The stamped attribute keeps its exact meaning ("the policy in force
+     * here"), so every one of those selectors is untouched.
+     *
+     * Validated against the closed set here rather than in `compile.ts`, so a typo (`rm:disabled`)
+     * is named at the point the author's text is read, next to every other grammar diagnostic.
+     */
+    rm(result, value) {
+      if (!RM_POLICIES.has(value)) {
+        result.warnings.push(
+          `unrecognised "rm:${value}" \u2014 expected ${[...RM_POLICIES].join(", ")}`
+        );
+        return;
+      }
+      assignOnce(result, "rm", value, "reduced-motion policies");
+    },
+    /**
+     * The name of a global function to call when this element's effects finish.
+     *
+     * Element-scoped for the same reason `on:` is: one element has one lifecycle, so a second,
+     * different `func:` across the comma list would be describing a completion this element only
+     * reaches once. `assignOnce` names that conflict rather than letting token order pick a winner.
+     *
+     * Unvalidated here, and there is nothing useful to validate. `window['my-fn'] = …` is legal
+     * JavaScript, so an identifier-shaped regex would reject working names; and whether the name
+     * resolves at all depends on script order at *runtime*, which this module cannot see. `callback.ts`
+     * owns the lookup, the `typeof` check, and the one diagnostic — see the security note at the top
+     * of that file before putting `func:` anywhere a CMS field can reach.
+     */
+    func(result, value) {
+      assignOnce(result, "func", value, "callbacks");
+    }
+  };
+  function warnStepMode(result, other, key, value) {
+    const written = result[other];
+    if (written === void 0) return;
+    result.warnings.push(
+      `"${other}:${written}" and "${key}:${value}" are two ways to set one stagger step \u2014 the total budget ("spread:") wins`
+    );
+  }
+  function assignOnce(result, key, value, label) {
+    const current = result[key];
+    if (current === void 0) {
+      result[key] = value;
+      return;
+    }
+    if (current !== value) {
+      result.warnings.push(`conflicting ${label} "${String(current)}" and "${String(value)}"`);
+    }
   }
 
   // src/core/registry.ts
@@ -360,6 +1717,13 @@ var kuinetic = (() => {
         throw new Error(
           `kuinetic: effect "${preset.name}" references unknown primitive "${preset.primitive}"`
         );
+      }
+      for (const segment of preset.transitions ?? []) {
+        if (segment.property === "all" || segment.property === "none") {
+          throw new Error(
+            `kuinetic: effect "${preset.name}" declares a transition on "${segment.property}", which would swallow every other preset's segment in the merged transition list \u2014 name the real property instead`
+          );
+        }
       }
       this.presets.set(preset.name, preset);
       return this;
@@ -444,240 +1808,996 @@ var kuinetic = (() => {
     return prev[cols - 1];
   }
 
-  // src/core/compile.ts
-  var NATIVE_EASINGS = /* @__PURE__ */ new Set([
-    "linear",
-    "ease",
-    "ease-in",
-    "ease-out",
-    "ease-in-out",
-    "step-start",
-    "step-end"
-  ]);
-  var RM_RANK = { shorten: 0, crossfade: 1, disable: 2 };
-  function compile(parsed, registry, timeline) {
-    const warnings = [...parsed.warnings];
-    const { entries, unknown } = resolveEntries(parsed.specs, registry, warnings);
-    if (entries.length === 0) {
-      return emptyPlan(unknown, warnings);
+  // src/core/bundles.ts
+  var HOIST_KEYS = ["activation", "timeline", "threshold", "rm", "func"];
+  var HOIST_LABELS = {
+    activation: "on",
+    timeline: "timeline",
+    threshold: "threshold",
+    rm: "rm",
+    func: "func"
+  };
+  var BundleTable = class {
+    /**
+     * @param registry - Consulted for name collisions only; a bundle never enters it.
+     */
+    constructor(registry) {
+      this.registry = registry;
     }
-    const composed = resolveComposition(entries, registry, warnings);
-    return buildPlan(composed, timeline, unknown, warnings);
-  }
-  function emptyPlan(unknown, warnings) {
-    return {
-      fxNames: [],
-      vars: {},
-      declarations: {},
-      jsEffects: [],
-      unknown,
-      reducedMotion: "shorten",
-      supportedActivations: [],
-      supportedTimelines: [],
-      channels: [],
-      warnings
-    };
-  }
-  function resolveEntries(specs, registry, warnings) {
-    const entries = [];
-    const unknown = [];
-    for (const spec of specs) {
-      const resolved = registry.resolve(spec.name);
-      if (resolved) {
-        entries.push({ spec, resolved });
-        continue;
+    bundles = /* @__PURE__ */ new Map();
+    /**
+     * Register every definition in a subtree, including the subtree root itself.
+     *
+     * @returns How many *new* names were registered, so the caller can decide whether anything it
+     *   already compiled deserves a second chance.
+     * @complexity O(n) time in the subtree's element count; O(d) space in definition count.
+     * @overallScore 100
+     */
+    collect(root, reporter) {
+      let added = 0;
+      for (const el of definitionsIn(root)) {
+        if (this.define(el, reporter)) added++;
       }
-      unknown.push(spec.name);
-      const hint = suggest(spec.name, registry.names());
-      const suffix = hint ? ` \u2014 did you mean "${hint}"?` : "";
-      warnings.push(`unknown effect "${spec.name}"${suffix}`);
+      return added;
     }
-    return { entries, unknown };
-  }
-  function resolveComposition(entries, registry, warnings) {
-    if (entries.length <= 1) return entries;
-    const conflicts = findConflicts(
-      entries.map((e) => ({ name: e.spec.name, channels: e.resolved.primitive.channels }))
-    );
-    if (conflicts.length === 0) return entries;
-    const combo = registry.findCombo(entries.map((e) => e.spec.name));
-    const remedy = combo ? `Use the "${combo.preset.name}" effect instead.` : "Apply them to nested elements, or register a combined effect.";
-    warnings.push(`cannot compose: ${describeConflicts(conflicts)}. ${remedy}`);
-    return [entries[0]];
-  }
-  function buildPlan(entries, timeline, unknown, warnings) {
-    const plan = emptyPlan(unknown, warnings);
-    const tracks = {
-      names: [],
-      durations: [],
-      delays: [],
-      easings: [],
-      iterationCounts: []
-    };
-    const channels = /* @__PURE__ */ new Set();
-    let activations;
-    let timelines;
-    for (const entry of entries) {
-      const { preset, primitive } = entry.resolved;
-      plan.fxNames.push(preset.name);
-      plan.reducedMotion = strictestPolicy(plan.reducedMotion, primitive.reducedMotion);
-      plan.defaultActivation ??= primitive.defaultActivation;
-      activations = intersect(activations, primitive.supportedActivations);
-      timelines = intersect(timelines, primitive.supportedTimelines);
-      for (const channel of primitive.channels) channels.add(channel);
-      warnUnsupportedTimeline(preset.name, primitive.supportedTimelines, timeline, warnings);
-      Object.assign(
-        plan.vars,
-        resolveParams(entry.spec.params, primitive.parameters, (m) => warnings.push(m))
+    /**
+     * Rewrite bundle references into the segments they stand for.
+     *
+     * @returns A new `ParsedValue`; the argument is returned untouched when nothing is defined.
+     * @complexity O(s) time in the total segment count across the bundles reached; O(s) space.
+     * @overallScore 100
+     */
+    expand(parsed) {
+      if (this.bundles.size === 0) return parsed;
+      const sink = { warnings: [...parsed.warnings], hoists: {} };
+      const specs = this.expandList(parsed.specs, [], sink);
+      const result = { ...parsed, specs, warnings: sink.warnings };
+      for (const key of HOIST_KEYS) absorbHoist(result, sink.hoists, key);
+      return result;
+    }
+    /**
+     * Register one definition element.
+     *
+     * @returns Whether this call added a name the table did not have.
+     * @complexity O(n) time in the body's length; O(e) space in its segment count.
+     * @overallScore 100
+     */
+    define(el, reporter) {
+      const name = el.getAttribute(ATTR.define).trim();
+      const source = el.getAttribute(ATTR.source) ?? "";
+      const problem = this.nameProblem(name);
+      if (problem) {
+        reporter.warn(problem, el);
+        return false;
+      }
+      const existing = this.bundles.get(name);
+      if (existing) {
+        if (existing.source !== source) {
+          reporter.warn(`bundle "${name}" is already defined \u2014 the first definition wins`, el);
+        }
+        return false;
+      }
+      if (el.localName !== "template") {
+        reporter.warn(
+          `bundle "${name}" is defined on <${el.localName}> \u2014 a definition is data, so it is never animated; use <template>`,
+          el
+        );
+      }
+      this.bundles.set(name, readBundle(name, source, el, reporter));
+      return true;
+    }
+    /**
+     * Refuse a name that cannot work, with the reason.
+     *
+     * @returns The diagnostic, or `undefined` when the name is usable.
+     * @complexity O(n) time in the name's length; O(1) space.
+     * @overallScore 100
+     */
+    nameProblem(name) {
+      if (!name) return `${ATTR.define} needs a name \u2014 an empty one defines nothing`;
+      if (/[\s,:()"']/.test(name)) {
+        return `bundle name "${name}" cannot contain whitespace, a comma, a colon, parentheses or quotes \u2014 those are grammar, so a name carrying them could never be written in ${ATTR.source}`;
+      }
+      if (this.registry.has(name)) {
+        return `bundle "${name}" is already the name of a registered effect \u2014 the effect wins and this definition is ignored`;
+      }
+      return void 0;
+    }
+    /**
+     * Expand one comma list, recursing through bundles that name other bundles.
+     *
+     * @param trail - Bundle names currently being expanded, innermost last. Both the cycle guard and
+     *   its diagnostic read it, so it is a list rather than a set.
+     * @complexity O(s) time in the total segment count across the bundles reached; O(s) space.
+     * @overallScore 100
+     */
+    expandList(specs, trail, sink) {
+      const out = [];
+      for (const spec of specs) {
+        const bundle = this.bundles.get(spec.name);
+        if (!bundle) {
+          out.push(spec);
+          this.noteNearMiss(spec.name, sink.warnings);
+          continue;
+        }
+        if (trail.includes(spec.name)) {
+          sink.warnings.push(cycleWarning(trail, spec.name));
+          continue;
+        }
+        takeHoists(bundle, spec.name, sink);
+        const inner = this.expandList(bundle.specs, [...trail, spec.name], sink);
+        warnOnFlattenedOffsets(spec, inner, sink.warnings);
+        for (const member of inner) out.push(overlay(member, spec));
+      }
+      return out;
+    }
+    /**
+     * Name an unregistered effect that is one typo away from a bundle.
+     *
+     * `compile.ts` already reports every unknown name, with a suggestion drawn from the catalog — a
+     * misspelled *bundle* is invisible in that list, so this adds the one fact that message cannot
+     * carry. Only for names the registry does not know, or a real effect one edit away from a badly
+     * chosen bundle name would be reported as a mistake.
+     *
+     * @complexity O(b·n) time in bundle count and name length; O(n) space.
+     * @overallScore 100
+     */
+    noteNearMiss(name, warnings) {
+      if (this.registry.has(name)) return;
+      const hit = suggest(name, [...this.bundles.keys()]);
+      if (hit) {
+        warnings.push(`"${name}" is not a registered effect \u2014 did you mean the bundle "${hit}"?`);
+      }
+    }
+  };
+  function readBundle(name, source, el, reporter) {
+    const parsed = parse(source);
+    for (const warning of parsed.warnings) reporter.warn(`in bundle "${name}": ${warning}`, el);
+    if (parsed.specs.length === 0) {
+      reporter.warn(`bundle "${name}" names no effect \u2014 elements that use it animate nothing`, el);
+    }
+    const group = ["cascade", "spread", "order", "cols", "along"].filter((key) => parsed[key] !== void 0).map((key) => `"${key}:"`).join(" and ");
+    if (group) {
+      reporter.warn(
+        `bundle "${name}" declares ${group} \u2014 a stagger group is read from the group element's own attribute, which never sees a bundle, so it is dropped; write it on the group element itself`,
+        el
       );
-      if (primitive.renderer === "css-keyframes") pushTrack(tracks, entry, timeline);
-      else plan.jsEffects.push(entry);
     }
-    Object.assign(plan.declarations, declarationsFor(tracks));
-    plan.supportedActivations = activations;
-    plan.supportedTimelines = timelines;
-    plan.channels = [...channels];
-    return plan;
+    return { source, specs: parsed.specs, hoists: parsed };
   }
-  function intersect(accumulated, supported) {
-    if (!accumulated) return [...supported];
-    return accumulated.filter((value) => supported.includes(value));
+  function takeHoists(bundle, name, sink) {
+    for (const key of HOIST_KEYS) {
+      if (absorbHoist(sink.hoists, bundle.hoists, key) !== "clash") continue;
+      const label = HOIST_LABELS[key];
+      const kept = String(sink.hoists[key]);
+      sink.warnings.push(
+        `bundle "${name}" sets "${label}:${String(bundle.hoists[key])}", which conflicts with "${label}:${kept}" from an earlier bundle \u2014 the first wins`
+      );
+    }
   }
-  function iterationCountProperty(presetName) {
-    return `--kui-fx-${presetName}-iterations`;
+  function cycleWarning(trail, name) {
+    const path2 = [...trail, name].join(" \u2192 ");
+    return `bundle "${name}" is defined in terms of itself (${path2}) \u2014 the reference is dropped`;
   }
-  function pushTrack(tracks, entry, timeline) {
-    const { spec, resolved } = entry;
-    const id = resolved.primitive.id;
-    tracks.names.push(resolved.preset.keyframes ?? `kui-${resolved.preset.name}`);
-    const duration = spec.duration ?? `var(${timingProperty(id, "duration")}, 600ms)`;
-    tracks.durations.push(duration);
-    tracks.delays.push(staggerDelay(spec.delay, id, timeline, duration));
-    tracks.easings.push(easingValue(spec.easing, id));
-    tracks.iterationCounts.push(`var(${iterationCountProperty(resolved.preset.name)}, 1)`);
+  function definitionsIn(root) {
+    const selector = `[${ATTR.define}]`;
+    const found = [...root.querySelectorAll(selector)];
+    const self = root.nodeType === 1 ? root : null;
+    if (self?.matches(selector)) found.unshift(self);
+    return found;
   }
-  function declarationsFor(tracks) {
-    if (tracks.names.length === 0) return {};
+  function absorbHoist(into, from, key) {
+    const value = from[key];
+    if (value === void 0) return "kept";
+    const current = into[key];
+    if (current === void 0) {
+      into[key] = value;
+      return "taken";
+    }
+    return current === value ? "kept" : "clash";
+  }
+  function overlay(member, ref) {
     return {
-      "animation-name": tracks.names.join(", "),
-      "animation-duration": tracks.durations.join(", "),
-      "animation-delay": tracks.delays.join(", "),
-      "animation-timing-function": tracks.easings.join(", "),
-      "animation-iteration-count": tracks.iterationCounts.join(", "),
-      "animation-fill-mode": tracks.names.map(() => "both").join(", ")
+      ...member,
+      duration: ref.duration ?? member.duration,
+      delay: ref.delay ?? member.delay,
+      easing: ref.easing ?? member.easing,
+      at: ref.at ?? member.at,
+      gate: ref.gate ?? member.gate,
+      repeat: ref.repeat ?? member.repeat,
+      yoyo: ref.yoyo ?? member.yoyo,
+      params: { ...member.params, ...ref.params },
+      hoists: overlayHoists(member.hoists, ref.hoists)
     };
   }
-  function strictestPolicy(a, b) {
-    return RM_RANK[b] > RM_RANK[a] ? b : a;
+  function overlayHoists(member, ref) {
+    if (!member && !ref) return void 0;
+    const merged = { ...member };
+    for (const key of SEGMENT_HOIST_KEYS) {
+      const value = ref?.[key];
+      if (value !== void 0) merged[key] = value;
+    }
+    return merged;
   }
-  function warnUnsupportedTimeline(name, supported, timeline, warnings) {
-    if (supported.includes(timeline)) return;
+  function warnOnFlattenedOffsets(ref, inner, warnings) {
+    if (ref.at === void 0 || !inner.some((member) => member.at !== void 0)) return;
     warnings.push(
-      `"${name}" does not support timeline "${timeline}" (supports: ${supported.join(", ")})`
+      `"at:${ref.at}" on "${ref.name}" overrides the offsets the bundle sets on its own segments \u2014 they now all start at the same position`
     );
-  }
-  function staggerDelay(delay, primitiveId, timeline, duration) {
-    const base = delay ?? `var(${timingProperty(primitiveId, "delay")}, 0ms)`;
-    const staggered = `${base} + var(--kui-i, 0) * var(--kui-stagger, 0ms)`;
-    if (timeline !== "pin") return `calc(${staggered})`;
-    const span = `${duration} + (var(--kui-stagger-count, 1) - 1) * var(--kui-stagger, 0ms)`;
-    return `calc(${staggered} - var(--kui-progress, 0) * (${span}))`;
-  }
-  function easingValue(easing, primitiveId) {
-    if (!easing) return `var(${timingProperty(primitiveId, "ease")}, ease-out)`;
-    if (NATIVE_EASINGS.has(easing)) return easing;
-    if (easing.includes("(")) return easing;
-    return `var(--kui-ease-${easing}, ease-out)`;
   }
 
-  // src/core/dom-watcher.ts
-  var WORK_BUDGET = 100;
-  function createDomWatcher(options) {
-    const { root, onElementAdded, onElementRemoved, onAttributeChanged } = options;
-    const schedule = options.schedule ?? scheduleFrame;
-    const createObserver = options.createObserver ?? defaultObserverFactory2();
-    const added = /* @__PURE__ */ new Set();
-    const removed = /* @__PURE__ */ new Set();
-    const changed = /* @__PURE__ */ new Set();
-    let observer;
-    let scheduled = false;
-    let destroyed = false;
-    function collect(record) {
-      if (record.type === "attributes") {
-        const target = asElement(record.target);
-        if (target) changed.add(target);
-        return;
+  // src/core/play.ts
+  function resolveTargets(target, root) {
+    if (typeof target === "string") return [...root.querySelectorAll(target)];
+    if (target instanceof Element) return [target];
+    return [...target];
+  }
+  function time(value) {
+    if (value === void 0) return void 0;
+    return typeof value === "number" ? `${value}ms` : value;
+  }
+  var STRUCTURAL_RE = /[\s,()"']/;
+  function quoteIfNeeded(value) {
+    if (!STRUCTURAL_RE.test(value)) return value;
+    const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  }
+  function hasTopLevelColon(value) {
+    let depth = 0;
+    for (const char of value) {
+      if (char === "(") depth++;
+      else if (char === ")") depth = Math.max(0, depth - 1);
+      else if (char === ":" && depth === 0) return true;
+    }
+    return false;
+  }
+  function assertBareToken(label, value) {
+    const warnings = [];
+    const bySpace = splitTopLevel(value, " ", warnings);
+    const byComma = splitTopLevel(value, ",", warnings);
+    const isSingleToken = bySpace.length === 1 && bySpace[0] === value;
+    const safe = warnings.length === 0 && isSingleToken && byComma.length === 1 && !hasTopLevelColon(value);
+    if (!safe) {
+      throw new Error(
+        `play(): ${label} "${value}" cannot be serialized \u2014 it contains a space, comma, colon, quote, or unbalanced parenthesis the parser cannot read back as one token`
+      );
+    }
+  }
+  function toAttributeValue(effect, options = {}) {
+    assertBareToken("effect", effect);
+    const { duration, delay, ease, ...rest } = options;
+    delete rest.stagger;
+    const parts = [effect];
+    const resolvedDelay = time(delay);
+    const resolvedDuration = time(duration);
+    if (resolvedDuration) {
+      assertBareToken("duration", resolvedDuration);
+      parts.push(resolvedDuration);
+    }
+    if (resolvedDelay) {
+      assertBareToken("delay", resolvedDelay);
+      parts.push(resolvedDuration ? resolvedDelay : `delay:${resolvedDelay}`);
+    }
+    if (ease) {
+      assertBareToken("easing", ease);
+      parts.push(ease);
+    }
+    for (const [key, value] of Object.entries(rest)) {
+      if (value === void 0) continue;
+      assertBareToken("parameter name", key);
+      parts.push(`${key}:${quoteIfNeeded(String(value))}`);
+    }
+    return parts.join(" ");
+  }
+  function play(request, options = {}) {
+    const { animator, root, target, effect } = request;
+    const elements = resolveTargets(target, root);
+    const stagger = time(options.stagger);
+    const source = toAttributeValue(effect, options);
+    for (const [index, el] of elements.entries()) {
+      if (stagger) {
+        ;
+        el.style.setProperty("--kui-stagger", stagger);
+        el.style.setProperty("--kui-i", String(index));
       }
-      for (const node of record.addedNodes) queueRoot(added, asElement(node));
-      for (const node of record.removedNodes) queueRoot(removed, asElement(node));
+      animator.reset(el);
+      if (!el.hasAttribute(ATTR.on)) el.setAttribute(ATTR.on, "manual");
+      el.setAttribute(ATTR.source, source);
+      animator.process(el);
+      animator.activate(el);
     }
-    function queueWork(records) {
-      for (const record of records) collect(record);
-      if (scheduled) return;
-      scheduled = true;
-      schedule(flush);
-    }
-    function flush() {
-      scheduled = false;
-      if (destroyed) return;
-      let remaining = WORK_BUDGET;
-      remaining = drain(removed, onElementRemoved, remaining);
-      remaining = drain(added, onElementAdded, remaining);
-      drain(changed, onAttributeChanged, remaining);
-      if (added.size + removed.size + changed.size > 0) {
-        scheduled = true;
-        schedule(flush);
-      }
-    }
+    const instancesOf = (el) => [el, ...animator.derivedOf(el)].flatMap((each) => animator.stateOf(each)?.instances ?? []);
+    const finished = Promise.all(
+      elements.flatMap((el) => instancesOf(el).map((instance) => instance.finished))
+    ).then(() => void 0);
     return {
-      watch() {
-        if (!createObserver) return;
-        destroyed = false;
-        observer = createObserver(queueWork);
-        observer.observe(root, {
-          subtree: true,
-          childList: true,
-          attributes: true,
-          attributeFilter: [ATTR.source, ATTR.on, ATTR.timeline, ATTR.threshold]
-        });
+      elements,
+      finished,
+      cancel() {
+        for (const el of elements) animator.cancel(el);
       },
-      destroy() {
-        destroyed = true;
-        observer?.disconnect();
-        added.clear();
-        removed.clear();
-        changed.clear();
+      finish() {
+        for (const el of elements) for (const instance of instancesOf(el)) instance.finish();
       }
     };
   }
-  function queueRoot(roots, candidate) {
-    if (!candidate) return;
-    for (const root of roots) {
-      if (root.contains(candidate)) return;
-      if (candidate.contains(root)) roots.delete(root);
+
+  // src/core/control.ts
+  var MEASURABLE_SPAN_MS = 0;
+  function clamp01(value) {
+    return Math.min(1, Math.max(0, value));
+  }
+  function finiteMs(value) {
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  }
+  function endTimeOf(animation) {
+    return finiteMs(animation.effect?.getComputedTiming?.().endTime);
+  }
+  function spanOf(animations) {
+    let span = MEASURABLE_SPAN_MS;
+    for (const animation of animations) span = Math.max(span, endTimeOf(animation));
+    return span;
+  }
+  function mergePlayStates(states) {
+    if (states.length === 0) return "idle";
+    if (states.includes("running")) return "running";
+    if (states.includes("paused")) return "paused";
+    return states.every((state) => state === "finished") ? "finished" : "idle";
+  }
+  function quietly(operation) {
+    try {
+      operation();
+    } catch {
     }
-    roots.add(candidate);
   }
-  function drain(roots, callback, budget) {
-    for (const root of roots) {
-      if (budget === 0) break;
-      roots.delete(root);
-      callback(root);
-      budget--;
+  function createCssControl(animations, ledger) {
+    return {
+      pause() {
+        ledger.set("animation-play-state", "paused");
+      },
+      resume() {
+        ledger.set("animation-play-state", "running");
+      },
+      /**
+       * Flip this instance's playback rate and keep running — "turn around", whichever way it was
+       * going.
+       *
+       * No longer the route `ControlHandle.reverse()` takes, and deliberately so: that call is about
+       * the *element's* direction of travel, which only the animator owns, and it needs the absolute
+       * "play out to the from-state" of `EffectInstance.reverse` rather than this relative flip.
+       * Retained because `InstanceControl` is a published interface and this is the honest meaning of
+       * `reverse` at the level of one playhead — a caller holding a single instance's control has no
+       * element-wide direction to speak of.
+       */
+      reverse() {
+        for (const animation of animations()) quietly(() => animation.reverse());
+        ledger.set("animation-play-state", "running");
+      },
+      seek(progress) {
+        const list = animations();
+        const span = spanOf(list);
+        if (span === MEASURABLE_SPAN_MS) return;
+        const at = clamp01(progress) * span;
+        for (const animation of list) {
+          quietly(() => {
+            animation.currentTime = Math.min(at, endTimeOf(animation));
+          });
+        }
+      },
+      rate(playbackRate) {
+        for (const animation of animations()) animation.playbackRate = playbackRate;
+      },
+      get progress() {
+        const list = animations();
+        const span = spanOf(list);
+        if (span === MEASURABLE_SPAN_MS) return 0;
+        let at = 0;
+        for (const animation of list) at = Math.max(at, finiteMs(animation.currentTime));
+        return clamp01(at / span);
+      },
+      get playState() {
+        return mergePlayStates(animations().map((animation) => animation.playState));
+      }
+    };
+  }
+  function bindElement(animator, el) {
+    const state = animator.stateOf(el);
+    if (!state) {
+      return {
+        el,
+        controls: [],
+        unreachable: [],
+        refused: true,
+        note: "no kUInetic effect is installed on this element \u2014 it has no playhead to control"
+      };
     }
-    return budget;
+    if (state.progressDriven) {
+      return {
+        el,
+        controls: [],
+        unreachable: [...state.fxNames],
+        refused: true,
+        note: `"${state.fxNames.join(" ")}" is driven by scroll position rather than a clock, so its playhead belongs to the scroller \u2014 pausing or seeking it would be overwritten on the next frame`
+      };
+    }
+    const controls = state.instances.map((instance) => instance.control).filter((control2) => control2 !== void 0);
+    const unreachable = [...state.jsEffectNames];
+    if (unreachable.length === 0) return { el, controls, unreachable };
+    return {
+      el,
+      controls,
+      unreachable,
+      note: `"${unreachable.join(" ")}" ${unreachable.length === 1 ? "is" : "are"} rendered in JavaScript and expose${unreachable.length === 1 ? "s" : ""} no playhead, so pause, seek and timeScale do not reach ${unreachable.length === 1 ? "it" : "them"}`
+    };
   }
-  function asElement(node) {
-    return node.nodeType === 1 ? node : null;
+  function withDerived(animator, elements) {
+    const seen = /* @__PURE__ */ new Set();
+    const out = [];
+    for (const el of elements) {
+      for (const each of [el, ...animator.derivedOf(el)]) {
+        if (seen.has(each)) continue;
+        seen.add(each);
+        out.push(each);
+      }
+    }
+    return out;
   }
-  function scheduleFrame(callback) {
-    const requestFrame = globalThis.requestAnimationFrame;
-    if (typeof requestFrame === "function") requestFrame(() => callback());
-    else queueMicrotask(callback);
+  function control(request) {
+    const { animator, root, target } = request;
+    const elements = resolveTargets(target, root);
+    const reach = withDerived(animator, elements);
+    const bounds = reach.map((el) => bindElement(animator, el));
+    for (const [index, bound] of bounds.entries()) {
+      if (bound.note) animator.reporter.warn(`control(): ${bound.note}`, reach[index]);
+    }
+    const each = (operation) => {
+      for (const bound of bounds) for (const instance of bound.controls) operation(instance);
+      return handle;
+    };
+    const reject2 = (call, value) => {
+      animator.reporter.warn(`control(): ${call} ignored \u2014 ${String(value)} is not a finite number`);
+      return handle;
+    };
+    const reverseAll = () => {
+      for (const bound of bounds) if (!bound.refused) animator.reverseFrom(bound.el);
+      return handle;
+    };
+    const handle = {
+      elements,
+      get uncontrolled() {
+        return bounds.flatMap((bound) => bound.unreachable);
+      },
+      pause: () => each((instance) => instance.pause()),
+      play: () => each((instance) => instance.resume()),
+      reverse: () => reverseAll(),
+      seek: (progress) => Number.isFinite(progress) ? each((instance) => instance.seek(progress)) : reject2("seek()", progress),
+      timeScale: (rate) => Number.isFinite(rate) ? each((instance) => instance.rate(rate)) : reject2("timeScale()", rate),
+      get progress() {
+        let lowest = 1;
+        let found = false;
+        for (const bound of bounds) {
+          for (const instance of bound.controls) {
+            lowest = Math.min(lowest, instance.progress);
+            found = true;
+          }
+        }
+        return found ? lowest : 0;
+      },
+      get state() {
+        return mergePlayStates(
+          bounds.flatMap((bound) => bound.controls.map((instance) => instance.playState))
+        );
+      }
+    };
+    return handle;
   }
-  function defaultObserverFactory2() {
-    if (typeof MutationObserver === "undefined") return void 0;
-    return (callback) => new MutationObserver(callback);
+  var KUI_EVENT = {
+    /** The element's effects have started. Fires once per activation. */
+    start: "kui:start",
+    /** Every finite effect on the element has completed. */
+    finish: "kui:finish",
+    /**
+     * The element has finished playing *backwards* and is sitting at its from-state again.
+     *
+     * A separate name rather than a second `kui:finish` with a different `reason`, because the
+     * commonest thing an author does with `kui:finish` is chain the next reveal off it, and a
+     * listener that has to remember to re-check `event.detail.reason` before doing so is a trap
+     * rather than an API — the one time they forget, a hover-out plays the next section in. Filtering
+     * by *name* is what `addEventListener` is for, and it is what a delegated document-level listener
+     * can do without reading the detail at all.
+     *
+     * The exit half of a paired activation (`data-kui-on="pointerenter/pointerleave"`) settles here,
+     * and so does a programmatic `control(el).reverse()`. Before this existed, a completed reverse
+     * dispatched nothing whatsoever, which left "the element is back where it started" the one
+     * lifecycle moment an author could only discover by polling `data-kui-state`.
+     */
+    reverseFinish: "kui:reverse-finish",
+    /** The element's effects were torn down or cancelled before completing. */
+    cancel: "kui:cancel"
+  };
+  function emitLifecycle(el, type, detail) {
+    const Ctor = el.ownerDocument?.defaultView?.CustomEvent ?? globalThis.CustomEvent;
+    if (typeof Ctor !== "function") return;
+    el.dispatchEvent(new Ctor(type, { detail, bubbles: true, composed: true }));
+  }
+
+  // src/core/callback.ts
+  function bindCallback(request) {
+    const { el, name, reporter, signal } = request;
+    const handler = (event) => {
+      if (event.target !== el) return;
+      const fn = resolveGlobalFunction(el, name);
+      if (!fn) {
+        reporter.warn(
+          `func:${name} \u2014 no global function named "${name}". A function declaration (\`function ${name}() {}\`) or an explicit \`window.${name} = \u2026\` creates one; \`const\` and \`let\` deliberately do not, and neither does a bundled or \`type="module"\` script.`,
+          el
+        );
+        return;
+      }
+      Reflect.apply(fn, el, [event]);
+    };
+    el.addEventListener(KUI_EVENT.finish, handler);
+    signal.addEventListener("abort", () => el.removeEventListener(KUI_EVENT.finish, handler));
+  }
+  function resolveGlobalFunction(el, name) {
+    const scope = el.ownerDocument?.defaultView ?? globalThis;
+    if (!Object.hasOwn(scope, name)) return void 0;
+    const candidate = scope[name];
+    return typeof candidate === "function" ? candidate : void 0;
+  }
+
+  // src/core/capabilities.ts
+  function supports(property2, value) {
+    if (typeof CSS === "undefined" || typeof CSS.supports !== "function") return false;
+    try {
+      return CSS.supports(property2, value);
+    } catch {
+      return false;
+    }
+  }
+  var cached;
+  function detect(force = false) {
+    if (cached && !force) return cached;
+    cached = {
+      viewTimeline: supports("animation-timeline", "view()"),
+      scrollTimeline: supports("animation-timeline", "scroll()"),
+      animationRange: supports("animation-range", "entry 0% cover 30%"),
+      // `translate`/`rotate`/`scale` as independent properties is what makes the channel model
+      // possible at all — under the `transform` shorthand every effect would collide.
+      individualTransforms: supports("translate", "0 10px") && supports("scale", "1.1"),
+      scrollTimelineName: supports("scroll-timeline-name", "--x"),
+      viewTransitions: typeof document !== "undefined" && "startViewTransition" in document,
+      intersectionObserver: typeof IntersectionObserver !== "undefined",
+      reducedMotion: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches,
+      motionPath: supports("offset-path", 'path("M 0 0")')
+    };
+    return cached;
+  }
+  var CHANNEL_REQUIREMENTS = [
+    {
+      channel: "offset",
+      capability: "motionPath",
+      message: "this browser does not support CSS Motion Path (offset-path), so the element will not travel \u2014 the animation still runs and completes, it just has no path to follow"
+    }
+  ];
+  function unsupportedChannelWarnings(channels, capabilities) {
+    return CHANNEL_REQUIREMENTS.filter(
+      (entry) => channels.includes(entry.channel) && !capabilities[entry.capability]
+    ).map((entry) => entry.message);
+  }
+
+  // src/core/channels.ts
+  var INDEPENDENT_PHASES = /* @__PURE__ */ new Set(["entrance|state", "exit|state"]);
+  function phasePair(a, b) {
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  }
+  function independentPhases(a, b) {
+    if (!a.phase || !b.phase) return false;
+    return INDEPENDENT_PHASES.has(phasePair(a.phase, b.phase));
+  }
+  var CHANNEL_COMPOSITION = {
+    translate: "add"
+  };
+  function additiveChannels(channels) {
+    return channels.length > 0 && channels.every((channel) => CHANNEL_COMPOSITION[channel] === "add");
+  }
+  function additiveResolution(claims, conflicts) {
+    if (conflicts.some((conflict) => conflict.effects[0] === conflict.effects[1])) return void 0;
+    const contested = new Set(conflicts.map((conflict) => conflict.channel));
+    const involved = /* @__PURE__ */ new Set();
+    claims.forEach((claim2, index) => {
+      if (claim2.channels.some((channel) => contested.has(channel))) involved.add(index);
+    });
+    for (const index of involved) if (!claims[index].additive) return void 0;
+    return involved;
+  }
+  function findConflicts(claims) {
+    const conflicts = [];
+    const seen = /* @__PURE__ */ new Map();
+    for (const claim2 of claims) {
+      for (const channel of claim2.channels) {
+        const claimants = seen.get(channel) ?? [];
+        const clash = claimants.find(
+          // Same effect name twice in one list claims the channel against itself; still a conflict,
+          // and a more likely author typo than a deliberate choice. Phase cannot exempt that pair
+          // either, because a phase is only ever independent of a *different* one.
+          (other) => gatesOverlap(other.gate, claim2.gate) && !independentPhases(other, claim2)
+        );
+        if (clash) conflicts.push({ channel, effects: [clash.name, claim2.name] });
+        claimants.push(claim2);
+        seen.set(channel, claimants);
+      }
+    }
+    return conflicts;
+  }
+  function deliveryClobbers(claims) {
+    const stylesheet = claims.filter((claim2) => claim2.delivery === "stylesheet-animation");
+    if (stylesheet.length === 0) return [];
+    const inline = claims.find((claim2) => claim2.inlineAnimation && !claim2.delivery);
+    if (!inline) return [];
+    return stylesheet.map(
+      (claim2) => `"${inline.name}" writes an inline animation, which outranks the stylesheet rule "${claim2.name}" delivers its motion from`
+    );
+  }
+  function describeConflicts(conflicts) {
+    return conflicts.map((c) => `"${c.effects[0]}" and "${c.effects[1]}" both animate ${c.channel}`).join("; ");
+  }
+
+  // src/core/params.ts
+  var DANGEROUS = /[;<]|\/\*|url\s*\(|expression\s*\(|@import|image-set\s*\(/i;
+  var ABSOLUTE_OR_PROTOCOL_RELATIVE = /^(?:[a-z][a-z0-9+.-]*:|[/\\]{2})/i;
+  var MAX_VALUE_LENGTH = 200;
+  var MAX_PATH_LENGTH = 2e3;
+  var PATH_DATA = /^[MmZzLlHhVvCcSsQqTtAa0-9eE.,+\-\s]+$/;
+  var NUM = String.raw`-?(?:\d+(?:\.\d+)?|\.\d+)`;
+  var LENGTH_UNITS = "px|rem|em|vh|vw|vmin|vmax|ch|ex|cm|mm|in|pt|pc|q|%";
+  var PATTERNS = {
+    length: new RegExp(`^(?:0|${NUM}(?:${LENGTH_UNITS}))$`, "i"),
+    time: new RegExp(`^${NUM}(?:ms|s)$`, "i"),
+    number: new RegExp(`^${NUM}$`),
+    percentage: new RegExp(`^${NUM}%$`),
+    angle: new RegExp(`^${NUM}(?:deg|rad|turn|grad)$`, "i")
+  };
+  var BARE_ANGLE = new RegExp(`^(${NUM})d?$`, "i");
+  function withAngleUnit(value) {
+    const match = BARE_ANGLE.exec(value);
+    return match ? `${match[1]}deg` : value;
+  }
+  var BARE_NUMBER = /^([+-]?)(\d+(?:\.\d+)?|\.\d+)(?:e([+-]?\d+))?$/i;
+  var HEX_COLOR = /^#[0-9a-f]{3,8}$/i;
+  var COLOR_FUNCTIONS = /^(?:rgba?|hsla?|okl(?:ch|ab)|l(?:ch|ab)|color)\([^()]*\)$/i;
+  var COLOR_KEYWORDS = /* @__PURE__ */ new Set([
+    // Lowercase throughout, matching how the only reader spells the lookup: `value.toLowerCase()`.
+    // CSS keywords are ASCII case-insensitive, so `Canvas`, `canvas` and `CANVAS` are one value.
+    "accentcolor",
+    "accentcolortext",
+    "activetext",
+    "buttonborder",
+    "buttonface",
+    "buttontext",
+    "canvas",
+    "canvastext",
+    "field",
+    "fieldtext",
+    "graytext",
+    "highlight",
+    "highlighttext",
+    "linktext",
+    "mark",
+    "marktext",
+    "selecteditem",
+    "selecteditemtext",
+    "visitedtext",
+    "transparent",
+    "currentcolor",
+    "aliceblue",
+    "antiquewhite",
+    "aqua",
+    "aquamarine",
+    "azure",
+    "beige",
+    "bisque",
+    "black",
+    "blanchedalmond",
+    "blue",
+    "blueviolet",
+    "brown",
+    "burlywood",
+    "cadetblue",
+    "chartreuse",
+    "chocolate",
+    "coral",
+    "cornflowerblue",
+    "cornsilk",
+    "crimson",
+    "cyan",
+    "darkblue",
+    "darkcyan",
+    "darkgoldenrod",
+    "darkgray",
+    "darkgreen",
+    "darkgrey",
+    "darkkhaki",
+    "darkmagenta",
+    "darkolivegreen",
+    "darkorange",
+    "darkorchid",
+    "darkred",
+    "darksalmon",
+    "darkseagreen",
+    "darkslateblue",
+    "darkslategray",
+    "darkslategrey",
+    "darkturquoise",
+    "darkviolet",
+    "deeppink",
+    "deepskyblue",
+    "dimgray",
+    "dimgrey",
+    "dodgerblue",
+    "firebrick",
+    "floralwhite",
+    "forestgreen",
+    "fuchsia",
+    "gainsboro",
+    "ghostwhite",
+    "gold",
+    "goldenrod",
+    "gray",
+    "green",
+    "greenyellow",
+    "grey",
+    "honeydew",
+    "hotpink",
+    "indianred",
+    "indigo",
+    "ivory",
+    "khaki",
+    "lavender",
+    "lavenderblush",
+    "lawngreen",
+    "lemonchiffon",
+    "lightblue",
+    "lightcoral",
+    "lightcyan",
+    "lightgoldenrodyellow",
+    "lightgray",
+    "lightgreen",
+    "lightgrey",
+    "lightpink",
+    "lightsalmon",
+    "lightseagreen",
+    "lightskyblue",
+    "lightslategray",
+    "lightslategrey",
+    "lightsteelblue",
+    "lightyellow",
+    "lime",
+    "limegreen",
+    "linen",
+    "magenta",
+    "maroon",
+    "mediumaquamarine",
+    "mediumblue",
+    "mediumorchid",
+    "mediumpurple",
+    "mediumseagreen",
+    "mediumslateblue",
+    "mediumspringgreen",
+    "mediumturquoise",
+    "mediumvioletred",
+    "midnightblue",
+    "mintcream",
+    "mistyrose",
+    "moccasin",
+    "navajowhite",
+    "navy",
+    "oldlace",
+    "olive",
+    "olivedrab",
+    "orange",
+    "orangered",
+    "orchid",
+    "palegoldenrod",
+    "palegreen",
+    "paleturquoise",
+    "palevioletred",
+    "papayawhip",
+    "peachpuff",
+    "peru",
+    "pink",
+    "plum",
+    "powderblue",
+    "purple",
+    "rebeccapurple",
+    "red",
+    "rosybrown",
+    "royalblue",
+    "saddlebrown",
+    "salmon",
+    "sandybrown",
+    "seagreen",
+    "seashell",
+    "sienna",
+    "silver",
+    "skyblue",
+    "slateblue",
+    "slategray",
+    "slategrey",
+    "snow",
+    "springgreen",
+    "steelblue",
+    "tan",
+    "teal",
+    "thistle",
+    "tomato",
+    "turquoise",
+    "violet",
+    "wheat",
+    "white",
+    "whitesmoke",
+    "yellow",
+    "yellowgreen"
+  ]);
+  var EASING_KEYWORD = /^(?:linear|ease|step-start|step-end|spring|bounce|[a-z]+-(?:in|out|in-out))$/i;
+  var EASING_FUNCTION = /^(?:cubic-bezier|steps|linear|spring)\([^()]*\)$/i;
+  var UNION_GRAMMARS = {
+    "number|percentage": ["number", "percentage"],
+    "length|percentage": ["length", "percentage"],
+    "angle|keyword": ["angle"]
+  };
+  function grammarsFor(type) {
+    return UNION_GRAMMARS[type] ?? [type];
+  }
+  var CALC_TYPES = /* @__PURE__ */ new Set(["length", "percentage", "number"]);
+  var BOUNDED_TYPES = /* @__PURE__ */ new Set(["number", "number|percentage"]);
+  var CALC_CHARACTER = /^[\d.\s+\-*/%a-z,]$/i;
+  var CUSTOM_PROPERTY_NAME = /^--[\w-]+$/;
+  function validate(raw, spec) {
+    const value = raw.trim();
+    const rejection = screen(value, spec);
+    if (rejection) return rejection;
+    const word = checkKeywordHalf(value, spec);
+    if (word) return word;
+    if (spec.type === "text") return { value, ok: true };
+    if (spec.type === "path") return checkPath(value, spec);
+    const typed = normalise(value, spec.type);
+    if (isAcceptable(typed, spec.type)) return checkNumericConstraints(typed, spec);
+    return reject(spec, `not a valid ${describeType(spec)}`);
+  }
+  function checkKeywordHalf(value, spec) {
+    if (spec.type !== "keyword" && spec.type !== "angle|keyword") return null;
+    if (spec.keywords?.includes(value)) return { value, ok: true };
+    if (spec.type !== "keyword") return null;
+    return reject(spec, `expected one of ${spec.keywords?.join(", ") || "(none declared)"}`);
+  }
+  function normalise(value, type) {
+    if (type === "angle" || type === "angle|keyword") return withAngleUnit(value);
+    if (type === "number|percentage") return withoutPercentage(value);
+    return value;
+  }
+  function withoutPercentage(value) {
+    if (!PATTERNS.percentage.test(value)) return value;
+    return decimalNumber(value.slice(0, -1), -2) ?? value;
+  }
+  function decimalNumber(raw, shift = 0) {
+    const match = BARE_NUMBER.exec(raw);
+    if (!match || raw.length > MAX_VALUE_LENGTH) return void 0;
+    const [, sign, coefficient, exponent] = match;
+    const digits = coefficient.replace(".", "");
+    const dot = coefficient.indexOf(".");
+    const position = (dot < 0 ? digits.length : dot) + Number(exponent ?? 0) + shift;
+    if (Math.abs(position) + digits.length > 190) return void 0;
+    const padded = "0".repeat(Math.max(0, -position)) + digits + "0".repeat(Math.max(0, position - digits.length));
+    const split = Math.max(0, position);
+    const integer = padded.slice(0, split).replace(/^0+/, "") || "0";
+    const fraction = fractionalPart(padded, split);
+    return `${sign === "-" ? "-" : ""}${integer}${fraction}`;
+  }
+  function fractionalPart(digits, start) {
+    let end = digits.length;
+    while (end > start && digits[end - 1] === "0") end--;
+    return end > start ? "." + digits.slice(start, end) : "";
+  }
+  function isSafeCssValue(value) {
+    return value.length <= MAX_VALUE_LENGTH && !DANGEROUS.test(value);
+  }
+  function checkPath(value, spec) {
+    if (!PATH_DATA.test(value)) return reject(spec, "path data contains an unsupported character");
+    if (!/^[Mm]/.test(value)) return reject(spec, "path data must start with a moveto (M or m)");
+    return { value: `"${value}"`, ok: true };
+  }
+  function screen(value, spec) {
+    if (!value) return reject(spec, "empty value");
+    const limit = spec.type === "path" ? MAX_PATH_LENGTH : MAX_VALUE_LENGTH;
+    if (value.length > limit) {
+      return reject(spec, `value exceeds ${limit} characters`);
+    }
+    if (DANGEROUS.test(value)) return reject(spec, "value contains disallowed CSS syntax");
+    return null;
+  }
+  function isAcceptable(value, type) {
+    if (type === "color") return isColor(value);
+    if (type === "easing") return EASING_KEYWORD.test(value) || EASING_FUNCTION.test(value);
+    const grammars = grammarsFor(type);
+    if (grammars.some((grammar) => PATTERNS[grammar]?.test(value))) return true;
+    if (!grammars.some((grammar) => CALC_TYPES.has(grammar))) return false;
+    return isSafeCalc(value) && isWellFormedCalc(value);
+  }
+  function describeType(spec) {
+    if (spec.type === "angle|keyword") {
+      return `angle or one of ${spec.keywords?.join(", ") || "(none declared)"}`;
+    }
+    return spec.type.replace("|", " or ");
+  }
+  function isColor(value) {
+    return HEX_COLOR.test(value) || COLOR_FUNCTIONS.test(value) || COLOR_KEYWORDS.has(value.toLowerCase());
+  }
+  function isSameOriginPath(value) {
+    return !ABSOLUTE_OR_PROTOCOL_RELATIVE.test(value);
+  }
+  function checkNumericConstraints(value, spec) {
+    if (!BOUNDED_TYPES.has(spec.type)) return { value, ok: true };
+    const numeric = Number(value);
+    if (spec.finite && !Number.isFinite(numeric)) return reject(spec, "expected a finite number");
+    if (spec.integer && !Number.isInteger(numeric)) return reject(spec, "expected an integer");
+    if (spec.minimum !== void 0 && numeric < spec.minimum) {
+      return reject(spec, `expected at least ${spec.minimum}`);
+    }
+    if (spec.maximum !== void 0 && numeric > spec.maximum) {
+      return reject(spec, `expected at most ${spec.maximum}`);
+    }
+    return { value, ok: true };
+  }
+  function reject(spec, reason) {
+    return { value: spec.default, ok: false, reason };
+  }
+  function isSafeCalc(value) {
+    if (!value.startsWith("calc(") || !value.endsWith(")")) return false;
+    const end = value.length - 1;
+    let index = "calc(".length;
+    while (index < end) {
+      index = nextCalcToken(value, index, end);
+      if (index < 0) return false;
+    }
+    return true;
+  }
+  function nextCalcToken(value, index, end) {
+    if (value.startsWith("var(", index)) return consumeVar(value, index, end);
+    return CALC_CHARACTER.test(value[index]) ? index + 1 : -1;
+  }
+  function consumeVar(value, start, end) {
+    const close = value.indexOf(")", start + "var(".length);
+    if (close < 0 || close >= end) return -1;
+    const name = value.slice(start + "var(".length, close);
+    return CUSTOM_PROPERTY_NAME.test(name) ? close + 1 : -1;
+  }
+  function isWellFormedCalc(value) {
+    const body = value.slice("calc(".length, -1).trim();
+    return body !== "" && !/[+\-*/]$/.test(body);
+  }
+  function resolveParams(authored, schema, warn) {
+    const out = {};
+    for (const [key, raw] of Object.entries(authored)) {
+      const spec = Object.hasOwn(schema, key) ? schema[key] : void 0;
+      if (!spec) {
+        warn(`unknown parameter "${key}" (known: ${Object.keys(schema).join(", ") || "none"})`);
+        continue;
+      }
+      if (spec.type === "text") continue;
+      const result = validate(raw, spec);
+      if (!result.ok) {
+        warn(`parameter "${key}": ${result.reason} \u2014 got "${raw}", using default "${spec.default}"`);
+        continue;
+      }
+      out[spec.cssProperty] = cssValueFor(result.value, spec, key, warn);
+    }
+    return out;
+  }
+  function cssValueFor(value, spec, key, warn) {
+    if (spec.type !== "easing") return value;
+    for (const problem of springTokenProblems(value)) warn(`parameter "${key}": ${problem}`);
+    return cssEasingValue(value);
   }
 
   // src/core/js-params.ts
@@ -793,7 +2913,2013 @@ var kuinetic = (() => {
     return createParams(readParams(authored, schema, warn), timing3);
   }
 
+  // src/core/sequence.ts
+  var DURATION_FALLBACK = "600ms";
+  var DELAY_FALLBACK = "0ms";
+  function durationExpression(duration, primitiveId) {
+    return duration ?? `var(${timingProperty(primitiveId, "duration")}, ${DURATION_FALLBACK})`;
+  }
+  function delayExpression(delay, primitiveId) {
+    return delay ?? `var(${timingProperty(primitiveId, "delay")}, ${DELAY_FALLBACK})`;
+  }
+  var AT_ANCHOR = /^(with|after)/i;
+  var AT_OFFSET = /^([+-])(\d+(?:\.\d+)?|\.\d+)(ms|s)$/i;
+  var BARE_TIME = /^(?:\d+(?:\.\d+)?|\.\d+)(?:ms|s)$/i;
+  var PROGRESS_DRIVEN2 = /* @__PURE__ */ new Set(["view", "scroll"]);
+  function parsePosition(raw) {
+    const value = raw.trim();
+    const named = AT_ANCHOR.exec(value);
+    const anchor = named?.[1]?.toLowerCase() === "with" ? "start" : "end";
+    const offset = named ? value.slice(named[0].length) : value;
+    if (offset === "") {
+      if (!named) return { ok: false, reason: refusalReason(value) };
+      return { ok: true, position: { anchor, offsetMs: 0, term: "" } };
+    }
+    const parts = AT_OFFSET.exec(offset);
+    if (!parts) return { ok: false, reason: refusalReason(value) };
+    const [, sign, amount, unit] = parts;
+    const time2 = `${amount}${unit}`;
+    const magnitude = toMilliseconds(time2, 0);
+    return {
+      ok: true,
+      position: {
+        anchor,
+        offsetMs: sign === "-" ? -magnitude : magnitude,
+        // Spaces around the operator are required by `calc()`, not decoration: `calc(600ms -200ms)`
+        // is a syntax error, and a browser drops the whole declaration rather than reporting it.
+        term: ` ${sign} ${time2}`
+      }
+    };
+  }
+  function refusalReason(value) {
+    if (BARE_TIME.test(value)) {
+      return `at:"${value}" is an absolute position, which is only another spelling of delay:${value} \u2014 write at:+${value} to start that long after the previous effect ends, at:-${value} to overlap it by that much, or at:with to start alongside it`;
+    }
+    return `at:"${value}" is not a position \u2014 expected at:with, at:after, or a signed time such as at:-200ms, at:+100ms or at:with+150ms`;
+  }
+  function resolveSequence(members, timeline, warn) {
+    const chain = { members, steps: [], warn };
+    let warnedAboutTimeline = false;
+    for (const [index, member] of members.entries()) {
+      if (member.at === void 0) {
+        chain.steps.push(unsequenced(member));
+        continue;
+      }
+      if (!warnedAboutTimeline && PROGRESS_DRIVEN2.has(timeline)) {
+        warnedAboutTimeline = true;
+        warn(timelineRefusal(timeline));
+      }
+      chain.steps.push(place(chain, index));
+    }
+    return chain.steps;
+  }
+  function unsequenced(member) {
+    return {
+      delayExpr: delayExpression(member.delay, member.primitiveId),
+      // Falls back to the same `0ms` the compiled `var()` does. An unreadable delay can only reach
+      // here from a direct caller — `compile` screens its candidates with `isReadableTime`, and a
+      // positional delay was already matched against the parser's own time pattern.
+      delayMs: timeMs(member.delay ?? member.cascadeDelay ?? DELAY_FALLBACK) ?? 0,
+      sequenced: false
+    };
+  }
+  function place(chain, index) {
+    const member = chain.members[index];
+    const own = unsequenced(member);
+    const parsed = parsePosition(member.at);
+    if (!parsed.ok) {
+      chain.warn(`"${member.name}": ${parsed.reason}`);
+      return own;
+    }
+    const refused = refusalFor(chain, index);
+    if (refused) {
+      chain.warn(refused);
+      return own;
+    }
+    if (member.delay !== void 0) {
+      chain.warn(
+        `"${member.name}" has both a positional delay (${member.delay}) and at:"${member.at}" \u2014 the delay is ignored, because at: positions the effect itself`
+      );
+    }
+    return follow(chain, index, parsed.position, own);
+  }
+  function refusalFor(chain, index) {
+    const member = chain.members[index];
+    if (index === 0) {
+      return `"${member.name}" is the first effect in the list, so at:"${member.at}" has nothing to be relative to \u2014 using its own delay instead`;
+    }
+    if (!member.positionable) {
+      return `"${member.name}" is rendered in JavaScript and declares no "delay", so at:"${member.at}" cannot position it \u2014 it starts with the rest of the list`;
+    }
+    return null;
+  }
+  function follow(chain, index, position, own) {
+    const previous = chain.members[index - 1];
+    const anchor = chain.steps[index - 1];
+    if (position.anchor === "start") {
+      return {
+        delayExpr: `${anchor.delayExpr}${position.term}`,
+        delayMs: anchor.delayMs + position.offsetMs,
+        sequenced: true
+      };
+    }
+    if (isInfiniteRepeat(previous.repeat)) return refuseEndless(chain, index, own);
+    const durationMs = timeMs(previous.duration ?? previous.cascadeDuration ?? "");
+    if (durationMs === void 0) {
+      return refuseUnmeasurable(chain, index, own);
+    }
+    const played = playbackExpression(
+      durationExpression(previous.duration, previous.primitiveId),
+      previous.repeat
+    );
+    return {
+      delayExpr: `${anchor.delayExpr} + ${played}${position.term}`,
+      delayMs: anchor.delayMs + durationMs * (repeatCount(previous.repeat) ?? 1) + position.offsetMs,
+      sequenced: true
+    };
+  }
+  function refuseUnmeasurable(chain, index, own) {
+    const member = chain.members[index];
+    const previous = chain.members[index - 1];
+    chain.warn(
+      `cannot start "${member.name}" relative to the end of "${previous.name}": "${previous.name}" has no readable duration, so it has no end to measure from \u2014 give it an explicit duration, or use at:with to start alongside it instead`
+    );
+    return own;
+  }
+  function refuseEndless(chain, index, own) {
+    const member = chain.members[index];
+    const previous = chain.members[index - 1];
+    chain.warn(
+      `cannot start "${member.name}" relative to the end of "${previous.name}": "${previous.name}" has repeat:infinite, so it never ends \u2014 use at:with to start alongside it, or give it a finite repeat count`
+    );
+    return own;
+  }
+  function timelineRefusal(timeline) {
+    return `at: compiles to an animation-delay, and a "${timeline}" timeline is driven by scroll position rather than a clock, so it ignores one \u2014 position a scroll-driven effect with a range instead (the trailing tokens of data-kui-timeline, e.g. data-kui-timeline="${timeline} entry 0% cover 60%"). The delay still applies where the browser has no scroll-driven animations and the effect degrades to a clock.`;
+  }
+  function timeMs(value) {
+    const ms = toMilliseconds(value, Number.NaN);
+    return Number.isFinite(ms) ? ms : void 0;
+  }
+  function isReadableTime(value) {
+    return timeMs(value) !== void 0;
+  }
+
+  // src/core/declarations.ts
+  function emptyTracks() {
+    return {
+      names: [],
+      keyframes: [],
+      durations: [],
+      delays: [],
+      ends: [],
+      easings: [],
+      iterationCounts: [],
+      directions: [],
+      compositions: []
+    };
+  }
+  function keyframesFor(entry) {
+    const { preset } = entry.resolved;
+    return entry.variant?.keyframes ?? [preset.keyframes ?? `kui-${preset.name}`];
+  }
+  function iterationCountProperty(presetName) {
+    return `--kui-fx-${presetName}-iterations`;
+  }
+  function pushTrack(tracks, entry, step) {
+    const { spec, resolved } = entry;
+    const id = resolved.primitive.id;
+    const duration = durationExpression(spec.duration, id);
+    const delay = staggerDelay(step.delayExpr);
+    const end = `${step.delayExpr} + ${playbackExpression(duration, spec.repeat)}`;
+    const easing = easingValue(spec.easing, id);
+    const iterations = spec.repeat ?? `var(${iterationCountProperty(resolved.preset.name)}, 1)`;
+    const direction = directionValue(spec.yoyo);
+    const composition = entry.composite ?? "replace";
+    for (const name of keyframesFor(entry)) {
+      tracks.names.push(gatedAnimationName(name, spec.gate));
+      tracks.keyframes.push(name);
+      tracks.durations.push(duration);
+      tracks.delays.push(delay);
+      tracks.ends.push(end);
+      tracks.easings.push(easing);
+      tracks.iterationCounts.push(iterations);
+      tracks.directions.push(direction);
+      tracks.compositions.push(composition);
+    }
+  }
+  function pushTransitions(segments, owners, entry, warnings) {
+    const { spec, resolved } = entry;
+    const { preset, primitive } = resolved;
+    for (const segment of preset.transitions ?? []) {
+      const previousOwner = owners.get(segment.property);
+      if (previousOwner !== void 0 && previousOwner !== preset.name) {
+        warnings.push(
+          `"${previousOwner}" and "${preset.name}" both transition ${segment.property} \u2014 "${preset.name}" wins (last in the list)`
+        );
+      }
+      owners.set(segment.property, preset.name);
+      const duration = segment.duration ?? durationExpression(spec.duration, primitive.id);
+      const easing = segment.easing ?? easingValue(spec.easing, primitive.id);
+      const delay = `var(--kui-tx-delay-${preset.name}, 0ms)`;
+      segments.push(`${segment.property} ${duration} ${easing} ${delay}`);
+    }
+  }
+  function declarationsFor(tracks, timeline) {
+    if (tracks.names.length === 0) return {};
+    const delays = timeline === "pin" ? pinnedDelays(tracks) : tracks.delays.map(wrapped);
+    const declarations = {
+      "animation-name": tracks.names.join(", "),
+      "animation-duration": tracks.durations.join(", "),
+      "animation-delay": delays.join(", "),
+      "animation-timing-function": tracks.easings.join(", "),
+      "animation-iteration-count": tracks.iterationCounts.join(", "),
+      "animation-fill-mode": tracks.names.map(() => "both").join(", ")
+    };
+    if (tracks.directions.some((value) => value !== "normal")) {
+      declarations["animation-direction"] = tracks.directions.join(", ");
+    }
+    if (tracks.compositions.some((value) => value !== "replace")) {
+      declarations["animation-composition"] = tracks.compositions.join(", ");
+    }
+    return declarations;
+  }
+  function staggerDelay(base) {
+    return `${base} + var(--kui-i, 0) * var(--kui-stagger, 0ms)`;
+  }
+  function wrapped(sum) {
+    return `calc(${sum})`;
+  }
+  function pinnedDelays(tracks) {
+    const ends = [...new Set(tracks.ends)];
+    const span = ends.length === 1 ? ends[0] : `max(${ends.join(", ")})`;
+    const head = `${span} + (var(--kui-stagger-count, 1) - 1) * var(--kui-stagger, 0ms)`;
+    return tracks.delays.map((delay) => wrapped(`${delay} - var(--kui-progress, 0) * (${head})`));
+  }
+  function easingValue(easing, primitiveId) {
+    if (!easing) return `var(${timingProperty(primitiveId, "ease")}, ease-out)`;
+    return cssEasingValue(easing);
+  }
+
+  // src/core/element-config.ts
+  var TIMELINES = /* @__PURE__ */ new Set(["time", "view", "scroll", "pointer", "pin"]);
+  function readAttributes(el) {
+    return {
+      source: el.getAttribute(ATTR.source) ?? "",
+      on: el.getAttribute(ATTR.on),
+      timeline: el.getAttribute(ATTR.timeline),
+      threshold: el.getAttribute(ATTR.threshold)
+    };
+  }
+  function resolveConfig(attributes, parsed) {
+    const rawTimeline = parsed.timeline ?? attributes.timeline ?? "time";
+    const [head = "time", ...rest] = rawTimeline.trim().split(/\s+/);
+    const longhand = parseActivationAttribute(attributes.on);
+    const authored = parsed.activation ?? longhand.activation;
+    return {
+      activation: authored ?? "enter",
+      activationAuthored: authored !== void 0,
+      ...sourceFromLonghand({ parsed, longhand }),
+      // Re-parsed rather than threaded down, and its warnings dropped: `parse.ts` has already
+      // reported every one of them against this same element through `validateToggleActions`, so
+      // forwarding them would double each diagnostic. There is no longhand attribute to merge with —
+      // `actions:` refines `on:` and has only the inline spelling.
+      ...parsed.actions === void 0 ? {} : { actions: parseToggleActions(parsed.actions) },
+      timeline: TIMELINES.has(head) ? head : "time",
+      range: rest.join(" "),
+      threshold: parsed.threshold ?? attributes.threshold ?? "0%"
+    };
+  }
+  function resolveTimelineHead(raw, fallback) {
+    if (raw === void 0) return fallback;
+    const [head] = raw.trim().split(/\s+/);
+    return TIMELINES.has(head) ? head : fallback;
+  }
+  function resolveGroupConfig(base, hoists) {
+    if (!hoists) return base;
+    const authored = hoists.activation;
+    const config = {
+      ...base,
+      activation: authored ?? base.activation,
+      activationAuthored: authored !== void 0 || base.activationAuthored
+    };
+    if (hoists.actions !== void 0) config.actions = parseToggleActions(hoists.actions);
+    if (hoists.timeline !== void 0) {
+      const [head = "time", ...rest] = hoists.timeline.trim().split(/\s+/);
+      config.timeline = TIMELINES.has(head) ? head : base.timeline;
+      config.range = rest.join(" ");
+    }
+    if (hoists.threshold !== void 0) config.threshold = hoists.threshold;
+    return config;
+  }
+  function sourceFromLonghand({
+    parsed,
+    longhand
+  }) {
+    if (parsed.activation !== void 0 || longhand.from === void 0) return {};
+    return { activationSource: longhand.from };
+  }
+
+  // src/core/host-facts.ts
+  var RM_RANK = { shorten: 0, crossfade: 1, disable: 2 };
+  function resolveDefaultActivation(claims) {
+    const declared = claims.map((claim2) => claim2.defaultActivation);
+    const firstWins = declared.find((value) => value !== void 0);
+    const entrance = claims.findIndex((claim2) => claim2.phase === "entrance");
+    if (firstWins === void 0 || entrance === -1) return firstWins;
+    return declared[entrance] ?? "enter";
+  }
+  function mergeHostFacts(targets) {
+    let reducedMotion = "shorten";
+    for (const { plan } of targets) reducedMotion = strictestPolicy(reducedMotion, plan.reducedMotion);
+    for (const { plan } of targets) plan.reducedMotion = reducedMotion;
+  }
+  function resolvedPolicy(declared, authored, warnings) {
+    if (authored === void 0) return declared;
+    if (RM_RANK[authored] < RM_RANK[declared]) {
+      warnings.push(
+        `"rm:${authored}" is weaker than the "${declared}" these effects declare \u2014 keeping "${declared}" (rm: may only strengthen the reduced-motion policy)`
+      );
+      return declared;
+    }
+    return authored;
+  }
+  function intersect(accumulated, supported) {
+    if (!accumulated) return [...supported];
+    return accumulated.filter((value) => supported.includes(value));
+  }
+  function strictestPolicy(a, b) {
+    return RM_RANK[b] > RM_RANK[a] ? b : a;
+  }
+
+  // src/core/unquoted-selectors.ts
+  var SELECTOR_START = /^[.#[*:]/;
+  var SELECTOR_COMBINATOR = /[>~+]/;
+  function looksLikeSelectorFragment(name) {
+    return SELECTOR_START.test(name) || SELECTOR_COMBINATOR.test(name);
+  }
+  function findUnquotedSelectors(specs, registry) {
+    const found = [];
+    for (const [i, spec] of specs.entries()) {
+      const target = specs[i - 1]?.params.target;
+      if (!target || registry.has(spec.name) || !looksLikeSelectorFragment(spec.name)) continue;
+      found.push({ previous: target, segment: spec.name });
+    }
+    return found;
+  }
+  function unquotedSelectorWarning(found) {
+    return `target:${found.previous} looks like it continues into "${found.segment}", but a comma always starts a new effect segment \u2014 a target: selector containing a comma must be quoted, e.g. target:'${found.previous}, ${found.segment}'`;
+  }
+
+  // src/core/compile.ts
+  function channelsFor(entry) {
+    const declared = entry.resolved.primitive.channels;
+    if (!entry.variant?.channels) return declared;
+    return [...declared, ...entry.variant.channels];
+  }
+  function authoredParams(entry) {
+    return entry.variant?.params ?? entry.spec.params;
+  }
+  function schemaFor(entry) {
+    const extra = entry.variant?.schema;
+    if (!extra) return entry.resolved.primitive.parameters;
+    return { ...entry.resolved.primitive.parameters, ...extra };
+  }
+  function compileTargets(parsed, registry, timeline) {
+    const warnings = [...parsed.warnings];
+    const unquoted = findUnquotedSelectors(parsed.specs, registry);
+    for (const found of unquoted) warnings.push(unquotedSelectorWarning(found));
+    const suspects = unquoted.length > 0 ? { suspectSelectors: unquoted.map((found) => found.segment) } : {};
+    const { entries, unknown } = resolveEntries(parsed.specs, registry, warnings);
+    if (entries.length === 0) {
+      return {
+        targets: [{ selector: "", scope: "self", specs: [], plan: emptyPlan(unknown, []) }],
+        warnings,
+        ...suspects
+      };
+    }
+    const sanitized = entries.map(
+      (entry) => refusePlayback(refuseContainerGate(entry, warnings), timeline, warnings)
+    );
+    const steps = resolveSequence(sanitized.map(memberFor), timeline, (m) => warnings.push(m));
+    const sequenced = sanitized.map((entry, index) => ({ ...entry, step: steps[index] }));
+    warnCrossGroupSequencing(sequenced, parsed.activation, warnings);
+    const targets = partitionByTarget(sequenced).map(({ selector, scope, entries: group }) => {
+      const groupWarnings = [];
+      const composed = resolveComposition(group, registry, groupWarnings);
+      const groupHoists = mergeGroupHoists(group, groupWarnings);
+      const groupTimeline = resolveTimelineHead(groupHoists?.timeline, timeline);
+      const plan = buildPlan(composed, groupTimeline, unknown, groupWarnings);
+      plan.defaultActivation = resolveDefaultActivation(
+        composed.map((entry) => ({
+          phase: phaseOf(entry),
+          defaultActivation: entry.resolved.primitive.defaultActivation
+        }))
+      );
+      return { selector, scope, hoists: groupHoists, specs: group.map((entry) => entry.spec), plan };
+    });
+    mergeHostFacts(targets);
+    const reducedMotion = resolvedPolicy(targets[0].plan.reducedMotion, parsed.rm, warnings);
+    for (const target of targets) target.plan.reducedMotion = reducedMotion;
+    return { targets, warnings, ...suspects };
+  }
+  function scopeHoists(parsed, registry) {
+    if (!parsed.specs.some((spec) => spec.hoists)) return parsed;
+    const warnings = [...parsed.warnings];
+    const folded = { ...parsed, warnings };
+    const specs = parsed.specs.map((spec) => {
+      if (!spec.hoists || !staysOnHost(spec, registry)) return spec;
+      for (const key of SEGMENT_HOIST_KEYS) {
+        const value = spec.hoists[key];
+        if (value === void 0) continue;
+        assignOnce(folded, key, value, HOIST_LABELS2[key]);
+      }
+      const rest = { ...spec };
+      delete rest.hoists;
+      return rest;
+    });
+    return { ...folded, specs };
+  }
+  function staysOnHost(spec, registry) {
+    const resolved = registry.resolve(spec.name);
+    if (!resolved) return true;
+    return Object.hasOwn(resolved.primitive.parameters, "target");
+  }
+  var HOIST_LABELS2 = {
+    activation: "activations",
+    actions: "crossing actions",
+    timeline: "timelines",
+    threshold: "thresholds",
+    cascade: "stagger steps",
+    spread: "stagger budgets",
+    order: "stagger orders",
+    cols: "stagger column counts",
+    along: "stagger axes"
+  };
+  function mergeGroupHoists(entries, warnings) {
+    let merged;
+    for (const entry of entries) {
+      if (!entry.spec.hoists) continue;
+      merged = absorbGroupHoists(merged ?? {}, entry.spec.hoists, warnings);
+    }
+    return merged;
+  }
+  function absorbGroupHoists(merged, hoists, warnings) {
+    for (const key of SEGMENT_HOIST_KEYS) {
+      const value = hoists[key];
+      if (value === void 0) continue;
+      const current = merged[key];
+      if (current === void 0) merged[key] = value;
+      else if (current !== value) {
+        warnings.push(
+          `conflicting ${HOIST_LABELS2[key]} "${current}" and "${value}" in one target: group \u2014 the first wins`
+        );
+      }
+    }
+    return merged;
+  }
+  function warnCrossGroupSequencing(sequenced, elementActivation, warnings) {
+    for (let i = 1; i < sequenced.length; i++) {
+      const entry = sequenced[i];
+      if (!entry.step.sequenced) continue;
+      const previous = sequenced[i - 1];
+      if (groupKeyOf(entry) === groupKeyOf(previous)) continue;
+      const ownTrigger = entry.spec.hoists?.activation ?? elementActivation;
+      const previousTrigger = previous.spec.hoists?.activation ?? elementActivation;
+      if (ownTrigger === previousTrigger) continue;
+      warnings.push(
+        `"${entry.spec.name}"'s at:"${entry.spec.at}" is relative to "${previous.spec.name}", which targets a different element and may start on a different trigger \u2014 the offset is relative to each one's own start, not a shared clock`
+      );
+    }
+  }
+  function groupKeyOf(entry) {
+    return `${entry.scope ?? "self"} ${entry.target ?? ""}`;
+  }
+  function partitionByTarget(entries) {
+    const byKey = /* @__PURE__ */ new Map();
+    const order = [];
+    for (const entry of entries) {
+      const selector = entry.target ?? "";
+      const scope = entry.scope ?? "self";
+      const key = `${scope} ${selector}`;
+      let group = byKey.get(key);
+      if (!group) {
+        group = { selector, scope, entries: [] };
+        byKey.set(key, group);
+        order.push(group);
+      }
+      group.entries.push(entry);
+    }
+    const hostIndex = order.findIndex((group) => group.selector === "");
+    if (hostIndex > 0) {
+      const [host] = order.splice(hostIndex, 1);
+      order.unshift(host);
+    }
+    return order;
+  }
+  function emptyPlan(unknown, warnings) {
+    return {
+      fxNames: [],
+      vars: {},
+      declarations: {},
+      keyframeNames: [],
+      jsEffects: [],
+      unknown,
+      reducedMotion: "shorten",
+      supportedActivations: [],
+      supportedTimelines: [],
+      channels: [],
+      warnings
+    };
+  }
+  function resolveEntries(specs, registry, warnings) {
+    const entries = [];
+    const unknown = [];
+    for (const spec of specs) {
+      const resolved = registry.resolve(spec.name);
+      if (!resolved) {
+        unknown.push(spec.name);
+        warnUnknownEffect(spec.name, registry, warnings);
+        continue;
+      }
+      entries.push(entryFor(spec, resolved, warnings));
+    }
+    return { entries, unknown };
+  }
+  function entryFor(spec, resolved, warnings) {
+    const lifted = liftTarget(spec, resolved, warnings);
+    const variant = resolved.primitive.variantFor?.(lifted.spec, (m) => warnings.push(m));
+    const entry = variant ? { spec: lifted.spec, resolved, variant } : { spec: lifted.spec, resolved };
+    if (lifted.target !== void 0) {
+      entry.target = lifted.target;
+      entry.scope = lifted.scope;
+    }
+    return entry;
+  }
+  function warnUnknownEffect(name, registry, warnings) {
+    const hint = suggest(name, registry.names());
+    const suffix = hint ? ` \u2014 did you mean "${hint}"?` : "";
+    warnings.push(`unknown effect "${name}"${suffix}`);
+  }
+  function liftTarget(spec, resolved, warnings) {
+    if (Object.hasOwn(resolved.primitive.parameters, "target")) return { spec };
+    const target = spec.params.target;
+    if (!target) return { spec };
+    const rest = { ...spec.params };
+    const authoredScope = rest.scope;
+    delete rest.target;
+    delete rest.scope;
+    const stripped = { ...spec, params: rest };
+    if (resolved.preset.requiresOwnSubtree) {
+      warnings.push(
+        `"${resolved.preset.name}" cannot be retargeted \u2014 its CSS reaches past the animated element itself, so "target:${target}" is dropped and it stays on the host`
+      );
+      return { spec: stripped };
+    }
+    const scope = authoredScope === "page" ? "page" : "self";
+    return { spec: stripped, target, scope };
+  }
+  function refuseContainerGate(entry, warnings) {
+    const { spec, resolved } = entry;
+    if (resolved.primitive.renderer === "css-keyframes") return entry;
+    if (!spec.gate?.wide && !spec.gate?.narrow) return entry;
+    warnings.push(
+      `"${spec.name}" ignores "wide:"/"narrow:" \u2014 container gates are not supported on JavaScript-rendered effects yet, so it runs unconditionally`
+    );
+    const { above, below } = spec.gate;
+    const gate = above || below ? { above, below } : void 0;
+    return { ...entry, spec: { ...spec, gate } };
+  }
+  function refusePlayback(entry, timeline, warnings) {
+    const { spec, resolved } = entry;
+    if (spec.repeat === void 0 && spec.yoyo === void 0) return entry;
+    const { repeat, yoyo, warnings: raised } = resolvePlayback({
+      name: resolved.preset.name,
+      renderer: resolved.primitive.renderer,
+      cloak: resolved.preset.cloak,
+      timeline,
+      repeat: spec.repeat,
+      yoyo: spec.yoyo
+    });
+    warnings.push(...raised);
+    return { ...entry, spec: { ...spec, repeat, yoyo } };
+  }
+  function phaseOf(entry) {
+    if (entry.spec.repeat === "infinite") return "idle";
+    const { preset } = entry.resolved;
+    if (preset.phase) return preset.phase;
+    if (preset.transitions?.length) return "state";
+    return void 0;
+  }
+  function additivelyComposable(entry) {
+    if (entry.resolved.primitive.renderer !== "css-keyframes") return false;
+    if (entry.variant?.keyframes) return false;
+    return additiveChannels(channelsFor(entry));
+  }
+  function resolveComposition(entries, registry, warnings) {
+    if (entries.length <= 1) return entries;
+    const claims = entries.map((e) => ({
+      name: e.spec.name,
+      channels: channelsFor(e),
+      gate: e.spec.gate,
+      phase: phaseOf(e),
+      additive: additivelyComposable(e),
+      delivery: e.resolved.preset.delivery,
+      // "Writes `animation-name` inline" needs no declaration of its own: `buildPlan` sends exactly
+      // the `css-keyframes` entries to `pushTrack`, and `declarations.ts` emits the longhands from
+      // the tracks. Only the losing side of a delivery clobber has to say what it is.
+      inlineAnimation: e.resolved.primitive.renderer === "css-keyframes"
+    }));
+    const conflicts = findConflicts(claims);
+    const clobbers = deliveryClobbers(claims);
+    if (conflicts.length === 0 && clobbers.length === 0) return entries;
+    if (clobbers.length === 0) {
+      const additive = additiveResolution(claims, conflicts);
+      if (additive) return entries.map((e, i) => additive.has(i) ? { ...e, composite: "add" } : e);
+    }
+    const combo = registry.findCombo(entries.map((e) => e.spec.name));
+    const remedy = combo ? `Use the "${combo.preset.name}" effect instead.` : "Apply them to nested elements, or register a combined effect.";
+    const kept = entries[0].spec.name;
+    const dropped = entries.slice(1).map((entry) => `"${entry.spec.name}"`);
+    const loss = `Dropped ${dropped.join(", ")} \u2014 only "${kept}" will run.`;
+    const diagnosis = [...conflicts.length > 0 ? [describeConflicts(conflicts)] : [], ...clobbers];
+    warnings.push(`cannot compose: ${diagnosis.join("; ")}. ${loss} ${remedy}`);
+    return [entries[0]];
+  }
+  function buildPlan(entries, timeline, unknown, warnings) {
+    const plan = emptyPlan(unknown, warnings);
+    const tracks = emptyTracks();
+    const channels = /* @__PURE__ */ new Set();
+    const transitionSegments = [];
+    const transitionOwners = /* @__PURE__ */ new Map();
+    let activations;
+    let timelines;
+    for (const entry of entries) {
+      const { preset, primitive } = entry.resolved;
+      const step = entry.step;
+      plan.fxNames.push(preset.name);
+      plan.reducedMotion = strictestPolicy(plan.reducedMotion, primitive.reducedMotion);
+      activations = intersect(activations, primitive.supportedActivations);
+      timelines = intersect(timelines, primitive.supportedTimelines);
+      for (const channel of channelsFor(entry)) channels.add(channel);
+      warnUnsupportedTimeline(preset.name, primitive.supportedTimelines, timeline, warnings);
+      Object.assign(
+        plan.vars,
+        resolveParams(authoredParams(entry), schemaFor(entry), (m) => warnings.push(m))
+      );
+      if (primitive.renderer === "css-keyframes") pushTrack(tracks, entry, step);
+      else plan.jsEffects.push(positioned(entry, step));
+      pushTransitions(transitionSegments, transitionOwners, entry, warnings);
+    }
+    Object.assign(plan.declarations, declarationsFor(tracks, timeline));
+    plan.keyframeNames = tracks.keyframes;
+    if (transitionSegments.length > 0) plan.transition = transitionSegments.join(", ");
+    plan.supportedActivations = activations;
+    plan.supportedTimelines = timelines;
+    plan.channels = [...channels];
+    return plan;
+  }
+  function memberFor(entry) {
+    const { spec, resolved } = entry;
+    const { preset, primitive } = resolved;
+    const authored = authoredParams(entry);
+    return {
+      name: preset.name,
+      primitiveId: primitive.id,
+      at: spec.at,
+      delay: spec.delay,
+      duration: spec.duration,
+      cascadeDelay: cascadeValue(authored, preset, primitive.parameters, "delay"),
+      cascadeDuration: cascadeValue(authored, preset, primitive.parameters, "duration"),
+      repeat: spec.repeat,
+      // A `css-keyframes` segment is always positionable — it compiles to an `animation-delay` and
+      // the browser honours it. A JavaScript-rendered one is positionable only if it declares the
+      // parameter, which is the single compile-time signal that it reads a delay at all.
+      positionable: primitive.renderer === "css-keyframes" || Object.hasOwn(primitive.parameters, "delay")
+    };
+  }
+  function cascadeValue(authored, preset, schema, name) {
+    const candidates = [authored[name], preset.params?.[name], schema[name]?.default];
+    return candidates.find((value) => value !== void 0 && isReadableTime(value));
+  }
+  function positioned(entry, step) {
+    if (!step.sequenced) return entry;
+    return { ...entry, sequencedDelayMs: step.delayMs };
+  }
+  function warnUnsupportedTimeline(name, supported, timeline, warnings) {
+    if (supported.includes(timeline)) return;
+    warnings.push(
+      `"${name}" does not support timeline "${timeline}" (supports: ${supported.join(", ")})`
+    );
+  }
+
+  // src/core/derived/book.ts
+  function createDerivedBook() {
+    return {
+      derived: /* @__PURE__ */ new WeakMap(),
+      hosts: /* @__PURE__ */ new WeakMap(),
+      groups: /* @__PURE__ */ new WeakMap(),
+      contexts: /* @__PURE__ */ new WeakMap(),
+      unions: /* @__PURE__ */ new WeakMap(),
+      cleanups: /* @__PURE__ */ new WeakMap()
+    };
+  }
+  function derivedOf(book, el) {
+    return [...book.derived.get(el) ?? []];
+  }
+  function hostOf(book, el) {
+    return book.hosts.get(el);
+  }
+
+  // src/core/derived/aggregate.ts
+  function isForwardRunning(state) {
+    return state.status === "running" && state.direction !== "reverse";
+  }
+  function isRunning(state) {
+    return state.status === "running";
+  }
+  function isFailed(state) {
+    return state.status === "failed";
+  }
+  function isSettled2(state) {
+    return state.status === "finished" || state.status === "failed";
+  }
+  function isReady(state) {
+    return state.status === "ready";
+  }
+  function matchStates(port, host) {
+    const states = [];
+    for (const match of derivedOf(port.book, host)) {
+      const state = port.stateOf(match);
+      if (state) states.push(state);
+    }
+    return states;
+  }
+  function applyRunning(port, host, hostState, states) {
+    if (hostState.status === "running") return;
+    port.writeStatus(host, hostState, "running");
+    if (states.some(isForwardRunning)) port.emit(host, hostState, KUI_EVENT.start, "activated");
+  }
+  function applyFinished(port, host, hostState, states) {
+    if (hostState.status === "finished") return;
+    const wasRunning = hostState.status === "running";
+    port.writeStatus(host, hostState, "finished");
+    if (states.every((state) => state.cancelled === true)) return;
+    port.emit(host, hostState, KUI_EVENT.finish, wasRunning ? "complete" : "reduced-motion");
+  }
+  function syncAggregate(port, host) {
+    const hostState = port.stateOf(host);
+    if (!hostState || !hostState.aggregate) return;
+    const states = matchStates(port, host);
+    if (states.length === 0) return;
+    if (states.some(isRunning)) {
+      applyRunning(port, host, hostState, states);
+    } else if (states.every(isFailed)) {
+      port.writeStatus(host, hostState, "failed");
+    } else if (states.every(isSettled2)) {
+      applyFinished(port, host, hostState, states);
+    } else if (states.every(isReady)) {
+      port.writeStatus(host, hostState, "ready");
+    }
+  }
+  function unionKey(targets) {
+    return targets.map((target) => `${target.scope} ${target.selector}`).sort((a, b) => a.localeCompare(b)).join("");
+  }
+  function compileUnion(port, context, targets) {
+    const key = unionKey(targets);
+    const cache = port.book.unions.get(context.host);
+    const cached2 = cache?.get(key);
+    if (cached2) return cached2;
+    const first = targets[0];
+    const compiled = compileTargets(
+      { specs: targets.flatMap((target) => target.specs), warnings: [] },
+      port.registry,
+      context.timeline
+    );
+    const union = compiled.targets[0];
+    union.plan.reducedMotion = first.plan.reducedMotion;
+    const win = context.host.ownerDocument?.defaultView ?? void 0;
+    union.plan.jsEffects = union.plan.jsEffects.filter((entry) => gateMatches(entry.spec.gate, win));
+    const known = new Set(targets.flatMap((target) => target.plan.warnings));
+    for (const warning of union.plan.warnings) {
+      if (!known.has(warning)) port.reporter.warn(warning, context.host);
+    }
+    const result = { ...union, selector: first.selector, scope: first.scope };
+    const unions = cache ?? /* @__PURE__ */ new Map();
+    unions.set(key, result);
+    if (!cache) port.book.unions.set(context.host, unions);
+    return result;
+  }
+
+  // src/core/style-plan.ts
+  function planStyles(input) {
+    const { plan, config, capabilities, respectReducedMotion } = input;
+    const reduce = respectReducedMotion && capabilities.reducedMotion;
+    const { scrubbed, useNativeTimeline } = timelineMode(plan, config, capabilities);
+    const properties = { ...plan.vars, ...plan.declarations };
+    Object.assign(properties, transitionProperty(plan));
+    Object.assign(properties, timelineProperties(config, capabilities, useNativeTimeline));
+    const hasCssAnimation = Object.keys(plan.declarations).length > 0;
+    const elementHasCssAnimation = input.elementHasCssAnimation ?? hasCssAnimation;
+    const gate = resolveGate({
+      useNativeTimeline,
+      scrubbed: scrubbed && elementHasCssAnimation,
+      reduce,
+      activation: config.activation,
+      // JS effects are gated too. They emit no `animation` declaration, so only the play-state
+      // write is skipped — the activation itself still has to be bound, or `on:enter` and
+      // `on:click` would silently do nothing for every pinned, dragged, or morphing element.
+      hasWork: elementHasCssAnimation || plan.jsEffects.length > 0,
+      hasCssAnimation,
+      // A browser lacking standalone translate/rotate/scale support silently ignores any
+      // `@keyframes` step written in those properties — the animation never visibly completes. An
+      // effect deferred on that promise would sit paused (or, for an entrance reveal, invisible)
+      // forever, so it must reach its final state immediately instead, the same fail-open rule
+      // already applied under reduced motion.
+      unsupportedTransform: needsIndividualTransforms(plan.channels, capabilities)
+    });
+    if (gate === "deferred" || gate === "scrubbed") properties["animation-play-state"] = "paused";
+    return {
+      properties,
+      attributes: {
+        [ATTR.normalized]: plan.fxNames.join(" "),
+        [ATTR.rm]: plan.reducedMotion,
+        [ATTR.state]: "ready"
+      },
+      gate,
+      activation: gate === "deferred" ? effectiveActivation(config) : null
+    };
+  }
+  function timelineMode(plan, config, capabilities) {
+    const scrubbed = config.timeline === "pin" && plan.supportedTimelines.includes("pin");
+    const useNativeTimeline = !scrubbed && supportsTimeline(config.timeline, capabilities) && plan.supportedTimelines.includes(config.timeline);
+    return { scrubbed, useNativeTimeline };
+  }
+  function transitionProperty(plan) {
+    return plan.transition ? { "--kui-transition": plan.transition } : {};
+  }
+  function timelineProperties(config, capabilities, useNativeTimeline) {
+    if (!useNativeTimeline) return {};
+    const properties = {
+      "animation-timeline": config.timeline === "scroll" ? "scroll()" : "view()"
+    };
+    if (capabilities.animationRange) {
+      properties["animation-range"] = config.range || (config.timeline === "scroll" ? "0% 100%" : "entry 0% cover 60%");
+    }
+    return properties;
+  }
+  function resolveGate(input) {
+    if (input.useNativeTimeline) return "native-timeline";
+    if (input.scrubbed) return "scrubbed";
+    if (!input.hasWork) return "immediate";
+    if (input.reduce || startKindOf(input.activation) === "immediate" || input.unsupportedTransform) {
+      return "immediate";
+    }
+    return "deferred";
+  }
+  function needsIndividualTransforms(channels, capabilities) {
+    if (capabilities.individualTransforms) return false;
+    return channels.some((c) => c === "translate" || c === "rotate" || c === "scale");
+  }
+  function supportsTimeline(timeline, capabilities) {
+    if (timeline === "view") return capabilities.viewTimeline;
+    if (timeline === "scroll") return capabilities.scrollTimeline;
+    return false;
+  }
+  function effectiveActivation(config) {
+    const observed = "enter";
+    if (config.timeline !== "time" && startKindOf(config.activation) === "manual") return observed;
+    return config.activation;
+  }
+
+  // src/core/stagger-keys.ts
+  var GROUP_KEY_NAMES = ["cascade", "spread", "order", "cols", "along"];
+  function collectKeys(lookup) {
+    const keys = {};
+    for (const name of GROUP_KEY_NAMES) {
+      const value = lookup(name);
+      if (value !== void 0) keys[name] = value;
+    }
+    return Object.keys(keys).length > 0 ? keys : void 0;
+  }
+  function elementStaggerKeys(parsed) {
+    return collectKeys((name) => parsed[name]);
+  }
+  function staggerKeysFor(scoped, elementWide) {
+    return collectKeys((name) => scoped?.[name] ?? elementWide?.[name]);
+  }
+  function isGroupedKeys(keys) {
+    return keys?.cascade !== void 0 || keys?.spread !== void 0 || keys?.order !== void 0;
+  }
+  var TARGET_GROUP_HOSTS = /* @__PURE__ */ new WeakMap();
+  function claimTargetGroupHost(host) {
+    TARGET_GROUP_HOSTS.set(host, (TARGET_GROUP_HOSTS.get(host) ?? 0) + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const remaining = TARGET_GROUP_HOSTS.get(host) - 1;
+      if (remaining > 0) TARGET_GROUP_HOSTS.set(host, remaining);
+      else TARGET_GROUP_HOSTS.delete(host);
+    };
+  }
+  function isTargetGroupHost(el) {
+    return TARGET_GROUP_HOSTS.has(el);
+  }
+
+  // src/core/derived/group-gate.ts
+  function groupGateOwner(port, context, target) {
+    const keys = staggerKeysFor(target.hoists, elementStaggerKeys(context.parsed));
+    return isGroupedKeys(keys) ? context.host : void 0;
+  }
+  function skipsOwnBinding(state) {
+    return state.gateOwner !== void 0;
+  }
+  function activateGroup(port, group, oneShot) {
+    for (const member of group.members) {
+      if (oneShot && port.stateOf(member)?.status !== "ready") continue;
+      port.activateOne(member);
+    }
+  }
+  function deactivateGroup(port, group) {
+    for (const member of group.members) port.deactivateOne(member);
+  }
+  function registerCleanup(port, host, cleanup) {
+    const cleanups = port.book.cleanups.get(host) ?? [];
+    cleanups.push(cleanup);
+    port.book.cleanups.set(host, cleanups);
+  }
+  function bindOneGroup(port, host, group) {
+    const stylePlan = planStyles({
+      plan: group.target.plan,
+      config: group.config,
+      capabilities: port.capabilities,
+      respectReducedMotion: port.respectReducedMotion
+    });
+    if (stylePlan.gate !== "deferred") return;
+    const activation = stylePlan.activation;
+    const oneShot = isOneShot(resolveActivationSpec(activation));
+    const release = port.binder.bind(host, activation, {
+      threshold: group.config.threshold,
+      from: group.config.activationSource,
+      activate: () => activateGroup(port, group, oneShot),
+      deactivate: () => deactivateGroup(port, group)
+    });
+    registerCleanup(port, host, release);
+  }
+  function bindGroups(port, host) {
+    const groups = port.book.groups.get(host);
+    if (groups === void 0) return;
+    for (const group of groups) {
+      if (group.gateOwner === host) bindOneGroup(port, host, group);
+    }
+  }
+
+  // src/core/owned-styles.ts
+  function createStyleLedger(el) {
+    const style = el.style;
+    const previous = /* @__PURE__ */ new Map();
+    const authoredStyleAttribute = el.hasAttribute("style");
+    function remember(property2) {
+      if (previous.has(property2)) return;
+      const existing = style.getPropertyValue(property2);
+      previous.set(
+        property2,
+        existing === "" ? void 0 : { value: existing, priority: style.getPropertyPriority(property2) }
+      );
+    }
+    return {
+      set(property2, value) {
+        remember(property2);
+        style.setProperty(property2, value);
+      },
+      claim: remember,
+      restore() {
+        for (const [property2, previousValue] of previous) {
+          if (previousValue === void 0) style.removeProperty(property2);
+          else style.setProperty(property2, previousValue.value, previousValue.priority);
+        }
+        previous.clear();
+        if (!authoredStyleAttribute && style.length === 0 && !el.getAttribute("style"))
+          el.removeAttribute("style");
+      },
+      owned: () => [...previous.keys()],
+      peek(property2) {
+        if (!previous.has(property2)) return void 0;
+        const previousValue = previous.get(property2);
+        return previousValue === void 0 ? "" : previousValue.value;
+      }
+    };
+  }
+  function createAttributeLedger(el) {
+    const previous = /* @__PURE__ */ new Map();
+    return {
+      set(name, value) {
+        if (!previous.has(name)) previous.set(name, el.getAttribute(name));
+        el.setAttribute(name, value);
+      },
+      restore() {
+        for (const [name, value] of previous) {
+          if (value === null) el.removeAttribute(name);
+          else el.setAttribute(name, value);
+        }
+        previous.clear();
+      }
+    };
+  }
+  var REGISTRY = Symbol.for("kuinetic.owned-styles.1");
+  function entriesOf(el) {
+    const carrier = el;
+    let entries = carrier[REGISTRY];
+    if (!entries) {
+      entries = /* @__PURE__ */ new Map();
+      Object.defineProperty(el, REGISTRY, { value: entries, configurable: true, writable: true });
+    }
+    return entries;
+  }
+  function entryFor2(el, kind, make) {
+    const entries = entriesOf(el);
+    let entry = entries.get(kind);
+    if (!entry) {
+      entry = { ledger: make(el), owners: /* @__PURE__ */ new Set() };
+      entries.set(kind, entry);
+    }
+    return entry;
+  }
+  function openClaimBook(kind, make) {
+    const owner = {};
+    const held = /* @__PURE__ */ new Map();
+    return {
+      join(el) {
+        let entry = held.get(el);
+        if (!entry) {
+          entry = entryFor2(el, kind, make);
+          entry.owners.add(owner);
+          held.set(el, entry);
+        }
+        return entry.ledger;
+      },
+      held: (el) => held.get(el)?.ledger ?? null,
+      leave(el) {
+        const entry = held.get(el);
+        if (!entry) return;
+        held.delete(el);
+        entry.owners.delete(owner);
+        if (entry.owners.size > 0) return;
+        entriesOf(el).delete(kind);
+        entry.ledger.restore();
+      },
+      elements: () => [...held.keys()]
+    };
+  }
+  function createStyleClaim() {
+    const book = openClaimBook("style", createStyleLedger);
+    const handles = /* @__PURE__ */ new WeakMap();
+    function handleFor(el) {
+      return {
+        set: (property2, value) => {
+          book.join(el).set(property2, value);
+        },
+        claim: (property2) => {
+          book.join(el).claim(property2);
+        },
+        restore: () => {
+          book.leave(el);
+        },
+        owned: () => book.held(el)?.owned() ?? [],
+        peek: (property2) => book.held(el)?.peek(property2)
+      };
+    }
+    return {
+      style(el) {
+        let handle = handles.get(el);
+        if (!handle) {
+          handle = handleFor(el);
+          handles.set(el, handle);
+        }
+        book.join(el);
+        return handle;
+      },
+      release: (el) => {
+        book.leave(el);
+      },
+      elements: () => book.elements()
+    };
+  }
+  function createAttributeClaim() {
+    const book = openClaimBook("attributes", createAttributeLedger);
+    const handles = /* @__PURE__ */ new WeakMap();
+    function handleFor(el) {
+      return {
+        set: (name, value) => {
+          book.join(el).set(name, value);
+        },
+        restore: () => {
+          book.leave(el);
+        }
+      };
+    }
+    return {
+      attributes(el) {
+        let handle = handles.get(el);
+        if (!handle) {
+          handle = handleFor(el);
+          handles.set(el, handle);
+        }
+        book.join(el);
+        return handle;
+      },
+      release: (el) => {
+        book.leave(el);
+      },
+      elements: () => book.elements()
+    };
+  }
+  function createLedgerSet(host) {
+    const styles = createStyleClaim();
+    const attributes = createAttributeClaim();
+    function restoreOne(el) {
+      styles.release(el);
+      attributes.release(el);
+    }
+    return {
+      style: (el) => styles.style(el),
+      attributes: (el) => attributes.attributes(el),
+      restore() {
+        for (const el of /* @__PURE__ */ new Set([...styles.elements(), ...attributes.elements()])) {
+          if (el !== host) restoreOne(el);
+        }
+        restoreOne(host);
+      }
+    };
+  }
+
+  // src/core/stagger-config.ts
+  var FROM_KEYWORDS = /* @__PURE__ */ new Set(["start", "end", "center", "edges", "random"]);
+  var ORDER_KEYS = /* @__PURE__ */ new Set(["from", "order"]);
+  var SPREAD_KEY = "spread";
+  var COLS_KEY = "cols";
+  var AXIS_KEYS = /* @__PURE__ */ new Set(["axis", "along"]);
+  var AXIS_VALUES = /* @__PURE__ */ new Set(["x", "y"]);
+  var ORIGIN_RE = /^(\d+(?:\.\d+)?|\.\d+)\/(\d+(?:\.\d+)?|\.\d+)$/;
+  var COLS_RE = /^\d{1,9}$/;
+  var PAIR_RE = /^([a-zA-Z-]+):(.*)$/;
+  var INDEX_RE = /^-?\d{1,9}$/;
+  function parseStaggerTokens(value, warnings) {
+    const config = { from: "start" };
+    const seen = { from: false, spread: false, cols: false, along: false };
+    for (const token of splitTopLevel(value, " ", warnings)) {
+      const pair = PAIR_RE.exec(token);
+      if (pair) applyStaggerPair(pair[1], pair[2], { config, seen, warnings });
+      else config.step = keepFirstStep(config.step, token, warnings);
+    }
+    return { config, sawFrom: seen.from };
+  }
+  function applyStaggerPair(key, raw, state) {
+    const slot = slotFor(key);
+    if (slot === void 0) {
+      state.warnings.push(
+        `unrecognised key "${key}" in data-kui-stagger \u2014 expected a time step, "spread:", "cols:", "along:", "from:" or "order:"`
+      );
+      return;
+    }
+    if (claim(slot, raw, state, key)) ASSIGN[slot](raw, state, key);
+  }
+  function slotFor(key) {
+    if (key === SPREAD_KEY) return "spread";
+    if (key === COLS_KEY) return "cols";
+    if (AXIS_KEYS.has(key)) return "along";
+    if (ORDER_KEYS.has(key)) return "from";
+    return void 0;
+  }
+  var ASSIGN = {
+    spread: (raw, state) => {
+      state.config.spread = raw.trim();
+    },
+    cols: (raw, state) => {
+      state.config.cols = parseCols(raw, state.warnings);
+    },
+    along: (raw, state, key) => {
+      state.config.along = parseAxis(raw, state.warnings, key);
+    },
+    from: (raw, state, key) => {
+      state.config.from = parseFrom(raw, state.warnings, key);
+    }
+  };
+  function claim(slot, raw, state, spelling) {
+    if (state.seen[slot]) {
+      state.warnings.push(`duplicate "${spelling}:" in data-kui-stagger \u2014 "${raw}" ignored`);
+      return false;
+    }
+    state.seen[slot] = true;
+    return true;
+  }
+  function parseCols(raw, warnings) {
+    const value = raw.trim();
+    if (value === "auto") return "auto";
+    if (COLS_RE.test(value) && Number(value) > 0) return Number(value);
+    warnings.push(`unrecognised "cols:${raw}" \u2014 expected a column count or "auto"`);
+    return void 0;
+  }
+  function parseAxis(raw, warnings, key) {
+    const value = raw.trim();
+    if (AXIS_VALUES.has(value)) return value;
+    warnings.push(`unrecognised "${key}:${raw}" \u2014 expected x or y`);
+    return void 0;
+  }
+  function resolveStaggerConfig(attribute, source, warnings = []) {
+    const inline = inlineGroupKeys(source);
+    if (attribute === null && inline === void 0) return void 0;
+    return resolveStaggerConfigFrom(attribute, inline, warnings);
+  }
+  function resolveStaggerConfigFrom(attribute, inline, warnings = []) {
+    if (attribute === null && inline === void 0) return void 0;
+    const { config: longhand, sawFrom } = parseStaggerTokens(attribute ?? "", warnings);
+    return oneStepMode(screenStep(mergeInline(longhand, sawFrom, inline ?? {}, warnings), warnings), warnings);
+  }
+  function oneStepMode(config, warnings) {
+    if (config.spread === void 0 || config.step === void 0) return config;
+    warnings.push(
+      `stagger step "${config.step}" is ignored \u2014 "spread:${config.spread}" already budgets the whole group, and the step is what it divides out`
+    );
+    const budgeted = { ...config };
+    delete budgeted.step;
+    return budgeted;
+  }
+  function inlineGroupKeys(source) {
+    if (!hasGroupKey(source)) return void 0;
+    const { cascade, spread, order, cols, along } = parse(source);
+    const keys = { cascade, spread, order, cols, along };
+    return Object.values(keys).some((value) => value !== void 0) ? keys : void 0;
+  }
+  function screenStep(config, warnings) {
+    const screened = { ...config };
+    if (!keepValue("step", config.step, warnings)) delete screened.step;
+    if (!keepValue("spread", config.spread, warnings)) delete screened.spread;
+    return screened;
+  }
+  function keepValue(label, value, warnings) {
+    if (value === void 0) return false;
+    if (isSafeCssValue(value)) return true;
+    warnings.push(`stagger ${label} "${value}" contains disallowed CSS syntax \u2014 ignored`);
+    return false;
+  }
+  function mergeInline(longhand, sawFrom, inline, warnings) {
+    const config = { ...longhand };
+    if (inline.cascade !== void 0) {
+      warnOverride("stagger step", longhand.step, inline.cascade, warnings);
+      config.step = inline.cascade;
+    }
+    if (inline.spread !== void 0) {
+      warnOverride("stagger budget", longhand.spread, inline.spread, warnings);
+      config.spread = inline.spread;
+    }
+    mergeInlineGrid(config, longhand, inline, warnings);
+    if (inline.order !== void 0) {
+      const order = parseFrom(inline.order, warnings, "order");
+      warnOverride("stagger order", sawFrom ? longhand.from : void 0, order, warnings);
+      config.from = order;
+    }
+    return config;
+  }
+  function mergeInlineGrid(config, longhand, inline, warnings) {
+    if (inline.cols !== void 0) {
+      const cols = parseCols(inline.cols, warnings);
+      warnOverride("stagger columns", longhand.cols, cols, warnings);
+      if (cols !== void 0) config.cols = cols;
+    }
+    if (inline.along !== void 0) {
+      const along = parseAxis(inline.along, warnings, "along");
+      warnOverride("stagger axis", longhand.along, along, warnings);
+      if (along !== void 0) config.along = along;
+    }
+  }
+  function hasGroupKey(source) {
+    return GROUP_KEY_PREFIXES.some((prefix) => source.includes(prefix));
+  }
+  var GROUP_KEY_PREFIXES = [
+    "cascade:",
+    "spread:",
+    "order:",
+    "cols:",
+    "along:"
+  ];
+  function warnOverride(label, previous, next, warnings) {
+    if (previous === void 0 || next === void 0 || previous === next) return;
+    warnings.push(
+      `conflicting ${label}: data-kui-stagger says "${String(previous)}", data-kui says "${String(next)}" \u2014 data-kui wins`
+    );
+  }
+  function keepFirstStep(current, token, warnings) {
+    if (current === void 0) return token;
+    warnings.push(`extra token "${token}" in data-kui-stagger (expected one time step)`);
+    return current;
+  }
+  function parseFrom(raw, warnings, key = "from") {
+    const value = raw.trim();
+    if (FROM_KEYWORDS.has(value)) return value;
+    if (INDEX_RE.test(value)) return Number(value);
+    const origin = ORIGIN_RE.exec(value);
+    if (origin) return { x: clamp012(Number(origin[1]), value, warnings), y: clamp012(Number(origin[2]), value, warnings) };
+    warnings.push(
+      `unrecognised "${key}:${raw}" \u2014 expected start, end, center, edges, random, a child index, or an "x/y" point in a grid`
+    );
+    return "start";
+  }
+  function clamp012(value, source, warnings) {
+    if (value >= 0 && value <= 1) return value;
+    warnings.push(`stagger order "${source}" is outside the grid (0 to 1 on each axis) \u2014 clamped`);
+    return Math.min(Math.max(value, 0), 1);
+  }
+
+  // src/core/stagger.ts
+  var RANK_PRECISION = 1e3;
+  var RANDOM_SALT = 2654435761;
+  var COUNT_SALT = 2246822507;
+  var MIX_A = 569420461;
+  var MIX_B = 1935289751;
+  function resolveStep(config, maxRank) {
+    if (config.spread === void 0) return config.step;
+    if (maxRank <= 0) return "0ms";
+    return `calc((${config.spread}) / ${String(maxRank)})`;
+  }
+  function staggerRanks(count, from, warnings = [], layout) {
+    if (count <= 0) return [];
+    if (from === "random") return randomRanks(count);
+    if (layout) return gridRanks(count, from, layout, warnings);
+    if (typeof from === "object") {
+      warnings.push(
+        `stagger order "${String(from.x)}/${String(from.y)}" is a point in a grid, but this group has no "cols:" \u2014 add one, or name an edge with start/end/center/edges`
+      );
+      return staggerRanks(count, "start", warnings);
+    }
+    const last = count - 1;
+    if (from === "edges") {
+      return Array.from({ length: count }, (_, index) => Math.min(index, last - index));
+    }
+    const origin = originOf(from, last, warnings);
+    return Array.from({ length: count }, (_, index) => Math.floor(Math.abs(index - origin)));
+  }
+  function originOf(from, last, warnings) {
+    if (from === "start") return 0;
+    if (from === "end") return last;
+    if (from === "center") return last / 2;
+    return clampIndex(from, last, warnings);
+  }
+  function clampIndex(index, last, warnings) {
+    if (index < 0 || index > last) {
+      warnings.push(`stagger order "${String(index)}" is outside the group (0 to ${String(last)}) \u2014 clamped`);
+    }
+    return Math.min(Math.max(index, 0), last);
+  }
+  function gridRanks(count, from, layout, warnings) {
+    const cols = Math.min(Math.max(1, layout.cols), count);
+    const rows = Math.ceil(count / cols);
+    if (from === "edges") {
+      const inward = gridRanks(count, "center", layout, warnings);
+      let furthest = 0;
+      for (const rank of inward) furthest = Math.max(furthest, rank);
+      return inward.map((rank) => round2(furthest - rank));
+    }
+    const origin = gridOrigin(from, { cols, rows, last: count - 1 }, warnings);
+    return Array.from({ length: count }, (_, index) => {
+      const dx = index % cols - origin.x;
+      const dy = Math.floor(index / cols) - origin.y;
+      if (layout.along === "x") return round2(Math.abs(dx));
+      if (layout.along === "y") return round2(Math.abs(dy));
+      return round2(Math.hypot(dx, dy));
+    });
+  }
+  function gridOrigin(from, grid, warnings) {
+    const { cols, rows, last } = grid;
+    if (typeof from === "object") return { x: from.x * (cols - 1), y: from.y * (rows - 1) };
+    if (from === "start") return { x: 0, y: 0 };
+    if (from === "end") return { x: cols - 1, y: rows - 1 };
+    if (from === "center") return { x: (cols - 1) / 2, y: (rows - 1) / 2 };
+    const index = clampIndex(from, last, warnings);
+    return { x: index % cols, y: Math.floor(index / cols) };
+  }
+  function round2(value) {
+    return Math.round(value * RANK_PRECISION) / RANK_PRECISION;
+  }
+  function randomRanks(count) {
+    const order = Array.from({ length: count }, (_, index) => index);
+    order.sort((a, b) => scatterKey(a, count) - scatterKey(b, count));
+    const ranks = new Array(count);
+    for (const [rank, index] of order.entries()) ranks[index] = rank;
+    return ranks;
+  }
+  function scatterKey(index, count) {
+    let hash = (Math.imul(index, RANDOM_SALT) ^ Math.imul(count, COUNT_SALT)) >>> 0;
+    hash ^= hash >>> 16;
+    hash = Math.imul(hash, MIX_A) >>> 0;
+    hash ^= hash >>> 15;
+    hash = Math.imul(hash, MIX_B) >>> 0;
+    hash ^= hash >>> 15;
+    return hash >>> 0;
+  }
+  function indexStaggerGroup(group, reporter) {
+    const warnings = [];
+    const ledgers = reopenLedger(group);
+    const config = resolveStaggerConfig(
+      group.getAttribute(ATTR.stagger),
+      group.getAttribute(ATTR.source) ?? "",
+      warnings
+    ) ?? { from: "start" };
+    const children = animatedChildren(group);
+    const ranks = staggerRanks(children.length, config.from, warnings, resolveLayout(config, children, warnings));
+    let maxRank = 0;
+    for (const [index, child] of children.entries()) {
+      const rank = ranks[index];
+      ledgers.style(child).set("--kui-i", String(rank));
+      GROUP_OF_CHILD.set(child, group);
+      if (rank > maxRank) maxRank = rank;
+    }
+    const step = resolveStep(config, maxRank);
+    if (step) ledgers.style(group).set("--kui-stagger", step);
+    ledgers.style(group).set("--kui-stagger-count", String(round2(maxRank + 1)));
+    for (const warning of warnings) reporter?.warn(warning, group);
+  }
+  var GROUP_LEDGERS = /* @__PURE__ */ new WeakMap();
+  var GROUP_OF_CHILD = /* @__PURE__ */ new WeakMap();
+  function restageAfterRemoval(removed, reporter) {
+    const groups = /* @__PURE__ */ new Set();
+    for (const el of removed) {
+      const group = GROUP_OF_CHILD.get(el);
+      if (group) groups.add(group);
+    }
+    for (const group of groups) indexStaggerGroup(group, reporter);
+  }
+  function reopenLedger(group) {
+    GROUP_LEDGERS.get(group)?.restore();
+    const ledgers = createLedgerSet(group);
+    GROUP_LEDGERS.set(group, ledgers);
+    return ledgers;
+  }
+  function releaseStaggerGroup(group) {
+    GROUP_LEDGERS.get(group)?.restore();
+    GROUP_LEDGERS.delete(group);
+  }
+  function releaseStagger(root) {
+    const selector = `[${ATTR.stagger}], [${ATTR.source}]`;
+    if (root instanceof Element && root.matches(selector)) releaseStaggerGroup(root);
+    for (const el of root.querySelectorAll(selector)) releaseStaggerGroup(el);
+  }
+  function restageAround(el, reporter) {
+    restageOne(el, reporter);
+    const parent = el.parentElement;
+    if (parent) restageOne(parent, reporter);
+  }
+  function restageOne(el, reporter) {
+    if (declaresGroup(el)) indexStaggerGroup(el, reporter);
+    else releaseStaggerGroup(el);
+  }
+  function indexTargetGroup(request) {
+    const { host, matches, styleOf, keys, reporter } = request;
+    const warnings = [];
+    const attribute = host.getAttribute(ATTR.stagger);
+    const config = (keys ? resolveStaggerConfigFrom(attribute, keys, warnings) : resolveStaggerConfig(attribute, host.getAttribute(ATTR.source) ?? "", warnings)) ?? { from: "start" };
+    const maxRank = rankBuckets(bucketByParent(matches), config, styleOf, warnings);
+    const step = resolveStep(config, maxRank);
+    if (step) styleOf(host).set("--kui-stagger", step);
+    styleOf(host).set("--kui-stagger-count", String(round2(maxRank + 1)));
+    for (const warning of warnings) reporter?.warn(warning, host);
+  }
+  function bucketByParent(matches) {
+    const byParent = /* @__PURE__ */ new Map();
+    for (const match of matches) {
+      const siblings = byParent.get(match.parentElement);
+      if (siblings) siblings.push(match);
+      else byParent.set(match.parentElement, [match]);
+    }
+    return byParent;
+  }
+  function rankBuckets(byParent, config, styleOf, warnings) {
+    let maxRank = 0;
+    for (const siblings of byParent.values()) {
+      const layout = resolveLayout(config, siblings, warnings);
+      const ranks = staggerRanks(siblings.length, config.from, warnings, layout);
+      for (const [index, match] of siblings.entries()) {
+        const rank = ranks[index];
+        styleOf(match).set("--kui-i", String(rank));
+        if (rank > maxRank) maxRank = rank;
+      }
+    }
+    return maxRank;
+  }
+  function resolveLayout(config, members, warnings) {
+    if (config.cols === void 0) {
+      if (config.along !== void 0) {
+        warnings.push(
+          `"along:${config.along}" names an axis of a grid this group has not declared \u2014 add "cols:" (a column count, or "auto")`
+        );
+      }
+      return void 0;
+    }
+    const cols = config.cols === "auto" ? measureColumns(members, warnings) : config.cols;
+    if (cols === void 0) return void 0;
+    return config.along === void 0 ? { cols } : { cols, along: config.along };
+  }
+  function measureColumns(members, warnings) {
+    if (members.length < 2) return 1;
+    const lefts = [];
+    let laidOut = false;
+    for (const member of members) {
+      const box = member.getBoundingClientRect();
+      if (box.width !== 0 || box.height !== 0) laidOut = true;
+      lefts.push(box.left);
+    }
+    if (!laidOut) {
+      warnings.push(
+        `"cols:auto" could not measure this group \u2014 none of its children have been laid out yet (display:none, or detached), so the stagger falls back to DOM order`
+      );
+      return void 0;
+    }
+    const direction = Math.sign(lefts[1] - lefts[0]);
+    if (direction === 0) return 1;
+    let cols = 1;
+    for (let index = 1; index < lefts.length; index++) {
+      if (Math.sign(lefts[index] - lefts[index - 1]) !== direction) break;
+      cols = index + 1;
+    }
+    return cols;
+  }
+  function animatedChildren(group) {
+    const children = [];
+    for (const child of group.children) {
+      if (child.hasAttribute(ATTR.source)) children.push(child);
+    }
+    return children;
+  }
+  function applyStagger(root, reporter) {
+    const selector = `[${ATTR.stagger}], [${ATTR.source}]`;
+    if (root instanceof Element && root.matches(selector)) restageOne(root, reporter);
+    for (const group of root.querySelectorAll(selector)) restageOne(group, reporter);
+  }
+  function declaresGroup(el) {
+    if (el.hasAttribute(ATTR.define)) return false;
+    if (isTargetGroupHost(el)) return false;
+    if (el.hasAttribute(ATTR.stagger)) return true;
+    return resolveStaggerConfig(null, el.getAttribute(ATTR.source) ?? "") !== void 0;
+  }
+
+  // src/core/derived/diagnostics.ts
+  var ANCESTOR_WALK_BOUND = 64;
+  function describe(el) {
+    return el.id ? `${el.tagName.toLowerCase()}#${el.id}` : el.tagName.toLowerCase();
+  }
+  function anyEstablishes3d(registry, names) {
+    return names.some((name) => registry.resolve(name)?.preset.establishes3d === true);
+  }
+  function liveEstablishes3d(port, el) {
+    const state = port.stateOf(el);
+    if (!state || state.aggregate) return false;
+    return anyEstablishes3d(port.registry, state.fxNames);
+  }
+  function find3dNeighbor(port, host, match) {
+    if (liveEstablishes3d(port, host)) return host;
+    let ancestor = match.parentElement;
+    let depth = 0;
+    while (ancestor && depth < ANCESTOR_WALK_BOUND) {
+      if (ancestor !== host && liveEstablishes3d(port, ancestor)) return ancestor;
+      ancestor = ancestor.parentElement;
+      depth++;
+    }
+    return void 0;
+  }
+  function markUnmatched(host, selectors, attributes) {
+    if (selectors.length === 0) {
+      host.removeAttribute(ATTR.unmatched);
+      return;
+    }
+    const value = selectors.join(", ");
+    if (attributes) attributes.set(ATTR.unmatched, value);
+    else host.setAttribute(ATTR.unmatched, value);
+  }
+  function warnNested3d(port, host, match, target) {
+    if (!anyEstablishes3d(port.registry, target.plan.fxNames)) return;
+    const neighbor = find3dNeighbor(port, host, match);
+    if (!neighbor) return;
+    const where = neighbor === host ? "its target: host" : "an ancestor";
+    port.reporter.warn(
+      `<${describe(match)}> establishes a 3D rendering context nested inside ${where} <${describe(neighbor)}>, which also runs a 3D-establishing effect \u2014 preserve-3d/perspective contexts do not compose when nested, so move one of the two 3D effects off its descendant`,
+      match
+    );
+  }
+  function warnPageScopeCloak(port, host, target) {
+    if (target.scope !== "page") return;
+    if (!target.plan.fxNames.some((name) => port.registry.resolve(name)?.preset.cloak === true)) return;
+    if (!host.ownerDocument.documentElement.hasAttribute(ATTR.cloak)) return;
+    port.reporter.warn(
+      `target "${target.selector}" (scope:page) on <${describe(host)}> carries a cloaked entrance \u2014 the pre-JS cloak selector only hides descendants of the element it is authored on, so a scope:page match outside <${describe(host)}>'s own subtree will flash unstyled before this library runs; use scope:self, or drop the cloaked preset from this group`,
+      host
+    );
+  }
+
+  // src/core/derived/install.ts
+  var FORMER_HOST = /* @__PURE__ */ new WeakMap();
+  function rememberFormerHost(book, match, host) {
+    let table = FORMER_HOST.get(book);
+    if (!table) {
+      table = /* @__PURE__ */ new WeakMap();
+      FORMER_HOST.set(book, table);
+    }
+    table.set(match, host);
+  }
+  function formerHostOf(book, match) {
+    return FORMER_HOST.get(book)?.get(match);
+  }
+  function targetKey(target) {
+    return `${target.scope} ${target.selector}`;
+  }
+  function matchKey(targets) {
+    return targets.length === 1 ? targetKey(targets[0]) : targets.map(targetKey).sort((a, b) => a.localeCompare(b)).join("");
+  }
+  function groupConfigFor(port, context, target, cache) {
+    const cached2 = cache.get(target);
+    if (cached2) return cached2;
+    const config = { ...resolveGroupConfig(context.baseConfig, target.hoists) };
+    config.activation = port.resolveActivation(context.host, config, target.plan);
+    cache.set(target, config);
+    return config;
+  }
+  function resolveGroups(port, context, targets, cache) {
+    const live = [];
+    const resolved = [];
+    const unmatched = [];
+    for (const target of targets) {
+      if (target.selector === "") continue;
+      const matches = port.resolveGroupMatches(context.host, target);
+      if (matches.length === 0) unmatched.push(target.selector);
+      resolved.push({ target, matches });
+      live.push({
+        target,
+        config: groupConfigFor(port, context, target, cache),
+        gateOwner: groupGateOwner(port, context, target),
+        members: []
+      });
+    }
+    return { live, resolved, unmatched };
+  }
+  function buildContext(request) {
+    const baseConfig = request.baseConfig;
+    return {
+      host: request.el,
+      fingerprint: request.fingerprint,
+      parsed: request.parsed,
+      baseConfig,
+      timeline: baseConfig.timeline
+    };
+  }
+  function installHostGroup(port, request, own) {
+    if (own) {
+      port.install({ ...request, document: { targets: [own], warnings: [] } });
+    } else {
+      port.installAggregate(request);
+    }
+  }
+  function registerCleanup2(port, host, cleanup) {
+    const cleanups = port.book.cleanups.get(host) ?? [];
+    cleanups.push(cleanup);
+    port.book.cleanups.set(host, cleanups);
+  }
+  function installedTargetFor(port, context, targets) {
+    return targets.length === 1 ? targets[0] : compileUnion(port, context, targets);
+  }
+  function finalizeInstall(port, context, input) {
+    const host = context.host;
+    const hostState = port.stateOf(host);
+    markUnmatched(host, [...input.unmatched, ...input.suspects ?? []], hostState.attributes);
+    registerCleanup2(port, host, claimTargetGroupHost(host));
+    restageTargets(port, host);
+    bindGroups(port, host);
+    for (const [match, targets] of input.claims) {
+      warnNested3d(port, host, match, installedTargetFor(port, context, targets));
+    }
+    for (const group of input.resolved) warnPageScopeCloak(port, host, group.target);
+    syncAggregate(port, host);
+  }
+  function installWithTargets(port, request) {
+    const context = buildContext(request);
+    const cache = /* @__PURE__ */ new Map();
+    const { live, resolved, unmatched } = resolveGroups(port, context, request.document.targets, cache);
+    port.book.contexts.set(context.host, context);
+    port.book.groups.set(context.host, live);
+    const claims = claimMatches(port, context.host, resolved);
+    const own = request.document.targets.find((target) => target.selector === "");
+    if (!own && claims.size === 0) {
+      context.host.setAttribute(ATTR.state, "failed");
+      markUnmatched(context.host, [...unmatched, ...request.document.suspectSelectors ?? []]);
+      return;
+    }
+    installDerivedMatches(port, context, claims, cache);
+    installHostGroup(port, request, own);
+    finalizeInstall(port, context, { claims, resolved, unmatched, suspects: request.document.suspectSelectors });
+  }
+  function releaseMatch(port, host, match) {
+    const { book } = port;
+    rememberFormerHost(book, match, host);
+    book.hosts.delete(match);
+    book.derived.get(host)?.delete(match);
+    for (const group of book.groups.get(host) ?? []) {
+      const index = group.members.indexOf(match);
+      if (index !== -1) group.members.splice(index, 1);
+    }
+  }
+  function releaseHost(port, host) {
+    const { book } = port;
+    for (const match of [...book.derived.get(host) ?? []]) port.release(match);
+    for (const cleanup of book.cleanups.get(host) ?? []) cleanup();
+    book.derived.delete(host);
+    book.groups.delete(host);
+    book.contexts.delete(host);
+    book.unions.delete(host);
+    book.cleanups.delete(host);
+  }
+  function releaseDerived(port, el) {
+    const host = port.book.hosts.get(el);
+    if (host) {
+      releaseMatch(port, host, el);
+      return;
+    }
+    if (port.book.derived.has(el)) releaseHost(port, el);
+  }
+  function restageAfterTreeRelease(port, removed) {
+    const formerHosts = /* @__PURE__ */ new Set();
+    for (const el of removed) {
+      const host = formerHostOf(port.book, el);
+      if (host) formerHosts.add(host);
+    }
+    for (const host of formerHosts) {
+      if (!port.stateOf(host)) continue;
+      restageTargets(port, host);
+      syncAggregate(port, host);
+    }
+  }
+  var SKIP_LABEL = {
+    host: "is the target: host itself",
+    authored: "already carries its own data-kui and animates itself",
+    claimed: "is already claimed by another target: host"
+  };
+  function rejectionReason(port, host, match) {
+    if (match === host) return "host";
+    if (match.hasAttribute(ATTR.source)) return "authored";
+    const claimedBy = port.book.hosts.get(match);
+    if (claimedBy !== void 0 && claimedBy !== host) return "claimed";
+    return void 0;
+  }
+  function claimMatch(claims, target, match) {
+    const existing = claims.get(match);
+    if (existing) existing.push(target);
+    else claims.set(match, [target]);
+  }
+  function reportSkips(port, host, target, skipped) {
+    const names = target.plan.fxNames.join(", ");
+    for (const [reason, count] of skipped) {
+      const plural = count === 1 ? "match" : "matches";
+      port.reporter.warn(
+        `target "${target.selector}" (${names}) skipped ${count} ${plural} that ${SKIP_LABEL[reason]}`,
+        host
+      );
+    }
+  }
+  function claimMatches(port, host, groups) {
+    const claims = /* @__PURE__ */ new Map();
+    for (const group of groups) {
+      const skipped = /* @__PURE__ */ new Map();
+      for (const match of group.matches) {
+        const reason = rejectionReason(port, host, match);
+        if (reason) skipped.set(reason, (skipped.get(reason) ?? 0) + 1);
+        else claimMatch(claims, group.target, match);
+      }
+      reportSkips(port, host, group.target, skipped);
+    }
+    return claims;
+  }
+  function resolveClaim(port, context, entry, cache) {
+    const { match, targets } = entry;
+    const target = installedTargetFor(port, context, targets);
+    return { match, targets, target, config: groupConfigFor(port, context, target, cache) };
+  }
+  function matchGateOwner(port, context, targets) {
+    const grouped = targets.some((target) => groupGateOwner(port, context, target) !== void 0);
+    return grouped ? context.host : void 0;
+  }
+  function recordClaim(port, context, claim2) {
+    const { book } = port;
+    book.hosts.set(claim2.match, context.host);
+    const derived = book.derived.get(context.host) ?? /* @__PURE__ */ new Set();
+    derived.add(claim2.match);
+    book.derived.set(context.host, derived);
+    const live = book.groups.get(context.host) ?? [];
+    for (const target of claim2.targets) {
+      live.find((group) => group.target === target)?.members.push(claim2.match);
+    }
+  }
+  function installClaim(port, context, claim2) {
+    port.install({
+      el: claim2.match,
+      fingerprint: `${context.fingerprint}\0${matchKey(claim2.targets)}`,
+      parsed: { specs: claim2.target.specs, warnings: [] },
+      config: claim2.config,
+      document: { targets: [{ ...claim2.target, selector: "", scope: "self" }], warnings: [] },
+      host: context.host,
+      gateOwner: matchGateOwner(port, context, claim2.targets)
+    });
+    recordClaim(port, context, claim2);
+  }
+  function installDerivedMatches(port, context, claims, cache = /* @__PURE__ */ new Map()) {
+    const installed = [];
+    for (const [match, targets] of claims) {
+      const claim2 = resolveClaim(port, context, { match, targets }, cache);
+      installClaim(port, context, claim2);
+      installed.push(claim2.match);
+    }
+    return installed;
+  }
+  function restageTargets(port, host) {
+    const context = port.book.contexts.get(host);
+    const live = port.book.groups.get(host);
+    const hostState = port.stateOf(host);
+    if (!context || !live || !hostState) return;
+    const elementWide = elementStaggerKeys(context.parsed);
+    const styleOf = (el) => el === host ? hostState.ledgers.style(host) : port.stateOf(el).ledgers.style(el);
+    for (const group of live) {
+      if (group.members.length === 0) continue;
+      indexTargetGroup({
+        host,
+        matches: group.members,
+        styleOf,
+        keys: staggerKeysFor(group.target.hoists, elementWide),
+        reporter: port.reporter
+      });
+    }
+  }
+
+  // src/core/derived/late-matches.ts
+  var ANCESTOR_WALK_BOUND2 = 64;
+  function newMatchesFor(node, host, target) {
+    const candidates = [...node.querySelectorAll(target.selector)];
+    if (node.matches(target.selector)) candidates.unshift(node);
+    return candidates.filter((el) => host.contains(el) && el !== host && !el.hasAttribute(ATTR.part));
+  }
+  function resolveNewGroups(node, host, groups) {
+    const resolved = [];
+    const before = /* @__PURE__ */ new Map();
+    for (const group of groups) {
+      before.set(group, group.members.length);
+      if (group.target.scope !== "self") continue;
+      const matches = newMatchesFor(node, host, group.target);
+      if (matches.length > 0) resolved.push({ target: group.target, matches });
+    }
+    return { resolved, before };
+  }
+  function insertionIndex(members, anchor) {
+    const index = members.findIndex((existing) => Boolean(existing.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_PRECEDING));
+    return index === -1 ? members.length : index;
+  }
+  function hasAlreadyFired(port, group, added) {
+    return group.members.some((member) => !added.includes(member) && port.stateOf(member)?.status !== "ready");
+  }
+  function activateIfAlreadyFired(port, group, added) {
+    if (group.gateOwner === void 0) return;
+    if (hasAlreadyFired(port, group, added)) for (const member of added) port.activateOne(member);
+  }
+  function reindexGroup(port, group, before) {
+    if (group.members.length === before) return;
+    const added = group.members.splice(before);
+    group.members.splice(insertionIndex(group.members, added[0]), 0, ...added);
+    activateIfAlreadyFired(port, group, added);
+  }
+  function adoptIntoHost(port, node, host) {
+    const groups = port.book.groups.get(host);
+    const context = port.book.contexts.get(host);
+    if (!groups || !context) return;
+    const { resolved, before } = resolveNewGroups(node, host, groups);
+    if (resolved.length === 0) return;
+    const claims = claimMatches(port, host, resolved);
+    if (claims.size === 0) return;
+    installDerivedMatches(port, context, claims);
+    for (const group of groups) reindexGroup(port, group, before.get(group));
+    restageTargets(port, host);
+  }
+  function adoptLateMatches(port, node) {
+    if (node.hasAttribute(ATTR.part)) return;
+    let ancestor = node.parentElement;
+    let depth = 0;
+    while (ancestor && depth < ANCESTOR_WALK_BOUND2) {
+      adoptIntoHost(port, node, ancestor);
+      ancestor = ancestor.parentElement;
+      depth++;
+    }
+  }
+
+  // src/core/dom-watcher.ts
+  var WORK_BUDGET = 100;
+  function createDomWatcher(options) {
+    const { root, onElementAdded, onElementRemoved, onAttributeChanged } = options;
+    const schedule = options.schedule ?? scheduleFrame;
+    const createObserver = options.createObserver ?? defaultObserverFactory2();
+    const added = /* @__PURE__ */ new Set();
+    const removed = /* @__PURE__ */ new Set();
+    const changed = /* @__PURE__ */ new Set();
+    let observer;
+    let scheduled = false;
+    let destroyed = false;
+    function collect(record) {
+      if (record.type === "attributes") {
+        const target = asElement(record.target);
+        if (target) changed.add(target);
+        return;
+      }
+      for (const node of record.addedNodes) queueRoot(added, asElement(node));
+      for (const node of record.removedNodes) queueRoot(removed, asElement(node));
+    }
+    function queueWork(records) {
+      for (const record of records) collect(record);
+      if (scheduled) return;
+      scheduled = true;
+      schedule(flush);
+    }
+    const install = whileAttached(root, onElementAdded);
+    const recompile = whileAttached(root, onAttributeChanged);
+    function flush() {
+      scheduled = false;
+      if (destroyed) return;
+      let remaining = WORK_BUDGET;
+      remaining = drain(removed, onElementRemoved, remaining);
+      remaining = drain(added, install, remaining);
+      drain(changed, recompile, remaining);
+      if (added.size + removed.size + changed.size > 0) {
+        scheduled = true;
+        schedule(flush);
+      }
+    }
+    return {
+      watch() {
+        if (!createObserver) return;
+        destroyed = false;
+        observer = createObserver(queueWork);
+        observer.observe(root, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          // `ATTR.stagger` is watched for the same reason `ATTR.source` is: both spell a stagger
+          // group, and an edit to either has to re-rank the group. Its absence here meant editing
+          // `data-kui-stagger` produced no record at all — not a missed handler, no mutation.
+          attributeFilter: [ATTR.source, ATTR.on, ATTR.timeline, ATTR.threshold, ATTR.stagger]
+        });
+      },
+      destroy() {
+        destroyed = true;
+        observer?.disconnect();
+        added.clear();
+        removed.clear();
+        changed.clear();
+      }
+    };
+  }
+  function whileAttached(root, work) {
+    return (el) => {
+      if (root.contains(el)) work(el);
+    };
+  }
+  function queueRoot(roots, candidate) {
+    if (!candidate) return;
+    for (const root of roots) {
+      if (root.contains(candidate)) return;
+      if (candidate.contains(root)) roots.delete(root);
+    }
+    roots.add(candidate);
+  }
+  function drain(roots, callback, budget) {
+    for (const root of roots) {
+      if (budget === 0) break;
+      roots.delete(root);
+      callback(root);
+      budget--;
+    }
+    return budget;
+  }
+  function asElement(node) {
+    return node.nodeType === 1 ? node : null;
+  }
+  function scheduleFrame(callback) {
+    const requestFrame = globalThis.requestAnimationFrame;
+    if (typeof requestFrame === "function") requestFrame(() => callback());
+    else queueMicrotask(callback);
+  }
+  function defaultObserverFactory2() {
+    if (typeof MutationObserver === "undefined") return void 0;
+    return (callback) => new MutationObserver(callback);
+  }
+
   // src/core/js-effect-preparer.ts
+  function sequencedTiming(entry, warn) {
+    const timing3 = readEffectTiming(entry.spec, warn);
+    if (entry.sequencedDelayMs !== void 0) timing3.delayMs = entry.sequencedDelayMs;
+    return timing3;
+  }
   function createJsEffectPreparer(options) {
     const { scheduler, rootResolver, capabilities, reporter, respectReducedMotion } = options;
     function contextFor(el, signal, ledger) {
@@ -816,15 +4942,16 @@ var kuinetic = (() => {
         const instances = [];
         if (plan.jsEffects.length === 0) return instances;
         const ctx = contextFor(el, signal, ledger);
-        for (const { spec, resolved } of plan.jsEffects) {
+        for (const entry of plan.jsEffects) {
+          const { spec, resolved } = entry;
           const prepare = resolved.primitive.prepare;
           if (!prepare) continue;
           const warn = (message) => reporter.warn(message, el);
           const params = readEffectParams(
-            { ...resolved.preset.params, ...spec.params },
+            { ...resolved.preset.params, ...authoredParams(entry) },
             resolved.primitive.parameters,
             warn,
-            readEffectTiming(spec, warn)
+            sequencedTiming(entry, warn)
           );
           try {
             instances.push(prepare(el, params, ctx));
@@ -835,179 +4962,6 @@ var kuinetic = (() => {
         return instances;
       }
     };
-  }
-
-  // src/core/parse.ts
-  var TIME_RE = /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:ms|s)$/;
-  var EASING_FUNCTIONS = ["cubic-bezier(", "steps(", "linear("];
-  var ACTIVATIONS2 = /* @__PURE__ */ new Set([
-    "load",
-    "enter",
-    "hover",
-    "focus",
-    "click",
-    "manual"
-  ]);
-  var EASING_KEYWORDS = /* @__PURE__ */ new Set([
-    "linear",
-    "ease",
-    "ease-in",
-    "ease-out",
-    "ease-in-out",
-    "step-start",
-    "step-end",
-    "expo-in",
-    "expo-out",
-    "expo-in-out",
-    "back-in",
-    "back-out",
-    "back-in-out",
-    "quart-out",
-    "circ-out",
-    "spring",
-    "bounce"
-  ]);
-  function splitTopLevel(input, delimiter, warnings = []) {
-    const parts = [];
-    const scanner = { depth: 0, quote: null, escaped: false };
-    let buffer = "";
-    for (const char of input) {
-      if (isSeparator(char, delimiter, scanner)) {
-        if (buffer.trim()) parts.push(buffer.trim());
-        buffer = "";
-        continue;
-      }
-      buffer += char;
-    }
-    if (buffer.trim()) parts.push(buffer.trim());
-    if (scanner.quote) warnings.push(`unterminated ${scanner.quote} quote in "${input}"`);
-    else if (scanner.depth > 0) warnings.push(`unclosed "(" in "${input}"`);
-    return parts;
-  }
-  function isSeparator(char, delimiter, scanner) {
-    if (scanner.quote) return advanceQuote(char, scanner);
-    if (char === '"' || char === "'") {
-      scanner.quote = char;
-      return false;
-    }
-    if (char === "(") scanner.depth++;
-    else if (char === ")") scanner.depth = Math.max(0, scanner.depth - 1);
-    if (scanner.depth !== 0) return false;
-    return delimiter === " " ? /\s/.test(char) : char === delimiter;
-  }
-  function advanceQuote(char, scanner) {
-    if (scanner.escaped) scanner.escaped = false;
-    else if (char === "\\") scanner.escaped = true;
-    else if (char === scanner.quote) scanner.quote = null;
-    return false;
-  }
-  function splitPair(token) {
-    let depth = 0;
-    for (let i = 0; i < token.length; i++) {
-      const char = token[i];
-      if (char === "(") depth++;
-      else if (char === ")") depth = Math.max(0, depth - 1);
-      else if (char === ":" && depth === 0) {
-        const key = token.slice(0, i).trim();
-        const value = unquote(token.slice(i + 1).trim());
-        return key && value ? [key, value] : null;
-      }
-    }
-    return null;
-  }
-  function unquote(value) {
-    const first = value[0];
-    if ((first === '"' || first === "'") && value.endsWith(first) && value.length > 1) {
-      return value.slice(1, -1).replaceAll(`\\${first}`, first);
-    }
-    return value;
-  }
-  function classify(token) {
-    const pair = splitPair(token);
-    if (pair) return { kind: "pair", key: pair[0], value: pair[1] };
-    if (TIME_RE.test(token)) return { kind: "time", value: token };
-    if (isEasing(token)) return { kind: "easing", value: token };
-    return { kind: "unknown", value: token };
-  }
-  function isEasing(token) {
-    if (EASING_KEYWORDS.has(token)) return true;
-    return EASING_FUNCTIONS.some((fn) => token.startsWith(fn) && token.endsWith(")"));
-  }
-  function parse(input) {
-    const result = { specs: [], warnings: [] };
-    for (const segment of splitTopLevel(input ?? "", ",", result.warnings)) {
-      const spec = parseSegment(segment, result);
-      if (spec) result.specs.push(spec);
-    }
-    return result;
-  }
-  function parseSegment(segment, result) {
-    const tokens = splitTopLevel(segment, " ", result.warnings);
-    const name = tokens.shift();
-    if (splitPair(name)) {
-      result.warnings.push(`effect name expected, got "${name}"`);
-      return null;
-    }
-    const spec = { name, params: {} };
-    let timeCount = 0;
-    for (const raw of tokens) {
-      const token = classify(raw);
-      if (token.kind === "time") timeCount = applyTime(spec, token.value, timeCount, result.warnings);
-      else applyToken(token, spec, segment, result);
-    }
-    return spec;
-  }
-  function applyTime(spec, value, seen, warnings) {
-    if (seen === 0) spec.duration = value;
-    else if (seen === 1) spec.delay = value;
-    else warnings.push(`third time value "${value}" ignored (expected duration then delay)`);
-    return seen + 1;
-  }
-  function applyToken(token, spec, segment, result) {
-    if (token.kind === "easing") {
-      if (spec.easing) result.warnings.push(`duplicate easing "${token.value}" in "${segment}"`);
-      spec.easing = token.value;
-      return;
-    }
-    if (token.kind === "unknown") {
-      result.warnings.push(
-        `unrecognised token "${token.value}" in "${segment}" \u2014 expected [duration] [delay] [easing] or key:value`
-      );
-      return;
-    }
-    if (Object.hasOwn(HOISTS, token.key)) {
-      HOISTS[token.key](result, token.value);
-      return;
-    }
-    if (token.key in spec.params) {
-      result.warnings.push(`duplicate parameter "${token.key}" in "${segment}"`);
-    }
-    spec.params[token.key] = token.value;
-  }
-  var HOISTS = {
-    on(result, value) {
-      if (!ACTIVATIONS2.has(value)) {
-        result.warnings.push(`unknown activation "${value}"`);
-        return;
-      }
-      assignOnce(result, "activation", value, "activations");
-    },
-    timeline(result, value) {
-      assignOnce(result, "timeline", value, "timelines");
-    },
-    threshold(result, value) {
-      assignOnce(result, "threshold", value, "thresholds");
-    }
-  };
-  function assignOnce(result, key, value, label) {
-    const current = result[key];
-    if (current === void 0) {
-      result[key] = value;
-      return;
-    }
-    if (current !== value) {
-      result.warnings.push(`conflicting ${label} "${String(current)}" and "${String(value)}"`);
-    }
   }
 
   // src/core/scroll-scheduler.ts
@@ -1181,7 +5135,7 @@ var kuinetic = (() => {
       return vertical || horizontal;
     };
   }
-  function clamp01(value) {
+  function clamp013(value) {
     if (Number.isNaN(value)) return 0;
     return Math.min(1, Math.max(0, value));
   }
@@ -1199,102 +5153,6 @@ var kuinetic = (() => {
       clear() {
         cachedEpoch = -1;
         cached2 = void 0;
-      }
-    };
-  }
-
-  // src/core/play.ts
-  function resolveTargets(target, root) {
-    if (typeof target === "string") return [...root.querySelectorAll(target)];
-    if (target instanceof Element) return [target];
-    return [...target];
-  }
-  function time(value) {
-    if (value === void 0) return void 0;
-    return typeof value === "number" ? `${value}ms` : value;
-  }
-  var STRUCTURAL_RE = /[\s,()"']/;
-  function quoteIfNeeded(value) {
-    if (!STRUCTURAL_RE.test(value)) return value;
-    const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    return `"${escaped}"`;
-  }
-  function hasTopLevelColon(value) {
-    let depth = 0;
-    for (const char of value) {
-      if (char === "(") depth++;
-      else if (char === ")") depth = Math.max(0, depth - 1);
-      else if (char === ":" && depth === 0) return true;
-    }
-    return false;
-  }
-  function assertBareToken(label, value) {
-    const warnings = [];
-    const bySpace = splitTopLevel(value, " ", warnings);
-    const byComma = splitTopLevel(value, ",", warnings);
-    const isSingleToken = bySpace.length === 1 && bySpace[0] === value;
-    const safe = warnings.length === 0 && isSingleToken && byComma.length === 1 && !hasTopLevelColon(value);
-    if (!safe) {
-      throw new Error(
-        `play(): ${label} "${value}" cannot be serialized \u2014 it contains a space, comma, colon, quote, or unbalanced parenthesis the parser cannot read back as one token`
-      );
-    }
-  }
-  function toAttributeValue(effect, options = {}) {
-    assertBareToken("effect", effect);
-    const { duration, delay, ease, ...rest } = options;
-    delete rest.stagger;
-    const parts = [effect];
-    const resolvedDelay = time(delay);
-    const resolvedDuration = time(duration) ?? (resolvedDelay ? "0ms" : void 0);
-    if (resolvedDuration) {
-      assertBareToken("duration", resolvedDuration);
-      parts.push(resolvedDuration);
-    }
-    if (resolvedDelay) {
-      assertBareToken("delay", resolvedDelay);
-      parts.push(resolvedDelay);
-    }
-    if (ease) {
-      assertBareToken("easing", ease);
-      parts.push(ease);
-    }
-    for (const [key, value] of Object.entries(rest)) {
-      if (value === void 0) continue;
-      assertBareToken("parameter name", key);
-      parts.push(`${key}:${quoteIfNeeded(String(value))}`);
-    }
-    return parts.join(" ");
-  }
-  function play(request, options = {}) {
-    const { animator, root, target, effect } = request;
-    const elements = resolveTargets(target, root);
-    const stagger = time(options.stagger);
-    const source = toAttributeValue(effect, options);
-    for (const [index, el] of elements.entries()) {
-      if (stagger) {
-        ;
-        el.style.setProperty("--kui-stagger", stagger);
-        el.style.setProperty("--kui-i", String(index));
-      }
-      animator.reset(el);
-      if (!el.hasAttribute(ATTR.on)) el.setAttribute(ATTR.on, "manual");
-      el.setAttribute(ATTR.source, source);
-      animator.process(el);
-      animator.activate(el);
-    }
-    const instancesOf = (el) => animator.stateOf(el)?.instances ?? [];
-    const finished = Promise.all(
-      elements.flatMap((el) => instancesOf(el).map((instance) => instance.finished))
-    ).then(() => void 0);
-    return {
-      elements,
-      finished,
-      cancel() {
-        for (const el of elements) for (const instance of instancesOf(el)) instance.cancel();
-      },
-      finish() {
-        for (const el of elements) for (const instance of instancesOf(el)) instance.finish();
       }
     };
   }
@@ -1342,6 +5200,13 @@ var kuinetic = (() => {
     flushComputedAnimationName(el);
     ledger.set("animation-name", name);
   }
+  function watchCompletion(animations, settle2) {
+    if (animations.length === 0) {
+      settle2();
+      return;
+    }
+    void Promise.all(animations.map((a) => a.finished.catch(() => void 0))).then(() => settle2());
+  }
   function createCssInstance(el, ledger, animationNames, scrubbed = false) {
     const ownedNames = new Set(animationNames);
     let settle2;
@@ -1349,14 +5214,27 @@ var kuinetic = (() => {
       settle2 = resolve;
     });
     let activatedBefore = false;
-    function watch(animations) {
-      if (animations.length === 0) {
-        settle2?.();
-        return;
+    const watch = (animations) => watchCompletion(animations, () => settle2?.());
+    function drive(rate) {
+      if (scrubbed) return;
+      const animations = ownedAnimationsOf(el, ownedNames);
+      finished = new Promise((resolve) => {
+        settle2 = resolve;
+      });
+      for (const animation of animations) {
+        animation.playbackRate = rate;
+        animation.play();
       }
-      void Promise.all(animations.map((a) => a.finished.catch(() => void 0))).then(() => settle2?.());
+      ledger.set("animation-play-state", "running");
+      watch(animations);
     }
     return {
+      // Attached unconditionally, including for a scrubbed instance. Whether control is *allowed*
+      // here is a policy question about the element's timeline, not a capability question about this
+      // instance — a scrubbed animation has a perfectly real playhead, it just belongs to the
+      // scroller. Keeping that decision in one place (`InstanceState.progressDriven`, read by
+      // `control.ts`) beats splitting it across both files and letting them drift.
+      control: createCssControl(() => ownedAnimationsOf(el, ownedNames), ledger),
       activate() {
         finished = new Promise((resolve) => {
           settle2 = resolve;
@@ -1380,6 +5258,12 @@ var kuinetic = (() => {
         }
         activatedBefore = true;
         watch(animations);
+      },
+      play() {
+        drive(1);
+      },
+      reverse() {
+        drive(-1);
       },
       cancel() {
         for (const animation of ownedAnimationsOf(el, ownedNames)) animation.cancel();
@@ -1415,6 +5299,7 @@ var kuinetic = (() => {
     };
     return createJsInstance({
       activate() {
+        if (running !== void 0) teardown();
         running = setup();
         if (typeof running === "function" || "continuous" in running) return;
         const work = running.finished;
@@ -1440,11 +5325,17 @@ var kuinetic = (() => {
   }
   function createJsInstance(hooks) {
     let active = false;
+    let run = 0;
     return {
       activate() {
         if (active) return;
         hooks.activate();
         active = true;
+        const id = ++run;
+        if (hooks.continuous?.()) return;
+        void (hooks.finished?.() ?? Promise.resolve()).then(() => {
+          if (id === run) active = false;
+        });
       },
       cancel() {
         hooks.cancel?.();
@@ -1466,147 +5357,6 @@ var kuinetic = (() => {
     };
   }
 
-  // src/core/owned-styles.ts
-  function createStyleLedger(el) {
-    const style = el.style;
-    const previous = /* @__PURE__ */ new Map();
-    const authoredStyleAttribute = el.hasAttribute("style");
-    function remember(property) {
-      if (previous.has(property)) return;
-      const existing = style.getPropertyValue(property);
-      previous.set(property, existing === "" ? void 0 : existing);
-    }
-    return {
-      set(property, value) {
-        remember(property);
-        style.setProperty(property, value);
-      },
-      claim: remember,
-      restore() {
-        for (const [property, value] of previous) {
-          if (value === void 0) style.removeProperty(property);
-          else style.setProperty(property, value);
-        }
-        previous.clear();
-        if (!authoredStyleAttribute && style.length === 0 && !el.getAttribute("style"))
-          el.removeAttribute("style");
-      },
-      owned: () => [...previous.keys()]
-    };
-  }
-  function createAttributeLedger(el) {
-    const previous = /* @__PURE__ */ new Map();
-    return {
-      set(name, value) {
-        if (!previous.has(name)) previous.set(name, el.getAttribute(name));
-        el.setAttribute(name, value);
-      },
-      restore() {
-        for (const [name, value] of previous) {
-          if (value === null) el.removeAttribute(name);
-          else el.setAttribute(name, value);
-        }
-        previous.clear();
-      }
-    };
-  }
-
-  // src/core/stagger.ts
-  function indexStaggerGroup(group) {
-    const step = group.getAttribute(ATTR.stagger);
-    if (step) group.style.setProperty("--kui-stagger", step);
-    let index = 0;
-    for (const child of group.children) {
-      if (child.hasAttribute(ATTR.source)) {
-        ;
-        child.style.setProperty("--kui-i", String(index));
-        index++;
-      }
-    }
-    ;
-    group.style.setProperty("--kui-stagger-count", String(Math.max(index, 1)));
-  }
-  function applyStagger(root) {
-    const selector = `[${ATTR.stagger}]`;
-    if (root instanceof Element && root.matches(selector)) indexStaggerGroup(root);
-    for (const group of root.querySelectorAll(selector)) indexStaggerGroup(group);
-  }
-
-  // src/core/style-plan.ts
-  function planStyles(input) {
-    const { plan, config, capabilities, respectReducedMotion } = input;
-    const reduce = respectReducedMotion && capabilities.reducedMotion;
-    const scrubbed = config.timeline === "pin" && plan.supportedTimelines.includes("pin");
-    const useNativeTimeline = !scrubbed && supportsTimeline(config.timeline, capabilities) && plan.supportedTimelines.includes(config.timeline);
-    const properties = { ...plan.vars, ...plan.declarations };
-    Object.assign(properties, timelineProperties(config, capabilities, useNativeTimeline));
-    const hasCssAnimation = Object.keys(plan.declarations).length > 0;
-    const gate = resolveGate({
-      useNativeTimeline,
-      scrubbed: scrubbed && hasCssAnimation,
-      reduce,
-      activation: config.activation,
-      // JS effects are gated too. They emit no `animation` declaration, so only the play-state
-      // write is skipped — the activation itself still has to be bound, or `on:enter` and
-      // `on:click` would silently do nothing for every pinned, dragged, or morphing element.
-      hasWork: hasCssAnimation || plan.jsEffects.length > 0,
-      hasCssAnimation,
-      // A browser lacking standalone translate/rotate/scale support silently ignores any
-      // `@keyframes` step written in those properties — the animation never visibly completes. An
-      // effect deferred on that promise would sit paused (or, for an entrance reveal, invisible)
-      // forever, so it must reach its final state immediately instead, the same fail-open rule
-      // already applied under reduced motion.
-      unsupportedTransform: needsIndividualTransforms(plan.channels, capabilities)
-    });
-    if (gate === "deferred" || gate === "scrubbed") properties["animation-play-state"] = "paused";
-    return {
-      properties,
-      attributes: {
-        [ATTR.normalized]: plan.fxNames.join(" "),
-        [ATTR.rm]: plan.reducedMotion,
-        [ATTR.state]: "ready"
-      },
-      gate,
-      activation: gate === "deferred" ? effectiveActivation(config) : null
-    };
-  }
-  function timelineProperties(config, capabilities, useNativeTimeline) {
-    if (!useNativeTimeline) return {};
-    const properties = {
-      "animation-timeline": config.timeline === "scroll" ? "scroll()" : "view()"
-    };
-    if (capabilities.animationRange) {
-      properties["animation-range"] = config.range || (config.timeline === "scroll" ? "0% 100%" : "entry 0% cover 60%");
-    }
-    return properties;
-  }
-  function resolveGate(input) {
-    if (input.useNativeTimeline) return "native-timeline";
-    if (input.scrubbed) return "scrubbed";
-    if (!input.hasWork) return "immediate";
-    if (input.reduce || input.activation === "load" || input.unsupportedTransform) return "immediate";
-    return "deferred";
-  }
-  function needsIndividualTransforms(channels, capabilities) {
-    if (capabilities.individualTransforms) return false;
-    return channels.some((c) => c === "translate" || c === "rotate" || c === "scale");
-  }
-  function supportsTimeline(timeline, capabilities) {
-    if (timeline === "view") return capabilities.viewTimeline;
-    if (timeline === "scroll") return capabilities.scrollTimeline;
-    return false;
-  }
-  function effectiveActivation(config) {
-    if (config.timeline !== "time" && config.activation === "manual") return "enter";
-    return config.activation;
-  }
-  function applyStylePlan(request) {
-    const { plan, ledger, attributes } = request;
-    for (const [property, value] of Object.entries(plan.properties)) ledger.set(property, value);
-    for (const [attribute, value] of Object.entries(plan.attributes)) attributes.set(attribute, value);
-    ledger.claim("animation-play-state");
-  }
-
   // src/core/animator.ts
   var CLOAK_WATCHDOG_MS = 3e3;
   function fingerprintOf(attributes) {
@@ -1618,8 +5368,19 @@ var kuinetic = (() => {
   var Animator = class {
     registry;
     capabilities;
-    root;
+    /**
+     * Public alongside `registry` and `capabilities`, and for the same reason: `control()` is a free
+     * function in its own module (mirroring `play()`), and an author-facing diagnostic it emits has
+     * to reach the same sink every other diagnostic on this animator does. Routing it through a
+     * second, private channel would mean `consoleReporter()` silenced half the library's warnings.
+     */
     reporter;
+    root;
+    /**
+     * Author-defined bundles found in this animator's root. Per-animator, not per-module: two
+     * animators on two roots must not see each other's definitions.
+     */
+    bundles;
     binder;
     scheduler;
     rootResolver;
@@ -1630,12 +5391,61 @@ var kuinetic = (() => {
     states = /* @__PURE__ */ new WeakMap();
     /** Iterable lifecycle index; the WeakMap remains the fast state lookup. */
     liveElements = /* @__PURE__ */ new Set();
+    /**
+     * Which run is current for one element's `InstanceState`, so a completion that resolves after
+     * being superseded can tell it is stale even when `status` and `direction` do not say so.
+     *
+     * `state.direction` cannot serve as that identifier on its own — it only ever holds `'forward'`
+     * or `'reverse'`, so an element whose activation flips back and forth (a hover-driven card flip,
+     * `pointerenter`/`pointerleave` firing repeatedly) revisits the same direction many times over
+     * its life. A cancelled run's completion settling late would then match a much later run headed
+     * the same way, by coincidence rather than by being the same run. Keyed on `InstanceState` rather
+     * than `Element` so a `release()`-then-reinstall — a fresh state object — starts with no
+     * history, the same reason `settleWhen` already re-checks `this.states.get(el) !== state`.
+     */
+    currentRun = /* @__PURE__ */ new WeakMap();
+    /**
+     * Whether the element's current run has a settle gate that will eventually write its final
+     * status, or whether nothing is ever going to report on it.
+     *
+     * `settleWhen` declines to arm a gate when every instance it was handed is `continuous` — see
+     * the reasoning there, which is right: a pin that is still pinned should read `running`. But
+     * "nobody will ever write this status" was left as an unrecorded fact known only inside that
+     * one early return, and `cancel()` had no way to ask. So a cancelled pin kept `status =
+     * 'running'` for the rest of the element's life and `activate()`'s own `running` guard locked it
+     * out of every future activation. Measured on `<div data-kui="pin-section">`, the documented
+     * form: cancel left `data-kui-state="running"`, and the next `activate()` emitted no `kui:start`
+     * at all.
+     *
+     * Recorded here rather than re-derived in `cancel()` from `state.instances`, because the two
+     * would not be asking the same question. `settleWhen` decides on the instances that actually
+     * *started* this run; an instance whose setup threw is excluded there, and by cancel time it is
+     * indistinguishable from a timed one (`continuous` reads from the setup result, which a failed
+     * or torn-down instance no longer has). The gate's own answer is the only one that matches the
+     * gate's own behaviour.
+     *
+     * Keyed on `InstanceState` for the same reason `currentRun` is: a `release()`-then-reinstall
+     * mints a fresh state object, which must start with no history.
+     */
+    settleArmed = /* @__PURE__ */ new WeakMap();
     /** Built lazily by `watch()` when not injected, so nothing observes until `start()` needs it. */
     domWatcher;
+    /**
+     * Built lazily by `watchGates()`, and only for an element carrying a viewport gate on a
+     * JavaScript-rendered effect — see `applyViewportGates` for why that is the only case that needs
+     * one. Stays `undefined` on a page whose gates are all on CSS-rendered effects, which binds no
+     * `MediaQueryList` listener anywhere.
+     */
+    gateWatcher;
     started = false;
+    /** This animator's derived-host bookkeeping — see `DerivedBook`. */
+    book = createDerivedBook();
+    /** The narrow window the `derived/*` modules get onto this animator — see `AnimatorPort`. */
+    port;
     constructor(options = {}) {
       const resolved = resolveCollaborators(options);
       this.registry = resolved.registry;
+      this.bundles = new BundleTable(resolved.registry);
       this.capabilities = resolved.capabilities;
       this.root = resolved.root;
       this.reporter = resolved.reporter;
@@ -1646,6 +5456,24 @@ var kuinetic = (() => {
       this.domWatcher = resolved.domWatcher;
       this.respectReducedMotion = resolved.respectReducedMotion;
       this.shouldObserve = resolved.shouldObserve;
+      this.port = {
+        registry: this.registry,
+        reporter: this.reporter,
+        binder: this.binder,
+        capabilities: this.capabilities,
+        respectReducedMotion: this.respectReducedMotion,
+        book: this.book,
+        stateOf: (el) => this.states.get(el),
+        install: (request) => this.install(request),
+        installAggregate: (request) => this.installAggregate(request),
+        resolveGroupMatches: (host, target) => this.resolveGroupMatches(host, target),
+        resolveActivation: (el, config, plan) => this.resolveActivation(el, config, plan),
+        release: (el) => this.release(el),
+        activateOne: (el) => this.activateOne(el),
+        deactivateOne: (el) => this.deactivate(el),
+        writeStatus: (el, state, next) => this.writeStatus(el, state, next),
+        emit: (el, state, type, reason) => this.emit(el, state, type, reason)
+      };
     }
     /**
      * Explicit entry point. Importing the library never touches the document, which keeps SSR,
@@ -1673,17 +5501,38 @@ var kuinetic = (() => {
      * `querySelectorAll` excludes the root, but an inserted subtree very often carries the
      * attribute on its top node — skipping it silently drops those animations.
      *
+     * Two passes, and the order is the feature. Every `data-kui-define` in the subtree is registered
+     * before any element in it is compiled, so a `<template>` at the bottom of the document is
+     * already known to the card at the top that names it. Making forward references work by
+     * construction rather than by handling is the point — see `core/bundles.ts`.
+     *
      * @param root - Subtree to scan. Defaults to the animator's root.
      * @complexity O(n) time in the subtree size; O(1) extra space.
      * @overallScore 100
      */
     scan(root = this.root) {
       if (!root) return this;
+      const defined = this.bundles.collect(root, this.reporter);
       const selector = `[${ATTR.source}]`;
       if (isElementNode(root) && root.matches(selector)) this.process(root);
       for (const el of root.querySelectorAll(selector)) this.process(el);
-      applyStagger(root);
+      applyStagger(root, this.reporter);
+      if (defined > 0 && root !== this.root) this.retryPending();
       return this;
+    }
+    /**
+     * Recompile every element that stalled on a name the library did not know.
+     *
+     * `pending` is stamped for any unresolved name, not only an undefined bundle, so this can retry
+     * an element that will fail again. That is deliberate: the alternative is an index of which
+     * element is waiting on which name, and the cost of being wrong here is one wasted compile on a
+     * page that already has a warning about it.
+     *
+     * @complexity O(p) time in the number of pending elements.
+     * @overallScore 100
+     */
+    retryPending() {
+      for (const el of this.root.querySelectorAll(`[${ATTR.state}="pending"]`)) this.process(el);
     }
     /**
      * Compile and install one element's effects, recompiling if its attribute changed.
@@ -1693,21 +5542,47 @@ var kuinetic = (() => {
      * @overallScore 100
      */
     process(el) {
+      if (el.hasAttribute(ATTR.define)) return;
       const attributes = readAttributes(el);
       const fingerprint = fingerprintOf(attributes);
       const existing = this.states.get(el);
       if (existing?.fingerprint === fingerprint) return;
       if (existing) this.release(el);
-      const parsed = parse(attributes.source);
-      const config = resolveConfig(attributes, parsed);
-      const plan = compile(parsed, this.registry, config.timeline);
-      config.activation = this.resolveActivation(el, config, plan);
-      for (const warning of plan.warnings) this.reporter.warn(warning, el);
-      if (plan.fxNames.length === 0) {
-        el.setAttribute(ATTR.state, plan.unknown.length > 0 ? "pending" : "failed");
+      const parsed = scopeHoists(this.bundles.expand(parse(attributes.source)), this.registry);
+      const baseConfig = resolveConfig(attributes, parsed);
+      const config = { ...baseConfig };
+      const document2 = compileTargets(parsed, this.registry, baseConfig.timeline);
+      const facts = document2.targets[0].plan;
+      this.applyViewportGates(el, document2);
+      config.activation = this.resolveActivation(el, baseConfig, facts);
+      this.reportCompiled(el, document2);
+      if (document2.targets.every((target) => target.plan.fxNames.length === 0)) {
+        el.setAttribute(ATTR.state, facts.unknown.length > 0 ? "pending" : "failed");
         return;
       }
-      this.install({ el, fingerprint, parsed, config, plan });
+      this.install({ el, fingerprint, parsed, config, baseConfig, document: document2 });
+    }
+    /**
+     * Report everything a finished compile has to say about one element.
+     *
+     * Three sources, one place. The third is separate from the plan's own warnings because `compile`
+     * is pure and environment-free by design — it is handed a registry and a timeline, never the
+     * browser it is running in. "This browser cannot render that channel" is only answerable here,
+     * where the detected capabilities live, and `targets[0]`'s channel union is the merged one, so it
+     * runs once per element rather than once per `target:` group.
+     *
+     * @complexity O(w) time in the total warning count; O(1) space.
+     * @overallScore 100
+     */
+    reportCompiled(el, document2) {
+      for (const warning of document2.warnings) this.reporter.warn(warning, el);
+      for (const target of document2.targets) {
+        for (const warning of target.plan.warnings) this.reporter.warn(warning, el);
+      }
+      const channels = [...new Set(document2.targets.flatMap((target) => target.plan.channels))];
+      for (const warning of unsupportedChannelWarnings(channels, this.capabilities)) {
+        this.reporter.warn(warning, el);
+      }
     }
     /**
      * Apply a compiled plan and bind its activation.
@@ -1717,60 +5592,309 @@ var kuinetic = (() => {
      */
     /**
      * Choose the activation, letting a primitive's preference fill in only when the author named
-     * none, and warning when an authored activation is not one the effect supports.
+     * none, and reporting whatever looks wrong about one the author did name.
      *
      * Declared capability metadata was previously never checked anywhere, which made
-     * `supportedActivations` documentation rather than a contract.
+     * `supportedActivations` documentation rather than a contract. The checks themselves live in
+     * `activation.ts`'s diagnostics half — they grew a good deal when the list opened, and they
+     * decide nothing, so keeping them here would have made this class the place where "which
+     * activation" and "is that a real event" were the same paragraph.
      *
      * @complexity O(a) time in supported activations; O(1) space.
      * @overallScore 100
      */
     resolveActivation(el, config, plan) {
       if (!config.activationAuthored) return plan.defaultActivation ?? config.activation;
-      const supported = plan.supportedActivations;
-      if (supported.length > 0 && !supported.includes(config.activation)) {
-        this.reporter.warn(
-          `activation "${config.activation}" is not supported by this effect (supports: ${supported.join(", ")})`,
-          el
-        );
-      }
+      warnAboutActivation({
+        el,
+        spec: resolveActivationSpec(config.activation),
+        supported: plan.supportedActivations,
+        reporter: this.reporter
+      });
       return config.activation;
     }
+    /**
+     * Resolve the viewport gates (`above:` / `below:`) on this element's JavaScript-rendered effects.
+     *
+     * CSS-rendered segments are deliberately absent from this method. Their gate is compiled into the
+     * `animation-name` declaration as a `var()` the browser re-resolves on every resize with no
+     * script involved (see `core/breakpoints.ts`), which is the entire reason this feature does not
+     * need the teardown machinery `gsap.matchMedia()` is built around. A JavaScript-rendered effect
+     * has no `animation-name` for a stylesheet to neutralise, so it is the one case that has to be
+     * decided here — and, having been decided once, has to be re-decided when the viewport crosses
+     * the breakpoint it was decided at.
+     *
+     * @complexity O(e) time in JS-rendered effects; O(b) space, bounded by the scale's five names.
+     * @overallScore 100
+     */
+    applyViewportGates(el, document2) {
+      const gates = document2.targets.flatMap((target) => target.plan.jsEffects).map((entry) => entry.spec.gate).filter((gate) => gate !== void 0);
+      if (gates.length === 0) {
+        this.gateWatcher?.unwatch(el);
+        return;
+      }
+      const win = el.ownerDocument.defaultView ?? void 0;
+      for (const target of document2.targets) {
+        target.plan.jsEffects = target.plan.jsEffects.filter((entry) => gateMatches(entry.spec.gate, win));
+      }
+      this.watchGates(el, win, breakpointsIn(gates));
+    }
+    /**
+     * Arm live re-evaluation for one element, building the watcher on first use.
+     *
+     * Lazy so that a page with no JavaScript-rendered gate — which is most pages, since the catalog
+     * is overwhelmingly `css-keyframes` — binds no `MediaQueryList` listener at all.
+     *
+     * @complexity O(b) time in the element's breakpoints; O(1) amortised space.
+     * @overallScore 100
+     */
+    watchGates(el, win, breakpoints) {
+      this.gateWatcher ??= createGateWatcher(win, (target) => this.regate(target));
+      this.gateWatcher.watch(el, breakpoints);
+    }
+    /**
+     * Rebuild one element because the viewport crossed a breakpoint its JS effects depend on.
+     *
+     * `release` then `process`, rather than a partial update, and rather than `process` alone:
+     * `process` short-circuits on an unchanged fingerprint, and the fingerprint is a hash of
+     * *attributes*, which have not changed — the viewport has. Releasing first is also what makes the
+     * transition safe mid-animation: it aborts the activation binding, runs each JS effect's own
+     * `destroy()`, and unwinds both ledgers, so the element is back at the author's own markup before
+     * the new plan touches it. That is the same path an attribute edit takes, so there is one
+     * teardown implementation rather than two.
+     *
+     * There is deliberately no "is this element still live?" guard. Every path that stops tracking an
+     * element goes through `release`, and `release` unwatches — so an element that reaches here is
+     * one the watcher still holds, which is one `release` has not run on, which is one that is live.
+     * A guard would be unreachable code pretending to be caution, the same call `positioned()` in
+     * `compile.ts` makes about its own missing branch.
+     *
+     * @complexity O(e) time in the element's composed effects; O(1) space.
+     * @overallScore 100
+     */
+    regate(el) {
+      this.release(el);
+      this.process(el);
+    }
+    /** Route a document with any non-empty-selector group through the derived-host path; `true`
+     *  when it did (a derived install's own `document` never carries one, so this cannot recurse). */
+    installedAsHost(request) {
+      if (!request.document.targets.some((t) => t.selector !== "")) return false;
+      installWithTargets(this.port, request);
+      return true;
+    }
     install(request) {
-      const { el, fingerprint, parsed, config, plan } = request;
-      const stylePlan = planStyles({
-        plan,
+      if (this.installedAsHost(request)) return;
+      const { el, fingerprint, parsed, config, document: document2 } = request;
+      const groups = document2.targets.map((target) => ({ target, matches: this.resolveGroupMatches(el, target) })).filter((group) => group.matches.length > 0);
+      const ledgers = createLedgerSet(el);
+      const ledger = ledgers.style(el);
+      const attributes = ledgers.attributes(el);
+      const controller = new AbortController();
+      this.bindAuthorCallback(el, parsed, controller.signal);
+      const elementHasCssAnimation = document2.targets.some(
+        (target) => Object.keys(target.plan.declarations).length > 0
+      );
+      const elementStylePlan = planStyles({
+        plan: groups[0].target.plan,
         config,
         capabilities: this.capabilities,
-        respectReducedMotion: this.respectReducedMotion
+        respectReducedMotion: this.respectReducedMotion,
+        elementHasCssAnimation
       });
-      const ledger = createStyleLedger(el);
-      const attributes = createAttributeLedger(el);
-      const controller = new AbortController();
-      applyStylePlan({ el, plan: stylePlan, ledger, attributes });
       const state = {
         fingerprint,
         specs: parsed.specs,
         activation: config.activation,
         timeline: config.timeline,
+        fxNames: document2.targets.flatMap((target) => target.plan.fxNames),
+        jsEffectNames: document2.targets.flatMap(
+          (target) => target.plan.jsEffects.map((entry) => entry.spec.name)
+        ),
+        progressDriven: elementStylePlan.gate === "scrubbed" || elementStylePlan.gate === "native-timeline",
         instances: [],
         ledger,
         attributes,
+        ledgers,
         controller,
         status: "ready"
       };
+      if (request.host) state.host = request.host;
+      if (request.gateOwner) state.gateOwner = request.gateOwner;
       this.states.set(el, state);
       this.liveElements.add(el);
-      if (Object.keys(stylePlan.properties).some((property) => property.startsWith("animation-"))) {
-        const animationNames = (plan.declarations["animation-name"] ?? "").split(",").map((name) => name.trim()).filter(Boolean);
+      attributes.set(ATTR.state, "ready");
+      const context = {
+        el,
+        state,
+        ledgers,
+        config,
+        signal: controller.signal,
+        elementHasCssAnimation
+      };
+      for (const group of groups) this.installGroup(group, context);
+      this.openGate({ el, state, stylePlan: elementStylePlan, config, plan: groups[0].target.plan });
+    }
+    /**
+     * Install a zero-instance aggregate host: a `target:` host with no own (empty-selector) group,
+     * whose status mirrors its derived matches' instead of running any effect of its own
+     * (`syncAggregate`). Called by 2a's `installWithTargets` after every claimed match has already
+     * been installed, which is what D-E's stamping order requires — the host's own `data-kui-state`
+     * must never appear before its matches'.
+     *
+     * @complexity O(g) time in the document's group count; O(1) space.
+     * @overallScore 100
+     */
+    installAggregate(request) {
+      const { el, fingerprint, parsed, config, document: document2 } = request;
+      const ledgers = createLedgerSet(el);
+      const controller = new AbortController();
+      this.bindAuthorCallback(el, parsed, controller.signal);
+      const state = {
+        fingerprint,
+        specs: parsed.specs,
+        activation: config.activation,
+        timeline: config.timeline,
+        fxNames: document2.targets.flatMap((target) => target.plan.fxNames),
+        jsEffectNames: [],
+        progressDriven: false,
+        instances: [],
+        ledger: ledgers.style(el),
+        attributes: ledgers.attributes(el),
+        ledgers,
+        controller,
+        status: "ready",
+        aggregate: true
+      };
+      this.states.set(el, state);
+      this.liveElements.add(el);
+      state.attributes.set(ATTR.state, "ready");
+    }
+    /**
+     * Apply one `target:` group's compiled plan to every element its selector resolved to.
+     *
+     * Its own `planStyles` call, not the element-wide one `install` already made: `declarations` are
+     * per group, so `fade-up target:h2, pin` writes different properties to the `h2` than to the host
+     * even though both share one gate, one activation and one reduced-motion policy (which is exactly
+     * what `elementHasCssAnimation` carries in from the caller).
+     *
+     * `group.target.selector` is always `''` here — `installedAsHost` diverts any document carrying a
+     * real `target:` group to `installWithTargets` before `install` (this method's only caller) ever
+     * runs, so `matches` is always the host's own single-element `[el]` (target:-everywhere reconcile
+     * R-8 removed the in-place relocation path this method used to also handle, along with the
+     * `indexTargetGroup` call it made only for a real group — `restageTargets`, in
+     * `core/derived/install.ts`, is the one that indexes a real target group's stagger keys now).
+     *
+     * @complexity O(m * p) time in the group's matches and the plan's properties; O(p) space.
+     * @overallScore 100
+     */
+    installGroup(group, context) {
+      const { target, matches } = group;
+      const stylePlan = planStyles({
+        plan: target.plan,
+        config: context.config,
+        capabilities: this.capabilities,
+        respectReducedMotion: this.respectReducedMotion,
+        elementHasCssAnimation: context.elementHasCssAnimation
+      });
+      const hasCssAnimation = Object.keys(stylePlan.properties).some(
+        (property2) => property2.startsWith("animation-")
+      );
+      const writes = { target, stylePlan, hasCssAnimation };
+      for (const match of matches) this.installMatch(match, writes, context);
+    }
+    /**
+     * Write one group's plan onto one of its matched elements, and register the instances that plan
+     * produced there.
+     *
+     * Every write goes through `context.ledgers`, never `match.style`/`match.setAttribute` directly:
+     * under `scope:page` a match need not be a descendant of the host at all, so the ledger set is
+     * the only thing that knows to unwind it on `release()`.
+     *
+     * @complexity O(p) time in the plan's property count; O(1) space beyond the instances pushed.
+     * @overallScore 100
+     */
+    installMatch(match, writes, context) {
+      const { target, stylePlan, hasCssAnimation } = writes;
+      const { state, ledgers } = context;
+      const matchLedger = ledgers.style(match);
+      const matchAttributes = ledgers.attributes(match);
+      for (const [property2, value] of Object.entries(stylePlan.properties)) {
+        matchLedger.set(property2, value);
+      }
+      matchAttributes.set(ATTR.normalized, stylePlan.attributes[ATTR.normalized]);
+      matchAttributes.set(ATTR.rm, stylePlan.attributes[ATTR.rm]);
+      matchLedger.claim("animation-play-state");
+      if (hasCssAnimation) {
+        const scrubbed = stylePlan.gate === "scrubbed";
         state.instances.push(
-          createCssInstance(el, ledger, animationNames, stylePlan.gate === "scrubbed")
+          createCssInstance(match, matchLedger, target.plan.keyframeNames, scrubbed)
         );
       }
       state.instances.push(
-        ...this.jsEffectPreparer.prepare({ el, plan, signal: controller.signal, ledger })
+        ...this.jsEffectPreparer.prepare({
+          el: match,
+          plan: target.plan,
+          signal: context.signal,
+          ledger: matchLedger
+        })
       );
-      this.openGate({ el, state, stylePlan, config, plan });
+    }
+    /**
+     * Wire an authored `func:` to this element's completion.
+     *
+     * Registered as an ordinary `kui:finish` listener rather than called from a dispatch site, so it
+     * can never fire at a moment the event does not — the key is sugar for that listener, and is
+     * implemented as literally that listener. It detaches with every other binding on
+     * `controller.abort()`.
+     *
+     * Called from `install` *before* `openGate`, and the order is load-bearing: the one `kui:finish`
+     * an element can receive during install is the synchronous `reduced-motion` one, and the visitor
+     * who asked for reduced motion is the last one whose chained step should silently be dropped.
+     *
+     * See `callback.ts` for the lookup rules, and for why this key must never be built from
+     * untrusted input.
+     *
+     * @complexity O(1) time and space.
+     * @overallScore 100
+     */
+    bindAuthorCallback(el, parsed, signal) {
+      if (parsed.func === void 0) return;
+      bindCallback({ el, name: parsed.func, reporter: this.reporter, signal });
+    }
+    /**
+     * Validate and resolve one `CompiledTarget`'s selector against the live document.
+     *
+     * `resolveTarget`'s document-wide/invalid rejection — the same rule the six built-in
+     * `target:`-declaring primitives apply inside their own `prepare` — has to run again here for
+     * every *other* primitive: a CSS-rendered retargeted effect never calls `prepare` at all, so
+     * compile-to-install time is the only point at which this element has a real `Document` to
+     * validate the selector against. `compileTargets` itself is pure and DOM-free by design and
+     * cannot do this check.
+     *
+     * @param el - The host. The search root under `'self'`, and the only "match" for the host group
+     *   (`target.selector === ''`), which is never queried at all.
+     * @returns The matches, in document order. Empty when the selector was invalid, too broad, or
+     *   simply matched nothing — every case already warned by name.
+     * @complexity O(1) for the host group; O(n) in document size otherwise, the query itself being
+     *   the DOM's.
+     * @overallScore 100
+     */
+    resolveGroupMatches(el, target) {
+      if (target.selector === "") return [el];
+      const doc = el.ownerDocument;
+      const names = target.plan.fxNames.join(", ");
+      const breadth = selectorBreadth(target.selector, doc);
+      if (breadth !== "ok") {
+        const reason = breadth === "invalid" ? "is not a valid selector" : "matches the whole document";
+        this.reporter.warn(`target "${target.selector}" (${names}) ${reason} and will be ignored`, el);
+        return [];
+      }
+      const matches = queryScoped(el, { doc }, target.selector, target.scope);
+      if (matches.length === 0) {
+        this.reporter.warn(`target "${target.selector}" (${names}) matched nothing`, el);
+      }
+      return matches;
     }
     /**
      * Decide whether, and when, the effects on this element are allowed to start.
@@ -1785,22 +5909,31 @@ var kuinetic = (() => {
      */
     openGate(request) {
       const { el, state, stylePlan, config, plan } = request;
-      const reduce = this.respectReducedMotion && this.capabilities.reducedMotion;
-      if (reduce && plan.reducedMotion === "disable") {
-        state.status = "finished";
-        state.attributes.set(ATTR.state, "finished");
+      if (this.reducedMotionDisables(plan)) {
+        this.writeStatus(el, state, "finished");
+        this.emit(el, state, KUI_EVENT.finish, "reduced-motion");
+        this.syncHost(state);
         return;
+      }
+      const actions = config.actions;
+      if (actions) {
+        this.warnAboutCrossings(el, state, stylePlan.activation ?? config.activation, actions);
       }
       if (stylePlan.gate !== "deferred") {
-        this.activate(el);
+        this.activateOne(el);
         return;
       }
-      const releaseBinding = this.binder.bind(
-        el,
-        stylePlan.activation,
-        config.threshold,
-        () => this.activate(el)
-      );
+      if (skipsOwnBinding(state)) return;
+      const activation = stylePlan.activation;
+      const releaseBinding = this.binder.bind(el, activation, {
+        threshold: config.threshold,
+        from: config.activationSource,
+        activate: () => this.activateOne(el),
+        deactivate: () => this.deactivate(el),
+        // Only when the author asked for the four-way reading. Absent, the binder keeps its two-way
+        // delivery and its one-shot release, which is what every piece of existing markup depends on.
+        ...actions ? { cross: (crossing) => this.applyCrossing(el, crossing, actions) } : {}
+      });
       let released = false;
       const releaseOnce = () => {
         if (released) return;
@@ -1808,7 +5941,67 @@ var kuinetic = (() => {
         releaseBinding();
       };
       state.controller.signal.addEventListener("abort", releaseOnce);
-      if (stylePlan.activation === "enter") state.releaseActivation = releaseOnce;
+      if (!actions && isOneShot(resolveActivationSpec(activation))) {
+        state.releaseActivation = releaseOnce;
+      }
+    }
+    /**
+     * Whether the visitor's own reduced-motion preference disables this plan outright, rather than
+     * merely shortening or crossfading it.
+     *
+     * Pulled out of `openGate` so that method's own branching stays about *what to do*, not about
+     * the two-part question of whether the policy applies at all.
+     *
+     * @complexity O(1) time and space.
+     * @overallScore 100
+     */
+    reducedMotionDisables(plan) {
+      return this.respectReducedMotion && this.capabilities.reducedMotion && plan.reducedMotion === "disable";
+    }
+    /**
+     * Report every way an authored `actions:` cannot do what it says, once, at bind time.
+     *
+     * At bind time rather than per crossing, and that is the whole reason this is a separate method:
+     * a crossing fires on every scroll pass, and a diagnostic repeated on each one is a diagnostic
+     * nobody reads. It is the same discipline `control.ts` applies — warn once at construction, even
+     * for a caller who only meant to read.
+     *
+     * @complexity O(1) time and space.
+     * @overallScore 100
+     */
+    warnAboutCrossings(el, state, activation, actions) {
+      const spec = resolveActivationSpec(activation);
+      const problems = warnAboutToggleActions({
+        actions,
+        observed: spec.start.kind === "observed" || spec.end?.kind === "observed",
+        activation: String(activation),
+        jsEffectNames: state.jsEffectNames,
+        progressDriven: state.progressDriven
+      });
+      for (const problem of problems) this.reporter.warn(problem, el);
+    }
+    /**
+     * Do whatever this element's `actions:` names for the crossing that just happened.
+     *
+     * A pure dispatch, and deliberately nothing more. `toggle-actions.ts` owns what each verb means,
+     * `activation.ts` owns which crossing it was, and this method's only contribution is the two
+     * things neither of them can reach: the element's own directional transitions, and its instances'
+     * playheads. If anything resembling animation logic ever appears here, it is in the wrong file.
+     *
+     * @complexity O(n) time in the element's instances; O(n) space.
+     * @overallScore 100
+     */
+    applyCrossing(el, crossing, actions) {
+      const state = this.states.get(el);
+      if (!state) return;
+      applyToggleVerb(actions[crossing], {
+        // `ready` is the only status that has not started; `finished` and `failed` both have, and a
+        // `resume` on either of those is a resume rather than a fresh activation.
+        started: state.status !== "ready",
+        controls: state.instances.map((instance) => instance.control).filter((control2) => control2 !== void 0),
+        activate: () => this.activateOne(el),
+        reverse: () => this.reverseOne(el)
+      });
     }
     /**
      * Start a deferred animation.
@@ -1826,25 +6019,294 @@ var kuinetic = (() => {
      * @overallScore 100
      */
     activate(el) {
+      this.activateOne(el);
+      for (const match of this.derivedOf(el)) this.activateOne(match);
+    }
+    /** The per-element half of {@link activate} — see that method's own doc comment. */
+    activateOne(el) {
       const state = this.states.get(el);
-      if (!state || state.status === "running") return;
-      state.releaseActivation?.();
-      state.releaseActivation = void 0;
-      state.status = "running";
-      state.attributes.set(ATTR.state, "running");
-      const started = state.instances.filter((instance) => this.startInstance(instance, el));
-      if (started.length === 0 && state.instances.length > 0) {
-        state.status = "failed";
-        state.attributes.set(ATTR.state, "failed");
+      if (!state) return;
+      if (state.aggregate) return;
+      if (state.status === "running" && state.direction === "reverse") {
+        this.turnAround(el, state);
         return;
       }
-      const timed = started.filter((instance) => !instance.continuous);
-      if (timed.length === 0 && started.length > 0) return;
+      if (state.status === "running") return;
+      state.releaseActivation?.();
+      state.releaseActivation = void 0;
+      this.writeStatus(el, state, "running");
+      state.direction = "forward";
+      const run = this.beginRun(state);
+      const started = state.instances.filter((instance) => this.startInstance(instance, el));
+      if (started.length === 0 && state.instances.length > 0) {
+        this.writeStatus(el, state, "failed");
+        this.syncHost(state);
+        return;
+      }
+      this.emit(el, state, KUI_EVENT.start, "activated");
+      this.syncHost(state);
+      this.settleWhen({ el, state, run }, started, "finished");
+    }
+    /**
+     * Play an element's effects back out.
+     *
+     * The exit half of a paired activation — `data-kui-on="pointerenter/pointerleave"`,
+     * `data-kui-on="enter/leave"` — routed through one method for the same reason `activate` is: it
+     * is the single place an effect ever runs backwards, so what an exit means does not have to be
+     * re-decided per activation.
+     *
+     * **CSS-rendered effects reverse; JS-rendered ones do not, and say so.** A CSS effect has a real
+     * `Animation` handle whose playback rate can simply be negated, landing on the from-state that
+     * `animation-fill-mode: both` is already holding. A JS-rendered effect has no playhead at all —
+     * `getAnimations()` returns `[]` for it (see `play.ts`) — and there is no honest general shim
+     * for "half a `split-flap`, backwards". Rather than invent one that misbehaves differently per
+     * primitive, an instance that cannot reverse is named in a warning; the author learns their
+     * pointerleave does nothing *here* instead of discovering it in a browser. On an element
+     * composing both renderers the CSS half still reverses and the warning names what did not.
+     *
+     * @param el - Element whose effects should play out.
+     * @complexity O(n) time in the number of instances; O(1) space.
+     * @overallScore 100
+     */
+    deactivate(el) {
+      const state = this.states.get(el);
+      if (!state) return;
+      if (state.status !== "running" && state.status !== "finished") return;
+      if (state.direction === "reverse") return;
+      const reversible = state.instances.filter(isDirectional);
+      if (reversible.length < state.instances.length) {
+        this.reporter.warn(
+          "effect cannot play backwards, so the exit half of this activation does nothing for it (JS-rendered effects have no playhead \u2014 see EffectInstance.reverse)",
+          el
+        );
+      }
+      this.reverseOne(el);
+    }
+    /**
+     * Turn an element's playhead around and settle it back at the from-state it started from.
+     *
+     * The single owner of `state.direction === 'reverse'`, and it exists as its own method because
+     * for a while there were two owners and neither knew about the other. `deactivate()` — the exit
+     * half of a paired activation — flipped the direction and re-armed the settle gate;
+     * `control(el).reverse()` reached straight past the state machine into the raw `Animation`
+     * handles through `InstanceControl.reverse`. Both moved the same playheads, only one of them said
+     * so, and an animator that believed a reversing element was still travelling forwards got three
+     * things wrong at once: a later `deactivate()` sailed through its "an exit already in flight must
+     * not restart" guard and began a *second* reverse; `activate()` could never turn the playhead
+     * around, because it looks for `'reverse'` and never saw it; and the forward `settleWhen` left
+     * over from the entrance stayed pending until it stamped `data-kui-state="finished"` onto an
+     * element sitting at its from-state.
+     *
+     * So the transition lives here and both entry points call it. What `deactivate()` keeps is only
+     * what is true of an *activation* exit specifically. A programmatic reverse is not one — an
+     * author calling `control().reverse()` has not had a pointer leave anything — so it inherits
+     * none of that, and in particular is not told that the effects it cannot reach make "the exit
+     * half of this activation" do nothing. `control.ts` has already named those for it.
+     *
+     * Resuming forward travel is `activate()`'s job, not a second method here: an element left in
+     * `'reverse'` is turned around by `turnAround`, which is reachable from every route that
+     * activates — a pointer coming back, `play()`, `kui.activate()`.
+     *
+     * @param el - Element whose effects should run backwards. Unknown elements are ignored, exactly
+     *   as they are by `activate` and `deactivate`.
+     * @complexity O(n) time in the number of instances; O(1) space.
+     * @overallScore 100
+     */
+    reverseFrom(el) {
+      this.reverseOne(el);
+      for (const match of this.derivedOf(el)) this.reverseOne(match);
+    }
+    /** The per-element half of {@link reverseFrom} — see that method's own doc comment. */
+    reverseOne(el) {
+      const state = this.states.get(el);
+      if (!state) return;
+      if (state.status !== "running" && state.status !== "finished") return;
+      if (state.direction === "reverse") return;
+      const reversible = state.instances.filter(isDirectional);
+      if (reversible.length === 0) return;
+      this.writeStatus(el, state, "running");
+      state.direction = "reverse";
+      this.syncHost(state);
+      const run = this.beginRun(state);
+      for (const instance of reversible) instance.reverse();
+      this.settleWhen({ el, state, run }, reversible, "ready");
+    }
+    /**
+     * Resume forward playback on an element whose exit is still in flight.
+     *
+     * Separate from `activate`'s main path because none of that path applies: the instances are
+     * already started, the activation is already spent, and the state is already `running`. All that
+     * changes is the direction of travel.
+     *
+     * @complexity O(n) time in the number of instances; O(1) space.
+     * @overallScore 100
+     */
+    turnAround(el, state) {
+      const playable = state.instances.filter(isDirectional);
+      state.direction = "forward";
+      const run = this.beginRun(state);
+      for (const instance of playable) instance.play();
+      this.settleWhen({ el, state, run }, playable, "finished");
+    }
+    /**
+     * Write an element's final state once the instances driving it have finished.
+     *
+     * The reported state has to become truthful eventually, or `data-kui-state` codifies a lie that
+     * tests then assert against. It also has to stay truthful when a run is superseded mid-flight: a
+     * reverse that is turned around leaves its own `finished` promise pending, and letting that
+     * promise write `ready` over the forward run that replaced it is how an element ends up claiming
+     * it is back at its from-state while visibly finishing its entrance. Capturing the direction at
+     * the time of the call and re-checking it on resolution is what makes the stale promise a no-op
+     * in the ordinary case — turned-around and reversed-again runs, which is why that comment and
+     * check are kept even though `run` below also covers them.
+     *
+     * `run` is the check `direction` cannot be: `direction` only ever holds two values, so a run
+     * that flips back and forth several times (a hover-driven card flip, `pointerenter`/
+     * `pointerleave` firing repeatedly) revisits the same direction repeatedly, and a stale run's
+     * belated completion could otherwise be mistaken for a much later one simply travelling the same
+     * way. `beginRun` mints one identity per run; only the run that is still current when its own
+     * promise resolves gets to report anything.
+     *
+     * @param target - The element, its state, and this run's identity — see {@link SettleTarget}.
+     * @param instances - The instances this particular run started; a run only waits on its own.
+     * @param next - State to report when they are all done.
+     * @complexity O(n) time in the instances; O(n) space for the pending promises.
+     * @overallScore 100
+     */
+    settleWhen(target, instances, next) {
+      const { el, state, run } = target;
+      const timed = instances.filter((instance) => !instance.continuous);
+      if (timed.length === 0 && instances.length > 0) {
+        this.settleArmed.set(state, false);
+        return;
+      }
+      this.settleArmed.set(state, true);
+      const direction = state.direction;
       void Promise.all(timed.map((instance) => instance.finished)).then(() => {
         if (this.states.get(el) !== state || state.status !== "running") return;
-        state.status = "finished";
-        state.attributes.set(ATTR.state, "finished");
+        if (state.direction !== direction) return;
+        if (this.currentRun.get(state) !== run) return;
+        this.writeStatus(el, state, next);
+        if (!state.cancelled) {
+          if (next === "finished") this.emit(el, state, KUI_EVENT.finish, "complete");
+          else this.emit(el, state, KUI_EVENT.reverseFinish, "reversed");
+        }
+        this.syncHost(state);
       });
+    }
+    /**
+     * Mark the start of a new run — a forward activation, a reversal, or a turnaround out of one —
+     * and clear the mark a previous run's cancellation left behind.
+     *
+     * The two things a fresh run does are bound together deliberately: `cancelled` describes *this*
+     * run, not the element for life, so every place that begins one must also disown whatever the
+     * run before it was marked with, or that run's cancellation would silently apply to a completion
+     * it had nothing to do with — see `InstanceState.cancelled`'s own doc comment for the contract
+     * this keeps. Doing both here, in one call, is what stops a caller resetting one without the
+     * other; three call sites each remembering to write two lines in the right order was exactly
+     * this bug's shape the first time.
+     *
+     * @returns This run's identity, to be threaded through to the `settleWhen` call that will
+     *   eventually report on it.
+     * @complexity O(1) time, O(1) space.
+     * @overallScore 100
+     */
+    beginRun(state) {
+      const run = Symbol("kui-run");
+      this.currentRun.set(state, run);
+      state.cancelled = false;
+      return run;
+    }
+    /**
+     * Dispatch one lifecycle event for an element, filling in the identity every listener needs.
+     *
+     * Centralised here rather than inside each instance because the animator is the only place that
+     * knows the *element's* lifecycle — an element composing three effects starts once and finishes
+     * once, not three times, and only this class sees all three instances at the same moment.
+     *
+     * @complexity O(n) time in listeners on the propagation path; O(1) space.
+     * @overallScore 100
+     */
+    emit(el, state, type, reason) {
+      emitLifecycle(el, type, {
+        effects: state.fxNames,
+        activation: state.activation,
+        timeline: state.timeline,
+        reason,
+        ...state.host ? { host: state.host } : {}
+      });
+    }
+    /**
+     * Write one element's status, through its own ledger, with no aggregate sync.
+     *
+     * The one place `status`/`data-kui-state` are written together, so every call site that used to
+     * write both fields by hand now shares one line to drift out of sync in. `el` is unused today —
+     * kept because 2b's tests and a future per-element hook both key on it, and because every other
+     * write in this file takes the element it writes to as its first argument.
+     *
+     * @complexity O(1) time and space.
+     * @overallScore 100
+     */
+    writeStatus(el, state, next) {
+      state.status = next;
+      state.attributes.set(ATTR.state, next);
+    }
+    /**
+     * Let a derived state's host re-derive its aggregate status (D-A).
+     *
+     * Called after the derived element's own event, so listeners see the match's event before the
+     * host's — the same order a nested DOM structure would deliver them in were the host merely
+     * listening for its children's events instead of deriving its own status from them.
+     *
+     * @complexity O(1) time and space, delegating to {@link syncAggregate}.
+     * @overallScore 100
+     */
+    syncHost(state) {
+      if (state.host) syncAggregate(this.port, state.host);
+    }
+    /**
+     * Stop one element's effects where they are, leaving it mid-animation.
+     *
+     * The counterpart to `activate()`, and the reason it exists rather than callers reaching into
+     * `stateOf(el).instances` themselves (which is what `play()`'s handle used to do): cancellation
+     * has an observable consequence — `kui:cancel`, and the suppression of the `kui:finish` that
+     * would otherwise follow it — and that consequence has to be applied wherever cancellation
+     * happens, not only where it happens to be convenient.
+     *
+     * @param el - Element whose effects should stop.
+     * @complexity O(n) time in the element's instances; O(1) space.
+     * @overallScore 100
+     */
+    cancel(el) {
+      this.cancelOne(el);
+      for (const match of this.derivedOf(el)) this.cancelOne(match);
+    }
+    /** The per-element half of {@link cancel} — see that method's own doc comment. */
+    cancelOne(el) {
+      const state = this.states.get(el);
+      if (!state) return;
+      const wasRunning = state.status === "running";
+      state.cancelled = true;
+      for (const instance of state.instances) runQuietly(() => instance.cancel());
+      if (wasRunning && this.settleArmed.get(state) === false) {
+        this.writeStatus(el, state, "finished");
+        this.syncHost(state);
+      }
+      if (wasRunning) this.emit(el, state, KUI_EVENT.cancel, "cancelled");
+    }
+    /**
+     * Runtime control over a selection's playheads — pause, resume, reverse, seek, re-speed.
+     *
+     * Selection-shaped rather than single-element, so it matches `play()` and so one call covers a
+     * staggered group. `control.ts` builds a per-element handle underneath and the returned handle
+     * composes them.
+     *
+     * @param target - Selector, element, or iterable of elements.
+     * @complexity O(n) time in selected elements and their instances; O(n) space.
+     * @overallScore 100
+     */
+    control(target) {
+      return control({ animator: this, root: this.root, target });
     }
     /**
      * Activate one instance, isolating a throw from its (possibly deferred) setup.
@@ -1887,6 +6349,14 @@ var kuinetic = (() => {
     stateOf(el) {
       return this.states.get(el);
     }
+    /** The derived matches a host's `target:` groups installed, in document order. `[]` otherwise. */
+    derivedOf(el) {
+      return derivedOf(this.book, el);
+    }
+    /** The host that installed a derived match, else `undefined`. */
+    hostOf(el) {
+      return hostOf(this.book, el);
+    }
     /**
      * Tear an element's effects down so the next `process()` reinstalls from scratch.
      *
@@ -1908,12 +6378,16 @@ var kuinetic = (() => {
     release(el) {
       const state = this.states.get(el);
       if (!state) return;
+      releaseDerived(this.port, el);
+      const wasRunning = state.status === "running";
+      state.cancelled = true;
       state.controller.abort();
       for (const instance of state.instances) runQuietly(() => instance.destroy());
       this.states.delete(el);
       this.liveElements.delete(el);
-      state.ledger.restore();
-      state.attributes.restore();
+      this.gateWatcher?.unwatch(el);
+      state.ledgers.restore();
+      if (wasRunning) this.emit(el, state, KUI_EVENT.cancel, "reset");
     }
     /**
      * Tear down every tracked element inside a removed subtree.
@@ -1932,19 +6406,30 @@ var kuinetic = (() => {
      * method's only caller — is itself typed `(el: Element) => void`, so there is no runtime case
      * where `node` is a `Document`/`DocumentFragment` to guard against.
      *
+     * `restageAfterRemoval` runs over every candidate visited, not only the ones actually released:
+     * a removed stagger member is exactly the case this closes, and whether it was "live" by
+     * `liveElements`' definition is a question `GROUP_OF_CHILD` (in `stagger.ts`) answers on its own
+     * terms. Without it, removing one item from a staggered group left every later sibling holding
+     * the rank an index computed for a group one element larger — the stale-after-*edit* half of the
+     * same defect `3d57ff7` already closed for an attribute change, left open for a removal.
+     *
      * @complexity O(s) time in the removed subtree's element count; O(1) per candidate via the
-     * `liveElements` Set lookup.
+     * `liveElements` Set lookup, plus stagger re-ranking bounded by the surviving groups' own sizes.
      * @overallScore 100
      */
     releaseTree(node) {
-      if (this.liveElements.has(node)) this.release(node);
-      for (const el of node.querySelectorAll("*")) {
+      const candidates = [node, ...node.querySelectorAll("*")];
+      for (const el of candidates) {
         if (this.liveElements.has(el)) this.release(el);
       }
+      restageAfterRemoval(candidates, this.reporter);
+      restageAfterTreeRelease(this.port, candidates);
     }
     destroy() {
       this.domWatcher?.destroy();
+      releaseStagger(this.root);
       for (const el of [...this.liveElements]) this.release(el);
+      this.gateWatcher?.destroy();
       this.binder.destroy();
       this.scheduler.destroy();
       this.started = false;
@@ -1962,9 +6447,15 @@ var kuinetic = (() => {
     watch() {
       this.domWatcher ??= createDomWatcher({
         root: this.root,
-        onElementAdded: (el) => this.scan(el),
+        onElementAdded: (el) => {
+          this.scan(el);
+          adoptLateMatches(this.port, el);
+        },
         onElementRemoved: (el) => this.releaseTree(el),
-        onAttributeChanged: (el) => this.process(el)
+        onAttributeChanged: (el) => {
+          this.process(el);
+          restageAround(el, this.reporter);
+        }
       });
       this.domWatcher.watch();
     }
@@ -1984,7 +6475,7 @@ var kuinetic = (() => {
       capabilities,
       root,
       reporter,
-      binder: options.binder ?? createActivationBinder(),
+      binder: options.binder ?? createActivationBinder({ reporter }),
       scheduler,
       rootResolver,
       jsEffectPreparer: resolveJsEffectPreparer(options.jsEffectPreparer, {
@@ -2011,6 +6502,9 @@ var kuinetic = (() => {
     const win = doc?.defaultView ?? globalThis;
     return createRootResolver({ win });
   }
+  function isDirectional(instance) {
+    return instance.play !== void 0 && instance.reverse !== void 0;
+  }
   function runQuietly(cleanup) {
     try {
       cleanup();
@@ -2018,48 +6512,53 @@ var kuinetic = (() => {
     }
   }
 
-  // src/core/types.ts
-  var CHANNEL = {
-    opacity: "opacity",
-    translate: "translate",
-    scale: "scale",
-    rotate: "rotate",
-    filter: "filter",
-    clip: "clip",
-    background: "background",
-    color: "color",
-    stroke: "stroke",
-    text: "text",
-    /**
-     * Skew is the one transform CSS never gave an independent property to — there is no `skew:`
-     * beside `translate:`/`rotate:`/`scale:`, so it can only be written through the `transform`
-     * shorthand. That makes it its own channel: anything writing `transform` clobbers the whole
-     * shorthand, so every primitive that does is on this channel, whatever the transform is for.
-     * `scroll-skew` is one member; `flip-face` (`effects/three-d`) and `flip-3d`
-     * (`effects/catalog/core`, the `flip-in-*`/`flip-out-*` family) are the other two — both need
-     * the `perspective()` transform *function* for an element to have depth on itself, which
-     * likewise only exists inside `transform`.
-     */
-    skew: "skew"
-  };
-  function inertInstance(destroy = () => {
-  }) {
-    return {
-      activate() {
-      },
-      cancel() {
-      },
-      finish() {
-      },
-      finished: Promise.resolve(),
-      destroy
-    };
-  }
-
   // src/effects/shared.ts
   var TRIGGER_DELAY_PARAM = {
     delay: { type: "time", default: "0ms", cssProperty: "--kui-delay" }
   };
+  var ALL_TIMING_TOKENS = ["duration", "delay", "ease"];
+  function authoredTiming(params, token) {
+    if (token === "ease") return params.timing.easing;
+    const ms = token === "duration" ? params.timing.durationMs : params.timing.delayMs;
+    return ms === void 0 ? void 0 : `${ms}ms`;
+  }
+  function warnUnhonouredTiming(id, contract, params, warn) {
+    const honours = contract.honours ?? [];
+    for (const token of ALL_TIMING_TOKENS) {
+      if (honours.includes(token)) continue;
+      if (authoredTiming(params, token) === void 0) continue;
+      const supported = honours.length > 0 ? honours.join(", ") : "no timing parameters";
+      warn(`"${id}" cannot honour ${token}: ${contract.because} (honours: ${supported})`);
+    }
+  }
+  function effectDelayMs(params, fallback = 0) {
+    return params.timing.delayMs ?? params.ms("delay", fallback);
+  }
+  function effectEasing(params, fallback = "") {
+    return params.timing.easing ?? params.text("ease", fallback);
+  }
+  function mirrorTimingToCss(id, honours, params, ctx) {
+    for (const token of honours) {
+      const value = authoredTiming(params, token);
+      if (value !== void 0) ctx.style.set(timingProperty(id, token), value);
+    }
+  }
+  function withTimingContract(id, contract, prepare) {
+    return (el, params, ctx) => {
+      warnUnhonouredTiming(id, contract, params, ctx.warn);
+      return prepare(el, params, ctx);
+    };
+  }
+  function stylesheetTimingPrepare(id, contract) {
+    return (el, params, ctx) => {
+      warnUnhonouredTiming(id, contract, params, ctx.warn);
+      return deferredInstance(() => {
+        mirrorTimingToCss(id, contract.honours ?? [], params, ctx);
+        return () => {
+        };
+      });
+    };
+  }
   var TIMELINE_AGNOSTIC = ["time", "view", "scroll", "pin"];
   var COMMON = {
     duration: { type: "time", default: "600ms", cssProperty: "--kui-duration" },
@@ -2172,10 +6671,11 @@ var kuinetic = (() => {
     })
   ];
   var AMBIENT_PRESETS = [
-    { name: "gradient-mesh", primitive: "ambient-gradient", keyframes: "kui-gradient-mesh" },
-    { name: "aurora", primitive: "ambient-gradient", keyframes: "kui-aurora" },
+    { name: "gradient-mesh", phase: "idle", primitive: "ambient-gradient", keyframes: "kui-gradient-mesh" },
+    { name: "aurora", phase: "idle", primitive: "ambient-gradient", keyframes: "kui-aurora" },
     {
       name: "gradient-rotate-border",
+      phase: "idle",
       primitive: "ambient-gradient-ring",
       keyframes: "kui-gradient-rotate-border",
       params: { duration: "6s", ease: "linear" }
@@ -2185,70 +6685,170 @@ var kuinetic = (() => {
       // a ring, so putting the name on real content deletes the content. `-border` says that out loud,
       // matching `gradient-rotate-border` and `beam-border`.
       name: "gradient-border",
+      phase: "idle",
       primitive: "ambient-gradient-ring",
       keyframes: "kui-gradient-border",
       params: { duration: "6s", ease: "linear" }
     },
-    {
-      name: "noise-overlay",
-      primitive: "ambient-tint",
-      keyframes: "kui-noise-overlay",
-      params: { duration: "650ms", ease: "steps(6)" }
-    },
+    // Cut 2026-08-26, human call — the rewritten version wasn't useful. Commented out, not
+    // deleted, so it can be revived: uncomment this row, the matching rule + @keyframes in
+    // ambient.css, restore the docs/catalog.md entry, and regenerate presets.generated.css.
+    // {
+    //   name: 'noise-overlay',
+    //   primitive: 'ambient-tint',
+    //   keyframes: 'kui-noise-overlay',
+    //   params: { duration: '650ms', ease: 'steps(6)' },
+    // },
     {
       name: "scanline",
+      phase: "idle",
       primitive: "ambient-tint",
       keyframes: "kui-scanline",
       params: { duration: "3.5s", ease: "linear" }
     },
     {
       name: "dot-grid-drift",
+      phase: "idle",
       primitive: "ambient-tint",
       keyframes: "kui-dot-grid-drift",
       params: { duration: "16s", ease: "linear" }
     },
     {
       name: "line-grid-drift",
+      phase: "idle",
       primitive: "ambient-tint",
       keyframes: "kui-line-grid-drift",
       params: { duration: "16s", ease: "linear" }
     },
     {
       name: "starfield",
+      phase: "idle",
       primitive: "ambient-tint",
       keyframes: "kui-starfield",
       params: { duration: "40s", ease: "linear" }
     },
     {
       name: "spotlight-follow",
+      phase: "idle",
       primitive: "ambient-tint",
       keyframes: "kui-spotlight-follow",
       params: { duration: "9s" }
     },
     {
       name: "wave-blob",
+      phase: "idle",
       primitive: "ambient-tint",
       keyframes: "kui-wave-blob",
       params: { duration: "12s" }
     },
-    { name: "float", primitive: "ambient-float", keyframes: "kui-float" },
+    { name: "float", phase: "idle", primitive: "ambient-float", keyframes: "kui-float" },
     {
       name: "bob",
+      phase: "idle",
       primitive: "ambient-float",
       keyframes: "kui-bob",
       params: { duration: "2s", distance: "8px" }
     },
     {
       name: "floating-shapes",
+      phase: "idle",
       primitive: "ambient-float",
       keyframes: "kui-floating-shapes",
       params: { duration: "6s", distance: "10px" }
     },
-    { name: "orbit", primitive: "ambient-orbit", keyframes: "kui-orbit" },
-    { name: "glow-pulse", primitive: "ambient-pulse", keyframes: "kui-glow-pulse" }
+    { name: "orbit", phase: "idle", primitive: "ambient-orbit", keyframes: "kui-orbit" },
+    { name: "glow-pulse", phase: "idle", primitive: "ambient-pulse", keyframes: "kui-glow-pulse" }
   ];
   function registerAmbient(registry) {
     return registry.registerPrimitives(AMBIENT_PRIMITIVES).registerPresets(AMBIENT_PRESETS);
+  }
+
+  // src/effects/catalog/discrete.ts
+  var discreteTiming = {
+    duration: { type: "time", default: "240ms", cssProperty: "--kui-duration" },
+    ...TRIGGER_DELAY_PARAM,
+    ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" }
+  };
+  var PINNED_REASON = "discrete.css pins that value on this effect";
+  function scaleParam(cssProperty, defaultValue) {
+    return { scale: { type: "number", default: defaultValue, cssProperty, finite: true, minimum: 0 } };
+  }
+  function distanceParam(cssProperty, defaultValue) {
+    return { distance: { type: "length", default: defaultValue, cssProperty } };
+  }
+  function discretePrimitive(id, channels, extraParams = {}) {
+    return {
+      id,
+      renderer: "javascript",
+      channels,
+      parameters: { ...discreteTiming, ...extraParams },
+      supportedTimelines: ["time"],
+      supportedActivations: ["manual"],
+      defaultActivation: "manual",
+      perfClass: "compositor",
+      // Not 'disable': an open/close transition on a menu or panel is a brief, functional state
+      // change, not a vestibular trigger the way parallax or an infinite ambient loop is — same
+      // reasoning `hoverPrimitive` gives interaction.ts's family.
+      reducedMotion: "shorten",
+      prepare: stylesheetTimingPrepare(id, { honours: ALL_TIMING_TOKENS, because: PINNED_REASON })
+    };
+  }
+  var DISCRETE_BASE = [{ property: "display" }, { property: "overlay" }];
+  var DISCRETE_PRIMITIVES = [
+    discretePrimitive("fade-open", ["opacity", "discrete"]),
+    // Opacity + scale together, matching the real-world "popover/toast" pop-in — the plan's own
+    // worked example. `scale-open` below is the scale-only sibling for an element that should grow
+    // into place without also fading, the same split `core.ts` draws between `fade-in` and `zoom-in`.
+    discretePrimitive("pop-open", ["opacity", "scale", "discrete"], scaleParam("--kui-pop-open-scale", "0.92")),
+    discretePrimitive("scale-open", ["scale", "discrete"], scaleParam("--kui-scale-open-scale", "0.85")),
+    // A small upward-then-settle drop, the conventional dropdown-menu entrance. Radix/Headless UI
+    // default to roughly half this, but they animate a menu against a page that is holding still;
+    // at 8px here the travel was swamped by the fade and the effect was indistinguishable from
+    // `fade-open`. Still deliberately smaller than the slide pair below.
+    discretePrimitive(
+      "drop-open",
+      ["opacity", "translate", "discrete"],
+      distanceParam("--kui-drop-open-distance", "12px")
+    ),
+    // "-up"/"-down" name the direction of travel, the same convention `core.ts`'s `fade-up`/
+    // `fade-down` use: `slide-open-up` starts below rest and arrives travelling upward.
+    discretePrimitive(
+      "slide-open-up",
+      ["opacity", "translate", "discrete"],
+      distanceParam("--kui-slide-open-up-distance", "16px")
+    ),
+    discretePrimitive(
+      "slide-open-down",
+      ["opacity", "translate", "discrete"],
+      distanceParam("--kui-slide-open-down-distance", "16px")
+    )
+  ];
+  var DISCRETE_PRESETS = [
+    { name: "fade-open", primitive: "fade-open", transitions: [{ property: "opacity" }, ...DISCRETE_BASE] },
+    {
+      name: "pop-open",
+      primitive: "pop-open",
+      transitions: [{ property: "opacity" }, { property: "scale" }, ...DISCRETE_BASE]
+    },
+    { name: "scale-open", primitive: "scale-open", transitions: [{ property: "scale" }, ...DISCRETE_BASE] },
+    {
+      name: "drop-open",
+      primitive: "drop-open",
+      transitions: [{ property: "opacity" }, { property: "translate" }, ...DISCRETE_BASE]
+    },
+    {
+      name: "slide-open-up",
+      primitive: "slide-open-up",
+      transitions: [{ property: "opacity" }, { property: "translate" }, ...DISCRETE_BASE]
+    },
+    {
+      name: "slide-open-down",
+      primitive: "slide-open-down",
+      transitions: [{ property: "opacity" }, { property: "translate" }, ...DISCRETE_BASE]
+    }
+  ];
+  function registerDiscrete(registry) {
+    return registry.registerPrimitives(DISCRETE_PRIMITIVES).registerPresets(DISCRETE_PRESETS);
   }
 
   // src/effects/catalog/feedback.ts
@@ -2286,7 +6886,50 @@ var kuinetic = (() => {
   var ripple = {
     duration: { type: "time", default: "600ms", cssProperty: "--kui-duration" },
     ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
-    spread: { type: "number", default: "4", cssProperty: "--kui-ripple-scale", finite: true, minimum: 1 }
+    extent: { type: "number", default: "4", cssProperty: "--kui-ripple-scale", finite: true, minimum: 1 },
+    // Empty default, the `ambient.ts` convention: unauthored means absent from the resolved output,
+    // so the stylesheet's own `currentColor` fallback stays in force and no existing page changes.
+    color: { type: "color", default: "", cssProperty: "--kui-ripple-color" },
+    // How opaque the disc is at its brightest. `number|percentage` so `strength:60%` and
+    // `strength:0.6` both work and both land in `[0,1]` — `normalise` turns the percentage into the
+    // number before `maximum` bounds it, which is the whole reason that union type exists.
+    strength: {
+      type: "number|percentage",
+      default: "0.6",
+      cssProperty: "--kui-ripple-opacity",
+      finite: true,
+      minimum: 0,
+      maximum: 1
+    },
+    // Where the disc starts, as a fraction of the element it covers. Worth a knob because it is what
+    // separates a ripple that grows from a point from one that starts already covering the button.
+    startScale: { type: "number", default: "0.2", cssProperty: "--kui-ripple-start", finite: true, minimum: 0 }
+  };
+  var burst = {
+    ...pop,
+    // How far the furthest particle travels, defaulting to a *percentage* of the host rather than a
+    // fixed length. A background layer is clipped to the element that paints it, so a fixed `34px`
+    // would be almost entirely off-box on the 18px dot the demo page celebrates with and a timid
+    // twitch in the middle of a 400px card — the same number cannot be right for both. At `45%` the
+    // furthest particle lands just inside the edge whatever the host's size is. `length|percentage`
+    // rather than `length` so the declaration says a percentage is a supported reading here, not an
+    // accident of the unit list (see `ParamType` in core/types.ts); `distance:40px` still validates.
+    distance: { type: "length|percentage", default: "45%", cssProperty: "--kui-confetti-distance" },
+    // Horizontal reach only, so the same `distance` covers a narrow fountain (`fan:0.3`) and a full
+    // circular pop (`fan:1.6`) without any particle changing how far it flies.
+    fan: { type: "number", default: "1", cssProperty: "--kui-confetti-fan", finite: true, minimum: 0 },
+    size: { type: "length", default: "6px", cssProperty: "--kui-confetti-size" },
+    // How far the particle box overhangs the host on every side. A background layer is clipped to
+    // the box that paints it, so this is what decides whether the burst can leave the button at all.
+    spill: { type: "length", default: "24px", cssProperty: "--kui-confetti-spill" },
+    // Empty defaults, the same convention `ambient.ts` uses and for the same reason: unauthored
+    // means absent from the resolved output, so each gradient's own hardcoded fallback stays in
+    // force and no existing page changes colour.
+    color1: { type: "color", default: "", cssProperty: "--kui-confetti-c1" },
+    color2: { type: "color", default: "", cssProperty: "--kui-confetti-c2" },
+    color3: { type: "color", default: "", cssProperty: "--kui-confetti-c3" },
+    color4: { type: "color", default: "", cssProperty: "--kui-confetti-c4" },
+    color5: { type: "color", default: "", cssProperty: "--kui-confetti-c5" }
   };
   var confirm = {
     duration: { type: "time", default: "1400ms", cssProperty: "--kui-duration" },
@@ -2305,7 +6948,13 @@ var kuinetic = (() => {
     cssPrimitive("feedback-fade", [CHANNEL.opacity], {
       defaultActivation: "manual"
     }),
-    cssPrimitive("feedback-spin", [CHANNEL.rotate], {
+    // `'discrete'` alongside `rotate`: `spinner`/`spinner-ring`'s unconditional rule also pins
+    // `display: inline-block` so the ring sizes to its own box instead of running full-width as a
+    // bare `<div>` would. Unrelated to `catalog/discrete.ts`'s show/hide use of the same channel —
+    // `display` itself is one physical property regardless of which value a primitive sets it to,
+    // so both uses have to share the channel `channels.ts` polices it under. See that channel's own
+    // doc comment in `test/support/channel-properties.ts`.
+    cssPrimitive("feedback-spin", [CHANNEL.rotate, "discrete"], {
       parameters: spin,
       defaultActivation: "load",
       reducedMotion: "disable",
@@ -2313,25 +6962,36 @@ var kuinetic = (() => {
     }),
     // Declares every channel the preset's CSS actually paints, not just what the shared keyframe
     // animates: spinner-dots' `[data-kui-fx~='spinner-dots']` rule also sets `background:
-    // currentColor` (the dot itself) and `box-shadow` (the other two dots), entirely outside
-    // `@keyframes kui-spinner-dots`. Declaring only [scale, opacity] let a composed
-    // `background`-writing effect (e.g. gradient-mesh) pass channel-collision detection and then
-    // have its gradient silently overwritten by this rule — see css-invariants.test.ts's "CSS
-    // static rules" describe block, which now catches this class of omission directly.
-    cssPrimitive("feedback-dot-pulse", [CHANNEL.scale, CHANNEL.opacity, CHANNEL.background, "shadow"], {
-      parameters: dotPulse,
-      defaultActivation: "load",
-      reducedMotion: "disable",
-      perfClass: "continuous"
-    }),
+    // currentColor` (the dot itself), `box-shadow` (the other two dots), and `display: inline-block`
+    // (same sizing reason as `feedback-spin` above), entirely outside `@keyframes kui-spinner-dots`.
+    // Declaring only [scale, opacity] let a composed `background`-writing effect (e.g. gradient-mesh)
+    // pass channel-collision detection and then have its gradient silently overwritten by this rule —
+    // see css-invariants.test.ts's "CSS static rules" describe block, which now catches this class of
+    // omission directly.
+    cssPrimitive(
+      "feedback-dot-pulse",
+      [CHANNEL.scale, CHANNEL.opacity, CHANNEL.background, "shadow", "discrete"],
+      {
+        parameters: dotPulse,
+        defaultActivation: "load",
+        reducedMotion: "disable",
+        perfClass: "continuous"
+      }
+    ),
     // Same shape as feedback-dot-pulse above: `[data-kui-fx~='progress-indeterminate']` sets
-    // `background: currentColor` unconditionally for the bar itself, outside the keyframe.
-    cssPrimitive("feedback-progress-track", [CHANNEL.translate, CHANNEL.scale, CHANNEL.background], {
-      parameters: progressTrack,
-      defaultActivation: "load",
-      reducedMotion: "disable",
-      perfClass: "continuous"
-    }),
+    // `background: currentColor` unconditionally for the bar itself, outside the keyframe. It also
+    // pins `transform-origin: 0% 50%` there, undeclared until channel-properties.ts gained an entry
+    // for it — the same structurally-invisible gap `background` was closed for above.
+    cssPrimitive(
+      "feedback-progress-track",
+      [CHANNEL.translate, CHANNEL.scale, CHANNEL.background, "transform-origin"],
+      {
+        parameters: progressTrack,
+        defaultActivation: "load",
+        reducedMotion: "disable",
+        perfClass: "continuous"
+      }
+    ),
     cssPrimitive("feedback-toast", [CHANNEL.opacity, CHANNEL.translate], {
       parameters: toast,
       defaultActivation: "manual"
@@ -2343,9 +7003,30 @@ var kuinetic = (() => {
     cssPrimitive("feedback-wobble", [CHANNEL.translate, CHANNEL.rotate], {
       defaultActivation: "click"
     }),
-    // `[data-kui-fx~='ripple']` sets `background: currentColor` unconditionally for the ripple
-    // disc itself, outside the keyframe — same gap as feedback-dot-pulse/feedback-progress-track.
-    cssPrimitive("feedback-ripple", [CHANNEL.scale, CHANNEL.opacity, CHANNEL.background], {
+    /**
+     * Every channel this primitive now touches is on its own `::after`, not on the host.
+     *
+     * It used to declare `background` and `transform-origin` because the disc *was* the host —
+     * `[data-kui-fx~='ripple']` painted `background: currentColor` and pinned `transform-origin`
+     * straight onto the authored element. Now that the disc is a pseudo-element the host rule writes
+     * neither, so declaring them would refuse compositions that no longer clash: `data-kui=
+     * "gradient-mesh, ripple"` paints a mesh on the element and a ripple over it, which is exactly
+     * what an author asking for both means.
+     *
+     * `sweep` is the ownership token for "this preset paints its own `::after`". `shine-sweep` is
+     * this channel's other member and `channel-properties.ts` documents it as deliberately covering
+     * no host property — a box marker rather than a property set, kept as "a home to grow into if
+     * the pseudo-element audit ever gets extended to check that box directly". This is that growth:
+     * `::after` is one physical box per element, so two presets that both paint it cannot compose,
+     * and sharing a channel is how the compiler is told. Without it the pair would instead land in
+     * `test/css-composition-invariants.test.ts`'s enumerated list of collisions it can only *report*.
+     * `scale`/`opacity` stay declared for the same box — `underline-slide` declares `scale` for a
+     * transform that also lives entirely on its `::after`, which is the existing convention.
+     *
+     * The name is wrong for a ripple and worth renaming to something like `pseudo-after` once
+     * someone can touch `interaction.ts` and `channel-properties.ts` in the same change.
+     */
+    cssPrimitive("feedback-ripple", [CHANNEL.scale, CHANNEL.opacity, "sweep"], {
       parameters: ripple,
       defaultActivation: "click"
     }),
@@ -2353,11 +7034,48 @@ var kuinetic = (() => {
       parameters: pop,
       defaultActivation: "manual"
     }),
-    // Declares every channel any preset built on it actually paints, not just what the shared
-    // keyframes animate: heart-burst's CSS also sets `color`, confetti-burst's also sets
-    // `background-image`. Understating this let a composed `background`-writing effect (e.g.
-    // gradient-mesh) pass channel-collision detection and silently overwrite confetti-burst's dots.
-    cssPrimitive("feedback-burst", [CHANNEL.scale, CHANNEL.opacity, CHANNEL.background, CHANNEL.color], {
+    /**
+     * `confetti-burst` only now. `heart-burst` used to share this primitive — same shared `burst`
+     * keyframe family, same host `scale` pop — and inherited the `sweep` claim below along with it,
+     * which made it refuse to compose with `shine-sweep` even though it paints no pseudo-element at
+     * all: `[data-kui-fx~='heart-burst']` in `feedback.css` sets `color` on the host and nothing
+     * else. That was a real false positive, not a defensible over-declaration, so `heart-burst` was
+     * split onto its own primitive (`feedback-heart-burst`, below) that declares only the channels
+     * it actually paints. See `test/catalog-feedback.test.ts` for the regression coverage: the
+     * composition that used to be wrongly refused, and the one that is still correctly refused.
+     *
+     * `sweep` is the `::after` ownership token — see `feedback-ripple` above for what it means and
+     * why it is spelled that way. `confetti-burst` genuinely paints its five gradients there, so the
+     * claim is real for this primitive now that it no longer speaks for `heart-burst` too.
+     *
+     * `background` stays declared even though the host rule no longer paints one. That is a
+     * deliberate over-declaration rather than a leftover: it keeps `gradient-mesh, confetti-burst`
+     * refused, which `test/compile.test.ts` asserts as the regression that made this primitive's
+     * channels honest in the first place, and refusing a pair that no longer clashes is the safe
+     * direction to be wrong in. `opacity` likewise — a composed fade would take the whole element,
+     * pseudo-element and all.
+     *
+     * `color` is gone: only `heart-burst` ever painted it, and it left with `heart-burst`.
+     */
+    cssPrimitive("feedback-burst", [CHANNEL.scale, CHANNEL.opacity, CHANNEL.background, "sweep"], {
+      parameters: burst,
+      defaultActivation: "click"
+    }),
+    /**
+     * `heart-burst`'s own primitive, split off `feedback-burst` above so its declared channels match
+     * what it actually paints: `[data-kui-fx~='heart-burst']` in `feedback.css` sets `color` on the
+     * host, and `@keyframes kui-heart-burst` animates the host's own `scale` — nothing else, no
+     * pseudo-element, no `sweep` claim. Sharing `feedback-burst` made it inherit that primitive's
+     * `sweep` channel and wrongly refuse to compose with `shine-sweep`; this primitive cannot make
+     * that mistake because it never declares a channel it does not use.
+     *
+     * Parameters are bare `pop` — `duration`, `ease`, `scale` — rather than the fuller `burst` object
+     * `feedback-burst` carries. `distance`/`fan`/`size`/`spill`/`color1..5` never reached any CSS for
+     * `heart-burst` even while it shared that primitive (its host rule never reads
+     * `--kui-confetti-*`), so exposing them here would just be a second copy of the dead-parameter
+     * trap `ambient.ts` documents for a shared `to:` — a value that validates and does nothing.
+     */
+    cssPrimitive("feedback-heart-burst", [CHANNEL.scale, CHANNEL.color], {
       parameters: pop,
       defaultActivation: "click"
     }),
@@ -2371,13 +7089,14 @@ var kuinetic = (() => {
     })
   ];
   var FEEDBACK_PRESETS = [
-    { name: "skeleton-shimmer", primitive: "feedback-shimmer", keyframes: "kui-skeleton-shimmer" },
+    { name: "skeleton-shimmer", phase: "idle", primitive: "feedback-shimmer", keyframes: "kui-skeleton-shimmer" },
     { name: "skeleton-to-content", primitive: "feedback-fade", keyframes: "kui-skeleton-to-content" },
-    { name: "spinner", primitive: "feedback-spin", keyframes: "kui-spinner-spin" },
-    { name: "spinner-dots", primitive: "feedback-dot-pulse", keyframes: "kui-spinner-dots" },
-    { name: "spinner-ring", primitive: "feedback-spin", keyframes: "kui-spinner-ring-spin" },
+    { name: "spinner", phase: "idle", primitive: "feedback-spin", keyframes: "kui-spinner-spin" },
+    { name: "spinner-dots", phase: "idle", primitive: "feedback-dot-pulse", keyframes: "kui-spinner-dots" },
+    { name: "spinner-ring", phase: "idle", primitive: "feedback-spin", keyframes: "kui-spinner-ring-spin" },
     {
       name: "progress-indeterminate",
+      phase: "idle",
       primitive: "feedback-progress-track",
       keyframes: "kui-progress-indeterminate"
     },
@@ -2405,7 +7124,7 @@ var kuinetic = (() => {
     },
     {
       name: "heart-burst",
-      primitive: "feedback-burst",
+      primitive: "feedback-heart-burst",
       keyframes: "kui-heart-burst",
       params: { duration: "700ms", scale: "1.4" }
     },
@@ -2427,113 +7146,6 @@ var kuinetic = (() => {
     return registry.registerPrimitives(FEEDBACK_PRIMITIVES).registerPresets(FEEDBACK_PRESETS);
   }
 
-  // src/core/spring.ts
-  var DEFAULT_SPRING = {
-    stiffness: 180,
-    damping: 24,
-    mass: 1,
-    restVelocity: 0.05,
-    restDisplacement: 0.05
-  };
-  var SUBSTEP = 1 / 240;
-  var MAX_STEP = 0.25;
-  function stepSpring(state, target, config, dt) {
-    let { value, velocity } = state;
-    let remaining = Math.min(Math.max(dt, 0), MAX_STEP);
-    while (remaining > 0) {
-      const step = Math.min(SUBSTEP, remaining);
-      const force = -config.stiffness * (value - target) - config.damping * velocity;
-      velocity += force / config.mass * step;
-      value += velocity * step;
-      remaining -= step;
-    }
-    return { value, velocity };
-  }
-  function isSettled(state, target, config) {
-    return Math.abs(state.velocity) < config.restVelocity && Math.abs(state.value - target) < config.restDisplacement;
-  }
-  var MAX_SETTLE_MS = 1e4;
-  function createSpringRunner(config, onChange, deps) {
-    const safeConfig = validConfig(config) ? config : DEFAULT_SPRING;
-    if (safeConfig !== config) deps.warn?.("invalid spring configuration; using defaults");
-    let state = { value: 0, velocity: 0 };
-    let target = 0;
-    let handle = null;
-    let lastTime = 0;
-    let startedAt = 0;
-    function frame(time2) {
-      handle = null;
-      const dt = (time2 - lastTime) / 1e3;
-      lastTime = time2;
-      state = stepSpring(state, target, safeConfig, dt);
-      if (!finiteState(state) || !Number.isFinite(target)) {
-        abortRun("spring produced non-finite state");
-        return;
-      }
-      if (time2 - startedAt >= MAX_SETTLE_MS) {
-        abortRun(`spring exceeded ${MAX_SETTLE_MS}ms settle budget`);
-        return;
-      }
-      if (isSettled(state, target, safeConfig)) {
-        state = { value: target, velocity: 0 };
-        onChange(state.value, true);
-        return;
-      }
-      onChange(state.value, false);
-      schedule();
-    }
-    function schedule() {
-      if (handle !== null) return;
-      handle = deps.requestFrame(frame);
-    }
-    function start() {
-      lastTime = deps.now();
-      startedAt = lastTime;
-      schedule();
-    }
-    function abortRun(message) {
-      state = { value: Number.isFinite(target) ? target : 0, velocity: 0 };
-      deps.warn?.(message);
-      onChange(state.value, true);
-    }
-    return {
-      to(next, velocity) {
-        target = next;
-        if (velocity !== void 0) state = { ...state, velocity };
-        start();
-      },
-      set(value, velocity = 0) {
-        state = { value, velocity };
-      },
-      current: () => ({ ...state }),
-      stop() {
-        if (handle !== null) deps.cancelFrame(handle);
-        handle = null;
-      }
-    };
-  }
-  function validConfig(config) {
-    return Object.values(config).every(Number.isFinite) && config.stiffness > 0 && config.damping > 0 && config.mass > 0 && config.restVelocity > 0 && config.restDisplacement > 0;
-  }
-  function finiteState(state) {
-    return Number.isFinite(state.value) && Number.isFinite(state.velocity);
-  }
-  function defaultSpringDeps() {
-    const raf = globalThis.requestAnimationFrame;
-    if (typeof raf !== "function") {
-      return {
-        requestFrame: (callback) => globalThis.setTimeout(() => callback(Date.now()), 16),
-        cancelFrame: (handle) => globalThis.clearTimeout(handle),
-        now: () => Date.now()
-      };
-    }
-    return {
-      requestFrame: (callback) => raf(callback),
-      cancelFrame: (handle) => globalThis.cancelAnimationFrame(handle),
-      now: () => performance.now()
-    };
-  }
-
   // src/effects/catalog/interaction-shared.ts
   function centeredOffset(point, size) {
     return {
@@ -2552,28 +7164,315 @@ var kuinetic = (() => {
   function supportsFineHover(win) {
     return win.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? true;
   }
+  var HOVER_TRANSITIONS = {
+    lift: [{ property: "translate" }],
+    pop: [{ property: "scale" }],
+    "lift-shadow": [{ property: "translate" }, { property: "box-shadow" }],
+    "border-draw": [{ property: "--kui-border-pct" }],
+    "border-glow": [{ property: "box-shadow" }]
+  };
+  var STYLESHEET_ANIMATED_HOVERS = ["icon-bounce", "icon-spin", "icon-wiggle", "split-flap"];
+  var BEAM_PARAMS = {
+    color: { type: "color", default: "", cssProperty: "--kui-beam-border-c1" },
+    outset: { type: "length", default: "", cssProperty: "--kui-beam-border-outset" },
+    /**
+     * How many degrees of the ring carry colour; the rest is transparent. Small values read as a
+     * short bright dash chasing the perimeter, large ones as a full glowing ring.
+     *
+     * `angle`, so `arc:100`, `arc:100d` and `arc:100deg` are one value (`core/params.ts`'s
+     * `BARE_ANGLE`), and `0.28turn` works too.
+     */
+    arc: { type: "angle", default: "100deg", cssProperty: "--kui-beam-border-arc" },
+    /**
+     * What fraction of the arc is spent fading up from transparent to the first colour. `0` is a
+     * hard leading edge; `0.9` is an arc that is almost entirely fade, which is the soft specular
+     * rim the glass family reaches for.
+     *
+     * `'number|percentage'` so `softness:0.6` and `softness:60%` are the same request — the union
+     * normalises to the number, which is what keeps the bounds below meaningful for both spellings.
+     */
+    softness: {
+      type: "number|percentage",
+      default: "0.22",
+      cssProperty: "--kui-beam-border-softness",
+      finite: true,
+      minimum: 0,
+      maximum: 0.9
+    }
+  };
+  var SHINE_PARAMS = {
+    color: { type: "color", default: "", cssProperty: "--kui-shine-sweep-color" },
+    /** Rake of the band. `115deg` is the shipped default — steeper than a diagonal, which is what
+     *  stops it reading as a corner-to-corner wipe. */
+    angle: { type: "angle", default: "115deg", cssProperty: "--kui-shine-sweep-angle" },
+    /**
+     * Band width as a fraction of the gradient's own span, centred on the midpoint. `0.2` is the
+     * shipped 40%→60% band; `1` is a full-width wash with no transparent margin left.
+     *
+     * `'number|percentage'`, bounded 0..1, for the same reason `softness` above is: `width:40%` and
+     * `width:0.4` are the same request, and normalising to the number is what keeps the bounds
+     * honest for both.
+     */
+    width: {
+      type: "number|percentage",
+      default: "0.2",
+      cssProperty: "--kui-shine-sweep-width",
+      finite: true,
+      minimum: 0,
+      maximum: 1
+    }
+  };
+  var COLOR_PARAMS = {
+    borderDraw: { color: { type: "color", default: "", cssProperty: "--kui-border-draw-color" } },
+    borderGlow: { color: { type: "color", default: "", cssProperty: "--kui-border-glow-color" } },
+    underlineSlide: { color: { type: "color", default: "", cssProperty: "--kui-underline-slide-color" } },
+    underlineCenter: { color: { type: "color", default: "", cssProperty: "--kui-underline-center-color" } }
+  };
+  var BORDER_DRAW_PARAMS = {
+    ...COLOR_PARAMS.borderDraw,
+    width: { type: "length", default: "2px", cssProperty: "--kui-border-draw-width" },
+    outset: { type: "length", default: "0px", cssProperty: "--kui-border-draw-outset" }
+  };
+
+  // src/effects/catalog/interaction-states.ts
+  function stateTiming(duration) {
+    return {
+      duration: { type: "time", default: duration, cssProperty: "--kui-duration" },
+      ...TRIGGER_DELAY_PARAM,
+      ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" }
+    };
+  }
+  function statePrimitive(id, channels, duration, extraParams) {
+    return {
+      id,
+      renderer: "javascript",
+      channels,
+      parameters: { ...stateTiming(duration), ...extraParams },
+      supportedTimelines: ["time"],
+      supportedActivations: ["load"],
+      defaultActivation: "load",
+      perfClass: "compositor",
+      reducedMotion: "shorten",
+      prepare: stylesheetTimingPrepare(id, {
+        honours: ALL_TIMING_TOKENS,
+        because: "interaction.css pins that value on this effect"
+      })
+    };
+  }
+  var pressParams = {
+    scale: {
+      type: "number",
+      default: "0.96",
+      cssProperty: "--kui-press-scale",
+      finite: true,
+      minimum: 0
+    },
+    depth: { type: "length", default: "2px", cssProperty: "--kui-press-shadow-depth" },
+    color: { type: "color", default: "", cssProperty: "--kui-press-shadow-color" }
+  };
+  var groupParams = {
+    opacity: {
+      type: "number|percentage",
+      default: "0.4",
+      cssProperty: "--kui-group-dim-opacity",
+      finite: true,
+      minimum: 0,
+      maximum: 1
+    }
+  };
+  var PRESS_PRIMITIVES = [
+    statePrimitive("press", ["scale", "shadow"], "120ms", pressParams)
+  ];
+  var PRESS_PRESETS = [
+    {
+      name: "press-depth",
+      primitive: "press",
+      /*
+       * Through `Preset.transitions`, never a bare `transition:` in the stylesheet. A `transition`
+       * shorthand resets every longhand it covers, so two composed presets each carrying their own
+       * would fight over one declaration and the earlier one would vanish outright — the exact bug
+       * `data-kui="lift, border-glow"` had. The compiler merges these segments into the single
+       * `--kui-transition` custom property `base.css`'s `:where([data-kui-fx])` rule consumes;
+       * `css-composition-invariants.test.ts` asserts no preset has gone back to the old spelling.
+       */
+      transitions: [{ property: "scale" }, { property: "box-shadow" }]
+    }
+  ];
+  var GROUP_PRIMITIVES = [
+    statePrimitive("group-dim", ["group"], "260ms", groupParams)
+  ];
+  var GROUP_PRESETS = [
+    /*
+     * No `transitions` field, unlike `press-depth` above. `Preset.transitions` describes properties
+     * this preset eases *on its own host box*, and the compiler spends them on the one
+     * `--kui-transition` property `base.css` applies to the element carrying `data-kui-fx` — which
+     * here is the container, which does not move. The children's `opacity` transition is authored
+     * directly on their own rule in `interaction.css`, the same way the form family's satellite
+     * rules carry their own, and it is safe there for a reason the host box's is not: nothing else
+     * can ever write a transition on `[data-kui-fx~='group-dim'] > *`, because a second effect that
+     * did would have to be on this channel and would be refused before it got there.
+     */
+    { name: "group-dim", phase: "state", primitive: "group-dim", requiresOwnSubtree: true }
+  ];
+  var STATE_PRIMITIVES = [...PRESS_PRIMITIVES, ...GROUP_PRIMITIVES];
+  var STATE_PRESETS = [...PRESS_PRESETS, ...GROUP_PRESETS];
+
+  // src/effects/catalog/interaction-reveal.ts
+  function revealPrimitive(id, channels, parameters, perfClass = "compositor") {
+    return {
+      id,
+      renderer: "javascript",
+      channels,
+      parameters,
+      supportedTimelines: ["time"],
+      supportedActivations: ["load"],
+      defaultActivation: "load",
+      perfClass,
+      reducedMotion: "shorten",
+      prepare: stylesheetTimingPrepare(id, {
+        honours: ALL_TIMING_TOKENS,
+        because: "interaction.css pins that value on this effect"
+      })
+    };
+  }
+  var labelSwapParams = {
+    duration: { type: "time", default: "320ms", cssProperty: "--kui-duration" },
+    delay: { type: "time", default: "0ms", cssProperty: "--kui-delay" },
+    ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
+    distance: {
+      type: "length|percentage",
+      default: "100%",
+      cssProperty: "--kui-label-swap-distance"
+    }
+  };
+  var LABEL_SWAP_PRIMITIVES = [
+    revealPrimitive("label-swap", ["discrete", "label-swap"], labelSwapParams)
+  ];
+  var LABEL_SWAP_PRESETS = [
+    // `phase: 'state'` on all three, declared rather than inferred.
+    //
+    // `phaseOf` (`core/compile.ts:700`) resolves a preset to `state` on its own when it declares
+    // `transitions` — and these deliberately do not, for the reason written at the top of this
+    // file. So without this line they resolve to *undeclared*, and an undeclared phase conflicts
+    // with everything: `fade-up, masked-label-swap` would be refused and the swap silently dropped,
+    // which is the exact failure `Preset.phase` was added to end. A label swap is a response to a
+    // hover or focus, never a thing that plays on arrival, so `state` is the honest claim.
+    { name: "masked-label-swap", phase: "state", primitive: "label-swap" },
+    { name: "masked-label-swap-x", phase: "state", primitive: "label-swap" },
+    { name: "masked-label-swap-diagonal", phase: "state", primitive: "label-swap" }
+  ];
+  var hoverIntentParams = {
+    duration: { type: "time", default: "160ms", cssProperty: "--kui-duration" },
+    delay: { type: "time", default: "1000ms", cssProperty: "--kui-delay" },
+    ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
+    distance: { type: "length", default: "4px", cssProperty: "--kui-hover-intent-distance" }
+  };
+  var HOVER_INTENT_PRIMITIVES = [
+    revealPrimitive("hover-intent", ["hint"], hoverIntentParams)
+  ];
+  var HOVER_INTENT_PRESETS = [
+    { name: "hover-intent", phase: "state", primitive: "hover-intent" }
+  ];
+  var anchoredPreviewParams = {
+    duration: { type: "time", default: "220ms", cssProperty: "--kui-duration" },
+    delay: { type: "time", default: "0ms", cssProperty: "--kui-delay" },
+    ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
+    distance: { type: "length", default: "10px", cssProperty: "--kui-anchored-preview-distance" },
+    gap: { type: "length", default: "10px", cssProperty: "--kui-anchored-preview-gap" },
+    scale: {
+      type: "number",
+      default: "0.85",
+      cssProperty: "--kui-anchored-preview-scale",
+      finite: true,
+      minimum: 0,
+      maximum: 1
+    }
+  };
+  var ANCHORED_PREVIEW_PRIMITIVES = [
+    revealPrimitive("anchored-preview", ["preview"], anchoredPreviewParams)
+  ];
+  var ANCHORED_PREVIEW_PRESETS = [
+    { name: "anchored-preview", phase: "state", primitive: "anchored-preview" },
+    { name: "anchored-preview-bottom", phase: "state", primitive: "anchored-preview" },
+    { name: "anchored-preview-left", phase: "state", primitive: "anchored-preview" },
+    { name: "anchored-preview-right", phase: "state", primitive: "anchored-preview" }
+  ];
+  var searchExpandParams = {
+    duration: { type: "time", default: "260ms", cssProperty: "--kui-duration" },
+    delay: { type: "time", default: "0ms", cssProperty: "--kui-delay" },
+    ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
+    collapsed: {
+      type: "length|percentage",
+      default: "2.5em",
+      cssProperty: "--kui-search-expand-collapsed"
+    },
+    width: { type: "length|percentage", default: "240px", cssProperty: "--kui-search-expand-width" }
+  };
+  var SEARCH_EXPAND_PRIMITIVES = [
+    revealPrimitive(
+      "search-expand",
+      ["expand", "discrete", "search-field"],
+      searchExpandParams,
+      "layout"
+    )
+  ];
+  var SEARCH_EXPAND_PRESETS = [
+    {
+      name: "search-expand",
+      primitive: "search-expand",
+      // Through `Preset.transitions`, never a bare `transition:` in the stylesheet — see the primitive
+      // doc comment above for why a raw shorthand here would be the exact bug `lift`/`border-glow` had.
+      transitions: [{ property: "inline-size" }]
+    }
+  ];
+  var REVEAL_PRIMITIVES = [
+    ...LABEL_SWAP_PRIMITIVES,
+    ...HOVER_INTENT_PRIMITIVES,
+    ...ANCHORED_PREVIEW_PRIMITIVES,
+    ...SEARCH_EXPAND_PRIMITIVES
+  ];
+  var REVEAL_PRESETS = [
+    ...LABEL_SWAP_PRESETS,
+    ...HOVER_INTENT_PRESETS,
+    ...ANCHORED_PREVIEW_PRESETS,
+    ...SEARCH_EXPAND_PRESETS
+  ];
 
   // src/effects/catalog/interaction.ts
   var hoverTiming = {
     duration: { type: "time", default: "220ms", cssProperty: "--kui-duration" },
+    // A hover state has a start moment — the pointer arrives, or focus lands — so "wait 200ms
+    // before lifting" is a coherent request even though nothing here plays on a clock at load.
+    // interaction.css spends it as `transition-delay`/`animation-delay` on the `:hover` and
+    // `:focus-visible` rules *only*, never on the base rule, so it delays entering the state and
+    // never leaving it: an author asking for hover-intent does not also want the button to hang in
+    // the air for 200ms after the pointer has gone.
+    ...TRIGGER_DELAY_PARAM,
     ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" }
   };
+  var LINEAR_HOVER = {
+    honours: ["duration", "delay"],
+    because: "it is a continuous rotation and interaction.css runs it linear, so a curve would visibly stutter at the seam of every revolution"
+  };
+  var PINNED_REASON2 = "interaction.css pins that value on this effect";
   var liftParams = {
     distance: { type: "length", default: "6px", cssProperty: "--kui-lift-distance" }
   };
   var popParams = {
     scale: { type: "number", default: "1.06", cssProperty: "--kui-pop-scale", finite: true, minimum: 0 }
   };
-  var beamParams = {
-    color: { type: "color", default: "", cssProperty: "--kui-beam-border-c1" },
-    outset: { type: "length", default: "", cssProperty: "--kui-beam-border-outset" }
-  };
-  function hoverPrimitive(id, channels, extraParams = {}) {
+  function hoverTimingFor(honours) {
+    return Object.fromEntries(
+      Object.entries(hoverTiming).filter(([name]) => honours.includes(name))
+    );
+  }
+  function hoverPrimitive(id, channels, extraParams = {}, timing3 = { honours: ALL_TIMING_TOKENS, because: PINNED_REASON2 }) {
+    const honours = timing3.honours;
     return {
       id,
       renderer: "javascript",
       channels,
-      parameters: { ...hoverTiming, ...extraParams },
+      parameters: { ...hoverTimingFor(honours), ...extraParams },
       supportedTimelines: ["time"],
       supportedActivations: ["load"],
       defaultActivation: "load",
@@ -2584,45 +7483,107 @@ var kuinetic = (() => {
       // (here unused) compiled `animation-*` path, so the policy layer shortens it via the
       // `transition-duration` and `::before`/`::after` rules in base.css.
       reducedMotion: "shorten",
-      prepare: () => inertInstance()
+      // Not `inertInstance()` any more. The rule this primitive stands in for reads
+      // `--kui-<id>-duration`/`-delay`/`-ease`, and `resolveParams` only ever writes those from the
+      // `key:value` spelling — so `lift 400ms` reached nothing while `lift duration:400ms` worked.
+      // See `stylesheetTimingPrepare`.
+      prepare: stylesheetTimingPrepare(id, timing3)
     };
   }
   var HOVER_PRIMITIVES = [
     hoverPrimitive("lift", ["translate"], liftParams),
     hoverPrimitive("pop", ["scale"], popParams),
     hoverPrimitive("lift-shadow", ["translate", "shadow"], liftParams),
-    hoverPrimitive("shine-sweep", ["sweep"]),
-    hoverPrimitive("split-flap", ["rotate"]),
-    hoverPrimitive("border-draw", ["border"]),
-    hoverPrimitive("border-glow", ["shadow"]),
-    hoverPrimitive("beam-border", ["border"], beamParams),
-    hoverPrimitive("underline-slide", ["scale"]),
-    hoverPrimitive("underline-center", ["scale"]),
+    hoverPrimitive("shine-sweep", ["sweep"], SHINE_PARAMS),
+    // `'skew'`, not `'rotate'`: `@keyframes kui-split-flap` writes the `transform` *shorthand*
+    // (`perspective(...) translateZ(...) rotateX(...)`), not the standalone `rotate:` property —
+    // `perspective()` only affects an element's own depth from inside `transform`, so the flip has
+    // no other spelling. `skew` is this catalog's name for "claims the whole `transform` shorthand"
+    // (see `channel-properties.ts`); `scroll-skew`, `flip-face` and `flip-3d` are the other members.
+    // While this said `rotate`, `split-flap, scroll-skew` and `split-flap, card-flip-y` looked
+    // disjoint to the conflict detector and composed into a silent clobber of `transform`.
+    // `'discrete'` alongside `skew`: the unconditional rule also pins `display: inline-block` for
+    // sizing, the same reason `feedback-spin` declares it — unrelated to `catalog/discrete.ts`'s
+    // show/hide use of the same physical property, but `display` is tracked as one channel
+    // regardless of the value a primitive writes into it.
+    hoverPrimitive("split-flap", ["skew", "discrete"]),
+    /*
+     * `pseudo-before` is the ownership token for "this preset paints its own `::before`", the exact
+     * mirror of `feedback.ts`'s `sweep` for `::after` — read that primitive's comment for the full
+     * argument, which applies here word for word. `::before` is one physical box per host element, so
+     * two presets that both paint it cannot compose, and a shared channel is how the compiler is told
+     * to refuse the pair instead of letting the later rule in source order silently win the box.
+     *
+     * `border-draw` joined that box when its ring moved off `border-image` (see `interaction.css`),
+     * and choosing which box to move it *to* was the decision, not an implementation detail. The two
+     * candidates were not equally priced:
+     *
+     * - **`::after`** is painted by `shine-sweep` (this file), `underline-slide`/`underline-center`
+     *   (this file), and `ripple`/`confetti-burst` (`feedback.ts`). Landing there would newly refuse
+     *   five pairs, and three of them — `border-draw, shine-sweep`, `border-draw, ripple`,
+     *   `border-draw, confetti-burst` — are the ordinary furniture of a single button. A button that
+     *   draws its border on hover and ripples on click is not an exotic composition; it is the
+     *   default one.
+     * - **`::before`** is painted by `beam-border`/`beam-border-auto` (this file), `cursor-spotlight`
+     *   (this file), and `redaction-reveal` (`text.css`, another cluster's file). Two of those four
+     *   cost *nothing*: both beam presets already share `border-draw`'s `border` channel, so the
+     *   compiler has always refused them against it — a second ring on one box was never composable.
+     *   That leaves two genuinely new refusals, `border-draw, cursor-spotlight` and `border-draw,
+     *   redaction-reveal`, neither of which is a pattern anything in this repository writes.
+     *
+     * So `::before` costs two marginal pairs where `::after` costs three load-bearing ones, and the
+     * ring goes on `::before`. The channel is added to `beam-border`, `beam-border-auto` and
+     * `cursor-spotlight` in the same change rather than to `border-draw` alone, because a channel
+     * with one member refuses nothing: declaring it only on the new arrival would have documented the
+     * ownership without enforcing it, which is the failure mode the whole channel model exists to
+     * avoid. `redaction-reveal` is the one `::before` painter left out, for the mundane reason that
+     * `catalog/text.ts` belongs to another cluster in this change — so `border-draw +
+     * redaction-reveal` lands in `css-composition-invariants.test.ts`'s enumerated
+     * "known reachable collision" list rather than being refused. Adding `pseudo-before` there is the
+     * one-line follow-up that closes it.
+     *
+     * Net effect on that enumerated list: two entries leave it (`beam-border + cursor-spotlight`,
+     * `beam-border-auto + cursor-spotlight` are now refused outright) and one joins it.
+     */
+    hoverPrimitive("border-draw", ["border", "pseudo-before"], BORDER_DRAW_PARAMS),
+    hoverPrimitive("border-glow", ["shadow"], COLOR_PARAMS.borderGlow),
+    hoverPrimitive("beam-border", ["border", "pseudo-before"], BEAM_PARAMS, LINEAR_HOVER),
+    hoverPrimitive("underline-slide", ["scale"], COLOR_PARAMS.underlineSlide),
+    hoverPrimitive("underline-center", ["scale"], COLOR_PARAMS.underlineCenter),
     hoverPrimitive("icon-wiggle", ["rotate"]),
-    hoverPrimitive("icon-spin", ["rotate"]),
+    hoverPrimitive("icon-spin", ["rotate"], {}, LINEAR_HOVER),
     hoverPrimitive("icon-bounce", ["translate"])
   ];
   var HOVER_PRESETS = HOVER_PRIMITIVES.map((primitive) => ({
     name: primitive.id,
-    primitive: primitive.id
+    primitive: primitive.id,
+    ...HOVER_TRANSITIONS[primitive.id] ? { transitions: HOVER_TRANSITIONS[primitive.id] } : {},
+    ...STYLESHEET_ANIMATED_HOVERS.includes(primitive.id) ? { delivery: "stylesheet-animation" } : {}
   }));
   var CONTINUOUS_BORDER_PRIMITIVES = [
     {
       id: "beam-border-auto",
       renderer: "javascript",
-      channels: ["border"],
-      parameters: { ...hoverTiming, ...beamParams },
+      // `pseudo-before` for the same reason its hover twin carries it — the two share one `::before`
+      // rule in `interaction.css`. See the block comment on `border-draw` in `HOVER_PRIMITIVES`.
+      channels: ["border", "pseudo-before"],
+      // `duration` only, of the three. Unlike its hover twin this one has no start moment at all —
+      // it is `animation: ... infinite` with no `:hover` gate, running from the moment the rule
+      // lands — so there is nothing for a delay to be relative to; and it spins linear for the same
+      // seam reason `icon-spin` does. `duration` still means something: one revolution.
+      parameters: { duration: hoverTiming.duration, ...BEAM_PARAMS },
       supportedTimelines: ["time"],
       supportedActivations: ["load"],
       defaultActivation: "load",
       perfClass: "compositor",
       reducedMotion: "disable",
-      prepare: () => inertInstance()
+      prepare: stylesheetTimingPrepare("beam-border-auto", {
+        honours: ["duration"],
+        because: "it is an always-on linear loop with no start moment and no curve"
+      })
     }
   ];
-  var CONTINUOUS_BORDER_PRESETS = [
-    { name: "beam-border-auto", primitive: "beam-border-auto" }
-  ];
+  var CONTINUOUS_BORDER_PRESETS = [{ name: "beam-border-auto", primitive: "beam-border-auto" }];
   var springParams = {
     stiffness: {
       type: "number",
@@ -2662,7 +7623,18 @@ var kuinetic = (() => {
       // meaningful "shortened" version of tracking a position. `prepare` itself checks
       // `supportsFineHover` and no-ops on touch, which is the coarse-pointer half of this rule.
       reducedMotion: "disable",
-      prepare
+      // None of the three timing tokens has anything to bite on here: a tilt is a pure function of
+      // where the pointer is *right now*, and the cursor dots are springs chasing it, so there is no
+      // instant an authored delay could be measured from and no fixed span a duration could set.
+      // Refused out loud — `tilt-3d 400ms` otherwise parses, installs, and discards the number in
+      // silence, which is indistinguishable from a broken effect.
+      prepare: withTimingContract(
+        id,
+        {
+          because: "it tracks pointer position continuously, so it has no start moment and no fixed span"
+        },
+        prepare
+      )
     };
   }
   function springFrom(params) {
@@ -2863,7 +7835,10 @@ var kuinetic = (() => {
     pointerPrimitive("cursor-lag", ["translate"], cursorDotParams, deferPrepare(prepareCursorLag)),
     pointerPrimitive("cursor-label", ["translate"], cursorDotParams, deferPrepare(prepareCursorLabel)),
     pointerPrimitive("cursor-invert", ["translate"], cursorDotParams, deferPrepare(prepareCursorInvert)),
-    pointerPrimitive("cursor-spotlight", ["spotlight"], {}, deferPrepare(prepareSpotlight))
+    // `pseudo-before`: the glow overlay is a `::before` rule in `interaction.css`, so this primitive
+    // owns that box the same way the border family does. See `border-draw`'s comment in
+    // `HOVER_PRIMITIVES` for what the token means and why it was added here in the same change.
+    pointerPrimitive("cursor-spotlight", ["spotlight", "pseudo-before"], {}, deferPrepare(prepareSpotlight))
   ];
   function prepareCursorFollow(el, params, ctx) {
     return prepareCursorDot(el, params, ctx, "kui-cursor-dot-follow");
@@ -2889,15 +7864,287 @@ var kuinetic = (() => {
   var INTERACTION_PRIMITIVES = [
     ...HOVER_PRIMITIVES,
     ...POINTER_PRIMITIVES,
-    ...CONTINUOUS_BORDER_PRIMITIVES
+    ...CONTINUOUS_BORDER_PRIMITIVES,
+    ...STATE_PRIMITIVES,
+    ...REVEAL_PRIMITIVES
   ];
   var INTERACTION_PRESETS = [
     ...HOVER_PRESETS,
     ...POINTER_PRESETS,
-    ...CONTINUOUS_BORDER_PRESETS
+    ...CONTINUOUS_BORDER_PRESETS,
+    ...STATE_PRESETS,
+    ...REVEAL_PRESETS
   ];
   function registerInteraction(registry) {
     return registry.registerPrimitives(INTERACTION_PRIMITIVES).registerPresets(INTERACTION_PRESETS);
+  }
+
+  // src/effects/catalog/interaction-proximity.ts
+  function prepareProximityField(el, params, ctx) {
+    if (!supportsFineHover(ctx.win)) return () => {
+    };
+    const node = el;
+    function onMove(event) {
+      ctx.style.set("--kui-proximity-x", `${event.clientX}px`);
+      ctx.style.set("--kui-proximity-y", `${event.clientY}px`);
+      ctx.style.set("--kui-proximity-opacity", "1");
+    }
+    function hide() {
+      ctx.style.set("--kui-proximity-opacity", "0");
+    }
+    node.addEventListener("pointermove", onMove, { passive: true });
+    node.addEventListener("pointerleave", hide, { passive: true });
+    return () => {
+      node.removeEventListener("pointermove", onMove);
+      node.removeEventListener("pointerleave", hide);
+    };
+  }
+  var PROXIMITY_FIELD_PRIMITIVES = [
+    {
+      id: "proximity-field",
+      renderer: "javascript",
+      // Paints nothing of its own; see the file comment for why this channel exists anyway.
+      channels: ["proximity"],
+      parameters: {},
+      supportedTimelines: ["time", "pointer"],
+      supportedActivations: ["load", "manual"],
+      defaultActivation: "load",
+      perfClass: "continuous",
+      // Continuous pointer tracking with no meaningful "shortened" form, the same policy
+      // `catalog/interaction.ts`'s `pointerPrimitive` gives `tilt-3d`/`cursor-spotlight`/etc.
+      reducedMotion: "disable",
+      prepare: withTimingContract(
+        "proximity-field",
+        {
+          because: "it tracks pointer position continuously across a container, so it has no start moment and no fixed span"
+        },
+        deferPrepare(prepareProximityField)
+      )
+    }
+  ];
+  var PROXIMITY_FIELD_PRESETS = [
+    { name: "proximity-field", phase: "state", primitive: "proximity-field" }
+  ];
+  var proximityGlowParams = {
+    duration: { type: "time", default: "200ms", cssProperty: "--kui-duration" },
+    ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
+    color: { type: "color", default: "", cssProperty: "--kui-proximity-glow-color" },
+    radius: { type: "length", default: "220px", cssProperty: "--kui-proximity-glow-radius" },
+    width: { type: "length", default: "1px", cssProperty: "--kui-proximity-glow-width" },
+    outset: { type: "length", default: "0px", cssProperty: "--kui-proximity-glow-outset" }
+  };
+  var PROXIMITY_GLOW_PRIMITIVES = [
+    {
+      id: "proximity-glow",
+      renderer: "javascript",
+      // `pseudo-before`: joins the existing `::before` ownership token rather than minting a new one
+      // — see the file comment's cost analysis for exactly what that refuses and what it still leaves
+      // reachable.
+      channels: ["pseudo-before"],
+      parameters: proximityGlowParams,
+      supportedTimelines: ["time"],
+      supportedActivations: ["load"],
+      defaultActivation: "load",
+      perfClass: "paint",
+      reducedMotion: "shorten",
+      prepare: stylesheetTimingPrepare("proximity-glow", {
+        // `delay` refused by name: this ring is ambient chrome fed by an ancestor `proximity-field`,
+        // not a response to its own trigger, so there is no start moment on *this* element to delay.
+        honours: ["duration", "ease"],
+        because: "the ring is ambient chrome fed by an ancestor proximity-field and has no discrete start moment of its own to delay"
+      })
+    }
+  ];
+  var PROXIMITY_GLOW_PRESETS = [
+    { name: "proximity-glow", phase: "state", primitive: "proximity-glow" }
+  ];
+  var INTERACTION_PROXIMITY_PRIMITIVES = [
+    ...PROXIMITY_FIELD_PRIMITIVES,
+    ...PROXIMITY_GLOW_PRIMITIVES
+  ];
+  var INTERACTION_PROXIMITY_PRESETS = [
+    ...PROXIMITY_FIELD_PRESETS,
+    ...PROXIMITY_GLOW_PRESETS
+  ];
+  function registerInteractionProximity(registry) {
+    return registry.registerPrimitives(INTERACTION_PROXIMITY_PRIMITIVES).registerPresets(INTERACTION_PROXIMITY_PRESETS);
+  }
+
+  // src/effects/catalog/materials.ts
+  var UNSET = "";
+  var glassParams = {
+    /**
+     * Backdrop blur radius.
+     *
+     * `length`, not `'length|percentage'`: a percentage in `blur()` is not valid CSS at all, so
+     * declaring the union would advertise a spelling the browser drops on the floor.
+     *
+     * **Unbounded, knowingly.** `blur:400px` is accepted, and on a large panel it is genuinely
+     * expensive — see this primitive's `perfClass` note. There is no way to bound it in the schema:
+     * `maximum` applies only to `BOUNDED_TYPES` (`number` and `number|percentage`), because a length
+     * has no single scale to compare against, and re-typing this as a unitless number to gain the
+     * bound would break the one spelling every author already knows. Documented in
+     * `docs/catalog.md` instead, which is where the cost belongs anyway.
+     */
+    blur: { type: "length", default: "16px", cssProperty: "--kui-glass-blur" },
+    /**
+     * Backdrop saturation multiplier. `1` leaves the backdrop's colour alone; the `1.6` default
+     * pushes it back up because the blur above has just averaged it toward grey.
+     *
+     * `minimum: 0` and no maximum: `saturate()` is defined for any non-negative value and the
+     * over-driven look (`saturate:3`) is a legitimate one. Negative is not — CSS clamps it silently,
+     * which is exactly the kind of accepted-then-ignored value the schema exists to name out loud.
+     */
+    saturate: {
+      type: "number|percentage",
+      default: "1.6",
+      cssProperty: "--kui-glass-saturate",
+      finite: true,
+      minimum: 0
+    },
+    /**
+     * How opaque the tint is. Bounded to 0..1 because it is an alpha, and `glass.css` spends it as
+     * the mix percentage in a `color-mix()` — a value outside the range would clamp there anyway,
+     * silently, which is worse than a warning naming the parameter.
+     */
+    opacity: {
+      type: "number|percentage",
+      default: "0.12",
+      cssProperty: "--kui-glass-opacity",
+      finite: true,
+      minimum: 0,
+      maximum: 1
+    },
+    /**
+     * The colour the tint is mixed from — the glass itself, before {@link glassParams.opacity}
+     * decides how much of it shows. White on a dark page, near-black on a light one.
+     */
+    tint: { type: "color", default: UNSET, cssProperty: "--kui-glass-tint" },
+    /**
+     * The hairline rim colour, which is also the sheen's colour by fallback — one light source lights
+     * both, so `rim:silver` recolours the edge and the highlight together. `glass.css`'s
+     * `--kui-glass-sheen-color` is the hand-set property for anyone who wants them to disagree.
+     *
+     * Its own `var()` fallback carries an alpha (`rgb(255 255 255 / 0.22)`), so an author writing a
+     * bare keyword — `rim:silver` — gets a fully opaque hairline. That is the literal request and is
+     * left alone rather than second-guessed with a `color-mix`; an author who wants it faint writes
+     * the alpha themselves, which the `color` type accepts in every CSS spelling.
+     */
+    rim: { type: "color", default: UNSET, cssProperty: "--kui-glass-rim" },
+    /** Hairline thickness. Its own parameter rather than folded into `rim:`, because there is no
+     *  colour type that carries a width and inventing one would mean parsing the `border` grammar. */
+    "rim-width": { type: "length", default: "1px", cssProperty: "--kui-glass-rim-width" },
+    /**
+     * Strength of the top-weighted sheen gradient, as an alpha on the rim colour. `0` removes it and
+     * leaves a flat tinted panel, which is the right base for a surface that composes `shine-sweep`
+     * for its highlight instead.
+     */
+    sheen: {
+      type: "number|percentage",
+      default: "0.16",
+      cssProperty: "--kui-glass-sheen",
+      finite: true,
+      minimum: 0,
+      maximum: 1
+    },
+    /**
+     * Corner radius. `'length|percentage'` because both are real readings here and neither can be
+     * normalised into the other — `radius:50%` resolves against a box this code has not measured.
+     *
+     * This is what makes one primitive cover both halves of the reference: `glass` is a
+     * panel, and `glass radius:999px` is a pill. A second preset for the pill would be a
+     * near-duplicate name for a one-value difference, which is the thing this catalog's
+     * one-primitive-many-names shape exists to avoid.
+     *
+     * {@link UNSET} rather than `'16px'` for the reason that constant documents: an authored value
+     * becomes an *inline* custom property, and defaulting it would put the library's opinion in
+     * front of a page that already set its own `border-radius`. Unauthored, `glass.css`'s own 16px
+     * fallback applies from inside `@layer kui.effects`, which any unlayered page rule beats.
+     */
+    radius: { type: "length|percentage", default: UNSET, cssProperty: "--kui-glass-radius" }
+  };
+  function prepareGlass() {
+    return continuousSetup(() => {
+    });
+  }
+  var MATERIALS_PRIMITIVES = [
+    {
+      id: "glass",
+      // `javascript`, like the whole of section I and section Q, and for the same reason: there is no
+      // keyframe to compile. A `css-keyframes` renderer would push an empty `animation-*` track and
+      // then have `pushTrack` write declarations for a track with nothing in it.
+      renderer: "javascript",
+      channels: ["background", "backdrop"],
+      parameters: glassParams,
+      // An abstention rather than a claim — this primitive never reads `Timeline` at all, so naming
+      // `['time']` would needlessly narrow what a scrubbed neighbour on the same element may request.
+      // Same constant, same reasoning, as `rotate-static` and `background-media`.
+      supportedTimelines: TIMELINE_AGNOSTIC,
+      // `'load'` as the default so a panel already on screen at page load, sitting in a background
+      // tab, or still zero-area is not waiting on an `IntersectionObserver` that may never fire to be
+      // given the surface it is supposed to be *made of*. `'enter'` and `'manual'` stay available for
+      // an author who deliberately wants the glass to arrive later.
+      supportedActivations: ["load", "enter", "manual"],
+      defaultActivation: "load",
+      /*
+       * `perfClass: 'paint'` — chosen, not defaulted, and the honest upper bound of a vocabulary that
+       * has no exact word for what `backdrop-filter` costs.
+       *
+       * What the five classes mean here. `'compositor'` is a lie outright: a backdrop filter is not
+       * GPU-cheap layer work, it forces the browser to snapshot everything painted behind the element
+       * into a texture, run a separable blur over it, and composite the result — extra render passes
+       * per frame, which is the exact opposite of the "transform and opacity only" budget that class
+       * stands for. `'layout'` is wrong in the other direction: nothing here reads or writes geometry.
+       * `'continuous'` was the closest fit on one axis and was rejected: in this catalog it means
+       * "runs a clock forever" (ambient loops, pointer tracking), and a reader checking whether an
+       * effect needs a reduced-motion story or a `finished` promise would be misled by it. `'paint'`
+       * says "this element repaints rather than merely re-composites", which is true.
+       *
+       * What `'paint'` under-states, and why it is written down rather than left to be discovered:
+       * an ordinary repaint costs when *this element* changes. A backdrop filter costs when *anything
+       * behind it* changes — scrolling a page under a fixed glass header re-runs the blur every frame
+       * while the header itself is perfectly static. And the cost scales with the panel's **area**,
+       * not its complexity, which is why the dangerous case is a full-bleed glass hero on a phone and
+       * not a glass button anywhere. Two or more overlapping glass surfaces multiply it, because each
+       * one's backdrop includes the one below.
+       *
+       * The mitigations are real and are documented on the effect rather than hidden here: keep the
+       * blurred area small, do not stack glass on glass, and `blur:0px` turns the pass off entirely
+       * while leaving the tint, rim and sheen — a legible non-glass fallback an author can gate on a
+       * media query themselves. If a perf-budget harness ever lands, this primitive wants a bound of
+       * its own rather than the generic `'paint'` one; that is the note this comment exists to leave.
+       */
+      perfClass: "paint",
+      /*
+       * `'shorten'`, for the reason `transforms.ts` argues at length rather than because a glass
+       * panel is exempt from anything. Nothing in `glass.css` moves, so there is no motion to reduce;
+       * `'shorten'` is what `mergeHostFacts` seeds the fold with, which makes it the identity element
+       * of `strictestPolicy` and therefore this primitive's way of saying "I impose no reduced-motion
+       * constraint of my own". `'disable'` would be actively wrong: it is a fact about the *element*,
+       * so `glass, count-up` would leave the counter reading zero forever.
+       *
+       * The user preference a translucent blurred surface actually engages is
+       * `prefers-reduced-transparency`, which is a different query and is unhandled catalog-wide —
+       * see `glass.css`'s own note.
+       */
+      reducedMotion: "shorten",
+      /*
+       * No timing tokens, refused out loud. A material has no start moment for a `delay` to push, no
+       * span for a `duration` to stretch, and no curve for an `ease` to bend — so `glass
+       * 400ms` warns by name instead of parsing cleanly and doing nothing, which is
+       * indistinguishable from a broken effect. This is what puts `glass` on
+       * `js-effect-timing-parity.test.ts`'s `TIMING_REFUSALS` side of the ledger.
+       */
+      prepare: withTimingContract(
+        "glass",
+        { because: "it paints a resting surface rather than animating, so there is no motion to time" },
+        deferPrepare(prepareGlass)
+      )
+    }
+  ];
+  var MATERIALS_PRESETS = [{ name: "glass", primitive: "glass" }];
+  function registerMaterials(registry) {
+    return registry.registerPrimitives(MATERIALS_PRIMITIVES).registerPresets(MATERIALS_PRESETS);
   }
 
   // src/effects/catalog/background-media.ts
@@ -2917,14 +8164,14 @@ var kuinetic = (() => {
     while (start < stripped.length && stripped.charCodeAt(start) <= 32) start += 1;
     return stripped.slice(start);
   }
-  function hostOf(value) {
+  function hostOf2(value) {
     const withoutScheme = normalizeUrl(value).replace(/^[a-z][a-z0-9+.-]*:/i, "").replace(/^\/\//, "");
     const end = withoutScheme.search(/[/?#]/);
     const authority = end === -1 ? withoutScheme : withoutScheme.slice(0, end);
     return authority.slice(authority.lastIndexOf("@") + 1).toLowerCase();
   }
   function isVideoPageUrl(value) {
-    return VIDEO_PAGE_HOSTS.has(hostOf(value));
+    return VIDEO_PAGE_HOSTS.has(hostOf2(value));
   }
   var FOCAL_POINTS = {
     center: "50% 50%",
@@ -2945,10 +8192,10 @@ var kuinetic = (() => {
     return options.overlay !== "transparent" && options.overlayOpacity > 0;
   }
   function isVideoSource(src) {
-    const path = src.split("?")[0].split("#")[0];
-    const dot = path.lastIndexOf(".");
-    if (dot <= path.lastIndexOf("/")) return false;
-    return VIDEO_EXTENSIONS.has(path.slice(dot + 1).toLowerCase());
+    const path2 = src.split("?")[0].split("#")[0];
+    const dot = path2.lastIndexOf(".");
+    if (dot <= path2.lastIndexOf("/")) return false;
+    return VIDEO_EXTENSIONS.has(path2.slice(dot + 1).toLowerCase());
   }
   var ALLOWED_SCHEMES = /* @__PURE__ */ new Set(["http", "https"]);
   function schemeOf(value) {
@@ -3055,10 +8302,10 @@ var kuinetic = (() => {
     node.setAttribute("aria-hidden", "true");
     node.setAttribute("data-kui-background", "");
     el.append(node);
-    const overlay = paintsOverlay(options) ? createOverlay(doc, options) : null;
-    if (overlay) {
-      overlay.setAttribute("data-kui-background-overlay", "");
-      el.append(overlay);
+    const overlay2 = paintsOverlay(options) ? createOverlay(doc, options) : null;
+    if (overlay2) {
+      overlay2.setAttribute("data-kui-background-overlay", "");
+      el.append(overlay2);
     }
     const stopPlayback = video ? startPlayback(video, ctx.win, options) : () => {
     };
@@ -3066,14 +8313,60 @@ var kuinetic = (() => {
       remove: () => {
         stopPlayback();
         node.remove();
-        overlay?.remove();
+        overlay2?.remove();
+      }
+    };
+  }
+
+  // src/core/element-size.ts
+  function watchElementSize(win, onChange) {
+    const ResizeObserverCtor = win.ResizeObserver;
+    const observer = ResizeObserverCtor ? new ResizeObserverCtor(onChange) : void 0;
+    const elements = /* @__PURE__ */ new Set();
+    win.addEventListener("resize", onChange, { passive: true });
+    return {
+      observe(element) {
+        if (elements.has(element)) return;
+        elements.add(element);
+        observer?.observe(element);
+      },
+      unobserve(element) {
+        elements.delete(element);
+        observer?.unobserve(element);
+      },
+      disconnect() {
+        win.removeEventListener("resize", onChange);
+        observer?.disconnect();
+        elements.clear();
+      }
+    };
+  }
+  function frameScheduler(win, callback) {
+    let frame;
+    let timeout;
+    const run = () => {
+      frame = void 0;
+      timeout = void 0;
+      callback();
+    };
+    return {
+      request() {
+        if (frame !== void 0 || timeout !== void 0) return;
+        if (win.requestAnimationFrame) frame = win.requestAnimationFrame(run);
+        else timeout = win.setTimeout(run, 16);
+      },
+      cancel() {
+        if (frame !== void 0) win.cancelAnimationFrame(frame);
+        if (timeout !== void 0) win.clearTimeout(timeout);
+        frame = void 0;
+        timeout = void 0;
       }
     };
   }
 
   // src/effects/catalog/media-shared.ts
   var AXIS_DEGREES = { vertical: 0, horizontal: 90 };
-  var UNIT_DEGREES = { deg: 1, grad: 0.9, rad: 180 / Math.PI, turn: 360 };
+  var UNIT_DEGREES = { deg: 1, d: 1, grad: 0.9, rad: 180 / Math.PI, turn: 360 };
   var BAND_OVERLAP_PX = 1;
   var STAGE_CLASS = "kui-slat-stage";
   var SLAT_CLASS = "kui-slat-item";
@@ -3103,7 +8396,7 @@ var kuinetic = (() => {
   function slatAngleDegrees(authored, axis) {
     const trimmed = authored.trim();
     if (!trimmed) return AXIS_DEGREES[axis];
-    const match = /^(-?(?:\d+(?:\.\d+)?|\.\d+))(deg|rad|grad|turn)?$/.exec(trimmed);
+    const match = /^(-?(?:\d+(?:\.\d+)?|\.\d+))(deg|d|rad|grad|turn)?$/.exec(trimmed);
     if (!match) return AXIS_DEGREES[axis];
     const value = Number(match[1]);
     if (!Number.isFinite(value)) return AXIS_DEGREES[axis];
@@ -3150,16 +8443,9 @@ var kuinetic = (() => {
   }
   function watchImageBox(stage, img, win, bands) {
     const handler = () => syncStageToImage(stage, img, bands);
-    win.addEventListener("resize", handler, { passive: true });
-    const stopWindow = () => win.removeEventListener("resize", handler);
-    const ResizeObserverCtor = win.ResizeObserver;
-    if (!ResizeObserverCtor) return stopWindow;
-    const observer = new ResizeObserverCtor(handler);
-    observer.observe(img);
-    return () => {
-      stopWindow();
-      observer.disconnect();
-    };
+    const watch = watchElementSize(win, handler);
+    watch.observe(img);
+    return watch.disconnect;
   }
   function imagePaintStyle(img, win) {
     const computed = win.getComputedStyle(img);
@@ -3221,7 +8507,7 @@ var kuinetic = (() => {
     const delay = delayMs === void 0 ? params.text("delay", "0ms") : `${delayMs}ms`;
     stage.style.setProperty("--kui-duration", duration);
     stage.style.setProperty("--kui-delay", delay);
-    stage.style.setProperty("--kui-ease", easing ?? params.text("ease", "ease-out"));
+    stage.style.setProperty("--kui-ease", cssEasingValue(easing ?? params.text("ease", "ease-out")));
     stage.style.setProperty("--kui-stagger", params.text("stagger", "60ms"));
   }
   function slatAssembleFinishMs(params, count) {
@@ -3318,14 +8604,62 @@ var kuinetic = (() => {
     { name: "ken-burns", primitive: "media-ken-burns", keyframes: "kui-ken-burns" },
     { name: "ken-burns-out", primitive: "media-ken-burns", keyframes: "kui-ken-burns-out" },
     { name: "blur-up", primitive: "media-blur-up", keyframes: "kui-blur-up", cloak: true },
+    /*
+     * The three `media-filter` hovers below are deliberately **unphased**, and the reason is worth
+     * writing down because they briefly were not.
+     *
+     * They carried `phase: 'state'` on the argument that a hover is a condition the visitor drives
+     * and un-drives, held at whichever end it currently rests on. That is a true description of
+     * *when* the channel is held, and it is not the question `INDEPENDENT_PHASES` (`core/channels.ts`)
+     * is really asking. The `entrance|state` exemption is sound only when the state half is delivered
+     * as a **transition or a normal declaration** — the cascade *beneath* the entrance, which a
+     * from-only entrance keyframe resolves its missing endpoint against and which shows through the
+     * moment the entrance has played. `media-filter` is `renderer: 'css-keyframes'`, so a `state`
+     * declaration here does not put anything beneath the entrance; it puts a second `@keyframes`
+     * track beside it, on the same element, on the same channel.
+     *
+     * Measured, before this was reverted — `data-kui="blur-in, duotone-hover"` compiled to
+     * `animation-name: kui-blur-in, kui-duotone-hover` with `animation-fill-mode: both, both`, no
+     * `animation-composition`, and **zero warnings**. `@keyframes kui-duotone-hover` is two-ended, so
+     * it is not an underlying value for `kui-blur-in`'s open endpoint to resolve against: it is later
+     * in the list, wins `filter` outright, and `fill-mode: both` clamps its `filter: none` there
+     * permanently. The entrance is deleted and the hover is spent before the pointer ever arrives.
+     * The explicit `to` that the previous note here called "irrelevant to this phase" was in fact the
+     * whole mechanism.
+     *
+     * So `blur-in, grayscale-hover` goes back to being refused loudly, which is the honest answer: a
+     * loud drop the author can see beats a silent clobber they cannot. Reaching the composition again
+     * needs delivery mechanism modelled as its own axis beside `phase` — see `channels.ts`'s
+     * `INDEPENDENT_PHASES`. Found by three of four auditors in the 2026-09-08 catalog review.
+     */
     { name: "duotone-hover", primitive: "media-filter", keyframes: "kui-duotone-hover" },
     { name: "grayscale-hover", primitive: "media-filter", keyframes: "kui-grayscale-hover" },
     { name: "saturate-hover", primitive: "media-filter", keyframes: "kui-saturate-hover" },
+    /*
+     * `image-parallax-frame` stays unphased: it is scroll/view-timeline-scrubbed (`media-parallax-frame`
+     * declares `timelines: ['view', 'scroll']`), the same precedent `catalog/core.ts`'s `parallax-y`
+     * already sets for a continuously-scrubbed effect — there is no "turn" to take with a neighbour,
+     * because progress never stops being read off the scrollport.
+     *
+     * All four `background-media` names — `bg`, `background`, `video-backdrop`, `video-hero` — also
+     * stay unphased: `background-media` is a permanent backdrop material, held unconditionally from
+     * `load` for as long as the element exists (see its own `continuousSetup` above) — it fits none of
+     * the four phases, and should keep conflicting with any other primitive that claims the same
+     * channel unconditionally, which is what "permanent" means here.
+     */
     {
       name: "image-parallax-frame",
       primitive: "media-parallax-frame",
       keyframes: "kui-image-parallax-frame"
     },
+    // `ken-burns`/`ken-burns-out`/`before-after-wipe`/`lightbox-open` are NOT touched here even though
+    // they look like the three hovers above at a glance. All four close their keyframe block with an
+    // explicit `to` (`kui-ken-burns`, `kui-ken-burns-out`, `kui-before-after-wipe`, `kui-lightbox-open`
+    // in `media.css`) and none is hover-toggled — they are one-shot plays, not a visitor-held
+    // condition, so `state` would misdescribe them. They are the same closed-keyframe shape as the ten
+    // `cloak: true` presets this file already excludes from `entrance`, but — unlike those ten — they
+    // are not yet in `test/composition-phase.test.ts`'s `excluded` list. That is a fact about a file
+    // this task does not own; left for whoever does.
     { name: "before-after-wipe", primitive: "media-wipe", keyframes: "kui-before-after-wipe" },
     { name: "lightbox-open", primitive: "media-lightbox", keyframes: "kui-lightbox-open" }
   ];
@@ -3342,7 +8676,7 @@ var kuinetic = (() => {
       type: "keyword",
       default: "vertical",
       cssProperty: "--kui-axis",
-      values: ["vertical", "horizontal"]
+      keywords: ["vertical", "horizontal"]
     },
     /*
      * The general form of `axis:`, in degrees: `0deg` is `axis:vertical`, `90deg` is
@@ -3360,9 +8694,9 @@ var kuinetic = (() => {
       type: "keyword",
       default: "alternate",
       cssProperty: "--kui-from",
-      values: ["alternate", "start", "end", "edges", "random-ish"]
+      keywords: ["alternate", "start", "end", "edges", "random-ish"]
     },
-    fold: { type: "keyword", default: "false", cssProperty: "--kui-fold", values: ["true", "false"] },
+    fold: { type: "keyword", default: "false", cssProperty: "--kui-fold", keywords: ["true", "false"] },
     duration: { type: "time", default: "500ms", cssProperty: "--kui-duration" },
     ...TRIGGER_DELAY_PARAM,
     ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" },
@@ -3436,7 +8770,7 @@ var kuinetic = (() => {
       type: "keyword",
       default: "cover",
       cssProperty: "--kui-fit",
-      values: ["cover", "contain"]
+      keywords: ["cover", "contain"]
     },
     /*
      * Which part of the picture a `cover` crop keeps. Nine named points rather than a free
@@ -3449,7 +8783,7 @@ var kuinetic = (() => {
       type: "keyword",
       default: "center",
       cssProperty: "--kui-focus",
-      values: FOCAL_POINT_NAMES
+      keywords: FOCAL_POINT_NAMES
     },
     /*
      * The scrim. This is the parameter that makes the whole effect usable, because the point of a
@@ -3478,7 +8812,7 @@ var kuinetic = (() => {
       type: "keyword",
       default: "in-view",
       cssProperty: "--kui-autoplay",
-      values: ["in-view", "always", "never"]
+      keywords: ["in-view", "always", "never"]
     },
     /*
      * Bounded at both ends: `0` is a clip that is loaded, decoding, and permanently frozen — worse
@@ -3493,7 +8827,7 @@ var kuinetic = (() => {
       minimum: 0.25,
       maximum: 4
     },
-    loop: { type: "keyword", default: "true", cssProperty: "--kui-loop", values: ["true", "false"] }
+    loop: { type: "keyword", default: "true", cssProperty: "--kui-loop", keywords: ["true", "false"] }
     /*
      * There is deliberately no `controls:`. The layer this primitive builds paints at `z-index: -1`
      * behind the author's own children, so a native control bar there is focusable by keyboard and
@@ -3600,7 +8934,19 @@ var kuinetic = (() => {
        * — a clip's autoplay — and leaves the poster frame standing. See `autoplayInView`.
        */
       reducedMotion: "shorten",
-      prepare: deferPrepare(prepareBackgroundMedia)
+      /*
+       * No timing tokens at all, and this is the one member of the refusing group whose reason is
+       * not "it is driven by a position". A backdrop is not an animation: it paints a picture or a
+       * clip behind the element's content and then stays there. There is no motion to start late,
+       * to run for a set span, or to bend along a curve — the clip's own playback is the media
+       * element's, and `autoplay:` is the knob for that. `background-media 600ms` is an author
+       * reaching for a shape this effect does not have, and being told so beats being ignored.
+       */
+      prepare: withTimingContract(
+        "background-media",
+        { because: "it paints a backdrop rather than animating, so there is no motion to time" },
+        deferPrepare(prepareBackgroundMedia)
+      )
     }
   ];
   var MEDIA_JS_PRESETS = [
@@ -3618,7 +8964,51 @@ var kuinetic = (() => {
      * from-state at all.
      */
     { name: "bg", primitive: "background-media" },
-    { name: "background", primitive: "background-media" }
+    { name: "background", primitive: "background-media" },
+    /*
+     * The two scrimmed names, for the case the bare aliases above leave to the author: a clip behind
+     * the page's own text.
+     *
+     * `bg src:/hero.mp4` alone is unscrimmed footage, and unmodified footage is illegible under text
+     * about half the time — a light frame arrives and the headline vanishes for those seconds. The
+     * fix has always existed (`overlay:` + `overlay-opacity:`, painted by `createOverlay`), and the
+     * `45%` black below is the exact pair `backgroundMediaParams` already names as the spelling
+     * someone reaches for while tuning legibility. What was missing was a *name* that arrives with it
+     * already on, so the legible case is the one you get by default and the bare clip is the opt-out.
+     *
+     * The pair splits on `autoplay:`, which is the primitive's own two-case division rather than a
+     * new one. `video-backdrop` keeps the default `in-view`, pairing a long section's clip with the
+     * viewport so it stops costing decode budget once scrolled past. `video-hero` overrides it to
+     * `always`, because the first screen is exactly where a visibility heuristic catching the clip
+     * mid-stall is most visible, and a short hero clip is cheap enough to simply leave running — this
+     * is the override the demo's own hand-rolled hero writes on all three of its slides.
+     *
+     * Nothing else is restated. `fit:cover`, `loop:true` and the forced `muted`/`playsinline` pair
+     * are already what the primitive does — `params` is for what differentiates a name from its
+     * primitive's defaults, and restating a default is how the two drift apart later. In particular
+     * there is no height claim: a hero's box is the page's layout, and a backdrop that forced
+     * `100svh` on its host would break every card-sized use of the same name. `fit:cover` is what
+     * makes this fill a 390px phone without letterboxing or stretching, and `focus:` is what decides
+     * which part of the frame a narrow viewport keeps.
+     *
+     * Reduced motion needs no declaration here either, and that is the primitive's `'shorten'` policy
+     * doing the right thing rather than an omission: the clip is still installed, its autoplay is
+     * suppressed inside `startPlayback`, and the poster still stands. A static frame, not a blank box.
+     *
+     * Unphased, for the same reason `bg`/`background` are (see the note in `MEDIA_CSS_PRESETS`): a
+     * backdrop is a permanent material held unconditionally from `load`, which fits none of the four
+     * phases and should keep conflicting with anything else that claims the same channels forever.
+     */
+    {
+      name: "video-backdrop",
+      primitive: "background-media",
+      params: { overlay: "black", "overlay-opacity": "45%" }
+    },
+    {
+      name: "video-hero",
+      primitive: "background-media",
+      params: { overlay: "black", "overlay-opacity": "45%", autoplay: "always" }
+    }
   ];
   var MEDIA_PRIMITIVES = [...MEDIA_CSS_PRIMITIVES, ...MEDIA_JS_PRIMITIVES];
   var MEDIA_PRESETS = [...MEDIA_CSS_PRESETS, ...MEDIA_JS_PRESETS];
@@ -3634,17 +9024,270 @@ var kuinetic = (() => {
     };
   }
 
-  // src/effects/catalog/numbers-shared.ts
+  // src/effects/catalog/text-shared.ts
   var SR_ONLY_CLASS = "kui-sr-only";
-  var DECORATIVE_CLASS = "kui-count-decorative";
-  function installCountLayers(el, doc) {
+  var DECORATIVE_CLASS = "kui-split-decorative";
+  var INTERACTIVE_DESCENDANT = "a[href], button, input, select, textarea, [tabindex], [contenteditable], details, summary, iframe, audio[controls], video[controls]";
+  function hasInteractiveDescendant(el) {
+    return el.querySelector(INTERACTIVE_DESCENDANT) !== null;
+  }
+  function installSplitLayers(el, doc) {
+    const originalText = el.textContent.trim();
     const restoreChildren = captureChildren(el);
     const decorative = doc.createElement("span");
     decorative.setAttribute("aria-hidden", "true");
     decorative.className = DECORATIVE_CLASS;
     const srOnly = doc.createElement("span");
     srOnly.className = SR_ONLY_CLASS;
-    srOnly.setAttribute("aria-live", "polite");
+    srOnly.textContent = originalText;
+    el.textContent = "";
+    el.append(decorative, srOnly);
+    return {
+      decorative,
+      srOnly,
+      originalText,
+      restore: restoreChildren
+    };
+  }
+  function segmentGraphemes(text) {
+    const segmenter = new Intl.Segmenter(void 0, { granularity: "grapheme" });
+    return Array.from(segmenter.segment(text), (entry) => entry.segment);
+  }
+  function segmentWords(text) {
+    const segmenter = new Intl.Segmenter(void 0, { granularity: "word" });
+    return Array.from(segmenter.segment(text), (entry) => ({
+      text: entry.segment,
+      isWord: entry.isWordLike === true
+    }));
+  }
+  function markItem(el, index, extraClass) {
+    el.className = extraClass ? `kui-split-item ${extraClass}` : "kui-split-item";
+    el.style.setProperty("--kui-i", String(index));
+  }
+  function applyStaggerVars(el, params) {
+    const { durationMs, delayMs, easing } = params.timing;
+    const duration = durationMs === void 0 ? params.text("duration", "500ms") : `${durationMs}ms`;
+    const delay = delayMs === void 0 ? params.text("delay", "0ms") : `${delayMs}ms`;
+    el.style.setProperty("--kui-duration", duration);
+    el.style.setProperty("--kui-delay", delay);
+    el.style.setProperty("--kui-ease", cssEasingValue(easing ?? params.text("ease", "ease-out")));
+    el.style.setProperty("--kui-stagger", params.text("stagger", "30ms"));
+  }
+  function stepMsFor(params, ticks, fallback) {
+    const total = params.timing.durationMs;
+    if (total === void 0 || ticks <= 0) return params.ms("step", fallback);
+    return Math.max(1, total / ticks);
+  }
+  function splitRevealFinishMs(params, itemCount) {
+    if (itemCount === 0) return 0;
+    const durationMs = params.timing.durationMs ?? params.ms("duration", 500);
+    const delayMs = params.timing.delayMs ?? params.ms("delay", 0);
+    const staggerMs = params.ms("stagger", 30);
+    return delayMs + (itemCount - 1) * staggerMs + durationMs;
+  }
+  function createStepRunner(win, options) {
+    let settle2;
+    const finished = new Promise((resolve) => {
+      settle2 = resolve;
+    });
+    let interval;
+    function stop() {
+      win.clearTimeout(start);
+      if (interval !== void 0) win.clearInterval(interval);
+      settle2?.();
+    }
+    const start = win.setTimeout(() => {
+      interval = win.setInterval(() => {
+        if (options.tick()) stop();
+      }, options.stepMs);
+    }, options.delayMs);
+    return { finished, stop };
+  }
+  function appendCharSpans(container, doc, text) {
+    const spans = [];
+    let index = 0;
+    let wordWrapper = null;
+    for (const grapheme of segmentGraphemes(text)) {
+      if (grapheme.trim() === "") {
+        container.append(doc.createTextNode(grapheme));
+        wordWrapper = null;
+        continue;
+      }
+      if (!wordWrapper) {
+        wordWrapper = doc.createElement("span");
+        wordWrapper.className = "kui-split-word";
+        container.append(wordWrapper);
+      }
+      const span = doc.createElement("span");
+      markItem(span, index);
+      span.textContent = grapheme;
+      wordWrapper.append(span);
+      spans.push(span);
+      index++;
+    }
+    return spans;
+  }
+  function appendWordItem(state, value) {
+    const span = state.doc.createElement("span");
+    markItem(span, state.spans.length);
+    span.textContent = value;
+    state.container.append(span);
+    state.spans.push(span);
+    return span;
+  }
+  function appendNonWordToken(state, value, graphemes) {
+    for (const { segment } of graphemes.segment(value)) {
+      if (segment.trim() === "") {
+        if (state.leading) appendWordItem(state, state.leading);
+        state.leading = "";
+        state.preceding = null;
+        state.container.append(state.doc.createTextNode(segment));
+      } else if (state.leading || /^[\p{Ps}\p{Pi}¿¡]$/u.test(segment) || !state.preceding) {
+        state.leading += segment;
+      } else {
+        state.preceding.textContent += segment;
+      }
+    }
+  }
+  function appendWordSpans(container, doc, text) {
+    const state = { container, doc, spans: [], preceding: null, leading: "" };
+    const graphemes = new Intl.Segmenter(void 0, { granularity: "grapheme" });
+    for (const token of segmentWords(text)) {
+      if (!token.isWord) {
+        appendNonWordToken(state, token.text, graphemes);
+        continue;
+      }
+      state.preceding = appendWordItem(state, state.leading + token.text);
+      state.leading = "";
+    }
+    if (state.leading) appendWordItem(state, state.leading);
+    return state.spans;
+  }
+  function bucketByLine(container) {
+    const buckets = [];
+    let currentTop = null;
+    for (const node of Array.from(container.childNodes)) {
+      if (node instanceof HTMLElement) {
+        const top = node.offsetTop;
+        if (currentTop === null || Math.abs(top - currentTop) > 1) {
+          buckets.push([]);
+          currentTop = top;
+        }
+      } else if (buckets.length === 0) {
+        buckets.push([]);
+      }
+      buckets.at(-1).push(node);
+    }
+    return buckets;
+  }
+  function wrapMeasuredLines(container, doc) {
+    const buckets = bucketByLine(container);
+    container.replaceChildren();
+    return buckets.map((nodes, index) => {
+      const line = doc.createElement("span");
+      markItem(line, index, "kui-split-line");
+      for (const node of nodes) {
+        if (node instanceof HTMLElement) {
+          node.removeAttribute("class");
+          node.style.removeProperty("--kui-i");
+        }
+        line.append(node);
+      }
+      container.append(line);
+      return line;
+    });
+  }
+  function appendLineSpans(container, doc, text) {
+    appendWordSpans(container, doc, text);
+    return wrapMeasuredLines(container, doc);
+  }
+  function rewrapLineSpans(container, doc) {
+    const nodes = Array.from(container.childNodes).flatMap((line) => Array.from(line.childNodes));
+    container.replaceChildren(...nodes);
+    let index = 0;
+    for (const node of nodes) {
+      if (node instanceof HTMLElement) markItem(node, index++);
+    }
+    return wrapMeasuredLines(container, doc);
+  }
+  function appendSpansFor(unit, container, doc, text) {
+    if (unit === "words") return appendWordSpans(container, doc, text);
+    if (unit === "lines") return appendLineSpans(container, doc, text);
+    return appendCharSpans(container, doc, text);
+  }
+  function nextTypeState(state, total, loop2) {
+    if (!state.deleting) {
+      const index2 = state.index + 1;
+      if (index2 < total) return { index: index2, deleting: false, done: false };
+      return loop2 ? { index: total, deleting: true, done: false } : { index: total, deleting: false, done: true };
+    }
+    const index = state.index - 1;
+    if (index > 0) return { index, deleting: true, done: false };
+    return { index: 0, deleting: false, done: false };
+  }
+  var SCRAMBLE_CHARSETS = {
+    upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    binary: "01",
+    symbols: "!<>-_\\/[]{}=+*^?#~"
+  };
+  function scrambledFrame(graphemes, resolved, charset, random) {
+    return graphemes.map((grapheme, index) => {
+      if (index < resolved || grapheme.trim() === "") return grapheme;
+      return charset[Math.floor(random() * charset.length)] ?? charset[0] ?? grapheme;
+    }).join("");
+  }
+  var AXIS_TAG = /^[A-Za-z0-9]{4}$/;
+  var varAxisTagSpec = {
+    type: "keyword",
+    // Quoted, because that is what reaches the stylesheet: `font-variation-settings` takes a
+    // `<string>`, and an unquoted `wght` is an ident that makes the whole declaration invalid.
+    default: '"wght"',
+    cssProperty: "--kui-axis",
+    /*
+     * Deliberately empty, and deliberately not a guess at the real axis list.
+     *
+     * The accepted set is open — any tag the author's font carries — which no closed `keywords` list
+     * can express. `varAxisVariant` below synthesises a one-entry list per authored spec instead, so
+     * the value `resolveParams` checks is always exactly the tag that spec asked for. This declared
+     * list is only reachable if that variant did not run, which cannot happen today; empty makes that
+     * unreachable path reject and fall back to the stylesheet's own `"wght"`, which is the safe
+     * direction. A plausible-looking list here would be the unsafe one: it would silently become the
+     * real allowlist the day the variant stopped being called.
+     */
+    keywords: []
+  };
+  var varAxisParams = {
+    axis: varAxisTagSpec,
+    from: { type: "number", default: "100", cssProperty: "--kui-from-axis", finite: true },
+    to: { type: "number", default: "900", cssProperty: "--kui-to-axis", finite: true }
+  };
+  function varAxisVariant(spec, warn) {
+    const tag = spec.params["axis"];
+    if (tag === void 0) return {};
+    const rest = Object.fromEntries(Object.entries(spec.params).filter(([key]) => key !== "axis"));
+    if (!AXIS_TAG.test(tag)) {
+      warn(
+        `"axis:${tag}" is not an OpenType axis tag \u2014 expected exactly four letters or digits, case-significant, e.g. axis:wght (registered) or axis:GRAD (vendor)`
+      );
+      return { params: rest };
+    }
+    const quoted = `"${tag}"`;
+    return {
+      params: { ...rest, axis: quoted },
+      schema: { axis: { ...varAxisTagSpec, keywords: [quoted] } }
+    };
+  }
+
+  // src/effects/catalog/numbers-shared.ts
+  var SR_ONLY_CLASS2 = "kui-sr-only";
+  var DECORATIVE_CLASS2 = "kui-count-decorative";
+  function installCountLayers(el, doc) {
+    const restoreChildren = captureChildren(el);
+    const decorative = doc.createElement("span");
+    decorative.setAttribute("aria-hidden", "true");
+    decorative.className = DECORATIVE_CLASS2;
+    const srOnly = doc.createElement("span");
+    srOnly.className = SR_ONLY_CLASS2;
     el.textContent = "";
     el.append(decorative, srOnly);
     return {
@@ -3713,7 +9356,7 @@ var kuinetic = (() => {
     if (keyword) return cubicBezier(...keyword);
     const fn = CUBIC_BEZIER_FN.exec(easing);
     if (fn) return cubicBezier(Number(fn[1]), Number(fn[2]), Number(fn[3]), Number(fn[4]));
-    warn(`easing "${easing}" has no JS equivalent for a counter tween \u2014 using the default ease-out`);
+    warn(`easing "${easing}" has no JS equivalent for a JS-driven tween \u2014 using the default ease-out`);
     return easeOutCubic;
   }
   var COMPACT_OPTIONS = { notation: "compact", maximumFractionDigits: 1 };
@@ -3776,7 +9419,7 @@ var kuinetic = (() => {
       type: "keyword",
       default: "number",
       cssProperty: "--kui-format",
-      values: ["number", "currency", "percent", "compact"]
+      keywords: ["number", "currency", "percent", "compact"]
     },
     currency: { type: "text", default: "USD", cssProperty: "--kui-currency" }
   };
@@ -3850,7 +9493,39 @@ var kuinetic = (() => {
       }
     };
   }
+  function withCountLayers(el, doc, populate) {
+    const layers = installCountLayers(el, doc);
+    try {
+      const setup = populate(layers);
+      return {
+        ...setup,
+        cleanup: () => {
+          setup.cleanup();
+          layers.restore();
+        }
+      };
+    } catch (err) {
+      layers.restore();
+      throw err;
+    }
+  }
+  function warnOnNumberMismatch(el, name, formattedTo, ctx) {
+    const authoredText = el.textContent;
+    const authoredDigits = authoredText.replace(/\D/g, "");
+    const toDigits = formattedTo.replace(/\D/g, "");
+    if (authoredDigits === toDigits) return;
+    ctx.warn(
+      `${name}: authored text "${authoredText}" doesn't match the value it will count to (${formattedTo}) \u2014 author the final value as the element's text so crawlers and no-JS readers see it`
+    );
+  }
   function prepareCount(el, params, ctx) {
+    if (hasInteractiveDescendant(el)) {
+      ctx.warn(
+        "count would remove the link or control inside this element \u2014 apply it to a leaf element instead"
+      );
+      return () => {
+      };
+    }
     const doc = el.ownerDocument;
     const from = params.num("from", 0);
     const to = params.num("to", 100);
@@ -3858,26 +9533,22 @@ var kuinetic = (() => {
     const format = params.text("format", "number");
     const currency = params.text("currency", "USD");
     const options = { format, decimals, currency };
-    const layers = installCountLayers(el, doc);
-    layers.decorative.textContent = formatCount(from, options);
-    layers.srOnly.textContent = formatCount(from, options);
-    const tween = tweenNumber(ctx, {
-      from,
-      to,
-      ...tweenTimingFor(params, ctx),
-      onTick: (value, done) => {
-        layers.decorative.textContent = formatCount(value, options);
-        if (done) layers.srOnly.textContent = formatCount(to, options);
-      }
+    const fromText = formatCount(from, options);
+    const toText = formatCount(to, options);
+    warnOnNumberMismatch(el, "count", toText, ctx);
+    return withCountLayers(el, doc, (layers) => {
+      layers.decorative.textContent = fromText;
+      layers.srOnly.textContent = toText;
+      const tween = tweenNumber(ctx, {
+        from,
+        to,
+        ...tweenTimingFor(params, ctx),
+        onTick: (value) => {
+          layers.decorative.textContent = formatCount(value, options);
+        }
+      });
+      return { cleanup: tween.cleanup, finished: tween.finished, finish: tween.finish };
     });
-    return {
-      cleanup: () => {
-        tween.cleanup();
-        layers.restore();
-      },
-      finished: tween.finished,
-      finish: tween.finish
-    };
   }
   function buildOdometerColumns(container, doc, grouped) {
     const strips = [];
@@ -3911,32 +9582,33 @@ var kuinetic = (() => {
     }
   }
   function prepareOdometer(el, params, ctx) {
+    if (hasInteractiveDescendant(el)) {
+      ctx.warn(
+        "count-odometer would remove the link or control inside this element \u2014 apply it to a leaf element instead"
+      );
+      return () => {
+      };
+    }
     const doc = el.ownerDocument;
     const from = Math.max(0, params.num("from", 0));
     const to = Math.max(0, params.num("to", 100));
     const width = Math.max(String(Math.round(from)).length, String(Math.round(to)).length);
-    const toGrouped = groupDigits(paddedDigits(to, width));
     const fromGrouped = groupDigits(paddedDigits(from, width));
-    const layers = installCountLayers(el, doc);
-    layers.srOnly.textContent = fromGrouped;
-    const strips = buildOdometerColumns(layers.decorative, doc, fromGrouped);
-    const tween = tweenNumber(ctx, {
-      from,
-      to,
-      ...tweenTimingFor(params, ctx),
-      onTick: (value, done) => {
-        updateOdometerColumns(strips, groupDigits(paddedDigits(value, width)));
-        if (done) layers.srOnly.textContent = toGrouped;
-      }
+    const toGrouped = groupDigits(String(Math.round(to)));
+    warnOnNumberMismatch(el, "count-odometer", toGrouped, ctx);
+    return withCountLayers(el, doc, (layers) => {
+      layers.srOnly.textContent = toGrouped;
+      const strips = buildOdometerColumns(layers.decorative, doc, fromGrouped);
+      const tween = tweenNumber(ctx, {
+        from,
+        to,
+        ...tweenTimingFor(params, ctx),
+        onTick: (value) => {
+          updateOdometerColumns(strips, groupDigits(paddedDigits(value, width)));
+        }
+      });
+      return { cleanup: tween.cleanup, finished: tween.finished, finish: tween.finish };
     });
-    return {
-      cleanup: () => {
-        tween.cleanup();
-        layers.restore();
-      },
-      finished: tween.finished,
-      finish: tween.finish
-    };
   }
   var COUNT_PRIMITIVES = [
     countPrimitive("count", countParams, deferPrepare(prepareCount)),
@@ -3967,7 +9639,9 @@ var kuinetic = (() => {
     // `from` gives `progress-bar` a real knob on its start scale — it had none before. `--kui-bar-from`
     // is also what the `[data-kui-fx~='progress-bar'][data-kui-state='ready']` gate in numbers.css
     // neutralizes; see that rule's comment for the on:enter fix this parameter doubles as.
-    cssPrimitive("meter-bar", [CHANNEL.scale], {
+    // `transform-origin: left center` pins the bar's growth edge on the same unconditional rule —
+    // undeclared until channel-properties.ts gained an entry for it.
+    cssPrimitive("meter-bar", [CHANNEL.scale, "transform-origin"], {
       parameters: { from: { type: "number", default: "0", cssProperty: "--kui-bar-from" } }
     }),
     cssPrimitive("meter-segments", [CHANNEL.opacity]),
@@ -3994,183 +9668,6 @@ var kuinetic = (() => {
     return registry.registerPrimitives(NUMBERS_PRIMITIVES).registerPresets(NUMBERS_PRESETS);
   }
 
-  // src/effects/catalog/text-shared.ts
-  var SR_ONLY_CLASS2 = "kui-sr-only";
-  var DECORATIVE_CLASS2 = "kui-split-decorative";
-  function installSplitLayers(el, doc) {
-    const originalText = el.textContent.trim();
-    const restoreChildren = captureChildren(el);
-    const decorative = doc.createElement("span");
-    decorative.setAttribute("aria-hidden", "true");
-    decorative.className = DECORATIVE_CLASS2;
-    const srOnly = doc.createElement("span");
-    srOnly.className = SR_ONLY_CLASS2;
-    srOnly.textContent = originalText;
-    el.textContent = "";
-    el.append(decorative, srOnly);
-    return {
-      decorative,
-      originalText,
-      restore: restoreChildren
-    };
-  }
-  function segmentGraphemes(text) {
-    const segmenter = new Intl.Segmenter(void 0, { granularity: "grapheme" });
-    return Array.from(segmenter.segment(text), (entry) => entry.segment);
-  }
-  function segmentWords(text) {
-    const segmenter = new Intl.Segmenter(void 0, { granularity: "word" });
-    return Array.from(segmenter.segment(text), (entry) => ({
-      text: entry.segment,
-      isWord: entry.isWordLike === true
-    }));
-  }
-  function markItem(el, index, extraClass) {
-    el.className = extraClass ? `kui-split-item ${extraClass}` : "kui-split-item";
-    el.style.setProperty("--kui-i", String(index));
-  }
-  function applyStaggerVars(el, params) {
-    const { durationMs, delayMs, easing } = params.timing;
-    const duration = durationMs === void 0 ? params.text("duration", "500ms") : `${durationMs}ms`;
-    const delay = delayMs === void 0 ? params.text("delay", "0ms") : `${delayMs}ms`;
-    el.style.setProperty("--kui-duration", duration);
-    el.style.setProperty("--kui-delay", delay);
-    el.style.setProperty("--kui-ease", easing ?? params.text("ease", "ease-out"));
-    el.style.setProperty("--kui-stagger", params.text("stagger", "30ms"));
-  }
-  function stepMsFor(params, ticks, fallback) {
-    const total = params.timing.durationMs;
-    if (total === void 0 || ticks <= 0) return params.ms("step", fallback);
-    return Math.max(1, total / ticks);
-  }
-  function splitRevealFinishMs(params, itemCount) {
-    if (itemCount === 0) return 0;
-    const durationMs = params.timing.durationMs ?? params.ms("duration", 500);
-    const delayMs = params.timing.delayMs ?? params.ms("delay", 0);
-    const staggerMs = params.ms("stagger", 30);
-    return delayMs + (itemCount - 1) * staggerMs + durationMs;
-  }
-  function createStepRunner(win, options) {
-    let settle2;
-    const finished = new Promise((resolve) => {
-      settle2 = resolve;
-    });
-    let interval;
-    function stop() {
-      win.clearTimeout(start);
-      if (interval !== void 0) win.clearInterval(interval);
-      settle2?.();
-    }
-    const start = win.setTimeout(() => {
-      interval = win.setInterval(() => {
-        if (options.tick()) stop();
-      }, options.stepMs);
-    }, options.delayMs);
-    return { finished, stop };
-  }
-  function appendCharSpans(container, doc, text) {
-    const spans = [];
-    let index = 0;
-    let wordWrapper = null;
-    for (const grapheme of segmentGraphemes(text)) {
-      if (grapheme.trim() === "") {
-        container.append(doc.createTextNode(grapheme));
-        wordWrapper = null;
-        continue;
-      }
-      if (!wordWrapper) {
-        wordWrapper = doc.createElement("span");
-        wordWrapper.className = "kui-split-word";
-        container.append(wordWrapper);
-      }
-      const span = doc.createElement("span");
-      markItem(span, index);
-      span.textContent = grapheme;
-      wordWrapper.append(span);
-      spans.push(span);
-      index++;
-    }
-    return spans;
-  }
-  function appendWordSpans(container, doc, text) {
-    const spans = [];
-    let index = 0;
-    for (const token of segmentWords(text)) {
-      if (!token.isWord) {
-        container.append(doc.createTextNode(token.text));
-        continue;
-      }
-      const span = doc.createElement("span");
-      markItem(span, index);
-      span.textContent = token.text;
-      container.append(span);
-      spans.push(span);
-      index++;
-    }
-    return spans;
-  }
-  function bucketByLine(container) {
-    const buckets = [];
-    let currentTop = null;
-    for (const node of Array.from(container.childNodes)) {
-      if (node instanceof HTMLElement) {
-        const top = node.offsetTop;
-        if (currentTop === null || Math.abs(top - currentTop) > 1) {
-          buckets.push([]);
-          currentTop = top;
-        }
-      } else if (buckets.length === 0) {
-        buckets.push([]);
-      }
-      buckets.at(-1).push(node);
-    }
-    return buckets;
-  }
-  function appendLineSpans(container, doc, text) {
-    appendWordSpans(container, doc, text);
-    const buckets = bucketByLine(container);
-    container.replaceChildren();
-    return buckets.map((nodes, index) => {
-      const line = doc.createElement("span");
-      markItem(line, index, "kui-split-line");
-      for (const node of nodes) {
-        if (node instanceof HTMLElement) {
-          node.removeAttribute("class");
-          node.style.removeProperty("--kui-i");
-        }
-        line.append(node);
-      }
-      container.append(line);
-      return line;
-    });
-  }
-  function appendSpansFor(unit, container, doc, text) {
-    if (unit === "words") return appendWordSpans(container, doc, text);
-    if (unit === "lines") return appendLineSpans(container, doc, text);
-    return appendCharSpans(container, doc, text);
-  }
-  function nextTypeState(state, total, loop2) {
-    if (!state.deleting) {
-      const index2 = state.index + 1;
-      if (index2 < total) return { index: index2, deleting: false, done: false };
-      return loop2 ? { index: total, deleting: true, done: false } : { index: total, deleting: false, done: true };
-    }
-    const index = state.index - 1;
-    if (index > 0) return { index, deleting: true, done: false };
-    return { index: 0, deleting: false, done: false };
-  }
-  var SCRAMBLE_CHARSETS = {
-    upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    binary: "01",
-    symbols: "!<>-_\\/[]{}=+*^?#~"
-  };
-  function scrambledFrame(graphemes, resolved, charset, random) {
-    return graphemes.map((grapheme, index) => {
-      if (index < resolved || grapheme.trim() === "") return grapheme;
-      return charset[Math.floor(random() * charset.length)] ?? charset[0] ?? grapheme;
-    }).join("");
-  }
-
   // src/effects/catalog/text.ts
   var fontWeightParams = {
     from: { type: "number", default: "100", cssProperty: "--kui-from-weight", minimum: 1, maximum: 1e3 },
@@ -4192,24 +9689,74 @@ var kuinetic = (() => {
     distance: { type: "length", default: "32px", cssProperty: "--kui-distance" }
   };
   var TEXT_CSS_PRIMITIVES = [
-    // `color`, alongside `background`: both presets' unconditional rule sets `-webkit-text-fill-color:
-    // transparent` so the `background-image` gradient shows through the glyphs (the standard
-    // gradient-text technique). That is a real claim on the glyph fill, the same physical property
-    // `text-outline-fill` animates on its own `color` channel below — without this, the two looked
-    // disjoint to the compiler (`background` vs `stroke`+`color`) and composing them would let
-    // whichever applied last silently win the glyph fill instead of being flagged as a conflict.
+    // `color`, alongside `background`, for `text-shimmer` and `text-gradient-sweep` alike: each
+    // one's unconditional rule sets `-webkit-text-fill-color: transparent` so the `background-image`
+    // gradient shows through the glyphs (the standard gradient-text technique). That is a real claim
+    // on the glyph fill, the same physical property `text-outline-fill` animates on its own `color`
+    // channel below — without it the two look disjoint to the compiler (`background` vs
+    // `stroke`+`color`) and composing them would let whichever applied last silently win the glyph
+    // fill instead of being flagged as a conflict.
     cssPrimitive("text-shimmer", [CHANNEL.background, CHANNEL.color], { reducedMotion: "disable" }),
-    // `gradient-sweep` is the only one of the three `text-sweep`-family presets whose keyframe
-    // touches `-webkit-text-fill-color` (see text.css) — `highlight-sweep` and `underline-draw` only
-    // paint a `background-image`. Claiming `color` for all three made the compiler reject compositions
-    // like `underline-draw, text-outline-fill` as a glyph-fill conflict even though they touch disjoint
-    // properties. Split so only the preset that actually claims the fill declares the channel.
+    // Which is exactly what `text-sweep` must *not* claim. Of the three presets in that family only
+    // `gradient-sweep` goes near the fill: its rule sets `-webkit-text-fill-color: transparent` and
+    // its keyframe drives `background-position` across the clipped glyphs. `highlight-sweep` and
+    // `underline-draw` just paint a `background-image` — a highlight bar and a 2px underline, both
+    // animated through `background-size`, both leaving the glyph fill alone (see text.css). Claiming
+    // `color` for all three made the compiler reject compositions like
+    // `underline-draw, text-outline-fill` as a glyph-fill conflict even though they touch entirely
+    // disjoint properties, and a conflict check that cries wolf is one authors learn to ignore.
+    //
+    // The fix is a second primitive rather than a per-preset channel override, because a narrowing
+    // override is not a thing this library has. Channels are declared on the primitive; the only
+    // per-entry adjustment is `variantFor`, and `channelsFor` in compile.ts unions its result over
+    // the declaration, so a variant can only ever *widen* (see the note on `Primitive.variantFor` in
+    // core/types.ts). That direction is deliberate — widening keeps an under-claim from slipping past
+    // conflict detection — so expressing "these two presets claim less" would mean new machinery in
+    // core/channels.ts, to buy exactly what a second primitive already buys. Two presets writing a
+    // different property set than the third is not a parameter difference, which is all a preset is
+    // meant to express; it is what "different primitive" already means here.
     cssPrimitive("text-gradient-sweep", [CHANNEL.background, CHANNEL.color], { parameters: textSweepParams }),
     cssPrimitive("text-sweep", [CHANNEL.background], { parameters: textSweepParams }),
     cssPrimitive("text-outline-fill", [CHANNEL.stroke, CHANNEL.color]),
+    /*
+     * The three named axes stay, and stay implemented the way they are.
+     *
+     * `var-axis` below generalises the *mechanism*, so the obvious tidy-up is to re-express these on
+     * top of it — `var-weight` becomes `var-axis axis:wght`, and three schemas collapse into one.
+     * That would change all three, and one of them would visibly break:
+     *
+     * - `var-weight` animates `font-weight`, which is a real CSS property with a defined behaviour on
+     *   fonts that have no `wght` axis at all: the browser synthesises a bold. `font-variation-
+     *   settings "wght"` does nothing there. Rewriting it would silently drop every non-variable font
+     *   out of the effect.
+     * - `var-width` animates `font-stretch`, in percentages, which is likewise defined against
+     *   non-variable width faces the way the raw `wdth` axis is not.
+     * - `var-slant` is the one that breaks outright. It animates `font-style: oblique <angle>`, and
+     *   the `slnt` axis uses the OPPOSITE sign convention — negative `slnt` leans right, positive
+     *   `oblique` leans right. See the note over `kui-var-slant` in `text.css`, which already had to
+     *   work this out for the default. `var-axis axis:slnt from:0 to:10` leans the text the other way
+     *   from what `var-slant 0deg -> 10deg` has always done.
+     *
+     * Beyond that, `font-variation-settings` is the low-level escape hatch and the CSS Fonts spec
+     * says to prefer the high-level property wherever one exists — it does not inherit or animate the
+     * way the high-level properties do, and it overrides them wholesale. So the three names are not
+     * legacy spellings of the generic one; they are the correct implementation for the three axes CSS
+     * modelled properly, and `var-axis` is for the axes it did not.
+     */
     cssPrimitive("var-weight", ["font"], { parameters: fontWeightParams }),
     cssPrimitive("var-width", ["font"], { parameters: fontWidthParams }),
     cssPrimitive("var-slant", ["font"], { parameters: fontSlantParams }),
+    /*
+     * Channel `font`, the same as its three siblings, which is what stops `data-kui="var-weight,
+     * var-axis"` compiling. That pair looks composable — two different CSS properties — and is not:
+     * `font-variation-settings` overrides the high-level font properties for any axis it names, so
+     * whichever landed last would silently win the glyph shape. Two `var-axis` segments collide for
+     * the blunter reason that both write the whole `font-variation-settings` declaration.
+     *
+     * `variantFor` is spread on rather than passed through `cssPrimitive`, whose options object
+     * covers the shared timing/activation defaults only. Nothing else about this primitive differs.
+     */
+    { ...cssPrimitive("var-axis", ["font"], { parameters: varAxisParams }), variantFor: varAxisVariant },
     /*
      * `defaultActivation: 'load'` for the same reason every ambient primitive declares it, and it
      * was missing here: a marquee is continuous motion, so `reducedMotion: 'disable'` is only half
@@ -4226,16 +9773,32 @@ var kuinetic = (() => {
      * `marquee-scroll-linked` is unaffected: its position comes from `animation-timeline: scroll()`,
      * not from an activation.
      */
-    cssPrimitive("text-marquee", [CHANNEL.translate], {
+    // `'discrete'` alongside `translate`: the unconditional rule shared by `marquee`/
+    // `marquee-scroll-linked` also pins `display: flex` so the two duplicated text spans it draws sit
+    // side by side. Unrelated to `catalog/discrete.ts`'s show/hide use of the same channel — see that
+    // channel's own doc comment in `test/support/channel-properties.ts`.
+    cssPrimitive("text-marquee", [CHANNEL.translate, "discrete"], {
       timelines: ["time", "scroll"],
       defaultActivation: "load",
       reducedMotion: "disable"
     }),
-    cssPrimitive("redaction-reveal", [CHANNEL.clip]),
-    cssPrimitive("text-3d-extrude", [CHANNEL.rotate, CHANNEL.translate], { parameters: extrudeParams })
+    // `'discrete'` alongside `clip`: the unconditional rule also pins `display: inline-block` for
+    // sizing, same reasoning as `text-marquee` above.
+    cssPrimitive("redaction-reveal", [CHANNEL.clip, "discrete"]),
+    // `'text-shadow'` beside the two transform channels: the keyframe tweens `rotate`/`translate`,
+    // but the unconditional `[data-kui-fx~='text-3d-extrude']` rule in `text.css` also paints a
+    // six-layer `text-shadow` stack — the extrusion itself, and the loudest thing this effect does.
+    // It went undeclared from the day the effect landed because `text-shadow` was mapped under no
+    // channel in `test/support/channel-properties.ts`, so the static-rule invariant never looked at
+    // the property. Nothing else in the catalog writes `text-shadow` yet, which is the only reason
+    // this never surfaced as a real collision; the channel is what stops the second one from doing so.
+    // `'discrete'` for the same rule's `display: inline-block` sizing declaration.
+    cssPrimitive("text-3d-extrude", [CHANNEL.rotate, CHANNEL.translate, "text-shadow", "discrete"], {
+      parameters: extrudeParams
+    })
   ];
   var TEXT_CSS_PRESETS = [
-    { name: "gradient-shimmer", primitive: "text-shimmer", keyframes: "kui-gradient-shimmer" },
+    { name: "gradient-shimmer", phase: "idle", primitive: "text-shimmer", keyframes: "kui-gradient-shimmer" },
     { name: "gradient-sweep", primitive: "text-gradient-sweep", keyframes: "kui-gradient-sweep" },
     {
       name: "highlight-sweep",
@@ -4248,7 +9811,8 @@ var kuinetic = (() => {
     { name: "var-weight", primitive: "var-weight", keyframes: "kui-var-weight" },
     { name: "var-width", primitive: "var-width", keyframes: "kui-var-width" },
     { name: "var-slant", primitive: "var-slant", keyframes: "kui-var-slant" },
-    { name: "marquee", primitive: "text-marquee", keyframes: "kui-marquee" },
+    { name: "var-axis", primitive: "var-axis", keyframes: "kui-var-axis" },
+    { name: "marquee", phase: "idle", primitive: "text-marquee", keyframes: "kui-marquee" },
     { name: "marquee-scroll-linked", primitive: "text-marquee", keyframes: "kui-marquee" },
     { name: "redaction-reveal", primitive: "redaction-reveal", keyframes: "kui-redaction-reveal" },
     { name: "text-3d-extrude", primitive: "text-3d-extrude", keyframes: "kui-text-3d-extrude" }
@@ -4280,13 +9844,13 @@ var kuinetic = (() => {
       type: "keyword",
       default: "chars",
       cssProperty: "--kui-unit",
-      values: ["chars", "words", "lines"]
+      keywords: ["chars", "words", "lines"]
     },
     direction: {
       type: "keyword",
       default: "fade",
       cssProperty: "--kui-direction",
-      values: ["fade", "up", "down", "mask"]
+      keywords: ["fade", "up", "down", "mask"]
     }
   };
   var motionParams = {
@@ -4300,12 +9864,12 @@ var kuinetic = (() => {
       type: "keyword",
       default: "wave",
       cssProperty: "--kui-motion",
-      values: ["wave", "jitter"]
+      keywords: ["wave", "jitter"]
     }
   };
   var typewriterParams = {
     step: { type: "time", default: "55ms", cssProperty: "--kui-step" },
-    loop: { type: "keyword", default: "false", cssProperty: "--kui-loop", values: ["true", "false"] },
+    loop: { type: "keyword", default: "false", cssProperty: "--kui-loop", keywords: ["true", "false"] },
     ...TRIGGER_DELAY_PARAM
   };
   var scrambleParams = {
@@ -4325,7 +9889,7 @@ var kuinetic = (() => {
       type: "keyword",
       default: "upper",
       cssProperty: "--kui-charset",
-      values: ["upper", "binary", "symbols"]
+      keywords: ["upper", "binary", "symbols"]
     }
   };
   var wordCyclerParams = {
@@ -4337,8 +9901,16 @@ var kuinetic = (() => {
     ...TRIGGER_DELAY_PARAM
   };
   function prepareSplitText(el, params, ctx) {
+    if (hasInteractiveDescendant(el)) {
+      ctx.warn(
+        "split-text would remove the link or control inside this element \u2014 apply it to a leaf element instead"
+      );
+      return () => {
+      };
+    }
     const doc = el.ownerDocument;
     const unit = params.text("unit", "chars");
+    if (unit === "lines") return prepareResponsiveLines(el, params, ctx);
     const direction = params.text("direction", "fade");
     const layers = installSplitLayers(el, doc);
     layers.decorative.setAttribute("data-kui-split-fx", direction);
@@ -4348,7 +9920,10 @@ var kuinetic = (() => {
     const finished = new Promise((resolve) => {
       settle2 = resolve;
     });
-    const timer = ctx.win.setTimeout(settle2, splitRevealFinishMs(params, items.length));
+    const timer = ctx.win.setTimeout(() => {
+      layers.restore();
+      settle2();
+    }, splitRevealFinishMs(params, items.length));
     return {
       cleanup: () => {
         ctx.win.clearTimeout(timer);
@@ -4357,11 +9932,106 @@ var kuinetic = (() => {
       finished,
       finish: () => {
         ctx.win.clearTimeout(timer);
+        layers.restore();
         settle2();
       }
     };
   }
-  function prepareSplitMotion(el, params) {
+  function textInlineSize(el, win) {
+    const style = win.getComputedStyle(el);
+    const vertical = /^(vertical|sideways)/.test(style.writingMode);
+    const rect = el.getBoundingClientRect();
+    const measured = vertical ? el.clientHeight : el.clientWidth;
+    const fallback = vertical ? rect.height : rect.width;
+    const padding = vertical ? parseFloat(style.paddingBlockStart) + parseFloat(style.paddingBlockEnd) : parseFloat(style.paddingInlineStart) + parseFloat(style.paddingInlineEnd);
+    return (measured || fallback) - (Number.isNaN(padding) ? 0 : padding);
+  }
+  function lineCompletion(ctx, params, layers, count) {
+    let settle2;
+    const finished = new Promise((resolve) => {
+      settle2 = resolve;
+    });
+    const land = () => {
+      ctx.win.clearTimeout(timer);
+      timer = void 0;
+      layers.decorative.removeAttribute("aria-hidden");
+      layers.srOnly.remove();
+      settle2();
+    };
+    let timer = ctx.win.setTimeout(land, splitRevealFinishMs(params, count));
+    return {
+      finished,
+      land,
+      rearm(nextCount) {
+        if (timer === void 0) return;
+        ctx.win.clearTimeout(timer);
+        timer = ctx.win.setTimeout(land, splitRevealFinishMs(params, nextCount));
+      },
+      cancel() {
+        if (timer !== void 0) ctx.win.clearTimeout(timer);
+      }
+    };
+  }
+  function watchLineChanges(el, ctx, onResize, onFontReady) {
+    let active = true;
+    const frame = frameScheduler(ctx.win, onResize);
+    const watch = watchElementSize(ctx.win, frame.request);
+    watch.observe(el);
+    const fonts = el.ownerDocument.fonts;
+    if (fonts && fonts.status !== "loaded") {
+      void fonts.ready.then(() => {
+        if (!active) return;
+        onFontReady();
+        frame.request();
+      });
+    }
+    return () => {
+      active = false;
+      watch.disconnect();
+      frame.cancel();
+    };
+  }
+  function prepareResponsiveLines(el, params, ctx) {
+    const doc = el.ownerDocument;
+    const layers = installSplitLayers(el, doc);
+    layers.decorative.setAttribute("data-kui-split-fx", params.text("direction", "fade"));
+    applyStaggerVars(layers.decorative, params);
+    const items = appendSpansFor("lines", layers.decorative, doc, layers.originalText);
+    let inlineSize = textInlineSize(el, ctx.win);
+    let force = false;
+    let destroyed = false;
+    const completion = lineCompletion(ctx, params, layers, items.length);
+    const rewrap = () => {
+      if (destroyed) return;
+      const nextSize = textInlineSize(el, ctx.win);
+      if (!force && nextSize === inlineSize) return;
+      force = false;
+      inlineSize = nextSize;
+      const lines = rewrapLineSpans(layers.decorative, doc);
+      completion.rearm(lines.length);
+    };
+    const stopWatching = watchLineChanges(el, ctx, rewrap, () => {
+      force = true;
+    });
+    return {
+      cleanup: () => {
+        destroyed = true;
+        stopWatching();
+        completion.cancel();
+        layers.restore();
+      },
+      finished: completion.finished,
+      finish: completion.land
+    };
+  }
+  function prepareSplitMotion(el, params, ctx) {
+    if (hasInteractiveDescendant(el)) {
+      ctx.warn(
+        "split-text-motion would remove the link or control inside this element \u2014 apply it to a leaf element instead"
+      );
+      return () => {
+      };
+    }
     const doc = el.ownerDocument;
     const motion = params.text("motion", "wave");
     const layers = installSplitLayers(el, doc);
@@ -4371,6 +10041,13 @@ var kuinetic = (() => {
     return layers.restore;
   }
   function prepareTypewriter(el, params, ctx) {
+    if (hasInteractiveDescendant(el)) {
+      ctx.warn(
+        "typewriter would remove the link or control inside this element \u2014 apply it to a leaf element instead"
+      );
+      return () => {
+      };
+    }
     const loop2 = params.is("loop");
     const layers = installSplitLayers(el, el.ownerDocument);
     layers.decorative.classList.add("kui-typewriter");
@@ -4402,6 +10079,13 @@ var kuinetic = (() => {
     };
   }
   function prepareScramble(el, params, ctx) {
+    if (hasInteractiveDescendant(el)) {
+      ctx.warn(
+        "scramble-text would remove the link or control inside this element \u2014 apply it to a leaf element instead"
+      );
+      return () => {
+      };
+    }
     const charset = SCRAMBLE_CHARSETS[params.text("charset", "upper")];
     const revealEvery = Math.max(1, Math.round(params.num("revealEvery", 2)));
     const node = el;
@@ -4432,7 +10116,10 @@ var kuinetic = (() => {
         if (ticks % revealEvery === 0) resolved++;
         render();
         const done = resolved >= graphemes.length;
-        if (done) releaseSizeLock();
+        if (done) {
+          releaseSizeLock();
+          layers.restore();
+        }
         return done;
       }
     });
@@ -4448,51 +10135,74 @@ var kuinetic = (() => {
         resolved = graphemes.length;
         render();
         releaseSizeLock();
+        layers.restore();
       }
     };
   }
   function prepareWordCycler(el, params, ctx) {
+    if (hasInteractiveDescendant(el)) {
+      ctx.warn(
+        "word-cycler would remove the link or control inside this element \u2014 apply it to a leaf element instead"
+      );
+      return () => {
+      };
+    }
     const words = params.text("words", "").split("|").map((word) => word.trim()).filter(Boolean);
     if (words.length === 0) return () => {
     };
-    const restoreChildren = captureChildren(el);
+    const layers = installSplitLayers(el, el.ownerDocument);
     const swapMs = 150;
     let index = 0;
-    el.textContent = words[0];
+    layers.decorative.textContent = words[0];
+    const pendingSwaps = /* @__PURE__ */ new Set();
+    function cancelPendingSwaps() {
+      for (const handle of pendingSwaps) ctx.win.clearTimeout(handle);
+      pendingSwaps.clear();
+    }
     const run = createStepRunner(ctx.win, {
       delayMs: params.timing.delayMs ?? params.ms("delay", 0),
       stepMs: params.ms("interval", 2200),
       tick: () => {
         el.classList.add("kui-word-cycler-swap");
-        ctx.win.setTimeout(() => {
+        const handle = ctx.win.setTimeout(() => {
+          pendingSwaps.delete(handle);
           index = (index + 1) % words.length;
-          el.textContent = words[index];
+          layers.decorative.textContent = words[index];
           el.classList.remove("kui-word-cycler-swap");
         }, swapMs);
+        pendingSwaps.add(handle);
         return false;
       }
     });
     return {
       cleanup: () => {
         run.stop();
+        cancelPendingSwaps();
         el.classList.remove("kui-word-cycler-swap");
-        restoreChildren();
+        layers.restore();
       },
       finished: run.finished,
-      finish: () => run.stop()
+      finish: () => {
+        run.stop();
+        cancelPendingSwaps();
+        el.classList.remove("kui-word-cycler-swap");
+      }
     };
   }
   var TEXT_JS_PRIMITIVES = [
-    jsTextPrimitive("split-text", [CHANNEL.opacity, CHANNEL.translate, CHANNEL.clip], {
+    // `'content'`: rewrites the element's DOM content, so two of these on one element must conflict.
+    jsTextPrimitive("split-text", [CHANNEL.opacity, CHANNEL.translate, CHANNEL.clip, "content"], {
       parameters: splitTiming,
       prepare: deferPrepare(prepareSplitText)
     }),
-    jsTextPrimitive("split-text-motion", [CHANNEL.translate, CHANNEL.rotate], {
+    // `'content'`: rewrites the element's DOM content, so two of these on one element must conflict.
+    jsTextPrimitive("split-text-motion", [CHANNEL.translate, CHANNEL.rotate, "content"], {
       parameters: motionParams,
       prepare: deferPrepare(prepareSplitMotion),
       perfClass: "continuous"
     }),
-    jsTextPrimitive("typewriter", [CHANNEL.clip], {
+    // `'content'`: rewrites the element's DOM content, so two of these on one element must conflict.
+    jsTextPrimitive("typewriter", [CHANNEL.clip, "content"], {
       parameters: typewriterParams,
       prepare: deferPrepare(prepareTypewriter),
       perfClass: "continuous"
@@ -4502,7 +10212,13 @@ var kuinetic = (() => {
       prepare: deferPrepare(prepareScramble),
       perfClass: "continuous"
     }),
-    jsTextPrimitive("word-cycler", ["content"], {
+    // `CHANNEL.opacity` alongside `'content'`: the host rule's swap transition (text.css) fades
+    // `opacity`, which `content` alone does not cover — see this preset's own `transitions` below
+    // and text.css's `[data-kui-fx~='word-cycler']` rule. Undeclared before, this primitive's fade
+    // was invisible to `findConflicts`: composing it with any other opacity-channel effect looked
+    // disjoint to the compiler while both silently fought over the same fade. `'discrete'` for the
+    // same rule's `display: inline-block` sizing declaration — same reasoning as `text-marquee`.
+    jsTextPrimitive("word-cycler", ["content", CHANNEL.opacity, "discrete"], {
       parameters: wordCyclerParams,
       prepare: deferPrepare(prepareWordCycler),
       perfClass: "continuous"
@@ -4525,12 +10241,95 @@ var kuinetic = (() => {
     { name: "scramble", primitive: "scramble-text", params: { charset: "upper" } },
     { name: "decode", primitive: "scramble-text", params: { charset: "binary" } },
     { name: "glitch", primitive: "scramble-text", params: { charset: "symbols" } },
-    { name: "word-cycler", primitive: "word-cycler" }
+    {
+      name: "word-cycler",
+      primitive: "word-cycler",
+      // Transcribed from text.css's own `transition: opacity 150ms ease-out` — a cycler paces
+      // itself off `interval:`, not a generated `--kui-word-cycler-duration`, so this is a literal
+      // the same way `header-shrink`'s three segments are.
+      transitions: [{ property: "opacity", duration: "150ms", easing: "ease-out" }]
+    }
   ];
   var TEXT_PRIMITIVES = [...TEXT_CSS_PRIMITIVES, ...TEXT_JS_PRIMITIVES];
   var TEXT_PRESETS = [...TEXT_CSS_PRESETS, ...TEXT_JS_PRESETS];
   function registerText(registry) {
     return registry.registerPrimitives(TEXT_PRIMITIVES).registerPresets(TEXT_PRESETS);
+  }
+
+  // src/effects/catalog/transforms.ts
+  var ANGLE_UNSET = "";
+  var rotateStaticParams = {
+    /**
+     * Same `type: 'angle'` as `rotate-in`'s own `angle:` (`core.ts`), deliberately — an author who
+     * already knows `rotate-in angle:180deg` reaches for the identical spelling here, and both go
+     * through the one `angle` grammar in `core/params.ts` (`45`, `45d`, and `45deg` all mean the
+     * same thing; `rad`/`grad`/`turn` are accepted too).
+     *
+     * `cssProperty` is declared for schema-shape consistency — `ParamSpec.cssProperty` is a required
+     * field — even though no stylesheet ever reads `--kui-static-angle`. `prepareRotateStatic` below
+     * reads the validated value straight off `params.text()` and writes it through `ctx.style.set()`,
+     * the same indirection `background-media`'s `src`/`focus`/`overlay` already use for a value that
+     * is consumed entirely in JavaScript and never substituted into a `var()`.
+     *
+     * Defaults to *nothing written* rather than some small nonzero nudge (`rotate-in`'s `-8deg`,
+     * `orbit`'s `360deg`): those defaults exist because the *bare* name is meant to look like
+     * something on its own (an entrance nudge, a full spin). A bare `rotate-static` with no authored
+     * angle has no canonical look to default to — any nonzero value would be an arbitrary visual
+     * surprise for an author who typed the name to see what it does — so the honest default is a
+     * no-op until `angle:` is written.
+     *
+     * This slot previously read `default: '0deg'` and called that "a documented no-op", which it was
+     * not: `prepareRotateStatic` wrote it unconditionally, so `<div class="tilted"
+     * data-kui="rotate-static">` on a stylesheet rule of `rotate: 12deg` visibly *un*-rotated the
+     * moment the library started. An inline `rotate: 0deg` is not the element's rest state; it is an
+     * override of it. See {@link ANGLE_UNSET} for why the fix is a sentinel and not a comparison.
+     */
+    angle: { type: "angle", default: ANGLE_UNSET, cssProperty: "--kui-static-angle" }
+  };
+  function prepareRotateStatic(el, params, ctx) {
+    const angle = params.text("angle", ANGLE_UNSET);
+    if (angle !== ANGLE_UNSET) ctx.style.set("rotate", angle);
+    return continuousSetup(() => {
+    });
+  }
+  var TRANSFORMS_PRIMITIVES = [
+    {
+      id: "rotate-static",
+      renderer: "javascript",
+      channels: [CHANNEL.rotate],
+      parameters: rotateStaticParams,
+      // An abstention, not a claim — this primitive never reads `Timeline` at all, the same reason
+      // `background-media` spreads the same shared constant rather than naming `['time']` and
+      // narrowing what a scrubbed neighbour on the same element may still request. See
+      // `TIMELINE_AGNOSTIC`'s own doc (`effects/shared.ts`).
+      supportedTimelines: TIMELINE_AGNOSTIC,
+      // Same three `background-media` supports, and for the same reason: `'load'` is the default so
+      // an element already on screen at load, sitting in a background tab, or still zero-area does
+      // not wait on an `IntersectionObserver` that may never fire to be given its tilt. `'enter'` and
+      // `'manual'` stay available for an author who deliberately wants the tilt to arrive later.
+      supportedActivations: ["load", "enter", "manual"],
+      defaultActivation: "load",
+      // Writes only the individual `rotate` transform property — compositor-only, no layout or paint
+      // implication, the same class `parallax`'s `translate`-only write earns.
+      perfClass: "compositor",
+      // Not `'disable'`, which activates nothing on the whole host and so silenced every composed
+      // neighbour, and not because a fixed tilt is exempt from reduced motion — see the module doc.
+      reducedMotion: "shorten",
+      // No timing tokens at all, and for a different reason than `background-media`'s: that primitive
+      // is refused because it paints a backdrop instead of animating; this one is refused because it
+      // writes its one property exactly once, synchronously, on activation — there is no later moment
+      // a `delay` could push the write to, no span a `duration` could stretch it across, and no curve
+      // an `ease` could bend a single write along.
+      prepare: withTimingContract(
+        "rotate-static",
+        { because: "it sets a fixed rotation once rather than animating, so there is no motion to time" },
+        deferPrepare(prepareRotateStatic)
+      )
+    }
+  ];
+  var TRANSFORMS_PRESETS = [{ name: "rotate-static", primitive: "rotate-static" }];
+  function registerTransforms(registry) {
+    return registry.registerPrimitives(TRANSFORMS_PRIMITIVES).registerPresets(TRANSFORMS_PRESETS);
   }
 
   // src/effects/catalog/index.ts
@@ -4541,13 +10340,28 @@ var kuinetic = (() => {
     registerFeedback(registry);
     registerNumbers(registry);
     registerInteraction(registry);
+    registerInteractionProximity(registry);
+    registerDiscrete(registry);
+    registerTransforms(registry);
+    registerMaterials(registry);
     return registry;
   }
 
   // src/effects/catalog/core.ts
   var distance2 = {
     distance: { type: "length", default: "24px", cssProperty: "--kui-distance" },
-    opacity: { type: "number", default: "0", cssProperty: "--kui-from-opacity" }
+    /*
+     * `'number|percentage'` because `--kui-from-opacity` feeds `opacity:`, and CSS spells that
+     * property's value `<alpha-value>` — a number *or* a percentage, meaning the same thing either
+     * way. An author who writes `opacity:80%` is writing correct CSS, and rejecting it taught them
+     * a rule this library invented. The union accepts both and `normalise` in `core/params.ts`
+     * converts the percentage, so `0.8` is what reaches the custom property from either spelling
+     * and there is still exactly one value shape in devtools.
+     *
+     * Purely a widening: every attribute already written against this parameter is a bare number,
+     * and a bare number is still the canonical form.
+     */
+    opacity: { type: "number|percentage", default: "0", cssProperty: "--kui-from-opacity" }
   };
   var ENTRANCE_TIMELINES = ["time", "view", "scroll", "pin"];
   var PRIMITIVES = [
@@ -4642,7 +10456,10 @@ var kuinetic = (() => {
       reducedMotion: "disable"
     }),
     cssPrimitive("scroll-fade", [CHANNEL.opacity], {
-      parameters: { opacity: { type: "number", default: "0", cssProperty: "--kui-from-opacity" } },
+      // `'number|percentage'` for the reason `distance.opacity` above gives.
+      parameters: {
+        opacity: { type: "number|percentage", default: "0", cssProperty: "--kui-from-opacity" }
+      },
       timelines: ["view", "scroll", "pin"],
       activations: ["manual"],
       reducedMotion: "disable"
@@ -4676,7 +10493,10 @@ var kuinetic = (() => {
       activations: ["manual"],
       reducedMotion: "disable"
     }),
-    cssPrimitive("progress", [CHANNEL.scale], {
+    // `'transform-origin'` alongside `scale`: `scroll-progress-bar`/`-y` pin the bar's growth edge
+    // with `transform-origin: left center` (scroll.css) — undeclared until channel-properties.ts
+    // gained an entry for it, which made the write structurally invisible to the static-rule check.
+    cssPrimitive("progress", [CHANNEL.scale, "transform-origin"], {
       timelines: ["scroll", "view"],
       activations: ["manual"],
       reducedMotion: "disable"
@@ -4692,62 +10512,63 @@ var kuinetic = (() => {
     })
   ];
   var p = (name, primitive, keyframes, params) => ({ name, primitive, keyframes, ...params ? { params } : {} });
-  var pIn = (name, primitive, keyframes, params) => ({ ...p(name, primitive, keyframes, params), cloak: true });
+  var pIn = (name, primitive, keyframes, params) => ({ ...p(name, primitive, keyframes, params), cloak: true, phase: "entrance" });
+  var pOut = (name, primitive, keyframes, params) => ({ ...p(name, primitive, keyframes, params), phase: "exit" });
   var FADE = [
     pIn("fade-in", "reveal", "kui-in"),
-    p("fade-out", "reveal", "kui-out"),
+    pOut("fade-out", "reveal", "kui-out"),
     pIn("fade-up", "reveal", "kui-in-up"),
     pIn("fade-down", "reveal", "kui-in-down"),
-    pIn("fade-left", "reveal", "kui-in-left"),
-    pIn("fade-right", "reveal", "kui-in-right"),
-    p("fade-out-up", "reveal", "kui-out-up"),
-    p("fade-out-down", "reveal", "kui-out-down"),
-    p("fade-out-left", "reveal", "kui-out-left"),
-    p("fade-out-right", "reveal", "kui-out-right")
+    pIn("fade-left", "reveal", "kui-in-right"),
+    pIn("fade-right", "reveal", "kui-in-left"),
+    pOut("fade-out-up", "reveal", "kui-out-up"),
+    pOut("fade-out-down", "reveal", "kui-out-down"),
+    pOut("fade-out-left", "reveal", "kui-out-left"),
+    pOut("fade-out-right", "reveal", "kui-out-right")
   ];
   var SLIDE_PARAMS = { distance: "100px", opacity: "1" };
   var SLIDE = [
     pIn("slide-up", "reveal", "kui-in-up", SLIDE_PARAMS),
     pIn("slide-down", "reveal", "kui-in-down", SLIDE_PARAMS),
-    pIn("slide-left", "reveal", "kui-in-left", SLIDE_PARAMS),
-    pIn("slide-right", "reveal", "kui-in-right", SLIDE_PARAMS),
-    p("slide-out-up", "reveal", "kui-out-up", SLIDE_PARAMS),
-    p("slide-out-down", "reveal", "kui-out-down", SLIDE_PARAMS),
-    p("slide-out-left", "reveal", "kui-out-left", SLIDE_PARAMS),
-    p("slide-out-right", "reveal", "kui-out-right", SLIDE_PARAMS)
+    pIn("slide-left", "reveal", "kui-in-right", SLIDE_PARAMS),
+    pIn("slide-right", "reveal", "kui-in-left", SLIDE_PARAMS),
+    pOut("slide-out-up", "reveal", "kui-out-up", SLIDE_PARAMS),
+    pOut("slide-out-down", "reveal", "kui-out-down", SLIDE_PARAMS),
+    pOut("slide-out-left", "reveal", "kui-out-left", SLIDE_PARAMS),
+    pOut("slide-out-right", "reveal", "kui-out-right", SLIDE_PARAMS)
   ];
   var LOGICAL = [
-    pIn("slide-inline-start", "reveal", "kui-in-inline-start", SLIDE_PARAMS),
-    pIn("slide-inline-end", "reveal", "kui-in-inline-end", SLIDE_PARAMS),
+    pIn("slide-inline-start", "reveal", "kui-in-inline-end", SLIDE_PARAMS),
+    pIn("slide-inline-end", "reveal", "kui-in-inline-start", SLIDE_PARAMS),
     pIn("slide-block-start", "reveal", "kui-in-up", SLIDE_PARAMS),
     pIn("slide-block-end", "reveal", "kui-in-down", SLIDE_PARAMS)
   ];
   var ZOOM = [
     pIn("zoom-in", "scale", "kui-zoom-in"),
-    p("zoom-out", "scale", "kui-zoom-out"),
+    pOut("zoom-out", "scale", "kui-zoom-out"),
     pIn("pop-in", "scale", "kui-zoom-in", { scale: "0.6", ease: "back-out" }),
-    p("pop-out", "scale", "kui-zoom-out", { scale: "0.6", ease: "back-in" }),
+    pOut("pop-out", "scale", "kui-zoom-out", { scale: "0.6", ease: "back-in" }),
     pIn("zoom-in-up", "scale-move", "kui-zoom-in-up"),
     pIn("zoom-in-down", "scale-move", "kui-zoom-in-down")
   ];
   var FLIP = [
     pIn("flip-in-x", "flip-3d", "kui-flip-in-x"),
     pIn("flip-in-y", "flip-3d", "kui-flip-in-y"),
-    p("flip-out-x", "flip-3d", "kui-flip-out-x"),
-    p("flip-out-y", "flip-3d", "kui-flip-out-y")
+    pOut("flip-out-x", "flip-3d", "kui-flip-out-x"),
+    pOut("flip-out-y", "flip-3d", "kui-flip-out-y")
   ];
   var ROTATE = [
     pIn("rotate-in", "rotate", "kui-rotate-in"),
-    p("rotate-out", "rotate", "kui-rotate-out"),
+    pOut("rotate-out", "rotate", "kui-rotate-out"),
     pIn("rotate-in-left", "rotate", "kui-rotate-in", { angle: "-45deg" }),
     pIn("rotate-in-right", "rotate", "kui-rotate-in", { angle: "45deg" }),
     pIn("roll-in", "roll", "kui-roll-in"),
-    p("roll-out", "roll", "kui-roll-out"),
+    pOut("roll-out", "roll", "kui-roll-out"),
     pIn("swing-in", "rotate", "kui-swing-in", { angle: "-15deg", ease: "back-out" })
   ];
   var BLUR = [
     pIn("blur-in", "blur", "kui-blur-in"),
-    p("blur-out", "blur", "kui-blur-out"),
+    pOut("blur-out", "blur", "kui-blur-out"),
     pIn("fade-blur-up", "reveal-blur", "kui-fade-blur-up"),
     pIn("fade-blur-in", "reveal-blur", "kui-fade-blur-in")
   ];
@@ -4797,50 +10618,66 @@ var kuinetic = (() => {
 
   // src/effects/step-marking.ts
   var STEP_STATE_ATTR = "data-kui-step-state";
-  function selectorBreadth(selector, doc) {
-    try {
-      if (doc.documentElement.matches(selector)) return "document-wide";
-      if (doc.body?.matches(selector)) return "document-wide";
-      return "ok";
-    } catch {
-      return "invalid";
+  var STEP_OFFSET_ATTR = "data-kui-step-offset";
+  function placeInGroups(nodes) {
+    const order = [];
+    const sizes = /* @__PURE__ */ new Map();
+    for (const node of nodes) {
+      const parent = node.parentElement;
+      const position = sizes.get(parent) ?? 0;
+      sizes.set(parent, position + 1);
+      order.push({ node, parent, position });
     }
+    return { order, sizes };
   }
-  function resolveTarget(selector, ctx, effect) {
-    if (!selector) return selector;
-    const breadth = selectorBreadth(selector, ctx.doc);
-    if (breadth === "invalid") {
-      ctx.warn(`${effect} target "${selector}" is not a valid selector and will be ignored`);
-      return "";
-    }
-    if (breadth === "document-wide") {
-      ctx.warn(`${effect} target "${selector}" matches the whole document and will be ignored`);
-      return "";
-    }
-    return selector;
+  function indexWithin(index, size) {
+    return (index % size + size) % size;
   }
-  function createStepMarker(resolve) {
+  function createStepMarker(resolve, warn) {
     const ledgers = /* @__PURE__ */ new Map();
+    const styles = /* @__PURE__ */ new Map();
+    let warned = false;
     return {
       mark(index) {
-        const seen = /* @__PURE__ */ new Map();
-        for (const node of resolve()) {
-          const parent = node.parentElement;
-          const position = seen.get(parent) ?? 0;
-          seen.set(parent, position + 1);
+        const { order, sizes } = placeInGroups(resolve());
+        if (!warned && warn && new Set(sizes.values()).size > 1) {
+          warned = true;
+          warn(
+            `target matched groups of different sizes (${[...sizes.values()].join(", ")}) \u2014 the shorter group wraps onto its own ring, so its active element will not line up with the longer one`
+          );
+        }
+        for (const { node, parent, position } of order) {
+          const size = sizes.get(parent);
+          const local = indexWithin(index, size);
           let ledger = ledgers.get(node);
           if (!ledger) {
             ledger = createAttributeLedger(node);
             ledgers.set(node, ledger);
           }
-          ledger.set(STEP_STATE_ATTR, stepStateFor(position, index));
+          ledger.set(STEP_STATE_ATTR, stepStateFor(position, local));
+          let style = styles.get(node);
+          if (!style) {
+            style = createStyleLedger(node);
+            styles.set(node, style);
+          }
+          const offset = circularOffset(position, local, size);
+          style.set("--kui-offset", String(offset));
+          ledger.set(STEP_OFFSET_ATTR, String(offset));
+          style.set("--kui-item-count", String(size));
         }
       },
       restore() {
         for (const ledger of ledgers.values()) ledger.restore();
+        for (const style of styles.values()) style.restore();
         ledgers.clear();
+        styles.clear();
       }
     };
+  }
+  function circularOffset(position, index, size) {
+    if (size <= 0) return 0;
+    const forward = ((position - index) % size + size) % size;
+    return forward > Math.floor(size / 2) ? forward - size : forward;
   }
   function stepStateFor(position, index) {
     if (position < index) return "before";
@@ -4853,6 +10690,9 @@ var kuinetic = (() => {
     duration: { type: "time", default: "400ms", cssProperty: "--kui-duration" },
     ...TRIGGER_DELAY_PARAM,
     ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" }
+  };
+  var FORM_STATE_TIMING = {
+    because: "forms.css pins its timing literally \u2014 the motion lands on a sibling that inline custom properties cannot reach"
   };
   var NATIVE_STATE_PRIMITIVE = {
     id: "native-state",
@@ -4867,7 +10707,7 @@ var kuinetic = (() => {
     // carries the attribute, so base.css's policy layer enforces this through its sibling
     // `transition-duration` rules rather than the `animation-*` ones.
     reducedMotion: "disable",
-    prepare: () => inertInstance()
+    prepare: withTimingContract("native-state", FORM_STATE_TIMING, () => inertInstance())
   };
   function prepareSiblingScale(cssProperty) {
     return (el, params) => {
@@ -4887,7 +10727,7 @@ var kuinetic = (() => {
       defaultActivation: "load",
       perfClass: "compositor",
       reducedMotion: "disable",
-      prepare: deferPrepare(prepareSiblingScale(cssProperty))
+      prepare: withTimingContract(id, FORM_STATE_TIMING, deferPrepare(prepareSiblingScale(cssProperty)))
     };
   }
   var TOGGLE_MORPH_PRIMITIVE = siblingScalePrimitive("toggle-morph", "--kui-toggle-scale");
@@ -4914,6 +10754,18 @@ var kuinetic = (() => {
       supportedActivations: ["load"],
       defaultActivation: "load",
       perfClass: "compositor",
+      /*
+       * Right for the family this helper was written for, and *only* for it. `strength-meter` and
+       * `range-fill` publish a value the browser then transitions, and base.css shortens that
+       * transition to 1ms — so refusing to activate is a complete treatment: the meter still sits at
+       * its correct resting position, with nothing left over to take away.
+       *
+       * It is the wrong answer for a primitive whose output is behaviour rather than a resting
+       * style, because `disable` is enforced by the animator rather than by CSS — `openGate`
+       * (`core/animator.ts`) marks the element finished and never calls `activate()`, so a deferred
+       * setup simply never runs. `STEP_PROGRESS_PRIMITIVE` overrides this for exactly that reason;
+       * see the note there.
+       */
       reducedMotion: "disable",
       prepare
     };
@@ -4966,39 +10818,155 @@ var kuinetic = (() => {
   function nextStep(step, total) {
     return total > 0 ? (step + 1) % total : 0;
   }
+  function prevStep(step, total) {
+    return total > 0 ? (step - 1 + total) % total : 0;
+  }
+  function clampStep(step, total) {
+    return total > 0 ? (step % total + total) % total : 0;
+  }
+  function countSteps(params, resolveSteps) {
+    const authored = Math.round(params.num("steps", 0));
+    if (authored >= 1) return authored;
+    const groups = /* @__PURE__ */ new Map();
+    for (const node of resolveSteps()) {
+      groups.set(node.parentElement, (groups.get(node.parentElement) ?? 0) + 1);
+    }
+    return Math.max(1, ...groups.values());
+  }
+  function delegateControls(request) {
+    const { el, ctx, scope, groups } = request;
+    if (groups.length === 0) return () => {
+    };
+    const root = scope === "page" ? ctx.doc : el;
+    const onClick = (event) => {
+      const from = event.target;
+      if (typeof from?.closest !== "function") return;
+      for (const { selector, run } of groups) {
+        const matches = queryScoped(el, ctx, selector, scope);
+        const matched = new Set(matches);
+        let node = from;
+        while (node && !matched.has(node)) node = node.parentElement;
+        if (!node) continue;
+        run(node, matches.indexOf(node));
+      }
+    };
+    root.addEventListener("click", onClick);
+    return () => root.removeEventListener("click", onClick);
+  }
   function prepareStepProgress(el, params, ctx) {
-    const total = Math.max(1, Math.round(params.num("steps", 4)));
     const selector = resolveTarget(params.text("target"), ctx, "step-progress");
+    const scope = scopeParam(params, "page");
+    const resolveSteps = () => selector ? queryScoped(el, ctx, selector, scope) : el.children;
     const marker = createStepMarker(
-      () => selector ? ctx.doc.querySelectorAll(selector) : el.children
+      resolveSteps,
+      (message) => ctx.warn(`step-progress ${message}`)
     );
+    const total = () => countSteps(params, resolveSteps);
     const self = createAttributeLedger(el);
+    const selfStyle = createStyleLedger(el);
     let step = 0;
     const render = () => {
       self.set("data-kui-step", String(step));
+      selfStyle.set("--kui-step", String(step));
       marker.mark(step);
     };
-    const advance = () => {
-      step = nextStep(step, total);
+    const goTo = (index) => {
+      step = clampStep(index, total());
       render();
     };
-    el.addEventListener("click", advance);
+    const groups = [];
+    const bindControl = (param, run) => {
+      const selector2 = resolveTarget(params.text(param), ctx, `step-progress ${param}`);
+      if (!selector2) return false;
+      if (queryScoped(el, ctx, selector2, scope).length === 0) {
+        ctx.warn(`step-progress ${param} "${selector2}" matched nothing`);
+      }
+      groups.push({ selector: selector2, run });
+      return true;
+    };
+    const named = [
+      bindControl("next", () => goTo(nextStep(step, total()))),
+      bindControl("prev", () => goTo(prevStep(step, total()))),
+      // A jump control's index is its own position among the controls, in document order — the dots
+      // are written in the same order as the slides they select, so nothing has to be numbered by
+      // hand and adding a slide cannot desynchronise the pair. The `>= 0` is a floor on the contract
+      // rather than a live case: `delegateControls` numbers a control against the same match set it
+      // found it in, so a press cannot report a position that set does not have.
+      bindControl("jump", (_node, position) => {
+        if (position >= 0) goTo(position);
+      })
+    ].some(Boolean);
+    const advance = () => goTo(nextStep(step, total()));
+    if (!named) el.addEventListener("click", advance);
+    const releaseControls = delegateControls({ el, ctx, scope, groups });
     render();
     return () => {
-      el.removeEventListener("click", advance);
+      if (!named) el.removeEventListener("click", advance);
+      releaseControls();
       self.restore();
+      selfStyle.restore();
       marker.restore();
     };
   }
-  var STEP_PROGRESS_PRIMITIVE = jsInputPrimitive(
+  var STEP_PROGRESS_BASE = jsInputPrimitive(
     "step-progress",
     ["state"],
     {
-      steps: { type: "number", default: "4", cssProperty: "--kui-steps", minimum: 1, maximum: 20, integer: true },
-      target: { type: "text", default: "", cssProperty: "--kui-target" }
+      // Empty default, not '4': `readParams` fills every declared default in unconditionally and
+      // does not validate it, so an empty one is how `prepareStepProgress` tells "unauthored" from
+      // "authored 4" and knows to count the elements instead. The bounds still screen an authored
+      // value; a counted one is a fact about the DOM and is not capped by them.
+      steps: { type: "number", default: "", cssProperty: "--kui-steps", minimum: 1, maximum: 20, integer: true },
+      target: { type: "text", default: "", cssProperty: "--kui-target" },
+      // The three optional controls. Selectors, resolved and scoped exactly like `target:` — so the
+      // same quoting rule applies to one containing a space or comma. Naming any of them replaces
+      // the click-the-container form rather than adding to it; see `prepareStepProgress`.
+      next: { type: "text", default: "", cssProperty: "--kui-next" },
+      prev: { type: "text", default: "", cssProperty: "--kui-prev" },
+      jump: { type: "text", default: "", cssProperty: "--kui-jump" },
+      /*
+       * Spacing, as three numbers the stylesheet reads back off `--kui-peek` / `--kui-rest` /
+       * `--kui-main`.
+       *
+       * Unlike an `axis:` — which would only have chosen between two transforms the page was
+       * writing anyway, and so would have been a knob that does nothing — these are *values*. The
+       * library publishes them, `calc()` consumes them, and a page tuning how crowded its deck is
+       * changes one token in the attribute instead of editing a stylesheet. That is the same
+       * contract every `cssProperty` parameter in this file already has.
+       *
+       * Per `design.md` §7 the default is the `var()` fallback and is never written inline, so a
+       * deck that names neither still lands on these numbers via the page's own `var(--kui-peek,
+       * 56%)`, and no inline style appears until someone actually asks for a different one.
+       */
+      peek: { type: "percentage", default: "56%", cssProperty: "--kui-peek" },
+      rest: { type: "number", default: "0.78", cssProperty: "--kui-rest" },
+      /*
+       * The third number, and the one the other two are measured against.
+       *
+       * `peek:` is a percentage of a slide's own width and `rest:` a scale of it, so both are
+       * anchored to how big the live slide is — and that size was reachable only from the
+       * stylesheet. A deck that was too crowded could not be fixed from the attribute at all: with
+       * the live slide filling its clip, no `peek:` pushes a neighbour into view, because the
+       * neighbour is behind the live one rather than short of it. Two thirds of a knob is not a
+       * knob.
+       *
+       * A scale and not a width, which is what makes it safe to write in an attribute. Every
+       * authored parameter reaches the element as an *inline* custom property, so a media query
+       * cannot take it back — and a width is exactly the thing a phone and a desktop must disagree
+       * about. A multiplier does not care: `main:0.82` means the same "a bit smaller than its box"
+       * at 390px and at 1440px, and the page keeps owning the box. Same reason `rest:` is a number.
+       */
+      main: { type: "number", default: "1", cssProperty: "--kui-main", finite: true, minimum: 0 },
+      // Which tree `target:` is searched in. Unset means this primitive's own historical answer —
+      // see `prepareStepProgress`. One declaration, shared: `effects/step-marking.ts`.
+      scope: SCOPE_PARAM
     },
     deferPrepare(prepareStepProgress)
   );
+  var STEP_PROGRESS_PRIMITIVE = {
+    ...STEP_PROGRESS_BASE,
+    reducedMotion: "shorten"
+  };
   function nextSubmitStage(stage) {
     if (stage === "idle") return "loading";
     if (stage === "loading") return "done";
@@ -5057,18 +11025,59 @@ var kuinetic = (() => {
     SUBMIT_FLOW_PRIMITIVE
   ];
   var FORMS_PRESETS = [
-    { name: "label-float", primitive: "native-state" },
-    { name: "input-underline-grow", primitive: "native-state" },
+    { name: "label-float", primitive: "native-state", requiresOwnSubtree: true, phase: "state" },
+    {
+      name: "input-underline-grow",
+      primitive: "native-state",
+      requiresOwnSubtree: true,
+      phase: "state"
+    },
     { name: "focus-ring-grow", primitive: "focus-ring", keyframes: "kui-focus-ring-grow" },
     { name: "validate-shake", primitive: "validate-shake", keyframes: "kui-validate-shake" },
     { name: "validate-check", primitive: "validate-check", keyframes: "kui-validate-check" },
-    { name: "strength-meter", primitive: "strength-meter" },
-    { name: "toggle-morph", primitive: "toggle-morph" },
-    { name: "checkbox-draw", primitive: "native-state" },
-    { name: "radio-fill", primitive: "radio-fill" },
-    { name: "range-fill", primitive: "range-fill" },
-    { name: "submit-to-spinner-to-check", primitive: "submit-flow" },
-    { name: "step-progress", primitive: "step-progress" }
+    { name: "strength-meter", primitive: "strength-meter", requiresOwnSubtree: true, phase: "state" },
+    { name: "toggle-morph", primitive: "toggle-morph", requiresOwnSubtree: true, phase: "state" },
+    { name: "checkbox-draw", primitive: "native-state", requiresOwnSubtree: true, phase: "state" },
+    { name: "radio-fill", primitive: "radio-fill", requiresOwnSubtree: true, phase: "state" },
+    { name: "range-fill", primitive: "range-fill", phase: "state" },
+    {
+      name: "submit-to-spinner-to-check",
+      primitive: "submit-flow",
+      requiresOwnSubtree: true,
+      phase: "state"
+    },
+    { name: "step-progress", primitive: "step-progress", requiresOwnSubtree: true, phase: "state" },
+    /*
+     * Same primitive, second name — an index that wraps is a progress bar when its steps are
+     * segments of a bar and a carousel when they are slides, and the only thing separating those
+     * two readings is the stylesheet. `step-progress` was the wrong word to type on a deck of
+     * slides, which is the only reason this alias exists; nothing behaves differently under it.
+     *
+     * It is still an *index*, not a carousel component: no ARIA, no roving focus, no autoplay. That
+     * boundary is the one section H states — the library animates elements you control and does not
+     * own the widget — and naming this `carousel` does not move it.
+     *
+     * No `requiresOwnSubtree` here, unlike `step-progress` beside it. That flag means "this name's
+     * shipped CSS reaches past the element into its descendants, so the universal `target:` must
+     * refuse to relocate it" — and `forms.css` keys its stepper rules on
+     * `[data-kui-fx~='step-progress']`, which is the *name*, not the primitive. Under this name the
+     * library ships no CSS at all: the page styles its own slides off `data-kui-step-state`. Carrying
+     * the flag anyway would silently refuse a `target:` that would have worked fine.
+     */
+    /*
+     * `scope:self` is the one thing that does differ, and it is a default rather than a behaviour:
+     * `step-progress` resolves `target:`/`next:`/`prev:`/`jump:` page-wide, which is right for a bar
+     * whose segments are deliberately elsewhere (a legend beside it) and wrong for a deck. Two decks
+     * on one page are the ordinary case, not an edge one, and page-wide resolution makes them share
+     * everything: each instance binds *both* decks' arrows and marks *both* decks' slides, so
+     * clicking next on one advances the other. A deck's slides and its controls live inside it, so
+     * searching inside it is both correct and the only reading that scales past one.
+     *
+     * A default, so `scope:page` still spells the old behaviour for a deck whose arrows genuinely
+     * sit outside it, and `step-progress` — which is what the shipped stepper form is authored as —
+     * is untouched.
+     */
+    { name: "carousel", primitive: "step-progress", params: { scope: "self" }, phase: "state" }
   ];
   function registerForms(registry) {
     return registry.registerPrimitives(FORMS_PRIMITIVES).registerPresets(FORMS_PRESETS);
@@ -5076,7 +11085,7 @@ var kuinetic = (() => {
 
   // src/core/gesture.ts
   var VELOCITY_WINDOW_MS = 100;
-  var MAX_SAMPLES = 12;
+  var MAX_SAMPLES2 = 12;
   function velocityFrom(samples) {
     const last = samples[samples.length - 1];
     if (!last || samples.length < 2) return { vx: 0, vy: 0 };
@@ -5101,6 +11110,7 @@ var kuinetic = (() => {
     const threshold = options.threshold ?? 4;
     const axis = options.axis ?? "both";
     const swipeVelocity = options.swipeVelocity ?? 300;
+    const capturePointer = options.capturePointer ?? true;
     const longPressMs = options.longPressMs ?? 0;
     let samples = [];
     let origin = null;
@@ -5124,7 +11134,7 @@ var kuinetic = (() => {
       samples = [origin];
       active = false;
       longPressFired = false;
-      el.setPointerCapture?.(event.pointerId);
+      if (capturePointer) el.setPointerCapture?.(event.pointerId);
       if (longPressMs > 0) {
         longPressTimer = deps.setTimer(() => {
           longPressFired = true;
@@ -5136,7 +11146,7 @@ var kuinetic = (() => {
       if (!origin) return;
       const sample = sampleOf(event);
       samples.push(sample);
-      if (samples.length > MAX_SAMPLES) samples.shift();
+      if (samples.length > MAX_SAMPLES2) samples.shift();
       const vector = vectorNow(sample);
       if (!active && Math.hypot(vector.dx, vector.dy) < threshold) return;
       if (!active) {
@@ -5148,7 +11158,7 @@ var kuinetic = (() => {
     }
     function onUp(event) {
       clearLongPress();
-      el.releasePointerCapture?.(event.pointerId);
+      if (capturePointer) el.releasePointerCapture?.(event.pointerId);
       if (!origin) return;
       const sample = sampleOf(event);
       samples.push(sample);
@@ -5217,7 +11227,9 @@ var kuinetic = (() => {
       minimum: 0.1
     }
   };
+  var GESTURE_TIMING_REASON = "it is driven by pointer position and velocity, so it has no start moment and no authored curve";
   function gesturePrimitive(id, channels, parameters, prepare) {
+    const honours = Object.hasOwn(parameters, "duration") ? ["duration"] : [];
     return {
       id,
       renderer: "javascript",
@@ -5228,7 +11240,7 @@ var kuinetic = (() => {
       defaultActivation: "load",
       perfClass: "continuous",
       reducedMotion: "disable",
-      prepare
+      prepare: withTimingContract(id, { honours, because: GESTURE_TIMING_REASON }, prepare)
     };
   }
   function springFrom2(params) {
@@ -5320,7 +11332,12 @@ var kuinetic = (() => {
       },
       {
         axis: params.text("axis", "both"),
-        swipeVelocity: params.num("velocity", 300)
+        swipeVelocity: params.num("velocity", 300),
+        // This primitive publishes an attribute and moves nothing, so it has no reason to hold the
+        // pointer — and holding it retargets the following `click` at this element, which silently
+        // breaks every interactive child. A `swipe-x` on a carousel shell killed its own dots and
+        // buttons that way. See `capturePointer` in `core/gesture.ts`.
+        capturePointer: false
       }
     );
     return () => {
@@ -5382,19 +11399,19 @@ var kuinetic = (() => {
       ["translate"],
       {
         ...springParams2,
-        axis: { type: "keyword", default: "both", cssProperty: "--kui-axis", values: ["x", "y", "both"] },
+        axis: { type: "keyword", default: "both", cssProperty: "--kui-axis", keywords: ["x", "y", "both"] },
         bounds: { type: "number", default: "0", cssProperty: "--kui-bounds" },
         return: {
           type: "keyword",
           default: "false",
           cssProperty: "--kui-return",
-          values: ["true", "false"]
+          keywords: ["true", "false"]
         },
         inertia: {
           type: "keyword",
           default: "false",
           cssProperty: "--kui-inertia",
-          values: ["true", "false"]
+          keywords: ["true", "false"]
         },
         resistance: {
           type: "number",
@@ -5412,7 +11429,7 @@ var kuinetic = (() => {
       "swipeable",
       ["state"],
       {
-        axis: { type: "keyword", default: "both", cssProperty: "--kui-axis", values: ["x", "y", "both"] },
+        axis: { type: "keyword", default: "both", cssProperty: "--kui-axis", keywords: ["x", "y", "both"] },
         velocity: { type: "number", default: "300", cssProperty: "--kui-velocity" }
       },
       deferPrepare(prepareSwipeable)
@@ -5421,6 +11438,9 @@ var kuinetic = (() => {
       "pressable",
       ["state"],
       { duration: { type: "time", default: "500ms", cssProperty: "--kui-duration" } },
+      // `duration` here is the hold threshold, not a span of motion — `long-press 800ms` means
+      // "count it once the finger has been down for 800ms". It is read (see `preparePressable`), so
+      // declaring it is what stops the contract above from warning about it.
       deferPrepare(preparePressable)
     ),
     gesturePrimitive(
@@ -5437,19 +11457,44 @@ var kuinetic = (() => {
 
   // src/effects/gestures/index.ts
   var GESTURE_PRESETS = [
-    { name: "drag", primitive: "draggable" },
-    { name: "drag-x", primitive: "draggable", params: { axis: "x" } },
-    { name: "drag-y", primitive: "draggable", params: { axis: "y" } },
-    { name: "drag-inertia", primitive: "draggable", params: { inertia: "true" } },
-    { name: "throwable", primitive: "draggable", params: { inertia: "true", damping: "18" } },
-    { name: "elastic-pull", primitive: "draggable", params: { return: "true", bounds: "80" } },
-    { name: "rubber-band", primitive: "draggable", params: { return: "true", bounds: "120" } },
-    { name: "snap-back", primitive: "draggable", params: { return: "true", stiffness: "260" } },
-    { name: "swipe", primitive: "swipeable" },
-    { name: "swipe-x", primitive: "swipeable", params: { axis: "x" } },
-    { name: "long-press", primitive: "pressable" },
-    { name: "magnetic", primitive: "magnetic" },
-    { name: "magnetic-snap", primitive: "magnetic", params: { strength: "0.6", radius: "160" } }
+    { name: "drag", primitive: "draggable", phase: "state" },
+    { name: "drag-x", primitive: "draggable", params: { axis: "x" }, phase: "state" },
+    { name: "drag-y", primitive: "draggable", params: { axis: "y" }, phase: "state" },
+    { name: "drag-inertia", primitive: "draggable", params: { inertia: "true" }, phase: "state" },
+    {
+      name: "throwable",
+      primitive: "draggable",
+      params: { inertia: "true", damping: "18" },
+      phase: "state"
+    },
+    {
+      name: "elastic-pull",
+      primitive: "draggable",
+      params: { return: "true", bounds: "80" },
+      phase: "state"
+    },
+    {
+      name: "rubber-band",
+      primitive: "draggable",
+      params: { return: "true", bounds: "120" },
+      phase: "state"
+    },
+    {
+      name: "snap-back",
+      primitive: "draggable",
+      params: { return: "true", stiffness: "260" },
+      phase: "state"
+    },
+    { name: "swipe", primitive: "swipeable", phase: "state" },
+    { name: "swipe-x", primitive: "swipeable", params: { axis: "x" }, phase: "state" },
+    { name: "long-press", primitive: "pressable", phase: "state" },
+    { name: "magnetic", primitive: "magnetic", phase: "state" },
+    {
+      name: "magnetic-snap",
+      primitive: "magnetic",
+      params: { strength: "0.6", radius: "160" },
+      phase: "state"
+    }
   ];
   function registerGestures(registry) {
     return registry.registerPrimitives(GESTURE_PRIMITIVES).registerPresets(GESTURE_PRESETS);
@@ -5505,6 +11550,7 @@ var kuinetic = (() => {
   }
   function runDeltas(deltas, animate, options) {
     const duration = options.durationMs ?? 400;
+    const delay = options.delayMs ?? 0;
     const easing = options.easing ?? "cubic-bezier(0.2, 0, 0, 1)";
     const animations = [];
     for (const { el, dx, dy, sx, sy } of deltas) {
@@ -5514,7 +11560,8 @@ var kuinetic = (() => {
           { translate: `${dx}px ${dy}px`, scale: `${sx} ${sy}` },
           { translate: "0px 0px", scale: "1 1" }
         ],
-        { duration, easing, fill: "none" }
+        // `'none'` whenever there is no delay, so the zero-delay path is byte-for-byte what it was.
+        { duration, delay, easing, fill: delay > 0 ? "backwards" : "none" }
       );
       if (animation) animations.push(animation);
     }
@@ -5529,13 +11576,30 @@ var kuinetic = (() => {
       }
     };
   }
+  function trackFlipRuns() {
+    const playing = /* @__PURE__ */ new Set();
+    return {
+      track(run) {
+        playing.add(run);
+        void run.finished.then(() => playing.delete(run));
+      },
+      cancelAll() {
+        for (const run of playing) run.cancel();
+        playing.clear();
+      }
+    };
+  }
   function observeLayout(container, engine, options, observe) {
     let before = engine.snapshot(container.children);
+    const runs = trackFlipRuns();
     const cleanup = observe(() => {
-      engine.play(before, container.children, options);
+      runs.track(engine.play(before, container.children, options));
       before = engine.snapshot(container.children);
     });
-    return cleanup;
+    return () => {
+      cleanup();
+      runs.cancelAll();
+    };
   }
   function mutationWatcher(container) {
     return (callback) => {
@@ -5555,6 +11619,19 @@ var kuinetic = (() => {
   // src/effects/layout/primitives.ts
   var timing2 = {
     duration: { type: "time", default: "400ms", cssProperty: "--kui-duration" },
+    /*
+     * All three of these have a definite start moment even though they default to `on:load`: the
+     * children moved, the watched attribute flipped, the indicator's target changed. `'load'` here
+     * means "install the observer now", not "play now" — so "hold everything in place for 200ms,
+     * then move" is a coherent thing to ask for, and it is what a sequence needs in order to
+     * position a FLIP after something else.
+     *
+     * Spent as the Web Animations `delay` on the invert-to-identity keyframes (`core/flip.ts`) and
+     * on the height tween, both with `fill: 'backwards'`, so the wait is spent looking *un-moved*
+     * rather than looking finished. Symmetric, unlike the hover family's: a reorder has no
+     * "leaving" direction to treat differently.
+     */
+    ...TRIGGER_DELAY_PARAM,
     ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" }
   };
   function layoutPrimitive(id, channels, parameters, prepare) {
@@ -5573,14 +11650,15 @@ var kuinetic = (() => {
       prepare
     };
   }
-  function prepareFlipContainer(el, params) {
+  function prepareFlipContainer(el, params, ctx) {
     const engine = createFlipEngine();
     return observeLayout(
       el,
       engine,
       {
         durationMs: effectDurationMs(params, 400),
-        easing: params.text("ease"),
+        delayMs: effectDelayMs(params),
+        easing: waapiEasingValue(effectEasing(params), el, ctx.warn),
         scale: params.is("scale")
       },
       mutationWatcher(el)
@@ -5591,13 +11669,15 @@ var kuinetic = (() => {
     ctx.style.set("overflow", "hidden");
     ctx.style.claim("height");
     const duration = effectDurationMs(params, 400);
+    const delay = effectDelayMs(params);
+    const easing = waapiEasingValue(effectEasing(params), el, ctx.warn);
     let animation = null;
     let previous = node.getBoundingClientRect().height;
     const observer = watchAttribute(node, params.text("attribute"), () => {
       animation?.cancel();
       const endpoints = heightEndpoints(node, previous);
       previous = endpoints.to;
-      animation = animateHeight(node, endpoints, duration, params.text("ease"));
+      animation = animateHeight(node, endpoints, { duration, delay, easing });
     });
     ctx.invalidate();
     return () => {
@@ -5610,20 +11690,27 @@ var kuinetic = (() => {
     const to = node.getBoundingClientRect().height;
     return { from: previous, to };
   }
-  function animateHeight(node, endpoints, duration, easing) {
+  function animateHeight(node, endpoints, timing3) {
     const animate = node.animate;
     if (typeof animate !== "function") return null;
     return animate.call(
       node,
       [{ height: `${endpoints.from}px` }, { height: `${endpoints.to}px` }],
-      { duration, easing, fill: "none" }
+      // `fill: 'backwards'` only when there is a delay to fill, so the undelayed path stays exactly
+      // as it was. It has to be there when there is one: by the time this runs the stylesheet has
+      // already repainted at the destination height (see `heightEndpoints`), so an unfilled delay
+      // would show the panel already open for the wait and then snap shut to animate.
+      { ...timing3, fill: timing3.delay > 0 ? "backwards" : "none" }
     );
   }
   function prepareIndicator(el, params, ctx) {
     const node = el;
     const engine = createFlipEngine();
+    const easing = waapiEasingValue(effectEasing(params), el, ctx.warn);
     const selector = params.text("follow");
+    const runs = trackFlipRuns();
     let currentShift = 0;
+    let followed = null;
     const move = () => {
       if (!selector) return;
       const target = ctx.doc.querySelector(selector);
@@ -5635,14 +11722,35 @@ var kuinetic = (() => {
       currentShift = shift;
       ctx.style.set("width", `${box.width}px`);
       ctx.style.set("translate", `${shift}px 0`);
-      engine.play(before, [node], {
-        durationMs: effectDurationMs(params, 400),
-        easing: params.text("ease"),
-        scale: true
-      });
+      runs.track(
+        engine.play(before, [node], {
+          durationMs: effectDurationMs(params, 400),
+          delayMs: effectDelayMs(params),
+          easing,
+          scale: true
+        })
+      );
+      followed = target;
     };
     move();
-    return watchAttribute(ctx.doc.documentElement, params.text("attribute"), move);
+    const update = () => {
+      const previous = followed;
+      move();
+      if (previous === followed) return;
+      if (previous) sizeWatch.unobserve(previous);
+      if (followed) sizeWatch.observe(followed);
+    };
+    const frame = frameScheduler(ctx.win, update);
+    const sizeWatch = watchElementSize(ctx.win, frame.request);
+    sizeWatch.observe(el.parentElement ?? el);
+    if (followed) sizeWatch.observe(followed);
+    const unwatch = watchAttribute(ctx.doc.documentElement, params.text("attribute"), update);
+    return () => {
+      unwatch();
+      sizeWatch.disconnect();
+      frame.cancel();
+      runs.cancelAll();
+    };
   }
   function watchAttribute(root, attribute, onChange) {
     if (typeof MutationObserver === "undefined" || !attribute) return () => {
@@ -5660,7 +11768,7 @@ var kuinetic = (() => {
           type: "keyword",
           default: "false",
           cssProperty: "--kui-flip-scale",
-          values: ["true", "false"]
+          keywords: ["true", "false"]
         }
       },
       deferPrepare(prepareFlipContainer)
@@ -5693,12 +11801,144 @@ var kuinetic = (() => {
     { name: "masonry-reflow", primitive: "flip-container" },
     { name: "expand-to-modal", primitive: "flip-container", params: { scale: "true", duration: "500ms" } },
     { name: "accordion-height", primitive: "auto-height" },
-    { name: "tab-indicator-slide", primitive: "flip-indicator", params: { duration: "300ms" } }
+    {
+      name: "tab-indicator-slide",
+      primitive: "flip-indicator",
+      params: { duration: "300ms" },
+      phase: "state"
+    }
   ];
 
   // src/effects/layout/index.ts
   function registerLayout(registry) {
     return registry.registerPrimitives(LAYOUT_PRIMITIVES).registerPresets(LAYOUT_PRESETS);
+  }
+
+  // src/effects/motion-path/index.ts
+  var OFFSET = "offset";
+  var PATH_TIMELINES = ["time", "view", "scroll", "pin"];
+  var MOTION_PATH_PARAMS = {
+    /**
+     * The curve, as SVG path data: `path:"M 0 0 C 40 -70 120 -70 160 0"`.
+     *
+     * Quoted, following the `target:` precedent in `core/parse.ts` — path data is full of spaces
+     * and commas and the tokenizer would otherwise shred it into a dozen unrecognised tokens. The
+     * quotes are syntax and `unquote` strips them; a *different* pair is added back by `validate`,
+     * because `offset-path: path(...)` takes a CSS string and `var()` substitutes tokens rather than
+     * text. See `checkPath` in `core/params.ts` for why quoting there is the only safe place for it.
+     */
+    path: { type: "path", default: "M 0 0 L 120 0", cssProperty: "--kui-motion-path" },
+    /**
+     * Whether the element turns to face its direction of travel — GSAP's `autoRotate`.
+     *
+     * **Default off, which is not the CSS default.** `offset-rotate`'s initial value is `auto`, so
+     * shipping the CSS default would mean every element handed a path silently starts tipping as it
+     * moves. That is right for an arrow, a plane, or a comet, and wrong for the far commoner case: a
+     * card, a badge, a line of text. GSAP made the same call — `autoRotate` is off unless asked for
+     * — and this is a parity feature, so it matches. `rotate:auto` opts in.
+     *
+     * `type: 'angle|keyword'` rather than a `keyword` with an enumerated angle list, because
+     * `offset-rotate` is genuinely `[ auto | reverse ] || <angle>`: `auto` follows the tangent,
+     * `reverse` follows it backwards, and a bare angle pins a fixed rotation instead (`0deg`, the
+     * default, being "keep the orientation you already had"). This is the parameter the union types
+     * were added for — it used to be an `'angle'` carrying two literals in the old, additive reading
+     * of `values`, which is the reading that made the same key mean validation on one type and
+     * nothing at all on the others. See {@link UnionParamType}.
+     *
+     * The combined `auto 90deg` form — follow the tangent, but the artwork points up rather than
+     * right — is deliberately not exposed as a parameter, since it is one value in a space of
+     * infinitely many and every other spelling of it invents grammar. A page that needs it sets
+     * `--kui-motion-rotate: auto 90deg` in its own stylesheet, which the cascade design already
+     * supports without `!important`.
+     */
+    rotate: {
+      type: "angle|keyword",
+      keywords: ["auto", "reverse"],
+      default: "0deg",
+      cssProperty: "--kui-motion-rotate"
+    },
+    /**
+     * Which point of the element rides the path.
+     *
+     * `0 0` — the top-left corner — is the default for the reason given in the module comment: it is
+     * what makes a path read as offsets from the element's own position. `center` is the value to
+     * reach for alongside `rotate:auto`, since the anchor is also the pivot the rotation turns
+     * about, and an arrow pivoting on its corner looks broken.
+     *
+     * A value containing a space needs quoting, so `anchor:"0 0"` and `anchor:"top right"` — again
+     * the `target:` precedent.
+     */
+    anchor: {
+      type: "keyword",
+      default: "0 0",
+      cssProperty: "--kui-motion-anchor",
+      keywords: ["auto", "center", "top", "bottom", "left", "right", "0 0", "top left", "top right", "bottom left", "bottom right"]
+    },
+    /**
+     * The span of the path actually travelled, as percentages of its length.
+     *
+     * Two things this buys that a second path would not. `from:100% to:0%` runs the same curve
+     * backwards without writing it backwards — path data reversed by hand is error-prone and stops
+     * matching the drawing it came from. And `from:20% to:80%` uses the middle of a long path, which
+     * is how a single hand-drawn route gets shared by several elements that each travel a stretch of
+     * it.
+     */
+    from: { type: "percentage", default: "0%", cssProperty: "--kui-motion-from" },
+    to: { type: "percentage", default: "100%", cssProperty: "--kui-motion-to" }
+  };
+  var MOTION_PATH_PRIMITIVES = [
+    cssPrimitive("motion-path", [OFFSET], { timelines: PATH_TIMELINES, parameters: MOTION_PATH_PARAMS })
+  ];
+  var KEYFRAMES = "kui-motion-travel";
+  var path = (name, d, params) => ({
+    name,
+    primitive: "motion-path",
+    keyframes: KEYFRAMES,
+    params: { path: d, ...params }
+  });
+  var MOTION_PATH_PRESETS = [
+    /*
+     * The neutral carrier: the name to write when you have your own path.
+     *
+     * It still ships a path of its own — a flat 120px traverse — rather than defaulting to nothing.
+     * `data-kui="motion-path"` with no `path:` would otherwise compile cleanly, stamp its attribute,
+     * run its animation to completion, and move the element precisely nowhere, which is the silent
+     * no-op this codebase treats as the worst possible outcome. A plainly generic straight line is
+     * self-evidently a placeholder in a way that stillness is not.
+     */
+    path("motion-path", "M 0 0 L 120 0", { duration: "1200ms" }),
+    // A thrown-ball arc: out, up over about 50px, and back down to the level it left. The two
+    // control points sit at the same height so the curve is symmetrical and the apex lands mid-flight.
+    path("path-arc", "M 0 0 C 40 -70 120 -70 160 0", { duration: "1200ms", ease: "ease-in-out" }),
+    // An S-curve. Control points mirrored through the midpoint, so the two bends are equal and
+    // opposite and the element leaves travelling the same direction it arrived.
+    path("path-wave", "M 0 0 C 45 -45 105 45 150 0", { duration: "1600ms", ease: "ease-in-out" }),
+    // A closed loop, out to the right and back. `linear`, for the reason `ambient-orbit` gives: an
+    // eased circuit visibly slows at the point where it closes, which reads as a stutter rather
+    // than as easing.
+    path("path-loop", "M 0 0 C 0 -70 110 -70 110 0 C 110 70 0 70 0 0", { duration: "2400ms", ease: "linear" }),
+    /*
+     * The entrance of the set, and the only one written to *end* at `0 0`: it flies in from below
+     * and to the left and settles exactly where layout put the element.
+     *
+     * `cloak: true` for the same reason `fade-up` declares it. Between first paint and the runtime
+     * installing `offset-path`, the element is painted at its resting position; the effect then
+     * yanks it 120px left and 70px down to start. That backwards jump is the flash the cloak layer
+     * exists to remove, and it is a from-state flash like any other even though nothing here
+     * animates opacity.
+     *
+     * The displacement is deliberately kept in the same range as `slide-left`'s 100px rather than
+     * pushed for drama. A deferred `on:enter` effect paints its from-state while it waits, and an
+     * `IntersectionObserver` measures the box *as displaced* — so an element swooping in from far
+     * enough off the left gutter would never intersect, never activate, and never leave its start
+     * state. That is the same deadlock as the zero-area one in `entrance-zero-area.test.ts`, reached
+     * by translation instead of by collapse, and the defence is not to travel further than the
+     * catalog's existing entrances already do.
+     */
+    { ...path("path-swoop", "M -120 70 C -70 70 -25 25 0 0", { duration: "900ms", ease: "expo-out" }), cloak: true }
+  ];
+  function registerMotionPath(registry) {
+    return registry.registerPrimitives(MOTION_PATH_PRIMITIVES).registerPresets(MOTION_PATH_PRESETS);
   }
 
   // src/effects/navigation/index.ts
@@ -5711,21 +11951,24 @@ var kuinetic = (() => {
     })
   ];
   var NAV_CSS_PRESETS = [
-    { name: "menu-stagger-open", primitive: "nav-reveal", keyframes: "kui-nav-reveal" },
+    { name: "menu-stagger-open", primitive: "nav-reveal", keyframes: "kui-nav-reveal", phase: "entrance" },
     { name: "menu-fullscreen", primitive: "menu-fullscreen", keyframes: "kui-menu-fullscreen" },
-    { name: "dropdown-open", primitive: "panel-reveal", keyframes: "kui-panel-reveal" },
+    { name: "dropdown-open", primitive: "panel-reveal", keyframes: "kui-panel-reveal", phase: "entrance" },
     {
       name: "mega-menu-drop",
       primitive: "panel-reveal",
       keyframes: "kui-panel-reveal",
-      params: { duration: "550ms" }
+      params: { duration: "550ms" },
+      phase: "entrance"
     },
     {
       name: "drawer-slide",
       primitive: "drawer-slide",
-      keyframes: "kui-drawer-slide-right"
+      keyframes: "kui-drawer-slide-right",
+      phase: "entrance"
     }
   ];
+  var NAV_SCROLL_TIMING_REASON = "it reacts to scroll position rather than a clock, so style the state attribute it publishes and put your timing there";
   function navPrimitive(id, channels, parameters, prepare) {
     return {
       id,
@@ -5739,7 +11982,7 @@ var kuinetic = (() => {
       // A scroll-position reaction, like the scroll-mechanics category: shortening its "duration"
       // is meaningless because the position, not a clock, drives it.
       reducedMotion: "disable",
-      prepare
+      prepare: withTimingContract(id, { because: NAV_SCROLL_TIMING_REASON }, prepare)
     };
   }
   function subscribeScrollTop(el, ctx, onScrollTop) {
@@ -5787,7 +12030,14 @@ var kuinetic = (() => {
   var NAV_JS_PRIMITIVES = [
     navPrimitive(
       "header-shrink",
-      ["layout"],
+      // `'shadow'` alongside `'layout'`: `header-shrink`'s host rule also transitions `box-shadow`
+      // (navigation.css), which `layout` alone does not cover — see `header-shrink`'s own
+      // `Preset.transitions` below and `channel-properties.ts`'s `layout` entry for why the two
+      // interpolated properties (`padding-block`/`font-size`) stay on `layout` while this one moves
+      // to the channel that already owns every other box-shadow writer (`lift-shadow`,
+      // `border-glow`). Composing `header-shrink` with either of those is now a refused conflict
+      // instead of a silent clobber on the same property — the self-consistency bug this closes.
+      ["layout", "shadow"],
       { offset: { type: "number", default: "120", cssProperty: "--kui-offset" } },
       deferPrepare(prepareHeaderShrink)
     ),
@@ -5804,10 +12054,26 @@ var kuinetic = (() => {
       deferPrepare(prepareBackToTop)
     )
   ];
+  var HEADER_SHRINK_TRANSITIONS = [
+    { property: "padding-block", duration: "200ms", easing: "ease-out" },
+    { property: "font-size", duration: "200ms", easing: "ease-out" },
+    { property: "box-shadow", duration: "200ms", easing: "ease-out" }
+  ];
   var NAV_JS_PRESETS = [
-    { name: "header-shrink", primitive: "header-shrink" },
-    { name: "header-hide-on-scroll", primitive: "header-hide-on-scroll" },
-    { name: "back-to-top-fade", primitive: "back-to-top-fade" }
+    { name: "header-shrink", primitive: "header-shrink", transitions: HEADER_SHRINK_TRANSITIONS },
+    {
+      name: "header-hide-on-scroll",
+      primitive: "header-hide-on-scroll",
+      transitions: [{ property: "translate", duration: "220ms", easing: "ease-out" }]
+    },
+    {
+      name: "back-to-top-fade",
+      primitive: "back-to-top-fade",
+      transitions: [
+        { property: "opacity", duration: "200ms", easing: "ease-out" },
+        { property: "translate", duration: "200ms", easing: "ease-out" }
+      ]
+    }
   ];
   var NAVIGATION_PRIMITIVES = [...NAV_CSS_PRIMITIVES, ...NAV_JS_PRIMITIVES];
   var NAVIGATION_PRESETS = [...NAV_CSS_PRESETS, ...NAV_JS_PRESETS];
@@ -5849,17 +12115,49 @@ var kuinetic = (() => {
     let scrollportTop = 0;
     const geometry2 = createMeasureCache(() => {
       const box = measure(el);
-      const top = options.contentAnchor ? measure(options.contentAnchor).top - box.height : sourceTop(el, box, measure, positionOf);
+      const anchor = options.contentAnchor ? measure(options.contentAnchor) : null;
+      const top = anchor ? anchor.top - box.height : sourceTop(el, box, measure, positionOf);
       const stickyOffset = options.stickyEl ? offsetOf(options.stickyEl) : 0;
-      return { contentTop: top - stickyOffset - scrollportTop + scrollTop, height: box.height };
+      return {
+        contentTop: top - stickyOffset - scrollportTop + scrollTop,
+        height: box.height,
+        // Only read on the `spacerIsAuthoritative` path below, but measured here so it shares the
+        // one layout flush per epoch that everything else in this cache already pays for.
+        anchorHeight: anchor?.height ?? 0
+      };
     });
+    const authoredDistance = options.distance ?? "";
+    const opaqueDistance = authoredDistance !== "" && !resolvesToPixels(authoredDistance);
+    if (opaqueDistance && !options.contentAnchor) warnUnmeasurable(ctx, authoredDistance);
+    const spacerIsAuthoritative = authoredDistance !== "" && usesPercentBasis(authoredDistance);
     return ctx.scheduler.subscribe(ctx.rootFor(el), (frame) => {
       scrollTop = frame.metrics.scrollTop;
       scrollportTop = frame.metrics.viewportTop;
       const box = geometry2.read(frame.epoch);
-      const span = resolveDistance(options.distance, { top: 0, height: box.height }, frame);
+      const span = spacerIsAuthoritative && options.contentAnchor ? box.anchorHeight : resolveDistance(options.distance, { top: 0, height: box.height }, frame);
       onProgress(progressFrom(box.contentTop - scrollTop, span), frame);
     });
+  }
+  var PROBE_BASIS = {
+    viewportWidth: 1,
+    viewportHeight: 1,
+    percentBasis: 1,
+    fontSize: 16,
+    rootFontSize: 16
+  };
+  var PROBE_BASIS_ALT_PERCENT = { ...PROBE_BASIS, percentBasis: 2 };
+  function resolvesToPixels(value) {
+    return Number.isFinite(toPixels(value, PROBE_BASIS, Number.NaN));
+  }
+  function usesPercentBasis(value) {
+    const primary = toPixels(value, PROBE_BASIS, Number.NaN);
+    if (!Number.isFinite(primary)) return true;
+    return primary !== toPixels(value, PROBE_BASIS_ALT_PERCENT, Number.NaN);
+  }
+  function warnUnmeasurable(ctx, distance3) {
+    ctx.warn(
+      `distance "${distance3}" is a CSS expression this effect cannot measure, so progress runs over the element's own height instead \u2014 author a plain length like "200vh", or turn on spacer:true so the distance can be measured from the box the library reserves.`
+    );
   }
   function resolveDistance(distance3, box, frame) {
     if (!distance3) return box.height;
@@ -5874,7 +12172,7 @@ var kuinetic = (() => {
   }
   function progressFrom(top, span) {
     if (span <= 0) return 0;
-    return clamp01(-top / span);
+    return clamp013(-top / span);
   }
 
   // src/effects/scroll-mechanics/scroll-spy.ts
@@ -5891,6 +12189,7 @@ var kuinetic = (() => {
       ctx.warn('scroll-spy "offset-top" has no effect without sections: and is ignored here');
     }
     const selector = resolveTarget(params.text("target"), ctx, "scroll-spy");
+    const scope = scopeParam(params, "page");
     const links = /* @__PURE__ */ new Map();
     const self = createAttributeLedger(el);
     let last;
@@ -5899,7 +12198,7 @@ var kuinetic = (() => {
       if (active === last) return;
       last = active;
       self.set("data-kui-active", String(active));
-      if (selector) markLinks(ctx.doc, selector, active, links);
+      if (selector) markLinks(queryScoped(el, ctx, selector, scope), active, links);
     });
     return continuousSetup(() => {
       untrack();
@@ -5907,8 +12206,8 @@ var kuinetic = (() => {
       for (const ledger of links.values()) ledger.restore();
     });
   }
-  function markLinks(doc, selector, active, links) {
-    for (const link of doc.querySelectorAll(selector)) {
+  function markLinks(matches, active, links) {
+    for (const link of matches) {
       let ledger = links.get(link);
       if (!ledger) {
         ledger = createAttributeLedger(link);
@@ -5973,11 +12272,12 @@ var kuinetic = (() => {
       ctx.warn('scroll-spy "distance" has no effect with sections: \u2014 each section measures its own height');
     }
     const linksSelector = resolveTarget(params.text("target"), ctx, "scroll-spy target");
+    const scope = scopeParam(params, "self");
     const sections = sectionsSelector ? [...el.querySelectorAll(sectionsSelector)] : [];
     if (sectionsSelector && sections.length === 0) {
       ctx.warn(`scroll-spy sections:"${sectionsSelector}" matched nothing inside this element`);
     }
-    const links = linksSelector ? [...el.querySelectorAll(linksSelector)] : [];
+    const links = linksSelector ? queryScoped(el, ctx, linksSelector, scope) : [];
     const pairs = pairSectionsWithLinks(sections, links, ctx, sectionsSelector);
     const sectionLedgers = pairs.map((pair) => createAttributeLedger(pair.section));
     const linkLedgers = /* @__PURE__ */ new Map();
@@ -6014,9 +12314,8 @@ var kuinetic = (() => {
     });
   }
 
-  // src/effects/scroll-mechanics/primitives.ts
-  var PROGRESS_VAR = "--kui-progress";
-  var distanceParam = {
+  // src/effects/scroll-mechanics/params.ts
+  var distanceParam2 = {
     distance: { type: "length", default: "100vh", cssProperty: "--kui-distance" }
   };
   var stickyParams = {
@@ -6029,9 +12328,12 @@ var kuinetic = (() => {
       type: "keyword",
       default: "false",
       cssProperty: "--kui-spacer",
-      values: ["true", "false"]
+      keywords: ["true", "false"]
     }
   };
+
+  // src/effects/scroll-mechanics/primitives.ts
+  var PROGRESS_VAR = "--kui-progress";
   function installSticky(node, params, ctx) {
     ctx.style.set("position", "sticky");
     ctx.style.set("top", params.text("offset-top", "var(--kui-pin-offset, 0px)"));
@@ -6056,7 +12358,26 @@ var kuinetic = (() => {
       defaultActivation: "load",
       perfClass,
       reducedMotion: "disable",
-      prepare
+      /*
+       * The refusal side of `TIMELINE_AGNOSTIC` above, and for the same underlying reason: these
+       * primitives are driven by *where the page is*, not by a clock. A pin engages when its range
+       * enters the scrollport and disengages when it leaves; a scrub's frame is a pure function of
+       * progress. There is no instant an authored `delay` could be measured from, no span a
+       * `duration` could set, and no curve an `ease` could bend — so all three are refused rather
+       * than accepted and discarded.
+       *
+       * The `delay:` spelling already warned, because none of these declares the parameter and
+       * `readParams` rejects unknown names. The positional `pin-section 0ms 300ms` did not: it is
+       * lifted out to `params.timing` before the schema is ever consulted, so it reached a
+       * primitive that never reads it and vanished without a word. This is what closes that half.
+       */
+      prepare: withTimingContract(
+        id,
+        {
+          because: "it is driven by scroll position rather than a clock, so it has no start moment and no fixed span"
+        },
+        prepare
+      )
     };
   }
   function writeProgress(ctx, progress) {
@@ -6064,12 +12385,18 @@ var kuinetic = (() => {
   }
   function preparePin(el, params, ctx) {
     const node = el;
-    const { dispose: unstick } = installSticky(node, params, ctx);
-    const tracked = node.parentElement ?? el;
-    const untrack = trackProgress(tracked, ctx, { distance: params.text("distance"), stickyEl: node }, (progress) => {
-      writeProgress(ctx, progress);
-      el.setAttribute("data-kui-pinned", progress > 0 && progress < 1 ? "true" : "false");
-    });
+    const { spacer, dispose: unstick } = installSticky(node, params, ctx);
+    const tracked = spacer ? node : node.parentElement ?? el;
+    const untrack = trackProgress(
+      tracked,
+      ctx,
+      { distance: params.text("distance"), contentAnchor: spacer ?? void 0, stickyEl: node },
+      (progress) => {
+        writeProgress(ctx, progress);
+        const holding = progress > 0 && progress < 1 && domPosition(node) === "sticky";
+        el.setAttribute("data-kui-pinned", holding ? "true" : "false");
+      }
+    );
     return continuousSetup(() => {
       untrack();
       unstick();
@@ -6094,8 +12421,12 @@ var kuinetic = (() => {
   }
   function prepareProgress(el, params, ctx) {
     const steps = Math.max(0, Math.round(params.num("steps", 0)));
-    const selector = resolveTarget(params.text("target"), ctx, "scrollytelling-step");
-    const marker = createStepMarker(() => ctx.doc.querySelectorAll(selector));
+    const selector = resolveTarget(params.text("target"), ctx, "scroll-progress");
+    const scope = scopeParam(params, "page");
+    const marker = createStepMarker(
+      () => queryScoped(el, ctx, selector, scope),
+      (message) => ctx.warn(`scroll-progress ${message}`)
+    );
     const self = createAttributeLedger(el);
     let lastIndex;
     const untrack = trackProgress(el, ctx, { distance: params.text("distance") }, (progress) => {
@@ -6115,13 +12446,20 @@ var kuinetic = (() => {
     });
   }
   function prepareHorizontal(el, params, ctx) {
-    const selector = resolveTarget(params.text("target"), ctx, "horizontal-scroll");
+    const selector = resolveTarget(params.text("target"), ctx, "horizontal-track");
     if (!selector) return prepareBareTrack(el, params, ctx);
-    const track = el.querySelector(selector);
+    const scope = scopeParam(params, "self");
+    const tracks = queryScoped(el, ctx, selector, scope);
+    const track = tracks[0];
     if (!track) {
-      ctx.warn(`horizontal-scroll target "${selector}" matched nothing inside this element`);
+      ctx.warn(`horizontal-track target "${selector}" matched nothing inside this element`);
       return () => {
       };
+    }
+    if (tracks.length > 1) {
+      ctx.warn(
+        `horizontal-track target "${selector}" matched ${tracks.length} elements; only the first is used`
+      );
     }
     return prepareManagedTrack(el, track, params, ctx);
   }
@@ -6143,14 +12481,13 @@ var kuinetic = (() => {
     ctx.style.set("overflow", "hidden");
     ctx.style.set("display", "grid");
     ctx.style.set("align-content", "center");
-    const { remove: removeSpacer } = insertSpacer(host, params.text("distance"), ctx);
+    const { spacer, remove: removeSpacer } = insertSpacer(host, params.text("distance"), ctx);
     const rail = createStyleLedger(track);
     rail.set("display", "flex");
     rail.set("width", "max-content");
     const authored = params.text("travel", "auto");
     const travel = createMeasureCache(() => trackTravel(track, authored, track.ownerDocument));
-    const tracked = host.parentElement ?? host;
-    const untrack = trackProgress(tracked, ctx, { distance: params.text("distance"), stickyEl: host }, (progress, frame) => {
+    const untrack = trackProgress(host, ctx, { distance: params.text("distance"), contentAnchor: spacer, stickyEl: host }, (progress, frame) => {
       rail.set("translate", `${-progress * travel.read(frame.epoch)}px 0`);
       writeProgress(ctx, progress);
     });
@@ -6172,16 +12509,20 @@ var kuinetic = (() => {
     const contentAnchor = managed?.spacer ?? void 0;
     const stickyEl = managed ? el : void 0;
     const selector = resolveTarget(params.text("target"), ctx, "media-scrub");
-    const scrub = selector ? prepareTargetScrub(el, params, ctx, { selector, contentAnchor, stickyEl }) : prepareSrcScrub(el, params, ctx, { contentAnchor, stickyEl });
+    const scope = scopeParam(params, "page");
+    const scrub = selector ? prepareTargetScrub(el, params, ctx, { selector, scope, contentAnchor, stickyEl }) : prepareSrcScrub(el, params, ctx, { contentAnchor, stickyEl });
     return continuousSetup(() => {
       scrub();
       managed?.dispose();
     });
   }
   function prepareTargetScrub(el, params, ctx, authored) {
-    const { selector, contentAnchor, stickyEl } = authored;
-    const marker = createStepMarker(() => ctx.doc.querySelectorAll(selector));
-    const frames = Math.max(1, ctx.doc.querySelectorAll(selector).length);
+    const { selector, scope, contentAnchor, stickyEl } = authored;
+    const marker = createStepMarker(
+      () => queryScoped(el, ctx, selector, scope),
+      (message) => ctx.warn(`media-scrub ${message}`)
+    );
+    const frames = Math.max(1, queryScoped(el, ctx, selector, scope).length);
     let lastIndex;
     const untrack = trackProgress(el, ctx, { distance: params.text("distance"), contentAnchor, stickyEl }, (progress) => {
       writeProgress(ctx, progress);
@@ -6235,7 +12576,8 @@ var kuinetic = (() => {
     const axis = params.is("axis", "x") ? "x" : "y";
     ctx.style.set("scroll-snap-type", `${axis} ${params.text("strictness", "mandatory")}`);
     const selector = resolveTarget(params.text("target"), ctx, "scroll-snap");
-    const items = selector ? [...el.querySelectorAll(selector)] : [...el.children];
+    const scope = scopeParam(params, "self");
+    const items = selector ? queryScoped(el, ctx, selector, scope) : [...el.children];
     if (selector && items.length === 0) {
       ctx.warn(`scroll-snap target "${selector}" matched nothing inside this element`);
     }
@@ -6255,7 +12597,7 @@ var kuinetic = (() => {
       id: "pin",
       channels: ["layout", "progress"],
       parameters: {
-        ...distanceParam,
+        ...distanceParam2,
         ...stickyParams
       },
       prepare: deferPrepare(preparePin),
@@ -6265,11 +12607,14 @@ var kuinetic = (() => {
       id: "scroll-progress",
       channels: ["progress"],
       parameters: {
-        ...distanceParam,
+        ...distanceParam2,
         steps: { type: "number", default: "0", cssProperty: "--kui-steps" },
         // Same name, same shape and the same validation as scroll-spy's: one `target:` convention
         // across the library rather than a second word for "the elements this effect marks".
-        target: { type: "text", default: "", cssProperty: "--kui-target" }
+        target: { type: "text", default: "", cssProperty: "--kui-target" },
+        // Which tree `target:` is searched in. Unset means this primitive's own historical answer —
+        // see `prepareProgress`. One declaration, shared: `effects/step-marking.ts`.
+        scope: SCOPE_PARAM
       },
       prepare: deferPrepare(prepareProgress)
     }),
@@ -6277,12 +12622,15 @@ var kuinetic = (() => {
       id: "horizontal-track",
       channels: ["translate", "progress"],
       parameters: {
-        ...distanceParam,
+        ...distanceParam2,
         travel: { type: "text", default: "auto", cssProperty: "--kui-travel" },
         // Same name, same shape and the same validation as scroll-spy's and media-scrub's: one
         // `target:` convention across the library. Naming the row that moves is also what opts this
         // primitive into owning the stage, the sticky window and the row's layout itself.
         target: { type: "text", default: "", cssProperty: "--kui-target" },
+        // Which tree `target:` is searched in. Unset means this primitive's own historical answer —
+        // see `prepareHorizontal`. One declaration, shared: `effects/step-marking.ts`.
+        scope: SCOPE_PARAM,
         "offset-top": {
           type: "length",
           default: "var(--kui-pin-offset, 0px)",
@@ -6295,14 +12643,17 @@ var kuinetic = (() => {
       id: "media-scrub",
       channels: ["media", "progress"],
       parameters: {
-        ...distanceParam,
+        ...distanceParam2,
         // A scrub is a hold, so it needs the same two knobs a pin does. Declaring them here is what
         // lets `sequence-scrub` become one attribute with no wrapper at all.
         ...stickyParams,
         frames: { type: "number", default: "1", cssProperty: "--kui-frames" },
         src: { type: "text", default: "", cssProperty: "--kui-src" },
         // The preferred form. `frames:`/`src:` remain for sequences too long to author as tags.
-        target: { type: "text", default: "", cssProperty: "--kui-target" }
+        target: { type: "text", default: "", cssProperty: "--kui-target" },
+        // Which tree `target:` is searched in. Unset means this primitive's own historical answer —
+        // see `prepareMediaScrub`. One declaration, shared: `effects/step-marking.ts`.
+        scope: SCOPE_PARAM
       },
       prepare: deferPrepare(prepareMediaScrub),
       perfClass: "paint"
@@ -6314,11 +12665,17 @@ var kuinetic = (() => {
         // `distance`: the per-section form only. `offset-top`: the container form only. Each is a
         // no-op — warned, not silent — in the other; see `prepareScrollSpySingle` and
         // `prepareScrollSpyContainer`.
-        ...distanceParam,
+        ...distanceParam2,
         // Same name and meaning in both forms: the link(s) this instance marks. Per-section, the
         // one link this section names; with `sections:`, every link `target:` matches, each paired
         // to its own section by `href`. See `prepareScrollSpyContainer`.
         target: { type: "text", default: "", cssProperty: "--kui-target" },
+        // Which tree `target:` is searched in — and the one place in the library where the *same*
+        // declared parameter has two historical answers, because the two forms below resolve it
+        // differently on purpose: `'page'` per-section (the nav link is elsewhere by definition),
+        // `'self'` in the container form. Unset means "each form keeps its own"; see
+        // `prepareScrollSpySingle` and `prepareScrollSpyContainer`.
+        scope: SCOPE_PARAM,
         // Presence, not value, selects the container form: authoring this at all switches
         // `prepareScrollSpy` from one-section-per-instance to one-instance-on-the-shared-ancestor.
         sections: { type: "text", default: "", cssProperty: "--kui-sections" },
@@ -6344,7 +12701,7 @@ var kuinetic = (() => {
        */
       channels: ["scroll-behavior"],
       parameters: {
-        behavior: { type: "keyword", default: "smooth", cssProperty: "--kui-scroll-behavior", values: ["smooth", "auto"] }
+        behavior: { type: "keyword", default: "smooth", cssProperty: "--kui-scroll-behavior", keywords: ["smooth", "auto"] }
       },
       prepare: deferPrepare(prepareSmoothScroll),
       perfClass: "layout"
@@ -6353,23 +12710,26 @@ var kuinetic = (() => {
       id: "scroll-snap",
       channels: ["layout"],
       parameters: {
-        axis: { type: "keyword", default: "y", cssProperty: "--kui-axis", values: ["x", "y"] },
+        axis: { type: "keyword", default: "y", cssProperty: "--kui-axis", keywords: ["x", "y"] },
         strictness: {
           type: "keyword",
           default: "mandatory",
           cssProperty: "--kui-snap-strictness",
-          values: ["mandatory", "proximity"]
+          keywords: ["mandatory", "proximity"]
         },
         align: {
           type: "keyword",
           default: "start",
           cssProperty: "--kui-snap-align",
-          values: ["start", "center", "end"]
+          keywords: ["start", "center", "end"]
         },
         // Names the snap items. Also what opts this primitive into owning the scroll container
         // itself — see `installSnapContainer`. Without it, the direct children are the items and
         // the page keeps its own `overflow`, exactly as before.
-        target: { type: "text", default: "", cssProperty: "--kui-target" }
+        target: { type: "text", default: "", cssProperty: "--kui-target" },
+        // Which tree `target:` is searched in. Unset means this primitive's own historical answer —
+        // see `prepareSnap`. One declaration, shared: `effects/step-marking.ts`.
+        scope: SCOPE_PARAM
       },
       prepare: deferPrepare(prepareSnap),
       perfClass: "layout"
@@ -6381,16 +12741,16 @@ var kuinetic = (() => {
     // --- pinning ---------------------------------------------------------------------------
     // The default carries a spacer: a pin longer than its containing block silently does nothing,
     // and that is the single most common way authors get sticky wrong.
-    { name: "pin-section", primitive: "pin", params: { distance: "100vh", spacer: "true" } },
-    { name: "pin-until", primitive: "pin", params: { spacer: "false" } },
-    { name: "pin-spacer", primitive: "pin", params: { spacer: "true" } },
+    { name: "pin-section", primitive: "pin", params: { distance: "100vh", spacer: "true" }, phase: "idle" },
+    { name: "pin-until", primitive: "pin", params: { spacer: "false" }, phase: "idle" },
+    { name: "pin-spacer", primitive: "pin", params: { spacer: "true" }, phase: "idle" },
     // Applied per card; each card sticks at its own offset and the stack builds up naturally.
-    { name: "stacking-cards", primitive: "pin", params: { spacer: "false" } },
+    { name: "stacking-cards", primitive: "pin", params: { spacer: "false" }, phase: "idle" },
     // --- progress publishing ---------------------------------------------------------------
-    { name: "scroll-progress", primitive: "scroll-progress" },
-    { name: "scrollytelling-step", primitive: "scroll-progress", params: { steps: "4" } },
+    { name: "scroll-progress", primitive: "scroll-progress", phase: "idle" },
+    { name: "scrollytelling-step", primitive: "scroll-progress", params: { steps: "4" }, phase: "idle" },
     // --- travel ------------------------------------------------------------------------------
-    { name: "horizontal-scroll", primitive: "horizontal-track" },
+    { name: "horizontal-scroll", primitive: "horizontal-track", phase: "idle" },
     // --- media -------------------------------------------------------------------------------
     /*
      * `spacer:true` is what deletes the `.scrub-stage` wrapper a page used to hand-write.
@@ -6408,14 +12768,24 @@ var kuinetic = (() => {
      *
      * `video-scrub` stays off: a video positioned by the page is not asking the library for a box.
      */
-    { name: "sequence-scrub", primitive: "media-scrub", params: { spacer: "true" } },
-    { name: "video-scrub", primitive: "media-scrub" },
+    // `requiresOwnSubtree: true` on both — moot for `compile.ts`'s lift, since `media-scrub` already
+    // declares its own `target` parameter and is never lifted at all (see `liftTarget`), but still
+    // correct for `test/css-invariants.test.ts`'s generated scan, which derives the 16-name list from
+    // `src/css/*.css` alone and does not know which primitives self-manage `target:`.
+    {
+      name: "sequence-scrub",
+      primitive: "media-scrub",
+      params: { spacer: "true" },
+      requiresOwnSubtree: true,
+      phase: "idle"
+    },
+    { name: "video-scrub", primitive: "media-scrub", requiresOwnSubtree: true, phase: "idle" },
     // --- navigation --------------------------------------------------------------------------
-    { name: "scroll-spy", primitive: "scroll-spy" },
+    { name: "scroll-spy", primitive: "scroll-spy", phase: "idle" },
     // --- native CSS passthroughs ---------------------------------------------------------------
-    { name: "smooth-scroll-to", primitive: "smooth-scroll" },
-    { name: "scroll-snap-x", primitive: "scroll-snap", params: { axis: "x" } },
-    { name: "scroll-snap-y", primitive: "scroll-snap", params: { axis: "y" } }
+    { name: "smooth-scroll-to", primitive: "smooth-scroll", phase: "idle" },
+    { name: "scroll-snap-x", primitive: "scroll-snap", params: { axis: "x" }, phase: "idle" },
+    { name: "scroll-snap-y", primitive: "scroll-snap", params: { axis: "y" }, phase: "idle" }
   ];
 
   // src/effects/scroll-mechanics/index.ts
@@ -6426,6 +12796,34 @@ var kuinetic = (() => {
   // src/core/path-morph.ts
   var COMMAND = /([mlhvcz])|(-?(?:\d+(?:\.\d+)?|\.\d+))/gi;
   var UNSUPPORTED = /[AaSsQqTt]/;
+  function takeCommand(tokens, index, state) {
+    const token = tokens[index];
+    state.command = token;
+    if (token.toLowerCase() === "z") closeSubpath(state);
+    const expected = ARITY[token.toLowerCase()];
+    const next = tokens[index + 1];
+    if (expected > 0 && (next === void 0 || /[a-z]/i.test(next))) {
+      return argumentError(token, expected, "0");
+    }
+    return void 0;
+  }
+  function walkTokens(tokens, state) {
+    let index = 0;
+    while (index < tokens.length) {
+      const token = tokens[index];
+      if (/[a-z]/i.test(token)) {
+        const reason = takeCommand(tokens, index, state);
+        if (reason !== void 0) return reason;
+        index++;
+        continue;
+      }
+      if (!state.command) return "path must start with a command letter";
+      const result = consume(tokens, index, state);
+      if ("reason" in result) return result.reason;
+      index = result.index;
+    }
+    return void 0;
+  }
   function parsePath(d) {
     if (UNSUPPORTED.test(d)) {
       return {
@@ -6442,20 +12840,8 @@ var kuinetic = (() => {
       start: { x: 0, y: 0 },
       command: ""
     };
-    let index = 0;
-    while (index < tokens.length) {
-      const token = tokens[index];
-      if (/[a-z]/i.test(token)) {
-        state.command = token;
-        if (token.toLowerCase() === "z") closeSubpath(state);
-        index++;
-        continue;
-      }
-      if (!state.command) {
-        return { segments: [], subpaths: [], reason: "path must start with a command letter" };
-      }
-      index = consume(tokens, index, state);
-    }
+    const reason = walkTokens(tokens, state);
+    if (reason !== void 0) return { segments: [], subpaths: [], reason };
     if (state.subpaths.length === 0) {
       return { segments: [], subpaths: [], reason: "no drawable segments" };
     }
@@ -6479,23 +12865,37 @@ var kuinetic = (() => {
     state.current = { ...start };
     state.open = void 0;
   }
+  function argumentError(command, arity, found) {
+    return `'${command}' expects ${arity} number${arity === 1 ? "" : "s"}, found ${found}`;
+  }
   function consume(tokens, index, state) {
     const key = state.command.toLowerCase();
     const relative = state.command === key;
     const arity = ARITY[key];
+    if (arity === 0) {
+      return { reason: `'${state.command}' does not take arguments` };
+    }
     const args = tokens.slice(index, index + arity).map(Number);
-    if (args.length < arity) return tokens.length;
+    if (args.length < arity) {
+      return { reason: argumentError(state.command, arity, String(args.length)) };
+    }
+    const bad = args.findIndex(Number.isNaN);
+    if (bad !== -1) {
+      return {
+        reason: argumentError(state.command, arity, `the command letter '${tokens[index + bad]}'`)
+      };
+    }
     const next = endpointFor(key, args, state.current, relative);
     if (key === "m") {
       state.current = next;
       state.start = next;
       state.open = void 0;
       state.command = relative ? "l" : "L";
-      return index + arity;
+      return { index: index + arity };
     }
     pushSegment(state, straightOrCubic({ key, args, from: state.current, relative }, next));
     state.current = next;
-    return index + arity;
+    return { index: index + arity };
   }
   function endpointFor(key, args, current, relative) {
     const base = relative ? current : { x: 0, y: 0 };
@@ -6556,17 +12956,17 @@ var kuinetic = (() => {
   function chordLength(segment) {
     return Math.hypot(segment.to.x - segment.from.x, segment.to.y - segment.from.y);
   }
-  function round(value) {
+  function round3(value) {
     return Math.round(value * 100) / 100;
   }
   function subpathsToPathData(subpaths) {
     const parts = [];
     for (const sub of subpaths) {
       const head = sub.segments[0];
-      parts.push(`M${round(head.from.x)},${round(head.from.y)}`);
+      parts.push(`M${round3(head.from.x)},${round3(head.from.y)}`);
       for (const s of sub.segments) {
         parts.push(
-          `C${round(s.c1.x)},${round(s.c1.y)} ${round(s.c2.x)},${round(s.c2.y)} ${round(s.to.x)},${round(s.to.y)}`
+          `C${round3(s.c1.x)},${round3(s.c1.y)} ${round3(s.c2.x)},${round3(s.c2.y)} ${round3(s.to.x)},${round3(s.to.y)}`
         );
       }
       if (sub.closed) parts.push("Z");
@@ -6641,10 +13041,41 @@ var kuinetic = (() => {
     };
   }
 
+  // src/effects/svg/icon-parts.ts
+  var SVG_BAR_SELECTOR = "line, rect, path, polyline, circle";
+  function findBars(el) {
+    const children = Array.from(el.children);
+    const sole = children.length === 1 ? children[0] : void 0;
+    if (sole && sole.tagName.toLowerCase() === "svg") return Array.from(sole.querySelectorAll(SVG_BAR_SELECTOR));
+    return children.filter((child) => child.textContent.trim() === "");
+  }
+  function withIconParts(inner) {
+    return (el, params, ctx) => {
+      if (!el.querySelector(".kui-bar")) {
+        const bars = findBars(el);
+        if (bars.length > 0) {
+          const ledgers = bars.map((bar) => {
+            const ledger = createAttributeLedger(bar);
+            ledger.set(ATTR.part, "bar");
+            return ledger;
+          });
+          ctx.signal.addEventListener(
+            "abort",
+            () => {
+              for (const ledger of ledgers) ledger.restore();
+            },
+            { once: true }
+          );
+        }
+      }
+      return inner(el, params, ctx);
+    };
+  }
+
   // src/effects/svg/index.ts
   function prepareMorph(el, params, ctx) {
-    const path = el;
-    const startPath = params.text("from") || path.getAttribute("d") || "";
+    const path2 = el;
+    const startPath = params.text("from") || path2.getAttribute("d") || "";
     const { morph, reason } = createMorph(startPath, params.text("to"));
     if (!morph) {
       ctx.warn(`cannot morph: ${reason}`);
@@ -6652,17 +13083,25 @@ var kuinetic = (() => {
       };
     }
     const duration = effectDurationMs(params, 300);
+    const ease = resolveEasing(params.timing.easing ?? params.text("ease", "linear"), ctx.warn);
+    const delay = params.timing.delayMs ?? params.ms("delay", 0);
     let frame = 0;
     let cancelled = false;
     const drive = (target) => {
       cancelAnimationFrame(frame);
       const startedAt = performance.now();
       const startValue = current;
+      const wait = target === 1 ? delay : 0;
       const step = (now) => {
         if (cancelled) return;
-        const t = duration > 0 ? Math.min(1, (now - startedAt) / duration) : 1;
-        current = startValue + (target - startValue) * t;
-        path.setAttribute("d", morph.at(current));
+        const elapsed = now - startedAt - wait;
+        if (elapsed < 0) {
+          frame = requestAnimationFrame(step);
+          return;
+        }
+        const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
+        current = startValue + (target - startValue) * ease(t);
+        path2.setAttribute("d", morph.at(current));
         if (t < 1) frame = requestAnimationFrame(step);
       };
       frame = requestAnimationFrame(step);
@@ -6681,7 +13120,7 @@ var kuinetic = (() => {
       el.removeEventListener("focusin", enter);
       el.removeEventListener("pointerleave", leave);
       el.removeEventListener("focusout", leave);
-      path.setAttribute("d", startPath);
+      path2.setAttribute("d", startPath);
     };
   }
   var PATH_DRAW_PRIMITIVE = cssPrimitive("path-draw", [CHANNEL.stroke], {
@@ -6690,7 +13129,7 @@ var kuinetic = (() => {
     }
   });
   var SHAPE_FILL_PRIMITIVE = cssPrimitive("shape-fill", [CHANNEL.clip]);
-  var BAR_GROW_PRIMITIVE = cssPrimitive("bar-grow", [CHANNEL.scale], {
+  var BAR_GROW_PRIMITIVE = cssPrimitive("bar-grow", [CHANNEL.scale, "transform-origin"], {
     parameters: { from: { type: "number", default: "0", cssProperty: "--kui-bar-from" } }
   });
   var LOGO_BUILD_PRIMITIVE = cssPrimitive("logo-assemble", [
@@ -6704,6 +13143,10 @@ var kuinetic = (() => {
     channels: [CHANNEL.translate, CHANNEL.rotate, CHANNEL.scale, CHANNEL.opacity, CHANNEL.clip],
     parameters: {
       duration: { type: "time", default: "260ms", cssProperty: "--kui-duration" },
+      // The state flip is the start moment: `aria-expanded` goes true and the bars begin to move.
+      // svg.css spends this as a `transition-delay` on the *expanded* rules only, so it delays
+      // opening and never closing — see that file's comment, and `interaction.css`'s for why.
+      ...TRIGGER_DELAY_PARAM,
       ease: { type: "easing", default: "ease-out", cssProperty: "--kui-ease" }
     },
     supportedTimelines: ["time"],
@@ -6711,7 +13154,12 @@ var kuinetic = (() => {
     defaultActivation: "load",
     perfClass: "compositor",
     reducedMotion: "disable",
-    prepare: () => inertInstance()
+    prepare: withIconParts(
+      stylesheetTimingPrepare("icon-toggle", {
+        honours: ALL_TIMING_TOKENS,
+        because: "svg.css pins that value on this effect"
+      })
+    )
   };
   var SVG_PRIMITIVES = [
     {
@@ -6723,7 +13171,13 @@ var kuinetic = (() => {
       parameters: {
         from: { type: "text", default: "", cssProperty: "--kui-path-from" },
         to: { type: "text", default: "", cssProperty: "--kui-path-to" },
-        duration: { type: "time", default: "300ms", cssProperty: "--kui-duration" }
+        duration: { type: "time", default: "300ms", cssProperty: "--kui-duration" },
+        // Both new, both no-ops at their defaults. The morph drives its own frames, so unlike the
+        // stylesheet-backed members of this file it honours them in JS — see `prepareMorph`.
+        // `linear`, not the catalog's usual `ease-out`: that is the curve this effect has always
+        // interpolated on, and adding a knob must not move a page that never asked for one.
+        ...TRIGGER_DELAY_PARAM,
+        ease: { type: "easing", default: "linear", cssProperty: "--kui-ease" }
       },
       supportedTimelines: ["time"],
       supportedActivations: ["hover", "focus", "manual", "load"],
@@ -6731,6 +13185,8 @@ var kuinetic = (() => {
       defaultActivation: "load",
       perfClass: "paint",
       reducedMotion: "disable",
+      // No `withTimingContract` wrapper: this primitive honours all three tokens, so there is
+      // nothing for one to warn about.
       prepare: deferPrepare(prepareMorph)
     },
     PATH_DRAW_PRIMITIVE,
@@ -6751,7 +13207,7 @@ var kuinetic = (() => {
     { name: "checkmark-draw", primitive: "path-draw", keyframes: "kui-checkmark-draw", params: { duration: "320ms" } },
     { name: "cross-draw", primitive: "path-draw", keyframes: "kui-cross-draw", params: { duration: "260ms" } },
     { name: "chart-line-draw", primitive: "path-draw", keyframes: "kui-chart-line-draw", params: { duration: "1200ms", ease: "ease-in-out" } },
-    { name: "gradient-stroke", primitive: "path-draw", keyframes: "kui-gradient-stroke", params: { duration: "2400ms", ease: "ease-in-out" } },
+    { name: "gradient-stroke", phase: "idle", primitive: "path-draw", keyframes: "kui-gradient-stroke", params: { duration: "2400ms", ease: "ease-in-out" } },
     // Fills.
     { name: "heart-fill", primitive: "shape-fill", keyframes: "kui-heart-fill", params: { duration: "420ms" } },
     { name: "bookmark-fill", primitive: "shape-fill", keyframes: "kui-bookmark-fill", params: { duration: "360ms" } },
@@ -6770,30 +13226,96 @@ var kuinetic = (() => {
     { name: "logo-build", primitive: "logo-assemble", keyframes: "kui-logo-build", params: { duration: "520ms", ease: "back-out" } },
     // Icon toggles — no `keyframes`, because their motion is a CSS transition in svg.css keyed off
     // aria state, not a compiled animation. Same shape as forms.ts's native-state presets.
-    { name: "hamburger-to-x", primitive: "icon-toggle" },
-    { name: "play-to-pause", primitive: "icon-toggle" },
-    { name: "plus-to-minus", primitive: "icon-toggle" }
+    // `requiresOwnSubtree: true` on all three: each moves its own `.kui-bar` children, assumed
+    // present under the fx element itself.
+    { name: "hamburger-to-x", phase: "state", primitive: "icon-toggle", requiresOwnSubtree: true },
+    { name: "play-to-pause", phase: "state", primitive: "icon-toggle", requiresOwnSubtree: true },
+    // Only `plus-to-minus` transitions on the shared `icon-toggle` primitive's host box — the other
+    // two only move their `.kui-bar` children, a different box `transitions` deliberately does not
+    // describe (see `Preset.transitions`'s own doc comment). Transcribed from svg.css's
+    // `[data-kui-fx~='plus-to-minus'] { transition: rotate ... }`; no literal timing, because
+    // `icon-toggle` already has a generated `--kui-icon-toggle-duration`/`-ease` pair the way the
+    // hover family's five do. Still `requiresOwnSubtree`, for the same `.kui-bar` reason as its two
+    // siblings above, on top of the host-box rotation `transitions` already describes.
+    {
+      name: "plus-to-minus",
+      primitive: "icon-toggle",
+      transitions: [{ property: "rotate" }],
+      requiresOwnSubtree: true
+    }
   ];
   function registerSvg(registry) {
     return registry.registerPrimitives(SVG_PRIMITIVES).registerPresets(SVG_PRESETS);
   }
 
+  // src/effects/three-d/flip-parts.ts
+  var FACE_CLASS_SELECTOR = ":scope > .kui-face-front, :scope > .kui-face-back";
+  var CONTROL_SELECTOR = `:scope > :is(.kui-flip-control, [${ATTR.part}~='control'])`;
+  function stampFaces(el, stamp) {
+    if (el.querySelector(FACE_CLASS_SELECTOR)) return;
+    const [front, back] = Array.from(el.children).filter((child) => child.tagName !== "BUTTON");
+    if (front) stamp(front, "front");
+    if (back) stamp(back, "back");
+  }
+  function injectControl(el, doc, quiet) {
+    const button = doc.createElement("button");
+    button.type = "button";
+    button.className = "kui-flip-control";
+    button.setAttribute(ATTR.part, quiet ? "control injected quiet" : "control injected");
+    button.setAttribute("aria-pressed", "false");
+    button.textContent = "Flip card";
+    el.append(button);
+    return button;
+  }
+  function resolveControl(el, doc, quiet, stamp) {
+    const owned = el.querySelector(":scope > .kui-flip-control");
+    if (owned) return { control: owned, injected: null };
+    const authored = el.querySelector(":scope > button[aria-pressed]");
+    if (authored) {
+      stamp(authored, "control");
+      return { control: authored, injected: null };
+    }
+    const button = injectControl(el, doc, quiet);
+    return { control: button, injected: button };
+  }
+  function prepareFlipParts(el, params, ctx) {
+    const ledgers = [];
+    const stamp = (target, value) => {
+      const ledger = createAttributeLedger(target);
+      ledger.set(ATTR.part, value);
+      ledgers.push(ledger);
+    };
+    stampFaces(el, stamp);
+    const quiet = params.text("trigger", "click") !== "click";
+    const { control: control2, injected } = resolveControl(el, ctx.doc, quiet, stamp);
+    const wired = injected ? {
+      button: injected,
+      onClick: () => {
+        injected.setAttribute("aria-pressed", String(injected.getAttribute("aria-pressed") !== "true"));
+      }
+    } : null;
+    if (wired) wired.button.addEventListener("click", wired.onClick);
+    const cleanup = () => {
+      if (wired) {
+        wired.button.removeEventListener("click", wired.onClick);
+        wired.button.remove();
+      }
+      for (const ledger of ledgers) ledger.restore();
+    };
+    return { control: control2, cleanup };
+  }
+
   // src/effects/three-d/index.ts
-  var FLIP_CONTROL_SELECTOR = ":scope > .kui-flip-control";
   function prepareCardToggle(el, params, ctx) {
+    mirrorTimingToCss("card-toggle", ALL_TIMING_TOKENS, params, ctx);
     const trigger = params.text("trigger", "click");
     if (trigger === "click") return () => {
     };
     if (!supportsFineHover(ctx.win)) return () => {
     };
-    const control = el.querySelector(FLIP_CONTROL_SELECTOR);
-    if (!control) {
-      ctx.warn(`flip-card trigger:${trigger} found no direct-child .kui-flip-control \u2014 the card will not flip`);
-      return () => {
-      };
-    }
-    const set = (flipped) => control.setAttribute("aria-pressed", String(flipped));
-    const isFlipped = () => control.getAttribute("aria-pressed") === "true";
+    const control2 = el.querySelector(CONTROL_SELECTOR);
+    const set = (flipped) => control2.setAttribute("aria-pressed", String(flipped));
+    const isFlipped = () => control2.getAttribute("aria-pressed") === "true";
     const onEnter = () => {
       set(trigger === "hover-toggle" ? !isFlipped() : true);
     };
@@ -6805,19 +13327,32 @@ var kuinetic = (() => {
       el.removeEventListener("pointerleave", onLeave);
     };
   }
+  function prepareCard(el, params, ctx) {
+    const parts = prepareFlipParts(el, params, ctx);
+    ctx.signal.addEventListener("abort", parts.cleanup, { once: true });
+    return deferPrepare(prepareCardToggle)(el, params, ctx);
+  }
   var CARD_TOGGLE_PRIMITIVE = {
     id: "card-toggle",
     renderer: "javascript",
-    channels: [CHANNEL.rotate],
+    // `'discrete'` alongside `rotate`: the unconditional `[data-kui-fx~='flip-card']` rule pins
+    // `display: grid` so the two faces stack in one cell instead of flowing as normal block
+    // siblings — unrelated to `catalog/discrete.ts`'s show/hide use of the same physical property,
+    // but `display` is tracked as one channel regardless of the value written into it.
+    channels: [CHANNEL.rotate, "discrete"],
     parameters: {
       duration: { type: "time", default: "700ms", cssProperty: "--kui-duration" },
+      // The turn has a start moment — the click, or the pointer arriving — so a delay before it is
+      // coherent. three-d.css spends it as a `transition-delay` on the turned-face rules only, so it
+      // delays turning to the back and never turning back to the front; see that file's comment.
+      ...TRIGGER_DELAY_PARAM,
       ease: { type: "easing", default: "ease-in-out", cssProperty: "--kui-ease" },
       perspective: { type: "length", default: "1600px", cssProperty: "--kui-perspective" },
       trigger: {
         type: "keyword",
         default: "click",
         cssProperty: "--kui-flip-trigger",
-        values: ["click", "hover", "hover-latch", "hover-toggle"]
+        keywords: ["click", "hover", "hover-latch", "hover-toggle"]
       }
     },
     supportedTimelines: ["time"],
@@ -6825,7 +13360,7 @@ var kuinetic = (() => {
     defaultActivation: "load",
     perfClass: "compositor",
     reducedMotion: "disable",
-    prepare: deferPrepare(prepareCardToggle)
+    prepare: prepareCard
   };
   var THREE_D_PRIMITIVES = [
     // `skew`, not `rotate`: the keyframes in three-d.css write `transform: perspective(...)
@@ -6834,7 +13369,12 @@ var kuinetic = (() => {
     // `perspective()` transform *function*, which only exists inside the `transform` shorthand.
     // `CHANNEL.skew` is this catalog's name for "claims the whole `transform` shorthand"; see the
     // comment on it in `core/types.ts`.
-    cssPrimitive("flip-face", [CHANNEL.skew], {
+    // `'transform-origin'` alongside `skew`: two of this primitive's five presets pin one —
+    // `book-page-turn` (`left center`) and `fold-panel` (`top center`), each on its own unconditional
+    // rule in three-d.css — undeclared until channel-properties.ts gained an entry for it.
+    // `card-flip-x`/`-y`/`cube-rotate` don't write it, but the channel only says what this primitive
+    // is *allowed* to paint, not what every preset built on it does.
+    cssPrimitive("flip-face", [CHANNEL.skew, "transform-origin"], {
       parameters: {
         angle: { type: "angle", default: "180deg", cssProperty: "--kui-from-angle" },
         perspective: { type: "length", default: "1200px", cssProperty: "--kui-perspective" }
@@ -6848,21 +13388,46 @@ var kuinetic = (() => {
     // `flip-face`'s `angle:` two rows up. `--kui-bar-from` is also what the fold-panel-style
     // `[data-kui-fx~='loading-bar'][data-kui-state='ready']` gate neutralizes in three-d.css; see
     // that rule's comment for the on:enter fix this parameter doubles as.
-    cssPrimitive("bar", [CHANNEL.scale], {
+    // `transform-origin: left center` pins the bar's growth edge on the same unconditional rule —
+    // undeclared until channel-properties.ts gained an entry for it.
+    cssPrimitive("bar", [CHANNEL.scale, "transform-origin"], {
       parameters: { from: { type: "number", default: "0", cssProperty: "--kui-bar-from" } }
     }),
     CARD_TOGGLE_PRIMITIVE
   ];
   var THREE_D_PRESETS = [
     // --- 3D & perspective ---
-    { name: "card-flip-y", primitive: "flip-face", keyframes: "kui-card-flip-y", cloak: true },
-    { name: "card-flip-x", primitive: "flip-face", keyframes: "kui-card-flip-x", cloak: true },
-    { name: "cube-rotate", primitive: "flip-face", keyframes: "kui-cube-rotate", params: { angle: "90deg" } },
+    // `requiresOwnSubtree`: `three-d.css:106-154` branches on `:has(> :nth-child(2))` — a flip
+    // relocated onto a childless element silently takes the single-face branch and spins a bare box.
+    {
+      name: "card-flip-y",
+      primitive: "flip-face",
+      keyframes: "kui-card-flip-y",
+      cloak: true,
+      requiresOwnSubtree: true,
+      establishes3d: true
+    },
+    {
+      name: "card-flip-x",
+      primitive: "flip-face",
+      keyframes: "kui-card-flip-x",
+      cloak: true,
+      requiresOwnSubtree: true,
+      establishes3d: true
+    },
+    {
+      name: "cube-rotate",
+      primitive: "flip-face",
+      keyframes: "kui-cube-rotate",
+      params: { angle: "90deg" },
+      establishes3d: true
+    },
     {
       name: "book-page-turn",
       primitive: "flip-face",
       keyframes: "kui-book-page-turn",
-      params: { angle: "-160deg", duration: "900ms" }
+      params: { angle: "-160deg", duration: "900ms" },
+      establishes3d: true
     },
     // `cloak: true`, unlike its `flip-face` siblings above: those are `to`-only keyframes, so their
     // paused/waiting box is the ordinary, untransformed rest state. `fold-panel` is `from`-only —
@@ -6874,10 +13439,12 @@ var kuinetic = (() => {
     // the other.
     {
       name: "fold-panel",
+      phase: "entrance",
       primitive: "flip-face",
       keyframes: "kui-fold-panel",
       params: { angle: "-90deg" },
-      cloak: true
+      cloak: true,
+      establishes3d: true
     },
     // --- page transitions ---
     { name: "page-fade", primitive: "page-reveal", keyframes: "kui-page-fade" },
@@ -6886,13 +13453,891 @@ var kuinetic = (() => {
     // `cloak: true` for the same reason as `fold-panel`: `kui-loading-bar`'s `from { scale: 0 1 }`
     // (three-d.css) is a zero-width box, not just an invisible one — see that file's
     // `[data-kui-fx~='loading-bar'][data-kui-state='ready']` rule.
-    { name: "loading-bar", primitive: "bar", keyframes: "kui-loading-bar", cloak: true },
+    { name: "loading-bar", phase: "entrance", primitive: "bar", keyframes: "kui-loading-bar", cloak: true },
     // No `keyframes`: its motion is a CSS transition in three-d.css keyed off the control's
     // aria-pressed, not a compiled animation. Same shape as the icon toggles in svg.ts.
-    { name: "flip-card", primitive: "card-toggle" }
+    // `requiresOwnSubtree`: the transition rotates `> .kui-face-front`/`.kui-face-back` children
+    // (three-d.css:297-306), assumed to exist under the fx element itself.
+    { name: "flip-card", phase: "state", primitive: "card-toggle", requiresOwnSubtree: true, establishes3d: true }
   ];
   function registerThreeD(registry) {
     return registry.registerPrimitives(THREE_D_PRIMITIVES).registerPresets(THREE_D_PRESETS);
+  }
+
+  // src/effects/carousel/drag.ts
+  var MOMENTUM_SECONDS = 0.28;
+  var MAX_FLICK_PLACES = 4;
+  var DRAG_THRESHOLD_PX = 6;
+  function projectRelease(position, velocityPxPerSec, travelPx) {
+    if (travelPx <= 0) return position;
+    const places = velocityPxPerSec / travelPx * MOMENTUM_SECONDS;
+    const capped = Math.max(-MAX_FLICK_PLACES, Math.min(MAX_FLICK_PLACES, places));
+    return position - capped;
+  }
+  function snapTo(projected) {
+    return Math.round(projected) + 0;
+  }
+  function wrapPlace(place2, total) {
+    return total > 0 ? (place2 % total + total) % total : 0;
+  }
+  var KEY_DELTAS = {
+    ArrowRight: 1,
+    ArrowDown: 1,
+    ArrowLeft: -1,
+    ArrowUp: -1,
+    PageDown: 1,
+    PageUp: -1,
+    Home: null,
+    End: null
+  };
+  function createRingDrag(request) {
+    const { el, ctx, enabled, travelPx, total, positionOf, moveTo, setDragging } = request;
+    let suppressClick = false;
+    const onClickCapture = (event) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      event.stopPropagation();
+      event.preventDefault();
+    };
+    const stopRecognising = enabled ? recognise(
+      el,
+      {
+        onStart() {
+          setDragging(true);
+        },
+        onMove(vector) {
+          moveTo(positionOf() - vector.dx / travelPx);
+        },
+        onEnd(vector) {
+          setDragging(false);
+          suppressClick = true;
+          const settled = snapTo(projectRelease(positionOf(), vector.vx, travelPx));
+          moveTo(wrapPlace(settled, total()));
+        }
+      },
+      // Locked to one axis: a ring spins about one pole, so vertical pointer movement is the
+      // visitor scrolling the page *through* the deck, which must keep working. The higher
+      // threshold than `recognise`'s own default of 4px is what buys that — a ring occupies a
+      // large slab of a phone screen, and a scroll that begins with a two-pixel horizontal wobble
+      // should not capture the pointer away from the page.
+      { axis: "x", threshold: DRAG_THRESHOLD_PX }
+    ) : () => {
+    };
+    if (enabled) ctx.style.set("touch-action", "pan-y");
+    const onKeyDown = (event) => {
+      const keyboard = event;
+      const key = keyboard.key;
+      const delta = KEY_DELTAS[key];
+      if (delta === void 0) return;
+      if (keyboard.altKey || keyboard.ctrlKey || keyboard.metaKey) return;
+      const count = total();
+      const absolute = key === "Home" ? 0 : count - 1;
+      const next = delta === null ? absolute : snapTo(positionOf()) + delta;
+      event.preventDefault();
+      moveTo(wrapPlace(next, count));
+    };
+    const grantedFocus = el.getAttribute("tabindex") === null;
+    if (grantedFocus) el.setAttribute("tabindex", "0");
+    el.addEventListener("keydown", onKeyDown);
+    el.addEventListener("click", onClickCapture, true);
+    return () => {
+      stopRecognising();
+      el.removeEventListener("keydown", onKeyDown);
+      el.removeEventListener("click", onClickCapture, true);
+      if (grantedFocus) el.removeAttribute("tabindex");
+    };
+  }
+
+  // src/effects/carousel/index.ts
+  var DRAGGING_ATTR = "data-kui-ring-dragging";
+  var FACE_ATTR = "data-kui-ring-face";
+  var QUARTER_TURN_DEG = 90;
+  var FLATTENING = [
+    ["overflow", (value) => value !== "" && value !== "visible"],
+    ["clip-path", (value) => value !== "" && value !== "none"],
+    ["opacity", (value) => value !== "" && Number(value) < 1],
+    ["filter", (value) => value !== "" && value !== "none"],
+    ["backdrop-filter", (value) => value !== "" && value !== "none"]
+  ];
+  function warnFlatteningAncestor(el, ctx) {
+    const body = el.ownerDocument.body;
+    let node = el.parentElement;
+    while (node && node !== body) {
+      const found = flatteningDeclaration(node, ctx);
+      if (found) {
+        ctx.warn(
+          `carousel: an ancestor <${node.localName}> has ${found.property}: ${found.value}, which flattens transform-style: preserve-3d \u2014 the ring will render as flat overlapping cards. Move the ring out of it, or drop that property on the ancestor.`
+        );
+        return;
+      }
+      node = node.parentElement;
+    }
+  }
+  function flatteningDeclaration(node, ctx) {
+    const style = ctx.win.getComputedStyle?.(node);
+    if (!style) return null;
+    for (const [property2, flattens] of FLATTENING) {
+      const value = style.getPropertyValue(property2);
+      if (flattens(value)) return { property: property2, value };
+    }
+    return null;
+  }
+  function ledgersFor(store, node) {
+    let attributes = store.attributes.get(node);
+    if (!attributes) {
+      attributes = createAttributeLedger(node);
+      store.attributes.set(node, attributes);
+    }
+    let styles = store.styles.get(node);
+    if (!styles) {
+      styles = createStyleLedger(node);
+      store.styles.set(node, styles);
+    }
+    return { attributes, styles };
+  }
+  function faceAt(angleDeg) {
+    return Math.abs(normaliseDegrees(angleDeg)) >= QUARTER_TURN_DEG ? "back" : "front";
+  }
+  function normaliseDegrees(angleDeg) {
+    const wrapped2 = (angleDeg % 360 + 360) % 360;
+    return wrapped2 > 180 ? wrapped2 - 360 : wrapped2;
+  }
+  function snapPosition(position, total) {
+    if (total <= 0) return { step: 0, drift: 0 };
+    const nearest = Math.round(position);
+    return { step: (nearest % total + total) % total, drift: position - nearest };
+  }
+  var RING_PARAMETERS = {
+    duration: { type: "time", default: "620ms", cssProperty: "--kui-duration" },
+    ...TRIGGER_DELAY_PARAM,
+    ease: { type: "easing", default: "cubic-bezier(0.22, 1, 0.36, 1)", cssProperty: "--kui-ease" },
+    /*
+     * A real CSS `<angle>`, not a normalised scalar.
+     *
+     * A designer specifies fifteen degrees; nobody specifies 0.375 of an unstated maximum. A
+     * normalised knob also bakes taste into a coordinate — the maximum *is* an opinion about how much
+     * tilt is too much, expressed as a unit — and it cannot be typed in the spelling the rest of the
+     * attribute grammar uses (`0.05turn` is a legal angle and means something exact). Legibility is
+     * still bounded, but the bound is applied to the angle, in `carousel.css`, where it is one
+     * `clamp()` an author can see in devtools rather than a hidden rescale.
+     *
+     * Sign convention: **positive tilts the camera up and over the ring**, looking down at it. That
+     * is the opposite sign from the `rotateX()` it compiles to — see `carousel.css` for the
+     * derivation — and the inversion is deliberate: "18 degrees above" is the sentence a designer
+     * says, and it should not be spelled `-18deg` because of which way a matrix happens to turn.
+     */
+    tilt: { type: "angle", default: "0deg", cssProperty: "--kui-tilt" },
+    /*
+     * How far the ring spreads. `360deg` is a full ring; anything less is a slice.
+     *
+     * This is the parameter the concave name exists around. From the centre of a *full* ring most of
+     * it is behind your head, so a 360-degree spread there is not a design choice but a way of hiding
+     * two thirds of the content — the inside name defaults to a slice for that reason.
+     */
+    arc: { type: "angle", default: "360deg", cssProperty: "--kui-arc" },
+    /*
+     * The ring's radius, or unset for one derived from the content.
+     *
+     * Empty default, not a number, and for the same reason `step-progress`'s `steps` is empty:
+     * `readParams` fills every declared default in unconditionally, so an empty one is the only way
+     * to tell "the author said nothing" from "the author said 320px". Unset, `carousel.css` computes
+     * the circumradius of a regular polygon with this many sides and this much side length —
+     * `(width + gap) / (2 * tan(step / 2))` — which is the arrangement where neighbours just touch.
+     * Every consumer solving that by hand was the alternative, and they would all have solved it
+     * differently.
+     *
+     * The width half of that has to come from JavaScript: CSS can compute with a measurement but
+     * cannot take one. See `measureItemWidth`.
+     */
+    radius: { type: "length", default: "", cssProperty: "--kui-radius" },
+    /** Breathing room between neighbours, spent by the derived radius above. */
+    gap: { type: "length", default: "24px", cssProperty: "--kui-gap" },
+    /** Camera distance. Shorter is a wider lens: more foreshortening, more drama, more distortion. */
+    perspective: { type: "length", default: "1600px", cssProperty: "--kui-perspective" },
+    /*
+     * Whether a slot keeps its own outward orientation, or turns to keep facing the viewer.
+     *
+     * `radial` is the ring's natural state and needs nothing: a slot placed by
+     * `rotateY(θ) translateZ(R)` already faces outward along its own radius, which is why the live
+     * one faces you. It is what you want for a cover-flow, and it is what makes the far side of the
+     * ring read as the far side.
+     *
+     * `camera` counter-rotates each slot's *child* — never the slot itself; the placement transform
+     * and the billboard have to stay on separate boxes or every later change to one silently
+     * multiplies into the other — so text stays readable at every position, which is what a raised
+     * camera needs. Costs one element of markup per slide; see `docs/catalog.md`.
+     */
+    facing: {
+      type: "keyword",
+      default: "radial",
+      cssProperty: "--kui-facing",
+      keywords: ["radial", "camera"]
+    },
+    /** Whether a pointer can spin the ring by hand. */
+    grab: { type: "keyword", default: "true", cssProperty: "--kui-grab", keywords: ["true", "false"] },
+    /*
+     * How far the pointer travels, in pixels, to move the ring one place.
+     *
+     * A pixels-per-step mapping rather than pixels-per-degree, because a step is the unit everything
+     * else here is in — the index, the offset, the snap — and a degree is not: the same drag would
+     * move a six-item ring one place and a sixty-item ring ten, purely because the spacing changed.
+     */
+    travel: { type: "number", default: "220", cssProperty: "--kui-travel", finite: true, minimum: 1 },
+    /** Which elements sit on the ring. Unset means this element's own children. */
+    target: { type: "text", default: "", cssProperty: "--kui-target" },
+    /** Optional controls, resolved exactly as `step-progress` resolves its own. */
+    next: { type: "text", default: "", cssProperty: "--kui-next" },
+    prev: { type: "text", default: "", cssProperty: "--kui-prev" },
+    jump: { type: "text", default: "", cssProperty: "--kui-jump" },
+    scope: SCOPE_PARAM
+  };
+  function measureItemWidth(styles, slots) {
+    for (const slot of slots) {
+      const width = slot.offsetWidth;
+      if (width > 0) styles.set("--kui-item-width", `${width}px`);
+      return;
+    }
+  }
+  function prepareSpatialRing(el, params, ctx) {
+    warnFlatteningAncestor(el, ctx);
+    mirrorTimingToCss("spatial-ring", ALL_TIMING_TOKENS, params, ctx);
+    const selector = resolveTarget(params.text("target"), ctx, "carousel");
+    const scope = scopeParam(params, "self");
+    const resolveSlots = () => selector ? queryScoped(el, ctx, selector, scope) : el.children;
+    const marker = createStepMarker(resolveSlots, (message) => ctx.warn(`carousel ${message}`));
+    const total = () => countSteps(params, resolveSlots);
+    const hostAttributes = createAttributeLedger(el);
+    const hostStyles = createStyleLedger(el);
+    hostAttributes.set("data-kui-ring-facing", params.text("facing", "radial"));
+    const slots = { attributes: /* @__PURE__ */ new Map(), styles: /* @__PURE__ */ new Map() };
+    const derivesRadius = params.text("radius") === "";
+    let position = 0;
+    const arcDeg = degreesOf(params.text("arc", "360deg"), 360);
+    const render = () => {
+      const count = total();
+      const { step, drift: drift2 } = snapPosition(position, count);
+      hostAttributes.set("data-kui-step", String(step));
+      hostStyles.set("--kui-step", String(step));
+      hostStyles.set("--kui-step-position", (step + drift2).toFixed(4));
+      marker.mark(step);
+      const slotNodes = [...resolveSlots()];
+      if (derivesRadius) measureItemWidth(hostStyles, slotNodes);
+      const spacing = arcDeg / count;
+      for (const node of slotNodes) {
+        const offset = Number(node.getAttribute("data-kui-step-offset"));
+        const angle = (offset - drift2) * spacing;
+        ledgersFor(slots, node).attributes.set(FACE_ATTR, faceAt(angle));
+      }
+    };
+    const goTo = (next) => {
+      position = next;
+      render();
+    };
+    const groups = [];
+    const bindControl = (param, run) => {
+      const control2 = resolveTarget(params.text(param), ctx, `carousel ${param}`);
+      if (!control2) return false;
+      if (queryScoped(el, ctx, control2, scope).length === 0) {
+        ctx.warn(`carousel ${param} "${control2}" matched nothing`);
+      }
+      groups.push({ selector: control2, run });
+      return true;
+    };
+    bindControl("next", () => goTo(nextStep(snapPosition(position, total()).step, total())));
+    bindControl("prev", () => goTo(prevStep(snapPosition(position, total()).step, total())));
+    bindControl("jump", (_node, at) => {
+      if (at >= 0) goTo(at);
+    });
+    const releaseControls = delegateControls({ el, ctx, scope, groups });
+    const releaseDrag = createRingDrag({
+      el,
+      ctx,
+      enabled: params.is("grab"),
+      travelPx: params.num("travel", 220),
+      total,
+      positionOf: () => position,
+      moveTo: goTo,
+      setDragging: (dragging) => hostAttributes.set(DRAGGING_ATTR, String(dragging))
+    });
+    render();
+    return () => {
+      releaseDrag();
+      releaseControls();
+      marker.restore();
+      for (const ledger of slots.attributes.values()) ledger.restore();
+      for (const ledger of slots.styles.values()) ledger.restore();
+      slots.attributes.clear();
+      slots.styles.clear();
+      hostAttributes.restore();
+      hostStyles.restore();
+    };
+  }
+  function degreesOf(value, fallbackDeg) {
+    const match = /^(-?[\d.]+)(deg|rad|turn|grad)?$/i.exec(value.trim());
+    if (!match) return fallbackDeg;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount)) return fallbackDeg;
+    switch ((match[2] ?? "deg").toLowerCase()) {
+      case "rad":
+        return amount * 180 / Math.PI;
+      case "turn":
+        return amount * 360;
+      case "grad":
+        return amount * 0.9;
+      default:
+        return amount;
+    }
+  }
+  var SPATIAL_RING_PRIMITIVE = {
+    id: "spatial-ring",
+    renderer: "javascript",
+    channels: [CHANNEL.skew, "discrete"],
+    parameters: RING_PARAMETERS,
+    supportedTimelines: ["time"],
+    // `load`, not `enter`: a carousel that only wires its arrows once scrolled into view is broken,
+    // not lazy — the same distinction `Primitive.defaultActivation` documents.
+    supportedActivations: ["load", "enter", "click", "manual"],
+    defaultActivation: "load",
+    perfClass: "compositor",
+    reducedMotion: "shorten",
+    prepare: deferPrepare(prepareSpatialRing)
+  };
+  var CAROUSEL_PRIMITIVES = [SPATIAL_RING_PRIMITIVE];
+  var CAROUSEL_PRESETS = [
+    {
+      name: "carousel-3d",
+      primitive: "spatial-ring",
+      params: { tilt: "12deg" },
+      requiresOwnSubtree: true,
+      phase: "idle"
+    },
+    {
+      name: "carousel-3d-high",
+      primitive: "spatial-ring",
+      params: { tilt: "30deg", perspective: "1200px" },
+      requiresOwnSubtree: true,
+      phase: "idle"
+    },
+    {
+      name: "carousel-3d-low",
+      primitive: "spatial-ring",
+      params: { tilt: "-18deg", perspective: "1800px" },
+      requiresOwnSubtree: true,
+      phase: "idle"
+    },
+    /*
+     * The concave name. `arc:120deg` is the default the outside names cannot want and this one cannot
+     * do without: from the centre of a full ring, two thirds of the deck is behind the viewer.
+     *
+     * `facing:camera` too, because the reason to stand inside a ring is to read what is on it. A
+     * radial slot at the edge of a 120-degree slice is turned 60 degrees away from the camera, which
+     * is legible as a shape and not as text.
+     */
+    {
+      name: "carousel-3d-inside",
+      primitive: "spatial-ring",
+      params: { arc: "120deg", facing: "camera", perspective: "900px" },
+      requiresOwnSubtree: true,
+      phase: "idle"
+    }
+  ];
+  function registerCarousel(registry) {
+    return registry.registerPrimitives(CAROUSEL_PRIMITIVES).registerPresets(CAROUSEL_PRESETS);
+  }
+
+  // src/effects/tween/properties.ts
+  var TWEEN_GROUP_ORDER = [
+    "translate",
+    "rotate",
+    "scale",
+    "opacity",
+    "filter",
+    "color",
+    "background"
+  ];
+  var TWEEN_GROUP_CHANNELS = {
+    translate: CHANNEL.translate,
+    rotate: CHANNEL.rotate,
+    scale: CHANNEL.scale,
+    opacity: CHANNEL.opacity,
+    filter: CHANNEL.filter,
+    color: CHANNEL.color,
+    background: CHANNEL.background
+  };
+  function property(group, key, type, identity) {
+    const constraints = type === "number" ? { finite: true, ...group === "filter" ? { minimum: 0 } : {} } : {};
+    return [key, { group, spec: { type, default: identity, cssProperty: `--kui-tween-${key}`, ...constraints } }];
+  }
+  var TWEEN_PROPERTIES = Object.fromEntries([
+    // Translation. `x`/`y`/`z` rather than `translate-x`: they are the conventional shorthands, they
+    // are what GSAP calls them, and the CSS property they feed is named on the group instead.
+    property("translate", "x", "length", "0"),
+    property("translate", "y", "length", "0"),
+    property("translate", "z", "length", "0"),
+    // Rotation about the z axis — the only one CSS's `rotate` property renders as a turn. See above.
+    property("rotate", "rotate", "angle", "0deg"),
+    // `scale` sets both axes; `scale-x`/`scale-y` override one. That layering happens in the
+    // keyframe's nested `var()` fallback, not here — see `tween.css`.
+    property("scale", "scale", "number", "1"),
+    property("scale", "scale-x", "number", "1"),
+    property("scale", "scale-y", "number", "1"),
+    property("opacity", "opacity", "number", "1"),
+    // One filter list, with an identity for each function so unnamed functions do no work.
+    property("filter", "blur", "length", "0px"),
+    property("filter", "brightness", "number", "1"),
+    property("filter", "saturate", "number", "1"),
+    property("filter", "grayscale", "number", "0"),
+    property("filter", "contrast", "number", "1"),
+    property("filter", "hue-rotate", "angle", "0deg"),
+    property("filter", "invert", "number", "0"),
+    property("filter", "sepia", "number", "0"),
+    // `currentcolor` on the `color` property resolves to the inherited colour, which is exactly the
+    // "leave it alone" the other identities express.
+    property("color", "color", "color", "currentcolor"),
+    property("background", "background-color", "color", "transparent")
+  ]);
+  var TWEEN_SCHEMA = Object.fromEntries(
+    [
+      ...Object.entries(TWEEN_PROPERTIES).map(([key, entry]) => [key, entry.spec]),
+      ...TWEEN_GROUP_ORDER.map((group) => [`${group}-ease`, {
+        type: "easing",
+        default: "ease-out",
+        cssProperty: `--kui-tween-${group}-ease`
+      }])
+    ]
+  );
+  function withImpliedUnit(raw, type) {
+    raw = raw.trim();
+    if (type === "number" && raw.endsWith("%")) {
+      const value = raw.slice(0, -1);
+      return decimalNumber(value, -2) ?? raw;
+    }
+    const decimal = decimalNumber(raw);
+    if (decimal === void 0) return raw;
+    if (type === "length") return `${decimal}px`;
+    if (type === "angle") return `${decimal}deg`;
+    if (type === "number") return decimal;
+    return raw;
+  }
+  function tweenValue2(key, raw, warn, label = key) {
+    const spec = TWEEN_PROPERTIES[key].spec;
+    const value = withImpliedUnit(raw, spec.type);
+    const reason = slotProblem(key, value);
+    const result = reason ? { ok: false, reason, value } : validate(value, spec);
+    if (!result.ok) {
+      warn(`parameter "${label}": ${result.reason} \u2014 got "${raw}", using default "${spec.default}"`);
+      return void 0;
+    }
+    return result.value;
+  }
+  function slotProblem(key, value) {
+    if (/^(?:inherit|initial|unset|revert|revert-layer)$/i.test(value)) return "CSS-wide keyword cannot be passed through a tween custom property";
+    if ((key === "z" || key === "blur") && value.includes("%")) return "expected a length without percentages";
+    if (key === "blur" && Number.parseFloat(value) < 0) return "blur must be non-negative";
+    return void 0;
+  }
+
+  // src/effects/tween/waypoints.ts
+  var MAX_WAYPOINTS = 5;
+  var MIN_WAYPOINTS = 2;
+  function readWaypoints(raw) {
+    const values = [];
+    let start = 0;
+    let depth = 0;
+    let i = 0;
+    while (i < raw.length) {
+      const char = raw[i];
+      if (char === '"' || char === "'") i = quotedEnd(raw, i);
+      else if (char === "(") depth++;
+      else if (char === ")") depth = Math.max(0, depth - 1);
+      else if (char === "," && depth === 0) {
+        values.push(raw.slice(start, i).trim());
+        start = i + 1;
+      }
+      i++;
+    }
+    values.push(raw.slice(start).trim());
+    return values;
+  }
+  function quotedEnd(raw, start) {
+    for (let i = start + 1; i < raw.length; i++) {
+      if (raw[i] === "\\") i++;
+      else if (raw[i] === raw[start]) return i;
+    }
+    return raw.length;
+  }
+  function padToCount(group, keys, count, warn) {
+    for (const [key, values] of keys) {
+      if (values.length === count) continue;
+      const last = values.at(-1);
+      if (values.length >= MIN_WAYPOINTS) {
+        warn(
+          `"${key}" has ${String(values.length)} waypoints and another "${group}" property has ${String(count)} \u2014 they share one keyframe block, so "${key}" holds at "${last}" for the rest`
+        );
+      }
+      while (values.length < count) values.push(last);
+    }
+  }
+  function clampCount(key, values, warn) {
+    if (values.length <= MAX_WAYPOINTS) return values;
+    warn(
+      `"${key}" has ${String(values.length)} waypoints \u2014 at most ${String(MAX_WAYPOINTS)} are supported, so the animation now ends at "${values[MAX_WAYPOINTS - 1]}"`
+    );
+    return values.slice(0, MAX_WAYPOINTS);
+  }
+  function collectWaypoints(authored, warn) {
+    const byGroup = /* @__PURE__ */ new Map();
+    for (const [key, raw] of authored) {
+      if (raw.length < MIN_WAYPOINTS) continue;
+      const property2 = Object.hasOwn(TWEEN_PROPERTIES, key) ? TWEEN_PROPERTIES[key] : void 0;
+      if (!property2) continue;
+      const values = clampCount(key, raw, warn).map(
+        (value) => withImpliedUnit(value.trim(), property2.spec.type)
+      );
+      const group = byGroup.get(property2.group) ?? { count: 0, keys: /* @__PURE__ */ new Map() };
+      group.keys.set(key, values);
+      group.count = Math.max(group.count, values.length);
+      byGroup.set(property2.group, group);
+    }
+    for (const [group, waypoints] of byGroup) padToCount(group, waypoints.keys, waypoints.count, warn);
+    return byGroup;
+  }
+  function expandWaypoints(waypoints, params, schema, warn) {
+    for (const [key, values] of waypoints.keys) {
+      if (!Object.hasOwn(TWEEN_PROPERTIES, key)) continue;
+      const spec = TWEEN_PROPERTIES[key].spec;
+      for (const [index, value] of values.entries()) {
+        const step = index + 1;
+        const label = `${key}[${String(step)}]`;
+        const accepted = tweenValue2(key, value, warn, label);
+        if (accepted === void 0) continue;
+        params[label] = accepted;
+        schema[label] = waypointSpec(spec, key, step);
+      }
+    }
+  }
+  function waypointSpec(spec, key, step) {
+    return { ...spec, cssProperty: `--kui-tween-${key}-${String(step)}` };
+  }
+  function waypointKeyframes(group, count) {
+    return `kui-tween-keys${String(count)}-${group}`;
+  }
+
+  // src/effects/tween/index.ts
+  var TWEEN_TIMELINES = ["time", "view", "scroll", "pin"];
+  function warnZeroScale(name, starts, warn) {
+    const zero = ["scale-x", "scale-y"].filter((key) => Number(starts[key] ?? starts.scale ?? "1") === 0);
+    if (zero.length === 0) return;
+    warn(
+      `"${name}" starts with no box area on ${zero.join(", ")}, which can prevent on:enter activation depending on its geometry \u2014 use a small non-zero scale, or on:load`
+    );
+  }
+  function startStates(direction, values, params) {
+    const starts = {};
+    const explicit = new Set(values.filter(([, list]) => list.length > 1).map(([key]) => TWEEN_PROPERTIES[key].group));
+    for (const [key] of values) {
+      if (direction === "from" || explicit.has(TWEEN_PROPERTIES[key].group)) {
+        if (params[key] !== void 0) starts[key] = params[key];
+      }
+    }
+    return starts;
+  }
+  function buildVariant(direction, spec, warn) {
+    const params = /* @__PURE__ */ Object.create(null);
+    const values = authoredValues(spec, params, warn);
+    const groups = new Set(values.map(([key]) => TWEEN_PROPERTIES[key].group));
+    const touched = TWEEN_GROUP_ORDER.filter((group) => groups.has(group));
+    if (touched.length === 0) {
+      warn(
+        `"${spec.name}" names no properties to animate \u2014 add at least one, e.g. "${spec.name} x:100" (known: ${Object.keys(TWEEN_PROPERTIES).join(", ")})`
+      );
+      return { channels: [], keyframes: [], params };
+    }
+    warnZeroScale(spec.name, startStates(direction, values, params), warn);
+    const waypoints = collectWaypoints(values, warn);
+    const schema = {};
+    for (const group of waypoints.values()) expandWaypoints(group, params, schema, warn);
+    for (const group of touched) {
+      const key = `${group}[ease]`;
+      const easing = groupEasing(direction, spec, group);
+      params[key] = easing.value;
+      schema[key] = easing.schema;
+    }
+    const variant = {
+      channels: touched.map((group) => TWEEN_GROUP_CHANNELS[group]),
+      keyframes: touched.map((group) => keyframesFor2(group, direction, waypoints.get(group))),
+      params,
+      schema
+    };
+    return variant;
+  }
+  function authoredValues(spec, params, warn) {
+    const values = [];
+    for (const [key, raw] of Object.entries(spec.params)) {
+      const property2 = Object.hasOwn(TWEEN_PROPERTIES, key) ? TWEEN_PROPERTIES[key] : void 0;
+      if (!property2) {
+        params[key] = raw;
+        continue;
+      }
+      const list = readWaypoints(raw);
+      values.push([key, list]);
+      const accepted = tweenValue2(key, list[0], warn);
+      if (accepted !== void 0) params[key] = accepted;
+    }
+    return values;
+  }
+  function groupEasing(direction, spec, group) {
+    const id = direction === "from" ? "tween-from" : "tween";
+    const fallback = `var(--kui-${id}-ease, ease-out)`;
+    const cssProperty = `--kui-tween-${group}-default-ease`;
+    if (spec.easing) {
+      return { value: spec.easing, schema: { type: "easing", default: fallback, cssProperty } };
+    }
+    return {
+      value: fallback,
+      schema: { type: "keyword", default: fallback, keywords: [fallback], cssProperty }
+    };
+  }
+  function keyframesFor2(group, direction, waypoints) {
+    return waypoints ? waypointKeyframes(group, waypoints.count) : `kui-tween-${direction}-${group}`;
+  }
+  function tweenPrimitive(id, direction) {
+    return {
+      ...cssPrimitive(id, [], {
+        timelines: TWEEN_TIMELINES,
+        parameters: TWEEN_SCHEMA,
+        perfClass: "paint"
+      }),
+      variantFor: (spec, warn) => buildVariant(direction, spec, warn)
+    };
+  }
+  var TWEEN_PRIMITIVES = [
+    tweenPrimitive("tween", "to"),
+    tweenPrimitive("tween-from", "from")
+  ];
+  var TWEEN_PRESETS = [
+    { name: "tween", primitive: "tween" },
+    { name: "tween-from", primitive: "tween-from", cloak: true }
+  ];
+  function registerTween(registry) {
+    return registry.registerPrimitives(TWEEN_PRIMITIVES).registerPresets(TWEEN_PRESETS);
+  }
+
+  // src/effects/catalog/view-transitions.ts
+  var CUSTOM_IDENT = /^-?[A-Za-z_][\w-]*$/;
+  var NON_NAMES = /* @__PURE__ */ new Set(["none", "match-element"]);
+  function resolveTransitionName(el, params, warn) {
+    const authored = params.text("name", "auto").trim();
+    if (authored === "auto") {
+      const id = el.id;
+      if (!id) {
+        warn(
+          "page-morph needs a name to morph *to*: give this element an id (and the same id to its counterpart on the other view), or write name:something explicitly"
+        );
+        return void 0;
+      }
+      return CUSTOM_IDENT.test(id) ? id : warnRejected(id, warn);
+    }
+    if (NON_NAMES.has(authored)) {
+      warn(`page-morph name:${authored} is a keyword, not a name \u2014 omit the effect instead`);
+      return void 0;
+    }
+    return CUSTOM_IDENT.test(authored) ? authored : warnRejected(authored, warn);
+  }
+  function warnRejected(value, warn) {
+    warn(
+      `page-morph cannot use "${value}" as a view-transition-name \u2014 it must be a CSS identifier (a letter or underscore, then letters, digits, hyphens or underscores)`
+    );
+    return void 0;
+  }
+  function prepareViewMorph(el, params, ctx) {
+    if (!ctx.capabilities.viewTransitions) {
+      ctx.warn(
+        "this browser has no View Transitions API, so page-morph will not morph \u2014 the navigation or state change still happens, it just cuts instead of animating"
+      );
+      return () => {
+      };
+    }
+    const name = resolveTransitionName(el, params, ctx.warn);
+    if (name === void 0) return () => {
+    };
+    ctx.style.set("view-transition-name", name);
+    return () => {
+    };
+  }
+  var VIEW_MORPH = {
+    id: "view-morph",
+    renderer: "javascript",
+    /**
+     * Named after the one property it writes, the way `transform-origin` is (`three-d/index.ts`).
+     * Deliberately *not* the same channel as `view-swap` below: a card that is both the thing you
+     * click and the thing that morphs is the headline use case, so `data-kui="page-morph,
+     * view-swap"` on one element has to compose.
+     */
+    channels: ["view-transition-name"],
+    parameters: {
+      name: { type: "text", default: "auto", cssProperty: "--kui-view-transition-name" }
+    },
+    supportedTimelines: ["time"],
+    /*
+     * No `enter`. The morph's start moment is a navigation or a `view-swap`, not this element
+     * scrolling into view — an `on:enter` here would leave every off-screen half of a pair unnamed,
+     * which is not a slower morph but no morph at all. `activation.ts` warns by name for it.
+     */
+    supportedActivations: ["load", "manual"],
+    defaultActivation: "load",
+    perfClass: "compositor",
+    /*
+     * `disable`, not `shorten`. A shared-element morph flies a card across the viewport, which is
+     * exactly the large-area travel a reduced-motion request is about — and unlike the discrete
+     * open/close family, refusing it strands nothing: an unnamed element simply is not part of the
+     * transition, so the page still navigates and still swaps, it just cuts. There is no state left
+     * half-applied and nothing for the author to work around.
+     */
+    reducedMotion: "disable",
+    prepare: withTimingContract(
+      "view-morph",
+      {
+        // No `honours` list at all — see the note in `view-transitions.css` on `--kui-vt-duration`.
+        because: "the ::view-transition pseudo-elements hang off the document root, not off this element, so no per-element value can reach them \u2014 set --kui-vt-duration/-delay/-ease on :root instead"
+      },
+      deferPrepare(prepareViewMorph)
+    )
+  };
+  function resolveSwapTarget(el, params, ctx) {
+    const selector = params.text("controls", "").trim();
+    if (selector) {
+      const found2 = ctx.doc.querySelector(selector);
+      if (found2) return found2;
+      ctx.warn(`view-swap controls:${selector} matched nothing \u2014 the click will do nothing`);
+      return void 0;
+    }
+    const controls = el.getAttribute("aria-controls");
+    const found = controls ? ctx.doc.getElementById(controls) : null;
+    if (found) return found;
+    ctx.warn(
+      "view-swap has nothing to swap: give this control an aria-controls pointing at the element whose state changes, or name it with controls:#selector"
+    );
+    return void 0;
+  }
+  function supportsTransitionTypes(win) {
+    const ctor = win.ViewTransition;
+    const proto = ctor?.prototype;
+    return typeof proto === "object" && proto !== null && "types" in proto;
+  }
+  function usableType(authored, ctx) {
+    if (!authored) return "";
+    if (!ctx.capabilities.viewTransitions) return "";
+    if (supportsTransitionTypes(ctx.win)) return authored;
+    ctx.warn(
+      `view-swap type:${authored} needs View Transition types, which this browser's View Transitions API predates \u2014 the swap still animates, with the browser's default cross-fade instead of the motion this type names`
+    );
+    return "";
+  }
+  function runSwap(update, type, ctx) {
+    const start = ctx.doc.startViewTransition;
+    if (!ctx.capabilities.viewTransitions || typeof start !== "function" || ctx.reducedMotion) {
+      update();
+      return;
+    }
+    if (type) start.call(ctx.doc, { update, types: [type] });
+    else start.call(ctx.doc, update);
+  }
+  function prepareViewSwap(el, params, ctx) {
+    const target = resolveSwapTarget(el, params, ctx);
+    if (!target) return () => {
+    };
+    if (!ctx.capabilities.viewTransitions) {
+      ctx.warn(
+        "this browser has no View Transitions API, so view-swap will not animate \u2014 the state change still happens, it just cuts"
+      );
+    }
+    const attribute = params.text("attribute", "data-open").trim() || "data-open";
+    const type = usableType(params.text("type", "").trim(), ctx);
+    const delay = effectDelayMs(params);
+    const flip = () => {
+      const open = target.hasAttribute(attribute);
+      if (open) target.removeAttribute(attribute);
+      else target.setAttribute(attribute, "");
+      if (el.hasAttribute("aria-expanded")) el.setAttribute("aria-expanded", String(!open));
+    };
+    const pendingSwaps = /* @__PURE__ */ new Set();
+    const onClick = () => {
+      if (delay <= 0) {
+        runSwap(flip, type, ctx);
+        return;
+      }
+      const handle = ctx.win.setTimeout(() => {
+        pendingSwaps.delete(handle);
+        runSwap(flip, type, ctx);
+      }, delay);
+      pendingSwaps.add(handle);
+    };
+    el.addEventListener("click", onClick, { signal: ctx.signal });
+    return () => {
+      for (const handle of pendingSwaps) ctx.win.clearTimeout(handle);
+      pendingSwaps.clear();
+    };
+  }
+  var VIEW_SWAP = {
+    id: "view-swap",
+    /** Its own channel — see `view-morph`'s, above, for why the two are not the same one. */
+    channels: ["view-transition-run"],
+    renderer: "javascript",
+    parameters: {
+      /*
+       * `controls:`, not `target:`. `target:` has one meaning across this library — relocate the
+       * effect onto an inner element, because the library owns the structure — and this parameter
+       * means the opposite: the effect stays on the control, and this names a *different* element
+       * somewhere else in the document whose state changes. Reusing the word would make
+       * `target:#panel` mean "move the click handler onto #panel", which is not what any author
+       * writing it would expect.
+       */
+      controls: { type: "text", default: "", cssProperty: "--kui-view-swap-controls" },
+      attribute: { type: "text", default: "data-open", cssProperty: "--kui-view-swap-attribute" },
+      /*
+       * The view-transition *type* this swap runs under, which is what selects the motion in
+       * `view-transitions.css` — and the same word the author puts in their `@view-transition`
+       * rule for the cross-document half. One vocabulary for both halves is the point: `type:
+       * kui-page-slide` here and `types: kui-page-slide` there animate identically.
+       */
+      type: { type: "text", default: "", cssProperty: "--kui-view-swap-type" },
+      ...TRIGGER_DELAY_PARAM
+    },
+    supportedTimelines: ["time"],
+    supportedActivations: ["load", "manual"],
+    defaultActivation: "load",
+    /* The update repaints the page and the browser re-lays it out to capture the new state. */
+    perfClass: "layout",
+    /*
+     * `shorten`, and emphatically not `disable`. `disable` means `activate()` is never called, so
+     * the listener is never installed, so the panel this control opens never opens — a reduced-motion
+     * user would get a dead button. The reduction happens inside `runSwap` instead, which skips the
+     * transition and applies the state change directly: the page still works, it just cuts.
+     */
+    reducedMotion: "shorten",
+    prepare: withTimingContract(
+      "view-swap",
+      {
+        honours: ["delay"],
+        because: "it starts a transition the browser then owns \u2014 the duration and curve live on the ::view-transition pseudo-elements at :root, not on this control"
+      },
+      deferPrepare(prepareViewSwap)
+    )
+  };
+  var VIEW_TRANSITION_PRIMITIVES = [VIEW_MORPH, VIEW_SWAP];
+  var VIEW_TRANSITION_PRESETS = [
+    /*
+     * `page-morph` has been documented as planned in `docs/catalog.md` §L since long before it
+     * existed, described there as "a View Transitions shared-element handoff; it degrades to
+     * page-fade where unsupported". That is exactly what this is, so it keeps the name rather than
+     * shipping a synonym beside a permanently-planned row.
+     */
+    { name: "page-morph", primitive: "view-morph" },
+    { name: "view-swap", primitive: "view-swap", phase: "state" }
+  ];
+  function registerViewTransitions(registry) {
+    return registry.registerPrimitives(VIEW_TRANSITION_PRIMITIVES).registerPresets(VIEW_TRANSITION_PRESETS);
   }
 
   // src/effects/index.ts
@@ -6902,11 +14347,15 @@ var kuinetic = (() => {
     registerScrollMechanics(registry);
     registerLayout(registry);
     registerSvg(registry);
+    registerMotionPath(registry);
     registerGestures(registry);
     registerThreeD(registry);
+    registerCarousel(registry);
     registerCatalog(registry);
     registerNavigation(registry);
     registerForms(registry);
+    registerTween(registry);
+    registerViewTransitions(registry);
     return registry;
   }
 
@@ -6919,11 +14368,216 @@ var kuinetic = (() => {
 })();
 
 ;(function () {
+"use strict";
+var __kuineticBoot = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // src/browser/boot.ts
+  var boot_exports = {};
+  __export(boot_exports, {
+    boot: () => boot
+  });
+  var RUNTIME_KEY = "__kuineticRuntime";
+  var VERSION = 1;
+  function globalScope() {
+    return globalThis;
+  }
+  function getRuntime() {
+    const scope = globalScope();
+    const existing = scope[RUNTIME_KEY];
+    if (existing) return existing;
+    const created = {
+      v: VERSION,
+      animator: null,
+      pending: [],
+      booted: false,
+      started: false,
+      manual: false,
+      scheduled: false,
+      warnedVersion: false,
+      warnedManual: false
+    };
+    scope[RUNTIME_KEY] = created;
+    return created;
+  }
+  function taggedManual() {
+    const script = document.currentScript;
+    return !!script && script.hasAttribute("data-kui-manual");
+  }
+  function warn(message) {
+    if (typeof console !== "undefined" && typeof console.warn === "function") {
+      console.warn(`kuinetic: ${message}`);
+    }
+  }
+  function checkVersion(runtime, tier) {
+    if (runtime.v === VERSION || runtime.warnedVersion) return;
+    runtime.warnedVersion = true;
+    warn(
+      `the "${tier}" bundle expects runtime v${VERSION} but found v${runtime.v} on this page \u2014 the bundles are from different releases. Serve them all from the same version.`
+    );
+  }
+  function installGuard(runtime, core, globalName) {
+    if (!globalName) return;
+    const scope = globalScope();
+    if (!(globalName in scope)) return;
+    const source = core;
+    const original = core.kuinetic;
+    const flat = {};
+    for (const key of Object.getOwnPropertyNames(source)) flat[key] = source[key];
+    const wrapped = (options) => guarded(runtime, original, core, options);
+    flat.kuinetic = wrapped;
+    if (source.default === original) flat.default = wrapped;
+    try {
+      scope[globalName] = flat;
+    } catch {
+    }
+  }
+  function guarded(runtime, original, core, options) {
+    if (!runtime.started) {
+      const replacement = original.call(core, options);
+      adopt(runtime, replacement);
+      warnManualCall(
+        runtime,
+        "yours is now the one this page uses, exactly as it would have been before the script tag started one, so the call is safe to delete"
+      );
+      return replacement;
+    }
+    const shared = runtime.animator;
+    const wantsShared = !options || Object.entries(options).every(([key, value]) => key === "observe" && value === true);
+    if (shared && wantsShared) {
+      warnManualCall(runtime, "you have been handed the one it already made, so this call is safe to delete");
+      return shared;
+    }
+    warnManualCall(
+      runtime,
+      "a second animator is now observing the same document, because this call arrived after the page was scanned and named its own root/registry/reporter"
+    );
+    return original.call(core, options);
+  }
+  function warnManualCall(runtime, consequence) {
+    if (runtime.warnedManual) return;
+    runtime.warnedManual = true;
+    warn(
+      `an animator was created by hand, and the script tag had already started one \u2014 ${consequence}. To turn the auto-start off entirely, put data-kui-manual on the <script> tag.`
+    );
+  }
+  function adopt(runtime, animator) {
+    const start = animator.start.bind(animator);
+    animator.start = () => {
+      runtime.started = true;
+      return start();
+    };
+    runtime.animator = animator;
+    globalScope().__kuinetic = animator;
+  }
+  function createAnimator(runtime, core) {
+    adopt(runtime, core.kuinetic({ observe: true }));
+  }
+  function schedule(runtime) {
+    if (document.readyState !== "loading") {
+      runBoot(runtime);
+      return;
+    }
+    if (runtime.scheduled) return;
+    runtime.scheduled = true;
+    document.addEventListener("DOMContentLoaded", () => runBoot(runtime), { once: true });
+  }
+  function recompile(animator) {
+    for (const el of document.querySelectorAll("[data-kui]")) animator.reset(el);
+    animator.scan();
+  }
+  function resolveCore() {
+    const candidate = globalScope().kuinetic;
+    return candidate && typeof candidate.kuinetic === "function" ? candidate : null;
+  }
+  function reportMissingCore(runtime) {
+    const names = runtime.pending.map((entry) => `"${entry.tier}"`).join(", ");
+    if (!names) return;
+    warn(
+      `the ${names} tier bundle loaded but core did not \u2014 add <script src=".../kuinetic.min.js"><\/script> to the page (in any order).`
+    );
+  }
+  function drain(runtime, animator) {
+    const pending = runtime.pending.splice(0, runtime.pending.length);
+    for (const entry of pending) {
+      try {
+        entry.register(animator);
+      } catch (error) {
+        warn(`the "${entry.tier}" tier failed to register: ${String(error)}`);
+      }
+    }
+    return pending.length;
+  }
+  function runBoot(runtime) {
+    if (runtime.manual) return;
+    if (!runtime.animator) {
+      const core = resolveCore();
+      if (core) createAnimator(runtime, core);
+    }
+    const animator = runtime.animator;
+    if (!animator) {
+      reportMissingCore(runtime);
+      return;
+    }
+    const registered = drain(runtime, animator);
+    runtime.booted = true;
+    if (!runtime.started) {
+      animator.start();
+      return;
+    }
+    if (registered) recompile(animator);
+  }
+  function optedOut(runtime, options) {
+    if (taggedManual()) {
+      if (options.core) runtime.manual = true;
+      return true;
+    }
+    return runtime.manual;
+  }
+  function enlist(runtime, options) {
+    if (options.core) {
+      if (runtime.animator) return;
+      createAnimator(runtime, options.core);
+      installGuard(runtime, options.core, options.globalName);
+      return;
+    }
+    if (options.register) runtime.pending.push({ tier: options.tier, register: options.register });
+  }
+  function boot(options) {
+    if (typeof document === "undefined" || typeof globalThis === "undefined") return;
+    const runtime = getRuntime();
+    checkVersion(runtime, options.tier);
+    if (optedOut(runtime, options)) return;
+    enlist(runtime, options);
+    schedule(runtime);
+  }
+  return __toCommonJS(boot_exports);
+})();
+
+__kuineticBoot.boot({ tier: 'core', core: kuinetic, globalName: 'kuinetic' });
+})();
+
+;(function () {
   if (!document.getElementById('kuinetic-styles')) {
     var style = document.createElement('style')
     style.id = 'kuinetic-styles'
-    style.textContent = "/* src/css/base.css */\n@layer kui.tokens, kui.presets, kui.effects, kui.policy, kui.cloak;\n@layer kui.tokens {\n  :root {\n    --kui-ease-expo-in: cubic-bezier(0.7, 0, 0.84, 0);\n    --kui-ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);\n    --kui-ease-expo-in-out: cubic-bezier(0.87, 0, 0.13, 1);\n    --kui-ease-back-in: cubic-bezier(0.36, 0, 0.66, -0.56);\n    --kui-ease-back-out: cubic-bezier(0.34, 1.56, 0.64, 1);\n    --kui-ease-back-in-out: cubic-bezier(0.68, -0.6, 0.32, 1.6);\n    --kui-ease-quart-out: cubic-bezier(0.25, 1, 0.5, 1);\n    --kui-ease-circ-out: cubic-bezier(0, 0.55, 0.45, 1);\n    --kui-ease-spring: linear(0, 0.4 12%, 0.9 25%, 1.06 38%, 1.01 62%, 1);\n    --kui-ease-bounce: linear(0, 0.5 10%, 1.2 30%, 0.9 50%, 1.08 68%, 0.97 82%, 1.02 92%, 1);\n  }\n  [data-kui-fx] {\n    --kui-dir: 1;\n    --kui-i: 0;\n  }\n  :dir(rtl) [data-kui-fx] {\n    --kui-dir: -1;\n  }\n}\n@layer kui.policy {\n  html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state]) {\n    opacity: 0 !important;\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm],\n    [data-kui-rm]::before,\n    [data-kui-rm]::after,\n    [data-kui-rm] .kui-odometer-strip,\n    [data-kui-rm][data-kui-fx~=label-float] ~ label,\n    [data-kui-rm][data-kui-fx~=input-underline-grow] ~ .kui-underline,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb,\n    [data-kui-rm][data-kui-fx~=checkbox-draw] ~ svg path,\n    [data-kui-rm][data-kui-fx~=radio-fill] ~ .kui-dot,\n    [data-kui-rm][data-kui-fx~=strength-meter] ~ .kui-meter > *,\n    [data-kui-rm][data-kui-fx~=hamburger-to-x] .kui-bar,\n    [data-kui-rm][data-kui-fx~=play-to-pause] .kui-bar,\n    [data-kui-rm][data-kui-fx~=plus-to-minus] .kui-bar,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-front,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-back {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n    [data-kui-rm=shorten],\n    [data-kui-rm=shorten]::before,\n    [data-kui-rm=shorten]::after {\n      animation-duration: 1ms !important;\n      animation-delay: 0ms !important;\n    }\n    [data-kui-rm=crossfade] {\n      animation-name: kui-in !important;\n      animation-duration: 200ms !important;\n    }\n    [data-kui-rm=disable] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n    }\n  }\n  @media print {\n    [data-kui-fx],\n    [data-kui-reveal] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n    }\n  }\n}\n\n/* src/css/presets.generated.css */\n@layer kui.presets {\n  [data-kui-fx~=accordion-height] {\n    --kui-auto-height-duration: 400ms;\n    --kui-auto-height-ease: ease-out;\n  }\n  [data-kui-fx~=aurora] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=back-in-down] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=back-in-up] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=badge-pop] {\n    --kui-feedback-pop-duration: 420ms;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=beam-border] {\n    --kui-beam-border-duration: 220ms;\n    --kui-beam-border-ease: ease-out;\n  }\n  [data-kui-fx~=beam-border-auto] {\n    --kui-beam-border-auto-duration: 220ms;\n    --kui-beam-border-auto-ease: ease-out;\n  }\n  [data-kui-fx~=before-after-wipe] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=blob-morph] {\n    --kui-path-morph-duration: 800ms;\n  }\n  [data-kui-fx~=blur-in] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-out] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-up] {\n    --kui-media-blur-up-duration: 600ms;\n    --kui-media-blur-up-delay: 0ms;\n    --kui-media-blur-up-ease: ease-out;\n  }\n  [data-kui-fx~=bob] {\n    --kui-ambient-float-duration: 2s;\n    --kui-distance: 8px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=book-page-turn] {\n    --kui-from-angle: -160deg;\n    --kui-flip-face-duration: 900ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=bookmark-fill] {\n    --kui-shape-fill-duration: 360ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=border-draw] {\n    --kui-border-draw-duration: 220ms;\n    --kui-border-draw-ease: ease-out;\n  }\n  [data-kui-fx~=border-glow] {\n    --kui-border-glow-duration: 220ms;\n    --kui-border-glow-ease: ease-out;\n  }\n  [data-kui-fx~=bounce-in] {\n    --kui-from-scale: 0.3;\n    --kui-scale-ease: var(--kui-ease-bounce, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-down] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-up] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=card-flip-x] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=card-flip-y] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=chart-area-fill] {\n    --kui-shape-fill-duration: 900ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    --kui-bar-grow-duration: 700ms;\n    --kui-bar-grow-ease: var(--kui-ease-back-out, ease-out);\n    --kui-bar-grow-delay: 0ms;\n  }\n  [data-kui-fx~=chart-line-draw] {\n    --kui-path-draw-duration: 1200ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=checkmark-draw] {\n    --kui-path-draw-duration: 320ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=confetti-burst] {\n    --kui-feedback-burst-duration: 900ms;\n    --kui-pop-scale: 1.15;\n    --kui-feedback-burst-delay: 0ms;\n    --kui-feedback-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=copy-confirm] {\n    --kui-feedback-confirm-duration: 1400ms;\n    --kui-feedback-confirm-delay: 0ms;\n    --kui-feedback-confirm-ease: linear;\n  }\n  [data-kui-fx~=count-bump] {\n    --kui-feedback-pop-duration: 280ms;\n    --kui-pop-scale: 1.3;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=count-compact] {\n    --kui-from: 0;\n    --kui-to: 128400;\n    --kui-format: compact;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-currency] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-format: currency;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-down] {\n    --kui-from: 100;\n    --kui-to: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-percent] {\n    --kui-from: 0;\n    --kui-to: 0.82;\n    --kui-format: percent;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-up] {\n    --kui-from: 0;\n    --kui-to: 100;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=cross-draw] {\n    --kui-path-draw-duration: 260ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=cube-rotate] {\n    --kui-from-angle: 90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=cursor-follow] {\n    --kui-stiffness: 300;\n    --kui-damping: 30;\n  }\n  [data-kui-fx~=cursor-invert] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-label] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-lag] {\n    --kui-stiffness: 80;\n    --kui-damping: 14;\n  }\n  [data-kui-fx~=curtain-reveal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=curtain-wipe] {\n    --kui-wipe-duration: 800ms;\n    --kui-wipe-delay: 0ms;\n    --kui-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=decode] {\n    --kui-charset: binary;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=depth-layer] {\n    --kui-distance: 200px;\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=donut-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=drag-inertia] {\n    --kui-inertia: true;\n  }\n  [data-kui-fx~=drag-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=drag-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=draw-signature] {\n    --kui-path-draw-duration: 1600ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-stroke] {\n    --kui-path-draw-duration: 800ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-underline] {\n    --kui-path-draw-duration: 420ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=drawer-slide] {\n    --kui-drawer-slide-duration: 600ms;\n    --kui-drawer-slide-delay: 0ms;\n    --kui-drawer-slide-ease: ease-out;\n  }\n  [data-kui-fx~=dropdown-open] {\n    --kui-panel-reveal-duration: 600ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=duotone-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=elastic-pull] {\n    --kui-return: true;\n    --kui-bounds: 80;\n  }\n  [data-kui-fx~=expand-to-modal] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 500ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-in] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-up] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-in] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=flip-card] {\n    --kui-card-toggle-duration: 700ms;\n    --kui-card-toggle-ease: ease-in-out;\n  }\n  [data-kui-fx~=flip-filter] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-reorder] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-shuffle] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-sort] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=float] {\n    --kui-ambient-float-duration: 4s;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-ambient-float-duration: 6s;\n    --kui-distance: 10px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=focus-ring-grow] {\n    --kui-focus-ring-duration: 600ms;\n    --kui-focus-ring-delay: 0ms;\n    --kui-focus-ring-ease: ease-out;\n  }\n  [data-kui-fx~=fold-panel] {\n    --kui-from-angle: -90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=gauge-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=glitch] {\n    --kui-charset: symbols;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-ambient-pulse-duration: 2.2s;\n    --kui-ambient-pulse-delay: 0ms;\n    --kui-ambient-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-mesh] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    --kui-text-shimmer-duration: 600ms;\n    --kui-text-shimmer-delay: 0ms;\n    --kui-text-shimmer-ease: ease-out;\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-path-draw-duration: 2400ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-sweep] {\n    --kui-text-gradient-sweep-duration: 600ms;\n    --kui-text-gradient-sweep-delay: 0ms;\n    --kui-text-gradient-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=grayscale-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=grid-to-list] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=hamburger-to-x] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=heart-burst] {\n    --kui-feedback-burst-duration: 700ms;\n    --kui-pop-scale: 1.4;\n    --kui-feedback-burst-delay: 0ms;\n    --kui-feedback-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=heart-fill] {\n    --kui-shape-fill-duration: 420ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=highlight-sweep] {\n    --kui-sweep-color: gold;\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=icon-bounce] {\n    --kui-icon-bounce-duration: 220ms;\n    --kui-icon-bounce-ease: ease-out;\n  }\n  [data-kui-fx~=icon-morph] {\n    --kui-path-morph-duration: 300ms;\n  }\n  [data-kui-fx~=icon-spin] {\n    --kui-icon-spin-duration: 220ms;\n    --kui-icon-spin-ease: ease-out;\n  }\n  [data-kui-fx~=icon-wiggle] {\n    --kui-icon-wiggle-duration: 220ms;\n    --kui-icon-wiggle-ease: ease-out;\n  }\n  [data-kui-fx~=image-parallax-frame] {\n    --kui-media-parallax-frame-duration: 600ms;\n    --kui-media-parallax-frame-delay: 0ms;\n    --kui-media-parallax-frame-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns-out] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=lift] {\n    --kui-lift-duration: 220ms;\n    --kui-lift-ease: ease-out;\n  }\n  [data-kui-fx~=lift-shadow] {\n    --kui-lift-shadow-duration: 220ms;\n    --kui-lift-shadow-ease: ease-out;\n  }\n  [data-kui-fx~=lightbox-open] {\n    --kui-media-lightbox-duration: 600ms;\n    --kui-media-lightbox-delay: 0ms;\n    --kui-media-lightbox-ease: ease-out;\n  }\n  [data-kui-fx~=line-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=loading-bar] {\n    --kui-bar-duration: 600ms;\n    --kui-bar-delay: 0ms;\n    --kui-bar-ease: ease-out;\n  }\n  [data-kui-fx~=logo-build] {\n    --kui-logo-assemble-duration: 520ms;\n    --kui-logo-assemble-ease: var(--kui-ease-back-out, ease-out);\n    --kui-logo-assemble-delay: 0ms;\n  }\n  [data-kui-fx~=long-press] {\n    --kui-pressable-duration: 500ms;\n  }\n  [data-kui-fx~=magnetic-snap] {\n    --kui-strength: 0.6;\n    --kui-radius: 160;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=marquee-scroll-linked] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=mask-reveal] {\n    --kui-media-mask-duration: 600ms;\n    --kui-media-mask-delay: 0ms;\n    --kui-media-mask-ease: ease-out;\n  }\n  [data-kui-fx~=masonry-reflow] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=mega-menu-drop] {\n    --kui-panel-reveal-duration: 550ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=menu-fullscreen] {\n    --kui-menu-fullscreen-duration: 600ms;\n    --kui-menu-fullscreen-delay: 0ms;\n    --kui-menu-fullscreen-ease: ease-out;\n  }\n  [data-kui-fx~=menu-stagger-open] {\n    --kui-nav-reveal-duration: 600ms;\n    --kui-nav-reveal-delay: 0ms;\n    --kui-nav-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=noise-overlay] {\n    --kui-ambient-tint-duration: 650ms;\n    --kui-ambient-tint-ease: steps(6);\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=odometer-roll] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-count-odometer-duration: 1600ms;\n    --kui-count-odometer-delay: 0ms;\n  }\n  [data-kui-fx~=orbit] {\n    --kui-ambient-orbit-duration: 3.5s;\n    --kui-ambient-orbit-delay: 0ms;\n    --kui-ambient-orbit-ease: linear;\n  }\n  [data-kui-fx~=page-fade] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=page-slide] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-rotate] {\n    --kui-parallax-rotate-duration: 600ms;\n    --kui-parallax-rotate-delay: 0ms;\n    --kui-parallax-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-scale] {\n    --kui-parallax-scale-duration: 600ms;\n    --kui-parallax-scale-delay: 0ms;\n    --kui-parallax-scale-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-x] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-y] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=pin-section] {\n    --kui-distance: 100vh;\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-spacer] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-until] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=play-to-pause] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=plus-to-minus] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=pop] {\n    --kui-pop-duration: 220ms;\n    --kui-pop-ease: ease-out;\n  }\n  [data-kui-fx~=pop-in] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-out, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=pop-out] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-in, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=progress-bar] {\n    --kui-meter-bar-duration: 600ms;\n    --kui-meter-bar-delay: 0ms;\n    --kui-meter-bar-ease: ease-out;\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    --kui-feedback-progress-track-duration: 1.4s;\n    --kui-feedback-progress-track-delay: 0ms;\n    --kui-feedback-progress-track-ease: ease-in-out;\n  }\n  [data-kui-fx~=progress-ring] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=progress-segments] {\n    --kui-meter-segments-duration: 600ms;\n    --kui-meter-segments-delay: 0ms;\n    --kui-meter-segments-ease: ease-out;\n  }\n  [data-kui-fx~=pull-to-refresh] {\n    --kui-feedback-pull-duration: 900ms;\n    --kui-feedback-pull-ease: ease-out;\n    --kui-feedback-pull-delay: 0ms;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-range-fill-duration: 400ms;\n    --kui-range-fill-delay: 0ms;\n    --kui-range-fill-ease: ease-out;\n  }\n  [data-kui-fx~=redaction-reveal] {\n    --kui-redaction-reveal-duration: 600ms;\n    --kui-redaction-reveal-delay: 0ms;\n    --kui-redaction-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=reveal-once] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=ripple] {\n    --kui-feedback-ripple-duration: 600ms;\n    --kui-feedback-ripple-delay: 0ms;\n    --kui-feedback-ripple-ease: ease-out;\n  }\n  [data-kui-fx~=roll-in] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=roll-out] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-left] {\n    --kui-from-angle: -45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-right] {\n    --kui-from-angle: 45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-out] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rubber-band] {\n    --kui-return: true;\n    --kui-bounds: 120;\n  }\n  [data-kui-fx~=saturate-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=scanline] {\n    --kui-ambient-tint-duration: 3.5s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=scramble] {\n    --kui-charset: upper;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=scroll-desaturate] {\n    --kui-desaturate-duration: 600ms;\n    --kui-desaturate-delay: 0ms;\n    --kui-desaturate-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-fade] {\n    --kui-scroll-fade-duration: 600ms;\n    --kui-scroll-fade-delay: 0ms;\n    --kui-scroll-fade-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar-y] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    --kui-progress-stroke-duration: 600ms;\n    --kui-progress-stroke-delay: 0ms;\n    --kui-progress-stroke-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-skew] {\n    --kui-skew-duration: 600ms;\n    --kui-skew-delay: 0ms;\n    --kui-skew-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-snap-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=scroll-snap-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=scrollytelling-step] {\n    --kui-steps: 4;\n  }\n  [data-kui-fx~=sequence-scrub] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=shake-error] {\n    --kui-feedback-shake-duration: 500ms;\n    --kui-feedback-shake-delay: 0ms;\n    --kui-feedback-shake-ease: linear;\n  }\n  [data-kui-fx~=shine-sweep] {\n    --kui-shine-sweep-duration: 220ms;\n    --kui-shine-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=skeleton-shimmer] {\n    --kui-feedback-shimmer-duration: 1.6s;\n    --kui-feedback-shimmer-delay: 0ms;\n    --kui-feedback-shimmer-ease: linear;\n  }\n  [data-kui-fx~=skeleton-to-content] {\n    --kui-feedback-fade-duration: 600ms;\n    --kui-feedback-fade-delay: 0ms;\n    --kui-feedback-fade-ease: ease-out;\n  }\n  [data-kui-fx~=slat-assemble] {\n    --kui-slat-assemble-duration: 500ms;\n    --kui-slat-assemble-delay: 0ms;\n    --kui-slat-assemble-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=snap-back] {\n    --kui-return: true;\n    --kui-stiffness: 260;\n  }\n  [data-kui-fx~=sparkline-draw] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=spinner] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=spinner-dots] {\n    --kui-feedback-dot-pulse-duration: 1.2s;\n    --kui-feedback-dot-pulse-delay: 0ms;\n    --kui-feedback-dot-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=spinner-ring] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=split-chars] {\n    --kui-unit: chars;\n    --kui-direction: fade;\n    --kui-stagger: 30ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-flap] {\n    --kui-split-flap-duration: 220ms;\n    --kui-split-flap-ease: ease-out;\n  }\n  [data-kui-fx~=split-lines] {\n    --kui-unit: lines;\n    --kui-direction: fade;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-words] {\n    --kui-unit: words;\n    --kui-direction: fade;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=spotlight-follow] {\n    --kui-ambient-tint-duration: 9s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=stacking-cards] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=star-rating-fill] {\n    --kui-meter-stars-duration: 600ms;\n    --kui-meter-stars-delay: 0ms;\n    --kui-meter-stars-ease: ease-out;\n  }\n  [data-kui-fx~=starfield] {\n    --kui-ambient-tint-duration: 40s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=step-progress] {\n    --kui-step-progress-duration: 400ms;\n    --kui-step-progress-delay: 0ms;\n    --kui-step-progress-ease: ease-out;\n  }\n  [data-kui-fx~=strength-meter] {\n    --kui-strength-meter-duration: 400ms;\n    --kui-strength-meter-delay: 0ms;\n    --kui-strength-meter-ease: ease-out;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] {\n    --kui-submit-flow-duration: 400ms;\n    --kui-submit-flow-delay: 0ms;\n    --kui-submit-flow-ease: ease-out;\n  }\n  [data-kui-fx~=swing-in] {\n    --kui-from-angle: -15deg;\n    --kui-rotate-ease: var(--kui-ease-back-out, ease-out);\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n  }\n  [data-kui-fx~=swipe-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=tab-indicator-slide] {\n    --kui-flip-indicator-duration: 300ms;\n    --kui-flip-indicator-ease: ease-out;\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    --kui-text-3d-extrude-duration: 600ms;\n    --kui-text-3d-extrude-delay: 0ms;\n    --kui-text-3d-extrude-ease: ease-out;\n  }\n  [data-kui-fx~=text-jitter] {\n    --kui-motion: jitter;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=text-outline-fill] {\n    --kui-text-outline-fill-duration: 600ms;\n    --kui-text-outline-fill-delay: 0ms;\n    --kui-text-outline-fill-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-down] {\n    --kui-unit: words;\n    --kui-direction: down;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-mask] {\n    --kui-unit: lines;\n    --kui-direction: mask;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-up] {\n    --kui-unit: words;\n    --kui-direction: up;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-wave] {\n    --kui-motion: wave;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=throwable] {\n    --kui-inertia: true;\n    --kui-damping: 18;\n  }\n  [data-kui-fx~=toast-slide-in] {\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n    --kui-feedback-toast-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=toast-slide-out] {\n    --kui-feedback-toast-ease: ease-in;\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n  }\n  [data-kui-fx~=typewriter] {\n    --kui-loop: false;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=typewriter-loop] {\n    --kui-loop: true;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=underline-center] {\n    --kui-underline-center-duration: 220ms;\n    --kui-underline-center-ease: ease-out;\n  }\n  [data-kui-fx~=underline-draw] {\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=underline-slide] {\n    --kui-underline-slide-duration: 220ms;\n    --kui-underline-slide-ease: ease-out;\n  }\n  [data-kui-fx~=validate-check] {\n    --kui-validate-check-duration: 600ms;\n    --kui-validate-check-delay: 0ms;\n    --kui-validate-check-ease: ease-out;\n  }\n  [data-kui-fx~=validate-shake] {\n    --kui-validate-shake-duration: 600ms;\n    --kui-validate-shake-delay: 0ms;\n    --kui-validate-shake-ease: ease-out;\n  }\n  [data-kui-fx~=var-slant] {\n    --kui-var-slant-duration: 600ms;\n    --kui-var-slant-delay: 0ms;\n    --kui-var-slant-ease: ease-out;\n  }\n  [data-kui-fx~=var-weight] {\n    --kui-var-weight-duration: 600ms;\n    --kui-var-weight-delay: 0ms;\n    --kui-var-weight-ease: ease-out;\n  }\n  [data-kui-fx~=var-width] {\n    --kui-var-width-duration: 600ms;\n    --kui-var-width-delay: 0ms;\n    --kui-var-width-ease: ease-out;\n  }\n  [data-kui-fx~=wave-blob] {\n    --kui-ambient-tint-duration: 12s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=wipe-circle] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-diagonal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-down] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-left] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-right] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-up] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wobble] {\n    --kui-feedback-wobble-duration: 600ms;\n    --kui-feedback-wobble-ease: ease-in-out;\n    --kui-feedback-wobble-delay: 0ms;\n  }\n  [data-kui-fx~=word-cycler] {\n    --kui-word-cycler-delay: 0ms;\n  }\n  [data-kui-fx~=zoom-in] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-down] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-up] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-out] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n}\n@layer kui.cloak {\n  html[data-kui-cloak] [data-kui~=back-in-down]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=back-in-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=blur-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=blur-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=bounce-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=bounce-in-down]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=bounce-in-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=card-flip-x]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=card-flip-y]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=chart-bar-grow]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=curtain-reveal]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fade-blur-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fade-blur-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fade-down]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fade-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fade-left]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fade-right]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fade-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=flip-in-x]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=flip-in-y]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=fold-panel]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=loading-bar]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=mask-reveal]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=pop-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=progress-bar]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=reveal-once]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=roll-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=rotate-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=rotate-in-left]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=rotate-in-right]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slat-assemble]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-block-end]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-block-start]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-down]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-inline-end]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-inline-start]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-left]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-right]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=slide-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=swing-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=text-reveal-down]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=text-reveal-mask]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=text-reveal-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=wipe-circle]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=wipe-diagonal]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=wipe-down]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=wipe-left]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=wipe-right]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=wipe-up]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=zoom-in]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=zoom-in-down]:not([data-kui-state]),\n  html[data-kui-cloak] [data-kui~=zoom-in-up]:not([data-kui-state]) {\n    opacity: 0;\n    animation: kui-cloak-release 1ms linear 2s forwards;\n  }\n  @keyframes kui-cloak-release {\n    to {\n      opacity: 1;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    html[data-kui-cloak] [data-kui~=back-in-down]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=back-in-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=blur-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=blur-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=bounce-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=bounce-in-down]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=bounce-in-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=card-flip-x]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=card-flip-y]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=chart-bar-grow]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=curtain-reveal]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fade-blur-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fade-blur-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fade-down]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fade-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fade-left]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fade-right]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fade-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=flip-in-x]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=flip-in-y]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=fold-panel]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=loading-bar]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=mask-reveal]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=pop-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=progress-bar]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=reveal-once]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=roll-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=rotate-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=rotate-in-left]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=rotate-in-right]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slat-assemble]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-block-end]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-block-start]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-down]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-inline-end]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-inline-start]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-left]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-right]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=slide-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=swing-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=text-reveal-down]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=text-reveal-mask]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=text-reveal-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=wipe-circle]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=wipe-diagonal]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=wipe-down]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=wipe-left]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=wipe-right]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=wipe-up]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=zoom-in]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=zoom-in-down]:not([data-kui-state]),\n    html[data-kui-cloak] [data-kui~=zoom-in-up]:not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n}\n\n/* src/css/entrance.css */\n@layer kui.effects {\n  @keyframes kui-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n  }\n  @keyframes kui-out {\n    to {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-in-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-distance, 24px);\n    }\n  }\n  @keyframes kui-in-down {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 calc(var(--kui-distance, 24px) * -1);\n    }\n  }\n  @keyframes kui-in-left {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: var(--kui-distance, 24px) 0;\n    }\n  }\n  @keyframes kui-in-right {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-distance, 24px) * -1) 0;\n    }\n  }\n  @keyframes kui-out-up {\n    to {\n      opacity: 0;\n      translate: 0 calc(var(--kui-distance, 24px) * -1);\n    }\n  }\n  @keyframes kui-out-down {\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-distance, 24px);\n    }\n  }\n  @keyframes kui-out-left {\n    to {\n      opacity: 0;\n      translate: calc(var(--kui-distance, 24px) * -1) 0;\n    }\n  }\n  @keyframes kui-out-right {\n    to {\n      opacity: 0;\n      translate: var(--kui-distance, 24px) 0;\n    }\n  }\n  @keyframes kui-in-inline-start {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-distance, 24px) * var(--kui-dir, 1)) 0;\n    }\n  }\n  @keyframes kui-in-inline-end {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-distance, 24px) * var(--kui-dir, 1) * -1) 0;\n    }\n  }\n  [data-kui-state=ready] {\n    --kui-distance: 0px !important;\n  }\n  @keyframes kui-zoom-in {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-out {\n    to {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-in-up {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 var(--kui-distance, 24px);\n    }\n  }\n  @keyframes kui-zoom-in-down {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 calc(var(--kui-distance, 24px) * -1);\n    }\n  }\n  @keyframes kui-flip-in-x {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-from-angle, 90deg));\n    }\n  }\n  @keyframes kui-flip-in-y {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-from-angle, 90deg));\n    }\n  }\n  @keyframes kui-flip-out-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-from-angle, 90deg));\n    }\n  }\n  @keyframes kui-flip-out-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-from-angle, 90deg));\n    }\n  }\n  @keyframes kui-rotate-in {\n    from {\n      rotate: var(--kui-from-angle, -8deg);\n    }\n  }\n  @keyframes kui-rotate-out {\n    to {\n      rotate: var(--kui-from-angle, -8deg);\n    }\n  }\n  @keyframes kui-swing-in {\n    from {\n      rotate: var(--kui-from-angle, -15deg);\n    }\n  }\n  @keyframes kui-roll-in {\n    from {\n      rotate: var(--kui-from-angle, -120deg);\n      translate: calc(var(--kui-distance, 24px) * -1) 0;\n    }\n  }\n  @keyframes kui-roll-out {\n    to {\n      rotate: var(--kui-from-angle, -120deg);\n      translate: var(--kui-distance, 24px) 0;\n    }\n  }\n  @keyframes kui-blur-in {\n    from {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-blur-out {\n    to {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-distance, 24px);\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  [data-kui-fx*=flip-] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=flip-in-x][data-kui-state=ready],\n  [data-kui-fx~=flip-in-y][data-kui-state=ready] {\n    --kui-from-angle: 0deg !important;\n    opacity: 0;\n  }\n  [data-kui-fx~=rotate-in][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-left][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-right][data-kui-state=ready],\n  [data-kui-fx~=swing-in][data-kui-state=ready],\n  [data-kui-fx~=roll-in][data-kui-state=ready] {\n    --kui-from-angle: 0deg !important;\n    opacity: 0;\n  }\n}\n\n/* src/css/scroll.css */\n@layer kui.effects {\n  @keyframes kui-parallax-y {\n    from {\n      translate: 0 calc(var(--kui-distance, 100px) * -1);\n    }\n    to {\n      translate: 0 var(--kui-distance, 100px);\n    }\n  }\n  @keyframes kui-parallax-x {\n    from {\n      translate: calc(var(--kui-distance, 100px) * -1) 0;\n    }\n    to {\n      translate: var(--kui-distance, 100px) 0;\n    }\n  }\n  @keyframes kui-parallax-scale {\n    from {\n      scale: var(--kui-from-scale, 1);\n    }\n    to {\n      scale: var(--kui-to-scale, 1.2);\n    }\n  }\n  @keyframes kui-parallax-rotate {\n    from {\n      rotate: var(--kui-from-angle, 0deg);\n    }\n    to {\n      rotate: var(--kui-to-angle, 12deg);\n    }\n  }\n  @keyframes kui-scroll-fade {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-desaturate {\n    from {\n      filter: grayscale(var(--kui-from-grayscale, 100%));\n    }\n    to {\n      filter: grayscale(var(--kui-to-grayscale, 0%));\n    }\n  }\n  @keyframes kui-scroll-skew {\n    from {\n      transform: skewY(var(--kui-from-skew, 8deg));\n    }\n    to {\n      transform: skewY(var(--kui-to-skew, 0deg));\n    }\n  }\n  @keyframes kui-progress-x {\n    from {\n      scale: 0 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-y {\n    from {\n      scale: 1 0;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    stroke-dasharray: var(--kui-path-length, 100);\n  }\n  [data-kui-fx~=sequence-scrub]:has(> [data-kui-step-state]),\n  [data-kui-fx~=video-scrub]:has(> [data-kui-step-state]),\n  .kui-frame-stack {\n    position: relative;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state],\n  .kui-frame-stack > [data-kui-step-state] {\n    position: absolute;\n    inset: 0;\n    width: 100%;\n    height: 100%;\n    object-fit: cover;\n    opacity: 0;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state=active],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state=active],\n  .kui-frame-stack > [data-kui-step-state=active] {\n    opacity: 1;\n  }\n  @supports (animation-timeline: view()) {\n    [data-kui-timeline] {\n      animation-range: var(--kui-range, entry 0% cover 60%);\n    }\n  }\n}\n\n/* src/css/three-d.css */\n@layer kui.effects {\n  @keyframes kui-card-flip-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-from-angle, 180deg));\n    }\n  }\n  @keyframes kui-card-flip-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-from-angle, 180deg));\n    }\n  }\n  @keyframes kui-cube-rotate {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-from-angle, 90deg));\n    }\n  }\n  @keyframes kui-book-page-turn {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-from-angle, -160deg));\n    }\n  }\n  @keyframes kui-fold-panel {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-from-angle, -90deg));\n    }\n  }\n  [data-kui-fx~=card-flip-x],\n  [data-kui-fx~=card-flip-y],\n  [data-kui-fx~=cube-rotate],\n  [data-kui-fx~=book-page-turn],\n  [data-kui-fx~=fold-panel] {\n    transform-style: preserve-3d;\n    perspective: var(--kui-perspective, 1200px);\n  }\n  [data-kui-fx~=card-flip-x]:not(:has(> :nth-child(2))),\n  [data-kui-fx~=card-flip-y]:not(:has(> :nth-child(2))) {\n    --kui-from-angle: 360deg;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) {\n    display: grid;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: x 180deg;\n  }\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=book-page-turn] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=fold-panel] {\n    transform-origin: top center;\n  }\n  [data-kui-fx~=fold-panel][data-kui-state=ready] {\n    --kui-from-angle: 0deg !important;\n    opacity: 0;\n  }\n  @keyframes kui-page-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-page-slide {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-distance, 40px);\n    }\n  }\n  @keyframes kui-curtain-wipe {\n    from {\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-loading-bar {\n    from {\n      scale: var(--kui-bar-from, 0) 1;\n    }\n  }\n  [data-kui-fx~=loading-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=loading-bar][data-kui-state=ready] {\n    --kui-bar-from: 1 !important;\n    opacity: 0;\n  }\n  [data-kui-fx~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front,\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    transition: rotate var(--kui-card-toggle-duration, 700ms) var(--kui-card-toggle-ease, ease-in-out);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-front {\n    rotate: y -180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-back {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui~=flip-card] > .kui-face-front,\n  [data-kui~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n}\n\n/* src/css/media.css */\n@layer kui.effects {\n  @keyframes kui-wipe-up {\n    from {\n      clip-path: inset(100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-down {\n    from {\n      clip-path: inset(0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-left {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-right {\n    from {\n      clip-path: inset(0 0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-circle {\n    from {\n      clip-path: circle(0 at 50% 50%);\n    }\n    to {\n      clip-path: circle(75% at 50% 50%);\n    }\n  }\n  @keyframes kui-wipe-diagonal {\n    from {\n      clip-path: polygon(0 0, 0 0, 0 0);\n    }\n    to {\n      clip-path: polygon(0 0, 200% 0, 0 200%);\n    }\n  }\n  @keyframes kui-curtain-reveal {\n    from {\n      clip-path: inset(0 50%);\n    }\n    to {\n      clip-path: inset(0 0);\n    }\n  }\n  @keyframes kui-before-after-wipe {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-mask-reveal {\n    from {\n      mask-position: 100% 0;\n    }\n    to {\n      mask-position: 0 0;\n    }\n  }\n  [data-kui-fx~=mask-reveal] {\n    mask-image:\n      linear-gradient(\n        90deg,\n        #000 0 45%,\n        transparent 55% 100%);\n    mask-size: 220% 100%;\n  }\n  @keyframes kui-ken-burns {\n    from {\n      scale: 1;\n      translate: 0 0;\n    }\n    to {\n      scale: var(--kui-to-scale, 1.12);\n      translate: var(--kui-distance, 24px) calc(var(--kui-distance, 24px) * -0.5);\n    }\n  }\n  @keyframes kui-ken-burns-out {\n    from {\n      scale: var(--kui-to-scale, 1.12);\n      translate: calc(var(--kui-distance, 24px) * -1) 0;\n    }\n    to {\n      scale: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-blur-up {\n    from {\n      translate: 0 var(--kui-distance, 24px);\n      filter: blur(var(--kui-blur, 16px));\n    }\n    to {\n      translate: 0 0;\n      filter: blur(0);\n    }\n  }\n  @keyframes kui-duotone-hover {\n    from {\n      filter: grayscale(1) sepia(0.7) hue-rotate(330deg) saturate(2);\n    }\n    to {\n      filter: none;\n    }\n  }\n  @keyframes kui-grayscale-hover {\n    from {\n      filter: grayscale(1);\n    }\n    to {\n      filter: grayscale(0);\n    }\n  }\n  @keyframes kui-saturate-hover {\n    from {\n      filter: saturate(0.45);\n    }\n    to {\n      filter: saturate(1.35);\n    }\n  }\n  @keyframes kui-image-parallax-frame {\n    from {\n      translate: 0 calc(var(--kui-distance, 24px) * -1);\n    }\n    to {\n      translate: 0 var(--kui-distance, 24px);\n    }\n  }\n  @keyframes kui-lightbox-open {\n    from {\n      opacity: 0;\n      scale: var(--kui-from-scale, 0.92);\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n    }\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=duotone-hover]:active,\n    [data-kui-fx~=grayscale-hover]:active,\n    [data-kui-fx~=saturate-hover]:active {\n      filter: none;\n    }\n  }\n  .kui-slat-stage {\n    position: absolute;\n    overflow: clip;\n  }\n  .kui-slat-item {\n    position: absolute;\n    inset: 0;\n    background-repeat: no-repeat;\n    background-size: 100% 100%;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 60ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-slat-stage.kui-slat-animating .kui-slat-item {\n    will-change: transform;\n  }\n  .kui-slat-item:nth-child(odd) {\n    --kui-slat-sign: -1;\n  }\n  .kui-slat-item:nth-child(even) {\n    --kui-slat-sign: 1;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] {\n    perspective: 1200px;\n  }\n  .kui-slat-stage:not([data-kui-slat-fold=true]) .kui-slat-item {\n    animation-name: kui-slat-assemble;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] .kui-slat-item {\n    animation-name: kui-slat-assemble-fold;\n  }\n  @keyframes kui-slat-assemble {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-slat-assemble-fold {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 calc(var(--kui-slat-sign, 1) * 38deg);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 0deg;\n    }\n  }\n}\n\n/* src/css/text.css */\n@layer kui.effects {\n  .kui-sr-only {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border: 0;\n  }\n  .kui-split-decorative {\n    display: inline;\n  }\n  .kui-split-item {\n    display: inline-block;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 30ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-split-word {\n    display: inline-block;\n  }\n  .kui-split-line {\n    display: block;\n  }\n  [data-kui-split-fx=fade] .kui-split-item {\n    animation-name: kui-split-reveal-fade;\n  }\n  [data-kui-split-fx=up] .kui-split-item {\n    animation-name: kui-split-reveal-up;\n  }\n  [data-kui-split-fx=down] .kui-split-item {\n    animation-name: kui-split-reveal-down;\n  }\n  [data-kui-split-fx=mask] .kui-split-item {\n    animation-name: kui-split-reveal-mask;\n    padding-block: var(--kui-mask-bleed, 0px);\n    margin-block: calc(-1 * var(--kui-mask-bleed, 0px));\n  }\n  @keyframes kui-split-reveal-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-split-reveal-up {\n    from {\n      opacity: 0;\n      translate: 0 0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-down {\n    from {\n      opacity: 0;\n      translate: 0 -0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-mask {\n    from {\n      opacity: 0;\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  [data-kui-split-fx=wave] .kui-split-item {\n    animation-name: kui-split-wave;\n    animation-duration: 1400ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n  }\n  [data-kui-split-fx=jitter] .kui-split-item {\n    animation-name: kui-split-jitter;\n    animation-duration: 220ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n    animation-direction: alternate;\n  }\n  @keyframes kui-split-wave {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 -0.35em;\n    }\n  }\n  @keyframes kui-split-jitter {\n    from {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    to {\n      translate: 0 0.08em;\n      rotate: 3deg;\n    }\n  }\n  .kui-typewriter::after {\n    content: \"\";\n    display: inline-block;\n    width: 0.08em;\n    margin-inline-start: 0.05em;\n    height: 1em;\n    vertical-align: -0.15em;\n    background: currentColor;\n    animation: kui-caret-blink 1s steps(1) infinite;\n  }\n  @keyframes kui-caret-blink {\n    50% {\n      opacity: 0;\n    }\n  }\n  .kui-scramble {\n    font-variant-numeric: tabular-nums;\n  }\n  [data-kui-fx~=word-cycler] {\n    display: inline-block;\n    transition: opacity 150ms ease-out;\n  }\n  [data-kui-fx~=word-cycler].kui-word-cycler-swap {\n    opacity: 0;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    background-image:\n      linear-gradient(\n        100deg,\n        currentColor 40%,\n        color-mix(in srgb, currentColor 35%, transparent) 50%,\n        currentColor 60%);\n    background-size: 220% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n    --kui-fx-gradient-shimmer-iterations: infinite;\n  }\n  @keyframes kui-gradient-shimmer {\n    from {\n      background-position: 200% 0;\n    }\n    to {\n      background-position: -200% 0;\n    }\n  }\n  [data-kui-fx~=gradient-sweep] {\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-sweep-color, currentColor) 70%, transparent) 50%,\n        transparent 70%);\n    background-size: 260% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-gradient-sweep {\n    from {\n      background-position: 220% 0;\n    }\n    to {\n      background-position: -60% 0;\n    }\n  }\n  [data-kui-fx~=highlight-sweep] {\n    background-image: linear-gradient(90deg, color-mix(in srgb, var(--kui-sweep-color, currentColor) 55%, transparent) 0 100%);\n    background-repeat: no-repeat;\n    background-size: 0% 100%;\n    padding: 0 0.05em;\n  }\n  @keyframes kui-highlight-sweep {\n    to {\n      background-size: 100% 100%;\n    }\n  }\n  [data-kui-fx~=underline-draw] {\n    background-image: linear-gradient(var(--kui-sweep-color, currentColor), var(--kui-sweep-color, currentColor));\n    background-repeat: no-repeat;\n    background-position: 0 100%;\n    background-size: 0% 2px;\n    padding-bottom: 0.15em;\n  }\n  @keyframes kui-underline-draw {\n    to {\n      background-size: 100% 2px;\n    }\n  }\n  [data-kui-fx~=text-outline-fill] {\n    -webkit-text-stroke: 1px currentColor;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-text-outline-fill {\n    to {\n      -webkit-text-fill-color: currentColor;\n    }\n  }\n  @keyframes kui-var-weight {\n    from {\n      font-weight: var(--kui-from-weight, 100);\n    }\n    to {\n      font-weight: var(--kui-to-weight, 800);\n    }\n  }\n  @keyframes kui-var-width {\n    from {\n      font-stretch: var(--kui-from-width, 75%);\n    }\n    to {\n      font-stretch: var(--kui-to-width, 125%);\n    }\n  }\n  @keyframes kui-var-slant {\n    from {\n      font-style: oblique var(--kui-from-slant, 0deg);\n    }\n    to {\n      font-style: oblique var(--kui-to-slant, 10deg);\n    }\n  }\n  [data-kui-fx~=marquee],\n  [data-kui-fx~=marquee-scroll-linked] {\n    display: flex;\n    width: max-content;\n    will-change: translate;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-fx-marquee-iterations: infinite;\n  }\n  @keyframes kui-marquee {\n    to {\n      translate: -50% 0;\n    }\n  }\n  @property --kui-redaction-x { syntax: \"<percentage>\"; inherits: true; initial-value: 0%; }\n  [data-kui-fx~=redaction-reveal] {\n    position: relative;\n    display: inline-block;\n  }\n  [data-kui-fx~=redaction-reveal]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background: var(--kui-bar-color, #111);\n    clip-path: inset(0 0 0 var(--kui-redaction-x));\n  }\n  @keyframes kui-redaction-reveal {\n    to {\n      --kui-redaction-x: 100%;\n    }\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    display: inline-block;\n    text-shadow:\n      1px 1px 0 color-mix(in srgb, currentColor 70%, transparent),\n      2px 2px 0 color-mix(in srgb, currentColor 60%, transparent),\n      3px 3px 0 color-mix(in srgb, currentColor 50%, transparent),\n      4px 4px 0 color-mix(in srgb, currentColor 40%, transparent),\n      5px 5px 0 color-mix(in srgb, currentColor 30%, transparent),\n      6px 6px 8px rgb(0 0 0 / 0.35);\n  }\n  @keyframes kui-text-3d-extrude {\n    from {\n      rotate: var(--kui-from-angle, -20deg);\n      translate: 0 var(--kui-distance, 32px);\n    }\n    to {\n      rotate: 0deg;\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/navigation.css */\n@layer kui.effects {\n  @keyframes kui-nav-reveal {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-distance, 16px);\n    }\n  }\n  @keyframes kui-menu-fullscreen {\n    from {\n      opacity: 0;\n      clip-path: circle(0% at var(--kui-origin, 100% 0%));\n    }\n    to {\n      opacity: 1;\n      clip-path: circle(150% at var(--kui-origin, 100% 0%));\n    }\n  }\n  @keyframes kui-panel-reveal {\n    from {\n      opacity: 0;\n      translate: 0 calc(var(--kui-distance, 10px) * -1);\n    }\n  }\n  @keyframes kui-drawer-slide-right {\n    from {\n      translate: 100% 0;\n    }\n  }\n  [data-kui-fx~=header-shrink] {\n    --kui-shrink: 0;\n    padding-block: calc(1.4rem - 0.7rem * var(--kui-shrink, 0));\n    font-size: calc(1rem - 0.15rem * var(--kui-shrink, 0));\n    transition:\n      padding-block 200ms ease-out,\n      font-size 200ms ease-out,\n      box-shadow 200ms ease-out;\n  }\n  [data-kui-fx~=header-shrink][data-kui-shrunk=true] {\n    box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);\n  }\n  [data-kui-fx~=header-hide-on-scroll] {\n    transition: translate 220ms ease-out;\n  }\n  [data-kui-fx~=header-hide-on-scroll][data-kui-hidden=true] {\n    translate: 0 -100%;\n  }\n  [data-kui-fx~=back-to-top-fade] {\n    opacity: 0;\n    translate: 0 12px;\n    pointer-events: none;\n    transition: opacity 200ms ease-out, translate 200ms ease-out;\n  }\n  [data-kui-fx~=back-to-top-fade][data-kui-visible=true] {\n    opacity: 1;\n    translate: 0 0;\n    pointer-events: auto;\n  }\n}\n\n/* src/css/forms.css */\n@layer kui.effects {\n  [data-kui-fx~=label-float] ~ label {\n    transition: translate 180ms ease-out, scale 180ms ease-out;\n    transform-origin: left center;\n  }\n  [data-kui-fx~=label-float]:focus ~ label,\n  [data-kui-fx~=label-float]:not(:placeholder-shown) ~ label {\n    translate: 0 -1.35rem;\n    scale: 0.82;\n  }\n  [data-kui-fx~=input-underline-grow] ~ .kui-underline {\n    display: block;\n    height: 2px;\n    background: currentColor;\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale 220ms ease-out;\n  }\n  [data-kui-fx~=input-underline-grow]:focus ~ .kui-underline {\n    scale: 1 1;\n  }\n  @keyframes kui-focus-ring-grow {\n    from {\n      box-shadow: 0 0 0 0 var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n    to {\n      box-shadow: 0 0 0 5px var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n  }\n  @keyframes kui-validate-shake {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  [data-kui-fx~=validate-check] {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n  }\n  @keyframes kui-validate-check {\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=strength-meter] ~ .kui-meter > * {\n    background: var(--kui-meter-off, currentColor);\n    opacity: 0.2;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"1\"] ~ .kui-meter > *:nth-child(-n+1),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"2\"] ~ .kui-meter > *:nth-child(-n+2),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"3\"] ~ .kui-meter > *:nth-child(-n+3),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"4\"] ~ .kui-meter > *:nth-child(-n+4),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"5\"] ~ .kui-meter > *:nth-child(-n+5),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"6\"] ~ .kui-meter > *:nth-child(-n+6),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"7\"] ~ .kui-meter > *:nth-child(-n+7),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"8\"] ~ .kui-meter > *:nth-child(-n+8),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"9\"] ~ .kui-meter > *:nth-child(-n+9),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"10\"] ~ .kui-meter > *:nth-child(-n+10),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"11\"] ~ .kui-meter > *:nth-child(-n+11),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"12\"] ~ .kui-meter > *:nth-child(-n+12),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"13\"] ~ .kui-meter > *:nth-child(-n+13),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"14\"] ~ .kui-meter > *:nth-child(-n+14),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"15\"] ~ .kui-meter > *:nth-child(-n+15),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"16\"] ~ .kui-meter > *:nth-child(-n+16),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"17\"] ~ .kui-meter > *:nth-child(-n+17),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"18\"] ~ .kui-meter > *:nth-child(-n+18),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"19\"] ~ .kui-meter > *:nth-child(-n+19),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"20\"] ~ .kui-meter > *:nth-child(-n+20) {\n    opacity: 1;\n    background: var(--kui-meter-on, #2e9e5b);\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track {\n    display: inline-block;\n    width: calc(40px * var(--kui-toggle-scale, 1));\n    height: calc(22px * var(--kui-toggle-scale, 1));\n    border-radius: 999px;\n    background: var(--muted, #9a8d80);\n    transition: background-color 200ms ease-out;\n    position: relative;\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb {\n    position: absolute;\n    top: calc(2px * var(--kui-toggle-scale, 1));\n    left: calc(2px * var(--kui-toggle-scale, 1));\n    width: calc(18px * var(--kui-toggle-scale, 1));\n    height: calc(18px * var(--kui-toggle-scale, 1));\n    border-radius: 50%;\n    background: var(--kui-thumb-color, #fff);\n    translate: 0 0;\n    transition: translate 200ms ease-out;\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track {\n    background: var(--accent, #d2691e);\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track .kui-thumb {\n    translate: calc(18px * var(--kui-toggle-scale, 1)) 0;\n  }\n  [data-kui-fx~=checkbox-draw] ~ svg path {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n    transition: stroke-dashoffset 220ms ease-out;\n  }\n  [data-kui-fx~=checkbox-draw]:checked ~ svg path {\n    stroke-dashoffset: 0;\n  }\n  [data-kui-fx~=radio-fill] ~ .kui-dot {\n    display: inline-block;\n    width: calc(10px * var(--kui-radio-scale, 1));\n    height: calc(10px * var(--kui-radio-scale, 1));\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n    scale: 0;\n    transition: scale 180ms ease-out;\n  }\n  [data-kui-fx~=radio-fill]:checked ~ .kui-dot {\n    scale: 1;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-fill: 0%;\n    accent-color: var(--accent, #d2691e);\n    background:\n      linear-gradient(\n        to right,\n        var(--accent, #d2691e) var(--kui-fill, 0%),\n        var(--border, #2a2422) var(--kui-fill, 0%));\n    height: 4px;\n    border-radius: 999px;\n    appearance: none;\n    outline: none;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-done {\n    display: none;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=idle] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=loading] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=done] .kui-stage-done {\n    display: inline-flex;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-spinner {\n    width: 1em;\n    height: 1em;\n    border-radius: 50%;\n    border: 2px solid currentColor;\n    border-top-color: transparent;\n    animation: kui-spin 700ms linear infinite;\n  }\n  @keyframes kui-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=step-progress] {\n    cursor: pointer;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state],\n  .kui-step-track > [data-kui-step-state] {\n    background: var(--muted, #9a8d80);\n    opacity: 0.35;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state=before],\n  [data-kui-fx~=step-progress] > [data-kui-step-state=active],\n  .kui-step-track > [data-kui-step-state=before],\n  .kui-step-track > [data-kui-step-state=active] {\n    opacity: 1;\n    background: var(--accent, #d2691e);\n  }\n}\n\n/* src/css/ambient.css */\n@layer kui.effects {\n  [data-kui-fx~=gradient-mesh] {\n    background-image:\n      radial-gradient(\n        at 15% 20%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #7c3aed)) 55%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 85% 15%,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #06b6d4)) 50%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 50% 85%,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #f97316)) 45%, transparent),\n        transparent 55%);\n    background-size: 200% 200%;\n    --kui-fx-gradient-mesh-iterations: infinite;\n  }\n  @keyframes kui-gradient-mesh {\n    0%, 100% {\n      background-position:\n        0% 0%,\n        100% 0%,\n        50% 100%;\n    }\n    50% {\n      background-position:\n        25% 35%,\n        75% 30%,\n        35% 70%;\n    }\n  }\n  [data-kui-fx~=aurora] {\n    background-image:\n      linear-gradient(\n        120deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #34d399)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        240deg,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #60a5fa)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #c084fc)) 40%, transparent),\n        transparent 50%);\n    background-size: 260% 260%;\n    --kui-fx-aurora-iterations: infinite;\n  }\n  @keyframes kui-aurora {\n    0%, 100% {\n      background-position:\n        0% 50%,\n        100% 50%,\n        50% 0%;\n    }\n    50% {\n      background-position:\n        60% 30%,\n        40% 70%,\n        55% 60%;\n    }\n  }\n  [data-kui-fx~=wave-blob] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #22d3ee)) 50%, transparent),\n        transparent 60%);\n    background-size: 140% 140%;\n    background-repeat: no-repeat;\n    --kui-fx-wave-blob-iterations: infinite;\n  }\n  @keyframes kui-wave-blob {\n    0%, 100% {\n      background-position: 20% 30%;\n      background-size: 140% 140%;\n    }\n    33% {\n      background-position: 70% 20%;\n      background-size: 160% 160%;\n    }\n    66% {\n      background-position: 50% 75%;\n      background-size: 120% 120%;\n    }\n  }\n  [data-kui-fx~=spotlight-follow] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #fde68a)) 65%, transparent),\n        transparent 65%);\n    background-size: 55% 55%;\n    background-repeat: no-repeat;\n    --kui-fx-spotlight-follow-iterations: infinite;\n  }\n  @keyframes kui-spotlight-follow {\n    0%, 100% {\n      background-position: 10% 15%;\n    }\n    25% {\n      background-position: 85% 20%;\n    }\n    50% {\n      background-position: 80% 80%;\n    }\n    75% {\n      background-position: 15% 75%;\n    }\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)),\n        var(--kui-ambient-c2, var(--kui-c2, #60a5fa)),\n        var(--kui-ambient-c3, var(--kui-c3, #34d399)),\n        var(--kui-ambient-c4, var(--kui-c4, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)));\n    background-size: 300% 100%;\n    padding: 3px;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-rotate-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-rotate-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=gradient-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)),\n        var(--kui-ambient-c2, var(--kui-c2, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)));\n    background-size: 300% 100%;\n    padding: var(--kui-gradient-border-width, 3px);\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=noise-overlay] {\n    background-image:\n      repeating-radial-gradient(\n        circle at 0 0,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0,\n        transparent 1.4px,\n        transparent 3px);\n    background-size: 5px 5px;\n    --kui-fx-noise-overlay-iterations: infinite;\n  }\n  @keyframes kui-noise-overlay {\n    0% {\n      background-position: 0 0;\n    }\n    20% {\n      background-position: -3px 1px;\n    }\n    40% {\n      background-position: 2px -2px;\n    }\n    60% {\n      background-position: -1px 3px;\n    }\n    80% {\n      background-position: 3px 2px;\n    }\n    100% {\n      background-position: 0 0;\n    }\n  }\n  [data-kui-fx~=scanline] {\n    background-image:\n      linear-gradient(\n        to bottom,\n        transparent,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 35%, transparent) 50%,\n        transparent);\n    background-size: 100% 220%;\n    background-repeat: no-repeat;\n    --kui-fx-scanline-iterations: infinite;\n  }\n  @keyframes kui-scanline {\n    from {\n      background-position: 0 -120%;\n    }\n    to {\n      background-position: 0 120%;\n    }\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 45%, transparent) 1.5px,\n        transparent 1.5px);\n    background-size: 22px 22px;\n    --kui-fx-dot-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-dot-grid-drift {\n    from {\n      background-position: 0 0;\n    }\n    to {\n      background-position: 22px 22px;\n    }\n  }\n  [data-kui-fx~=line-grid-drift] {\n    background-image:\n      repeating-linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px),\n      repeating-linear-gradient(\n        90deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px);\n    --kui-fx-line-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-line-grid-drift {\n    from {\n      background-position: 0 0, 0 0;\n    }\n    to {\n      background-position: 0 26px, 26px 0;\n    }\n  }\n  [data-kui-fx~=starfield] {\n    background-image:\n      radial-gradient(\n        1px 1px at 10% 20%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 90%, transparent),\n        transparent),\n      radial-gradient(\n        1px 1px at 70% 60%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 70%, transparent),\n        transparent),\n      radial-gradient(\n        1.5px 1.5px at 40% 80%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 85%, transparent),\n        transparent),\n      radial-gradient(\n        1px 1px at 90% 30%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 60%, transparent),\n        transparent),\n      radial-gradient(\n        1.5px 1.5px at 25% 55%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 80%, transparent),\n        transparent);\n    background-size: 220px 220px;\n    background-repeat: repeat;\n    --kui-fx-starfield-iterations: infinite;\n  }\n  @keyframes kui-starfield {\n    from {\n      background-position:\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0;\n    }\n    to {\n      background-position:\n        220px 90px,\n        -160px 220px,\n        90px -140px,\n        -220px -90px,\n        140px 160px;\n    }\n  }\n  [data-kui-fx~=orbit] {\n    --kui-fx-orbit-iterations: infinite;\n  }\n  @keyframes kui-orbit {\n    to {\n      rotate: var(--kui-to-angle, 360deg);\n    }\n  }\n  [data-kui-fx~=float] {\n    --kui-fx-float-iterations: infinite;\n  }\n  @keyframes kui-float {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-distance, 14px) * -1);\n    }\n  }\n  [data-kui-fx~=bob] {\n    --kui-fx-bob-iterations: infinite;\n  }\n  @keyframes kui-bob {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-distance, 8px) * -1);\n    }\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-fx-floating-shapes-iterations: infinite;\n  }\n  @keyframes kui-floating-shapes {\n    0%, 100% {\n      translate: 0 0;\n    }\n    33% {\n      translate: calc(var(--kui-distance, 10px) * 0.6) calc(var(--kui-distance, 10px) * -1);\n    }\n    66% {\n      translate: calc(var(--kui-distance, 10px) * -0.6) calc(var(--kui-distance, 10px) * -0.4);\n    }\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-fx-glow-pulse-iterations: infinite;\n  }\n  @keyframes kui-glow-pulse {\n    0%, 100% {\n      scale: 1;\n      opacity: 0.6;\n    }\n    50% {\n      scale: var(--kui-pulse-scale, 1.15);\n      opacity: 1;\n    }\n  }\n}\n\n/* src/css/feedback.css */\n@layer kui.effects {\n  [data-kui-fx~=skeleton-shimmer] {\n    background-color: var(--kui-skeleton-base, #2a2422);\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-skeleton-highlight, #ffffff) 18%, transparent) 50%,\n        transparent 70%);\n    background-size: 200% 100%;\n    --kui-fx-skeleton-shimmer-iterations: infinite;\n  }\n  @keyframes kui-skeleton-shimmer {\n    from {\n      background-position: 150% 0;\n    }\n    to {\n      background-position: -50% 0;\n    }\n  }\n  @keyframes kui-skeleton-to-content {\n    from {\n      opacity: 0;\n    }\n  }\n  [data-kui-fx~=spinner] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px solid color-mix(in srgb, currentColor 20%, transparent);\n    border-top-color: currentColor;\n    --kui-fx-spinner-iterations: infinite;\n  }\n  @keyframes kui-spinner-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-ring] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px dashed color-mix(in srgb, currentColor 55%, transparent);\n    --kui-fx-spinner-ring-iterations: infinite;\n  }\n  @keyframes kui-spinner-ring-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-dots] {\n    display: inline-block;\n    width: var(--kui-dot-size, 8px);\n    height: var(--kui-dot-size, 8px);\n    border-radius: 50%;\n    background: currentColor;\n    box-shadow: calc(var(--kui-dot-size, 8px) * -2) 0 currentColor, calc(var(--kui-dot-size, 8px) * 2) 0 currentColor;\n    --kui-fx-spinner-dots-iterations: infinite;\n  }\n  @keyframes kui-spinner-dots {\n    0%, 80%, 100% {\n      scale: 0.7;\n      opacity: 0.5;\n    }\n    40% {\n      scale: 1.15;\n      opacity: 1;\n    }\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    transform-origin: 0% 50%;\n    background: currentColor;\n    border-radius: inherit;\n    --kui-fx-progress-indeterminate-iterations: infinite;\n  }\n  @keyframes kui-progress-indeterminate {\n    0% {\n      translate: -100% 0;\n      scale: 0.4 1;\n    }\n    50% {\n      scale: 1 1;\n    }\n    100% {\n      translate: 100% 0;\n      scale: 0.4 1;\n    }\n  }\n  @keyframes kui-toast-slide-in {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-distance, 24px);\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-toast-slide-out {\n    from {\n      opacity: 1;\n      translate: 0 0;\n    }\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-distance, 24px);\n    }\n  }\n  @keyframes kui-shake-error {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  @keyframes kui-wobble {\n    0% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    15% {\n      translate: -6px 0;\n      rotate: -6deg;\n    }\n    30% {\n      translate: 4px 0;\n      rotate: 4deg;\n    }\n    45% {\n      translate: -3px 0;\n      rotate: -3deg;\n    }\n    60% {\n      translate: 2px 0;\n      rotate: 2deg;\n    }\n    75% {\n      translate: -1px 0;\n      rotate: -1deg;\n    }\n    100% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n  }\n  [data-kui-fx~=ripple] {\n    border-radius: 50%;\n    background: currentColor;\n    transform-origin: center;\n  }\n  @keyframes kui-ripple {\n    from {\n      scale: 0.2;\n      opacity: 0.6;\n    }\n    to {\n      scale: var(--kui-ripple-scale, 4);\n      opacity: 0;\n    }\n  }\n  @keyframes kui-badge-pop {\n    0% {\n      scale: 0.4;\n    }\n    60% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  @keyframes kui-count-bump {\n    0%, 100% {\n      scale: 1;\n    }\n    50% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n  }\n  [data-kui-fx~=heart-burst] {\n    color: var(--kui-heart-color, #f43f5e);\n  }\n  @keyframes kui-heart-burst {\n    0% {\n      scale: 1;\n    }\n    30% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    55% {\n      scale: 0.9;\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  [data-kui-fx~=confetti-burst] {\n    background-image:\n      radial-gradient(\n        circle at 20% 20%,\n        var(--kui-c1, #f43f5e) 0 3px,\n        transparent 3px),\n      radial-gradient(\n        circle at 75% 15%,\n        var(--kui-c2, #fbbf24) 0 3px,\n        transparent 3px),\n      radial-gradient(\n        circle at 50% 75%,\n        var(--kui-c3, #34d399) 0 3px,\n        transparent 3px),\n      radial-gradient(\n        circle at 85% 65%,\n        var(--kui-c4, #60a5fa) 0 3px,\n        transparent 3px),\n      radial-gradient(\n        circle at 15% 65%,\n        var(--kui-c5, #c084fc) 0 3px,\n        transparent 3px);\n    background-repeat: no-repeat;\n  }\n  @keyframes kui-confetti-burst {\n    0% {\n      scale: 0.6;\n      opacity: 0;\n    }\n    40% {\n      scale: var(--kui-pop-scale, 1.18);\n      opacity: 1;\n    }\n    100% {\n      scale: 1;\n      opacity: 1;\n    }\n  }\n  @keyframes kui-copy-confirm {\n    0% {\n      opacity: 0;\n    }\n    15% {\n      opacity: 1;\n    }\n    85% {\n      opacity: 1;\n    }\n    100% {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-pull-to-refresh {\n    0% {\n      translate: 0 0;\n    }\n    45% {\n      translate: 0 var(--kui-pull-distance, 36px);\n    }\n    100% {\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/numbers.css */\n@layer kui.effects {\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-gauge-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-donut-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-sparkline-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 1000);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=progress-ring],\n  [data-kui-fx~=gauge-sweep],\n  [data-kui-fx~=donut-sweep],\n  [data-kui-fx~=sparkline-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-progress-bar {\n    from {\n      scale: var(--kui-bar-from, 0) 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=progress-bar][data-kui-state=ready] {\n    --kui-bar-from: 1 !important;\n    opacity: 0;\n  }\n  @keyframes kui-progress-segments {\n    from {\n      opacity: 0.18;\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-star-rating-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 calc(100% - var(--kui-fill, 100%)) 0 0);\n    }\n  }\n  .kui-count-decorative {\n    display: inline-flex;\n    align-items: baseline;\n  }\n  .kui-odometer-col {\n    display: inline-block;\n    overflow: hidden;\n    height: 1em;\n    line-height: 1;\n    vertical-align: baseline;\n  }\n  .kui-odometer-strip {\n    display: flex;\n    flex-direction: column;\n    translate: 0 calc(var(--kui-o, 0) * -1em);\n    transition: translate 220ms ease-out;\n  }\n  .kui-odometer-strip > span {\n    height: 1em;\n    line-height: 1;\n  }\n}\n\n/* src/css/interaction.css */\n@layer kui.effects {\n  @property --kui-border-angle { syntax: \"<angle>\"; inherits: false; initial-value: 0deg; }\n  @property --kui-border-pct { syntax: \"<percentage>\"; inherits: false; initial-value: 0%; }\n  [data-kui-fx~=lift] {\n    transition: translate var(--kui-lift-duration, 220ms) var(--kui-lift-ease, ease-out);\n  }\n  [data-kui-fx~=lift]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n  }\n  [data-kui-fx~=pop] {\n    transition: scale var(--kui-pop-duration, 220ms) var(--kui-pop-ease, ease-out);\n  }\n  [data-kui-fx~=pop]:focus-visible {\n    scale: var(--kui-pop-scale, 1.06);\n  }\n  [data-kui-fx~=lift-shadow] {\n    transition: translate var(--kui-lift-shadow-duration, 220ms) var(--kui-lift-shadow-ease, ease-out), box-shadow var(--kui-lift-shadow-duration, 220ms) var(--kui-lift-shadow-ease, ease-out);\n  }\n  [data-kui-fx~=lift-shadow]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n  }\n  [data-kui-fx~=shine-sweep] {\n    position: relative;\n    overflow: hidden;\n  }\n  [data-kui-fx~=shine-sweep]::after {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background:\n      linear-gradient(\n        115deg,\n        transparent 40%,\n        var(--kui-c1, rgb(255 255 255 / 0.35)) 50%,\n        transparent 60%);\n    background-size: 220% 100%;\n    background-position: 120% 0;\n    pointer-events: none;\n  }\n  [data-kui-fx~=shine-sweep]:focus-visible::after {\n    animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out);\n  }\n  @keyframes kui-shine-sweep {\n    from {\n      background-position: 120% 0;\n    }\n    to {\n      background-position: -20% 0;\n    }\n  }\n  [data-kui-fx~=split-flap] {\n    display: inline-block;\n    perspective: 600px;\n    backface-visibility: hidden;\n  }\n  [data-kui-fx~=split-flap]:focus-visible {\n    animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out);\n  }\n  @keyframes kui-split-flap {\n    from {\n      rotate: x 0deg;\n    }\n    to {\n      rotate: x 360deg;\n    }\n  }\n  [data-kui-fx~=border-draw] {\n    border: 2px solid transparent;\n    border-image-slice: 1;\n    border-image-source:\n      conic-gradient(\n        from -90deg,\n        var(--kui-border-draw-color, var(--accent, #d2691e)) 0 var(--kui-border-pct, 0%),\n        transparent 0);\n    transition: --kui-border-pct var(--kui-border-draw-duration, 500ms) var(--kui-border-draw-ease, ease-out);\n  }\n  [data-kui-fx~=border-draw]:focus-visible {\n    --kui-border-pct: 100%;\n  }\n  [data-kui-fx~=border-glow] {\n    transition: box-shadow var(--kui-border-glow-duration, 260ms) var(--kui-border-glow-ease, ease-out);\n  }\n  [data-kui-fx~=border-glow]:focus-visible {\n    box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n  }\n  [data-kui-fx~=beam-border],\n  [data-kui-fx~=beam-border-auto] {\n    position: relative;\n  }\n  [data-kui-fx~=beam-border]::before,\n  [data-kui-fx~=beam-border-auto]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-beam-border-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-beam-border-width, 3px);\n    background:\n      conic-gradient(\n        from var(--kui-border-angle, 0deg),\n        transparent 0deg,\n        transparent 260deg,\n        var(--kui-beam-border-c1, #ff5f6d) 282deg,\n        var(--kui-beam-border-c2, var(--kui-beam-border-c1, #ffc371)) 306deg,\n        var(--kui-beam-border-c3, var(--kui-beam-border-c1, #4facfe)) 330deg,\n        var(--kui-beam-border-c4, var(--kui-beam-border-c1, #a855f7)) 354deg,\n        transparent 360deg);\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask-composite: exclude;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity var(--kui-beam-border-fade-duration, 200ms) ease-out;\n  }\n  [data-kui-fx~=beam-border]:focus-visible::before {\n    opacity: 1;\n    animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear infinite;\n  }\n  [data-kui-fx~=beam-border-auto]::before {\n    opacity: 1;\n    animation: kui-beam-rotate var(--kui-beam-border-auto-duration, 4260ms) linear infinite;\n  }\n  @keyframes kui-beam-rotate {\n    to {\n      --kui-border-angle: 360deg;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-fx~=beam-border]:focus-visible::before,\n    [data-kui-fx~=beam-border-auto]::before {\n      animation: none;\n      --kui-border-angle: 45deg;\n    }\n  }\n  [data-kui-fx~=underline-slide] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-slide]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: currentcolor;\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale var(--kui-underline-slide-duration, 260ms) var(--kui-underline-slide-ease, ease-out);\n  }\n  [data-kui-fx~=underline-slide]:focus-visible::after {\n    scale: 1 1;\n  }\n  [data-kui-fx~=underline-center] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-center]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: currentcolor;\n    scale: 0 1;\n    transform-origin: center;\n    transition: scale var(--kui-underline-center-duration, 260ms) var(--kui-underline-center-ease, ease-out);\n  }\n  [data-kui-fx~=underline-center]:focus-visible::after {\n    scale: 1 1;\n  }\n  [data-kui-fx~=icon-wiggle]:focus-visible {\n    animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out);\n  }\n  @keyframes kui-icon-wiggle {\n    0%, 100% {\n      rotate: 0deg;\n    }\n    20% {\n      rotate: -12deg;\n    }\n    40% {\n      rotate: 10deg;\n    }\n    60% {\n      rotate: -6deg;\n    }\n    80% {\n      rotate: 4deg;\n    }\n  }\n  [data-kui-fx~=icon-spin]:focus-visible {\n    animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear;\n  }\n  @keyframes kui-icon-spin {\n    from {\n      rotate: 0deg;\n    }\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=icon-bounce]:focus-visible {\n    animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out);\n  }\n  @keyframes kui-icon-bounce {\n    0%, 100% {\n      translate: 0 0;\n    }\n    30% {\n      translate: 0 -7px;\n    }\n    55% {\n      translate: 0 1px;\n    }\n    75% {\n      translate: 0 -3px;\n    }\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=lift]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    }\n    [data-kui-fx~=pop]:hover {\n      scale: var(--kui-pop-scale, 1.06);\n    }\n    [data-kui-fx~=lift-shadow]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n      box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n    }\n    [data-kui-fx~=shine-sweep]:hover::after {\n      animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out);\n    }\n    [data-kui-fx~=split-flap]:hover {\n      animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out);\n    }\n    [data-kui-fx~=border-draw]:hover {\n      --kui-border-pct: 100%;\n    }\n    [data-kui-fx~=border-glow]:hover {\n      box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n    }\n    [data-kui-fx~=beam-border]:hover::before {\n      opacity: 1;\n      animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear infinite;\n    }\n    [data-kui-fx~=underline-slide]:hover::after {\n      scale: 1 1;\n    }\n    [data-kui-fx~=underline-center]:hover::after {\n      scale: 1 1;\n    }\n    [data-kui-fx~=icon-wiggle]:hover {\n      animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out);\n    }\n    [data-kui-fx~=icon-spin]:hover {\n      animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear;\n    }\n    [data-kui-fx~=icon-bounce]:hover {\n      animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out);\n    }\n  }\n  [data-kui-fx~=tilt-3d],\n  [data-kui-fx~=tilt-parallax] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=cursor-spotlight]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    border-radius: inherit;\n    pointer-events: none;\n    opacity: var(--kui-spotlight-opacity, 0);\n    transition: opacity 200ms ease-out;\n    background:\n      radial-gradient(\n        circle 160px at var(--kui-x, 50%) var(--kui-y, 50%),\n        color-mix(in srgb, var(--accent, #d2691e) 30%, transparent),\n        transparent 70%);\n  }\n  .kui-cursor-dot {\n    position: fixed;\n    top: 0;\n    left: 0;\n    z-index: 9999;\n    display: grid;\n    place-items: center;\n    pointer-events: none;\n    opacity: 0;\n    transition: opacity 160ms ease-out;\n  }\n  .kui-cursor-dot-active {\n    opacity: 1;\n  }\n  .kui-cursor-dot-follow,\n  .kui-cursor-dot-lag,\n  .kui-cursor-dot-invert {\n    width: 14px;\n    height: 14px;\n    margin: -7px 0 0 -7px;\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n  }\n  .kui-cursor-dot-invert {\n    background: var(--kui-invert-color, #fff);\n    mix-blend-mode: difference;\n  }\n  .kui-cursor-dot-label {\n    margin: -1.4em 0 0 -1.4em;\n    padding: 0.4em 0.8em;\n    border-radius: 999px;\n    background: var(--accent, #d2691e);\n    color: var(--kui-label-color, #fff);\n    font-size: 0.75rem;\n    font-family:\n      ui-monospace,\n      Menlo,\n      monospace;\n    white-space: nowrap;\n  }\n  @media (pointer: coarse) {\n    .kui-cursor-dot {\n      display: none;\n    }\n  }\n}\n\n/* src/css/layout.css */\n@layer kui.effects {\n  [data-kui-fx~=accordion-height] {\n    overflow: hidden;\n  }\n  [data-kui-fx~=accordion-height]:not([data-open]) {\n    height: 0;\n  }\n}\n\n/* src/css/svg.css */\n@layer kui.effects {\n  @keyframes kui-draw-stroke {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-signature {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-underline {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-checkmark-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-cross-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-chart-line-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=draw-stroke],\n  [data-kui-fx~=draw-signature],\n  [data-kui-fx~=draw-underline],\n  [data-kui-fx~=checkmark-draw],\n  [data-kui-fx~=cross-draw],\n  [data-kui-fx~=chart-line-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-gradient-stroke {\n    from {\n      stroke: var(--kui-stroke-from, currentColor);\n    }\n    50% {\n      stroke: var(--kui-stroke-via, currentColor);\n    }\n    to {\n      stroke: var(--kui-stroke-to, currentColor);\n    }\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-fx-gradient-stroke-iterations: infinite;\n  }\n  @keyframes kui-heart-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-bookmark-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-chart-area-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-chart-bar-grow {\n    from {\n      scale: 1 var(--kui-bar-from, 0);\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    transform-origin: bottom center;\n  }\n  [data-kui-fx~=chart-bar-grow][data-kui-state=ready] {\n    --kui-bar-from: 1 !important;\n    opacity: 0;\n  }\n  @keyframes kui-logo-build {\n    from {\n      opacity: 0;\n      scale: 0.62;\n      rotate: -8deg;\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n      rotate: 0deg;\n    }\n  }\n  [data-kui-fx~=hamburger-to-x] .kui-bar {\n    transition:\n      translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      opacity var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(1) {\n    translate: 0 var(--kui-bar-gap, 6px);\n    rotate: 45deg;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(2) {\n    opacity: 0;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(3) {\n    translate: 0 calc(var(--kui-bar-gap, 6px) * -1);\n    rotate: -45deg;\n  }\n  [data-kui-fx~=play-to-pause] .kui-bar {\n    transition: translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out), clip-path var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(1) {\n    translate: var(--kui-bar-gap, 4px) 0;\n    clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(2) {\n    translate: calc(var(--kui-bar-gap, 4px) * -1) 0;\n    clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);\n  }\n  [data-kui-fx~=plus-to-minus] {\n    transition: rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar {\n    transition: scale var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar:nth-child(2) {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] .kui-bar:nth-child(1) {\n    scale: 0;\n  }\n}\n\n/* src/css/index.css */\n"
+    style.textContent = "/* src/css/base.css */\n@layer kui.tokens, kui.presets, kui.effects, kui.policy, kui.cloak;\n@layer kui.tokens {\n  :root {\n    --kui-ease-expo-in: cubic-bezier(0.7, 0, 0.84, 0);\n    --kui-ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);\n    --kui-ease-expo-in-out: cubic-bezier(0.87, 0, 0.13, 1);\n    --kui-ease-back-in: cubic-bezier(0.36, 0, 0.66, -0.56);\n    --kui-ease-back-out: cubic-bezier(0.34, 1.56, 0.64, 1);\n    --kui-ease-back-in-out: cubic-bezier(0.68, -0.6, 0.32, 1.6);\n    --kui-ease-quart-out: cubic-bezier(0.25, 1, 0.5, 1);\n    --kui-ease-circ-out: cubic-bezier(0, 0.55, 0.45, 1);\n    --kui-ease-spring: linear(0, 0.4 12%, 0.9 25%, 1.06 38%, 1.01 62%, 1);\n    --kui-ease-bounce: linear(0, 0.5 10%, 1.2 30%, 0.9 50%, 1.08 68%, 0.97 82%, 1.02 92%, 1);\n  }\n  [data-kui-fx] {\n    --kui-dir: 1;\n    --kui-i: 0;\n    --kui-motion-path: initial;\n    --kui-motion-rotate: initial;\n    --kui-motion-anchor: initial;\n    --kui-motion-from: initial;\n    --kui-motion-to: initial;\n    --kui-wide-sm: initial;\n    --kui-narrow-sm: initial;\n    --kui-wide-md: initial;\n    --kui-narrow-md: initial;\n    --kui-wide-lg: initial;\n    --kui-narrow-lg: initial;\n    --kui-wide-xl: initial;\n    --kui-narrow-xl: initial;\n    --kui-wide-2xl: initial;\n    --kui-narrow-2xl: initial;\n  }\n  :dir(rtl) [data-kui-fx] {\n    --kui-dir: -1;\n  }\n  :root {\n    --kui-above-sm: none;\n    --kui-below-sm: initial;\n    --kui-above-md: none;\n    --kui-below-md: initial;\n    --kui-above-lg: none;\n    --kui-below-lg: initial;\n    --kui-above-xl: none;\n    --kui-below-xl: initial;\n    --kui-above-2xl: none;\n    --kui-below-2xl: initial;\n  }\n  @media (min-width: 40rem) {\n    :root {\n      --kui-above-sm: initial;\n      --kui-below-sm: none;\n    }\n  }\n  @media (min-width: 48rem) {\n    :root {\n      --kui-above-md: initial;\n      --kui-below-md: none;\n    }\n  }\n  @media (min-width: 64rem) {\n    :root {\n      --kui-above-lg: initial;\n      --kui-below-lg: none;\n    }\n  }\n  @media (min-width: 80rem) {\n    :root {\n      --kui-above-xl: initial;\n      --kui-below-xl: none;\n    }\n  }\n  @media (min-width: 96rem) {\n    :root {\n      --kui-above-2xl: initial;\n      --kui-below-2xl: none;\n    }\n  }\n  @container (min-width: 40rem) {\n    [data-kui-fx] {\n      --kui-narrow-sm: none;\n    }\n  }\n  @container not (min-width: 40rem) {\n    [data-kui-fx] {\n      --kui-wide-sm: none;\n    }\n  }\n  @container (min-width: 48rem) {\n    [data-kui-fx] {\n      --kui-narrow-md: none;\n    }\n  }\n  @container not (min-width: 48rem) {\n    [data-kui-fx] {\n      --kui-wide-md: none;\n    }\n  }\n  @container (min-width: 64rem) {\n    [data-kui-fx] {\n      --kui-narrow-lg: none;\n    }\n  }\n  @container not (min-width: 64rem) {\n    [data-kui-fx] {\n      --kui-wide-lg: none;\n    }\n  }\n  @container (min-width: 80rem) {\n    [data-kui-fx] {\n      --kui-narrow-xl: none;\n    }\n  }\n  @container not (min-width: 80rem) {\n    [data-kui-fx] {\n      --kui-wide-xl: none;\n    }\n  }\n  @container (min-width: 96rem) {\n    [data-kui-fx] {\n      --kui-narrow-2xl: none;\n    }\n  }\n  @container not (min-width: 96rem) {\n    [data-kui-fx] {\n      --kui-wide-2xl: none;\n    }\n  }\n  [data-kui-container] {\n    container-type: inline-size;\n  }\n}\n@layer kui.effects {\n  :where([data-kui-fx]) {\n    --kui-transition: initial;\n    transition: var(--kui-transition);\n  }\n}\n@layer kui.policy {\n  html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state]) {\n    opacity: 0 !important;\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm],\n    [data-kui-rm]::before,\n    [data-kui-rm]::after,\n    [data-kui-rm] .kui-odometer-strip,\n    [data-kui-rm][data-kui-fx~=label-float] ~ label,\n    [data-kui-rm][data-kui-fx~=input-underline-grow] ~ .kui-underline,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track,\n    [data-kui-rm][data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb,\n    [data-kui-rm][data-kui-fx~=checkbox-draw] ~ svg path,\n    [data-kui-rm][data-kui-fx~=radio-fill] ~ .kui-dot,\n    [data-kui-rm][data-kui-fx~=strength-meter] ~ .kui-meter > *,\n    [data-kui-rm][data-kui-fx~=hamburger-to-x] .kui-bar,\n    [data-kui-rm][data-kui-fx~=play-to-pause] .kui-bar,\n    [data-kui-rm][data-kui-fx~=plus-to-minus] .kui-bar,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-front,\n    [data-kui-rm][data-kui-fx~=flip-card] > .kui-face-back,\n    [data-kui-rm][data-kui-fx~=step-progress] > [data-kui-step-state] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n    [data-kui-rm=shorten],\n    [data-kui-rm=shorten]::before,\n    [data-kui-rm=shorten]::after {\n      animation-duration: 1ms !important;\n      animation-delay: 0ms !important;\n    }\n    [data-kui-rm=crossfade] {\n      animation-name: kui-in !important;\n      animation-duration: 200ms !important;\n    }\n    [data-kui-rm=disable] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n      offset-path: none !important;\n    }\n  }\n  @media print {\n    [data-kui-fx],\n    [data-kui-reveal] {\n      animation: none !important;\n      opacity: 1 !important;\n      translate: none !important;\n      scale: none !important;\n      rotate: none !important;\n      filter: none !important;\n      offset-path: none !important;\n    }\n  }\n}\n\n/* src/css/presets.generated.css */\n@layer kui.presets {\n  [data-kui-fx~=accordion-height] {\n    --kui-auto-height-duration: 400ms;\n    --kui-auto-height-delay: 0ms;\n    --kui-auto-height-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-bottom] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-left] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=anchored-preview-right] {\n    --kui-anchored-preview-duration: 220ms;\n    --kui-anchored-preview-delay: 0ms;\n    --kui-anchored-preview-ease: ease-out;\n  }\n  [data-kui-fx~=aurora] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=back-in-down] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=back-in-up] {\n    --kui-distance: 120px;\n    --kui-reveal-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=badge-pop] {\n    --kui-feedback-pop-duration: 420ms;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=beam-border] {\n    --kui-beam-border-duration: 220ms;\n    --kui-beam-border-delay: 0ms;\n  }\n  [data-kui-fx~=beam-border-auto] {\n    --kui-beam-border-auto-duration: 220ms;\n  }\n  [data-kui-fx~=before-after-wipe] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=blob-morph] {\n    --kui-path-morph-duration: 800ms;\n    --kui-path-morph-delay: 0ms;\n    --kui-path-morph-ease: linear;\n  }\n  [data-kui-fx~=blur-in] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-out] {\n    --kui-blur-duration: 600ms;\n    --kui-blur-delay: 0ms;\n    --kui-blur-ease: ease-out;\n  }\n  [data-kui-fx~=blur-up] {\n    --kui-media-blur-up-duration: 600ms;\n    --kui-media-blur-up-delay: 0ms;\n    --kui-media-blur-up-ease: ease-out;\n  }\n  [data-kui-fx~=bob] {\n    --kui-ambient-float-duration: 2s;\n    --kui-distance: 8px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=book-page-turn] {\n    --kui-from-angle: -160deg;\n    --kui-flip-face-duration: 900ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=bookmark-fill] {\n    --kui-shape-fill-duration: 360ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=border-draw] {\n    --kui-border-draw-duration: 220ms;\n    --kui-border-draw-delay: 0ms;\n    --kui-border-draw-ease: ease-out;\n  }\n  [data-kui-fx~=border-glow] {\n    --kui-border-glow-duration: 220ms;\n    --kui-border-glow-delay: 0ms;\n    --kui-border-glow-ease: ease-out;\n  }\n  [data-kui-fx~=bounce-in] {\n    --kui-from-scale: 0.3;\n    --kui-scale-ease: var(--kui-ease-bounce, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-down] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=bounce-in-up] {\n    --kui-distance: 60px;\n    --kui-reveal-ease: var(--kui-ease-back-out, ease-out);\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n  }\n  [data-kui-fx~=card-flip-x] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=card-flip-y] {\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=carousel] {\n    --kui-scope: self;\n    --kui-step-progress-duration: 400ms;\n    --kui-step-progress-delay: 0ms;\n    --kui-step-progress-ease: ease-out;\n  }\n  [data-kui-fx~=carousel-3d] {\n    --kui-tilt: 12deg;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-high] {\n    --kui-tilt: 30deg;\n    --kui-perspective: 1200px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-inside] {\n    --kui-arc: 120deg;\n    --kui-facing: camera;\n    --kui-perspective: 900px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=carousel-3d-low] {\n    --kui-tilt: -18deg;\n    --kui-perspective: 1800px;\n    --kui-spatial-ring-duration: 620ms;\n    --kui-spatial-ring-delay: 0ms;\n    --kui-spatial-ring-ease: cubic-bezier(0.22, 1, 0.36, 1);\n  }\n  [data-kui-fx~=chart-area-fill] {\n    --kui-shape-fill-duration: 900ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    --kui-bar-grow-duration: 700ms;\n    --kui-bar-grow-ease: var(--kui-ease-back-out, ease-out);\n    --kui-bar-grow-delay: 0ms;\n  }\n  [data-kui-fx~=chart-line-draw] {\n    --kui-path-draw-duration: 1200ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=checkmark-draw] {\n    --kui-path-draw-duration: 320ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=confetti-burst] {\n    --kui-feedback-burst-duration: 900ms;\n    --kui-pop-scale: 1.15;\n    --kui-feedback-burst-delay: 0ms;\n    --kui-feedback-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=copy-confirm] {\n    --kui-feedback-confirm-duration: 1400ms;\n    --kui-feedback-confirm-delay: 0ms;\n    --kui-feedback-confirm-ease: linear;\n  }\n  [data-kui-fx~=count-bump] {\n    --kui-feedback-pop-duration: 280ms;\n    --kui-pop-scale: 1.3;\n    --kui-feedback-pop-delay: 0ms;\n    --kui-feedback-pop-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=count-compact] {\n    --kui-from: 0;\n    --kui-to: 128400;\n    --kui-format: compact;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-currency] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-format: currency;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-down] {\n    --kui-from: 100;\n    --kui-to: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-percent] {\n    --kui-from: 0;\n    --kui-to: 0.82;\n    --kui-format: percent;\n    --kui-decimals: 0;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=count-up] {\n    --kui-from: 0;\n    --kui-to: 100;\n    --kui-count-duration: 1600ms;\n    --kui-count-delay: 0ms;\n  }\n  [data-kui-fx~=cross-draw] {\n    --kui-path-draw-duration: 260ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=cube-rotate] {\n    --kui-from-angle: 90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=cursor-follow] {\n    --kui-stiffness: 300;\n    --kui-damping: 30;\n  }\n  [data-kui-fx~=cursor-invert] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-label] {\n    --kui-stiffness: 260;\n    --kui-damping: 26;\n  }\n  [data-kui-fx~=cursor-lag] {\n    --kui-stiffness: 80;\n    --kui-damping: 14;\n  }\n  [data-kui-fx~=curtain-reveal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=curtain-wipe] {\n    --kui-wipe-duration: 800ms;\n    --kui-wipe-delay: 0ms;\n    --kui-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=decode] {\n    --kui-charset: binary;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=depth-layer] {\n    --kui-distance: 200px;\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=donut-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=drag-inertia] {\n    --kui-inertia: true;\n  }\n  [data-kui-fx~=drag-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=drag-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=draw-signature] {\n    --kui-path-draw-duration: 1600ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-stroke] {\n    --kui-path-draw-duration: 800ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=draw-underline] {\n    --kui-path-draw-duration: 420ms;\n    --kui-path-draw-delay: 0ms;\n    --kui-path-draw-ease: ease-out;\n  }\n  [data-kui-fx~=drawer-slide] {\n    --kui-drawer-slide-duration: 600ms;\n    --kui-drawer-slide-delay: 0ms;\n    --kui-drawer-slide-ease: ease-out;\n  }\n  [data-kui-fx~=drop-open] {\n    --kui-drop-open-duration: 240ms;\n    --kui-drop-open-delay: 0ms;\n    --kui-drop-open-ease: ease-out;\n  }\n  [data-kui-fx~=dropdown-open] {\n    --kui-panel-reveal-duration: 600ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=duotone-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=elastic-pull] {\n    --kui-return: true;\n    --kui-bounds: 80;\n  }\n  [data-kui-fx~=expand-to-modal] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 500ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-in] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-blur-up] {\n    --kui-reveal-blur-duration: 600ms;\n    --kui-reveal-blur-delay: 0ms;\n    --kui-reveal-blur-ease: ease-out;\n  }\n  [data-kui-fx~=fade-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-in] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-open] {\n    --kui-fade-open-duration: 240ms;\n    --kui-fade-open-delay: 0ms;\n    --kui-fade-open-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-down] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-left] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-out-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-right] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=fade-up] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=flip-card] {\n    --kui-card-toggle-duration: 700ms;\n    --kui-card-toggle-delay: 0ms;\n    --kui-card-toggle-ease: ease-in-out;\n  }\n  [data-kui-fx~=flip-filter] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-in-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-x] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-out-y] {\n    --kui-flip-3d-duration: 600ms;\n    --kui-flip-3d-delay: 0ms;\n    --kui-flip-3d-ease: ease-out;\n  }\n  [data-kui-fx~=flip-reorder] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-shuffle] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=flip-sort] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=float] {\n    --kui-ambient-float-duration: 4s;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-ambient-float-duration: 6s;\n    --kui-distance: 10px;\n    --kui-ambient-float-delay: 0ms;\n    --kui-ambient-float-ease: ease-in-out;\n  }\n  [data-kui-fx~=focus-ring-grow] {\n    --kui-focus-ring-duration: 600ms;\n    --kui-focus-ring-delay: 0ms;\n    --kui-focus-ring-ease: ease-out;\n  }\n  [data-kui-fx~=fold-panel] {\n    --kui-from-angle: -90deg;\n    --kui-flip-face-duration: 600ms;\n    --kui-flip-face-delay: 0ms;\n    --kui-flip-face-ease: ease-out;\n  }\n  [data-kui-fx~=gauge-sweep] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=glitch] {\n    --kui-charset: symbols;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-ambient-pulse-duration: 2.2s;\n    --kui-ambient-pulse-delay: 0ms;\n    --kui-ambient-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-mesh] {\n    --kui-ambient-gradient-duration: 10s;\n    --kui-ambient-gradient-delay: 0ms;\n    --kui-ambient-gradient-ease: ease-in-out;\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    --kui-ambient-gradient-ring-duration: 6s;\n    --kui-ambient-gradient-ring-ease: linear;\n    --kui-ambient-gradient-ring-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    --kui-text-shimmer-duration: 600ms;\n    --kui-text-shimmer-delay: 0ms;\n    --kui-text-shimmer-ease: ease-out;\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-path-draw-duration: 2400ms;\n    --kui-path-draw-ease: ease-in-out;\n    --kui-path-draw-delay: 0ms;\n  }\n  [data-kui-fx~=gradient-sweep] {\n    --kui-text-gradient-sweep-duration: 600ms;\n    --kui-text-gradient-sweep-delay: 0ms;\n    --kui-text-gradient-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=grayscale-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=grid-to-list] {\n    --kui-flip-scale: true;\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=group-dim] {\n    --kui-group-dim-duration: 260ms;\n    --kui-group-dim-delay: 0ms;\n    --kui-group-dim-ease: ease-out;\n  }\n  [data-kui-fx~=hamburger-to-x] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=heart-burst] {\n    --kui-feedback-heart-burst-duration: 700ms;\n    --kui-pop-scale: 1.4;\n    --kui-feedback-heart-burst-delay: 0ms;\n    --kui-feedback-heart-burst-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=heart-fill] {\n    --kui-shape-fill-duration: 420ms;\n    --kui-shape-fill-delay: 0ms;\n    --kui-shape-fill-ease: ease-out;\n  }\n  [data-kui-fx~=highlight-sweep] {\n    --kui-sweep-color: gold;\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=hover-intent] {\n    --kui-hover-intent-duration: 160ms;\n    --kui-hover-intent-delay: 1000ms;\n    --kui-hover-intent-ease: ease-out;\n  }\n  [data-kui-fx~=icon-bounce] {\n    --kui-icon-bounce-duration: 220ms;\n    --kui-icon-bounce-delay: 0ms;\n    --kui-icon-bounce-ease: ease-out;\n  }\n  [data-kui-fx~=icon-morph] {\n    --kui-path-morph-duration: 300ms;\n    --kui-path-morph-delay: 0ms;\n    --kui-path-morph-ease: linear;\n  }\n  [data-kui-fx~=icon-spin] {\n    --kui-icon-spin-duration: 220ms;\n    --kui-icon-spin-delay: 0ms;\n  }\n  [data-kui-fx~=icon-wiggle] {\n    --kui-icon-wiggle-duration: 220ms;\n    --kui-icon-wiggle-delay: 0ms;\n    --kui-icon-wiggle-ease: ease-out;\n  }\n  [data-kui-fx~=image-parallax-frame] {\n    --kui-media-parallax-frame-duration: 600ms;\n    --kui-media-parallax-frame-delay: 0ms;\n    --kui-media-parallax-frame-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=ken-burns-out] {\n    --kui-media-ken-burns-duration: 600ms;\n    --kui-media-ken-burns-delay: 0ms;\n    --kui-media-ken-burns-ease: ease-out;\n  }\n  [data-kui-fx~=lift] {\n    --kui-lift-duration: 220ms;\n    --kui-lift-delay: 0ms;\n    --kui-lift-ease: ease-out;\n  }\n  [data-kui-fx~=lift-shadow] {\n    --kui-lift-shadow-duration: 220ms;\n    --kui-lift-shadow-delay: 0ms;\n    --kui-lift-shadow-ease: ease-out;\n  }\n  [data-kui-fx~=lightbox-open] {\n    --kui-media-lightbox-duration: 600ms;\n    --kui-media-lightbox-delay: 0ms;\n    --kui-media-lightbox-ease: ease-out;\n  }\n  [data-kui-fx~=line-grid-drift] {\n    --kui-ambient-tint-duration: 16s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=loading-bar] {\n    --kui-bar-duration: 600ms;\n    --kui-bar-delay: 0ms;\n    --kui-bar-ease: ease-out;\n  }\n  [data-kui-fx~=logo-build] {\n    --kui-logo-assemble-duration: 520ms;\n    --kui-logo-assemble-ease: var(--kui-ease-back-out, ease-out);\n    --kui-logo-assemble-delay: 0ms;\n  }\n  [data-kui-fx~=long-press] {\n    --kui-pressable-duration: 500ms;\n  }\n  [data-kui-fx~=magnetic-snap] {\n    --kui-strength: 0.6;\n    --kui-radius: 160;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=marquee-scroll-linked] {\n    --kui-text-marquee-duration: 600ms;\n    --kui-text-marquee-delay: 0ms;\n    --kui-text-marquee-ease: ease-out;\n  }\n  [data-kui-fx~=mask-reveal] {\n    --kui-media-mask-duration: 600ms;\n    --kui-media-mask-delay: 0ms;\n    --kui-media-mask-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masked-label-swap-x] {\n    --kui-label-swap-duration: 320ms;\n    --kui-label-swap-delay: 0ms;\n    --kui-label-swap-ease: ease-out;\n  }\n  [data-kui-fx~=masonry-reflow] {\n    --kui-flip-container-duration: 400ms;\n    --kui-flip-container-delay: 0ms;\n    --kui-flip-container-ease: ease-out;\n  }\n  [data-kui-fx~=mega-menu-drop] {\n    --kui-panel-reveal-duration: 550ms;\n    --kui-panel-reveal-delay: 0ms;\n    --kui-panel-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=menu-fullscreen] {\n    --kui-menu-fullscreen-duration: 600ms;\n    --kui-menu-fullscreen-delay: 0ms;\n    --kui-menu-fullscreen-ease: ease-out;\n  }\n  [data-kui-fx~=menu-stagger-open] {\n    --kui-nav-reveal-duration: 600ms;\n    --kui-nav-reveal-delay: 0ms;\n    --kui-nav-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=motion-path] {\n    --kui-motion-path: \"M 0 0 L 120 0\";\n    --kui-motion-path-duration: 1200ms;\n    --kui-motion-path-delay: 0ms;\n    --kui-motion-path-ease: ease-out;\n  }\n  [data-kui-fx~=odometer-roll] {\n    --kui-from: 0;\n    --kui-to: 4820;\n    --kui-count-odometer-duration: 1600ms;\n    --kui-count-odometer-delay: 0ms;\n  }\n  [data-kui-fx~=orbit] {\n    --kui-ambient-orbit-duration: 3.5s;\n    --kui-ambient-orbit-delay: 0ms;\n    --kui-ambient-orbit-ease: linear;\n  }\n  [data-kui-fx~=page-fade] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=page-slide] {\n    --kui-page-reveal-duration: 600ms;\n    --kui-page-reveal-delay: 0ms;\n    --kui-page-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-rotate] {\n    --kui-parallax-rotate-duration: 600ms;\n    --kui-parallax-rotate-delay: 0ms;\n    --kui-parallax-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-scale] {\n    --kui-parallax-scale-duration: 600ms;\n    --kui-parallax-scale-delay: 0ms;\n    --kui-parallax-scale-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-x] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=parallax-y] {\n    --kui-parallax-duration: 600ms;\n    --kui-parallax-delay: 0ms;\n    --kui-parallax-ease: ease-out;\n  }\n  [data-kui-fx~=path-arc] {\n    --kui-motion-path: \"M 0 0 C 40 -70 120 -70 160 0\";\n    --kui-motion-path-duration: 1200ms;\n    --kui-motion-path-ease: ease-in-out;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-loop] {\n    --kui-motion-path: \"M 0 0 C 0 -70 110 -70 110 0 C 110 70 0 70 0 0\";\n    --kui-motion-path-duration: 2400ms;\n    --kui-motion-path-ease: linear;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-swoop] {\n    --kui-motion-path: \"M -120 70 C -70 70 -25 25 0 0\";\n    --kui-motion-path-duration: 900ms;\n    --kui-motion-path-ease: var(--kui-ease-expo-out, ease-out);\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=path-wave] {\n    --kui-motion-path: \"M 0 0 C 45 -45 105 45 150 0\";\n    --kui-motion-path-duration: 1600ms;\n    --kui-motion-path-ease: ease-in-out;\n    --kui-motion-path-delay: 0ms;\n  }\n  [data-kui-fx~=pin-section] {\n    --kui-distance: 100vh;\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-spacer] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=pin-until] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=play-to-pause] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=plus-to-minus] {\n    --kui-icon-toggle-duration: 260ms;\n    --kui-icon-toggle-delay: 0ms;\n    --kui-icon-toggle-ease: ease-out;\n  }\n  [data-kui-fx~=pop] {\n    --kui-pop-duration: 220ms;\n    --kui-pop-delay: 0ms;\n    --kui-pop-ease: ease-out;\n  }\n  [data-kui-fx~=pop-in] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-out, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=pop-open] {\n    --kui-pop-open-duration: 240ms;\n    --kui-pop-open-delay: 0ms;\n    --kui-pop-open-ease: ease-out;\n  }\n  [data-kui-fx~=pop-out] {\n    --kui-from-scale: 0.6;\n    --kui-scale-ease: var(--kui-ease-back-in, ease-out);\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n  }\n  [data-kui-fx~=press-depth] {\n    --kui-press-duration: 120ms;\n    --kui-press-delay: 0ms;\n    --kui-press-ease: ease-out;\n  }\n  [data-kui-fx~=progress-bar] {\n    --kui-meter-bar-duration: 600ms;\n    --kui-meter-bar-delay: 0ms;\n    --kui-meter-bar-ease: ease-out;\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    --kui-feedback-progress-track-duration: 1.4s;\n    --kui-feedback-progress-track-delay: 0ms;\n    --kui-feedback-progress-track-ease: ease-in-out;\n  }\n  [data-kui-fx~=progress-ring] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=progress-segments] {\n    --kui-meter-segments-duration: 600ms;\n    --kui-meter-segments-delay: 0ms;\n    --kui-meter-segments-ease: ease-out;\n  }\n  [data-kui-fx~=proximity-glow] {\n    --kui-proximity-glow-duration: 200ms;\n    --kui-proximity-glow-ease: ease-out;\n  }\n  [data-kui-fx~=pull-to-refresh] {\n    --kui-feedback-pull-duration: 900ms;\n    --kui-feedback-pull-ease: ease-out;\n    --kui-feedback-pull-delay: 0ms;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-range-fill-duration: 400ms;\n    --kui-range-fill-delay: 0ms;\n    --kui-range-fill-ease: ease-out;\n  }\n  [data-kui-fx~=redaction-reveal] {\n    --kui-redaction-reveal-duration: 600ms;\n    --kui-redaction-reveal-delay: 0ms;\n    --kui-redaction-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=reveal-once] {\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=ripple] {\n    --kui-feedback-ripple-duration: 600ms;\n    --kui-feedback-ripple-delay: 0ms;\n    --kui-feedback-ripple-ease: ease-out;\n  }\n  [data-kui-fx~=roll-in] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=roll-out] {\n    --kui-roll-duration: 600ms;\n    --kui-roll-delay: 0ms;\n    --kui-roll-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-left] {\n    --kui-from-angle: -45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-in-right] {\n    --kui-from-angle: 45deg;\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rotate-out] {\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n    --kui-rotate-ease: ease-out;\n  }\n  [data-kui-fx~=rubber-band] {\n    --kui-return: true;\n    --kui-bounds: 120;\n  }\n  [data-kui-fx~=saturate-hover] {\n    --kui-media-filter-duration: 600ms;\n    --kui-media-filter-delay: 0ms;\n    --kui-media-filter-ease: ease-out;\n  }\n  [data-kui-fx~=scale-open] {\n    --kui-scale-open-duration: 240ms;\n    --kui-scale-open-delay: 0ms;\n    --kui-scale-open-ease: ease-out;\n  }\n  [data-kui-fx~=scanline] {\n    --kui-ambient-tint-duration: 3.5s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=scramble] {\n    --kui-charset: upper;\n    --kui-scramble-text-delay: 0ms;\n  }\n  [data-kui-fx~=scroll-desaturate] {\n    --kui-desaturate-duration: 600ms;\n    --kui-desaturate-delay: 0ms;\n    --kui-desaturate-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-fade] {\n    --kui-scroll-fade-duration: 600ms;\n    --kui-scroll-fade-delay: 0ms;\n    --kui-scroll-fade-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-bar-y] {\n    --kui-progress-duration: 600ms;\n    --kui-progress-delay: 0ms;\n    --kui-progress-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    --kui-progress-stroke-duration: 600ms;\n    --kui-progress-stroke-delay: 0ms;\n    --kui-progress-stroke-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-skew] {\n    --kui-skew-duration: 600ms;\n    --kui-skew-delay: 0ms;\n    --kui-skew-ease: ease-out;\n  }\n  [data-kui-fx~=scroll-snap-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=scroll-snap-y] {\n    --kui-axis: y;\n  }\n  [data-kui-fx~=scrollytelling-step] {\n    --kui-steps: 4;\n  }\n  [data-kui-fx~=search-expand] {\n    --kui-search-expand-duration: 260ms;\n    --kui-search-expand-delay: 0ms;\n    --kui-search-expand-ease: ease-out;\n  }\n  [data-kui-fx~=sequence-scrub] {\n    --kui-spacer: true;\n  }\n  [data-kui-fx~=shake-error] {\n    --kui-feedback-shake-duration: 500ms;\n    --kui-feedback-shake-delay: 0ms;\n    --kui-feedback-shake-ease: linear;\n  }\n  [data-kui-fx~=shine-sweep] {\n    --kui-shine-sweep-duration: 220ms;\n    --kui-shine-sweep-delay: 0ms;\n    --kui-shine-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=skeleton-shimmer] {\n    --kui-feedback-shimmer-duration: 1.6s;\n    --kui-feedback-shimmer-delay: 0ms;\n    --kui-feedback-shimmer-ease: linear;\n  }\n  [data-kui-fx~=skeleton-to-content] {\n    --kui-feedback-fade-duration: 600ms;\n    --kui-feedback-fade-delay: 0ms;\n    --kui-feedback-fade-ease: ease-out;\n  }\n  [data-kui-fx~=slat-assemble] {\n    --kui-slat-assemble-duration: 500ms;\n    --kui-slat-assemble-delay: 0ms;\n    --kui-slat-assemble-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-block-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-end] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-inline-start] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-open-down] {\n    --kui-slide-open-down-duration: 240ms;\n    --kui-slide-open-down-delay: 0ms;\n    --kui-slide-open-down-ease: ease-out;\n  }\n  [data-kui-fx~=slide-open-up] {\n    --kui-slide-open-up-duration: 240ms;\n    --kui-slide-open-up-delay: 0ms;\n    --kui-slide-open-up-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-down] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-left] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-out-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-right] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=slide-up] {\n    --kui-distance: 100px;\n    --kui-from-opacity: 1;\n    --kui-reveal-duration: 600ms;\n    --kui-reveal-delay: 0ms;\n    --kui-reveal-ease: ease-out;\n  }\n  [data-kui-fx~=snap-back] {\n    --kui-return: true;\n    --kui-stiffness: 260;\n  }\n  [data-kui-fx~=sparkline-draw] {\n    --kui-stroke-sweep-duration: 600ms;\n    --kui-stroke-sweep-delay: 0ms;\n    --kui-stroke-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=spinner] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=spinner-dots] {\n    --kui-feedback-dot-pulse-duration: 1.2s;\n    --kui-feedback-dot-pulse-delay: 0ms;\n    --kui-feedback-dot-pulse-ease: ease-in-out;\n  }\n  [data-kui-fx~=spinner-ring] {\n    --kui-feedback-spin-duration: 900ms;\n    --kui-feedback-spin-delay: 0ms;\n    --kui-feedback-spin-ease: linear;\n  }\n  [data-kui-fx~=split-chars] {\n    --kui-unit: chars;\n    --kui-direction: fade;\n    --kui-stagger: 30ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-flap] {\n    --kui-split-flap-duration: 220ms;\n    --kui-split-flap-delay: 0ms;\n    --kui-split-flap-ease: ease-out;\n  }\n  [data-kui-fx~=split-lines] {\n    --kui-unit: lines;\n    --kui-direction: fade;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=split-words] {\n    --kui-unit: words;\n    --kui-direction: fade;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=spotlight-follow] {\n    --kui-ambient-tint-duration: 9s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=stacking-cards] {\n    --kui-spacer: false;\n  }\n  [data-kui-fx~=star-rating-fill] {\n    --kui-meter-stars-duration: 600ms;\n    --kui-meter-stars-delay: 0ms;\n    --kui-meter-stars-ease: ease-out;\n  }\n  [data-kui-fx~=starfield] {\n    --kui-ambient-tint-duration: 40s;\n    --kui-ambient-tint-ease: linear;\n    --kui-ambient-tint-delay: 0ms;\n  }\n  [data-kui-fx~=step-progress] {\n    --kui-step-progress-duration: 400ms;\n    --kui-step-progress-delay: 0ms;\n    --kui-step-progress-ease: ease-out;\n  }\n  [data-kui-fx~=strength-meter] {\n    --kui-strength-meter-duration: 400ms;\n    --kui-strength-meter-delay: 0ms;\n    --kui-strength-meter-ease: ease-out;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] {\n    --kui-submit-flow-duration: 400ms;\n    --kui-submit-flow-delay: 0ms;\n    --kui-submit-flow-ease: ease-out;\n  }\n  [data-kui-fx~=swing-in] {\n    --kui-from-angle: -15deg;\n    --kui-rotate-ease: var(--kui-ease-back-out, ease-out);\n    --kui-rotate-duration: 600ms;\n    --kui-rotate-delay: 0ms;\n  }\n  [data-kui-fx~=swipe-x] {\n    --kui-axis: x;\n  }\n  [data-kui-fx~=tab-indicator-slide] {\n    --kui-flip-indicator-duration: 300ms;\n    --kui-flip-indicator-delay: 0ms;\n    --kui-flip-indicator-ease: ease-out;\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    --kui-text-3d-extrude-duration: 600ms;\n    --kui-text-3d-extrude-delay: 0ms;\n    --kui-text-3d-extrude-ease: ease-out;\n  }\n  [data-kui-fx~=text-jitter] {\n    --kui-motion: jitter;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=text-outline-fill] {\n    --kui-text-outline-fill-duration: 600ms;\n    --kui-text-outline-fill-delay: 0ms;\n    --kui-text-outline-fill-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-down] {\n    --kui-unit: words;\n    --kui-direction: down;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-mask] {\n    --kui-unit: lines;\n    --kui-direction: mask;\n    --kui-stagger: 160ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-reveal-up] {\n    --kui-unit: words;\n    --kui-direction: up;\n    --kui-stagger: 90ms;\n    --kui-split-text-duration: 500ms;\n    --kui-split-text-delay: 0ms;\n    --kui-split-text-ease: ease-out;\n  }\n  [data-kui-fx~=text-wave] {\n    --kui-motion: wave;\n    --kui-split-text-motion-delay: 0ms;\n  }\n  [data-kui-fx~=throwable] {\n    --kui-inertia: true;\n    --kui-damping: 18;\n  }\n  [data-kui-fx~=toast-slide-in] {\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n    --kui-feedback-toast-ease: var(--kui-ease-back-out, ease-out);\n  }\n  [data-kui-fx~=toast-slide-out] {\n    --kui-feedback-toast-ease: ease-in;\n    --kui-feedback-toast-duration: 420ms;\n    --kui-feedback-toast-delay: 0ms;\n  }\n  [data-kui-fx~=tween] {\n    --kui-tween-duration: 600ms;\n    --kui-tween-delay: 0ms;\n    --kui-tween-ease: ease-out;\n  }\n  [data-kui-fx~=tween-from] {\n    --kui-tween-from-duration: 600ms;\n    --kui-tween-from-delay: 0ms;\n    --kui-tween-from-ease: ease-out;\n  }\n  [data-kui-fx~=typewriter] {\n    --kui-loop: false;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=typewriter-loop] {\n    --kui-loop: true;\n    --kui-typewriter-delay: 0ms;\n  }\n  [data-kui-fx~=underline-center] {\n    --kui-underline-center-duration: 220ms;\n    --kui-underline-center-delay: 0ms;\n    --kui-underline-center-ease: ease-out;\n  }\n  [data-kui-fx~=underline-draw] {\n    --kui-text-sweep-duration: 600ms;\n    --kui-text-sweep-delay: 0ms;\n    --kui-text-sweep-ease: ease-out;\n  }\n  [data-kui-fx~=underline-slide] {\n    --kui-underline-slide-duration: 220ms;\n    --kui-underline-slide-delay: 0ms;\n    --kui-underline-slide-ease: ease-out;\n  }\n  [data-kui-fx~=validate-check] {\n    --kui-validate-check-duration: 600ms;\n    --kui-validate-check-delay: 0ms;\n    --kui-validate-check-ease: ease-out;\n  }\n  [data-kui-fx~=validate-shake] {\n    --kui-validate-shake-duration: 600ms;\n    --kui-validate-shake-delay: 0ms;\n    --kui-validate-shake-ease: ease-out;\n  }\n  [data-kui-fx~=var-axis] {\n    --kui-var-axis-duration: 600ms;\n    --kui-var-axis-delay: 0ms;\n    --kui-var-axis-ease: ease-out;\n  }\n  [data-kui-fx~=var-slant] {\n    --kui-var-slant-duration: 600ms;\n    --kui-var-slant-delay: 0ms;\n    --kui-var-slant-ease: ease-out;\n  }\n  [data-kui-fx~=var-weight] {\n    --kui-var-weight-duration: 600ms;\n    --kui-var-weight-delay: 0ms;\n    --kui-var-weight-ease: ease-out;\n  }\n  [data-kui-fx~=var-width] {\n    --kui-var-width-duration: 600ms;\n    --kui-var-width-delay: 0ms;\n    --kui-var-width-ease: ease-out;\n  }\n  [data-kui-fx~=video-backdrop] {\n    --kui-overlay: black;\n    --kui-overlay-opacity: 45%;\n  }\n  [data-kui-fx~=video-hero] {\n    --kui-overlay: black;\n    --kui-overlay-opacity: 45%;\n    --kui-autoplay: always;\n  }\n  [data-kui-fx~=view-swap] {\n    --kui-view-swap-delay: 0ms;\n  }\n  [data-kui-fx~=wave-blob] {\n    --kui-ambient-tint-duration: 12s;\n    --kui-ambient-tint-delay: 0ms;\n    --kui-ambient-tint-ease: ease-in-out;\n  }\n  [data-kui-fx~=wipe-circle] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-diagonal] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-down] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-left] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-right] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wipe-up] {\n    --kui-media-wipe-duration: 600ms;\n    --kui-media-wipe-delay: 0ms;\n    --kui-media-wipe-ease: ease-out;\n  }\n  [data-kui-fx~=wobble] {\n    --kui-feedback-wobble-duration: 600ms;\n    --kui-feedback-wobble-ease: ease-in-out;\n    --kui-feedback-wobble-delay: 0ms;\n  }\n  [data-kui-fx~=word-cycler] {\n    --kui-word-cycler-delay: 0ms;\n  }\n  [data-kui-fx~=zoom-in] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-down] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-in-up] {\n    --kui-scale-move-duration: 600ms;\n    --kui-scale-move-delay: 0ms;\n    --kui-scale-move-ease: ease-out;\n  }\n  [data-kui-fx~=zoom-out] {\n    --kui-scale-duration: 600ms;\n    --kui-scale-delay: 0ms;\n    --kui-scale-ease: ease-out;\n  }\n}\n@layer kui.cloak {\n  html[data-kui-cloak] :is([data-kui~=back-in-down], [data-kui~=\"back-in-down,\"], [data-kui~=\",back-in-down\"], [data-kui~=\",back-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=back-in-up], [data-kui~=\"back-in-up,\"], [data-kui~=\",back-in-up\"], [data-kui~=\",back-in-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=blur-in], [data-kui~=\"blur-in,\"], [data-kui~=\",blur-in\"], [data-kui~=\",blur-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=blur-up], [data-kui~=\"blur-up,\"], [data-kui~=\",blur-up\"], [data-kui~=\",blur-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in], [data-kui~=\"bounce-in,\"], [data-kui~=\",bounce-in\"], [data-kui~=\",bounce-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in-down], [data-kui~=\"bounce-in-down,\"], [data-kui~=\",bounce-in-down\"], [data-kui~=\",bounce-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=bounce-in-up], [data-kui~=\"bounce-in-up,\"], [data-kui~=\",bounce-in-up\"], [data-kui~=\",bounce-in-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=card-flip-x], [data-kui~=\"card-flip-x,\"], [data-kui~=\",card-flip-x\"], [data-kui~=\",card-flip-x,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=card-flip-y], [data-kui~=\"card-flip-y,\"], [data-kui~=\",card-flip-y\"], [data-kui~=\",card-flip-y,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=chart-bar-grow], [data-kui~=\"chart-bar-grow,\"], [data-kui~=\",chart-bar-grow\"], [data-kui~=\",chart-bar-grow,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=curtain-reveal], [data-kui~=\"curtain-reveal,\"], [data-kui~=\",curtain-reveal\"], [data-kui~=\",curtain-reveal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-blur-in], [data-kui~=\"fade-blur-in,\"], [data-kui~=\",fade-blur-in\"], [data-kui~=\",fade-blur-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-blur-up], [data-kui~=\"fade-blur-up,\"], [data-kui~=\",fade-blur-up\"], [data-kui~=\",fade-blur-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-down], [data-kui~=\"fade-down,\"], [data-kui~=\",fade-down\"], [data-kui~=\",fade-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-in], [data-kui~=\"fade-in,\"], [data-kui~=\",fade-in\"], [data-kui~=\",fade-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-left], [data-kui~=\"fade-left,\"], [data-kui~=\",fade-left\"], [data-kui~=\",fade-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-right], [data-kui~=\"fade-right,\"], [data-kui~=\",fade-right\"], [data-kui~=\",fade-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fade-up], [data-kui~=\"fade-up,\"], [data-kui~=\",fade-up\"], [data-kui~=\",fade-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=flip-in-x], [data-kui~=\"flip-in-x,\"], [data-kui~=\",flip-in-x\"], [data-kui~=\",flip-in-x,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=flip-in-y], [data-kui~=\"flip-in-y,\"], [data-kui~=\",flip-in-y\"], [data-kui~=\",flip-in-y,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=fold-panel], [data-kui~=\"fold-panel,\"], [data-kui~=\",fold-panel\"], [data-kui~=\",fold-panel,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=loading-bar], [data-kui~=\"loading-bar,\"], [data-kui~=\",loading-bar\"], [data-kui~=\",loading-bar,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=mask-reveal], [data-kui~=\"mask-reveal,\"], [data-kui~=\",mask-reveal\"], [data-kui~=\",mask-reveal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=path-swoop], [data-kui~=\"path-swoop,\"], [data-kui~=\",path-swoop\"], [data-kui~=\",path-swoop,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=pop-in], [data-kui~=\"pop-in,\"], [data-kui~=\",pop-in\"], [data-kui~=\",pop-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=progress-bar], [data-kui~=\"progress-bar,\"], [data-kui~=\",progress-bar\"], [data-kui~=\",progress-bar,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=reveal-once], [data-kui~=\"reveal-once,\"], [data-kui~=\",reveal-once\"], [data-kui~=\",reveal-once,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=roll-in], [data-kui~=\"roll-in,\"], [data-kui~=\",roll-in\"], [data-kui~=\",roll-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in], [data-kui~=\"rotate-in,\"], [data-kui~=\",rotate-in\"], [data-kui~=\",rotate-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in-left], [data-kui~=\"rotate-in-left,\"], [data-kui~=\",rotate-in-left\"], [data-kui~=\",rotate-in-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=rotate-in-right], [data-kui~=\"rotate-in-right,\"], [data-kui~=\",rotate-in-right\"], [data-kui~=\",rotate-in-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slat-assemble], [data-kui~=\"slat-assemble,\"], [data-kui~=\",slat-assemble\"], [data-kui~=\",slat-assemble,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-block-end], [data-kui~=\"slide-block-end,\"], [data-kui~=\",slide-block-end\"], [data-kui~=\",slide-block-end,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-block-start], [data-kui~=\"slide-block-start,\"], [data-kui~=\",slide-block-start\"], [data-kui~=\",slide-block-start,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-down], [data-kui~=\"slide-down,\"], [data-kui~=\",slide-down\"], [data-kui~=\",slide-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-inline-end], [data-kui~=\"slide-inline-end,\"], [data-kui~=\",slide-inline-end\"], [data-kui~=\",slide-inline-end,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-inline-start], [data-kui~=\"slide-inline-start,\"], [data-kui~=\",slide-inline-start\"], [data-kui~=\",slide-inline-start,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-left], [data-kui~=\"slide-left,\"], [data-kui~=\",slide-left\"], [data-kui~=\",slide-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-right], [data-kui~=\"slide-right,\"], [data-kui~=\",slide-right\"], [data-kui~=\",slide-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=slide-up], [data-kui~=\"slide-up,\"], [data-kui~=\",slide-up\"], [data-kui~=\",slide-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=swing-in], [data-kui~=\"swing-in,\"], [data-kui~=\",swing-in\"], [data-kui~=\",swing-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-down], [data-kui~=\"text-reveal-down,\"], [data-kui~=\",text-reveal-down\"], [data-kui~=\",text-reveal-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-mask], [data-kui~=\"text-reveal-mask,\"], [data-kui~=\",text-reveal-mask\"], [data-kui~=\",text-reveal-mask,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=text-reveal-up], [data-kui~=\"text-reveal-up,\"], [data-kui~=\",text-reveal-up\"], [data-kui~=\",text-reveal-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=tween-from], [data-kui~=\"tween-from,\"], [data-kui~=\",tween-from\"], [data-kui~=\",tween-from,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-circle], [data-kui~=\"wipe-circle,\"], [data-kui~=\",wipe-circle\"], [data-kui~=\",wipe-circle,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-diagonal], [data-kui~=\"wipe-diagonal,\"], [data-kui~=\",wipe-diagonal\"], [data-kui~=\",wipe-diagonal,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-down], [data-kui~=\"wipe-down,\"], [data-kui~=\",wipe-down\"], [data-kui~=\",wipe-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-left], [data-kui~=\"wipe-left,\"], [data-kui~=\",wipe-left\"], [data-kui~=\",wipe-left,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-right], [data-kui~=\"wipe-right,\"], [data-kui~=\",wipe-right\"], [data-kui~=\",wipe-right,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=wipe-up], [data-kui~=\"wipe-up,\"], [data-kui~=\",wipe-up\"], [data-kui~=\",wipe-up,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in], [data-kui~=\"zoom-in,\"], [data-kui~=\",zoom-in\"], [data-kui~=\",zoom-in,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in-down], [data-kui~=\"zoom-in-down,\"], [data-kui~=\",zoom-in-down\"], [data-kui~=\",zoom-in-down,\"]):not([data-kui-state]),\n  html[data-kui-cloak] :is([data-kui~=zoom-in-up], [data-kui~=\"zoom-in-up,\"], [data-kui~=\",zoom-in-up\"], [data-kui~=\",zoom-in-up,\"]):not([data-kui-state]) {\n    opacity: 0;\n    animation: kui-cloak-release 1ms linear 2s forwards;\n  }\n  @keyframes kui-cloak-release {\n    to {\n      opacity: 1;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    html[data-kui-cloak] :is([data-kui~=back-in-down], [data-kui~=\"back-in-down,\"], [data-kui~=\",back-in-down\"], [data-kui~=\",back-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=back-in-up], [data-kui~=\"back-in-up,\"], [data-kui~=\",back-in-up\"], [data-kui~=\",back-in-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=blur-in], [data-kui~=\"blur-in,\"], [data-kui~=\",blur-in\"], [data-kui~=\",blur-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=blur-up], [data-kui~=\"blur-up,\"], [data-kui~=\",blur-up\"], [data-kui~=\",blur-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in], [data-kui~=\"bounce-in,\"], [data-kui~=\",bounce-in\"], [data-kui~=\",bounce-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in-down], [data-kui~=\"bounce-in-down,\"], [data-kui~=\",bounce-in-down\"], [data-kui~=\",bounce-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=bounce-in-up], [data-kui~=\"bounce-in-up,\"], [data-kui~=\",bounce-in-up\"], [data-kui~=\",bounce-in-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=card-flip-x], [data-kui~=\"card-flip-x,\"], [data-kui~=\",card-flip-x\"], [data-kui~=\",card-flip-x,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=card-flip-y], [data-kui~=\"card-flip-y,\"], [data-kui~=\",card-flip-y\"], [data-kui~=\",card-flip-y,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=chart-bar-grow], [data-kui~=\"chart-bar-grow,\"], [data-kui~=\",chart-bar-grow\"], [data-kui~=\",chart-bar-grow,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=curtain-reveal], [data-kui~=\"curtain-reveal,\"], [data-kui~=\",curtain-reveal\"], [data-kui~=\",curtain-reveal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-blur-in], [data-kui~=\"fade-blur-in,\"], [data-kui~=\",fade-blur-in\"], [data-kui~=\",fade-blur-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-blur-up], [data-kui~=\"fade-blur-up,\"], [data-kui~=\",fade-blur-up\"], [data-kui~=\",fade-blur-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-down], [data-kui~=\"fade-down,\"], [data-kui~=\",fade-down\"], [data-kui~=\",fade-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-in], [data-kui~=\"fade-in,\"], [data-kui~=\",fade-in\"], [data-kui~=\",fade-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-left], [data-kui~=\"fade-left,\"], [data-kui~=\",fade-left\"], [data-kui~=\",fade-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-right], [data-kui~=\"fade-right,\"], [data-kui~=\",fade-right\"], [data-kui~=\",fade-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fade-up], [data-kui~=\"fade-up,\"], [data-kui~=\",fade-up\"], [data-kui~=\",fade-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=flip-in-x], [data-kui~=\"flip-in-x,\"], [data-kui~=\",flip-in-x\"], [data-kui~=\",flip-in-x,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=flip-in-y], [data-kui~=\"flip-in-y,\"], [data-kui~=\",flip-in-y\"], [data-kui~=\",flip-in-y,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=fold-panel], [data-kui~=\"fold-panel,\"], [data-kui~=\",fold-panel\"], [data-kui~=\",fold-panel,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=loading-bar], [data-kui~=\"loading-bar,\"], [data-kui~=\",loading-bar\"], [data-kui~=\",loading-bar,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=mask-reveal], [data-kui~=\"mask-reveal,\"], [data-kui~=\",mask-reveal\"], [data-kui~=\",mask-reveal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=path-swoop], [data-kui~=\"path-swoop,\"], [data-kui~=\",path-swoop\"], [data-kui~=\",path-swoop,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=pop-in], [data-kui~=\"pop-in,\"], [data-kui~=\",pop-in\"], [data-kui~=\",pop-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=progress-bar], [data-kui~=\"progress-bar,\"], [data-kui~=\",progress-bar\"], [data-kui~=\",progress-bar,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=reveal-once], [data-kui~=\"reveal-once,\"], [data-kui~=\",reveal-once\"], [data-kui~=\",reveal-once,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=roll-in], [data-kui~=\"roll-in,\"], [data-kui~=\",roll-in\"], [data-kui~=\",roll-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in], [data-kui~=\"rotate-in,\"], [data-kui~=\",rotate-in\"], [data-kui~=\",rotate-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in-left], [data-kui~=\"rotate-in-left,\"], [data-kui~=\",rotate-in-left\"], [data-kui~=\",rotate-in-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=rotate-in-right], [data-kui~=\"rotate-in-right,\"], [data-kui~=\",rotate-in-right\"], [data-kui~=\",rotate-in-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slat-assemble], [data-kui~=\"slat-assemble,\"], [data-kui~=\",slat-assemble\"], [data-kui~=\",slat-assemble,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-block-end], [data-kui~=\"slide-block-end,\"], [data-kui~=\",slide-block-end\"], [data-kui~=\",slide-block-end,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-block-start], [data-kui~=\"slide-block-start,\"], [data-kui~=\",slide-block-start\"], [data-kui~=\",slide-block-start,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-down], [data-kui~=\"slide-down,\"], [data-kui~=\",slide-down\"], [data-kui~=\",slide-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-inline-end], [data-kui~=\"slide-inline-end,\"], [data-kui~=\",slide-inline-end\"], [data-kui~=\",slide-inline-end,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-inline-start], [data-kui~=\"slide-inline-start,\"], [data-kui~=\",slide-inline-start\"], [data-kui~=\",slide-inline-start,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-left], [data-kui~=\"slide-left,\"], [data-kui~=\",slide-left\"], [data-kui~=\",slide-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-right], [data-kui~=\"slide-right,\"], [data-kui~=\",slide-right\"], [data-kui~=\",slide-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=slide-up], [data-kui~=\"slide-up,\"], [data-kui~=\",slide-up\"], [data-kui~=\",slide-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=swing-in], [data-kui~=\"swing-in,\"], [data-kui~=\",swing-in\"], [data-kui~=\",swing-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-down], [data-kui~=\"text-reveal-down,\"], [data-kui~=\",text-reveal-down\"], [data-kui~=\",text-reveal-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-mask], [data-kui~=\"text-reveal-mask,\"], [data-kui~=\",text-reveal-mask\"], [data-kui~=\",text-reveal-mask,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=text-reveal-up], [data-kui~=\"text-reveal-up,\"], [data-kui~=\",text-reveal-up\"], [data-kui~=\",text-reveal-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=tween-from], [data-kui~=\"tween-from,\"], [data-kui~=\",tween-from\"], [data-kui~=\",tween-from,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-circle], [data-kui~=\"wipe-circle,\"], [data-kui~=\",wipe-circle\"], [data-kui~=\",wipe-circle,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-diagonal], [data-kui~=\"wipe-diagonal,\"], [data-kui~=\",wipe-diagonal\"], [data-kui~=\",wipe-diagonal,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-down], [data-kui~=\"wipe-down,\"], [data-kui~=\",wipe-down\"], [data-kui~=\",wipe-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-left], [data-kui~=\"wipe-left,\"], [data-kui~=\",wipe-left\"], [data-kui~=\",wipe-left,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-right], [data-kui~=\"wipe-right,\"], [data-kui~=\",wipe-right\"], [data-kui~=\",wipe-right,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=wipe-up], [data-kui~=\"wipe-up,\"], [data-kui~=\",wipe-up\"], [data-kui~=\",wipe-up,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in], [data-kui~=\"zoom-in,\"], [data-kui~=\",zoom-in\"], [data-kui~=\",zoom-in,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in-down], [data-kui~=\"zoom-in-down,\"], [data-kui~=\",zoom-in-down\"], [data-kui~=\",zoom-in-down,\"]):not([data-kui-state]),\n    html[data-kui-cloak] :is([data-kui~=zoom-in-up], [data-kui~=\"zoom-in-up,\"], [data-kui~=\",zoom-in-up\"], [data-kui~=\",zoom-in-up,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 40rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:sm\"], [data-kui~=\"above:sm,\"], [data-kui~=\",above:sm\"], [data-kui~=\",above:sm,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 40rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:sm\"], [data-kui~=\"below:sm,\"], [data-kui~=\",below:sm\"], [data-kui~=\",below:sm,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 48rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:md\"], [data-kui~=\"above:md,\"], [data-kui~=\",above:md\"], [data-kui~=\",above:md,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 48rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:md\"], [data-kui~=\"below:md,\"], [data-kui~=\",below:md\"], [data-kui~=\",below:md,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 64rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:lg\"], [data-kui~=\"above:lg,\"], [data-kui~=\",above:lg\"], [data-kui~=\",above:lg,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 64rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:lg\"], [data-kui~=\"below:lg,\"], [data-kui~=\",below:lg\"], [data-kui~=\",below:lg,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 80rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:xl\"], [data-kui~=\"above:xl,\"], [data-kui~=\",above:xl\"], [data-kui~=\",above:xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 80rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:xl\"], [data-kui~=\"below:xl,\"], [data-kui~=\",below:xl\"], [data-kui~=\",below:xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media not all and (min-width: 96rem) {\n    html[data-kui-cloak] :is([data-kui~=\"above:2xl\"], [data-kui~=\"above:2xl,\"], [data-kui~=\",above:2xl\"], [data-kui~=\",above:2xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n  @media (min-width: 96rem) {\n    html[data-kui-cloak] :is([data-kui~=\"below:2xl\"], [data-kui~=\"below:2xl,\"], [data-kui~=\",below:2xl\"], [data-kui~=\",below:2xl,\"]):not([data-kui-state]) {\n      opacity: 1;\n      animation: none;\n    }\n  }\n}\n\n/* src/css/entrance.css */\n@layer kui.effects {\n  @keyframes kui-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n  }\n  @keyframes kui-out {\n    to {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-in-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-in-down {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-in-left {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-in-right {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-out-up {\n    to {\n      opacity: 0;\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-out-down {\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-out-left {\n    to {\n      opacity: 0;\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-out-right {\n    to {\n      opacity: 0;\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-in-inline-start {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * var(--kui-dir, 1)) 0;\n    }\n  }\n  @keyframes kui-in-inline-end {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * var(--kui-dir, 1) * -1) 0;\n    }\n  }\n  @keyframes kui-zoom-in {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-out {\n    to {\n      scale: var(--kui-from-scale, 0.92);\n    }\n  }\n  @keyframes kui-zoom-in-up {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-zoom-in-down {\n    from {\n      scale: var(--kui-from-scale, 0.92);\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n  }\n  @keyframes kui-flip-in-x {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-in-y {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-out-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-flip-out-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-rotate-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -8deg));\n    }\n  }\n  @keyframes kui-rotate-out {\n    to {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -8deg));\n    }\n  }\n  @keyframes kui-swing-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -15deg));\n    }\n  }\n  @keyframes kui-roll-in {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -120deg));\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n  }\n  @keyframes kui-roll-out {\n    to {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -120deg));\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) 0;\n    }\n  }\n  @keyframes kui-blur-in {\n    from {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-blur-out {\n    to {\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-up {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  @keyframes kui-fade-blur-in {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n      filter: blur(var(--kui-blur, 12px));\n    }\n  }\n  [data-kui-fx*=flip-] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=flip-in-x][data-kui-state=ready],\n  [data-kui-fx~=flip-in-y][data-kui-state=ready] {\n    opacity: 0;\n  }\n  [data-kui-fx~=rotate-in][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-left][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-right][data-kui-state=ready],\n  [data-kui-fx~=swing-in][data-kui-state=ready],\n  [data-kui-fx~=roll-in][data-kui-state=ready] {\n    opacity: 0;\n  }\n}\n\n/* src/css/scroll.css */\n@layer kui.effects {\n  @keyframes kui-parallax-y {\n    from {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 100px)) * -1);\n    }\n    to {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 100px));\n    }\n  }\n  @keyframes kui-parallax-x {\n    from {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 100px)) * -1) 0;\n    }\n    to {\n      translate: var(--kui-gate-distance, var(--kui-distance, 100px)) 0;\n    }\n  }\n  @keyframes kui-parallax-scale {\n    from {\n      scale: var(--kui-from-scale, 1);\n    }\n    to {\n      scale: var(--kui-to-scale, 1.2);\n    }\n  }\n  @keyframes kui-parallax-rotate {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, 0deg));\n    }\n    to {\n      rotate: var(--kui-to-angle, 12deg);\n    }\n  }\n  @keyframes kui-scroll-fade {\n    from {\n      opacity: var(--kui-from-opacity, 0);\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-desaturate {\n    from {\n      filter: grayscale(var(--kui-from-grayscale, 100%));\n    }\n    to {\n      filter: grayscale(var(--kui-to-grayscale, 0%));\n    }\n  }\n  @keyframes kui-scroll-skew {\n    from {\n      transform: skewY(var(--kui-from-skew, 8deg));\n    }\n    to {\n      transform: skewY(var(--kui-to-skew, 0deg));\n    }\n  }\n  @keyframes kui-progress-x {\n    from {\n      scale: 0 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-y {\n    from {\n      scale: 1 0;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=scroll-progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=scroll-progress-ring] {\n    stroke-dasharray: var(--kui-path-length, 100);\n  }\n  [data-kui-fx~=sequence-scrub]:has(> [data-kui-step-state]),\n  [data-kui-fx~=video-scrub]:has(> [data-kui-step-state]),\n  .kui-frame-stack {\n    position: relative;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state],\n  .kui-frame-stack > [data-kui-step-state] {\n    position: absolute;\n    inset: 0;\n    width: 100%;\n    height: 100%;\n    object-fit: cover;\n    opacity: 0;\n  }\n  [data-kui-fx~=sequence-scrub] > [data-kui-step-state=active],\n  [data-kui-fx~=video-scrub] > [data-kui-step-state=active],\n  .kui-frame-stack > [data-kui-step-state=active] {\n    opacity: 1;\n  }\n  @supports (animation-timeline: view()) {\n    [data-kui-timeline] {\n      animation-range: var(--kui-range, entry 0% cover 60%);\n    }\n  }\n  [data-kui~=horizontal-scroll] {\n    position: relative;\n  }\n}\n\n/* src/css/three-d.css */\n@layer kui.effects {\n  @keyframes kui-card-flip-y {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 180deg)));\n    }\n  }\n  @keyframes kui-card-flip-x {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, 180deg)));\n    }\n  }\n  @keyframes kui-cube-rotate {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, 90deg)));\n    }\n  }\n  @keyframes kui-book-page-turn {\n    to {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateY(var(--kui-gate-from-angle, var(--kui-from-angle, -160deg)));\n    }\n  }\n  @keyframes kui-fold-panel {\n    from {\n      transform: perspective(var(--kui-perspective, 1200px)) rotateX(var(--kui-gate-from-angle, var(--kui-from-angle, -90deg)));\n    }\n  }\n  [data-kui-fx~=card-flip-x],\n  [data-kui-fx~=card-flip-y],\n  [data-kui-fx~=cube-rotate],\n  [data-kui-fx~=book-page-turn],\n  [data-kui-fx~=fold-panel] {\n    transform-style: preserve-3d;\n    perspective: var(--kui-perspective, 1200px);\n  }\n  [data-kui-fx~=card-flip-x]:not(:has(> :nth-child(2))),\n  [data-kui-fx~=card-flip-y]:not(:has(> :nth-child(2))) {\n    --kui-from-angle: 360deg;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) {\n    display: grid;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2),\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :first-child,\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui-fx~=card-flip-x]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: x 180deg;\n  }\n  [data-kui-fx~=card-flip-y]:has(> :nth-child(2)) > :nth-child(2) {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=book-page-turn] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=fold-panel] {\n    transform-origin: top center;\n  }\n  [data-kui-fx~=fold-panel][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-page-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-page-slide {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 40px));\n    }\n  }\n  @keyframes kui-curtain-wipe {\n    from {\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-loading-bar {\n    from {\n      scale: var(--kui-gate-bar-from, var(--kui-bar-from, 0)) 1;\n    }\n  }\n  [data-kui-fx~=loading-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=loading-bar][data-kui-state=ready] {\n    opacity: 0;\n  }\n  [data-kui-fx~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front,\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    transition: rotate var(--kui-card-toggle-duration, 700ms) var(--kui-card-toggle-ease, ease-in-out);\n  }\n  [data-kui-fx~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-front,\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-back {\n    transition-delay: var(--kui-card-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-front {\n    rotate: y -180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> .kui-flip-control[aria-pressed=true]) > .kui-face-back {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] {\n    display: grid;\n    perspective: var(--kui-perspective, 1600px);\n  }\n  [data-kui~=flip-card] > .kui-face-front,\n  [data-kui~=flip-card] > .kui-face-back {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n  }\n  [data-kui~=flip-card] > .kui-face-front {\n    rotate: y 0deg;\n  }\n  [data-kui~=flip-card] > .kui-face-back {\n    rotate: y 180deg;\n  }\n}\n\n/* src/css/carousel.css */\n@layer kui.effects {\n  [data-kui-fx~=carousel-3d],\n  [data-kui-fx~=carousel-3d-high],\n  [data-kui-fx~=carousel-3d-low],\n  [data-kui-fx~=carousel-3d-inside] {\n    display: grid;\n    place-items: center;\n    perspective: var(--kui-perspective, 1600px);\n    transform-style: preserve-3d;\n    --kui-ring-tilt: clamp(-80deg, calc(-1 * var(--kui-tilt, 0deg)), 80deg);\n    --kui-ring-drift: calc(var(--kui-step-position, 0) - var(--kui-step, 0));\n  }\n  [data-kui-fx~=carousel-3d] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-high] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-low] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-inside] [data-kui-step-offset] {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    --kui-ring-spacing: calc(var(--kui-arc, 360deg) / max(1, var(--kui-item-count, 1)));\n    --kui-ring-angle: calc((var(--kui-offset, 0) - var(--kui-ring-drift)) * var(--kui-ring-spacing));\n    --kui-ring-radius: var( --kui-radius, calc( (var(--kui-item-width, 260px) + var(--kui-gap, 24px)) / (2 * tan(clamp(0.5deg, var(--kui-ring-spacing) / 2, 60deg))) ) );\n    transform: rotateX(var(--kui-ring-tilt)) rotateY(var(--kui-ring-angle)) translateZ(var(--kui-ring-radius));\n    transition: transform var(--kui-spatial-ring-duration, 620ms) var(--kui-spatial-ring-ease, cubic-bezier(0.22, 1, 0.36, 1)) var(--kui-spatial-ring-delay, 0ms);\n  }\n  [data-kui-ring-dragging=true] [data-kui-step-offset] {\n    transition: none;\n  }\n  [data-kui-ring-face=back] {\n    pointer-events: none;\n  }\n  [data-kui-fx~=carousel-3d-inside] [data-kui-ring-face=back] {\n    visibility: hidden;\n  }\n  [data-kui-fx~=carousel-3d][data-kui-ring-facing=camera] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-high][data-kui-ring-facing=camera] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-low][data-kui-ring-facing=camera] [data-kui-step-offset],\n  [data-kui-fx~=carousel-3d-inside][data-kui-ring-facing=camera] [data-kui-step-offset] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=carousel-3d][data-kui-ring-facing=camera] [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-high][data-kui-ring-facing=camera] [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-low][data-kui-ring-facing=camera] [data-kui-step-offset] > *,\n  [data-kui-fx~=carousel-3d-inside][data-kui-ring-facing=camera] [data-kui-step-offset] > * {\n    transform: rotateY(calc(-1 * var(--kui-ring-angle))) rotateX(calc(-1 * var(--kui-ring-tilt)));\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=carousel-3d-inside] [data-kui-step-offset] {\n    transform: rotateX(var(--kui-ring-tilt)) rotateY(var(--kui-ring-angle)) translateZ(calc(-1 * var(--kui-ring-radius)));\n  }\n  [data-kui~=carousel-3d],\n  [data-kui~=carousel-3d-high],\n  [data-kui~=carousel-3d-low],\n  [data-kui~=carousel-3d-inside] {\n    display: grid;\n    place-items: center;\n  }\n  [data-kui~=carousel-3d] > *,\n  [data-kui~=carousel-3d-high] > *,\n  [data-kui~=carousel-3d-low] > *,\n  [data-kui~=carousel-3d-inside] > * {\n    grid-area: 1 / 1;\n  }\n}\n\n/* src/css/media.css */\n@layer kui.effects {\n  @keyframes kui-wipe-up {\n    from {\n      clip-path: inset(100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-down {\n    from {\n      clip-path: inset(0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0);\n    }\n  }\n  @keyframes kui-wipe-left {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-right {\n    from {\n      clip-path: inset(0 0 0 100%);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-wipe-circle {\n    from {\n      clip-path: circle(0 at 50% 50%);\n    }\n    to {\n      clip-path: circle(75% at 50% 50%);\n    }\n  }\n  @keyframes kui-wipe-diagonal {\n    from {\n      clip-path: polygon(0 0, 0 0, 0 0);\n    }\n    to {\n      clip-path: polygon(0 0, 200% 0, 0 200%);\n    }\n  }\n  @keyframes kui-curtain-reveal {\n    from {\n      clip-path: inset(0 50%);\n    }\n    to {\n      clip-path: inset(0 0);\n    }\n  }\n  @keyframes kui-before-after-wipe {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-mask-reveal {\n    from {\n      mask-position: 100% 0;\n    }\n    to {\n      mask-position: 0 0;\n    }\n  }\n  [data-kui-fx~=mask-reveal] {\n    mask-image:\n      linear-gradient(\n        90deg,\n        #000 0 45%,\n        transparent 55% 100%);\n    mask-size: 220% 100%;\n  }\n  @keyframes kui-ken-burns {\n    from {\n      scale: 1;\n      translate: 0 0;\n    }\n    to {\n      scale: var(--kui-to-scale, 1.12);\n      translate: var(--kui-gate-distance, var(--kui-distance, 24px)) calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -0.5);\n    }\n  }\n  @keyframes kui-ken-burns-out {\n    from {\n      scale: var(--kui-to-scale, 1.12);\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1) 0;\n    }\n    to {\n      scale: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-blur-up {\n    from {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n      filter: blur(var(--kui-blur, 16px));\n    }\n    to {\n      translate: 0 0;\n      filter: blur(0);\n    }\n  }\n  @keyframes kui-duotone-hover {\n    from {\n      filter: grayscale(1) sepia(0.7) hue-rotate(330deg) saturate(2);\n    }\n    to {\n      filter: none;\n    }\n  }\n  @keyframes kui-grayscale-hover {\n    from {\n      filter: grayscale(1);\n    }\n    to {\n      filter: grayscale(0);\n    }\n  }\n  @keyframes kui-saturate-hover {\n    from {\n      filter: saturate(0.45);\n    }\n    to {\n      filter: saturate(1.35);\n    }\n  }\n  @keyframes kui-image-parallax-frame {\n    from {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 24px)) * -1);\n    }\n    to {\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-lightbox-open {\n    from {\n      opacity: 0;\n      scale: var(--kui-from-scale, 0.92);\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n    }\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=duotone-hover]:active,\n    [data-kui-fx~=grayscale-hover]:active,\n    [data-kui-fx~=saturate-hover]:active {\n      filter: none;\n    }\n  }\n  .kui-slat-stage {\n    position: absolute;\n    overflow: clip;\n  }\n  .kui-slat-item {\n    position: absolute;\n    inset: 0;\n    background-repeat: no-repeat;\n    background-size: 100% 100%;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 60ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-slat-stage.kui-slat-animating .kui-slat-item {\n    will-change: transform;\n  }\n  .kui-slat-item:nth-child(odd) {\n    --kui-slat-sign: -1;\n  }\n  .kui-slat-item:nth-child(even) {\n    --kui-slat-sign: 1;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] {\n    perspective: 1200px;\n  }\n  .kui-slat-stage:not([data-kui-slat-fold=true]) .kui-slat-item {\n    animation-name: kui-slat-assemble;\n  }\n  .kui-slat-stage[data-kui-slat-fold=true] .kui-slat-item {\n    animation-name: kui-slat-assemble-fold;\n  }\n  @keyframes kui-slat-assemble {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-slat-assemble-fold {\n    from {\n      opacity: 0;\n      translate: calc(var(--kui-slat-sign, 1) * var(--kui-slat-dx, 0) * 38%) calc(var(--kui-slat-sign, 1) * var(--kui-slat-dy, 1) * 38%);\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 calc(var(--kui-slat-sign, 1) * 38deg);\n    }\n    12% {\n      opacity: 1;\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n      rotate: var(--kui-slat-dx, 0) var(--kui-slat-dy, 1) 0 0deg;\n    }\n  }\n}\n\n/* src/css/text.css */\n@layer kui.effects {\n  .kui-sr-only {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border: 0;\n  }\n  .kui-split-decorative {\n    display: inline;\n  }\n  .kui-split-item {\n    display: inline-block;\n    animation-duration: var(--kui-duration, 500ms);\n    animation-delay: calc(var(--kui-delay, 0ms) + var(--kui-i, 0) * var(--kui-stagger, 30ms));\n    animation-timing-function: var(--kui-ease, ease-out);\n    animation-fill-mode: both;\n  }\n  .kui-split-word {\n    display: inline-block;\n  }\n  .kui-split-line {\n    display: block;\n  }\n  [data-kui-split-fx=fade] .kui-split-item {\n    animation-name: kui-split-reveal-fade;\n  }\n  [data-kui-split-fx=up] .kui-split-item {\n    animation-name: kui-split-reveal-up;\n  }\n  [data-kui-split-fx=down] .kui-split-item {\n    animation-name: kui-split-reveal-down;\n  }\n  [data-kui-split-fx=mask] .kui-split-item {\n    animation-name: kui-split-reveal-mask;\n    padding-block: var(--kui-mask-bleed, 0px);\n    margin-block: calc(-1 * var(--kui-mask-bleed, 0px));\n  }\n  [data-kui-state=finished] [data-kui-split-fx] .kui-split-line {\n    animation-name: none;\n    opacity: 1;\n    clip-path: none;\n    translate: none;\n  }\n  @keyframes kui-split-reveal-fade {\n    from {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-split-reveal-up {\n    from {\n      opacity: 0;\n      translate: 0 0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-down {\n    from {\n      opacity: 0;\n      translate: 0 -0.6em;\n    }\n  }\n  @keyframes kui-split-reveal-mask {\n    from {\n      opacity: 0;\n      clip-path: inset(0 0 100% 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  [data-kui-split-fx=wave] .kui-split-item {\n    animation-name: kui-split-wave;\n    animation-duration: 1400ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n  }\n  [data-kui-split-fx=jitter] .kui-split-item {\n    animation-name: kui-split-jitter;\n    animation-duration: 220ms;\n    animation-iteration-count: infinite;\n    animation-timing-function: ease-in-out;\n    animation-direction: alternate;\n  }\n  @keyframes kui-split-wave {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 -0.35em;\n    }\n  }\n  @keyframes kui-split-jitter {\n    from {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    to {\n      translate: 0 0.08em;\n      rotate: 3deg;\n    }\n  }\n  .kui-typewriter::after {\n    content: \"\";\n    display: inline-block;\n    width: 0.08em;\n    margin-inline-start: 0.05em;\n    height: 1em;\n    vertical-align: -0.15em;\n    background: currentColor;\n    animation: kui-caret-blink 1s steps(1) infinite;\n  }\n  @keyframes kui-caret-blink {\n    50% {\n      opacity: 0;\n    }\n  }\n  .kui-scramble {\n    font-variant-numeric: tabular-nums;\n  }\n  [data-kui-fx~=word-cycler] {\n    display: inline-block;\n  }\n  [data-kui-fx~=word-cycler].kui-word-cycler-swap {\n    opacity: 0;\n  }\n  [data-kui-fx~=gradient-shimmer] {\n    background-image:\n      linear-gradient(\n        100deg,\n        currentColor 40%,\n        color-mix(in srgb, currentColor 35%, transparent) 50%,\n        currentColor 60%);\n    background-size: 220% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n    --kui-fx-gradient-shimmer-iterations: infinite;\n  }\n  @keyframes kui-gradient-shimmer {\n    from {\n      background-position: 200% 0;\n    }\n    to {\n      background-position: -200% 0;\n    }\n  }\n  [data-kui-fx~=gradient-sweep] {\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-sweep-color, currentColor) 70%, transparent) 50%,\n        transparent 70%);\n    background-size: 260% 100%;\n    -webkit-background-clip: text;\n    background-clip: text;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-gradient-sweep {\n    from {\n      background-position: 220% 0;\n    }\n    to {\n      background-position: -60% 0;\n    }\n  }\n  [data-kui-fx~=highlight-sweep] {\n    background-image: linear-gradient(90deg, color-mix(in srgb, var(--kui-sweep-color, currentColor) 55%, transparent) 0 100%);\n    background-repeat: no-repeat;\n    background-size: 0% 100%;\n    padding: 0 0.05em;\n  }\n  @keyframes kui-highlight-sweep {\n    to {\n      background-size: 100% 100%;\n    }\n  }\n  [data-kui-fx~=underline-draw] {\n    background-image: linear-gradient(var(--kui-sweep-color, currentColor), var(--kui-sweep-color, currentColor));\n    background-repeat: no-repeat;\n    background-position: 0 100%;\n    background-size: 0% 2px;\n    padding-bottom: 0.15em;\n  }\n  @keyframes kui-underline-draw {\n    to {\n      background-size: 100% 2px;\n    }\n  }\n  [data-kui-fx~=text-outline-fill] {\n    -webkit-text-stroke: 1px currentColor;\n    -webkit-text-fill-color: transparent;\n  }\n  @keyframes kui-text-outline-fill {\n    to {\n      -webkit-text-fill-color: currentColor;\n    }\n  }\n  @keyframes kui-var-weight {\n    from {\n      font-weight: var(--kui-from-weight, 100);\n    }\n    to {\n      font-weight: var(--kui-to-weight, 800);\n    }\n  }\n  @keyframes kui-var-width {\n    from {\n      font-stretch: var(--kui-from-width, 75%);\n    }\n    to {\n      font-stretch: var(--kui-to-width, 125%);\n    }\n  }\n  @keyframes kui-var-slant {\n    from {\n      font-style: oblique var(--kui-from-slant, 0deg);\n    }\n    to {\n      font-style: oblique var(--kui-to-slant, 10deg);\n    }\n  }\n  @keyframes kui-var-axis {\n    from {\n      font-variation-settings: var(--kui-axis, \"wght\") var(--kui-from-axis, 100);\n    }\n    to {\n      font-variation-settings: var(--kui-axis, \"wght\") var(--kui-to-axis, 900);\n    }\n  }\n  [data-kui-fx~=marquee],\n  [data-kui-fx~=marquee-scroll-linked] {\n    display: flex;\n    width: max-content;\n    will-change: translate;\n  }\n  [data-kui-fx~=marquee] {\n    --kui-fx-marquee-iterations: infinite;\n  }\n  @keyframes kui-marquee {\n    to {\n      translate: -50% 0;\n    }\n  }\n  @property --kui-redaction-x { syntax: \"<percentage>\"; inherits: true; initial-value: 0%; }\n  [data-kui-fx~=redaction-reveal] {\n    position: relative;\n    display: inline-block;\n  }\n  [data-kui-fx~=redaction-reveal]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background: var(--kui-bar-color, #111);\n    clip-path: inset(0 0 0 var(--kui-redaction-x));\n  }\n  @keyframes kui-redaction-reveal {\n    to {\n      --kui-redaction-x: 100%;\n    }\n  }\n  [data-kui-fx~=text-3d-extrude] {\n    display: inline-block;\n    text-shadow:\n      1px 1px 0 color-mix(in srgb, currentColor 70%, transparent),\n      2px 2px 0 color-mix(in srgb, currentColor 60%, transparent),\n      3px 3px 0 color-mix(in srgb, currentColor 50%, transparent),\n      4px 4px 0 color-mix(in srgb, currentColor 40%, transparent),\n      5px 5px 0 color-mix(in srgb, currentColor 30%, transparent),\n      6px 6px 8px rgb(0 0 0 / 0.35);\n  }\n  @keyframes kui-text-3d-extrude {\n    from {\n      rotate: var(--kui-gate-from-angle, var(--kui-from-angle, -20deg));\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 32px));\n    }\n    to {\n      rotate: 0deg;\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/navigation.css */\n@layer kui.effects {\n  @keyframes kui-nav-reveal {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 16px));\n    }\n  }\n  @keyframes kui-menu-fullscreen {\n    from {\n      opacity: 0;\n      clip-path: circle(0% at var(--kui-origin, 100% 0%));\n    }\n    to {\n      opacity: 1;\n      clip-path: circle(150% at var(--kui-origin, 100% 0%));\n    }\n  }\n  @keyframes kui-panel-reveal {\n    from {\n      opacity: 0;\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -1);\n    }\n  }\n  @keyframes kui-drawer-slide-right {\n    from {\n      translate: 100% 0;\n    }\n  }\n  [data-kui-fx~=header-shrink] {\n    --kui-shrink: 0;\n    padding-block: calc(1.4rem - 0.7rem * var(--kui-shrink, 0));\n    font-size: calc(1rem - 0.15rem * var(--kui-shrink, 0));\n  }\n  [data-kui-fx~=header-shrink][data-kui-shrunk=true] {\n    box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);\n  }\n  [data-kui-fx~=header-hide-on-scroll][data-kui-hidden=true] {\n    translate: 0 -100%;\n  }\n  [data-kui-fx~=back-to-top-fade] {\n    opacity: 0;\n    translate: 0 12px;\n    pointer-events: none;\n  }\n  [data-kui-fx~=back-to-top-fade][data-kui-visible=true] {\n    opacity: 1;\n    translate: 0 0;\n    pointer-events: auto;\n  }\n}\n\n/* src/css/forms.css */\n@layer kui.effects {\n  [data-kui-fx~=label-float] ~ label {\n    transition: translate 180ms ease-out, scale 180ms ease-out;\n    transform-origin: left center;\n  }\n  [data-kui-fx~=label-float]:focus ~ label,\n  [data-kui-fx~=label-float]:not(:placeholder-shown) ~ label {\n    translate: 0 -1.35rem;\n    scale: 0.82;\n  }\n  [data-kui-fx~=input-underline-grow] ~ .kui-underline {\n    display: block;\n    height: 2px;\n    background: currentColor;\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale 220ms ease-out;\n  }\n  [data-kui-fx~=input-underline-grow]:focus ~ .kui-underline {\n    scale: 1 1;\n  }\n  @keyframes kui-focus-ring-grow {\n    from {\n      box-shadow: 0 0 0 0 var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n    to {\n      box-shadow: 0 0 0 5px var(--kui-ring-color, rgb(210 105 30 / 0.55));\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=focus-ring-grow] {\n      animation: none;\n    }\n    [data-kui-fx~=focus-ring-grow]:focus {\n      outline: 3px solid Highlight;\n      outline-offset: 2px;\n    }\n  }\n  @keyframes kui-validate-shake {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  [data-kui-fx~=validate-check] {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n  }\n  @keyframes kui-validate-check {\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=strength-meter] ~ .kui-meter > * {\n    background: var(--kui-meter-off, currentColor);\n    opacity: 0.2;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"1\"] ~ .kui-meter > *:nth-child(-n+1),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"2\"] ~ .kui-meter > *:nth-child(-n+2),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"3\"] ~ .kui-meter > *:nth-child(-n+3),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"4\"] ~ .kui-meter > *:nth-child(-n+4),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"5\"] ~ .kui-meter > *:nth-child(-n+5),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"6\"] ~ .kui-meter > *:nth-child(-n+6),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"7\"] ~ .kui-meter > *:nth-child(-n+7),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"8\"] ~ .kui-meter > *:nth-child(-n+8),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"9\"] ~ .kui-meter > *:nth-child(-n+9),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"10\"] ~ .kui-meter > *:nth-child(-n+10),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"11\"] ~ .kui-meter > *:nth-child(-n+11),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"12\"] ~ .kui-meter > *:nth-child(-n+12),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"13\"] ~ .kui-meter > *:nth-child(-n+13),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"14\"] ~ .kui-meter > *:nth-child(-n+14),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"15\"] ~ .kui-meter > *:nth-child(-n+15),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"16\"] ~ .kui-meter > *:nth-child(-n+16),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"17\"] ~ .kui-meter > *:nth-child(-n+17),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"18\"] ~ .kui-meter > *:nth-child(-n+18),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"19\"] ~ .kui-meter > *:nth-child(-n+19),\n  [data-kui-fx~=strength-meter][data-kui-strength-level=\"20\"] ~ .kui-meter > *:nth-child(-n+20) {\n    opacity: 1;\n    background: var(--kui-meter-on, #2e9e5b);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=strength-meter] ~ .kui-meter > * {\n      outline: 1px solid CanvasText;\n      outline-offset: -1px;\n    }\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"1\"] ~ .kui-meter > *:nth-child(-n+1),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"2\"] ~ .kui-meter > *:nth-child(-n+2),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"3\"] ~ .kui-meter > *:nth-child(-n+3),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"4\"] ~ .kui-meter > *:nth-child(-n+4),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"5\"] ~ .kui-meter > *:nth-child(-n+5),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"6\"] ~ .kui-meter > *:nth-child(-n+6),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"7\"] ~ .kui-meter > *:nth-child(-n+7),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"8\"] ~ .kui-meter > *:nth-child(-n+8),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"9\"] ~ .kui-meter > *:nth-child(-n+9),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"10\"] ~ .kui-meter > *:nth-child(-n+10),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"11\"] ~ .kui-meter > *:nth-child(-n+11),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"12\"] ~ .kui-meter > *:nth-child(-n+12),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"13\"] ~ .kui-meter > *:nth-child(-n+13),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"14\"] ~ .kui-meter > *:nth-child(-n+14),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"15\"] ~ .kui-meter > *:nth-child(-n+15),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"16\"] ~ .kui-meter > *:nth-child(-n+16),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"17\"] ~ .kui-meter > *:nth-child(-n+17),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"18\"] ~ .kui-meter > *:nth-child(-n+18),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"19\"] ~ .kui-meter > *:nth-child(-n+19),\n    [data-kui-fx~=strength-meter][data-kui-strength-level=\"20\"] ~ .kui-meter > *:nth-child(-n+20) {\n      background: Highlight;\n    }\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track {\n    display: inline-block;\n    width: calc(40px * var(--kui-toggle-scale, 1));\n    height: calc(22px * var(--kui-toggle-scale, 1));\n    border-radius: 999px;\n    background: var(--muted, #9a8d80);\n    transition: background-color 200ms ease-out;\n    position: relative;\n  }\n  [data-kui-fx~=toggle-morph] ~ .kui-track .kui-thumb {\n    position: absolute;\n    top: calc(2px * var(--kui-toggle-scale, 1));\n    left: calc(2px * var(--kui-toggle-scale, 1));\n    width: calc(18px * var(--kui-toggle-scale, 1));\n    height: calc(18px * var(--kui-toggle-scale, 1));\n    border-radius: 50%;\n    background: var(--kui-thumb-color, #fff);\n    translate: 0 0;\n    transition: translate 200ms ease-out;\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track {\n    background: var(--accent, #d2691e);\n  }\n  [data-kui-fx~=toggle-morph]:checked ~ .kui-track .kui-thumb {\n    translate: calc(18px * var(--kui-toggle-scale, 1)) 0;\n  }\n  [data-kui-fx~=checkbox-draw] ~ svg path {\n    stroke-dasharray: 24;\n    stroke-dashoffset: 24;\n    transition: stroke-dashoffset 220ms ease-out;\n  }\n  [data-kui-fx~=checkbox-draw]:checked ~ svg path {\n    stroke-dashoffset: 0;\n  }\n  [data-kui-fx~=radio-fill] ~ .kui-dot {\n    display: inline-block;\n    width: calc(10px * var(--kui-radio-scale, 1));\n    height: calc(10px * var(--kui-radio-scale, 1));\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n    scale: 0;\n    transition: scale 180ms ease-out;\n  }\n  [data-kui-fx~=radio-fill]:checked ~ .kui-dot {\n    scale: 1;\n  }\n  [data-kui-fx~=range-fill] {\n    --kui-fill: 0%;\n    accent-color: var(--accent, #d2691e);\n    background:\n      linear-gradient(\n        to right,\n        var(--accent, #d2691e) var(--kui-fill, 0%),\n        var(--border, #2a2422) var(--kui-fill, 0%));\n    height: 4px;\n    border-radius: 999px;\n    appearance: none;\n    outline: none;\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=range-fill] {\n      background:\n        linear-gradient(\n          to right,\n          Highlight var(--kui-fill, 0%),\n          ButtonFace var(--kui-fill, 0%));\n    }\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-stage-done {\n    display: none;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=idle] .kui-stage-idle,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=loading] .kui-stage-loading,\n  [data-kui-fx~=submit-to-spinner-to-check][data-kui-stage=done] .kui-stage-done {\n    display: inline-flex;\n  }\n  [data-kui-fx~=submit-to-spinner-to-check] .kui-spinner {\n    width: 1em;\n    height: 1em;\n    border-radius: 50%;\n    border: 2px solid currentColor;\n    border-top-color: transparent;\n    animation: kui-spin 700ms linear infinite;\n  }\n  @keyframes kui-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=step-progress] {\n    cursor: pointer;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state],\n  .kui-step-track > [data-kui-step-state] {\n    background: var(--muted, #9a8d80);\n    opacity: 0.35;\n    transition: opacity 200ms ease-out, background-color 200ms ease-out;\n  }\n  [data-kui-fx~=step-progress] > [data-kui-step-state=before],\n  [data-kui-fx~=step-progress] > [data-kui-step-state=active],\n  .kui-step-track > [data-kui-step-state=before],\n  .kui-step-track > [data-kui-step-state=active] {\n    opacity: 1;\n    background: var(--accent, #d2691e);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=step-progress] > [data-kui-step-state],\n    .kui-step-track > [data-kui-step-state] {\n      outline: 1px solid CanvasText;\n      outline-offset: -1px;\n    }\n    [data-kui-fx~=step-progress] > [data-kui-step-state=before],\n    [data-kui-fx~=step-progress] > [data-kui-step-state=active],\n    .kui-step-track > [data-kui-step-state=before],\n    .kui-step-track > [data-kui-step-state=active] {\n      background: Highlight;\n    }\n  }\n}\n\n/* src/css/ambient.css */\n@layer kui.effects {\n  [data-kui-fx~=gradient-mesh] {\n    background-image:\n      radial-gradient(\n        at 15% 20%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #7c3aed)) 55%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 85% 15%,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #06b6d4)) 50%, transparent),\n        transparent 55%),\n      radial-gradient(\n        at 50% 85%,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #f97316)) 45%, transparent),\n        transparent 55%);\n    background-size: 200% 200%;\n    --kui-fx-gradient-mesh-iterations: infinite;\n  }\n  @keyframes kui-gradient-mesh {\n    0%, 100% {\n      background-position:\n        0% 0%,\n        100% 0%,\n        50% 100%;\n    }\n    50% {\n      background-position:\n        25% 35%,\n        75% 30%,\n        35% 70%;\n    }\n  }\n  [data-kui-fx~=aurora] {\n    background-image:\n      linear-gradient(\n        120deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #34d399)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        240deg,\n        color-mix(in srgb, var(--kui-ambient-c2, var(--kui-c2, #60a5fa)) 45%, transparent),\n        transparent 45%),\n      linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c3, var(--kui-c3, #c084fc)) 40%, transparent),\n        transparent 50%);\n    background-size: 260% 260%;\n    --kui-fx-aurora-iterations: infinite;\n  }\n  @keyframes kui-aurora {\n    0%, 100% {\n      background-position:\n        0% 50%,\n        100% 50%,\n        50% 0%;\n    }\n    50% {\n      background-position:\n        60% 30%,\n        40% 70%,\n        55% 60%;\n    }\n  }\n  [data-kui-fx~=wave-blob] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #22d3ee)) 50%, transparent),\n        transparent 60%);\n    background-size: 140% 140%;\n    background-repeat: no-repeat;\n    --kui-fx-wave-blob-iterations: infinite;\n  }\n  @keyframes kui-wave-blob {\n    0%, 100% {\n      background-position: 20% 30%;\n      background-size: 140% 140%;\n    }\n    33% {\n      background-position: 70% 20%;\n      background-size: 160% 160%;\n    }\n    66% {\n      background-position: 50% 75%;\n      background-size: 120% 120%;\n    }\n  }\n  [data-kui-fx~=spotlight-follow] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #fde68a)) 65%, transparent),\n        transparent 65%);\n    background-size: 55% 55%;\n    background-repeat: no-repeat;\n    --kui-fx-spotlight-follow-iterations: infinite;\n  }\n  @keyframes kui-spotlight-follow {\n    0%, 100% {\n      background-position: 10% 15%;\n    }\n    25% {\n      background-position: 85% 20%;\n    }\n    50% {\n      background-position: 80% 80%;\n    }\n    75% {\n      background-position: 15% 75%;\n    }\n  }\n  [data-kui-fx~=gradient-rotate-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)),\n        var(--kui-ambient-c2, var(--kui-c2, #60a5fa)),\n        var(--kui-ambient-c3, var(--kui-c3, #34d399)),\n        var(--kui-ambient-c4, var(--kui-c4, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #f472b6)));\n    background-size: 300% 100%;\n    padding: 3px;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-rotate-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-rotate-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=gradient-border] {\n    position: relative;\n    background-image:\n      linear-gradient(\n        90deg,\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)),\n        var(--kui-ambient-c2, var(--kui-c2, #fbbf24)),\n        var(--kui-ambient-c1, var(--kui-c1, #7c3aed)));\n    background-size: 300% 100%;\n    padding: var(--kui-gradient-border-width, 3px);\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    -webkit-mask-composite: xor;\n    --kui-fx-gradient-border-iterations: infinite;\n  }\n  @keyframes kui-gradient-border {\n    from {\n      background-position: 0% 50%;\n    }\n    to {\n      background-position: 300% 50%;\n    }\n  }\n  [data-kui-fx~=scanline] {\n    background-image:\n      linear-gradient(\n        to bottom,\n        transparent,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 35%, transparent) 50%,\n        transparent);\n    background-size: 100% 220%;\n    background-repeat: no-repeat;\n    --kui-fx-scanline-iterations: infinite;\n  }\n  @keyframes kui-scanline {\n    from {\n      background-position: 0 -120%;\n    }\n    to {\n      background-position: 0 120%;\n    }\n  }\n  [data-kui-fx~=dot-grid-drift] {\n    background-image:\n      radial-gradient(\n        circle,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 45%, transparent) 1.5px,\n        transparent 1.5px);\n    background-size: 22px 22px;\n    --kui-fx-dot-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-dot-grid-drift {\n    from {\n      background-position: 0 0;\n    }\n    to {\n      background-position: 22px 22px;\n    }\n  }\n  [data-kui-fx~=line-grid-drift] {\n    background-image:\n      repeating-linear-gradient(\n        0deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px),\n      repeating-linear-gradient(\n        90deg,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, currentColor)) 30%, transparent) 0 1px,\n        transparent 1px 26px);\n    --kui-fx-line-grid-drift-iterations: infinite;\n  }\n  @keyframes kui-line-grid-drift {\n    from {\n      background-position: 0 0, 0 0;\n    }\n    to {\n      background-position: 0 26px, 26px 0;\n    }\n  }\n  [data-kui-fx~=starfield] {\n    background-image:\n      radial-gradient(\n        1.5px 1.5px at 22% 34%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 45%, transparent) 0 0.45px,\n        transparent 100%),\n      radial-gradient(\n        2.6px 2.6px at 68% 12%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 92%, transparent) 0 1px,\n        transparent 100%),\n      radial-gradient(\n        1.6px 1.6px at 41% 77%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 50%, transparent) 0 0.5px,\n        transparent 100%),\n      radial-gradient(\n        1.7px 1.7px at 85% 58%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 58%, transparent) 0 0.55px,\n        transparent 100%),\n      radial-gradient(\n        2.2px 2.2px at 12% 88%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 78%, transparent) 0 0.8px,\n        transparent 100%),\n      radial-gradient(\n        3px 3px at 57% 45%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 100%, transparent) 0 1.2px,\n        transparent 100%),\n      radial-gradient(\n        1.9px 1.9px at 33% 63%,\n        color-mix(in srgb, var(--kui-ambient-c1, var(--kui-c1, #ffffff)) 68%, transparent) 0 0.65px,\n        transparent 100%);\n    background-size:\n      170px 170px,\n      190px 190px,\n      210px 210px,\n      230px 230px,\n      250px 250px,\n      270px 270px,\n      290px 290px;\n    background-repeat: repeat;\n    --kui-fx-starfield-iterations: infinite;\n  }\n  @keyframes kui-starfield {\n    from {\n      background-position:\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0,\n        0 0;\n    }\n    to {\n      background-position:\n        170px 170px,\n        380px 380px,\n        210px 210px,\n        230px 230px,\n        250px 250px,\n        540px 540px,\n        290px 290px;\n    }\n  }\n  [data-kui-fx~=orbit] {\n    --kui-fx-orbit-iterations: infinite;\n  }\n  @keyframes kui-orbit {\n    to {\n      rotate: var(--kui-to-angle, 360deg);\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=gradient-mesh],\n    [data-kui-fx~=aurora],\n    [data-kui-fx~=wave-blob],\n    [data-kui-fx~=spotlight-follow],\n    [data-kui-fx~=scanline],\n    [data-kui-fx~=dot-grid-drift],\n    [data-kui-fx~=line-grid-drift],\n    [data-kui-fx~=starfield] {\n      background-image: none;\n    }\n    [data-kui-fx~=gradient-rotate-border],\n    [data-kui-fx~=gradient-border] {\n      background-image: none;\n      background-color: CanvasText;\n    }\n  }\n  [data-kui-fx~=float] {\n    --kui-fx-float-iterations: infinite;\n  }\n  @keyframes kui-float {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 14px)) * -1);\n    }\n  }\n  [data-kui-fx~=bob] {\n    --kui-fx-bob-iterations: infinite;\n  }\n  @keyframes kui-bob {\n    0%, 100% {\n      translate: 0 0;\n    }\n    50% {\n      translate: 0 calc(var(--kui-gate-distance, var(--kui-distance, 8px)) * -1);\n    }\n  }\n  [data-kui-fx~=floating-shapes] {\n    --kui-fx-floating-shapes-iterations: infinite;\n  }\n  @keyframes kui-floating-shapes {\n    0%, 100% {\n      translate: 0 0;\n    }\n    33% {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * 0.6) calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -1);\n    }\n    66% {\n      translate: calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -0.6) calc(var(--kui-gate-distance, var(--kui-distance, 10px)) * -0.4);\n    }\n  }\n  [data-kui-fx~=glow-pulse] {\n    --kui-fx-glow-pulse-iterations: infinite;\n  }\n  @keyframes kui-glow-pulse {\n    0%, 100% {\n      scale: 1;\n      opacity: 0.6;\n    }\n    50% {\n      scale: var(--kui-pulse-scale, 1.15);\n      opacity: 1;\n    }\n  }\n}\n\n/* src/css/feedback.css */\n@layer kui.effects {\n  [data-kui-fx~=skeleton-shimmer] {\n    background-color: var(--kui-skeleton-base, #2a2422);\n    background-image:\n      linear-gradient(\n        100deg,\n        transparent 30%,\n        color-mix(in srgb, var(--kui-skeleton-highlight, #ffffff) 18%, transparent) 50%,\n        transparent 70%);\n    background-size: 200% 100%;\n    --kui-fx-skeleton-shimmer-iterations: infinite;\n  }\n  @keyframes kui-skeleton-shimmer {\n    from {\n      background-position: 150% 0;\n    }\n    to {\n      background-position: -50% 0;\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=skeleton-shimmer] {\n      background-image: none;\n    }\n  }\n  @keyframes kui-skeleton-to-content {\n    from {\n      opacity: 0;\n    }\n  }\n  [data-kui-fx~=spinner] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px solid color-mix(in srgb, currentColor 20%, transparent);\n    border-top-color: currentColor;\n    --kui-fx-spinner-iterations: infinite;\n  }\n  @keyframes kui-spinner-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-ring] {\n    display: inline-block;\n    width: var(--kui-spinner-size, 28px);\n    height: var(--kui-spinner-size, 28px);\n    border-radius: 50%;\n    border: 3px dashed color-mix(in srgb, currentColor 55%, transparent);\n    --kui-fx-spinner-ring-iterations: infinite;\n  }\n  @keyframes kui-spinner-ring-spin {\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=spinner-dots] {\n    display: inline-block;\n    width: var(--kui-dot-size, 8px);\n    height: var(--kui-dot-size, 8px);\n    border-radius: 50%;\n    background: currentColor;\n    box-shadow: calc(var(--kui-dot-size, 8px) * -2) 0 currentColor, calc(var(--kui-dot-size, 8px) * 2) 0 currentColor;\n    --kui-fx-spinner-dots-iterations: infinite;\n  }\n  @keyframes kui-spinner-dots {\n    0%, 80%, 100% {\n      scale: 0.7;\n      opacity: 0.5;\n    }\n    40% {\n      scale: 1.15;\n      opacity: 1;\n    }\n  }\n  [data-kui-fx~=progress-indeterminate] {\n    transform-origin: 0% 50%;\n    background: currentColor;\n    border-radius: inherit;\n    --kui-fx-progress-indeterminate-iterations: infinite;\n  }\n  @keyframes kui-progress-indeterminate {\n    0% {\n      translate: -100% 0;\n      scale: 0.4 1;\n    }\n    50% {\n      scale: 1 1;\n    }\n    100% {\n      translate: 100% 0;\n      scale: 0.4 1;\n    }\n  }\n  @keyframes kui-toast-slide-in {\n    from {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n    to {\n      opacity: 1;\n      translate: 0 0;\n    }\n  }\n  @keyframes kui-toast-slide-out {\n    from {\n      opacity: 1;\n      translate: 0 0;\n    }\n    to {\n      opacity: 0;\n      translate: 0 var(--kui-gate-distance, var(--kui-distance, 24px));\n    }\n  }\n  @keyframes kui-shake-error {\n    10%, 90% {\n      translate: -1px 0;\n    }\n    20%, 80% {\n      translate: 2px 0;\n    }\n    30%, 50%, 70% {\n      translate: -4px 0;\n    }\n    40%, 60% {\n      translate: 4px 0;\n    }\n  }\n  @keyframes kui-wobble {\n    0% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n    15% {\n      translate: -6px 0;\n      rotate: -6deg;\n    }\n    30% {\n      translate: 4px 0;\n      rotate: 4deg;\n    }\n    45% {\n      translate: -3px 0;\n      rotate: -3deg;\n    }\n    60% {\n      translate: 2px 0;\n      rotate: 2deg;\n    }\n    75% {\n      translate: -1px 0;\n      rotate: -1deg;\n    }\n    100% {\n      translate: 0 0;\n      rotate: 0deg;\n    }\n  }\n  @property --kui-ripple-progress { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  @property --kui-ripple-alpha { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  [data-kui-fx~=ripple] {\n    position: relative;\n  }\n  [data-kui-fx~=ripple]::after {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    border-radius: 50%;\n    background: var(--kui-ripple-color, currentColor);\n    pointer-events: none;\n    opacity: var(--kui-ripple-alpha);\n    scale: calc(var(--kui-ripple-start, 0.2) + (var(--kui-ripple-scale, 4) - var(--kui-ripple-start, 0.2)) * var(--kui-ripple-progress));\n  }\n  @keyframes kui-ripple {\n    0% {\n      --kui-ripple-progress: 0;\n      --kui-ripple-alpha: 0;\n    }\n    8% {\n      --kui-ripple-alpha: var(--kui-ripple-opacity, 0.6);\n    }\n    100% {\n      --kui-ripple-progress: 1;\n      --kui-ripple-alpha: 0;\n    }\n  }\n  @keyframes kui-badge-pop {\n    0% {\n      scale: 0.4;\n    }\n    60% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  @keyframes kui-count-bump {\n    0%, 100% {\n      scale: 1;\n    }\n    50% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n  }\n  [data-kui-fx~=heart-burst] {\n    color: var(--kui-heart-color, #f43f5e);\n  }\n  @keyframes kui-heart-burst {\n    0% {\n      scale: 1;\n    }\n    30% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    55% {\n      scale: 0.9;\n    }\n    100% {\n      scale: 1;\n    }\n  }\n  @property --kui-confetti-travel { syntax: \"<number>\"; inherits: true; initial-value: 0; }\n  @property --kui-confetti-fade { syntax: \"<percentage>\"; inherits: true; initial-value: 0%; }\n  [data-kui-fx~=confetti-burst] {\n    position: relative;\n  }\n  [data-kui-fx~=confetti-burst]::after {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-confetti-spill, 24px));\n    pointer-events: none;\n    --kui-confetti-alpha: clamp(0%, var(--kui-confetti-fade), 100%);\n    background-image:\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c1, var(--kui-c1, #f43f5e)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c2, var(--kui-c2, #fbbf24)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c3, var(--kui-c3, #34d399)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c4, var(--kui-c4, #60a5fa)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%),\n      radial-gradient(\n        circle closest-side,\n        color-mix(in srgb, var(--kui-confetti-c5, var(--kui-c5, #c084fc)) var(--kui-confetti-alpha), transparent) 0 96%,\n        transparent 100%);\n    background-repeat: no-repeat;\n    background-size: var(--kui-confetti-size, 6px) var(--kui-confetti-size, 6px);\n    background-position:\n      calc(50% - var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.9 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 0.55 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.72 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 0.86 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * var(--kui-confetti-travel)) calc(50% + var(--kui-confetti-distance, 45%) * 0.18 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% - var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.62 * var(--kui-confetti-travel)) calc(50% + var(--kui-confetti-distance, 45%) * 0.72 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel)),\n      calc(50% + var(--kui-confetti-distance, 45%) * var(--kui-confetti-fan, 1) * 0.1 * var(--kui-confetti-travel)) calc(50% - var(--kui-confetti-distance, 45%) * 1.05 * var(--kui-confetti-travel) + var(--kui-confetti-distance, 45%) * 0.3 * var(--kui-confetti-travel) * var(--kui-confetti-travel));\n  }\n  @keyframes kui-confetti-burst {\n    0% {\n      scale: 1;\n      --kui-confetti-travel: 0;\n      --kui-confetti-fade: 0%;\n    }\n    14% {\n      --kui-confetti-fade: 100%;\n    }\n    30% {\n      scale: var(--kui-pop-scale, 1.18);\n    }\n    70% {\n      scale: 1;\n      --kui-confetti-fade: 100%;\n    }\n    100% {\n      scale: 1;\n      --kui-confetti-travel: 1;\n      --kui-confetti-fade: 0%;\n    }\n  }\n  @keyframes kui-copy-confirm {\n    0% {\n      opacity: 0;\n    }\n    15% {\n      opacity: 1;\n    }\n    85% {\n      opacity: 1;\n    }\n    100% {\n      opacity: 0;\n    }\n  }\n  @keyframes kui-pull-to-refresh {\n    0% {\n      translate: 0 0;\n    }\n    45% {\n      translate: 0 var(--kui-pull-distance, 36px);\n    }\n    100% {\n      translate: 0 0;\n    }\n  }\n}\n\n/* src/css/numbers.css */\n@layer kui.effects {\n  @keyframes kui-progress-ring {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-gauge-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-donut-sweep {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-sparkline-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 1000);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=progress-ring],\n  [data-kui-fx~=gauge-sweep],\n  [data-kui-fx~=donut-sweep],\n  [data-kui-fx~=sparkline-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-progress-bar {\n    from {\n      scale: var(--kui-gate-bar-from, var(--kui-bar-from, 0)) 1;\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=progress-bar] {\n    transform-origin: left center;\n  }\n  [data-kui-fx~=progress-bar][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-progress-segments {\n    from {\n      opacity: 0.18;\n    }\n    to {\n      opacity: 1;\n    }\n  }\n  @keyframes kui-star-rating-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 calc(100% - var(--kui-fill, 100%)) 0 0);\n    }\n  }\n  .kui-count-decorative {\n    display: inline-flex;\n    align-items: baseline;\n  }\n  .kui-odometer-col {\n    display: inline-block;\n    overflow: hidden;\n    height: 1em;\n    line-height: 1;\n    vertical-align: baseline;\n  }\n  .kui-odometer-strip {\n    display: flex;\n    flex-direction: column;\n    translate: 0 calc(var(--kui-o, 0) * -1em);\n    transition: translate 220ms ease-out;\n  }\n  .kui-odometer-strip > span {\n    height: 1em;\n    line-height: 1;\n  }\n}\n\n/* src/css/interaction.css */\n@layer kui.effects {\n  @property --kui-border-angle { syntax: \"<angle>\"; inherits: false; initial-value: 0deg; }\n  @property --kui-border-pct { syntax: \"<percentage>\"; inherits: false; initial-value: 0%; }\n  [data-kui-fx~=lift]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    --kui-tx-delay-lift: var(--kui-lift-delay, 0ms);\n  }\n  [data-kui-fx~=pop]:focus-visible {\n    scale: var(--kui-pop-scale, 1.06);\n    --kui-tx-delay-pop: var(--kui-pop-delay, 0ms);\n  }\n  [data-kui-fx~=lift-shadow]:focus-visible {\n    translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n    box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n    --kui-tx-delay-lift-shadow: var(--kui-lift-shadow-delay, 0ms);\n  }\n  [data-kui-fx~=shine-sweep] {\n    position: relative;\n    overflow: hidden;\n  }\n  [data-kui-fx~=shine-sweep]::after {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    background:\n      linear-gradient(\n        var(--kui-shine-sweep-angle, 115deg),\n        transparent calc(50% - var(--kui-shine-sweep-width, 0.2) * 50%),\n        var(--kui-shine-sweep-color, var(--kui-c1, rgb(255 255 255 / 0.35))) 50%,\n        transparent calc(50% + var(--kui-shine-sweep-width, 0.2) * 50%));\n    background-size: 220% 100%;\n    background-position: 120% 0;\n    pointer-events: none;\n  }\n  [data-kui-fx~=shine-sweep]:focus-visible::after {\n    animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out) var(--kui-shine-sweep-delay, 0ms);\n  }\n  @keyframes kui-shine-sweep {\n    from {\n      background-position: 120% 0;\n    }\n    to {\n      background-position: -20% 0;\n    }\n  }\n  [data-kui-fx~=split-flap] {\n    display: inline-block;\n    perspective: var(--kui-split-flap-perspective, 600px);\n  }\n  [data-kui-fx~=split-flap]:focus-visible {\n    animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out) var(--kui-split-flap-delay, 0ms);\n  }\n  @keyframes kui-split-flap {\n    0%, 100% {\n      transform: perspective(var(--kui-split-flap-perspective, 600px)) translateZ(0) rotateX(0deg);\n    }\n    50% {\n      transform: perspective(var(--kui-split-flap-perspective, 600px)) translateZ(calc(var(--kui-split-flap-perspective, 600px) * 0.16)) rotateX(-32deg);\n    }\n  }\n  [data-kui-fx~=border-draw] {\n    position: relative;\n  }\n  [data-kui-fx~=border-draw]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-border-draw-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-border-draw-width, 2px);\n    background:\n      conic-gradient(\n        from -90deg,\n        var(--kui-border-draw-color, var(--accent, #d2691e)) 0 var(--kui-border-pct, 0%),\n        transparent 0);\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    pointer-events: none;\n  }\n  [data-kui-fx~=border-draw]:focus-visible {\n    --kui-border-pct: 100%;\n    --kui-tx-delay-border-draw: var(--kui-border-draw-delay, 0ms);\n  }\n  [data-kui-fx~=border-glow]:focus-visible {\n    box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n    --kui-tx-delay-border-glow: var(--kui-border-glow-delay, 0ms);\n  }\n  [data-kui-fx~=beam-border],\n  [data-kui-fx~=beam-border-auto] {\n    position: relative;\n  }\n  [data-kui-fx~=beam-border]::before,\n  [data-kui-fx~=beam-border-auto]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-beam-border-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-beam-border-width, 3px);\n    --kui-beam-arc-span: var(--kui-beam-border-arc, 100deg);\n    --kui-beam-arc-start: calc(360deg - var(--kui-beam-arc-span));\n    --kui-beam-arc-ramp: calc(var(--kui-beam-arc-span) * var(--kui-beam-border-softness, 0.22));\n    --kui-beam-arc-stop1: calc(var(--kui-beam-arc-start) + var(--kui-beam-arc-ramp));\n    --kui-beam-arc-stop4: calc(360deg - var(--kui-beam-arc-span) * 0.06);\n    --kui-beam-arc-step: calc((var(--kui-beam-arc-stop4) - var(--kui-beam-arc-stop1)) / 3);\n    background:\n      conic-gradient(\n        from var(--kui-border-angle, 0deg),\n        transparent 0deg,\n        transparent var(--kui-beam-arc-start),\n        var(--kui-beam-border-c1, #ff5f6d) var(--kui-beam-arc-stop1),\n        var(--kui-beam-border-c2, var(--kui-beam-border-c1, #ffc371)) calc(var(--kui-beam-arc-stop1) + var(--kui-beam-arc-step)),\n        var(--kui-beam-border-c3, var(--kui-beam-border-c1, #4facfe)) calc(var(--kui-beam-arc-stop1) + var(--kui-beam-arc-step) * 2),\n        var(--kui-beam-border-c4, var(--kui-beam-border-c1, #a855f7)) var(--kui-beam-arc-stop4),\n        transparent 360deg);\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask-composite: exclude;\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity var(--kui-beam-border-fade-duration, 200ms) ease-out;\n  }\n  [data-kui-fx~=beam-border]:focus-visible::before {\n    opacity: 1;\n    transition-delay: var(--kui-beam-border-delay, 0ms);\n    animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear var(--kui-beam-border-delay, 0ms) infinite;\n  }\n  [data-kui-fx~=beam-border-auto]::before {\n    opacity: 1;\n    animation: kui-beam-rotate var(--kui-beam-border-auto-duration, 4260ms) linear infinite;\n  }\n  @keyframes kui-beam-rotate {\n    to {\n      --kui-border-angle: 360deg;\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-fx~=beam-border]:focus-visible::before,\n    [data-kui-fx~=beam-border-auto]::before {\n      animation: none;\n      --kui-border-angle: 45deg;\n    }\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=border-draw]:focus-visible::before,\n    [data-kui-fx~=beam-border]:focus-visible::before,\n    [data-kui-fx~=beam-border-auto]::before {\n      background: CanvasText;\n    }\n  }\n  @media (forced-colors: active) and (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=border-draw]:hover::before,\n    [data-kui-fx~=beam-border]:hover::before {\n      background: CanvasText;\n    }\n  }\n  [data-kui-fx~=underline-slide] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-slide]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: var(--kui-underline-slide-color, currentcolor);\n    scale: 0 1;\n    transform-origin: left center;\n    transition: scale var(--kui-underline-slide-duration, 260ms) var(--kui-underline-slide-ease, ease-out);\n  }\n  [data-kui-fx~=underline-slide]:focus-visible::after {\n    scale: 1 1;\n    transition-delay: var(--kui-underline-slide-delay, 0ms);\n  }\n  [data-kui-fx~=underline-center] {\n    position: relative;\n    text-decoration: none;\n  }\n  [data-kui-fx~=underline-center]::after {\n    content: \"\";\n    position: absolute;\n    left: 0;\n    right: 0;\n    bottom: -0.15em;\n    height: 0.08em;\n    background: var(--kui-underline-center-color, currentcolor);\n    scale: 0 1;\n    transform-origin: center;\n    transition: scale var(--kui-underline-center-duration, 260ms) var(--kui-underline-center-ease, ease-out);\n  }\n  [data-kui-fx~=underline-center]:focus-visible::after {\n    scale: 1 1;\n    transition-delay: var(--kui-underline-center-delay, 0ms);\n  }\n  [data-kui-fx~=icon-wiggle]:focus-visible {\n    animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out) var(--kui-icon-wiggle-delay, 0ms);\n  }\n  @keyframes kui-icon-wiggle {\n    0%, 100% {\n      rotate: 0deg;\n    }\n    20% {\n      rotate: -12deg;\n    }\n    40% {\n      rotate: 10deg;\n    }\n    60% {\n      rotate: -6deg;\n    }\n    80% {\n      rotate: 4deg;\n    }\n  }\n  [data-kui-fx~=icon-spin]:focus-visible {\n    animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear var(--kui-icon-spin-delay, 0ms);\n  }\n  @keyframes kui-icon-spin {\n    from {\n      rotate: 0deg;\n    }\n    to {\n      rotate: 360deg;\n    }\n  }\n  [data-kui-fx~=icon-bounce]:focus-visible {\n    animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out) var(--kui-icon-bounce-delay, 0ms);\n  }\n  @keyframes kui-icon-bounce {\n    0%, 100% {\n      translate: 0 0;\n    }\n    30% {\n      translate: 0 -7px;\n    }\n    55% {\n      translate: 0 1px;\n    }\n    75% {\n      translate: 0 -3px;\n    }\n  }\n  [data-kui-fx~=press-depth]:active {\n    scale: var(--kui-press-scale, 0.96);\n    box-shadow: 0 var(--kui-press-shadow-depth, 2px) calc(var(--kui-press-shadow-depth, 2px) * 2) calc(var(--kui-press-shadow-depth, 2px) * -1) var(--kui-press-shadow-color, rgb(0 0 0 / 0.35));\n    --kui-tx-delay-press-depth: var(--kui-press-delay, 0ms);\n  }\n  [data-kui-fx~=group-dim] > * {\n    transition: opacity var(--kui-group-dim-duration, 260ms) var(--kui-group-dim-ease, ease-out);\n  }\n  [data-kui-fx~=group-dim]:has(:focus-visible) > :not(:hover, :focus-visible, :has(:focus-visible)) {\n    opacity: var(--kui-group-dim-opacity, 0.4);\n    transition-delay: var(--kui-group-dim-delay, 0ms);\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=group-dim]:has(> :hover, :focus-visible) > :not(:hover, :focus-visible, :has(:focus-visible)) {\n      opacity: var(--kui-group-dim-opacity, 0.4);\n      transition-delay: var(--kui-group-dim-delay, 0ms);\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-fx~=group-dim] > * {\n      transition-duration: 1ms;\n    }\n  }\n  [data-kui-fx~=masked-label-swap],\n  [data-kui-fx~=masked-label-swap-x],\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    display: inline-grid;\n    place-items: center;\n    overflow: hidden;\n    --kui-label-swap-shown: 0;\n    --kui-label-swap-lag: 0ms;\n  }\n  [data-kui-fx~=masked-label-swap] {\n    --kui-label-swap-dx: 0%;\n    --kui-label-swap-dy: calc(-1 * var(--kui-label-swap-distance, 100%));\n  }\n  [data-kui-fx~=masked-label-swap-x] {\n    --kui-label-swap-dx: var(--kui-label-swap-distance, 100%);\n    --kui-label-swap-dy: 0%;\n  }\n  [data-kui-fx~=masked-label-swap-diagonal] {\n    --kui-label-swap-dx: var(--kui-label-swap-distance, 100%);\n    --kui-label-swap-dy: calc(-1 * var(--kui-label-swap-distance, 100%));\n  }\n  [data-kui-fx~=masked-label-swap]:focus-visible,\n  [data-kui-fx~=masked-label-swap-x]:focus-visible,\n  [data-kui-fx~=masked-label-swap-diagonal]:focus-visible {\n    --kui-label-swap-shown: 1;\n    --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n  }\n  [data-kui-swap] {\n    grid-area: 1 / 1;\n    translate: calc(var(--kui-label-swap-dx, 0%) * var(--kui-label-swap-shown, 0)) calc(var(--kui-label-swap-dy, 0%) * var(--kui-label-swap-shown, 0));\n    transition: translate var(--kui-label-swap-duration, 320ms) var(--kui-label-swap-ease, ease-out) var(--kui-label-swap-lag, 0ms);\n  }\n  [data-kui-swap=to] {\n    translate: calc(var(--kui-label-swap-dx, 0%) * (var(--kui-label-swap-shown, 0) - 1)) calc(var(--kui-label-swap-dy, 0%) * (var(--kui-label-swap-shown, 0) - 1));\n  }\n  [data-kui-fx~=hover-intent] {\n    position: relative;\n    --kui-hover-intent-shown: 0;\n    --kui-hover-intent-lag: 0ms;\n  }\n  [data-kui-fx~=hover-intent]:focus-visible,\n  [data-kui-fx~=hover-intent]:has(:focus-visible) {\n    --kui-hover-intent-shown: 1;\n    --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n  }\n  [data-kui-hint] {\n    position: absolute;\n    bottom: 100%;\n    left: 50%;\n    margin-bottom: var(--kui-hover-intent-gap, 8px);\n    opacity: var(--kui-hover-intent-shown, 0);\n    translate: -50% calc(var(--kui-hover-intent-distance, 4px) * (1 - var(--kui-hover-intent-shown, 0)));\n    pointer-events: none;\n    transition: opacity var(--kui-hover-intent-duration, 160ms) var(--kui-hover-intent-ease, ease-out) var(--kui-hover-intent-lag, 0ms), translate var(--kui-hover-intent-duration, 160ms) var(--kui-hover-intent-ease, ease-out) var(--kui-hover-intent-lag, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=masked-label-swap]:active,\n    [data-kui-fx~=masked-label-swap-x]:active,\n    [data-kui-fx~=masked-label-swap-diagonal]:active {\n      --kui-label-swap-shown: 1;\n      --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n    }\n    [data-kui-fx~=hover-intent]:active {\n      --kui-hover-intent-shown: 1;\n      --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n    }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-swap],\n    [data-kui-hint],\n    [data-kui-preview],\n    [data-kui-search-field] {\n      transition-duration: 1ms;\n    }\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=lift]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n      --kui-tx-delay-lift: var(--kui-lift-delay, 0ms);\n    }\n    [data-kui-fx~=pop]:hover {\n      scale: var(--kui-pop-scale, 1.06);\n      --kui-tx-delay-pop: var(--kui-pop-delay, 0ms);\n    }\n    [data-kui-fx~=lift-shadow]:hover {\n      translate: 0 calc(var(--kui-lift-distance, 6px) * -1);\n      box-shadow: 0 14px 28px -12px rgb(0 0 0 / 0.45);\n      --kui-tx-delay-lift-shadow: var(--kui-lift-shadow-delay, 0ms);\n    }\n    [data-kui-fx~=shine-sweep]:hover::after {\n      animation: kui-shine-sweep var(--kui-shine-sweep-duration, 700ms) var(--kui-shine-sweep-ease, ease-out) var(--kui-shine-sweep-delay, 0ms);\n    }\n    [data-kui-fx~=split-flap]:hover {\n      animation: kui-split-flap var(--kui-split-flap-duration, 600ms) var(--kui-split-flap-ease, ease-in-out) var(--kui-split-flap-delay, 0ms);\n    }\n    [data-kui-fx~=border-draw]:hover {\n      --kui-border-pct: 100%;\n      --kui-tx-delay-border-draw: var(--kui-border-draw-delay, 0ms);\n    }\n    [data-kui-fx~=border-glow]:hover {\n      box-shadow: 0 0 0 3px var(--kui-border-glow-color, var(--accent, #d2691e));\n      --kui-tx-delay-border-glow: var(--kui-border-glow-delay, 0ms);\n    }\n    [data-kui-fx~=beam-border]:hover::before {\n      opacity: 1;\n      transition-delay: var(--kui-beam-border-delay, 0ms);\n      animation: kui-beam-rotate var(--kui-beam-border-duration, 4260ms) linear var(--kui-beam-border-delay, 0ms) infinite;\n    }\n    [data-kui-fx~=underline-slide]:hover::after {\n      scale: 1 1;\n      transition-delay: var(--kui-underline-slide-delay, 0ms);\n    }\n    [data-kui-fx~=underline-center]:hover::after {\n      scale: 1 1;\n      transition-delay: var(--kui-underline-center-delay, 0ms);\n    }\n    [data-kui-fx~=icon-wiggle]:hover {\n      animation: kui-icon-wiggle var(--kui-icon-wiggle-duration, 500ms) var(--kui-icon-wiggle-ease, ease-in-out) var(--kui-icon-wiggle-delay, 0ms);\n    }\n    [data-kui-fx~=icon-spin]:hover {\n      animation: kui-icon-spin var(--kui-icon-spin-duration, 700ms) linear var(--kui-icon-spin-delay, 0ms);\n    }\n    [data-kui-fx~=icon-bounce]:hover {\n      animation: kui-icon-bounce var(--kui-icon-bounce-duration, 500ms) var(--kui-icon-bounce-ease, ease-out) var(--kui-icon-bounce-delay, 0ms);\n    }\n    [data-kui-fx~=masked-label-swap]:hover,\n    [data-kui-fx~=masked-label-swap-x]:hover,\n    [data-kui-fx~=masked-label-swap-diagonal]:hover {\n      --kui-label-swap-shown: 1;\n      --kui-label-swap-lag: var(--kui-label-swap-delay, 0ms);\n    }\n    [data-kui-fx~=hover-intent]:hover {\n      --kui-hover-intent-shown: 1;\n      --kui-hover-intent-lag: var(--kui-hover-intent-delay, 1000ms);\n    }\n  }\n  [data-kui-fx~=tilt-3d],\n  [data-kui-fx~=tilt-parallax] {\n    transform-style: preserve-3d;\n  }\n  [data-kui-fx~=cursor-spotlight]::before {\n    content: \"\";\n    position: absolute;\n    inset: 0;\n    border-radius: inherit;\n    pointer-events: none;\n    opacity: var(--kui-spotlight-opacity, 0);\n    transition: opacity 200ms ease-out;\n    background:\n      radial-gradient(\n        circle 160px at var(--kui-x, 50%) var(--kui-y, 50%),\n        color-mix(in srgb, var(--accent, #d2691e) 30%, transparent),\n        transparent 70%);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=cursor-spotlight]::before {\n      background: none;\n    }\n  }\n  .kui-cursor-dot {\n    position: fixed;\n    top: 0;\n    left: 0;\n    z-index: 9999;\n    display: grid;\n    place-items: center;\n    pointer-events: none;\n    opacity: 0;\n    transition: opacity 160ms ease-out;\n  }\n  .kui-cursor-dot-active {\n    opacity: 1;\n  }\n  .kui-cursor-dot-follow,\n  .kui-cursor-dot-lag,\n  .kui-cursor-dot-invert {\n    width: 14px;\n    height: 14px;\n    margin: -7px 0 0 -7px;\n    border-radius: 50%;\n    background: var(--accent, #d2691e);\n  }\n  .kui-cursor-dot-invert {\n    background: var(--kui-invert-color, #fff);\n    mix-blend-mode: difference;\n    forced-color-adjust: none;\n  }\n  .kui-cursor-dot-label {\n    margin: -1.4em 0 0 -1.4em;\n    padding: 0.4em 0.8em;\n    border-radius: 999px;\n    background: var(--accent, #d2691e);\n    color: var(--kui-label-color, #000);\n    font-size: 0.75rem;\n    font-family:\n      ui-monospace,\n      Menlo,\n      monospace;\n    white-space: nowrap;\n  }\n  @media (pointer: coarse) {\n    .kui-cursor-dot {\n      display: none;\n    }\n  }\n  [data-kui-fx~=anchored-preview],\n  [data-kui-fx~=anchored-preview-bottom],\n  [data-kui-fx~=anchored-preview-left],\n  [data-kui-fx~=anchored-preview-right] {\n    position: relative;\n    --kui-anchored-preview-shown: 0;\n    --kui-anchored-preview-lag: 0ms;\n  }\n  [data-kui-fx~=anchored-preview] {\n    --kui-anchored-preview-inset: auto auto calc(100% + var(--kui-anchored-preview-gap, 10px)) 50%;\n    --kui-anchored-preview-travel: -50% calc(var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)));\n  }\n  [data-kui-fx~=anchored-preview-bottom] {\n    --kui-anchored-preview-inset: calc(100% + var(--kui-anchored-preview-gap, 10px)) auto auto 50%;\n    --kui-anchored-preview-travel: -50% calc(-1 * var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)));\n  }\n  [data-kui-fx~=anchored-preview-left] {\n    --kui-anchored-preview-inset: 50% calc(100% + var(--kui-anchored-preview-gap, 10px)) auto auto;\n    --kui-anchored-preview-travel: calc( var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)) ) -50%;\n  }\n  [data-kui-fx~=anchored-preview-right] {\n    --kui-anchored-preview-inset: 50% auto auto calc(100% + var(--kui-anchored-preview-gap, 10px));\n    --kui-anchored-preview-travel: calc( -1 * var(--kui-anchored-preview-distance, 10px) * (1 - var(--kui-anchored-preview-shown, 0)) ) -50%;\n  }\n  [data-kui-fx~=anchored-preview]:focus-visible,\n  [data-kui-fx~=anchored-preview]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-bottom]:focus-visible,\n  [data-kui-fx~=anchored-preview-bottom]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-left]:focus-visible,\n  [data-kui-fx~=anchored-preview-left]:has(:focus-visible),\n  [data-kui-fx~=anchored-preview-right]:focus-visible,\n  [data-kui-fx~=anchored-preview-right]:has(:focus-visible) {\n    --kui-anchored-preview-shown: 1;\n    --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n  }\n  [data-kui-preview] {\n    position: absolute;\n    inset: var(--kui-anchored-preview-inset, auto);\n    translate: var(--kui-anchored-preview-travel, 0 0);\n    opacity: var(--kui-anchored-preview-shown, 0);\n    scale: calc(var(--kui-anchored-preview-scale, 0.85) + (1 - var(--kui-anchored-preview-scale, 0.85)) * var(--kui-anchored-preview-shown, 0));\n    pointer-events: none;\n    transition:\n      opacity var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms),\n      scale var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms),\n      translate var(--kui-anchored-preview-duration, 220ms) var(--kui-anchored-preview-ease, ease-out) var(--kui-anchored-preview-lag, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=anchored-preview]:active,\n    [data-kui-fx~=anchored-preview-bottom]:active,\n    [data-kui-fx~=anchored-preview-left]:active,\n    [data-kui-fx~=anchored-preview-right]:active {\n      --kui-anchored-preview-shown: 1;\n      --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n    }\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=anchored-preview]:hover,\n    [data-kui-fx~=anchored-preview-bottom]:hover,\n    [data-kui-fx~=anchored-preview-left]:hover,\n    [data-kui-fx~=anchored-preview-right]:hover {\n      --kui-anchored-preview-shown: 1;\n      --kui-anchored-preview-lag: var(--kui-anchored-preview-delay, 0ms);\n    }\n  }\n  [data-kui-fx~=proximity-glow] {\n    position: relative;\n  }\n  [data-kui-fx~=proximity-glow]::before {\n    content: \"\";\n    position: absolute;\n    inset: calc(-1 * var(--kui-proximity-glow-outset, 0px));\n    border-radius: inherit;\n    padding: var(--kui-proximity-glow-width, 1px);\n    background:\n      radial-gradient(\n        circle var(--kui-proximity-glow-radius, 220px) at var(--kui-proximity-x, -9999px) var(--kui-proximity-y, -9999px),\n        var(--kui-proximity-glow-color, var(--accent, #d2691e)),\n        transparent 70%);\n    background-attachment: fixed;\n    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n    -webkit-mask-composite: xor;\n    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);\n    mask-composite: exclude;\n    opacity: var(--kui-proximity-opacity, 0);\n    transition: opacity var(--kui-proximity-glow-duration, 200ms) var(--kui-proximity-glow-ease, ease-out);\n    pointer-events: none;\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=proximity-glow]::before {\n      background: none;\n    }\n  }\n  [data-kui-fx~=search-expand] {\n    display: inline-flex;\n    align-items: center;\n    overflow: hidden;\n    inline-size: var(--kui-search-expand-collapsed, 2.5em);\n    --kui-search-expand-shown: 0;\n    --kui-search-expand-lag: 0ms;\n  }\n  [data-kui-fx~=search-expand]:focus-visible,\n  [data-kui-fx~=search-expand]:has(:focus-visible),\n  [data-kui-fx~=search-expand]:has(input:not(:placeholder-shown)) {\n    inline-size: var(--kui-search-expand-width, 240px);\n    --kui-search-expand-shown: 1;\n    --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n  }\n  @media (pointer: coarse) {\n    [data-kui-fx~=search-expand]:active {\n      inline-size: var(--kui-search-expand-width, 240px);\n      --kui-search-expand-shown: 1;\n      --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n    }\n  }\n  [data-kui-search-field] {\n    flex: 1 1 auto;\n    min-inline-size: 0;\n    opacity: var(--kui-search-expand-shown, 0);\n    transition: opacity var(--kui-search-expand-duration, 260ms) var(--kui-search-expand-ease, ease-out) var(--kui-search-expand-lag, 0ms);\n  }\n  @media (hover: hover) and (pointer: fine) {\n    [data-kui-fx~=search-expand]:hover {\n      inline-size: var(--kui-search-expand-width, 240px);\n      --kui-search-expand-shown: 1;\n      --kui-search-expand-lag: var(--kui-search-expand-delay, 0ms);\n    }\n  }\n}\n\n/* src/css/discrete.css */\n@layer kui.effects {\n  [data-kui-fx~=fade-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-fade-open: var(--kui-fade-open-delay, 0ms);\n    opacity: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=fade-open] {\n      opacity: 0;\n    }\n  }\n  [data-kui-fx~=fade-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    display: none;\n  }\n  [data-kui-fx~=pop-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-pop-open: var(--kui-pop-open-delay, 0ms);\n    opacity: 1;\n    scale: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=pop-open] {\n      opacity: 0;\n      scale: var(--kui-pop-open-scale, 0.92);\n    }\n  }\n  [data-kui-fx~=pop-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    scale: var(--kui-pop-open-scale, 0.92);\n    display: none;\n  }\n  [data-kui-fx~=scale-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-scale-open: var(--kui-scale-open-delay, 0ms);\n    scale: 1;\n  }\n  @starting-style {\n    [data-kui-fx~=scale-open] {\n      scale: var(--kui-scale-open-scale, 0.85);\n    }\n  }\n  [data-kui-fx~=scale-open]:not(:popover-open):not([open]):not([data-open]) {\n    scale: var(--kui-scale-open-scale, 0.85);\n    display: none;\n  }\n  [data-kui-fx~=drop-open] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-drop-open: var(--kui-drop-open-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=drop-open] {\n      opacity: 0;\n      translate: 0 calc(var(--kui-drop-open-distance, 12px) * -1);\n    }\n  }\n  [data-kui-fx~=drop-open]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 calc(var(--kui-drop-open-distance, 12px) * -1);\n    display: none;\n  }\n  [data-kui-fx~=slide-open-up] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-slide-open-up: var(--kui-slide-open-up-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=slide-open-up] {\n      opacity: 0;\n      translate: 0 var(--kui-slide-open-up-distance, 16px);\n    }\n  }\n  [data-kui-fx~=slide-open-up]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 var(--kui-slide-open-up-distance, 16px);\n    display: none;\n  }\n  [data-kui-fx~=slide-open-down] {\n    transition-behavior: allow-discrete;\n    --kui-tx-delay-slide-open-down: var(--kui-slide-open-down-delay, 0ms);\n    opacity: 1;\n    translate: 0 0;\n  }\n  @starting-style {\n    [data-kui-fx~=slide-open-down] {\n      opacity: 0;\n      translate: 0 calc(var(--kui-slide-open-down-distance, 16px) * -1);\n    }\n  }\n  [data-kui-fx~=slide-open-down]:not(:popover-open):not([open]):not([data-open]) {\n    opacity: 0;\n    translate: 0 calc(var(--kui-slide-open-down-distance, 16px) * -1);\n    display: none;\n  }\n}\n\n/* src/css/layout.css */\n@layer kui.effects {\n  [data-kui-fx~=accordion-height] {\n    overflow: hidden;\n  }\n  [data-kui-fx~=accordion-height]:not([data-open]) {\n    height: 0;\n  }\n}\n\n/* src/css/svg.css */\n@layer kui.effects {\n  @keyframes kui-draw-stroke {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-signature {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-draw-underline {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-checkmark-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-cross-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  @keyframes kui-chart-line-draw {\n    from {\n      stroke-dashoffset: var(--kui-path-length, 100);\n    }\n    to {\n      stroke-dashoffset: 0;\n    }\n  }\n  [data-kui-fx~=draw-stroke],\n  [data-kui-fx~=draw-signature],\n  [data-kui-fx~=draw-underline],\n  [data-kui-fx~=checkmark-draw],\n  [data-kui-fx~=cross-draw],\n  [data-kui-fx~=chart-line-draw] {\n    stroke-dasharray: var(--kui-path-length, 100);\n    fill: none;\n  }\n  @keyframes kui-gradient-stroke {\n    from {\n      stroke: var(--kui-stroke-from, currentColor);\n    }\n    50% {\n      stroke: var(--kui-stroke-via, currentColor);\n    }\n    to {\n      stroke: var(--kui-stroke-to, currentColor);\n    }\n  }\n  [data-kui-fx~=gradient-stroke] {\n    --kui-fx-gradient-stroke-iterations: infinite;\n  }\n  @keyframes kui-heart-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-bookmark-fill {\n    from {\n      clip-path: inset(100% 0 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  @keyframes kui-chart-area-fill {\n    from {\n      clip-path: inset(0 100% 0 0);\n    }\n    to {\n      clip-path: inset(0 0 0 0);\n    }\n  }\n  [data-kui-fx~=heart-fill][data-kui-state=ready],\n  [data-kui-fx~=bookmark-fill][data-kui-state=ready],\n  [data-kui-fx~=chart-area-fill][data-kui-state=ready] {\n    clip-path: none !important;\n    opacity: 0;\n  }\n  @keyframes kui-chart-bar-grow {\n    from {\n      scale: 1 var(--kui-gate-bar-from, var(--kui-bar-from, 0));\n    }\n    to {\n      scale: 1 1;\n    }\n  }\n  [data-kui-fx~=chart-bar-grow] {\n    transform-origin: bottom center;\n  }\n  [data-kui-fx~=chart-bar-grow][data-kui-state=ready] {\n    opacity: 0;\n  }\n  @keyframes kui-logo-build {\n    from {\n      opacity: 0;\n      scale: 0.62;\n      rotate: -8deg;\n    }\n    to {\n      opacity: 1;\n      scale: 1;\n      rotate: 0deg;\n    }\n  }\n  [data-kui-fx~=hamburger-to-x] .kui-bar {\n    transition:\n      translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      opacity var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(1) {\n    translate: 0 var(--kui-bar-gap, 6px);\n    rotate: 45deg;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(2) {\n    opacity: 0;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] .kui-bar:nth-child(3) {\n    translate: 0 calc(var(--kui-bar-gap, 6px) * -1);\n    rotate: -45deg;\n  }\n  [data-kui-fx~=play-to-pause] .kui-bar {\n    transition: translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out), clip-path var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(1) {\n    translate: var(--kui-bar-gap, 4px) 0;\n    clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) .kui-bar:nth-child(2) {\n    translate: calc(var(--kui-bar-gap, 4px) * -1) 0;\n    clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar {\n    transition: scale var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] .kui-bar:nth-child(2) {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] {\n    rotate: 90deg;\n    --kui-tx-delay-plus-to-minus: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] .kui-bar {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] .kui-bar:nth-child(1) {\n    scale: 0;\n  }\n}\n\n/* src/css/tween.css */\n@layer kui.effects {\n  @keyframes kui-tween-to-translate {\n    from {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n    }\n    to {\n      translate: var(--kui-tween-x, 0) var(--kui-tween-y, 0) var(--kui-tween-z, 0);\n    }\n  }\n  @keyframes kui-tween-from-translate {\n    from {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x, 0) var(--kui-tween-y, 0) var(--kui-tween-z, 0);\n    }\n  }\n  @keyframes kui-tween-to-rotate {\n    from {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n    }\n    to {\n      rotate: var(--kui-tween-rotate, 0deg);\n    }\n  }\n  @keyframes kui-tween-from-rotate {\n    from {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate, 0deg);\n    }\n  }\n  @keyframes kui-tween-to-scale {\n    from {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n    }\n    to {\n      scale: var(--kui-tween-scale-x, var(--kui-tween-scale, 1)) var(--kui-tween-scale-y, var(--kui-tween-scale, 1));\n    }\n  }\n  @keyframes kui-tween-from-scale {\n    from {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x, var(--kui-tween-scale, 1)) var(--kui-tween-scale-y, var(--kui-tween-scale, 1));\n    }\n  }\n  @keyframes kui-tween-to-opacity {\n    from {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n    }\n    to {\n      opacity: var(--kui-tween-opacity, 1);\n    }\n  }\n  @keyframes kui-tween-from-opacity {\n    from {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity, 1);\n    }\n  }\n  @keyframes kui-tween-to-filter {\n    from {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n    }\n    to {\n      filter: blur(var(--kui-tween-blur, 0px)) brightness(var(--kui-tween-brightness, 1)) saturate(var(--kui-tween-saturate, 1)) grayscale(var(--kui-tween-grayscale, 0)) contrast(var(--kui-tween-contrast, 1)) hue-rotate(var(--kui-tween-hue-rotate, 0deg)) invert(var(--kui-tween-invert, 0)) sepia(var(--kui-tween-sepia, 0));\n    }\n  }\n  @keyframes kui-tween-from-filter {\n    from {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur, 0px)) brightness(var(--kui-tween-brightness, 1)) saturate(var(--kui-tween-saturate, 1)) grayscale(var(--kui-tween-grayscale, 0)) contrast(var(--kui-tween-contrast, 1)) hue-rotate(var(--kui-tween-hue-rotate, 0deg)) invert(var(--kui-tween-invert, 0)) sepia(var(--kui-tween-sepia, 0));\n    }\n  }\n  @keyframes kui-tween-to-color {\n    from {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n    }\n    to {\n      color: var(--kui-tween-color, currentcolor);\n    }\n  }\n  @keyframes kui-tween-from-color {\n    from {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color, currentcolor);\n    }\n  }\n  @keyframes kui-tween-to-background {\n    from {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n    }\n    to {\n      background-color: var(--kui-tween-background-color, transparent);\n    }\n  }\n  @keyframes kui-tween-from-background {\n    from {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color, transparent);\n    }\n  }\n  @keyframes kui-tween-keys2-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys3-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys4-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-4, var(--kui-tween-x, 0)) var(--kui-tween-y-4, var(--kui-tween-y, 0)) var(--kui-tween-z-4, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys5-translate {\n    0% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-1, var(--kui-tween-x, 0)) var(--kui-tween-y-1, var(--kui-tween-y, 0)) var(--kui-tween-z-1, var(--kui-tween-z, 0));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-2, var(--kui-tween-x, 0)) var(--kui-tween-y-2, var(--kui-tween-y, 0)) var(--kui-tween-z-2, var(--kui-tween-z, 0));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-3, var(--kui-tween-x, 0)) var(--kui-tween-y-3, var(--kui-tween-y, 0)) var(--kui-tween-z-3, var(--kui-tween-z, 0));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-translate-ease, var(--kui-tween-translate-default-ease, ease-out));\n      translate: var(--kui-tween-x-4, var(--kui-tween-x, 0)) var(--kui-tween-y-4, var(--kui-tween-y, 0)) var(--kui-tween-z-4, var(--kui-tween-z, 0));\n    }\n    100% {\n      translate: var(--kui-tween-x-5, var(--kui-tween-x, 0)) var(--kui-tween-y-5, var(--kui-tween-y, 0)) var(--kui-tween-z-5, var(--kui-tween-z, 0));\n    }\n  }\n  @keyframes kui-tween-keys2-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys3-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys4-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-4, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys5-rotate {\n    0% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-1, var(--kui-tween-rotate, 0deg));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-2, var(--kui-tween-rotate, 0deg));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-3, var(--kui-tween-rotate, 0deg));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-rotate-ease, var(--kui-tween-rotate-default-ease, ease-out));\n      rotate: var(--kui-tween-rotate-4, var(--kui-tween-rotate, 0deg));\n    }\n    100% {\n      rotate: var(--kui-tween-rotate-5, var(--kui-tween-rotate, 0deg));\n    }\n  }\n  @keyframes kui-tween-keys2-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys3-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys4-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-4, var(--kui-tween-scale-x, var(--kui-tween-scale-4, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-4, var(--kui-tween-scale-y, var(--kui-tween-scale-4, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys5-scale {\n    0% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-1, var(--kui-tween-scale-x, var(--kui-tween-scale-1, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-1, var(--kui-tween-scale-y, var(--kui-tween-scale-1, var(--kui-tween-scale, 1))));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-2, var(--kui-tween-scale-x, var(--kui-tween-scale-2, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-2, var(--kui-tween-scale-y, var(--kui-tween-scale-2, var(--kui-tween-scale, 1))));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-3, var(--kui-tween-scale-x, var(--kui-tween-scale-3, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-3, var(--kui-tween-scale-y, var(--kui-tween-scale-3, var(--kui-tween-scale, 1))));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-scale-ease, var(--kui-tween-scale-default-ease, ease-out));\n      scale: var(--kui-tween-scale-x-4, var(--kui-tween-scale-x, var(--kui-tween-scale-4, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-4, var(--kui-tween-scale-y, var(--kui-tween-scale-4, var(--kui-tween-scale, 1))));\n    }\n    100% {\n      scale: var(--kui-tween-scale-x-5, var(--kui-tween-scale-x, var(--kui-tween-scale-5, var(--kui-tween-scale, 1)))) var(--kui-tween-scale-y-5, var(--kui-tween-scale-y, var(--kui-tween-scale-5, var(--kui-tween-scale, 1))));\n    }\n  }\n  @keyframes kui-tween-keys2-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys3-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys4-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-4, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys5-opacity {\n    0% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-1, var(--kui-tween-opacity, 1));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-2, var(--kui-tween-opacity, 1));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-3, var(--kui-tween-opacity, 1));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-opacity-ease, var(--kui-tween-opacity-default-ease, ease-out));\n      opacity: var(--kui-tween-opacity-4, var(--kui-tween-opacity, 1));\n    }\n    100% {\n      opacity: var(--kui-tween-opacity-5, var(--kui-tween-opacity, 1));\n    }\n  }\n  @keyframes kui-tween-keys2-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys3-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys4-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-4, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-4, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-4, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-4, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-4, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-4, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-4, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-4, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys5-filter {\n    0% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-1, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-1, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-1, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-1, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-1, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-1, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-1, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-1, var(--kui-tween-sepia, 0)));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-2, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-2, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-2, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-2, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-2, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-2, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-2, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-2, var(--kui-tween-sepia, 0)));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-3, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-3, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-3, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-3, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-3, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-3, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-3, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-3, var(--kui-tween-sepia, 0)));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-filter-ease, var(--kui-tween-filter-default-ease, ease-out));\n      filter: blur(var(--kui-tween-blur-4, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-4, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-4, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-4, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-4, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-4, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-4, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-4, var(--kui-tween-sepia, 0)));\n    }\n    100% {\n      filter: blur(var(--kui-tween-blur-5, var(--kui-tween-blur, 0px))) brightness(var(--kui-tween-brightness-5, var(--kui-tween-brightness, 1))) saturate(var(--kui-tween-saturate-5, var(--kui-tween-saturate, 1))) grayscale(var(--kui-tween-grayscale-5, var(--kui-tween-grayscale, 0))) contrast(var(--kui-tween-contrast-5, var(--kui-tween-contrast, 1))) hue-rotate(var(--kui-tween-hue-rotate-5, var(--kui-tween-hue-rotate, 0deg))) invert(var(--kui-tween-invert-5, var(--kui-tween-invert, 0))) sepia(var(--kui-tween-sepia-5, var(--kui-tween-sepia, 0)));\n    }\n  }\n  @keyframes kui-tween-keys2-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys3-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys4-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-4, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys5-color {\n    0% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-1, var(--kui-tween-color, currentcolor));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-2, var(--kui-tween-color, currentcolor));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-3, var(--kui-tween-color, currentcolor));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-color-ease, var(--kui-tween-color-default-ease, ease-out));\n      color: var(--kui-tween-color-4, var(--kui-tween-color, currentcolor));\n    }\n    100% {\n      color: var(--kui-tween-color-5, var(--kui-tween-color, currentcolor));\n    }\n  }\n  @keyframes kui-tween-keys2-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys3-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys4-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    33.333% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    66.667% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-4, var(--kui-tween-background-color, transparent));\n    }\n  }\n  @keyframes kui-tween-keys5-background {\n    0% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-1, var(--kui-tween-background-color, transparent));\n    }\n    25% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-2, var(--kui-tween-background-color, transparent));\n    }\n    50% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-3, var(--kui-tween-background-color, transparent));\n    }\n    75% {\n      animation-timing-function: var(--kui-tween-background-ease, var(--kui-tween-background-default-ease, ease-out));\n      background-color: var(--kui-tween-background-color-4, var(--kui-tween-background-color, transparent));\n    }\n    100% {\n      background-color: var(--kui-tween-background-color-5, var(--kui-tween-background-color, transparent));\n    }\n  }\n}\n\n/* src/css/motion-path.css */\n@layer kui.effects {\n  @keyframes kui-motion-travel {\n    from {\n      offset-distance: var(--kui-motion-from, 0%);\n    }\n    to {\n      offset-distance: var(--kui-motion-to, 100%);\n    }\n  }\n  [data-kui-fx~=motion-path],\n  [data-kui-fx~=path-arc],\n  [data-kui-fx~=path-wave],\n  [data-kui-fx~=path-loop],\n  [data-kui-fx~=path-swoop] {\n    offset-path: path(var(--kui-motion-path));\n    offset-rotate: var(--kui-motion-rotate, 0deg);\n    offset-anchor: var(--kui-motion-anchor, 0 0);\n  }\n}\n\n/* src/css/view-transitions.css */\n@layer kui.effects {\n  @supports (view-transition-name: none) {\n    :root {\n      --kui-vt-duration: 400ms;\n      --kui-vt-delay: 0ms;\n      --kui-vt-ease: cubic-bezier(0.4, 0, 0.2, 1);\n      --kui-vt-distance: 40px;\n    }\n    :root::view-transition-group(*) {\n      animation-duration: var(--kui-vt-duration, 400ms);\n      animation-delay: var(--kui-vt-delay, 0ms);\n      animation-timing-function: var(--kui-vt-ease, cubic-bezier(0.4, 0, 0.2, 1));\n    }\n    :root:active-view-transition-type(kui-page-fade)::view-transition-old(root) {\n      animation-name: kui-vt-fade-out;\n    }\n    :root:active-view-transition-type(kui-page-fade)::view-transition-new(root) {\n      animation-name: kui-vt-fade-in;\n    }\n    :root:active-view-transition-type(kui-page-slide)::view-transition-old(root) {\n      animation-name: kui-vt-slide-out;\n    }\n    :root:active-view-transition-type(kui-page-slide)::view-transition-new(root) {\n      animation-name: kui-vt-slide-in;\n    }\n    :root:active-view-transition-type(kui-curtain-wipe)::view-transition-old(root) {\n      animation-name: kui-vt-hold;\n    }\n    :root:active-view-transition-type(kui-curtain-wipe)::view-transition-new(root) {\n      animation-name: kui-vt-wipe-in;\n      z-index: 1;\n    }\n    :root::view-transition-old(root),\n    :root::view-transition-new(root) {\n      animation-duration: var(--kui-vt-duration, 400ms);\n      animation-delay: var(--kui-vt-delay, 0ms);\n      animation-timing-function: var(--kui-vt-ease, cubic-bezier(0.4, 0, 0.2, 1));\n      animation-fill-mode: both;\n    }\n    @keyframes kui-vt-fade-out {\n      to {\n        opacity: 0;\n      }\n    }\n    @keyframes kui-vt-fade-in {\n      from {\n        opacity: 0;\n      }\n    }\n    @keyframes kui-vt-slide-out {\n      to {\n        opacity: 0;\n        translate: 0 calc(-1 * var(--kui-vt-distance, 40px));\n      }\n    }\n    @keyframes kui-vt-slide-in {\n      from {\n        opacity: 0;\n        translate: 0 var(--kui-vt-distance, 40px);\n      }\n    }\n    @keyframes kui-vt-hold {\n      from, to {\n        opacity: 1;\n      }\n    }\n    @keyframes kui-vt-wipe-in {\n      from {\n        clip-path: inset(0 0 100% 0);\n      }\n      to {\n        clip-path: inset(0 0 0 0);\n      }\n    }\n    @media (prefers-reduced-motion: reduce) {\n      :root::view-transition-group(*),\n      :root::view-transition-old(*),\n      :root::view-transition-new(*) {\n        animation-duration: 1ms !important;\n        animation-delay: 0ms !important;\n      }\n    }\n  }\n}\n\n/* src/css/glass.css */\n@layer kui.effects {\n  [data-kui-fx~=glass] {\n    backdrop-filter: blur(var(--kui-glass-blur, 16px)) saturate(var(--kui-glass-saturate, 1.6));\n    -webkit-backdrop-filter: blur(var(--kui-glass-blur, 16px)) saturate(var(--kui-glass-saturate, 1.6));\n    background-color: color-mix(in srgb, var(--kui-glass-tint, #ffffff) calc(var(--kui-glass-opacity, 0.12) * 100%), transparent);\n    background-image:\n      linear-gradient(\n        var(--kui-glass-sheen-angle, 180deg),\n        color-mix(in srgb, var(--kui-glass-sheen-color, var(--kui-glass-rim, #ffffff)) calc(var(--kui-glass-sheen, 0.16) * 100%), transparent) 0%,\n        transparent 62%);\n    border-width: var(--kui-glass-rim-width, 1px);\n    border-style: solid;\n    border-color: var(--kui-glass-rim, rgb(255 255 255 / 0.22));\n    border-radius: var(--kui-glass-radius, 16px);\n  }\n  @media (forced-colors: active) {\n    [data-kui-fx~=glass] {\n      backdrop-filter: none;\n      -webkit-backdrop-filter: none;\n      background-image: none;\n    }\n  }\n}\n\n/* src/css/ready-gates.css */\n@layer kui.effects {\n  @property --kui-gate-distance { syntax: \"*\"; inherits: false; }\n  @property --kui-gate-from-angle { syntax: \"*\"; inherits: false; }\n  @property --kui-gate-bar-from { syntax: \"*\"; inherits: false; }\n  [data-kui-fx][data-kui-state=ready] {\n    --kui-gate-distance: 0px;\n  }\n  [data-kui-fx~=flip-in-x][data-kui-state=ready],\n  [data-kui-fx~=flip-in-y][data-kui-state=ready],\n  [data-kui-fx~=rotate-in][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-left][data-kui-state=ready],\n  [data-kui-fx~=rotate-in-right][data-kui-state=ready],\n  [data-kui-fx~=swing-in][data-kui-state=ready],\n  [data-kui-fx~=roll-in][data-kui-state=ready],\n  [data-kui-fx~=fold-panel][data-kui-state=ready] {\n    --kui-gate-from-angle: 0deg;\n  }\n  [data-kui-fx~=loading-bar][data-kui-state=ready],\n  [data-kui-fx~=chart-bar-grow][data-kui-state=ready],\n  [data-kui-fx~=progress-bar][data-kui-state=ready] {\n    --kui-gate-bar-from: 1;\n  }\n}\n\n/* src/css/flip-card-parts.css */\n@layer kui.effects {\n  [data-kui-fx~=flip-card] > :is(.kui-face-front, [data-kui-part=front]),\n  [data-kui-fx~=flip-card] > :is(.kui-face-back, [data-kui-part=back]) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    transition: rotate var(--kui-card-toggle-duration, 700ms) var(--kui-card-toggle-ease, ease-in-out);\n  }\n  [data-kui-fx~=flip-card] > :is(.kui-face-front, [data-kui-part=front]) {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > :is(.kui-face-back, [data-kui-part=back]) {\n    rotate: y 180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-front, [data-kui-part=front]),\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-back, [data-kui-part=back]) {\n    transition-delay: var(--kui-card-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-front, [data-kui-part=front]) {\n    rotate: y -180deg;\n  }\n  [data-kui-fx~=flip-card]:has(> :is(.kui-flip-control, [data-kui-part~=control])[aria-pressed=true]) > :is(.kui-face-back, [data-kui-part=back]) {\n    rotate: y 0deg;\n  }\n  [data-kui-fx~=flip-card] > [data-kui-part~=control][data-kui-part~=injected] {\n    grid-area: 1 / 1;\n    align-self: end;\n    justify-self: end;\n    z-index: 1;\n    margin: .75rem;\n  }\n  [data-kui-fx~=flip-card] > [data-kui-part~=quiet]:not(:focus-visible) {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border: 0;\n  }\n  :is([data-kui~=flip-card], [data-kui~=\"flip-card,\"]):not(:has(> .kui-face-front)) > :nth-child(1 of :not(button)) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    rotate: y 0deg;\n  }\n  :is([data-kui~=flip-card], [data-kui~=\"flip-card,\"]):not(:has(> .kui-face-front)) > :nth-child(2 of :not(button)) {\n    grid-area: 1 / 1;\n    backface-visibility: hidden;\n    rotate: y 180deg;\n  }\n}\n@layer kui.policy {\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm][data-kui-fx~=flip-card] > [data-kui-part=front],\n    [data-kui-rm][data-kui-fx~=flip-card] > [data-kui-part=back] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n  }\n}\n\n/* src/css/icon-parts.css */\n@layer kui.effects {\n  [data-kui-fx~=hamburger-to-x] [data-kui-part=bar] {\n    transition:\n      translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      rotate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out),\n      opacity var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    translate: 0 var(--kui-bar-gap, 6px);\n    rotate: 45deg;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    opacity: 0;\n  }\n  [data-kui-fx~=hamburger-to-x][aria-expanded=true] [data-kui-part=bar]:nth-child(3 of [data-kui-part=bar]) {\n    translate: 0 calc(var(--kui-bar-gap, 6px) * -1);\n    rotate: -45deg;\n  }\n  [data-kui-fx~=play-to-pause] [data-kui-part=bar] {\n    transition: translate var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out), clip-path var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    translate: var(--kui-bar-gap, 4px) 0;\n    clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);\n  }\n  [data-kui-fx~=play-to-pause]:not([aria-pressed=true]) [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    translate: calc(var(--kui-bar-gap, 4px) * -1) 0;\n    clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);\n  }\n  [data-kui-fx~=plus-to-minus] [data-kui-part=bar] {\n    transition: scale var(--kui-icon-toggle-duration, 260ms) var(--kui-icon-toggle-ease, ease-out);\n  }\n  [data-kui-fx~=plus-to-minus] [data-kui-part=bar]:nth-child(2 of [data-kui-part=bar]) {\n    rotate: 90deg;\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] [data-kui-part=bar] {\n    transition-delay: var(--kui-icon-toggle-delay, 0ms);\n  }\n  [data-kui-fx~=plus-to-minus][aria-expanded=true] [data-kui-part=bar]:nth-child(1 of [data-kui-part=bar]) {\n    scale: 0;\n  }\n}\n@layer kui.policy {\n  @media (prefers-reduced-motion: reduce) {\n    [data-kui-rm][data-kui-fx~=hamburger-to-x] [data-kui-part=bar],\n    [data-kui-rm][data-kui-fx~=play-to-pause] [data-kui-part=bar],\n    [data-kui-rm][data-kui-fx~=plus-to-minus] [data-kui-part=bar] {\n      transition-duration: 1ms !important;\n      transition-delay: 0ms !important;\n    }\n  }\n}\n\n/* src/css/index.css */\n"
     document.head.appendChild(style)
   }
-  window.__kuinetic = kuinetic.kuinetic({ observe: true }).start()
 })()
