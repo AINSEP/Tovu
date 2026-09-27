@@ -12,14 +12,7 @@
   ],
   "defaultMode": "dark",
   "pages": [
-    "index",
-    "about",
-    "pricing",
-    "docs",
-    "changelog",
-    "download",
-    "signin",
-    "signup"
+    "index"
   ],
   "templates": [
     "posts-default.html",

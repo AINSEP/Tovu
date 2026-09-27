@@ -1,5 +1,5 @@
 (function () {
-  var STORAGE_KEY = "tovu-theme:relay";
+  var STORAGE_KEY = "tovu-starter:mode";
   var root = document.documentElement;
 
   function apply(mode) {

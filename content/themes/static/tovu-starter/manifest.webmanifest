@@ -1,6 +1,6 @@
 {
-  "name": "Tovu",
-  "short_name": "Tovu",
+  "name": "Your Site",
+  "short_name": "Your Site",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#020203",

@@ -1,8 +1,8 @@
 <header class="site-header">
   <div class="wrap nav-row">
-    <a href="index.html" class="brand">
+    <a href="/" class="brand">
       <span class="mark"><img src="/theme-assets/tovu-starter/assets/logo.png" srcset="/theme-assets/tovu-starter/assets/logo@2x.png 2x" width="28" height="28" alt="" /></span>
-      Tovu
+      Your Site
     </a>
     <!-- `variant: "tree"` is REQUIRED for the Docs dropdown, not a style preference: the flat
          renderer (static-render.ts::renderMenuLinks) emits top-level items only and drops every
@@ -12,12 +12,7 @@
          hover/focus dropdown. Changing this back to flat silently deletes the dropdown. -->
     <!-- Marker: the header menu (Admin > Menus). "tree" renders the dropdowns; flat would drop every child item. The links inside are the fallback. -->
     <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav","variant":"tree"}'>
-      <a href="pricing.html" data-nav-id="pricing">Pricing</a>
-      <a href="docs.html" data-nav-id="docs">Docs</a>
-      <a href="blog.html" data-nav-id="blog">Blog</a>
-      <a href="changelog.html" data-nav-id="changelog">Changelog</a>
-      <a href="about.html" data-nav-id="about">About</a>
-      <a href="download.html" data-nav-id="download">Download</a>
+      <a href="/" data-nav-id="index">Home</a>
     </nav>
     <div class="nav-actions">
       <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle>
@@ -26,7 +21,7 @@
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
         </span>
       </button>
-      <a href="download.html" class="btn btn-solid nav-cta">Get started</a>
+      <!-- No CTA by default. To add one back: <a href="/your-page.html" class="btn btn-solid nav-cta">Get started</a> -->
       <button class="nav-toggle btn btn-ghost" type="button" aria-expanded="false" aria-controls="mnav" aria-label="Open menu">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
@@ -56,7 +51,6 @@
             </span>
           </button>
         </div>
-        <a href="download.html" class="btn btn-solid btn-lg btn-block">Get started</a>
       </div>
     </div>
   </dialog>

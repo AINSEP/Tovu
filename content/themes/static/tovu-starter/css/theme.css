@@ -459,30 +459,10 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    font and never had this bug. */
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; white-space: pre; font: 13px/1.5 var(--font-mono); }
 .post-detail-body pre code { border: none; background: none; padding: 0; white-space: inherit; line-height: 1.5; }
-/* Live example frame (docs pages, 2026-09-23; white/gold made the default 2026-09-23 same day,
-   owner approved the gold-frame prototype and asked to "update throughout") — wraps a rendered
-   marker's live output (a `.live-example` div around the marker element) so it reads as a
-   distinct demo instead of blending into the surrounding doc prose. The "Live example" text is
-   `content` on `::before`, not a real element, so a docs page body only needs the wrapper div,
-   never its own label markup.
-
-   A gold border on the theme's own `--surface` background is the default for every live example
-   on every docs page (/embeds, /media, /posts, /forms, …) — not a one-off modifier class. `--gold`
-   is sampled from this theme's own `assets/logo@2x.png` (~rgb(255,186,62)) because neither
-   tokens.json nor tokens.light.json names a fixed gold, and the frame should read the same in
-   both modes.
-
-   The background follows the theme (2026-09-26). It used to be a fixed white with light-mode
-   `--fg`/`--muted`/`--prose-link` re-declared locally, but embedded widgets style their own
-   controls from the page's mode-varying tokens, so in dark mode the contact form's inputs came out
-   near-black inside a white box. Following the theme instead means the box and whatever it wraps
-   read from the same tokens in both modes.
-
-   `color: var(--fg)` stays on the box itself: a plain-inheriting descendant (e.g. the "Footer
-   Resources" widget's `<h3 class="widget-menu-title">`, which has no `color` rule of its own)
-   inherits the COMPUTED `color`, not a live re-read of `--fg`, so the box gives its scope a
-   freshly computed one. */
-:root { --gold: #ffba3e; }
+/* Live example frame (docs pages): wraps a rendered marker's live output so it reads as a distinct
+   demo instead of blending into the surrounding doc prose. `--gold` just aliases `--accent` here
+   so the frame follows the theme's own accent colour in both modes. */
+:root { --gold: var(--accent); }
 /* `.latest-posts .live-example` (2026-09-23) — /posts's "Latest posts" list is the one live example
    NOT inside `.post-detail-body` (it's the theme-owned post-previews marker rendered by
    listing-default.html, a sibling section to the article body, not authored inside it), so the
