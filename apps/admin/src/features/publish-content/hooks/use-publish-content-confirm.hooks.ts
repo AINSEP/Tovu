@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
   applyPublishCriteria,
@@ -155,8 +155,12 @@ export interface PublishContentConfirmView {
   /** Owner decision 2026-09-25 — the description line under the title, an English copy key naming
    *  what this dialog sends: `publishScopeDescriptionKey(props.scope)`. */
   readonly description: string;
+  /** Which control the forward button is: `start` connects or plans, `confirm` publishes. They
+   *  render as two different buttons, never one relabelled in place — see {@link CONFIRM_ARM_DELAY_MS}. */
+  readonly primaryKind: PublishPrimaryKind;
   readonly primaryLabel: string;
   readonly primaryDisabled: boolean;
+  /** Ignored for {@link CONFIRM_ARM_DELAY_MS} after the confirm control becomes clickable. */
   readonly onPrimary: () => void;
   /** A failed plan/confirm/execute, or a failed peer read. `null` when nothing has gone wrong. */
   readonly errorMessage: string | null;
@@ -177,6 +181,24 @@ export interface PublishContentConfirmView {
 }
 
 const EMPTY_ROWS: readonly PublishReportRow[] = [];
+
+export type PublishPrimaryKind = "start" | "confirm";
+
+/**
+ * How long the confirm control ignores activation after it becomes clickable (owner report
+ * 2026-09-26). The button used to turn from a disabled "Planning…" into "Publish N items" in place,
+ * so a click aimed at "Planning…" that waited for the button to enable — an automated click does
+ * exactly that — published to live. Confirm is now its own control, and a click this soon after it
+ * appears can't have been aimed at it. It stays enabled meanwhile: a disabled window would only make
+ * a waiting click wait for it.
+ */
+export const CONFIRM_ARM_DELAY_MS = 400;
+
+/** `start` until a plan is on screen (or the run is done), `confirm` from then on. @complexity O(1). */
+function primaryKindFor(phase: PublishContentPhase, connectOffer: PublishContentConnectOffer | null): PublishPrimaryKind {
+  if (connectOffer || canRequestPlan(phase) || phase.kind === "planning") return "start";
+  return "confirm";
+}
 
 /**
  * Operator-facing copy for a failed call, via the shared `describeApiError` base case rather than a
@@ -465,6 +487,7 @@ function buildCriteriaPublishResult(
  * @param props.onPlanned Fires once, with what the (possibly criteria-narrowed) plan actually shows —
  *   after any overwrite re-plan the criteria triggered has settled, never before. `undefined` for the
  *   Dashboard's own ordinary open (plan §0's caller 1), which has no one waiting on an answer.
+ * @param props.confirmArmDelayMs Defaults to {@link CONFIRM_ARM_DELAY_MS}; tests pass 0.
  * @complexity Time: O(n) per re-render in the plan's row count (row shaping + the summary counts);
  * space: O(n) for the shaped rows. One document-level keydown listener for the mounted lifetime.
  */
@@ -475,6 +498,7 @@ export function usePublishContentConfirm(props: {
   criteria?: PublishCriteria;
   scope?: PublishScope;
   onPlanned?: (result: PublishRequestResult) => void;
+  confirmArmDelayMs?: number;
 }): PublishContentConfirmView {
   const { onCancel, t } = props;
   const port = props.port ?? defaultPublishContentPort;
@@ -996,17 +1020,36 @@ export function usePublishContentConfirm(props: {
     return isChosenPeerId(selectedPeerId) ? requestPlan(selectedPeerId) : Promise.resolve();
   }, [confirmPlan, connectOffer, onConnect, phase, requestPlan, selectedPeerId]);
 
+  const primaryKind = primaryKindFor(phase, connectOffer);
+  const primaryDisabled = connectOffer
+    ? connecting || connectOffer.candidateUrl === null
+    : // `selectedPublishing` is ANDed with the plan-level rule, never a replacement for it: a plan
+      // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
+      // plan with everything unchecked is disabled too — the button never promises a run that
+      // would write nothing.
+      !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending));
+
+  // When the confirm control last became clickable (appeared, or re-enabled after a tick's re-plan).
+  // A layout effect, so the stamp lands before the browser can deliver a click to the new control.
+  const confirmArmDelayMs = props.confirmArmDelayMs ?? CONFIRM_ARM_DELAY_MS;
+  const confirmClickable = primaryKind === "confirm" && !primaryDisabled;
+  const confirmClickableSinceRef = useRef(0);
+  useLayoutEffect(() => {
+    if (confirmClickable) confirmClickableSinceRef.current = performance.now();
+  }, [confirmClickable]);
+
   // Synchronous duplicate-submit guard (terra review 2026-09-20, finding 5's sibling). The button's
   // `disabled` is render-time phase; two calls in one tick both see `planned`, and each confirmed
   // phase would fire its own execute at the live site. Held until the step's own request settles.
   const primaryInFlightRef = useRef(false);
   const onPrimary = useCallback(() => {
+    if (primaryKind === "confirm" && performance.now() - confirmClickableSinceRef.current < confirmArmDelayMs) return;
     if (primaryInFlightRef.current) return;
     primaryInFlightRef.current = true;
     void runPrimary().finally(() => {
       primaryInFlightRef.current = false;
     });
-  }, [runPrimary]);
+  }, [confirmArmDelayMs, primaryKind, runPrimary]);
 
   return {
     phase,
@@ -1047,13 +1090,8 @@ export function usePublishContentConfirm(props: {
       props.scope,
       rows.length === 0 && liveGapNotices.length > 0
     ),
-    primaryDisabled: connectOffer
-      ? connecting || connectOffer.candidateUrl === null
-      : // `selectedPublishing` is ANDed with the plan-level rule, never a replacement for it: a plan
-        // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
-        // plan with everything unchecked is disabled too — the button never promises a run that
-        // would write nothing.
-        !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending)),
+    primaryKind,
+    primaryDisabled,
     onPrimary,
     errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
     refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,

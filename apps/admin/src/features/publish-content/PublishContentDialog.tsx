@@ -93,10 +93,12 @@ export interface PublishContentDialogProps {
   /** Threaded straight through to `usePublishContentConfirm`; see that hook's own `props.onPlanned`
    *  doc for when it fires. */
   onPlanned?: (result: PublishRequestResult) => void;
+  /** Threaded straight through to `usePublishContentConfirm` — tests pass 0 to skip the arming delay. */
+  confirmArmDelayMs?: number;
 }
 
-export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPlanned }: PublishContentDialogProps) {
-  const view = usePublishContentConfirm({ onCancel, t, port, criteria, scope, onPlanned });
+export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPlanned, confirmArmDelayMs }: PublishContentDialogProps) {
+  const view = usePublishContentConfirm({ onCancel, t, port, criteria, scope, onPlanned, confirmArmDelayMs });
   const titleId = "dashboard-publish-content-confirm-title";
   // publish-overwrite-live-plan §4/S9. The column exists only while the peer this plan targets can
   // honour a forced overwrite AND at least one row is offering one — decided in the hook.
@@ -336,22 +338,42 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
           >
             {t("Cancel")}
           </button>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={view.primaryDisabled}
-            onClick={view.onPrimary}
-            {...agentHandle("dashboard-publish-content-confirm", {
-              role: "button",
-              // Same control, different job: while `connectOffer` is set this button connects the
-              // pre-filled site instead of reviewing a plan — see this file's header.
-              label: view.connectOffer
-                ? "Connect this site so it can publish, using the pre-filled site address"
-                : "Review what would be published, then publish it to the live site",
-            })}
-          >
-            {view.primaryLabel}
-          </button>
+          {/* Two different buttons, keyed apart so the confirm is a new element rather than the plan
+              button relabelled in place — a click waiting on "Planning…" must never land on
+              "Publish N items" (owner report 2026-09-26; see `CONFIRM_ARM_DELAY_MS`). */}
+          {view.primaryKind === "start" ? (
+            <button
+              key="start"
+              type="button"
+              className="btn-primary"
+              disabled={view.primaryDisabled}
+              onClick={view.onPrimary}
+              {...agentHandle("dashboard-publish-content-plan", {
+                role: "button",
+                // While `connectOffer` is set this button connects the pre-filled site instead of
+                // planning — see this file's header.
+                label: view.connectOffer
+                  ? "Connect this site so it can publish, using the pre-filled site address"
+                  : "Work out what would be published, without publishing anything",
+              })}
+            >
+              {view.primaryLabel}
+            </button>
+          ) : (
+            <button
+              key="confirm"
+              type="button"
+              className="btn-primary"
+              disabled={view.primaryDisabled}
+              onClick={view.onPrimary}
+              {...agentHandle("dashboard-publish-content-confirm", {
+                role: "button",
+                label: "Publish the checked items to the live site",
+              })}
+            >
+              {view.primaryLabel}
+            </button>
+          )}
         </span>
       </div>
     </div>

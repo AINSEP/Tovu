@@ -32,6 +32,10 @@ import { usePublishContentConfirm } from "../hooks/use-publish-content-confirm.h
 
 const t = (key: string) => key;
 
+/** Every test but the arming ones below clicks Publish the moment it appears; the arming delay has
+ *  its own describe block ("the confirm is its own control"), run at the real default. */
+const NO_ARM_DELAY = 0;
+
 const ONE_PEER = [
   {
     id: "peer-prod",
@@ -81,8 +85,11 @@ const HELLO_WORLD = "11111111-aaaa-4aaa-8aaa-111111111111";
 const ABOUT_US = "22222222-bbbb-4bbb-8bbb-222222222222";
 const UNNAMED_MEDIA = "33333333-cccc-4ccc-8ccc-333333333333";
 
-function renderDialog(port: ReturnType<typeof createFakePublishContentPort>, extra?: { scope?: PublishScope }) {
-  return render(<PublishContentDialog onCancel={() => {}} t={t} port={port} scope={extra?.scope} />);
+function renderDialog(
+  port: ReturnType<typeof createFakePublishContentPort>,
+  extra?: { scope?: PublishScope; confirmArmDelayMs?: number }
+) {
+  return render(<PublishContentDialog onCancel={() => {}} t={t} port={port} scope={extra?.scope} confirmArmDelayMs={extra?.confirmArmDelayMs ?? NO_ARM_DELAY} />);
 }
 
 /** The dialog's own `<h2>` — plan-publish-sections-2026-09-25.md §2 S2's title. */
@@ -641,7 +648,7 @@ describe("PublishContentDialog — a plan belongs to the site it was made for (t
   });
   it("a plan that answers after the site was changed in the same tick is dropped, never shown against the new site", async () => {
     const port = createFakePublishContentPort({ peers: TWO_PEERS, report: MIXED_REPORT });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.peers).toHaveLength(2));
     act(() => result.current.onSelectPeer("peer-prod"));
 
@@ -661,7 +668,7 @@ describe("PublishContentDialog — a plan belongs to the site it was made for (t
 
   it("a plan FAILURE that answers after the site was changed is dropped too — the new site did not fail", async () => {
     const port = createFakePublishContentPort({ peers: TWO_PEERS, planError: new Error("production is down") });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.peers).toHaveLength(2));
     act(() => result.current.onSelectPeer("peer-prod"));
 
@@ -712,7 +719,7 @@ describe("PublishContentDialog — the blank 'Choose a site…' option is not a 
 
   it("the hook's own guards refuse an empty peer id even if a caller bypasses the disabled button", async () => {
     const port = createFakePublishContentPort({ peers: TWO_PEERS, report: SELECTION_REPORT });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.peers).toHaveLength(2));
 
     act(() => result.current.onSelectPeer(""));
@@ -749,7 +756,7 @@ describe("PublishContentDialog — the blank 'Choose a site…' option is not a 
         nextStep: null,
       },
     });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.connectOffer).not.toBeNull());
 
     await act(async () => {
@@ -791,7 +798,7 @@ describe("PublishContentDialog — a committed publish can't be closed out from 
     const onCancel = vi.fn();
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
     const user = userEvent.setup();
-    render(<PublishContentDialog onCancel={onCancel} t={t} port={port} />);
+    render(<PublishContentDialog onCancel={onCancel} t={t} port={port} confirmArmDelayMs={NO_ARM_DELAY} />);
     await waitFor(() => expect(port.calls.listPeers).toBe(1));
 
     expect(await tryEveryWayToClose(user, onCancel)).toBe(3);
@@ -823,7 +830,7 @@ describe("PublishContentDialog — a committed publish can't be closed out from 
         }),
     };
     const user = userEvent.setup();
-    render(<PublishContentDialog onCancel={onCancel} t={t} port={heldPort as typeof port} />);
+    render(<PublishContentDialog onCancel={onCancel} t={t} port={heldPort as typeof port} confirmArmDelayMs={NO_ARM_DELAY} />);
     await waitFor(() => expect(port.calls.listPeers).toBe(1));
     await user.click(primaryButton());
     await screen.findByRole("table");
@@ -1230,7 +1237,7 @@ describe("PublishContentDialog — Overwrite on live, review fixes", () => {
   it("Publish can't confirm the old plan while a tick's re-plan is still out", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
     const real = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
     await act(async () => result.current.onPrimary());
     await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
@@ -1343,10 +1350,82 @@ describe("PublishContentDialog — the Publish button is agent-drivable, like th
   });
 });
 
+// Owner report 2026-09-26: a click aimed at "Planning…" that waited for the button to enable landed
+// on "Publish N items" and published to live. The confirm is now a different control that appears
+// only once the plan is on screen, and it ignores activation for a moment after it appears.
+describe("PublishContentDialog — the confirm is its own control, armed a moment after it appears", () => {
+  function heldPlanPort() {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    let releasePlan: () => void = () => {};
+    const held = {
+      ...port,
+      planPublish: (input: Parameters<typeof port.planPublish>[0]) =>
+        new Promise<Awaited<ReturnType<typeof port.planPublish>>>((resolve, reject) => {
+          releasePlan = () => port.planPublish(input).then(resolve, reject);
+        }),
+    } as typeof port;
+    return { port, held, release: () => releasePlan() };
+  }
+
+  it("the plan button is replaced by a different confirm control, never relabelled in place", async () => {
+    const { port, held, release } = heldPlanPort();
+    const user = userEvent.setup();
+    renderDialog(held, { confirmArmDelayMs: 400 });
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+    expect(document.querySelector('[data-agent-element="dashboard-publish-content-confirm"]')).toBeNull();
+
+    await user.click(primaryButton());
+    const planning = primaryButton();
+    expect(planning.textContent).toBe("Planning…");
+    expect(planning).toHaveAttribute("data-agent-element", "dashboard-publish-content-plan");
+    expect(document.querySelector('[data-agent-element="dashboard-publish-content-confirm"]')).toBeNull();
+
+    release();
+    await screen.findByRole("table");
+    const confirm = primaryButton();
+    expect(confirm).not.toBe(planning);
+    expect(planning.isConnected).toBe(false);
+    expect(confirm).toHaveAttribute("data-agent-element", "dashboard-publish-content-confirm");
+    expect(document.querySelector('[data-agent-element="dashboard-publish-content-plan"]')).toBeNull();
+  });
+
+  it("a click that lands as the confirm appears publishes nothing; a later one publishes", async () => {
+    const { port, held, release } = heldPlanPort();
+    const user = userEvent.setup();
+    renderDialog(held, { confirmArmDelayMs: 400 });
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+    await user.click(primaryButton());
+    release();
+    await screen.findByRole("table");
+
+    // What a waiting click does: fires on the first actionable button it finds.
+    await user.click(primaryButton());
+    expect(primaryButton().textContent).toBe("Publish 1 item");
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(port.calls.executePublish).toEqual([]);
+
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    await user.click(primaryButton());
+    await waitFor(() => expect(port.calls.executePublish).toHaveLength(1));
+    expect(port.calls.confirmPublish).toHaveLength(1);
+  });
+
+  it("the delay is on by default", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    const user = userEvent.setup();
+    render(<PublishContentDialog onCancel={() => {}} t={t} port={port} />);
+    await waitFor(() => expect(port.calls.listPeers).toBe(1));
+    await user.click(primaryButton());
+    await screen.findByRole("table");
+    await user.click(primaryButton());
+    expect(port.calls.confirmPublish).toEqual([]);
+  });
+});
+
 describe("PublishContentDialog — the primary action can't be doubled in one tick (terra #5)", () => {
   it("two confirms from the same render send one confirm and one execute", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
     await act(async () => {
       result.current.onPrimary();
@@ -1366,7 +1445,7 @@ describe("PublishContentDialog — the primary action can't be doubled in one ti
 
   it("two plan requests from the same render send one plan", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
 
     const view = result.current;
@@ -1383,7 +1462,7 @@ describe("PublishContentDialog — the primary action can't be doubled in one ti
       peers: [],
       destination: { connected: false, site: null, candidateUrl: "https://tovu.com", message: "Connect tovu.com?", nextStep: null },
     });
-    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port }));
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
     await waitFor(() => expect(result.current.connectOffer).not.toBeNull());
 
     const view = result.current;
@@ -1430,7 +1509,9 @@ describe("PublishContentDialog — criteria-driven open (publish-criteria plan �
     const onPlanned = vi.fn<(result: PublishRequestResult) => void>();
     const criteria: PublishCriteria = { types: ["page", "menu"], overwrite: true };
 
-    render(<PublishContentDialog onCancel={() => {}} t={t} port={port} criteria={criteria} onPlanned={onPlanned} />);
+    render(
+      <PublishContentDialog onCancel={() => {}} t={t} port={port} criteria={criteria} onPlanned={onPlanned} confirmArmDelayMs={NO_ARM_DELAY} />
+    );
 
     // No click anywhere in this test — the auto-plan effect stands in for the person's first click,
     // since planning writes nothing (plan §3's gate is about confirm/execute only).
