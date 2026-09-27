@@ -560,6 +560,13 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    relying on that page's own styles to remember the declaration. */
 .code-block-wrap { position: relative; }
 pre.has-copy-btn { padding-right: 48px; }
+/* 2026-09-26: `padding-right` alone did not keep text clear of the button. `pre`'s scrollport
+   includes its own padding, so an unscrolled long line still ran under the button and read as cut
+   off (the /pages embed example). When the text sits in a `<code>` child, that child scrolls
+   instead: as a block it ends at `pre`'s content edge, so its scrollport stops 48px short of the
+   right border and the button owns that gutter at any scroll position. Lines still scroll rather
+   than wrap (8587caa6f). A bare `<pre>` with no `<code>` keeps scrolling on `pre` itself. */
+pre.has-copy-btn > code { display: block; overflow-x: auto; }
 .code-block-wrap .code-copy-btn {
   position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
