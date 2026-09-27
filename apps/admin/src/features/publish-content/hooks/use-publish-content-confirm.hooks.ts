@@ -329,6 +329,17 @@ export function overwriteTooltipFor(
 }
 
 /**
+ * The line a row shows under its status (owner 2026-09-26: no mostly-empty "Why" column) — a
+ * carried-along row's "Used by …" note, else the row's reason. `null` adds nothing under the pill.
+ *
+ * @complexity O(1).
+ */
+export function reportRowNote(row: Pick<PublishReportRow, "usedByNote" | "reason">, t: Translate): string | null {
+  if (row.usedByNote) return t(row.usedByNote);
+  return row.reason ? row.reason : null;
+}
+
+/**
  * Whether a publish has been committed and has no outcome yet: confirm is on its way or answered,
  * or execute is running. From here the live site finishes the run whatever this dialog does (terra
  * review 2026-09-20, finding 3), so the dialog stays open until it can say how that went.

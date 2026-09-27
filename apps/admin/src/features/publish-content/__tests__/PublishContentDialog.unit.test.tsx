@@ -387,6 +387,34 @@ describe("PublishContentDialog — plain column names (owner 2026-09-26)", () =>
   });
 });
 
+describe("PublishContentDialog — reasons sit with their row, not in a mostly-empty column", () => {
+  it("has no Why column, even when a row has a reason", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    await planFrom(port);
+
+    const headers = [...document.querySelectorAll("thead th")].map((th) => th.textContent?.trim());
+    expect(headers).not.toContain("Why");
+  });
+
+  it("shows a skipped row's reason under its status, in the same cell", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    await planFrom(port);
+
+    const cells = reportRow("post-edited-there").querySelectorAll("td");
+    expect(cells).toHaveLength(4);
+    const whatHappens = cells[3];
+    expect(within(whatHappens).getByText("Skipped")).toBeTruthy();
+    expect(whatHappens.querySelector(".publish-content-reason")?.textContent).toBe(CONFLICT_REASON);
+  });
+
+  it("adds nothing under a row that has no reason", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    await planFrom(port);
+
+    expect(reportRow("post-new").querySelector(".publish-content-reason")).toBeNull();
+  });
+});
+
 describe("PublishContentDialog — the entity column names entities, never uuids", () => {
   it("shows the entity's own slug, and keeps the id on the row, not in the tooltip", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });

@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
 import type { Translate } from "../../lib/dictionary-translator";
-import { overwriteTooltipFor, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
+import { overwriteTooltipFor, reportRowNote, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
 
 /**
@@ -200,7 +200,6 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                     <th>{t("Type")}</th>
                     <th>{t("Item")}</th>
                     <th>{t("What happens")}</th>
-                    <th>{t("Why")}</th>
                     {showOverwriteColumn && (
                       <th className="publish-content-overwrite">
                         <input
@@ -266,8 +265,10 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                       <td title={row.entityLabel}>{row.entityLabel}</td>
                       <td>
                         <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
+                        {/* The reason sits under the status it explains — most rows have none, so a
+                            column of its own was mostly empty (owner 2026-09-26). */}
+                        {reportRowNote(row, t) && <span className="publish-content-reason">{reportRowNote(row, t)}</span>}
                       </td>
-                      <td className="publish-content-reason">{row.usedByNote ? t(row.usedByNote) : (row.reason ?? "")}</td>
                       {showOverwriteColumn && (
                         <td className="publish-content-overwrite">
                           {/* Only an offered row (overwritable, or already ticked) carries this

@@ -50,14 +50,11 @@
    own horizontal scrollbar never became visible enough to notice, so it read as a bug, not a scroll).
    `table-layout: fixed` sizes every column from its `<thead>` cell's own width — the table algorithm
    always reads the FIRST row, so a width has to live on the `<th>`, not the `<td>`, to have any effect
-   — and gives whichever column declares no width at all, `.publish-content-reason`, the entire
-   remainder. That is exactly the "wraps and gets the room" property `.publish-content-reason` already
-   claimed below; before this rule it was competing for space like every other column and losing.
+   — and gives whichever column declares no width at all (now "What happens", which carries each row's
+   reason under its status since the Why column went, owner 2026-09-26) the entire remainder.
    Every width here is a PERCENTAGE of the table's own rendered width rather than a fixed `rem`, so the
    five fixed columns and the one flexible one shrink together in proportion at 390px mobile instead of
-   the fixed-`rem` columns eating a bigger and bigger share of an ever-narrower table (that mismatch —
-   `rem` columns fixed, only Entity/What-happens as `%` — was what left nothing for Why on mobile in an
-   earlier draft of this fix). Scoped to `.publish-content-report .list-table`, never bare `.list-table`,
+   the fixed-`rem` columns eating a bigger and bigger share of an ever-narrower table. Scoped to `.publish-content-report .list-table`, never bare `.list-table`,
    so none of the other ~15 admin screens sharing that class lose their own `auto` content-sizing. */
 .publish-content-report .list-table {
   table-layout: fixed;
@@ -65,8 +62,7 @@
 
 /* Owner-facing plain words ("Post", "Redirect", "Theme" — `report-rows.ts`'s `ENTITY_TYPE_LABEL`)
    run a little longer than the raw type ids this column was first sized for; 10% clipped "Redirect"
-   to "Redire…" (owner report, 2026-09-25). Taken from the flexible, unspecified Why column below
-   (this file's header), which has the most room to give. */
+   to "Redire…" (owner report, 2026-09-25). */
 .publish-content-report .list-table th:nth-child(2) {
   width: 14%;
 }
@@ -81,8 +77,10 @@
   text-overflow: ellipsis;
 }
 
+/* The Item column got most of the old Why column's room: names were cut off at 22% (owner
+   screenshot 2026-09-26). */
 .publish-content-report .list-table th:nth-child(3) {
-  width: 22%;
+  width: 36%;
 }
 
 /* The entity column now carries a slug or a title, not a uuid — monospace and `break-all` were
@@ -95,14 +93,10 @@
   white-space: nowrap;
 }
 
-.publish-content-report .list-table th:nth-child(4) {
-  width: 22%;
-}
-
 /* The checkbox column: as narrow as the control, centred, and never a click target wider than it
    looks. A percentage (not the old fixed `rem`) so it shrinks with every other column at 390px rather
-   than holding its full desktop width while the flexible Why column gives up all of its own — see
-   this file's header. */
+   than holding its full desktop width while the flexible column gives up all of its own — see this
+   file's header. */
 .publish-content-report .publish-content-select {
   width: 8%;
   padding-right: 0;
@@ -126,16 +120,14 @@
   cursor: default;
 }
 
-/* The reason column carries the only text in this dialog an operator has to actually read — a
-   skipped row's explanation — so it gets the room, and wraps rather than truncating. It is
-   deliberately the one column above with no declared `width`: under the fixed table layout this file's
-   header explains, an unspecified column receives whatever the other five leave behind, which is what
-   makes it the room-getting column rather than a fixed share. `max-width` stays as a defensive cap for
-   an unusually wide window — the dialog itself is already capped at 48rem, so 22rem is rarely the
-   binding constraint, but a column with no other ceiling should still have one. */
+/* A row's reason, under its status pill in the "What happens" cell — the only text in this dialog an
+   operator has to actually read, so it wraps rather than truncating. */
 .publish-content-reason {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
   white-space: normal;
-  max-width: 22rem;
 }
 
 /* A skipped row is the one thing the operator must not scroll past. A left rail in the existing
