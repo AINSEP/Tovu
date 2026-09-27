@@ -1,10 +1,8 @@
 import { once } from "node:events";
-import { createServer, type Server } from "node:http";
+import { createServer, type RequestListener, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-
-import type { Express } from "express";
 
 import { resolvePathWithin } from "#src/contracts/core/index";
 import { resolveThemeLayout } from "#src/features/theme/index";
@@ -12,7 +10,7 @@ import { resolveThemeLayout } from "#src/features/theme/index";
 // No import of `server/app.ts` here, static OR lazy (2026-08-16 rework). This used to be the single
 // shared back-edge that every export/publish import cycle ran through — `server/app.ts` (and
 // anything it registers — the export route, the publish route, the deployments agent-tool domain)
-// reaches `export/index.ts`, which reaches this file, so even the lazy `require("../../server/app")`
+// reaches `export/index.ts`, which reaches this file, so even the lazy `require` of `server/app`
 // this file used to carry closed:
 //
 //     server/app.ts -> ... -> export/index.ts -> export/site-exporter.ts -> server/app.ts
@@ -218,7 +216,8 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * (re-used here via `extends` rather than duplicated — `buildRouteManifest(routeDeps)` below needs
  * exactly that shape) plus the one extra field this file reads directly.
  *
- * `createSiteApp` is NULLARY (`() => Express`), not `(routeDeps: RouteDeps) => Express` — see that
+ * `createSiteApp` is NULLARY (`() => RequestListener`, which the Express app satisfies), not
+ * `(routeDeps: RouteDeps) => Express` — see that
  * field's own doc in `server/routes/types.ts` for why: it is bound to its own `routeDeps` ONCE, at
  * composition-root construction time, the same way `RouteDeps.exportSiteBound` already binds
  * `exportSite` itself.
@@ -228,7 +227,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * `createRouteDeps()`.
  */
 export interface ExportSiteRouteDeps extends RouteManifestDeps {
-  readonly createSiteApp: () => Express;
+  readonly createSiteApp: () => RequestListener;
 }
 
 export interface ExportSiteOptions {
