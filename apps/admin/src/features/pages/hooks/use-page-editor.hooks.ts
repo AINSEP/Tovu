@@ -187,6 +187,9 @@ export interface PageEditorController {
    * on the Interactive tab, or not yet rendered).
    */
   interactiveEditorRef: RefObject<InteractiveHtmlEditorHandle | null>;
+  /** `<InteractiveHtmlEditor onChange>`: `setHtml` with the canvas's `&quot;`-encoded embed markers
+   *  put back in their readable single-quoted form (`use-interactive-flush.hooks.ts`). */
+  setHtmlFromCanvas: (value: string) => void;
   /**
    * Whether the working copy differs from what was last loaded or saved.
    *
@@ -659,7 +662,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
   // Interactive flush (2026-09-23 plan) — see `PageEditorController.interactiveEditorRef`'s own doc.
-  const { interactiveEditorRef, flushInteractiveEdits } = useInteractiveEditorFlush(setHtml);
+  const { interactiveEditorRef, flushInteractiveEdits, setHtmlFromCanvas } = useInteractiveEditorFlush(setHtml);
   const { device, setDevice } = useDevicePreviewDevice();
   // Preview fullscreen (2026-09-16) — see `PageEditorController.previewExpanded`'s own doc for why
   // this lives here instead of `App.tsx` or a bus. `false` by default: opening a Page must never
@@ -1206,6 +1209,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     t: boundT,
     embedPlaceholderDescriber,
     interactiveEditorRef,
+    setHtmlFromCanvas,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
     // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`
     // would report edits as dirty (or, worse, as clean) independent of anything actually saveable.

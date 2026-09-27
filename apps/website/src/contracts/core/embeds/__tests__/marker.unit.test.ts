@@ -6,6 +6,7 @@ import {
   embedMarkerTarget,
   formatMarkerAttributes,
   hasAuthoredAttributes,
+  normalizeEmbedMarkerQuoting,
   parseEmbedMarkerConfig,
   parseMarkerAttributes,
   scanEmbedMarkers,
@@ -558,4 +559,61 @@ test("scanEmbedMarkers: a single-quoted marker's value is still read verbatim (n
   const { markers } = scanEmbedMarkers(`<div data-embed-config='{"type":"media","id":"m1","alt":"a &amp; b"}'></div>`);
 
   assert.equal(markers[0].config.alt, "a &amp; b");
+});
+
+// normalizeEmbedMarkerQuoting (2026-09-26): the save-side half of the fix above. The scanner reads
+// both quotings, but the stored page source should read the way it was authored, so every Page HTML
+// write turns a DOM-serialized marker back into the single-quoted JSON form.
+
+test("normalizeEmbedMarkerQuoting: rewrites a DOM-serialized marker to the readable single-quoted form", () => {
+  const html = `<div class="live-example">${DOM_SERIALIZED_MARKER}</div>`;
+
+  assert.equal(
+    normalizeEmbedMarkerQuoting(html),
+    `<div class="live-example"><div data-embed-config='{"type":"widget","slug":"contact-form"}'></div></div>`
+  );
+});
+
+test("normalizeEmbedMarkerQuoting: the config a scan reads is identical before and after, including ' and & in values", () => {
+  const html = `<nav class="n" data-embed-config="{&quot;type&quot;:&quot;media&quot;,&quot;id&quot;:&quot;m1&quot;,&quot;alt&quot;:&quot;Tom&#39;s A &amp; B &lt;y&gt;&quot;}" aria-label="x">fb</nav>`;
+
+  const normalized = normalizeEmbedMarkerQuoting(html);
+
+  assert.equal(
+    normalized,
+    `<nav class="n" data-embed-config='{"type":"media","id":"m1","alt":"Tom\\u0027s A \\u0026 B <y>"}' aria-label="x">fb</nav>`
+  );
+  const before = scanEmbedMarkers(html).markers[0];
+  const after = scanEmbedMarkers(normalized).markers[0];
+  assert.deepEqual(after.config, before.config);
+  assert.equal(after.config.alt, "Tom's A & B <y>");
+  assert.equal(after.inner, "fb");
+  assert.deepEqual(parseMarkerAttributes(after), parseMarkerAttributes(before));
+});
+
+test("normalizeEmbedMarkerQuoting: idempotent, and a single-quoted marker is left byte-identical", () => {
+  const authored = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div><p>x</p>`;
+
+  assert.equal(normalizeEmbedMarkerQuoting(authored), authored);
+  const once = normalizeEmbedMarkerQuoting(DOM_SERIALIZED_MARKER);
+  assert.equal(normalizeEmbedMarkerQuoting(once), once);
+});
+
+test("normalizeEmbedMarkerQuoting: leaves a marker inside a comment or <script>, and an unparseable value, exactly as written", () => {
+  const commented = `<!-- ${DOM_SERIALIZED_MARKER} -->`;
+  const scripted = `<script>const s = '${DOM_SERIALIZED_MARKER}';</script>`;
+  const broken = `<div data-embed-config="{&quot;type&quot;:"></div>`;
+
+  assert.equal(normalizeEmbedMarkerQuoting(commented), commented);
+  assert.equal(normalizeEmbedMarkerQuoting(scripted), scripted);
+  assert.equal(normalizeEmbedMarkerQuoting(broken), broken);
+});
+
+test("normalizeEmbedMarkerQuoting: rewrites every marker in a document, not just the first", () => {
+  const html = `${DOM_SERIALIZED_MARKER}<p>between</p>${DOM_SERIALIZED_MARKER}`;
+
+  const normalized = normalizeEmbedMarkerQuoting(html);
+
+  assert.equal(normalized.includes("&quot;"), false);
+  assert.equal(scanEmbedMarkers(normalized).markers.length, 2);
 });

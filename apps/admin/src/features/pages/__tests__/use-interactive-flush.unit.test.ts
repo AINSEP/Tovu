@@ -100,3 +100,37 @@ describe("useInteractiveEditorFlush — a rejected or hanging flush never blocks
     expect(setHtml).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The canvas (GrapesJS) serializes `data-embed-config='{"type":…}'` as
+ * `data-embed-config="{&quot;type&quot;:…}"`. Everything the canvas hands back into the working copy
+ * (a flush, and every `onChange`) comes back in the readable single-quoted form, so the HTML tab and
+ * the saved page show what was authored.
+ */
+describe("useInteractiveEditorFlush — canvas output keeps embed markers readable", () => {
+  const CANVAS = `<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`;
+  const READABLE = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
+
+  it("a flush writes and resolves the readable form", async () => {
+    const setHtml = vi.fn();
+    const { result } = renderHook(() => useInteractiveEditorFlush(setHtml));
+    result.current.interactiveEditorRef.current = { flush: vi.fn(async () => CANVAS) };
+
+    let flushed: string | undefined;
+    await act(async () => {
+      flushed = await result.current.flushInteractiveEdits();
+    });
+
+    expect(flushed).toBe(READABLE);
+    expect(setHtml).toHaveBeenCalledWith(READABLE);
+  });
+
+  it("setHtmlFromCanvas (the editor's onChange) writes the readable form", () => {
+    const setHtml = vi.fn();
+    const { result } = renderHook(() => useInteractiveEditorFlush(setHtml));
+
+    act(() => result.current.setHtmlFromCanvas(`<p>x</p>${CANVAS}`));
+
+    expect(setHtml).toHaveBeenCalledWith(`<p>x</p>${READABLE}`);
+  });
+});

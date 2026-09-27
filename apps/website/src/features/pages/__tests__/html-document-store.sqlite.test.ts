@@ -251,6 +251,38 @@ test("write() with NO entryRefsRepo supplied still succeeds — the dependency i
   assert.equal(row.bodyHtml, `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
 });
 
+// The admin's Interactive canvas (GrapesJS) serializes `data-embed-config='{"type":…}'` as
+// `data-embed-config="{&quot;type&quot;:…}"`. This store is the chokepoint every Page HTML write
+// passes through, so it stores the readable single-quoted form whichever path the HTML came from.
+const CANVAS_SERIALIZED_MARKER = `<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`;
+const READABLE_MARKER = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
+
+test("write() stores a canvas-serialized (double-quoted, &quot;-encoded) embed marker in the readable single-quoted form", async () => {
+  const { db } = harness();
+  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+
+  await store.read();
+  await store.write(`<p>That marker, live:</p>${CANVAS_SERIALIZED_MARKER}`);
+
+  assert.equal(readRow(db, "page-1").bodyHtml, `<p>That marker, live:</p>${READABLE_MARKER}`);
+});
+
+test("ensureHtmlFormat() seeds a canvas-serialized embed marker in the readable single-quoted form", async () => {
+  const { db } = harness();
+  db.$client
+    .prepare(
+      `INSERT INTO posts (id, workspace_id, title, slug, body_json, body_format, body_html, status, kind, updated_at, version, ext)
+       VALUES ('page-3', ?, 'New page', 'new-page-3', '{"type":"doc","content":[]}', 'doc', NULL, 'draft', 'page', '2026-08-01T00:00:00.000Z', 1, '{}')`
+    )
+    .run(WS);
+  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-3" }, { db, clock });
+
+  await store.ensureHtmlFormat(CANVAS_SERIALIZED_MARKER);
+
+  assert.equal(readRow(db, "page-3").bodyHtml, READABLE_MARKER);
+});
+
 test("write() indexes a ref for an embed pointing at an id with no corresponding widget/form row — entry_refs must see the dangling reference, not silently skip it (this store has no widget/form repo to check against, so it cannot filter on resolution status even if it wanted to)", async () => {
   const { db } = harness();
   insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });

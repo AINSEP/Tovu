@@ -432,6 +432,55 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
   return { markers, rejected };
 }
 
+/**
+ * The JSON text of a decoded marker value, made safe to sit verbatim inside a single-quoted
+ * attribute: `'` and `&` become the JSON escapes `\u0027`/`\u0026`. Both can only occur inside a
+ * JSON string, where those escapes mean the same character, so `JSON.parse` returns the identical
+ * value. Deliberately not `&#39;`/`&amp;`: {@link scanEmbedMarkers} reads a single-quoted value
+ * verbatim, so an entity there would reach `JSON.parse` undecoded and change the config.
+ *
+ * @complexity O(n) over `json`.
+ */
+function toSingleQuotedValue(json: string): string {
+  return json.replace(/'/g, "\\u0027").replace(/&/g, "\\u0026");
+}
+
+/**
+ * Rewrites every double-quoted, entity-encoded `data-embed-config="{&quot;type&quot;:…}"` (what a DOM
+ * serializer such as the admin's Interactive canvas emits) back to the authored, readable form
+ * `data-embed-config='{"type":…}'`, so the stored page source reads the way it was written. Every
+ * Page HTML write runs through this (`PagesHtmlDocumentStore`), and the admin applies it to what the
+ * canvas hands back.
+ *
+ * Exact at the config level: a rewritten marker scans to the same `config`, `attrs` and `inner` it did
+ * before. Only the quoted value changes; the tag, other attributes and content are untouched. Left
+ * as written: a single-quoted marker, a marker inside a comment or `<script>`/`<style>` (never matched,
+ * see {@link maskNonRenderableRegions}), and a value that is not valid JSON, so a broken marker still
+ * reaches {@link scanEmbedMarkers}'s rejection with its original text.
+ *
+ * @complexity O(n) over `html`.
+ */
+export function normalizeEmbedMarkerQuoting(html: string): string {
+  const masked = maskNonRenderableRegions(html);
+  const pattern = new RegExp(MARKER_PATTERN.source, MARKER_PATTERN.flags);
+  let result = "";
+  let copiedUpTo = 0;
+  for (let match = pattern.exec(masked); match !== null; match = pattern.exec(masked)) {
+    const valueRange = (match as RegExpExecArray & { indices: RegExpIndicesArray }).indices[4];
+    if (!valueRange) continue;
+    const decoded = decodeAttributeValue(html.slice(...valueRange));
+    try {
+      JSON.parse(decoded);
+    } catch {
+      continue;
+    }
+    // The value's quotes sit one character outside its capture group on either side.
+    result += `${html.slice(copiedUpTo, valueRange[0] - 1)}'${toSingleQuotedValue(decoded)}'`;
+    copiedUpTo = valueRange[1] + 1;
+  }
+  return result + html.slice(copiedUpTo);
+}
+
 /** Every marker of one type, in document order. The common "which menus does this theme name" shape. */
 export function markersOfType(html: string, type: string): readonly EmbedMarker[] {
   return scanEmbedMarkers(html).markers.filter((m) => m.type === type);

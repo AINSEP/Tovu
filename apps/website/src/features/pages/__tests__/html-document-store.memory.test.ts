@@ -53,6 +53,18 @@ test("write() after read() updates body_html and increments version (sanity, mir
   assert.equal(row?.bodyHtml, "<p>new</p>");
 });
 
+test("write() stores a canvas-serialized embed marker in the readable single-quoted form (mirrors the sqlite test)", async () => {
+  const { repo } = await harness();
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+
+  await store.ensureHtmlFormat("<p>old</p>");
+  await store.read();
+  await store.write(`<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`);
+
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.equal(row?.bodyHtml, `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`);
+});
+
 test("CIC-1 (sequential): two readers, then two SEQUENTIAL writes (read, read, write, write) — the second, stale writer is rejected", async () => {
   // This is the shape `html-document-store.sqlite.test.ts` certifies, and it already passes here:
   // by the time writerB's write() runs, writerA's write() (including its own internal save()) has

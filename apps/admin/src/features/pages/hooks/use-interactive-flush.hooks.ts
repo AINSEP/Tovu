@@ -1,6 +1,7 @@
 import { useCallback, useRef, type RefObject } from "react";
 
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
+import { normalizeEmbedMarkerQuoting } from "@tovu/embed-marker";
 
 /**
  * @file Interactive flush (2026-09-23 plan) — the admin half of `@jini-ai/ui/html-editor`'s
@@ -45,7 +46,10 @@ function settleFlush(flush: Promise<string | undefined>, timeoutMs: number): Pro
  *
  * @returns `interactiveEditorRef` — attach to `<InteractiveHtmlEditor ref={...}>`; `null` until that
  *   component mounts (not on the Interactive tab, or not yet rendered). `flushInteractiveEdits` —
- *   see its own doc below.
+ *   see its own doc below. `setHtmlFromCanvas` — the editor's `onChange`: `setHtml`, with embed
+ *   markers put back in their readable single-quoted form. GrapesJS serializes
+ *   `data-embed-config='{"type":…}'` as `data-embed-config="{&quot;type&quot;:…}"`; both this and a
+ *   flush undo that, so the HTML tab and the saved page read as authored.
  * @complexity Time/space: O(1) setup.
  */
 export function useInteractiveEditorFlush(
@@ -53,6 +57,7 @@ export function useInteractiveEditorFlush(
 ): {
   interactiveEditorRef: RefObject<InteractiveHtmlEditorHandle | null>;
   flushInteractiveEdits: () => Promise<string | undefined>;
+  setHtmlFromCanvas: (value: string) => void;
 } {
   const interactiveEditorRef = useRef<InteractiveHtmlEditorHandle | null>(null);
 
@@ -84,9 +89,13 @@ export function useInteractiveEditorFlush(
       );
       return undefined;
     }
-    if (outcome.html !== undefined) setHtml(outcome.html);
-    return outcome.html;
+    if (outcome.html === undefined) return undefined;
+    const html = normalizeEmbedMarkerQuoting(outcome.html);
+    setHtml(html);
+    return html;
   }, [setHtml]);
 
-  return { interactiveEditorRef, flushInteractiveEdits };
+  const setHtmlFromCanvas = useCallback((value: string) => setHtml(normalizeEmbedMarkerQuoting(value)), [setHtml]);
+
+  return { interactiveEditorRef, flushInteractiveEdits, setHtmlFromCanvas };
 }

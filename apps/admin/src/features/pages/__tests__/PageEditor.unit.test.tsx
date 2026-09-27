@@ -167,6 +167,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // pre-existing test here drives it; `PageEditor.interactive-flush.unit.test.tsx` overrides it to
     // prove `PageEditorPane` wires it onto the real component.
     interactiveEditorRef: { current: null },
+    setHtmlFromCanvas: vi.fn(),
     ...overrides,
   };
 }

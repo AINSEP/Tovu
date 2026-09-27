@@ -123,6 +123,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     contentRevision: 0,
     embedPlaceholderDescriber: () => undefined,
     interactiveEditorRef: { current: null },
+    setHtmlFromCanvas: vi.fn(),
     ...overrides,
   };
 }

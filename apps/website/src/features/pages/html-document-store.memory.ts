@@ -3,6 +3,7 @@ import { assertEntityLive, type ClockPort } from "@jini-ai/cms/core";
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
 import { SYSTEM_ACTOR_ID } from "../post/post.js";
+import { normalizeEmbedMarkerQuoting } from "../../contracts/core/embeds/marker.js";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import {
@@ -84,7 +85,9 @@ export class InMemoryPagesHtmlDocumentStore {
   }
 
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
-  async ensureHtmlFormat(seedHtml: string): Promise<void> {
+  async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
+    // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
+    const seedHtml = normalizeEmbedMarkerQuoting(authoredSeedHtml);
     const row = await this.load();
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: isTrashed(row) ? "trashed" : "live" });
@@ -148,7 +151,9 @@ export class InMemoryPagesHtmlDocumentStore {
    * Pinned by `__tests__/html-document-store.memory.test.ts`'s "BUG: two write() calls truly IN
    * FLIGHT AT ONCE" case.
    */
-  async write(html: string): Promise<void> {
+  async write(authoredHtml: string): Promise<void> {
+    // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
+    const html = normalizeEmbedMarkerQuoting(authoredHtml);
     if (this.lastReadVersion === null) {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
     }

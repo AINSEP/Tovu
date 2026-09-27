@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { posts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+import { normalizeEmbedMarkerQuoting } from "../../contracts/core/embeds/marker.js";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 // Not from `../post/index.js`: that barrel deliberately never re-exports Pages-specific things and,
@@ -282,7 +283,9 @@ export class PagesHtmlDocumentStore {
    * stop (D-1), and no Post may be converted to bespoke HTML through this or any other path.
    * @complexity O(1) — one indexed row lookup plus, on a `doc` row, one indexed row update.
    */
-  async ensureHtmlFormat(seedHtml: string): Promise<void> {
+  async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
+    // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
+    const seedHtml = normalizeEmbedMarkerQuoting(authoredSeedHtml);
     const rows = this.deps.db
       .select({ kind: posts.kind, bodyFormat: posts.bodyFormat, version: posts.version, deletedAt: posts.deletedAt })
       .from(posts)
@@ -436,7 +439,9 @@ export class PagesHtmlDocumentStore {
    * the zero-match path.
    * @overallScore 100
    */
-  async write(html: string): Promise<void> {
+  async write(authoredHtml: string): Promise<void> {
+    // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
+    const html = normalizeEmbedMarkerQuoting(authoredHtml);
     if (this.lastReadVersion === null) {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
     }
