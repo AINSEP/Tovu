@@ -427,6 +427,30 @@ export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): A
 }
 
 /**
+ * Item counts for the "all"/"images"/"videos" tabs (owner ask, 2026-09-26: a count next to each
+ * Media tab, e.g. "All 42 · Images 30 · Videos 12"). Reuses {@link filterMediaByTab} for the two
+ * filtered tabs rather than a separate count-only pass, so a tab's badge number can never disagree
+ * with what switching to it actually shows.
+ *
+ * Returns `{}` — no key at all, not a `0` — while `media` is still loading (`null`): `Media.tsx`
+ * passes this straight through as each tab's `TabBarTab.count`, whose own contract
+ * (`components/TabBar.tsx`) renders no badge at all when `count` is `undefined`, so a tab never
+ * flashes a misleading "0" before the first load resolves.
+ *
+ * @complexity Time O(n), space O(1) — three passes over `media` (one per tab); not fused into a
+ * single loop, since this runs once per render on an already-small, unpaginated array and three
+ * readable filter calls are clearer than one hand-merged one.
+ */
+export function mediaContentTabCounts(media: AdminMedia[] | null): Partial<Record<MediaContentTabId, number>> {
+  if (!media) return {};
+  return {
+    all: media.length,
+    images: filterMediaByTab(media, "images").length,
+    videos: filterMediaByTab(media, "videos").length,
+  };
+}
+
+/**
  * The two "Order by" choices the admin Media grid's dropdown (`Media.tsx`'s `MediaOrderControl`)
  * offers — owner-directed (2026-09-11): "have a sort by to see our most recent images", plus an
  * Alphabetical option as a visible control she can change, not a fixed default. See

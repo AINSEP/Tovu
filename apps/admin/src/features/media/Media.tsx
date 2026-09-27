@@ -7,7 +7,15 @@ import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems, sortMediaByOrder, MEDIA_ORDER_OPTIONS, type MediaOrderBy } from "./rules";
+import {
+  filterMediaByTab,
+  hasUntypedMedia,
+  mediaContentTabCounts,
+  mediaRowMenuItems,
+  sortMediaByOrder,
+  MEDIA_ORDER_OPTIONS,
+  type MediaOrderBy,
+} from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
@@ -1256,11 +1264,15 @@ function MediaPageShell({
   t,
   activeTab,
   setActiveTab,
+  tabCounts,
   children,
 }: {
   t: (key: string) => string;
   activeTab: MediaTabId;
   setActiveTab: MediaTabsController["setActiveTab"];
+  /** Per-tab item counts (owner ask, 2026-09-26) — see `resolveMediaTabs`'s own doc for how an
+   *  absent id renders no badge at all. */
+  tabCounts: Partial<Record<MediaTabId, number>>;
   children: React.ReactNode;
 }) {
   return (
@@ -1292,7 +1304,12 @@ function MediaPageShell({
           landing here for good; see that file's own header for the full move history. It is the
           fourth, LAST tab — "all"/"images"/"videos" are the three content-filter tabs an operator
           reaches for far more often, and read as one group with this one set apart. */}
-      <TabBar ariaLabel={t("Media")} tabs={resolveMediaTabs(t)} activeId={activeTab} onChange={resolveMediaTabChange(setActiveTab)} />
+      <TabBar
+        ariaLabel={t("Media")}
+        tabs={resolveMediaTabs(t, tabCounts)}
+        activeId={activeTab}
+        onChange={resolveMediaTabChange(setActiveTab)}
+      />
 
       {children}
     </div>
@@ -1316,6 +1333,19 @@ export function Media(props: MediaProps) {
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">{t("Loading media…")}</div>;
 
+  // Per-tab item counts (owner ask, 2026-09-26) — computed once here, after the loading guard above
+  // so `media` is non-null, and shared by BOTH of this function's returns below (External Providers
+  // included), since the tab bar itself renders identically regardless of which tab is active.
+  // "External Providers" is not `media`-derived at all: it counts the fixed provider CATALOG
+  // (`MEDIA_PROVIDER_CATALOG`, imported above) rather than a live server fetch — that catalog is the
+  // exact same array `ExternalProvidersPanel`'s `MediaProvidersTab` maps one card per entry from, so
+  // its length is already "what that tab lists" with no extra request and nothing that could ever
+  // go stale relative to what renders when the tab opens.
+  const tabCounts: Partial<Record<MediaTabId, number>> = {
+    ...mediaContentTabCounts(media),
+    "external-providers": MEDIA_PROVIDER_CATALOG.length,
+  };
+
   // External Providers renders no grid, no filter, and has no concept of the grid's "empty" state —
   // an early return here (rather than a ternary further down) is what lets `MediaContentTabId`
   // narrow `activeTab` for the REST of this function, so `filterMediaByTab`/`MediaLibraryPanel`
@@ -1323,7 +1353,7 @@ export function Media(props: MediaProps) {
   // `MediaContentTabId`'s own doc comment in `use-media-tabs.hooks.ts`).
   if (activeTab === "external-providers") {
     return (
-      <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab}>
+      <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab} tabCounts={tabCounts}>
         <ExternalProvidersPanel locale={controller.locale} />
       </MediaPageShell>
     );
@@ -1342,7 +1372,7 @@ export function Media(props: MediaProps) {
   );
 
   return (
-    <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab}>
+    <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab} tabCounts={tabCounts}>
       {/* "all", "images" and "videos" all render the SAME grid, differing only in which items reach
           it — one code path, so a card looks and behaves identically whichever tab it is viewed
           from, and the lightbox/edit/row-menu wiring below cannot drift per tab. */}

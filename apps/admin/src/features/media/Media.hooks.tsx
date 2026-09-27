@@ -1,5 +1,5 @@
 import type { TabBarTab } from "../../components/TabBar";
-import { MEDIA_TABS, resolveActiveTab, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
+import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 
 /**
  * @file `Media.tsx`'s own derived-value logic for its tab strip, split out per the
@@ -97,13 +97,20 @@ const MEDIA_TAB_ICONS = {
  * label), so nothing that drives this screen by handle sees a change. The visible `label` is
  * translated, as it was.
  *
+ * `counts` (owner ask, 2026-09-26) feeds `TabBarTab.count` — one lookup by tab id, keyed off
+ * `MEDIA_TABS`'s own ids so a tab with no entry (or a `Media()` still loading, per `rules.ts`'s
+ * `mediaContentTabCounts`) simply renders no badge, `TabBar`'s own `count !== undefined` check.
+ * Defaulted to `{}` so every pre-existing call site (a test calling this directly) keeps rendering
+ * exactly as before.
+ *
  * @complexity O(1) — a fixed four-element array.
  */
-export function resolveMediaTabs(t: (key: string) => string): TabBarTab[] {
+export function resolveMediaTabs(t: (key: string) => string, counts: Partial<Record<MediaTabId, number>> = {}): TabBarTab[] {
   return MEDIA_TABS.map((tab) => ({
     id: tab.id,
     label: t(tab.label),
     icon: MEDIA_TAB_ICONS[tab.id],
+    count: counts[tab.id],
     handle: `media-tab-${tab.id}`,
     handleLabel: `Switch to the ${tab.label} tab`,
   }));

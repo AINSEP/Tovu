@@ -1024,7 +1024,11 @@ describe("?tab= deep linking", () => {
     renderScreen({ tabId: "all" });
     await screen.findByText("Sunset Photo");
 
-    await user.click(screen.getByRole("tab", { name: "Videos" }));
+    // A regex, not an exact string (2026-09-26 tab-count dispatch): the Videos tab's accessible name
+    // now includes its item-count badge with no separator (e.g. "Videos1" for this file's one
+    // `video/mp4` fixture, `TRASHED_ITEM`) — same substring-match idiom `TabBar.unit.test.tsx`'s own
+    // count test documents, for the identical reason.
+    await user.click(screen.getByRole("tab", { name: /Videos/ }));
 
     expect(window.location.search).toBe("?tab=videos");
   });
