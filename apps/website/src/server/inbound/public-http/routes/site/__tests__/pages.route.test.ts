@@ -670,7 +670,10 @@ test("GET /: no page claims slug '/' -- falls back to the active theme's own ind
   assert.equal(res.status, 200);
   const html = await res.text();
 
-  assert.ok(html.includes("shipped in minutes"), "with no page claiming '/', the theme's own real index.html hero copy must still render, unchanged");
+  assert.ok(
+    html.includes('class="wrap post-detail landing-content"'),
+    "with no page claiming '/', the theme's own real index.html landing shell must still render, unchanged"
+  );
 });
 
 test("GET /: a Page claiming '/' with no explicit template still renders its own content (generic fallback), never the theme's index.html", async (t) => {
@@ -686,7 +689,7 @@ test("GET /: a Page claiming '/' with no explicit template still renders its own
   const html = await res.text();
 
   assert.ok(html.includes("UNIQUE_HOMEPAGE_MARKER_9f3a1c2b"), "the claiming page's own authored content must render even with no explicit templateChoice");
-  assert.ok(!html.includes("shipped in minutes"), "the theme's own index.html hero copy must NOT render");
+  assert.ok(!html.includes('class="wrap post-detail landing-content"'), "the theme's own index.html landing shell must NOT render");
 });
 
 // ---------------------------------------------------------------------------

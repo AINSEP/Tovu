@@ -59,7 +59,18 @@ export interface ActiveThemeResolutionDeps {
  */
 // Renamed from `basic` 2026-09-26; sites still holding a `basic` folder or a stored `basic` id
 // resolve through `theme-id-aliases.ts`.
-export const DEFAULT_THEME_ID = "tovu-theme";
+export const DEFAULT_THEME_ID = "tovu-starter";
+
+/**
+ * Ordered fallback candidates for step 2 of {@link resolveActiveTheme}, `[0]` being
+ * {@link DEFAULT_THEME_ID} itself. `seededPresentation` (`server/runtime/configuration/seed.ts`)
+ * only ever reads `[0]` — every NEW site is seeded on the named default. The resolver instead
+ * walks the whole list in order: a site seeded before 2026-09-27 has no `tovu-starter` folder
+ * (`seedSiteThemes` copies the catalog once, at creation), so without this list, changing
+ * `DEFAULT_THEME_ID` alone would have made every pre-existing site's fallback silently skip step 2
+ * and land on step 3's arbitrary first-valid-theme instead of the `tovu-theme` it always got.
+ */
+export const DEFAULT_THEME_IDS: readonly string[] = [DEFAULT_THEME_ID, "tovu-theme"];
 
 /**
  * Stored in `active_theme_id` to mean "the operator deliberately turned the theme OFF" — state 3 of
@@ -140,19 +151,21 @@ export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeI
   const active = findStoredTheme({ themes: deps.themes, id: activeThemeId });
   if (active && active.status === "valid") return active;
 
-  const named = findStoredTheme({ themes: deps.themes, id: DEFAULT_THEME_ID });
-  if (named && named.status === "valid") {
-    console.warn(
-      `[theme] active theme '${activeThemeId}' did not resolve; falling back to the default theme '${DEFAULT_THEME_ID}'`
-    );
-    return named;
+  for (const defaultId of DEFAULT_THEME_IDS) {
+    const named = findStoredTheme({ themes: deps.themes, id: defaultId });
+    if (named && named.status === "valid") {
+      console.warn(
+        `[theme] active theme '${activeThemeId}' did not resolve; falling back to the default theme '${defaultId}'`
+      );
+      return named;
+    }
   }
 
   const substitute = deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
   console.warn(
     substitute === null
-      ? `[theme] active theme '${activeThemeId}' did not resolve and no theme is installed at all (default '${DEFAULT_THEME_ID}' is absent); the site has no theme to render`
-      : `[theme] active theme '${activeThemeId}' did not resolve and the default theme '${DEFAULT_THEME_ID}' is absent or invalid; substituting '${substitute.manifest.id}', which is whichever theme discovery happened to list first`
+      ? `[theme] active theme '${activeThemeId}' did not resolve and no theme is installed at all (none of the default themes (${DEFAULT_THEME_IDS.join(", ")}) are); the site has no theme to render`
+      : `[theme] active theme '${activeThemeId}' did not resolve and none of the default themes (${DEFAULT_THEME_IDS.join(", ")}) are installed or valid; substituting '${substitute.manifest.id}', which is whichever theme discovery happened to list first`
   );
   return substitute;
 }

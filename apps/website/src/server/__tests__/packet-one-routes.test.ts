@@ -692,6 +692,7 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
       "tailark-dusk",
       "tailark-quartz-dark",
       "tailark-quartz-libre",
+      "tovu-starter",
       "tovu-theme",
     ]
   );
@@ -701,7 +702,7 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
   // Exactly one theme is active, matching the seeded default (server/seed.ts).
   const activeThemes = themesPayload.themes.filter((t) => t.active);
   assert.equal(activeThemes.length, 1);
-  assert.equal(activeThemes[0].id, "tovu-theme");
+  assert.equal(activeThemes[0].id, "tovu-starter");
 });
 
 test("GET themes 404s for an unknown workspace id and 403s without theme.set", async (t) => {

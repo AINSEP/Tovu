@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_THEME_ID, NO_THEME_ID, resolveActiveTheme } from "../active-theme.js";
+import { DEFAULT_THEME_ID, DEFAULT_THEME_IDS, NO_THEME_ID, resolveActiveTheme } from "../active-theme.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**
@@ -44,8 +44,19 @@ function sortedThemes(...ids: string[]): DiscoveredTheme[] {
   return [...ids].sort((a, b) => a.localeCompare(b)).map((id) => makeTheme(id));
 }
 
-test("the constant is a name, and it is the id the stock theme actually ships under", () => {
-  assert.equal(DEFAULT_THEME_ID, "tovu-theme");
+test("the constant is a name, and it is the id the starter theme actually ships under", () => {
+  assert.equal(DEFAULT_THEME_ID, "tovu-starter");
+});
+
+test("prefers tovu-starter when both defaults exist", () => {
+  const themes = sortedThemes("aurora", "tovu-starter", "tovu-theme");
+  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, "tovu-starter");
+});
+
+test("falls back to tovu-theme when tovu-starter is absent — a site seeded before the starter existed", () => {
+  const themes = sortedThemes("aurora", "tovu-theme");
+  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, "tovu-theme");
+  assert.deepEqual([...DEFAULT_THEME_IDS], ["tovu-starter", "tovu-theme"]);
 });
 
 test("step 1: a configured, valid theme wins over the named default", () => {
@@ -55,12 +66,12 @@ test("step 1: a configured, valid theme wins over the named default", () => {
 
 test("step 2: an unresolvable configured id falls back to the NAMED default, not the first valid theme", () => {
   // `aurora` is valid AND sorts first — the old resolver returned it here.
-  const themes = sortedThemes("aurora", "tovu-theme", "storefront");
+  const themes = sortedThemes("aurora", "tovu-starter", "tovu-theme", "storefront");
   assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, DEFAULT_THEME_ID);
 });
 
 test("step 2: a configured theme that discovery marked invalid also falls back to the named default", () => {
-  const themes = [makeTheme("aurora"), makeTheme("tovu-theme"), makeTheme("broken", "invalid")].sort((a, b) =>
+  const themes = [makeTheme("aurora"), makeTheme("tovu-starter"), makeTheme("tovu-theme"), makeTheme("broken", "invalid")].sort((a, b) =>
     a.manifest.id.localeCompare(b.manifest.id)
   );
   assert.equal(resolveActiveTheme({ themes }, "broken")?.manifest.id, DEFAULT_THEME_ID);
@@ -184,7 +195,7 @@ test("state 3 is silent — a deliberate choice is not a warning", (t) => {
 test("state 2 still fires for `\"\"` — an unwritten workspace gets the default theme, not no theme", () => {
   // The whole reason the sentinel is not `""`. `resolveActiveThemeId` returns `""` for a workspace
   // with no `presentation_settings` row; that must still reach the NAMED DEFAULT, never state 3.
-  const themes = sortedThemes("aurora", "tovu-theme", "storefront");
+  const themes = sortedThemes("aurora", "tovu-starter", "tovu-theme", "storefront");
   const resolved = resolveActiveTheme({ themes }, "");
 
   assert.notEqual(resolved, NO_THEME_ID, "an unwritten workspace must not read as 'deliberately themeless'");

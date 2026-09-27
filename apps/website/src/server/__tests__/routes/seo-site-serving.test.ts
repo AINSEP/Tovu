@@ -162,6 +162,11 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   const activeTheme = deps.themes.find((t) => t.manifest.id === "tovu-theme");
   if (!activeTheme) throw new Error("expected the built-in 'tovu-theme' theme to be discovered");
   activeTheme.manifest.publishedPages = [...(activeTheme.manifest.publishedPages ?? []), "pricing"];
+  // Pinned to "tovu-theme", not the seeded default: this test proves the SEO fold against Tovu
+  // Theme's own real `pricing.html` (its hardcoded stale <title>); `tovu-starter` never shipped
+  // that page, having dropped it in its own de-branding pass.
+  const currentPresentation = await deps.presentationRepo.findByWorkspaceId(deps.workspaceId);
+  await deps.presentationRepo.save({ ...currentPresentation!, activeThemeId: "tovu-theme" });
 
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);

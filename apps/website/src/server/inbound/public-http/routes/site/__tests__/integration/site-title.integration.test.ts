@@ -58,6 +58,11 @@ async function unpublishHomePage(deps: RouteDeps): Promise<void> {
 async function bootSite(t: TestContext): Promise<{ deps: RouteDeps; baseUrl: string; cookie: string }> {
   const deps = createRouteDeps();
   publishPricingPage(deps);
+  // Pinned to "tovu-theme" rather than the seeded default: S2's `/pricing` surface is Tovu Theme's
+  // own real static page. `tovu-starter` never shipped it, having dropped it in its own
+  // de-branding pass — see `publishPricingPage`'s own comment for the shared precedent.
+  const currentPresentation = await deps.presentationRepo.findByWorkspaceId(deps.workspaceId);
+  await deps.presentationRepo.save({ ...currentPresentation!, activeThemeId: "tovu-theme" });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   await deps.siteTitleReady;
   return { deps, baseUrl, cookie };

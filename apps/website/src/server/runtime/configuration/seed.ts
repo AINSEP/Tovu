@@ -314,8 +314,8 @@ export const seededPresentation: PresentationSettingsRecord = {
   workspaceId: seededWorkspace.id,
   // A fresh site is seeded into state 1 — the default theme EXPLICITLY active — not into the
   // resolver's fallback. `resolveActiveTheme`'s step 2 would produce the same theme, but a seeded
-  // row is what makes the admin show "basic — Active" instead of a blank card, and what keeps a new
-  // install distinguishable from a site whose theme has gone missing.
+  // row is what makes the admin show "tovu-starter — Active" instead of a blank card, and what
+  // keeps a new install distinguishable from a site whose theme has gone missing.
   //
   // `DEFAULT_THEME_ID`, not the literal `"basic"` (2026-09-12): until the resolver grew a named
   // default, this seed's literal and the resolver's implicit winner were two independent facts that

@@ -72,8 +72,8 @@ test("exportSite: --base-path unset leaves every written byte identical to a pla
   assert.equal(report.basePathRewriteWarning, undefined);
 
   const home = readFileSync(path.join(outputDir, "index.html"), "utf8");
-  assert.match(home, /href="\/about"/, "an internal link must stay bare root-relative when no base path is requested");
-  assert.match(home, /href="\/theme-assets\/tovu-theme\//, "a theme asset reference must stay bare root-relative when no base path is requested");
+  assert.match(home, /href="\/welcome"/, "an internal link must stay bare root-relative when no base path is requested");
+  assert.match(home, /href="\/theme-assets\/tovu-starter\//, "a theme asset reference must stay bare root-relative when no base path is requested");
 
   // `createRouteDeps()` seeds a verified `dev-capability` origin (`http://localhost:3000`,
   // `pages.route.test.ts`'s own precedent) for the seeded workspace, so both <loc> (2026-09-03 fix)
@@ -130,8 +130,8 @@ test("exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute s
   assert.deepEqual(report.assets.failed, [], "the crawl must still discover assets from the RAW (unprefixed) response the live server actually sent");
 
   const home = readFileSync(path.join(outputDir, "index.html"), "utf8");
-  assert.match(home, /href="\/my-repo\/about"/, "an internal link must carry the base path");
-  assert.match(home, /href="\/my-repo\/theme-assets\/tovu-theme\//, "a theme asset reference must carry the base path");
+  assert.match(home, /href="\/my-repo\/welcome"/, "an internal link must carry the base path");
+  assert.match(home, /href="\/my-repo\/theme-assets\/tovu-starter\//, "a theme asset reference must carry the base path");
   assert.equal(/href="\/(?!my-repo\/)/.test(home), false, "no root-relative href may survive un-prefixed once a base path is set");
 
   // `<loc>`/`Sitemap:` are absolute (the seeded workspace has a verified origin, see the previous
@@ -261,7 +261,14 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
-  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+  // Pinned to "tovu-theme" rather than the seeded default: every assertion below is about that
+  // theme's OWN page set (its `page-shell.html` template shell, its shadowed `about`/`pricing`
+  // pages) — `tovu-starter` ships neither page, having dropped them in its own de-branding pass.
+  const routeDeps = createRouteDeps();
+  const currentPresentation = await routeDeps.presentationRepo.findByWorkspaceId(routeDeps.workspaceId);
+  await routeDeps.presentationRepo.save({ ...currentPresentation!, activeThemeId: "tovu-theme" });
+
+  const report = await exportSite({ routeDeps, outputDir });
 
   // A content-embedding template shell (route-manifest.ts's own file header): never its own route,
   // never linked from any rendered page — genuinely unreferenced, not a false positive. `basic` is
@@ -319,7 +326,7 @@ test("exportSite: crawls and writes theme assets referenced by rendered pages", 
   assert.deepEqual(report.assets.failed, []);
   assert.ok(report.assets.succeeded.length > 0, "expected at least one asset referenced by the rendered pages");
   assert.ok(
-    report.assets.succeeded.some((a) => a.url.startsWith("/theme-assets/tovu-theme/")),
+    report.assets.succeeded.some((a) => a.url.startsWith("/theme-assets/tovu-starter/")),
     "expected the active 'basic' theme's own CSS/JS to be discovered and written"
   );
   const cssAsset = report.assets.succeeded.find((a) => a.url.endsWith(".css"));
@@ -372,8 +379,8 @@ test("exportSite: follows one hop out of a fetched CSS file's own url(...) refer
   const INJECTED_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>';
   base.createSiteApp = () => {
     const wrapper = express();
-    wrapper.get("/theme-assets/tovu-theme/css/theme.css", (_req, res) => res.type("text/css").send(CSS_WITH_URL_REFS));
-    wrapper.get("/theme-assets/tovu-theme/images/coverage-test-injected-icon.svg", (_req, res) =>
+    wrapper.get("/theme-assets/tovu-starter/css/theme.css", (_req, res) => res.type("text/css").send(CSS_WITH_URL_REFS));
+    wrapper.get("/theme-assets/tovu-starter/images/coverage-test-injected-icon.svg", (_req, res) =>
       res.type("image/svg+xml").send(INJECTED_SVG)
     );
     wrapper.use(createApp(base));
@@ -383,11 +390,11 @@ test("exportSite: follows one hop out of a fetched CSS file's own url(...) refer
   const report = await exportSite({ routeDeps: base, outputDir });
 
   assert.deepEqual(report.assets.failed, []);
-  const cssAsset = report.assets.succeeded.find((a) => a.url === "/theme-assets/tovu-theme/css/theme.css");
+  const cssAsset = report.assets.succeeded.find((a) => a.url === "/theme-assets/tovu-starter/css/theme.css");
   if (!cssAsset) throw new Error("expected the (intercepted) theme.css in assets.succeeded");
   assert.equal(cssAsset.data.toString("utf8"), CSS_WITH_URL_REFS);
 
-  const followedAsset = report.assets.succeeded.find((a) => a.url === "/theme-assets/tovu-theme/images/coverage-test-injected-icon.svg");
+  const followedAsset = report.assets.succeeded.find((a) => a.url === "/theme-assets/tovu-starter/images/coverage-test-injected-icon.svg");
   if (!followedAsset) {
     throw new Error("expected the CSS's own url(...) reference to be discovered and fetched as a second asset");
   }
@@ -403,14 +410,14 @@ test("exportSite: follows one hop out of a fetched CSS file's own url(...) refer
   // theme.css itself must appear exactly once, even though the CSS also self-references it —
   // proving the already-seen URL was deduplicated, not fetched a second time.
   assert.equal(
-    report.assets.succeeded.filter((a) => a.url === "/theme-assets/tovu-theme/css/theme.css").length,
+    report.assets.succeeded.filter((a) => a.url === "/theme-assets/tovu-starter/css/theme.css").length,
     1,
     "a CSS file that references itself must not be queued and fetched twice"
   );
   // Same dedup guarantee for a CSS reference to an asset ALREADY independently discovered by the
   // HTML crawl (main.js is directly `<script src>`-linked from the rendered page too).
   assert.equal(
-    report.assets.succeeded.filter((a) => a.url === "/theme-assets/tovu-theme/scripts/main.js").length,
+    report.assets.succeeded.filter((a) => a.url === "/theme-assets/tovu-starter/scripts/main.js").length,
     1,
     "an asset already queued from the HTML crawl must not be fetched twice just because a CSS file also references it"
   );
@@ -424,7 +431,7 @@ test("exportSite: an asset URL discovered via a CSS file's own url(...) referenc
   const CSS_WITH_MISSING_REF = ".missing { background-image: url(../images/coverage-test-does-not-exist.png); }";
   base.createSiteApp = () => {
     const wrapper = express();
-    wrapper.get("/theme-assets/tovu-theme/css/theme.css", (_req, res) => res.type("text/css").send(CSS_WITH_MISSING_REF));
+    wrapper.get("/theme-assets/tovu-starter/css/theme.css", (_req, res) => res.type("text/css").send(CSS_WITH_MISSING_REF));
     // Deliberately no handler for coverage-test-does-not-exist.png — falls through to the real
     // app's static-asset middleware, which 404s (the file genuinely does not exist on disk).
     wrapper.use(createApp(base));
@@ -433,11 +440,11 @@ test("exportSite: an asset URL discovered via a CSS file's own url(...) referenc
 
   const report = await exportSite({ routeDeps: base, outputDir });
 
-  const failure = report.assets.failed.find((a) => a.url === "/theme-assets/tovu-theme/images/coverage-test-does-not-exist.png");
+  const failure = report.assets.failed.find((a) => a.url === "/theme-assets/tovu-starter/images/coverage-test-does-not-exist.png");
   if (!failure) throw new Error("expected the missing CSS-referenced asset in assets.failed");
   assert.match(failure.reason, /-> 404$/);
   assert.equal(
-    report.assets.succeeded.some((a) => a.url === "/theme-assets/tovu-theme/images/coverage-test-does-not-exist.png"),
+    report.assets.succeeded.some((a) => a.url === "/theme-assets/tovu-starter/images/coverage-test-does-not-exist.png"),
     false
   );
 });

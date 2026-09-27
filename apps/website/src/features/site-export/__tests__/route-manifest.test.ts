@@ -170,23 +170,29 @@ test("buildRouteManifest: always includes the convention routes robots.txt/sitem
 });
 
 test("buildRouteManifest: resolves and returns the active theme's id + on-disk dir", async () => {
-  const manifest = await buildRouteManifest(baseDeps());
+  // Pinned to "tovu-theme" rather than the seeded default: this test is about Tovu Theme's own
+  // markup (see the next test's page-content assertions), not about "the default", so it must not
+  // silently follow DEFAULT_THEME_ID if that ever changes again.
+  const manifest = await buildRouteManifest(baseDeps({ resolveActiveThemeId: async () => "tovu-theme" }));
   assert.equal(manifest.activeTheme?.id, "tovu-theme");
   assert.ok(manifest.activeTheme?.dir.endsWith(`${path.sep}tovu-theme`));
 });
 
 test("buildRouteManifest: enumerates the active theme's own static pages, excluding index/404 and template shells", async () => {
-  // seeded active theme is "basic" (server/seed.ts's seededPresentation), a static-tier theme whose
-  // theme.json declares "pricing" as a real page and "page-shell"/"blog-post" as template shells
-  // (theme.manifest.templates) a post picks via templateChoice, never their own route. Its real
-  // theme.json ships no `publishedPages`, so "pricing" is unpublished by default — published here,
-  // for this test only, via `withPublishedPages` (see that helper's own doc) so the
-  // index/404/template-shell exclusion this test targets can still be proven against the theme's
-  // real page content.
+  // seeded active theme used to be "basic" (server/seed.ts's seededPresentation); this test targets
+  // Tovu Theme's own page content specifically (its theme.json declares "pricing" as a real page
+  // and "page-shell"/"blog-post" as template shells (theme.manifest.templates) a post picks via
+  // templateChoice, never their own route), so it is pinned to "tovu-theme" rather than following
+  // the seeded default. Its real theme.json ships no `publishedPages`, so "pricing" is unpublished
+  // by default — published here, for this test only, via `withPublishedPages` (see that helper's
+  // own doc) so the index/404/template-shell exclusion this test targets can still be proven
+  // against the theme's real page content.
   const publishedBasicThemes = createRouteDeps().themes.map((t) =>
     t.manifest.id === "tovu-theme" ? withPublishedPages(t, ["pricing"]) : t
   );
-  const manifest = await buildRouteManifest(baseDeps({ themes: publishedBasicThemes }));
+  const manifest = await buildRouteManifest(
+    baseDeps({ themes: publishedBasicThemes, resolveActiveThemeId: async () => "tovu-theme" })
+  );
 
   const pricing = manifest.routes.find((r) => r.path === "/pricing");
   assert.ok(pricing, "expected the theme's own 'pricing' static page to be enumerated");
@@ -277,7 +283,9 @@ test("buildRouteManifest: a post explicitly kept at false still loses to the the
     overridesThemePage: false,
   };
   const postRepo = new InMemoryPostRepo([explicitlyKeptPost]);
-  const manifest = await buildRouteManifest(baseDeps({ postRepo, themes: publishedBasicThemes }));
+  const manifest = await buildRouteManifest(
+    baseDeps({ postRepo, themes: publishedBasicThemes, resolveActiveThemeId: async () => "tovu-theme" })
+  );
 
   const pricingRoutes = manifest.routes.filter((r) => r.path === "/pricing");
   assert.equal(pricingRoutes.length, 1, "exactly one route at the shared slug, never two");

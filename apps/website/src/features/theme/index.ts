@@ -140,6 +140,7 @@ export {
   resolveActiveTheme,
   writableThemeIds,
   DEFAULT_THEME_ID,
+  DEFAULT_THEME_IDS,
   NO_THEME_ID,
   type ActiveThemeResolution,
   type ActiveThemeResolutionDeps,
