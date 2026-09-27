@@ -426,7 +426,11 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   "admin.publish_content":
     "publish publishing go live push to live deploy deployment content site update the live site overwrite " +
     "overwrite live replace what's on live make changes live send to production release ship pages posts " +
-    "media menus redirects navigation",
+    "media menus redirects navigation " +
+    // It is also the only way to see what is waiting to be published: it answers with the dialog's
+    // plan and publishes nothing until the person confirms there.
+    "pending unpublished changes changed not yet published what would be published preview " +
+    "review before publishing without publishing dry run",
 
   // --- custom-credentials (2026-09-01) ------------------------------------------------------------------
   // Added the same day as `custom_credential_list` itself, after `custom_credential_verify`/

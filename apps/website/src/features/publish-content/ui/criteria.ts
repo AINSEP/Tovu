@@ -130,7 +130,8 @@ export const PUBLISH_CONTENT_CAPABILITY = {
     "Opens this site's Publish dialog with the things you name already chosen and tells you what it " +
     "would publish or overwrite. Use `types` for kinds of things (pages, posts, media, menus, redirects), " +
     "`items` for specific ones by title, and `overwrite: true` only when the person asked to replace " +
-    "what's on the live site.",
+    "what's on the live site. It publishes nothing itself: the person confirms in the dialog. So it is " +
+    "also how to see what is waiting to be published; call it with no arguments for everything.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
