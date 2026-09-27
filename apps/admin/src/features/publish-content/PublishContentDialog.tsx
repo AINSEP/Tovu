@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 
-import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
+import type { PublishCriteria, PublishReportRow, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
 import type { Translate } from "../../lib/dictionary-translator";
 import { overwriteTooltipFor, reportRowNote, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
@@ -103,6 +103,83 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
   // publish-overwrite-live-plan §4/S9. The column exists only while the peer this plan targets can
   // honour a forced overwrite AND at least one row is offering one — decided in the hook.
   const { showOverwriteColumn } = view;
+
+  // One report row. Up-to-date rows fold behind one "N already up to date" row (owner 2026-09-26),
+  // so this renders both halves of the list the hook splits.
+  const renderRow = (row: PublishReportRow) => (
+    <tr key={row.key} data-entity-id={row.entityId} data-publish-disposition={row.disposition}>
+      <td className="publish-content-select">
+        {/* A row the run would not write carries NO control at all, not a disabled
+            one: plan §4 task 11's property is that nothing in this dialog can move a
+            skipped row into the set that gets published. */}
+        {row.selectable && (
+          <input
+            type="checkbox"
+            checked={view.selectedKeys.has(row.key)}
+            disabled={!view.selectionEnabled}
+            onChange={() => view.onToggleRow(row.key)}
+            // No `agentHandle` here: a handle must be lowercase words joined by
+            // hyphens, and a row key is an entity id. The row's own
+            // `data-entity-id` is the stable address instead — an agent (or a test)
+            // finds the row, then the one checkbox inside it.
+            data-publish-row-select=""
+            aria-label={`${t("Publish")} ${row.entityType} ${row.entityLabel}`}
+          />
+        )}
+        {/* Owner decision 2026-09-25 — media carried along with the pages/posts
+            that use it: shown ticked while one of them is, and never clickable
+            itself (it follows those rows, not the operator). */}
+        {row.includedFor.length > 0 && (
+          <input
+            type="checkbox"
+            checked={view.carriedAlongKeys.has(row.key)}
+            disabled
+            readOnly
+            data-publish-row-carried=""
+            aria-label={`${t("Publish")} ${row.entityType} ${row.entityLabel}`}
+          />
+        )}
+      </td>
+      <td>{t(row.entityTypeLabel)}</td>
+      {/* A long label is cut off with an ellipsis (publish-content.css), so the
+          hover shows the same label in full. The id stays on the row's
+          `data-entity-id`, never in the tooltip (owner report 2026-09-26). */}
+      <td title={row.entityLabel}>{row.entityLabel}</td>
+      <td>
+        <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
+        {/* The reason sits under the status it explains — most rows have none, so a
+            column of its own was mostly empty (owner 2026-09-26). */}
+        {reportRowNote(row, t) && <span className="publish-content-reason">{reportRowNote(row, t)}</span>}
+      </td>
+      {showOverwriteColumn && (
+        <td className="publish-content-overwrite">
+          {/* Only an offered row (overwritable, or already ticked) carries this
+              control — same "no affordance at all on a row it doesn't apply to" rule
+              the select column follows above. */}
+          {view.overwriteOfferKeys.has(row.key) && (
+            <input
+              type="checkbox"
+              checked={view.overwriteKeys.has(row.key)}
+              disabled={!view.selectionEnabled}
+              onChange={() => view.onToggleOverwrite(row.key)}
+              data-publish-row-overwrite=""
+              aria-label={
+                row.retiresLabel
+                  ? `${t("Overwrite on live")}: ${row.retiresLabel}`
+                  : t("Overwrite on live")
+              }
+              // R6 (`plan-publish-repoint-menus-2026-09-24.md` §2.7) — when the
+              // retired holder still feeds a live menu, the tooltip names it too, so
+              // an operator ticking "overwrite" can see what else moves with it. The
+              // copy itself is built in the hooks file, not here — see
+              // `overwriteTooltipFor`'s own doc.
+              title={overwriteTooltipFor(row, t)}
+            />
+          )}
+        </td>
+      )}
+    </tr>
+  );
 
   return (
     <div className="settings-dialog-backdrop" onClick={view.onDismiss}>
@@ -224,80 +301,27 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                   </tr>
                 </thead>
                 <tbody>
-                  {view.rows.map((row) => (
-                    <tr key={row.key} data-entity-id={row.entityId} data-publish-disposition={row.disposition}>
-                      <td className="publish-content-select">
-                        {/* A row the run would not write carries NO control at all, not a disabled
-                            one: plan §4 task 11's property is that nothing in this dialog can move a
-                            skipped row into the set that gets published. */}
-                        {row.selectable && (
-                          <input
-                            type="checkbox"
-                            checked={view.selectedKeys.has(row.key)}
-                            disabled={!view.selectionEnabled}
-                            onChange={() => view.onToggleRow(row.key)}
-                            // No `agentHandle` here: a handle must be lowercase words joined by
-                            // hyphens, and a row key is an entity id. The row's own
-                            // `data-entity-id` is the stable address instead — an agent (or a test)
-                            // finds the row, then the one checkbox inside it.
-                            data-publish-row-select=""
-                            aria-label={`${t("Publish")} ${row.entityType} ${row.entityLabel}`}
-                          />
-                        )}
-                        {/* Owner decision 2026-09-25 — media carried along with the pages/posts
-                            that use it: shown ticked while one of them is, and never clickable
-                            itself (it follows those rows, not the operator). */}
-                        {row.includedFor.length > 0 && (
-                          <input
-                            type="checkbox"
-                            checked={view.carriedAlongKeys.has(row.key)}
-                            disabled
-                            readOnly
-                            data-publish-row-carried=""
-                            aria-label={`${t("Publish")} ${row.entityType} ${row.entityLabel}`}
-                          />
-                        )}
+                  {view.listedRows.map(renderRow)}
+                  {view.upToDateLabel && (
+                    <tr className="publish-content-up-to-date">
+                      <td colSpan={view.columnCount}>
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-expanded={view.upToDateExpanded}
+                          onClick={view.onToggleUpToDate}
+                          data-publish-up-to-date-toggle=""
+                          {...agentHandle("dashboard-publish-content-up-to-date", {
+                            role: "button",
+                            label: "Show or hide the items that are already up to date",
+                          })}
+                        >
+                          {view.upToDateLabel}
+                        </button>
                       </td>
-                      <td>{t(row.entityTypeLabel)}</td>
-                      {/* A long label is cut off with an ellipsis (publish-content.css), so the
-                          hover shows the same label in full. The id stays on the row's
-                          `data-entity-id`, never in the tooltip (owner report 2026-09-26). */}
-                      <td title={row.entityLabel}>{row.entityLabel}</td>
-                      <td>
-                        <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
-                        {/* The reason sits under the status it explains — most rows have none, so a
-                            column of its own was mostly empty (owner 2026-09-26). */}
-                        {reportRowNote(row, t) && <span className="publish-content-reason">{reportRowNote(row, t)}</span>}
-                      </td>
-                      {showOverwriteColumn && (
-                        <td className="publish-content-overwrite">
-                          {/* Only an offered row (overwritable, or already ticked) carries this
-                              control — same "no affordance at all on a row it doesn't apply to" rule
-                              the select column follows above. */}
-                          {view.overwriteOfferKeys.has(row.key) && (
-                            <input
-                              type="checkbox"
-                              checked={view.overwriteKeys.has(row.key)}
-                              disabled={!view.selectionEnabled}
-                              onChange={() => view.onToggleOverwrite(row.key)}
-                              data-publish-row-overwrite=""
-                              aria-label={
-                                row.retiresLabel
-                                  ? `${t("Overwrite on live")}: ${row.retiresLabel}`
-                                  : t("Overwrite on live")
-                              }
-                              // R6 (`plan-publish-repoint-menus-2026-09-24.md` §2.7) — when the
-                              // retired holder still feeds a live menu, the tooltip names it too, so
-                              // an operator ticking "overwrite" can see what else moves with it. The
-                              // copy itself is built in the hooks file, not here — see
-                              // `overwriteTooltipFor`'s own doc.
-                              title={overwriteTooltipFor(row, t)}
-                            />
-                          )}
-                        </td>
-                      )}
                     </tr>
-                  ))}
+                  )}
+                  {view.upToDateExpanded && view.upToDateRows.map(renderRow)}
                 </tbody>
               </table>
             </div>

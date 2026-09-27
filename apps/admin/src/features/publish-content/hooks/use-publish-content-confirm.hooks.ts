@@ -94,6 +94,17 @@ export interface PublishContentConfirmView {
    *  {@link dismissible} is `false`; Escape follows the same rule. */
   readonly onDismiss: () => void;
   readonly rows: readonly PublishReportRow[];
+  /** {@link rows} minus the up-to-date ones, in the same order — what the table always lists. */
+  readonly listedRows: readonly PublishReportRow[];
+  /** The up-to-date rows, A–Z (owner 2026-09-26): folded behind one {@link upToDateLabel} row and
+   *  listed after it only while {@link upToDateExpanded}. */
+  readonly upToDateRows: readonly PublishReportRow[];
+  /** "N already up to date", or `null` when no row is — then there is no fold row at all. */
+  readonly upToDateLabel: string | null;
+  readonly upToDateExpanded: boolean;
+  readonly onToggleUpToDate: () => void;
+  /** How many columns the table has, for a row that spans all of them. */
+  readonly columnCount: number;
   readonly summary: PublishReportSummary | null;
   /** The keys of the rows this run would publish — every {@link PublishReportRow.selectable} row the
    *  operator has not unchecked. Rows that are not selectable are never in here. */
@@ -876,6 +887,12 @@ export function usePublishContentConfirm(props: {
   // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
   const rows = visiblePlan === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(visiblePlan.details), locale);
   const summary = visiblePlan === null ? null : summarizePublishReport(rows);
+  // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
+  // so splitting them off keeps both halves in the shared order.
+  const listedRows = rows.filter((row) => row.disposition !== "unchanged");
+  const upToDateRows = rows.filter((row) => row.disposition === "unchanged");
+  const [upToDateExpanded, setUpToDateExpanded] = useState(false);
+  const onToggleUpToDate = useCallback(() => setUpToDateExpanded((open) => !open), []);
   const liveGapNotices = liveGapLinesFor(visiblePlan?.notSupportedByLive, t, locale);
 
   // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
@@ -1071,6 +1088,13 @@ export function usePublishContentConfirm(props: {
     dismissible,
     onDismiss,
     rows,
+    listedRows,
+    upToDateRows,
+    upToDateLabel: upToDateRows.length > 0 ? `${upToDateRows.length} ${t("already up to date")}` : null,
+    upToDateExpanded,
+    onToggleUpToDate,
+    // Select, Type, Item, What happens — plus Overwrite on live while it shows.
+    columnCount: showOverwriteColumn ? 5 : 4,
     summary,
     selectedKeys,
     carriedAlongKeys,

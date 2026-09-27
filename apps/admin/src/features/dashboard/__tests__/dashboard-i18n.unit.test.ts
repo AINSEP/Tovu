@@ -73,4 +73,10 @@ describe("the Publish dialog's column names are translated in every locale", () 
       expect(COMMON_I18N[locale]?.Entity, locale).toBeUndefined();
     }
   });
+
+  it("translates the fold row's 'already up to date' in every locale", () => {
+    for (const locale of Object.keys(DASHBOARD_DICT)) {
+      expect(DASHBOARD_DICT[locale]["already up to date"], locale).toBeTruthy();
+    }
+  });
 });

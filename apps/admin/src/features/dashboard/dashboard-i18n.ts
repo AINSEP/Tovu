@@ -103,6 +103,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Usado por estas entradas",
     "Used by these pages and posts": "Usado por estas páginas y entradas",
     "Used by items you're publishing": "Usado por los elementos que publicas",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "ya actualizados",
     "{count} published": "{count} publicados",
     "{count} draft": "{count} borrador",
     "{count} drafts": "{count} borradores",
@@ -206,6 +208,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Dipakai oleh pos ini",
     "Used by these pages and posts": "Dipakai oleh halaman dan pos ini",
     "Used by items you're publishing": "Dipakai oleh item yang Anda terbitkan",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "sudah terbaru",
     "{count} published": "{count} diterbitkan",
     "{count} draft": "{count} draf",
     "{count} drafts": "{count} draf",
@@ -307,6 +311,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Von diesen Beiträgen verwendet",
     "Used by these pages and posts": "Von diesen Seiten und Beiträgen verwendet",
     "Used by items you're publishing": "Von den Inhalten verwendet, die Sie veröffentlichen",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "bereits aktuell",
     "{count} published": "{count} veröffentlicht",
     "{count} draft": "{count} Entwurf",
     "{count} drafts": "{count} Entwürfe",
@@ -408,6 +414,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "被这些文章使用",
     "Used by these pages and posts": "被这些页面和文章使用",
     "Used by items you're publishing": "被你要发布的内容使用",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "项已是最新",
     "{count} published": "已发布 {count} 篇",
     "{count} draft": "{count} 篇草稿",
     "{count} drafts": "{count} 篇草稿",
@@ -509,6 +517,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "被這些文章使用",
     "Used by these pages and posts": "被這些頁面和文章使用",
     "Used by items you're publishing": "被你要發布的內容使用",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "項已是最新",
     "{count} published": "已發布 {count} 篇",
     "{count} draft": "{count} 篇草稿",
     "{count} drafts": "{count} 篇草稿",
@@ -610,6 +620,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Usado por estes posts",
     "Used by these pages and posts": "Usado por estas páginas e posts",
     "Used by items you're publishing": "Usado pelos itens que você está publicando",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "já atualizados",
     "{count} published": "{count} publicados",
     "{count} draft": "{count} rascunho",
     "{count} drafts": "{count} rascunhos",
@@ -711,6 +723,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Используется этими записями",
     "Used by these pages and posts": "Используется этими страницами и записями",
     "Used by items you're publishing": "Используется публикуемыми элементами",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "уже актуальны",
     "{count} published": "Опубликовано: {count}",
     "{count} draft": "{count} черновик",
     "{count} drafts": "{count} черновиков",
@@ -812,6 +826,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "استفاده‌شده در این نوشته‌ها",
     "Used by these pages and posts": "استفاده‌شده در این صفحه‌ها و نوشته‌ها",
     "Used by items you're publishing": "استفاده‌شده در مواردی که منتشر می‌کنید",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "مورد از قبل به‌روز است",
     "{count} published": "{count} منتشرشده",
     "{count} draft": "{count} پیش‌نویس",
     "{count} drafts": "{count} پیش‌نویس",
@@ -913,6 +929,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "تستخدمه هذه المقالات",
     "Used by these pages and posts": "تستخدمه هذه الصفحات والمقالات",
     "Used by items you're publishing": "تستخدمه العناصر التي تنشرها",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "محدّثة بالفعل",
     "{count} published": "{count} منشور",
     "{count} draft": "{count} مسودة",
     "{count} drafts": "{count} مسودات",
@@ -1014,6 +1032,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "これらの投稿で使用",
     "Used by these pages and posts": "これらのページと投稿で使用",
     "Used by items you're publishing": "公開する項目で使用",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "件は最新です",
     "{count} published": "公開済み {count} 件",
     "{count} draft": "{count} 件の下書き",
     "{count} drafts": "{count} 件の下書き",
@@ -1115,6 +1135,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "이 게시물에서 사용됨",
     "Used by these pages and posts": "이 페이지와 게시물에서 사용됨",
     "Used by items you're publishing": "게시하는 항목에서 사용됨",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "개는 이미 최신입니다",
     "{count} published": "게시됨 {count}개",
     "{count} draft": "{count}개의 임시글",
     "{count} drafts": "{count}개의 임시글",
@@ -1216,6 +1238,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Używane przez te wpisy",
     "Used by these pages and posts": "Używane przez te strony i wpisy",
     "Used by items you're publishing": "Używane przez publikowane elementy",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "już aktualne",
     "{count} published": "Opublikowano: {count}",
     "{count} draft": "{count} szkic",
     "{count} drafts": "{count} szkiców",
@@ -1317,6 +1341,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Ezek a bejegyzések használják",
     "Used by these pages and posts": "Ezek az oldalak és bejegyzések használják",
     "Used by items you're publishing": "A közzétett elemek használják",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "már naprakész",
     "{count} published": "{count} közzétéve",
     "{count} draft": "{count} piszkozat",
     "{count} drafts": "{count} piszkozat",
@@ -1418,6 +1444,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Utilisé par ces articles",
     "Used by these pages and posts": "Utilisé par ces pages et articles",
     "Used by items you're publishing": "Utilisé par les éléments que vous publiez",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "déjà à jour",
     "{count} published": "{count} publiés",
     "{count} draft": "{count} brouillon",
     "{count} drafts": "{count} brouillons",
@@ -1519,6 +1547,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Використовується цими записами",
     "Used by these pages and posts": "Використовується цими сторінками та записами",
     "Used by items you're publishing": "Використовується елементами, які ви публікуєте",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "вже актуальні",
     "{count} published": "Опубліковано: {count}",
     "{count} draft": "{count} чернетка",
     "{count} drafts": "{count} чернеток",
@@ -1620,6 +1650,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Bu yazılar tarafından kullanılıyor",
     "Used by these pages and posts": "Bu sayfalar ve yazılar tarafından kullanılıyor",
     "Used by items you're publishing": "Yayımladığınız öğeler tarafından kullanılıyor",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "zaten güncel",
     "{count} published": "{count} yayınlandı",
     "{count} draft": "{count} taslak",
     "{count} drafts": "{count} taslak",
@@ -1721,6 +1753,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "ใช้โดยโพสต์เหล่านี้",
     "Used by these pages and posts": "ใช้โดยหน้าและโพสต์เหล่านี้",
     "Used by items you're publishing": "ใช้โดยรายการที่คุณกำลังเผยแพร่",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "รายการเป็นปัจจุบันแล้ว",
     "{count} published": "เผยแพร่แล้ว {count} รายการ",
     "{count} draft": "{count} ฉบับร่าง",
     "{count} drafts": "{count} ฉบับร่าง",
@@ -1822,6 +1856,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "Usato da questi articoli",
     "Used by these pages and posts": "Usato da queste pagine e articoli",
     "Used by items you're publishing": "Usato dagli elementi che stai pubblicando",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "già aggiornati",
     "{count} published": "{count} pubblicati",
     "{count} draft": "{count} bozza",
     "{count} drafts": "{count} bozze",
@@ -1923,6 +1959,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "इन पोस्ट द्वारा उपयोग किया गया",
     "Used by these pages and posts": "इन पेजों और पोस्ट द्वारा उपयोग किया गया",
     "Used by items you're publishing": "आपके प्रकाशित किए जा रहे आइटम द्वारा उपयोग किया गया",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "पहले से अद्यतित",
     "{count} published": "{count} प्रकाशित",
     "{count} draft": "{count} ड्राफ़्ट",
     "{count} drafts": "{count} ड्राफ़्ट",
@@ -2024,6 +2062,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "ان پوسٹس میں استعمال ہوا",
     "Used by these pages and posts": "ان صفحات اور پوسٹس میں استعمال ہوا",
     "Used by items you're publishing": "ان آئٹمز میں استعمال ہوا جو آپ شائع کر رہے ہیں",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "پہلے سے تازہ ترین",
     "{count} published": "{count} شائع شدہ",
     "{count} draft": "{count} ڈرافٹ",
     "{count} drafts": "{count} ڈرافٹ",
@@ -2125,6 +2165,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Used by these posts": "এই পোস্টগুলোতে ব্যবহৃত",
     "Used by these pages and posts": "এই পৃষ্ঠা ও পোস্টগুলোতে ব্যবহৃত",
     "Used by items you're publishing": "আপনি যা প্রকাশ করছেন সেগুলোতে ব্যবহৃত",
+    // Owner 2026-09-26 — the Publish dialog's fold row, "<N> already up to date".
+    "already up to date": "ইতিমধ্যে হালনাগাদ",
     "{count} published": "{count} প্রকাশিত",
     "{count} draft": "{count} খসড়া",
     "{count} drafts": "{count} খসড়া",

@@ -115,6 +115,13 @@ function rowCheckbox(entityId: string): HTMLInputElement | null {
   return reportRow(entityId).querySelector("input[type=checkbox]");
 }
 
+/** The "N already up to date" fold row's button. */
+function upToDateToggle(): HTMLButtonElement {
+  const button = document.querySelector("[data-publish-up-to-date-toggle]");
+  if (!button) throw new Error("the report has no up-to-date fold row");
+  return button as HTMLButtonElement;
+}
+
 /** The header's check-everything control. */
 function headerCheckbox(): HTMLInputElement {
   const box = document.querySelector("thead input[type=checkbox]");
@@ -367,12 +374,76 @@ describe("PublishContentDialog — the rest of the surface", () => {
 describe("PublishContentDialog — row order (owner rule 2026-09-26)", () => {
   it("lists what will publish first A–Z, then skipped, then up to date — via the shared comparator", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
-    await planFrom(port);
+    const user = await planFrom(port);
+    await user.click(upToDateToggle());
 
-    const order = [...document.querySelectorAll("tbody tr")].map((row) => row.getAttribute("data-entity-id"));
+    const order = [...document.querySelectorAll("tbody tr")].map((row) => row.getAttribute("data-entity-id") ?? "toggle");
     // `SELECTION_REPORT` arrives as hello-world, about-us, (unnamed media), logo-png, edited-there.
     // The unnamed media row reads as its short id "33333333", which sorts before letters.
-    expect(order).toEqual([UNNAMED_MEDIA, ABOUT_US, HELLO_WORLD, "55555555-eeee-4eee-8eee-555555555555", "44444444-dddd-4ddd-8ddd-444444444444"]);
+    expect(order).toEqual([UNNAMED_MEDIA, ABOUT_US, HELLO_WORLD, "55555555-eeee-4eee-8eee-555555555555", "toggle", "44444444-dddd-4ddd-8ddd-444444444444"]);
+  });
+});
+
+describe("PublishContentDialog — up-to-date rows fold into one row (owner 2026-09-26)", () => {
+  const UP_TO_DATE_REPORT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["media", "post"],
+    rows: [
+      { entityType: "media", entityId: "m-zebra", entityLabel: "zebra-png", outcome: "unchanged", writes: false, reason: null },
+      { entityType: "post", entityId: "p-new", entityLabel: "new-post", outcome: "created", writes: true, reason: null },
+      { entityType: "media", entityId: "m-apple", entityLabel: "apple-png", outcome: "unchanged", writes: false, reason: null },
+      { entityType: "post", entityId: "p-clash", entityLabel: "clash", outcome: "conflict", writes: false, reason: CONFLICT_REASON },
+    ],
+  };
+
+  it("shows 'N already up to date' in place of those rows, and keeps the rest visible", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: UP_TO_DATE_REPORT });
+    await planFrom(port);
+
+    expect(upToDateToggle().textContent).toBe("2 already up to date");
+    expect(upToDateToggle()).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector('tr[data-entity-id="m-zebra"]')).toBeNull();
+    expect(document.querySelector('tr[data-entity-id="m-apple"]')).toBeNull();
+    expect(reportRow("p-new")).toBeTruthy();
+    expect(reportRow("p-clash")).toBeTruthy();
+  });
+
+  it("expands on click, A–Z after the fold, and folds again on a second click", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: UP_TO_DATE_REPORT });
+    const user = await planFrom(port);
+
+    await user.click(upToDateToggle());
+    expect(upToDateToggle()).toHaveAttribute("aria-expanded", "true");
+    const order = [...document.querySelectorAll("tbody tr")].map((row) => row.getAttribute("data-entity-id") ?? "toggle");
+    expect(order).toEqual(["p-new", "p-clash", "toggle", "m-apple", "m-zebra"]);
+    // The full-name hover (009003342) carries over to an expanded row.
+    expect(reportRow("m-apple").querySelectorAll("td")[2].getAttribute("title")).toBe("apple-png");
+
+    await user.click(upToDateToggle());
+    expect(document.querySelector('tr[data-entity-id="m-apple"]')).toBeNull();
+  });
+
+  it("the fold row spans every column, including Overwrite on live", async () => {
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: { ...UP_TO_DATE_REPORT, rows: UP_TO_DATE_REPORT.rows.map((row) => (row.outcome === "conflict" ? { ...row, canOverwrite: true } : row)) },
+    });
+    await planFrom(port);
+
+    const headerCount = document.querySelectorAll("thead th").length;
+    expect(headerCount).toBe(5);
+    expect(upToDateToggle().closest("td")?.getAttribute("colspan")).toBe(String(headerCount));
+  });
+
+  it("has no fold row when nothing is up to date", async () => {
+    const port = createFakePublishContentPort({
+      peers: ONE_PEER,
+      report: { ...UP_TO_DATE_REPORT, rows: UP_TO_DATE_REPORT.rows.filter((row) => row.outcome !== "unchanged") },
+    });
+    await planFrom(port);
+
+    expect(document.querySelector("[data-publish-up-to-date-toggle]")).toBeNull();
   });
 });
 
@@ -459,6 +530,7 @@ describe("PublishContentDialog — per-row selection", () => {
     expect(rowCheckbox(ABOUT_US)?.checked).toBe(true);
     expect(rowCheckbox(UNNAMED_MEDIA)?.checked).toBe(true);
     // Not a disabled checkbox — no checkbox at all, for both non-writing dispositions.
+    await userEvent.click(upToDateToggle());
     expect(rowCheckbox("44444444-dddd-4ddd-8ddd-444444444444")).toBeNull();
     expect(rowCheckbox("55555555-eeee-4eee-8eee-555555555555")).toBeNull();
     expect(headerCheckbox().checked).toBe(true);

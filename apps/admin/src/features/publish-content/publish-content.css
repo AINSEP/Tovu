@@ -141,6 +141,23 @@
   color: var(--muted);
 }
 
+/* The "N already up to date" fold row (owner 2026-09-26): a quiet link-button with a caret that turns
+   when the rows it hides are showing. */
+.publish-content-up-to-date td {
+  font-size: var(--text-sm);
+}
+
+.publish-content-up-to-date .link-button::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  transition: transform 0.16s ease;
+}
+
+.publish-content-up-to-date .link-button[aria-expanded="true"]::before {
+  transform: rotate(90deg);
+}
+
 .publish-content-summary {
   margin: 0;
   font-size: var(--text-2xs);
