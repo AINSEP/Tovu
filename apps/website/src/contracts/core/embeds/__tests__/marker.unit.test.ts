@@ -10,6 +10,7 @@ import {
   parseMarkerAttributes,
   scanEmbedMarkers,
   substituteMarkers,
+  withAddedId,
   withElementKeptIfAttributed,
   withInnerContent,
   withInnerContentFinal,
@@ -490,4 +491,71 @@ test("embedMarkerSnippet: a media snippet keyed by slug (readable-slugs S5a's 'C
     embedMarkerSnippet("media", "slug", "cover-photo"),
     '<div data-embed-config=\'{"type":"media","slug":"cover-photo"}\'></div>'
   );
+});
+
+// A browser DOM (or any HTML serializer: GrapesJS in the admin's Interactive canvas, innerHTML,
+// parse5) never writes a single-quoted attribute: it re-emits `data-embed-config='{"type":…}'` as
+// `data-embed-config="{&quot;type&quot;:…}"`. Same attribute value, different quoting. The bytes
+// below are the live /pages body's "That marker, live:" example, exactly as stored after an
+// Interactive-canvas save (2026-09-26 embed-live investigation).
+const DOM_SERIALIZED_MARKER = `<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`;
+
+test("scanEmbedMarkers: finds a double-quoted, entity-encoded marker as written by a DOM serializer", () => {
+  const { markers, rejected } = scanEmbedMarkers(`<div class="live-example">${DOM_SERIALIZED_MARKER}</div>`);
+
+  assert.deepEqual(rejected, []);
+  assert.equal(markers.length, 1);
+  assert.deepEqual(markers[0].config, { type: "widget", slug: "contact-form" });
+  assert.equal(markers[0].type, "widget");
+  assert.equal(markers[0].whole, DOM_SERIALIZED_MARKER);
+});
+
+test("scanEmbedMarkers: a double-quoted marker's value is HTML-decoded (&amp; and numeric references), exactly as a browser reads it", () => {
+  const html = `<div data-embed-config="{&quot;type&quot;:&quot;media&quot;,&quot;id&quot;:&quot;m1&quot;,&quot;alt&quot;:&quot;A &amp; B &#39;x&#39; &#x3C;y&#x3E;&quot;}"></div>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.deepEqual(markers[0].config, { type: "media", id: "m1", alt: "A & B 'x' <y>" });
+});
+
+test("scanEmbedMarkers: a double-quoted marker alongside other attributes keeps them in attrs", () => {
+  const html = `<nav class="docs-nav" data-embed-config="{&quot;type&quot;:&quot;menu&quot;,&quot;id&quot;:&quot;docs&quot;}" aria-label="Docs">fallback</nav>`;
+
+  const { markers } = scanEmbedMarkers(html);
+
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].id, "docs");
+  assert.equal(markers[0].inner, "fallback");
+  assert.deepEqual(parseMarkerAttributes(markers[0]), [
+    { name: "class", value: "docs-nav" },
+    { name: "aria-label", value: "Docs" },
+  ]);
+});
+
+test("withInnerContentFinal strips a double-quoted data-embed-config too", () => {
+  const html = `<section id="hero" data-embed-config="{&quot;type&quot;:&quot;content&quot;}" aria-label="Hero">old</section>`;
+  const { markers } = scanEmbedMarkers(html);
+
+  const result = withInnerContentFinal(markers[0], "new");
+
+  assert.equal(result, `<section id="hero" aria-label="Hero">new</section>`);
+});
+
+test("withAddedId rewrites a double-quoted marker's config so a re-scan sees the id", () => {
+  const { markers } = scanEmbedMarkers(`<main class="page-body" data-embed-config="{&quot;type&quot;:&quot;content&quot;}">x</main>`);
+
+  const result = withAddedId(markers[0], "e1");
+
+  const rescanned = scanEmbedMarkers(result).markers;
+  assert.equal(rescanned.length, 1);
+  assert.deepEqual(rescanned[0].config, { type: "content", id: "e1" });
+  assert.equal(rescanned[0].inner, "x");
+  assert.equal((result.match(/data-embed-config/g) ?? []).length, 1);
+});
+
+test("scanEmbedMarkers: a single-quoted marker's value is still read verbatim (no entity decoding)", () => {
+  const { markers } = scanEmbedMarkers(`<div data-embed-config='{"type":"media","id":"m1","alt":"a &amp; b"}'></div>`);
+
+  assert.equal(markers[0].config.alt, "a &amp; b");
 });

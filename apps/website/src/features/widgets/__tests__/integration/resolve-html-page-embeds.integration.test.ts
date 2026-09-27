@@ -382,6 +382,24 @@ test('resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the 
   assert.equal(ir?.props.slug, "contact-us");
 });
 
+test('resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a DOM (double-quoted, &quot;-encoded, as the Interactive canvas saves it) still resolves', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
+  const formDefinitionRepo = new InMemoryFormDefinitionRepo();
+  await formDefinitionRepo.create(formDefinition());
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      html: `<div class="live-example"><div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;cf-widget-1&quot;}"></div></div>`,
+    },
+  });
+
+  assert.equal(resolved.get("widget")?.get("cf-widget-1")?.componentId, "contact-form");
+});
+
 test('resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never throws — absent from the resolved map, degrading exactly like a dangling id (render.ts substitutes the REQ-28 placeholder)', async () => {
   const entryRepo = new InMemoryEntryRepo();
 

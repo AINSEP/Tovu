@@ -114,8 +114,43 @@ export interface ScanEmbedMarkersResult {
  * the ORIGINAL html at each capture group's own offsets, rather than out of whatever string was
  * actually scanned (see {@link maskNonRenderableRegions}) — see that function's doc for why the two
  * must never be the same string.
+ *
+ * Accepts the value single-quoted (group 3, the authored convention) OR double-quoted (group 4).
+ * Before 2026-09-26 only the single-quoted form matched, but every DOM serializer — the admin's
+ * Interactive canvas (GrapesJS), `innerHTML`, parse5 — re-emits the SAME attribute as
+ * `data-embed-config="{&quot;type&quot;:…}"`, so one canvas save silently turned a working marker into
+ * inert markup (the live /pages "That marker, live:" contact-form example rendered an empty box).
+ * A double-quoted value is HTML-decoded before parsing ({@link decodeAttributeValue}); a single-quoted
+ * one is still read verbatim, as it always was.
  */
-const MARKER_PATTERN = /<([a-z][a-z0-9-]*)((?:\s+[^>]*?)?\sdata-embed-config='([^']*)'(?:\s+[^>]*?)?)\s*>/gid;
+const MARKER_PATTERN = /<([a-z][a-z0-9-]*)((?:\s+[^>]*?)?\sdata-embed-config=(?:'([^']*)'|"([^"]*)")(?:\s+[^>]*?)?)\s*>/gid;
+
+/** The `data-embed-config` attribute itself, either quoting — for the rebuild helpers that rewrite or
+ *  drop it inside a marker's {@link EmbedMarker.attrs}. Group 1 is set only for the double-quoted form. */
+const MARKER_ATTRIBUTE_PATTERN = /\s+data-embed-config=(?:'[^']*'|("[^"]*"))/;
+
+/** Named character references a serializer actually emits inside an attribute value. Any other named
+ *  reference is left as written rather than guessed at. */
+const NAMED_CHARACTER_REFERENCES: Readonly<Record<string, string>> = { quot: '"', amp: "&", apos: "'", lt: "<", gt: ">", nbsp: " " };
+
+/**
+ * A double-quoted attribute value as a browser reads it: `&quot;`/`&amp;`/`&apos;`/`&lt;`/`&gt;`/
+ * `&nbsp;` and decimal/hex numeric references decoded. Kept local (this module stays import-free).
+ *
+ * @complexity O(n) over `value`.
+ */
+function decodeAttributeValue(value: string): string {
+  return value.replace(/&(?:#(\d{1,7})|#[xX]([0-9a-fA-F]{1,6})|([a-z]+));/g, (whole, dec?: string, hex?: string, name?: string) => {
+    if (name !== undefined) return NAMED_CHARACTER_REFERENCES[name] ?? whole;
+    const codePoint = dec !== undefined ? Number.parseInt(dec, 10) : Number.parseInt(hex as string, 16);
+    return codePoint > 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : whole;
+  });
+}
+
+/** The inverse of {@link decodeAttributeValue} for a value written back double-quoted. */
+function encodeDoubleQuotedValue(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
 
 /** Every character of `text` replaced by a space, except newlines (left alone so a masked span
  * cannot change how many lines the surrounding string has). Same length in, same length out. */
@@ -358,7 +393,8 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
     const [wholeStart, openTagEnd] = requireGroupRange(indices, 0);
     const tagRange = requireGroupRange(indices, 1);
     const attrsRange = requireGroupRange(indices, 2);
-    const rawRange = requireGroupRange(indices, 3);
+    const doubleQuotedRange = indices[4];
+    const rawRange = doubleQuotedRange ?? requireGroupRange(indices, 3);
     const tag = html.slice(...tagRange);
 
     // No close at all (a void `<img>` marker): the open tag alone is the whole marker, inner empty.
@@ -371,7 +407,7 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
     const index = wholeStart;
     const whole = html.slice(wholeStart, closeEnd);
     const attrs = html.slice(...attrsRange);
-    const raw = html.slice(...rawRange);
+    const raw = doubleQuotedRange ? decodeAttributeValue(html.slice(...rawRange)) : html.slice(...rawRange);
     const inner = html.slice(openTagEnd, closeStart);
     const result = parseEmbedMarkerConfig(raw);
 
@@ -605,7 +641,10 @@ export function withInnerContent(marker: EmbedMarker, inner: string): string {
  */
 export function withAddedId(marker: EmbedMarker, id: string): string {
   const config = JSON.stringify({ ...marker.config, id });
-  const attrsWithId = marker.attrs.replace(/data-embed-config='[^']*'/, `data-embed-config='${config}'`);
+  // Keeps the marker's own quoting: a double-quoted value is re-encoded, a single-quoted one is not.
+  const attrsWithId = marker.attrs.replace(MARKER_ATTRIBUTE_PATTERN, (_whole, doubleQuoted?: string) =>
+    doubleQuoted === undefined ? ` data-embed-config='${config}'` : ` data-embed-config="${encodeDoubleQuotedValue(config)}"`,
+  );
   return `<${marker.tag}${attrsWithId}>${marker.inner}</${marker.tag}>`;
 }
 
@@ -625,7 +664,7 @@ export function withAddedId(marker: EmbedMarker, id: string): string {
  * surrounding document's size.
  */
 export function withInnerContentFinal(marker: EmbedMarker, inner: string): string {
-  const attrsWithoutMarker = marker.attrs.replace(/\s*data-embed-config='[^']*'/, "");
+  const attrsWithoutMarker = marker.attrs.replace(MARKER_ATTRIBUTE_PATTERN, "");
   return `<${marker.tag}${attrsWithoutMarker}>${inner}</${marker.tag}>`;
 }
 
