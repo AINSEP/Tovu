@@ -50,6 +50,8 @@ Text:      `kuinetic-LICENSE.md`, beside each vendored copy.
 Vendored at:
   content/themes/static/basic/scripts/vendor/kuinetic.all.js
   sites/tovu-dev/themes/static/tovu-theme/scripts/vendor/kuinetic.all.js
+  content/themes/static/tovu-starter/scripts/vendor/kuinetic.all.js
+  content/themes/__original-themes__/static/tovu-starter/scripts/vendor/kuinetic.all.js
 
 --------------------------------------------------------------------------------
 3. Remix Icon  (https://remixicon.com)  -- version 4.9.1

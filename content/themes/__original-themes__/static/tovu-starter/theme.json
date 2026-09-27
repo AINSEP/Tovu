@@ -1,0 +1,37 @@
+{
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+  "apiVersion": 2,
+  "id": "tovu-starter",
+  "name": "Tovu Starter",
+  "version": "1.0.0",
+  "tier": "static",
+  "description": "A clean starting point: home, page, post, docs and article-list layouts, light and dark modes, scroll animations. Plain HTML/CSS/JS — edit anything.",
+  "modes": [
+    "dark",
+    "light"
+  ],
+  "defaultMode": "dark",
+  "pages": [
+    "index"
+  ],
+  "templates": [
+    "posts-default.html",
+    "posts-sidebar.html",
+    "pages-default.html",
+    "index",
+    "listing-default.html"
+  ],
+  "slots": {
+    "nav": {
+      "source": "nav.html",
+      "honorsCurrentPage": true
+    },
+    "footer": {
+      "source": "footer.html",
+      "variants": {
+        "minimal": "footer-minimal.html"
+      }
+    }
+  },
+  "publishedPages": []
+}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="/theme-assets/tovu-starter/icons/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="/theme-assets/tovu-starter/icons/favicon-16x16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/theme-assets/tovu-starter/icons/favicon-32x32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/theme-assets/tovu-starter/icons/apple-touch-icon.png" />
+<link rel="manifest" href="/theme-assets/tovu-starter/manifest.webmanifest" />
+<meta name="theme-color" content="#020203" />
+<title>Your Site</title>
+<link rel="stylesheet" href="../css/theme.css" />
+<script src="../scripts/theme-toggle.js"></script>
+</head>
+<body>
+
+<!-- Marker: shared header (render/partials/nav.html) replaces this line. "current":"index" highlights the fallback nav link with data-nav-id="index". -->
+<div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>
+
+<main>
+  <!-- Content-owned homepage (SPEC-0XX) — filled only when a `kind: "page"` row has claimed the
+       site's own "/" slug and this template was explicitly chosen for it (theme.json's `templates`
+       array lists "index" for exactly this). Every other request never reaches this marker at all:
+       `renderStaticTierHomePage` (server/http/site/render.ts) renders this file's OWN unmodified
+       bytes for the ordinary "no page claims /" case, bypassing content-marker resolution entirely,
+       so this section stays invisible dead markup on every site that hasn't authored such a page.
+
+       This is a landing shell, not an article: the demo's hero/logo-wall/features-grid/testimonial/
+       CTA regions were removed rather than kept as empty scaffolding, because there is no per-region
+       authoring path to fill them — a Page's body is one linear document dropped into this ONE
+       marker (`.post-detail-body`'s typography), never distributed across named sub-regions. Empty
+       structural boxes an author can never reach would be dead weight, not a head start. The marker's
+       own `"header":false` (2026-09-04) opts out of the shared `.post-detail-header` title/date
+       byline this marker's target normally gets — a landing page must not look like a dated article
+       — replacing an earlier `.landing-content .post-detail-header { display: none; }` CSS
+       workaround (removed from theme.css) that hid the byline but still shipped a real, indexable
+       `<h1>` as `display:none`, an SEO liability. `.post-detail-body`'s prose typography is kept for
+       whatever the page is authored with. -->
+  <!-- Deliberately no `threshold:` token, and there must never be one again. kUInetic hands
+       `threshold:` straight to IntersectionObserver, where it is a fraction of THIS element's OWN
+       area, not of the viewport — so anything taller than `viewport / threshold` can never reach it.
+       And a deferred (`on:enter`) reveal compiles to `animation-fill-mode: both` +
+       `animation-play-state: paused`, which makes `kui-in-up`'s `from { opacity: 0 }` the element's
+       RESTING style until the observer fires: an unsatisfiable threshold does not merely skip the
+       animation, it leaves the whole page body permanently invisible. This wrapper holds author
+       content, so its height is unbounded and 0 (an unset threshold) is the only value that is
+       satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
+  <section class="wrap post-detail landing-content" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+    <!-- Marker: the body of the page or post at this URL goes inside this element. "header":false hides the automatic title/date header. -->
+    <div data-embed-config='{"type":"content","header":false}'></div>
+  </section>
+</main>
+
+<!-- Marker: shared footer (render/partials/footer.html) replaces this line. -->
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
+
+<script src="../scripts/main.js"></script>
+<script src="../scripts/vendor/kuinetic.all.js"></script>
+</body>
+</html>
