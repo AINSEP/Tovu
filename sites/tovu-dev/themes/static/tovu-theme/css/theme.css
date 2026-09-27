@@ -466,40 +466,22 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    `content` on `::before`, not a real element, so a docs page body only needs the wrapper div,
    never its own label markup.
 
-   White background and a gold border, fixed regardless of theme mode, are the default for every
-   live example on every docs page (/embeds, /media, /posts, /forms, …) — not a one-off modifier
-   class; there was briefly a separate `.live-example--gold` for a single owner-facing prototype
-   (one example on /embeds) before the owner saw it and asked to roll it out everywhere, at which
-   point keeping a same-effect modifier class around would just be dead indirection. `--gold` is
-   sampled directly from this theme's own `assets/logo@2x.png` (average of opaque interior pixels
-   of the mark, ~rgb(255,186,62)) because neither tokens.json nor tokens.light.json names a
-   literal gold token — tokens.light.json's `--accent` (#f8b838) is close but mode-varying (a
-   different hue in tokens.json's dark value), and this frame needs one fixed color that reads the
-   same in both themes, so it is declared here rather than reused from the host-emitted tokens.
+   A gold border on the theme's own `--surface` background is the default for every live example
+   on every docs page (/embeds, /media, /posts, /forms, …) — not a one-off modifier class. `--gold`
+   is sampled from this theme's own `assets/logo@2x.png` (~rgb(255,186,62)) because neither
+   tokens.json nor tokens.light.json names a fixed gold, and the frame should read the same in
+   both modes.
 
-   Re-declaring `--fg`/`--muted`/`--prose-link` locally (not just `background`/`border-color`) is
-   what keeps arbitrary embedded content readable on the now-always-white box: a live example's
-   contents are whatever marker it wraps — a `.post-detail-body a` link (`color: var(--prose-link)`,
-   line ~566 below) or this block's own `::before` label (`color: var(--muted)`) actually re-read
-   the variable at the point those rules fire, so redefining the token here is enough for both.
+   The background follows the theme (2026-09-26). It used to be a fixed white with light-mode
+   `--fg`/`--muted`/`--prose-link` re-declared locally, but embedded widgets style their own
+   controls from the page's mode-varying tokens, so in dark mode the contact form's inputs came out
+   near-black inside a white box. Following the theme instead means the box and whatever it wraps
+   read from the same tokens in both modes.
 
-   A PLAIN inherited `color` is NOT one of those cases, and shipping this without the explicit
-   `color: var(--fg)` line below looked fine in a quick look and then failed in the field: the
-   "Footer Resources" widget's `<h3 class="widget-menu-title">` (no matching CSS rule anywhere in
-   this theme — confirmed by grep) has no `color` declaration of its own, so it inherits the
-   COMPUTED value the cascade already resolved at `body { color: var(--fg) }` — dark mode's
-   near-white — not a live re-read of `--fg` at this element's own scope. Redefining the `--fg`
-   custom property here changes nothing for it, because nothing between `body` and that `<h3>`
-   ever re-declares the `color` property itself. Caught by actually looking at a dark-mode
-   screenshot (2026-09-23): the heading was barely visible, links were fine. `color: var(--fg)`
-   directly on `.live-example` gives this scope its own freshly-computed `color`, using the
-   redefined dark `--fg`, which every plain-inheriting descendant (this widget's heading, and any
-   future marker with the same shape) now picks up correctly. `--muted`/`--prose-link` stay as
-   token-only redefinitions since their consumers already re-read the variable by name.
-
-   All three override values reuse existing tokens from elsewhere in this theme
-   (tokens.light.json's `--accent-fg`/`--accent-text`, and this file's own light-mode
-   `--prose-link`) rather than inventing new colors. */
+   `color: var(--fg)` stays on the box itself: a plain-inheriting descendant (e.g. the "Footer
+   Resources" widget's `<h3 class="widget-menu-title">`, which has no `color` rule of its own)
+   inherits the COMPUTED `color`, not a live re-read of `--fg`, so the box gives its scope a
+   freshly computed one. */
 :root { --gold: #ffba3e; }
 /* `.latest-posts .live-example` (2026-09-23) — /posts's "Latest posts" list is the one live example
    NOT inside `.post-detail-body` (it's the theme-owned post-previews marker rendered by
@@ -508,16 +490,13 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    one template's wrapper, so this addition changes nothing for any other page's post list. */
 .post-detail-body .live-example,
 .latest-posts .live-example {
-  --fg: #1a1300;
-  --muted: #8a5e05;
-  --prose-link: #2563eb;
   color: var(--fg);
   position: relative;
   margin: 20px 0;
   padding: 30px 20px 20px;
   border: 2px solid var(--gold);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
 }
 .post-detail-body .live-example::before,
 .latest-posts .live-example::before { content: "Live example"; position: absolute; top: 10px; left: 16px; font: 11px/1 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
