@@ -198,7 +198,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
                       />
                     </th>
                     <th>{t("Type")}</th>
-                    <th>{t("Entity")}</th>
+                    <th>{t("Item")}</th>
                     <th>{t("What happens")}</th>
                     <th>{t("Why")}</th>
                     {showOverwriteColumn && (

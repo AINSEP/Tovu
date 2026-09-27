@@ -64,3 +64,13 @@ describe("DASHBOARD_DICT: t() falls back to COMMON_I18N", () => {
     expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
   });
 });
+
+describe("the Publish dialog's column names are translated in every locale", () => {
+  it("translates 'Item' everywhere, and no longer carries the developer word 'Entity'", () => {
+    for (const locale of Object.keys(DASHBOARD_DICT)) {
+      // Present in every locale (Indonesian and Portuguese really do say "Item").
+      expect(COMMON_I18N[locale]?.Item, locale).toBeTruthy();
+      expect(COMMON_I18N[locale]?.Entity, locale).toBeUndefined();
+    }
+  });
+});

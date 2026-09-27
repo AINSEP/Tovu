@@ -376,6 +376,17 @@ describe("PublishContentDialog — row order (owner rule 2026-09-26)", () => {
   });
 });
 
+describe("PublishContentDialog — plain column names (owner 2026-09-26)", () => {
+  it("names the columns Type, Item and What happens — no developer word like Entity", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    await planFrom(port);
+
+    const headers = [...document.querySelectorAll("thead th")].map((th) => th.textContent?.trim());
+    expect(headers.slice(1, 4)).toEqual(["Type", "Item", "What happens"]);
+    expect(headers).not.toContain("Entity");
+  });
+});
+
 describe("PublishContentDialog — the entity column names entities, never uuids", () => {
   it("shows the entity's own slug, and keeps the id on the row, not in the tooltip", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
