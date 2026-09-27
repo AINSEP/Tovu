@@ -95,6 +95,9 @@ export interface PublishReportRow {
   /** The dialog's note for a carried-along row — see {@link usedByNoteFor}. `null` on every other
    *  row. English source text; the dialog translates it. */
   readonly usedByNote: string | null;
+  /** This update trashes the item on live (`PublishContentOutcomeRowDto.trashes`): labelled
+   *  {@link TRASH_ON_LIVE_LABEL} and styled apart from an ordinary publish. */
+  readonly trashes: boolean;
 }
 
 /** What the counts under the table add up to. */
@@ -500,6 +503,9 @@ const LABEL_BY_OUTCOME: Readonly<Record<PublishContentOutcomeRow["outcome"], str
   blocked: "Skipped",
 };
 
+/** The label for a row whose update trashes the item on live. */
+const TRASH_ON_LIVE_LABEL = "Will trash on live";
+
 /**
  * Whether the run writes this row, stated as a disposition rather than a boolean so the table can
  * distinguish "nothing to do" from "deliberately not done".
@@ -534,7 +540,7 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
       selectable: disposition === "publish" && includedFor.length === 0,
       outcome: row.outcome,
       disposition,
-      dispositionLabel: LABEL_BY_OUTCOME[row.outcome],
+      dispositionLabel: row.trashes === true ? TRASH_ON_LIVE_LABEL : LABEL_BY_OUTCOME[row.outcome],
       reason: rawReason === null ? null : friendlyPublishReason(rawReason),
       appliesOnExecute: row.writes,
       overwritable: disposition === "skipped" && row.canOverwrite === true,
@@ -542,6 +548,7 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
       referencedByLabels: referencedByLabelsFor(row),
       includedFor,
       usedByNote: usedByNoteFor(includedFor),
+      trashes: row.trashes === true,
     };
   });
 }

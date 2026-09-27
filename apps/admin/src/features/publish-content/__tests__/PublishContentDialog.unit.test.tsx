@@ -1824,3 +1824,28 @@ describe("PublishContentDialog — types the live site can't take yet", () => {
     );
   });
 });
+
+// 2026-09-26: a Media row trashed here plans on live as an update, and the pill read "Will publish —
+// update" for what actually trashes the item on live.
+describe("PublishContentDialog — a row that trashes on live says so", () => {
+  const TRASH_REPORT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["media"],
+    rows: [
+      { entityType: "media", entityId: "media-gone", entityLabel: "old-logo", outcome: "applied", writes: true, reason: null, trashes: true },
+      { entityType: "media", entityId: "media-kept", entityLabel: "new-logo", outcome: "applied", writes: true, reason: null },
+    ],
+  };
+
+  it("labels the trashing row 'Will trash on live' in the Trash pill style, and leaves an ordinary update alone", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: TRASH_REPORT });
+    await planFrom(port);
+
+    const trashPill = within(reportRow("media-gone")).getByText("Will trash on live");
+    expect(trashPill.className).toBe("status status-trashed");
+    expect(within(reportRow("media-gone")).queryByText("Will publish — update")).toBeNull();
+    const updatePill = within(reportRow("media-kept")).getByText("Will publish — update");
+    expect(updatePill.className).toBe("status status-active");
+  });
+});

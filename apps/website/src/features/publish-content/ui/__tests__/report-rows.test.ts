@@ -571,3 +571,21 @@ test("friendlyPublishReason names the secret-looking file that refused a theme, 
     );
   }
 });
+
+// 2026-09-26: a locally trashed media row trashes the item on live; "Will publish — update" hid that.
+test("a row the source tagged as trashing reads 'Will trash on live', still publishes, and says so on the row", () => {
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "applied", entityType: "media", entityId: "gone", trashes: true }),
+      row({ outcome: "applied", entityType: "media", entityId: "kept" }),
+    ])
+  );
+
+  assert.deepEqual(
+    rows.map((r) => ({ key: r.key, disposition: r.disposition, label: r.dispositionLabel, trashes: r.trashes, selectable: r.selectable })),
+    [
+      { key: "media:gone", disposition: "publish", label: "Will trash on live", trashes: true, selectable: true },
+      { key: "media:kept", disposition: "publish", label: "Will publish — update", trashes: false, selectable: true },
+    ]
+  );
+});

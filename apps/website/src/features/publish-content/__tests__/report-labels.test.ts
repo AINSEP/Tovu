@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { CONTENT_HASH_VERSION } from "../content-hash.js";
-import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows } from "../report-labels.js";
+import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "../report-labels.js";
 import type { PackedEntity, SkippedPackEntity } from "../type-registry.js";
 
 /**
@@ -246,4 +246,36 @@ test("a source-set displayLabel names the row even over the peer's own state-der
     rowsOf(labelled).map((r) => [r.entityId, r.entityLabel]),
     [["static/tovu-theme", "Tovu Theme"], ["p1", "peer-name"]]
   );
+});
+
+// 2026-09-26: a locally trashed media item plans on live as an ordinary `applied` update, and the
+// dialog said "Will publish — update" for what is really a trash on live.
+test("tagTrashingRows marks an update or overwrite whose local item is trashed, and nothing else", () => {
+  const entities = [
+    entity({ entityType: "media", id: "gone", state: { slug: "gone", status: "trashed" } }),
+    entity({ entityType: "media", id: "forced-gone", state: { slug: "forced-gone", status: "trashed" } }),
+    entity({ entityType: "media", id: "new-gone", state: { slug: "new-gone", status: "trashed" } }),
+    entity({ entityType: "media", id: "same-gone", state: { slug: "same-gone", status: "trashed" } }),
+    entity({ entityType: "media", id: "kept", state: { slug: "kept", status: "active" } }),
+  ];
+  const plan = planWith([
+    { entityType: "media", entityId: "gone", outcome: "applied", writes: true, reason: null },
+    { entityType: "media", entityId: "forced-gone", outcome: "forced", writes: true, reason: "edited on live" },
+    { entityType: "media", entityId: "new-gone", outcome: "created", writes: true, reason: null },
+    { entityType: "media", entityId: "same-gone", outcome: "unchanged", writes: false, reason: null },
+    { entityType: "media", entityId: "kept", outcome: "applied", writes: true, reason: null },
+  ]);
+
+  const tagged = rowsOf(tagTrashingRows(plan, entities));
+
+  assert.deepEqual(
+    tagged.map((row) => `${String(row.entityId)}:${String(row.trashes ?? false)}`),
+    ["gone:true", "forced-gone:true", "new-gone:false", "same-gone:false", "kept:false"]
+  );
+  assert.deepEqual({ ...tagged[0], trashes: undefined }, { ...rowsOf(plan)[0], trashes: undefined }, "every other field passes through");
+});
+
+test("tagTrashingRows passes an envelope it does not recognize straight through", () => {
+  const odd = { planId: "plan-1", details: "not a report" };
+  assert.equal(tagTrashingRows(odd, ENTITIES), odd);
 });

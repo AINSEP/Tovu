@@ -78,6 +78,12 @@ export interface PublishContentOutcomeRowDto {
    * an ordinary row so the operator sees it.
    */
   readonly includedFor?: readonly string[];
+  /**
+   * 2026-09-26 — `true` on an update/overwrite row whose item is trashed on the SOURCE: live plans it
+   * as an ordinary update, but what it writes is the trash. Added by the source after the peer plans
+   * (`report-labels.ts`'s `tagTrashingRows`), never by the planner. Absent on every other row.
+   */
+  readonly trashes?: boolean;
 }
 
 /** The only report shape serialized for publish-content clients. */

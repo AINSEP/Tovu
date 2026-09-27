@@ -23,6 +23,7 @@ import {
   appendSkippedRowsToPeerPlan,
   keepChangingIncludedEntities,
   labelPeerPlanRows,
+  tagTrashingRows,
 } from "#src/features/publish-content/report-labels";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import {
@@ -374,9 +375,13 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         //
         // Last, a carried-along row that live would write is tagged with the rows that use it, an
         // unchanged one is dropped, and a conflicting/blocked one stays as an ordinary row so the
-        // operator sees it — `report-labels.ts`'s `keepChangingIncludedEntities`.
+        // operator sees it — `report-labels.ts`'s `keepChangingIncludedEntities`. An update whose local
+        // item is trashed is tagged `trashes` so the dialog says it trashes on live (`tagTrashingRows`).
         ...appendSkippedRowsToPeerPlan(
-          keepChangingIncludedEntities(labelPeerPlanRows(result.plan, bundle.entities), includedFor),
+          keepChangingIncludedEntities(
+            tagTrashingRows(labelPeerPlanRows(result.plan, bundle.entities), bundle.entities),
+            includedFor
+          ),
           scoped.skipped
         ),
       });

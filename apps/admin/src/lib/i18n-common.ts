@@ -489,6 +489,8 @@ const COMMON_EXTRA_KEYS = [
   "Menu links updated:",
   // 2026-09-26: the done banner's post-publish safety-check lead-in. Appended at the end, same rule.
   "Published, but these won't show correctly on the live site:",
+  // 2026-09-26: the status pill of a publish row that trashes the item on live.
+  "Will trash on live",
 ] as const;
 
 const COMMON_EXTRA_VALUES: Record<string, readonly string[]> = {

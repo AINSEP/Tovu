@@ -3,7 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { PublishCriteria, PublishReportRow, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
 import type { Translate } from "../../lib/dictionary-translator";
-import { overwriteTooltipFor, reportRowNote, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
+import { overwriteTooltipFor, reportRowNote, reportRowPillClass, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
 
 /**
@@ -68,14 +68,6 @@ import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
  * names the pre-filled candidate site, so this file adds no copy of its own about what connecting
  * means. See that route's header for why this dialog is where the action lives at all.
  */
-
-/** Maps a row's disposition to the `.status-*` pill `styles.css` already defines, so the table
- *  reads the same as every other status column in the app in both themes. */
-const DISPOSITION_PILL_CLASS = {
-  publish: "status status-active",
-  unchanged: "status status-draft",
-  skipped: "status status-warning",
-} as const;
 
 export interface PublishContentDialogProps {
   onCancel: () => void;
@@ -146,7 +138,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
           `data-entity-id`, never in the tooltip (owner report 2026-09-26). */}
       <td title={row.entityLabel}>{row.entityLabel}</td>
       <td>
-        <span className={DISPOSITION_PILL_CLASS[row.disposition]}>{row.dispositionLabel}</span>
+        <span className={reportRowPillClass(row)}>{t(row.dispositionLabel)}</span>
         {/* The reason sits under the status it explains — most rows have none, so a
             column of its own was mostly empty (owner 2026-09-26). */}
         {reportRowNote(row, t) && <span className="publish-content-reason">{reportRowNote(row, t)}</span>}

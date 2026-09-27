@@ -354,6 +354,24 @@ export function reportRowNote(row: Pick<PublishReportRow, "usedByNote" | "reason
   return row.reason ? row.reason : null;
 }
 
+/** Maps a row's disposition to the `.status-*` pill `styles.css` already defines, so the table
+ *  reads the same as every other status column in the app in both themes. */
+const DISPOSITION_PILL_CLASS = {
+  publish: "status status-active",
+  unchanged: "status status-draft",
+  skipped: "status status-warning",
+} as const;
+
+/**
+ * The status pill's class: the disposition's, except an update that trashes the item on live
+ * (2026-09-26), which takes the app's own Trash styling so it never reads as an ordinary publish.
+ *
+ * @complexity O(1).
+ */
+export function reportRowPillClass(row: Pick<PublishReportRow, "disposition" | "trashes">): string {
+  return row.trashes ? "status status-trashed" : DISPOSITION_PILL_CLASS[row.disposition];
+}
+
 /**
  * Whether a publish has been committed and has no outcome yet: confirm is on its way or answered,
  * or execute is running. From here the live site finishes the run whatever this dialog does (terra

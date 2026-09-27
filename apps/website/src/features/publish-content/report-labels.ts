@@ -106,6 +106,35 @@ export function appendSkippedRowsToPeerPlan(plan: PeerPlanEnvelope, skipped: rea
   return { ...plan, details: { ...details, rows: [...details.rows, ...skippedRows] } };
 }
 
+/** Outcomes that overwrite an item live already holds: an update, or an operator-ticked overwrite. */
+const UPDATING_OUTCOMES: ReadonlySet<string> = new Set(["applied", "forced"]);
+
+/**
+ * Tags `trashes: true` on every update/overwrite row whose entity in the bundle this side sent is
+ * trashed here (`state.status === "trashed"`, the shape a type that packs its trashed rows — media —
+ * carries). Live plans such a row as an ordinary update, so without this the dialog said "Will
+ * publish — update" for what trashes the item on live. A `created` row is left alone: it trashes
+ * nothing live holds. Display only — `outcome`/`writes`/`reason` pass through untouched.
+ *
+ * Returns the envelope unchanged when it is not the expected shape (mirrors {@link labelPeerPlanRows}).
+ *
+ * @complexity O(e + r) time and space.
+ */
+export function tagTrashingRows(plan: PeerPlanEnvelope, entities: readonly PackedEntity[]): PeerPlanEnvelope {
+  const details = plan.details;
+  if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
+  const trashed = new Set(
+    entities.filter((entity) => entity.state.status === "trashed").map((entity) => entityKey(entity.entityType, entity.id))
+  );
+  if (trashed.size === 0) return plan;
+
+  const rows = details.rows.map((row) => {
+    if (!isRecord(row) || !UPDATING_OUTCOMES.has(String(row.outcome))) return row;
+    return trashed.has(entityKey(String(row.entityType ?? ""), String(row.entityId ?? ""))) ? { ...row, trashes: true } : row;
+  });
+  return { ...plan, details: { ...details, rows } };
+}
+
 /** The planner outcomes that change live: a brand-new row, an update to one live already holds, or
  *  an operator-ticked overwrite of one live holds differently (`forced`). */
 const CHANGING_OUTCOMES: ReadonlySet<string> = new Set(["created", "applied", "forced"]);
