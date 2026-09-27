@@ -8,6 +8,7 @@ import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 import { requestPublish } from "../publish-content/hooks/publish-request.store";
+import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
 
 /**
  * @file Admin landing screen — markup only.
@@ -186,6 +187,8 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
     showSiteKeyBanner,
     siteKeyBannerMessage,
   } = useDashboardHook();
+  // `false` on the live site, which has nowhere to publish to (`publish-availability.store.ts`).
+  const canPublish = usePublishToLiveAvailable();
 
   return (
     <div className="page">
@@ -208,17 +211,19 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           {/* Orange/`.btn-primary`, directly under "View site" — a deliberate, meaningful action,
               not a nav link. See `PublishContentDialog.tsx` for why the dialog it opens exists and
               why its own Confirm is a stub. */}
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => requestPublish({})}
-            {...agentHandle("dashboard-publish-content", {
-              role: "button",
-              label: "Publish all content to the live site",
-            })}
-          >
-            {t("Publish all content")}
-          </button>
+          {canPublish ? (
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => requestPublish({})}
+              {...agentHandle("dashboard-publish-content", {
+                role: "button",
+                label: "Publish all content to the live site",
+              })}
+            >
+              {t("Publish all content")}
+            </button>
+          ) : null}
         </div>
       </div>
 

@@ -17,6 +17,10 @@ import { takeBootToken } from "./lib/boot-token-fragment";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import {
+  readPublishToLiveAvailability,
+  setPublishToLiveAvailable,
+} from "./features/publish-content/hooks/publish-availability.store";
+import {
   parsePublishContentToolInput,
   PUBLISH_CONTENT_CAPABILITY,
   type PublishCriteria,
@@ -90,7 +94,10 @@ export function useAdminSession(): UseAdminSession {
 
     redeemed
       .then(() => api.me())
-      .then((r) => setUser(r.user))
+      .then((r) => {
+        setPublishToLiveAvailable(readPublishToLiveAvailability(r));
+        setUser(r.user);
+      })
       .catch(() => setUser(null))
       .finally(() => setChecking(false));
   }, []);
@@ -141,6 +148,12 @@ export function useAdminSession(): UseAdminSession {
   function handleLogin(next: AdminUser) {
     setUser(next);
     publishSettingsRefresh();
+    // A fresh sign-in skipped the boot effect's `/auth/me`, which is what says whether this is the
+    // live site (`publish-availability.store.ts`); a failed read leaves the default in place.
+    api
+      .me()
+      .then((r) => setPublishToLiveAvailable(readPublishToLiveAvailability(r)))
+      .catch(() => undefined);
   }
 
   async function logout() {

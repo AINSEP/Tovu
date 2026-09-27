@@ -18,7 +18,8 @@ export interface PublishSectionButtonProps {
 }
 
 export function PublishSectionButton({ section }: PublishSectionButtonProps) {
-  const { label, onClick } = usePublishSectionButton(section);
+  const { visible, label, onClick } = usePublishSectionButton(section);
+  if (!visible) return null;
   return (
     <button
       type="button"

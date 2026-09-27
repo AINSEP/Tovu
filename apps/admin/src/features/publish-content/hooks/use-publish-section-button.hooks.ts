@@ -2,6 +2,7 @@ import { publishSectionById, type PublishSectionId } from "@tovu/publish-content
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as translateDashboard } from "../../dashboard/dashboard-i18n";
+import { usePublishToLiveAvailable } from "./publish-availability.store";
 import { requestPublish } from "./publish-request.store";
 
 /**
@@ -18,6 +19,9 @@ import { requestPublish } from "./publish-request.store";
 export type { PublishSectionId };
 
 export interface PublishSectionButtonController {
+  /** `false` on the live site, where there is nowhere to publish to — see
+   *  `publish-availability.store.ts`. The button renders nothing then. */
+  readonly visible: boolean;
   /** The section's own label, e.g. "Publish pages" — resolved against the caller's locale through
    *  the same `dashboard-i18n` dictionary the dialog's title reads from. */
   readonly label: string;
@@ -35,7 +39,9 @@ export function usePublishSectionButton(section: PublishSectionId): PublishSecti
   const locale = useWiredAdminLocale();
   // `PublishSectionId` is derived from the table itself, so the lookup cannot miss.
   const entry = publishSectionById(section)!;
+  const visible = usePublishToLiveAvailable();
   return {
+    visible,
     label: translateDashboard(locale, entry.labelKey),
     onClick: () => {
       requestPublish({}, { entityTypes: [...entry.entityTypes] });

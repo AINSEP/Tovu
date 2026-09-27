@@ -33,6 +33,11 @@ import {
   type ResolvedPeerCredential,
 } from "#src/features/publish-content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
+import {
+  canPublishToLive,
+  PUBLISH_FROM_LIVE_SITE_CODE,
+  PUBLISH_FROM_LIVE_SITE_ERROR,
+} from "#src/features/publish-content/live-site-policy";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -257,9 +262,19 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
     return allowed ? principal.id : null;
   };
 
+  /** The push routes' extra preamble: the live site is the publish destination, so it never pushes
+   *  (`live-site-policy.ts`). Runs before {@link guard} — nothing about the caller changes the answer. */
+  const pushGuard: typeof guard = async (req, res) => {
+    if (!canPublishToLive()) {
+      res.status(403).json({ error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE });
+      return null;
+    }
+    return guard(req, res);
+  };
+
   app.post(`${base}/push/plan`, async (req, res) => {
     try {
-      const principalId = await guard(req, res);
+      const principalId = await pushGuard(req, res);
       if (principalId === null) return;
 
       const selectedEntityKeys = readSelectedEntityKeys(req.body);
@@ -392,7 +407,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
 
   app.post(`${base}/push/confirm`, async (req, res) => {
     try {
-      const principalId = await guard(req, res);
+      const principalId = await pushGuard(req, res);
       if (principalId === null) return;
 
       const { planId, planHash } = (req.body ?? {}) as Record<string, unknown>;
@@ -410,7 +425,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
 
   app.post(`${base}/push/execute`, async (req, res) => {
     try {
-      const principalId = await guard(req, res);
+      const principalId = await pushGuard(req, res);
       if (principalId === null) return;
 
       const { bundleId, confirmationToken } = (req.body ?? {}) as Record<string, unknown>;

@@ -2,6 +2,8 @@ import { useSyncExternalStore } from "react";
 
 import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
+import { isPublishToLiveAvailable } from "./publish-availability.store";
+
 /**
  * @file `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S2 — the one
  * way anything OTHER than a person's own click opens the Publish dialog: `requestPublish(criteria)`.
@@ -95,6 +97,16 @@ function unplannedResult(): PublishRequestResult {
   };
 }
 
+/** What any ask to publish resolves with on the live site — the dialog never opens there. */
+function liveSiteResult(): PublishRequestResult {
+  return {
+    ...unplannedResult(),
+    opened: false,
+    nextStep:
+      "This is the live site, so there is nowhere to publish to. Publish from your local copy of the site instead.",
+  };
+}
+
 /**
  * Opens the Publish dialog at App level with `criteria` as its starting selection, and returns a
  * promise that settles once the dialog has planned against them (or, if nothing ever plans, once the
@@ -106,6 +118,10 @@ function unplannedResult(): PublishRequestResult {
  * @complexity O(listeners) to notify subscribers; O(1) otherwise.
  */
 export function requestPublish(criteria: PublishCriteria, scope?: PublishScope): Promise<PublishRequestResult> {
+  // The live site has nowhere to publish to (`publish-availability.store.ts`), so the dialog never
+  // opens there — whether the ask came from a button, the `?publish=` deep link, chat or WebMCP.
+  if (!isPublishToLiveAvailable()) return Promise.resolve(liveSiteResult());
+
   // A still-open request is superseded, not dropped — see this file's header.
   openRequest?.resolve(unplannedResult());
 

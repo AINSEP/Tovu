@@ -2459,7 +2459,13 @@ export const api = {
       body: JSON.stringify({ token }),
     }),
   me: () =>
-    request<{ user: AdminUser; effectivePermissions?: string[]; canManageUserTrash?: boolean }>("/auth/me"),
+    request<{
+      user: AdminUser;
+      effectivePermissions?: string[];
+      canManageUserTrash?: boolean;
+      /** `false` on the live site (`publish-availability.store.ts`); absent on older servers. */
+      canPublishToLive?: boolean;
+    }>("/auth/me"),
   /** Password-banner plan (2026-09-24), Slice 2: whether the SIGNED-IN caller's own stored
    *  credential still verifies against the default. Separate from `me()` since only the dashboard
    *  needs it and the server-side check costs a real argon2id verify. */
