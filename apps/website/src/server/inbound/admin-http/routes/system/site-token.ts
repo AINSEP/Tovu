@@ -13,13 +13,13 @@ import {
   type RootKeyStatus,
 } from "#src/features/webhooks/keyring.env";
 import {
-  findKeyDependentData,
   readSiteMetaJson,
   resolveSiteKeyFingerprint,
   siteKeyFilePathFrom,
   siteKeySourcesForSiteDir,
   type SiteKeySource,
 } from "#src/features/webhooks/site-key-sources";
+import { findKeyDependentData } from "#src/platform/db/key-dependent-data";
 import { SITE_TOKEN_MANAGE_PERMISSION } from "#src/features/identity/site-token-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { SiteTokenState } from "#src/contracts/core/site-token-state";
@@ -185,9 +185,9 @@ export function siteTokenState(input: SiteTokenStateInput): SiteTokenState {
  *
  * @complexity O(1) `existsSync` plus {@link findKeyDependentData}'s own cost when the file exists.
  */
-function siteHasKeyDependentData(siteDir: string): boolean {
+async function siteHasKeyDependentData(siteDir: string): Promise<boolean> {
   const contentDbPath = join(siteDir, CONTENT_DB_FILENAME);
-  return existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
+  return existsSync(contentDbPath) ? await findKeyDependentData([contentDbPath]) : false;
 }
 
 /**
@@ -247,7 +247,7 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
       fingerprint: status.fingerprint,
       metaFingerprint: status.active ? resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) : undefined,
       hasKeyDependentData:
-        !status.active && !status.invalid ? siteHasKeyDependentData(deps.siteBinding.dir) : false,
+        !status.active && !status.invalid ? await siteHasKeyDependentData(deps.siteBinding.dir) : false,
     });
     res.status(200).json({ ...status, state, runtimeMode: resolveRuntimeMode() });
   });

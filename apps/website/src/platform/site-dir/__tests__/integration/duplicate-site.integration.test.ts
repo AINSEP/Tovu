@@ -14,6 +14,7 @@ import { readSiteDir } from "../../read-site-dir.js";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { ensureSiteKeyForBoot } from "#src/features/webhooks/site-key-ensure";
+import { findKeyDependentData } from "#src/platform/db/key-dependent-data";
 import { siteKeySources } from "#src/features/webhooks/site-key-sources";
 
 /**
@@ -179,7 +180,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
 
     // Establish the source's own per-site key file — the exact call `cli/commands/serve.ts`/
     // `index.ts` make on every real boot (site-key plan §A3a).
-    const mintResult = ensureSiteKeyForBoot({ siteDir: source.dir, mode: "local", env, home });
+    const mintResult = await ensureSiteKeyForBoot({ siteDir: source.dir, mode: "local", env, home, findKeyDependentData });
     assert.ok(mintResult, "the source must resolve a siteKeyId (initSite always writes one) and mint a per-site key");
     assert.equal(mintResult?.action, "mint");
 
@@ -220,7 +221,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
 
     // Resolving the duplicate's own boot path must find the SAME already-minted per-site file —
     // 'noop', never a fresh 'mint' — proof the two sites truly share one key, not two different ones.
-    const targetEnsure = ensureSiteKeyForBoot({ siteDir: targetDir, mode: "local", env, home });
+    const targetEnsure = await ensureSiteKeyForBoot({ siteDir: targetDir, mode: "local", env, home, findKeyDependentData });
     assert.ok(targetEnsure);
     assert.equal(targetEnsure?.action, "noop", "the duplicate must resolve to the SAME per-site key file, never mint a new one");
     assert.equal(targetEnsure?.fingerprint, mintResult?.fingerprint);

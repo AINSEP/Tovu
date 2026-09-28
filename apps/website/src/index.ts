@@ -6,6 +6,7 @@ import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/r
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoRootKeyAtBoot } from "./server/runtime/boot/root-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
+import { findKeyDependentData } from "./platform/db/key-dependent-data.js";
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "./server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js";
@@ -274,7 +275,7 @@ async function main(): Promise<void> {
   // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
   // `createSqliteRouteDeps` below, which is what actually resolves the root key this may have just
   // adopted or minted.
-  if (!useMemory) ensureSiteKeyForBoot({ siteDir: siteDir() });
+  if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findKeyDependentData });
 
   const deps = useMemory ? createRouteDeps() : createSqliteRouteDeps();
 

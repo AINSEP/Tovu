@@ -5,7 +5,6 @@ import { basename, dirname, join } from "node:path";
 
 import { fingerprintRootKeyHex, parseRootKeyHex, type RootKeyRejection } from "./keyring.env.js";
 import {
-  findKeyDependentData,
   readSiteKeySourceMaterial,
   readSiteMetaJson,
   resolveSiteKeyFingerprint,
@@ -23,11 +22,10 @@ import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
  * (`cli/commands/root-key.ts`) was absorbed into {@link ensureSiteKeyForBoot} and deleted outright
  * (Stage A3b, `abc4807d5`) — `planRootKeyEnsure`/`RootKeyEnsurePlan` (that command's own pure
  * decision table) went with it as dead code (site-key plan §A.6: zero callers once the CLI command
- * was gone). `findKeyDependentData` (the content.db scan both that command and this module's own
- * `ensureSiteKey` use) moved OUT to `site-key-sources.ts` in the same pass — the admin Site Token
- * route's `"missing-with-data"` state needs the identical scan and cannot import this module (see
- * that function's own doc for why); it is a pure reader, so the shared reader layer is its correct
- * home, not this one.
+ * was gone). `findKeyDependentData` (the content.db scan `ensureSiteKey` uses) lives in
+ * `platform/db/key-dependent-data.ts` on the storage kernel; the admin Site Token route imports it
+ * there, and the boot callers inject it here ({@link KeyDependentDataScan}), so this feature never
+ * value-imports `platform/db`.
  *
  * Purpose:
  * `ensureSiteKey` runs once per server boot, local mode only (A.2): a per-site file already there
@@ -144,7 +142,13 @@ export interface EnsureSiteKeyInput {
    *  with {@link siteKeySources}'s own input shape and so a future caller has a real seam if that
    *  ever changes. */
   readonly cwd?: string;
+  /** The content.db scan ({@link KeyDependentDataScan}). */
+  readonly findKeyDependentData: KeyDependentDataScan;
 }
+
+/** `platform/db/key-dependent-data.ts`'s `findKeyDependentData`: whether any `content.db` in
+ *  `dbPaths` holds data only the current key can open, failing closed. Injected by the boot callers. */
+export type KeyDependentDataScan = (dbPaths: readonly string[]) => Promise<boolean>;
 
 export interface EnsureSiteKeyResult {
   readonly action: SiteKeyEnsureAction;
@@ -164,13 +168,12 @@ export interface EnsureSiteKeyResult {
  * existing file is read, not rewritten, and the two write-producing outcomes (`"adopt"`, `"mint"`)
  * both go through {@link atomicCreateSiteKeyFile}'s race-safe create.
  *
- * @throws whatever the underlying `fs`/`better-sqlite3` calls throw for a path that exists but
- *   cannot be read (permissions, a torn file, a corrupt database) — this function never swallows
- *   those into a wrong decision.
- * @complexity O(1) fs/env reads plus {@link findKeyDependentData}'s cost, and only on the one
- *   branch (`perSite` and `other` both absent) that needs it.
+ * @throws whatever the underlying `fs` calls throw for a path that exists but cannot be read
+ *   (permissions, a torn file) — this function never swallows those into a wrong decision. The
+ *   injected scan fails closed on an unreadable database instead of throwing.
+ * @complexity O(1) fs/env reads plus the injected scan's cost, and only on the branches that need it.
  */
-export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
+export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSiteKeyResult> {
   const env = input.env ?? process.env;
   const mode = input.mode ?? resolveRuntimeMode({ env });
 
@@ -198,12 +201,12 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
 
   const contentDbPath = join(input.siteDir, CONTENT_DB_FILENAME);
   let hasKeyDataMemo: boolean | undefined;
-  const siteHasKeyData = (): boolean => {
-    hasKeyDataMemo ??= existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
+  const siteHasKeyData = async (): Promise<boolean> => {
+    hasKeyDataMemo ??= existsSync(contentDbPath) ? await input.findKeyDependentData([contentDbPath]) : false;
     return hasKeyDataMemo;
   };
   const needsDataCheck = perSiteParsed === undefined && otherParsed === undefined;
-  const siteDbsWithKeyData = needsDataCheck ? siteHasKeyData() : false;
+  const siteDbsWithKeyData = needsDataCheck ? await siteHasKeyData() : false;
 
   const plan = planSiteKeyEnsure({
     mode,
@@ -215,7 +218,7 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
   switch (plan.action) {
     case "noop": {
       if (!perSiteParsed?.ok) throw new Error("ensureSiteKey: 'noop' plan implies a valid per-site key");
-      return withFingerprintReconciliation(input.siteDir, "noop", perSiteFilePath, fingerprintRootKeyHex(perSiteParsed.hex), () => false);
+      return withFingerprintReconciliation(input.siteDir, "noop", perSiteFilePath, fingerprintRootKeyHex(perSiteParsed.hex), async () => false);
     }
     case "invalid": {
       const rejected = perSiteParsed?.ok === false ? perSiteParsed : otherParsed?.ok === false ? otherParsed : undefined;
@@ -230,11 +233,11 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
       // nothing, so adoption goes ahead and the stamp is updated.
       const candidateFingerprint = fingerprintRootKeyHex(otherParsed.hex);
       const stamped = resolveSiteKeyFingerprint({ siteDir: input.siteDir });
-      if (stamped !== undefined && stamped !== candidateFingerprint && siteHasKeyData()) {
+      if (stamped !== undefined && stamped !== candidateFingerprint && (await siteHasKeyData())) {
         return { action: "mismatch", perSiteFilePath, fingerprint: candidateFingerprint };
       }
       const written = atomicCreateSiteKeyFile(perSiteFilePath, otherParsed.hex);
-      return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written), () => !siteHasKeyData());
+      return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written), async () => !(await siteHasKeyData()));
     }
     case "refuse":
       return { action: "refuse", perSiteFilePath };
@@ -244,7 +247,7 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
       // `mint` is only planned when the site has no key-dependent data, so a stale stamp (a moved or
       // copied site folder) protects nothing — it is replaced rather than left as a permanent,
       // false "mismatch".
-      return withFingerprintReconciliation(input.siteDir, "mint", perSiteFilePath, fingerprintRootKeyHex(written), () => !siteHasKeyData());
+      return withFingerprintReconciliation(input.siteDir, "mint", perSiteFilePath, fingerprintRootKeyHex(written), async () => !(await siteHasKeyData()));
     }
     case "production-noop":
       // Unreachable here (the mode==="production" branch above already returned) — kept only so
@@ -276,13 +279,13 @@ export function ensureSiteKey(input: EnsureSiteKeyInput): EnsureSiteKeyResult {
  *
  * @complexity O(1) — one bounded JSON read, at most one atomic JSON write.
  */
-function withFingerprintReconciliation(
+async function withFingerprintReconciliation(
   siteDir: string,
   action: "noop" | "adopt" | "mint",
   perSiteFilePath: string,
   fingerprint: string,
-  mayRestamp: () => boolean
-): EnsureSiteKeyResult {
+  mayRestamp: () => Promise<boolean>
+): Promise<EnsureSiteKeyResult> {
   // `readSiteMetaJson` (site-key-sources.ts) — the shared `.site-meta.json` parse both this
   // function and `site-key-sources.ts`'s own `resolveSiteKeyId`/`resolveSiteKeyFingerprint` build
   // on, so a corrupt-file/non-object verdict can never drift between the writer's own
@@ -299,7 +302,7 @@ function withFingerprintReconciliation(
   if (stamped === fingerprint) {
     return { action, perSiteFilePath, fingerprint };
   }
-  if (mayRestamp()) {
+  if (await mayRestamp()) {
     writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
     return { action, perSiteFilePath, fingerprint };
   }
@@ -313,6 +316,8 @@ export interface EnsureSiteKeyForBootInput {
   readonly env?: NodeJS.ProcessEnv;
   readonly home?: string;
   readonly cwd?: string;
+  /** The content.db scan ({@link KeyDependentDataScan}). */
+  readonly findKeyDependentData: KeyDependentDataScan;
 }
 
 /**
@@ -352,13 +357,21 @@ export interface EnsureSiteKeyForBootInput {
  * @complexity O(1) fs read for `resolveSiteKeyId`, plus at most one more small fs write
  *   ({@link mintMinimalSiteMetaJson}), plus {@link ensureSiteKey}'s own cost when it runs.
  */
-export function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): EnsureSiteKeyResult | undefined {
+export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Promise<EnsureSiteKeyResult | undefined> {
   try {
     const env = input.env ?? process.env;
     const mode = input.mode ?? resolveRuntimeMode({ env });
     const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
     if (!siteKeyId) return undefined;
-    return ensureSiteKey({ siteDir: input.siteDir, siteKeyId, mode, env, home: input.home, cwd: input.cwd });
+    return await ensureSiteKey({
+      siteDir: input.siteDir,
+      siteKeyId,
+      mode,
+      env,
+      home: input.home,
+      cwd: input.cwd,
+      findKeyDependentData: input.findKeyDependentData,
+    });
   } catch (err) {
     // Boot must never go down over this — see this function's own header. `console.error` (not the
     // `warn`-level line `root-key-boot-notice.ts` prints moments later on the same terminal) so an

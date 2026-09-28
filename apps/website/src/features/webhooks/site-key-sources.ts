@@ -1,8 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import Database from "better-sqlite3";
-
 import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "./keyring.env.js";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 
@@ -223,69 +221,6 @@ export function resolveSiteKeyFingerprint(input: ResolveSiteKeyFingerprintInput)
   const meta = readSiteMetaJson(input.siteDir);
   if (meta === undefined) return undefined;
   return typeof meta.siteKeyFingerprint === "string" && meta.siteKeyFingerprint.length > 0 ? meta.siteKeyFingerprint : undefined;
-}
-
-/**
- * Whether any database in `dbPaths` holds data that only the CURRENT root/site key can decrypt or
- * verify. Checks every table whose schema mentions `sealed_ciphertext` (the column all sealed
- * tables share) for a non-null row, plus `webhook_subscriptions` (signing secrets derived from the
- * key, not stored under a `sealed_ciphertext` column at all).
- *
- * Fails closed: a database this function cannot open or query at all counts as "has data" — a
- * database it never got to inspect could hold sealed rows. Callers are expected to only pass paths
- * known to exist (`existsSync` first) — a genuinely missing site database is "nothing to scan yet",
- * not "unreadable", and must never reach this fail-closed path.
- *
- * Moved here from `site-key-ensure.ts` (site-key plan §A.6): the admin Site Token route's
- * `"missing-with-data"` state needs this exact scan, and `site-key-ensure.ts` is the one key-file
- * WRITER nothing under `server/inbound/**` may import (`no-site-key-ensure-import.boundary.test.ts`)
- * — this scan is read-only and belongs in the shared reader layer both sides already depend on, not
- * duplicated at the route. `site-key-ensure.ts`'s own `ensureSiteKey` still calls it, now via this
- * module's export.
- *
- * @param dbPaths - `content.db` paths to scan. Each is opened read-only and closed before the
- *   next; never mutates any of them.
- * @complexity O(t) sqlite statements per database, where t is that database's matching table
- *   count — one `sqlite_master` scan plus one bounded `LIMIT 1` probe per matching table.
- */
-export function findKeyDependentData(dbPaths: readonly string[]): boolean {
-  return dbPaths.some((dbPath) => databaseHasKeyDependentData(dbPath));
-}
-
-/** One database's contribution to {@link findKeyDependentData} — isolated so a failure opening or
- *  querying THIS database can be caught and turned into "has data" without aborting the scan of
- *  the others. */
-function databaseHasKeyDependentData(dbPath: string): boolean {
-  let db: Database.Database;
-  try {
-    db = new Database(dbPath, { readonly: true, fileMustExist: true });
-  } catch {
-    return true;
-  }
-  try {
-    const sealedTables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE '%sealed_ciphertext%'")
-      .all() as { name: string }[];
-    for (const { name } of sealedTables) {
-      // `name` is quoted as an identifier (never interpolated as a value) — it comes from
-      // `sqlite_master` itself, this database's own schema, not external input.
-      const row = db.prepare(`SELECT 1 FROM "${name}" WHERE sealed_ciphertext IS NOT NULL LIMIT 1`).get();
-      if (row !== undefined) return true;
-    }
-
-    const hasWebhookTable = db
-      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'webhook_subscriptions'")
-      .get();
-    if (hasWebhookTable !== undefined) {
-      const row = db.prepare("SELECT 1 FROM webhook_subscriptions LIMIT 1").get();
-      if (row !== undefined) return true;
-    }
-    return false;
-  } catch {
-    return true;
-  } finally {
-    db.close();
-  }
 }
 
 /**

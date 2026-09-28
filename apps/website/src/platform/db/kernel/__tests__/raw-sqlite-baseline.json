@@ -131,12 +131,6 @@
     "insert-or": 1,
     "prepare": 9
   },
-  "apps/website/src/features/webhooks/site-key-sources.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 4,
-    "sqlite-catalog": 2,
-    "sync-terminal": 4
-  },
   "apps/website/src/platform/db/migration/manifest.ts": {
     "autoincrement": 8,
     "fts5": 7
