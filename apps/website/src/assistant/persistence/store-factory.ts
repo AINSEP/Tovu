@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { ensureChatHistoryTables } from "@jini-ai/sqlite";
 import type { Database as SqliteDatabase } from "better-sqlite3";
 
+import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
 import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-scope.js";
 
 /**
@@ -21,7 +22,8 @@ import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-sco
  * migrator.
  */
 export function createChatStoreFactory(db: SqliteDatabase): ChatStoreFactory {
-  return (principal) => createTenantScopedChatStore(db, principal);
+  const ledger = createChatRunLedger(db);
+  return (principal) => createTenantScopedChatStore(db, principal, ledger);
 }
 
 /**
@@ -37,8 +39,17 @@ export function createChatStoreFactory(db: SqliteDatabase): ChatStoreFactory {
  * system is precisely the case that function exists for.
  */
 export function createInMemoryChatStoreFactory(): ChatStoreFactory {
+  return createInMemoryChatHistory().chatHistory;
+}
+
+/**
+ * {@link createInMemoryChatStoreFactory}'s store plus the {@link ChatRunLedger} over the SAME lazy
+ * database — the test root needs both, and two private databases would make the ledger blind to
+ * every row the store wrote.
+ */
+export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; chatRunLedger: ChatRunLedger } {
   let db: SqliteDatabase | undefined;
-  return (principal) => {
+  const open = (): SqliteDatabase => {
     if (!db) {
       db = new Database(":memory:");
       // Without this the schema's `ON DELETE CASCADE` is inert, and a test asserting that deleting
@@ -47,6 +58,18 @@ export function createInMemoryChatStoreFactory(): ChatStoreFactory {
       db.pragma("foreign_keys = ON");
       ensureChatHistoryTables(db);
     }
-    return createTenantScopedChatStore(db, principal);
+    return db;
+  };
+  // `createChatRunLedger` prepares per call, so building one per use costs nothing and keeps the
+  // database lazy.
+  const chatRunLedger: ChatRunLedger = {
+    isSettled: (...args) => createChatRunLedger(open()).isSettled(...args),
+    settle: (settlement) => createChatRunLedger(open()).settle(settlement),
+    // A database nobody has opened yet holds no stuck rows, so boot-time reconcile does not open it.
+    reconcileInterrupted: (now) => (db ? createChatRunLedger(db).reconcileInterrupted(now) : 0),
+  };
+  return {
+    chatHistory: (principal) => createTenantScopedChatStore(open(), principal, chatRunLedger),
+    chatRunLedger,
   };
 }

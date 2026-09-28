@@ -159,6 +159,10 @@ export default defineConfig({
       // instead of growing a second, drifting copy of it (`marker-target-parity.unit.test.ts` is what
       // keeps this alias safe: it fails if marker.ts ever grows an import).
       "@tovu/embed-marker": path.resolve(__dirname, "../website/src/contracts/core/embeds/marker.ts"),
+      // Fifth instance (2026-09-27, FINDING A): the daemon run-stream -> chat-event translation. The
+      // API's run finalizer saves a finished turn with the SAME translation this SPA's transport
+      // uses, so a turn saved by either side reads identically. Pure, type-only imports (its header).
+      "@tovu/assistant-run-events": path.resolve(__dirname, "../website/src/contracts/core/assistant-run-events.ts"),
     },
   },
   server: {

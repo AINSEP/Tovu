@@ -27,6 +27,7 @@ import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
+import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
 
 /** Rejects a body that is not a plain object, so `req.body.title` can never be an array or null. */
 function bodyOf(req: Request): Record<string, unknown> {
@@ -70,10 +71,25 @@ async function maybeNameFromFirstUserMessage(
   }
 }
 
-export function createAssistantChatsModule(deps: RouteDeps): ServerModuleHandle {
+export interface AssistantChatsModuleOptions {
+  /** Tests inject one with a fake daemon; production builds the real one over `deps.chatRunLedger`. */
+  readonly finalizer?: AssistantRunFinalizer;
+}
+
+export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
+  const finalizer = options.finalizer ?? createAssistantRunFinalizer({ ledger: deps.chatRunLedger });
   return {
     name: "assistant-chats",
     registerRoutes: (app: Express) => {
+      /*
+       * Boot-time repair, before any route can serve a transcript: a turn still `queued`/`running`
+       * now belongs to a run from before this boot, and that run died with the old process (the
+       * daemon is this process's child). Marked failed with the plain restart notice, content kept,
+       * never deleted — otherwise the pane spins on it forever. See `run-ledger.ts`.
+       */
+      const repaired = deps.chatRunLedger.reconcileInterrupted();
+      if (repaired > 0) console.log(`[assistant-chats] marked ${repaired} interrupted chat turn(s) failed`);
+
       app.use("/api/assistant/chats", requireAdminSession(deps));
 
       /** The store for whoever is making this request, and nobody else. */
@@ -167,6 +183,11 @@ export function createAssistantChatsModule(deps: RouteDeps): ServerModuleHandle 
               return;
             }
             await maybeNameFromFirstUserMessage(store, id, message, body);
+            // The in-flight stub of a daemon run is the one moment the server learns which row a
+            // run belongs to. From here the server saves the finished turn itself, so it no longer
+            // depends on this browser staying connected (`assistant-run-finalizer.ts`). A no-op for
+            // anything that is not an in-flight daemon run.
+            finalizer.watch({ principalId: getAuthedPrincipal(res).id, conversationId: id, message: saved });
             res.json({ message: saved });
           })
           .catch(next);

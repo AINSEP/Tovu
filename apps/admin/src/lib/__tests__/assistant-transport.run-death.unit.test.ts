@@ -178,6 +178,30 @@ describe("a run the agent daemon forgot (daemon restarted mid-run)", () => {
     expect(source.closed).toBe(true);
   });
 
+  test("a forgotten run is saved with the plain restart notice after what it already produced", async () => {
+    // FINDING A (2026-09-27): the error is live-only, so without an event a reload showed a bare
+    // "failed". The API's run finalizer saves the same notice for the same death, so whichever of
+    // the two writes the row first, it reads the same.
+    vi.stubGlobal("fetch", routeFetch((url, init) => (init?.method === "POST" ? 200 : 404)));
+    const h = handlers();
+    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
+    const source = FakeEventSource.instances[0]!;
+
+    source.emit("agent", JSON.stringify({ runId: "run-1", kind: "agent", payload: { type: "text_delta", delta: "Half" } }));
+    source.emit("error", "");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.done).toEqual([
+      { kind: "text", text: "Half" },
+      {
+        kind: "status",
+        label: "The assistant restarted while this answer was running, so it stopped.",
+        detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
+      },
+    ]);
+  });
+
   test("a bare stream drop while the daemon still knows the run leaves it running (EventSource reconnects)", async () => {
     vi.stubGlobal("fetch", routeFetch(() => 200));
     const h = handlers();

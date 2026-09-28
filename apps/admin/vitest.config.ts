@@ -66,6 +66,8 @@ export default defineConfig({
       "@tovu/publish-content-ui": path.resolve(__dirname, "../website/src/features/publish-content/ui/index.ts"),
       // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
       "@tovu/embed-marker": path.resolve(__dirname, "../website/src/contracts/core/embeds/marker.ts"),
+      // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
+      "@tovu/assistant-run-events": path.resolve(__dirname, "../website/src/contracts/core/assistant-run-events.ts"),
     },
   },
   test: {

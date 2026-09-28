@@ -4,6 +4,8 @@ import { createChatHistoryStore } from "@jini-ai/sqlite";
 import type { ChatHistoryStore } from "@jini-ai/chat/core";
 import type { Database as SqliteDatabase } from "better-sqlite3";
 
+import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
+
 /**
  * @file The single place a request handler may obtain chat history — and the only place that
  * decides *whose* history it is.
@@ -85,13 +87,35 @@ export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 export function createTenantScopedChatStore(
   db: SqliteDatabase,
   principal: ChatPrincipal,
+  ledger: ChatRunLedger = createChatRunLedger(db),
 ): ChatHistoryStore {
-  return createChatHistoryStore(db, {
+  const store = createChatHistoryStore(db, {
     scopeId: principal.workspaceId,
     ownerKind: principal.kind,
     ownerId:
       principal.kind === "user" ? principal.userId : hashSessionKey(principal.sessionKey),
   });
+  return {
+    ...store,
+    /*
+     * First terminal write wins, per run (`run-ledger.ts`'s file doc). The browser and the server
+     * finalizer can both save the same finished turn; whichever lands second must not replace the
+     * first — in particular, a browser that comes back after a restart and saves "run forgotten"
+     * with no events must not erase the answer the finalizer already saved. The stored row is
+     * returned instead, read through the scoped store, so a caller that does not own the
+     * conversation still gets `null` exactly as before.
+     *
+     * No `await` between the check and `store.appendMessage`'s synchronous write, so nothing can
+     * settle the row in between.
+     */
+    async appendMessage(conversationId, message) {
+      if (message.role === "assistant" && message.runId && ledger.isSettled(conversationId, message.id, message.runId)) {
+        const saved = await store.messages(conversationId);
+        return saved.find((m) => m.id === message.id) ?? null;
+      }
+      return store.appendMessage(conversationId, message);
+    },
+  };
 }
 
 /**

@@ -61,7 +61,7 @@ import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
 import {
-  createInMemoryChatStoreFactory,
+  createInMemoryChatHistory,
   createInMemoryAgentSessionStore,
   InMemorySiteAssistantCredentialRepo,
   InMemoryAdminExecutionCredentialRepo,
@@ -917,6 +917,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     getSeedHash: publishContentSeedHash,
   });
 
+  // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
+  const inMemoryChatHistory = createInMemoryChatHistory();
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: seededWorkspace.id,
     trash,
@@ -965,7 +967,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // one property tests most need to trust here is the isolation predicate, which only the real
     // adapter has. `ensureChatHistoryTables` is the package's own path for a host with no
     // migration system, which is exactly this root's situation.
-    chatHistory: createInMemoryChatStoreFactory(),
+    chatHistory: inMemoryChatHistory.chatHistory,
+    chatRunLedger: inMemoryChatHistory.chatRunLedger,
     // Same "no in-memory reimplementation needed" situation as `chatHistory` above, but this port
     // has no `ai_chats` foreign key or isolation predicate to get right, so a plain map (no `db`
     // at all) is the whole double — see `agent-session-store.ts`'s own doc.

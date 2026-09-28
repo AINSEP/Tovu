@@ -34,6 +34,7 @@ import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
+import type { ChatRunLedger } from "#src/assistant/index";
 import type { AgentSessionStore } from "../../assistant/persistence/agent-session-store.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
@@ -1459,6 +1460,12 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
    */
   chatHistory: ChatStoreFactory;
+  /**
+   * How an assistant turn's run ENDS in chat history, over the same `chat.db` as `chatHistory`:
+   * first terminal write wins per run, the server finalizer's settle, and the boot-time repair of
+   * turns left `running` by a dead process. See `assistant/persistence/run-ledger.ts`.
+   */
+  chatRunLedger: ChatRunLedger;
   /**
    * Per-(conversation, agent) agent-CLI session id (`assistant_agent_sessions`, migration `0051`),
    * so `agent-daemon-server.ts`'s `onStarted` can resume the underlying CLI session across chat

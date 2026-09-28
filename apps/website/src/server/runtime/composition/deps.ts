@@ -44,6 +44,7 @@ import { executionModeFromEnv } from "#src/features/deployments/publish-credenti
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
+  createChatRunLedger,
   createChatStoreFactory,
   createSqliteAgentSessionStore,
   ensurePublicAssistantSettingDefinitions,
@@ -1750,6 +1751,7 @@ export function createSqliteRouteDeps(
     // what let this move from `db.$client` to `chatDb` be a two-line redirect rather than a
     // refactor.
     chatHistory: createChatStoreFactory(chatDb),
+    chatRunLedger: createChatRunLedger(chatDb),
     // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
     agentSessions: createSqliteAgentSessionStore(chatDb),

@@ -25,12 +25,22 @@
  * growing message, so accumulating twice would double the text.
  */
 import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat/core";
-import type { AgentEvent, ChatMessage, ToolResultMediaBlock } from "@jini-ai/chat/core";
+import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, ReattachRunOptions, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
 import { fetchAgUiRunStatus, isAgUiRunId, reattachAgUiRun, startAgUiRun, stopAgUiRun } from "./assistant-transport-ag-ui";
-import { readSseFrames } from "./sse-frames";
+import {
+  asString,
+  readSseFrames,
+  readTerminalReason,
+  runInterruptedNotice,
+  terminalReasonNotice,
+  translateRunAgentPayload,
+  translateRunFrame,
+  type RunAgentPayload,
+  type RunFrameOutcome,
+} from "@tovu/assistant-run-events";
 
 const RUNS_URL = "/api/runs";
 const BYOK_TURN_URL = "/api/admin/v1/assistant/byok-turn";
@@ -50,291 +60,17 @@ const BYOK_RUN_ID_PREFIX = "byok:";
  */
 const MAX_TRANSCRIPT_TURNS = 40;
 
-interface RunAgentPayload {
-  readonly type: string;
-  readonly [key: string]: unknown;
-}
-
-interface RunProtocolEventWire {
-  readonly runId: string;
-  readonly kind: "start" | "agent" | "stdout" | "stderr" | "error" | "end";
-  readonly payload: unknown;
-}
-
-function asString(v: unknown): string {
-  return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v);
-}
-
-/**
- * Parses a `"usage"` wire payload into its renderable `AgentEvent`.
- *
- * The one case in {@link translateRunAgentPayload}'s switch with real branching: four independent
- * optional fields, each `typeof`-checked before use (a malformed/missing field must not throw or
- * silently coerce to `0`/`NaN`). Pulled out (2026-08-06, complexity pass, sixth pass) so those four
- * ternaries are scored in their own scope instead of the switch's — this is the fix for the earlier
- * `@complexityExemption`'s cognitive attribution on `translateRunAgentPayload`, which credited the
- * `mcp-ui`/`a2ui` cases (each a one-line unwrap, zero branching — see their own comments below) for
- * a cost that actually came from here.
- */
-export function parseUsageEvent(payload: RunAgentPayload): AgentEvent {
-  const usage = (payload.usage ?? {}) as Record<string, unknown>;
-  return {
-    kind: "usage",
-    inputTokens: typeof usage.input_tokens === "number" ? usage.input_tokens : undefined,
-    outputTokens: typeof usage.output_tokens === "number" ? usage.output_tokens : undefined,
-    costUsd: typeof payload.costUsd === "number" ? payload.costUsd : undefined,
-    durationMs: typeof payload.durationMs === "number" ? payload.durationMs : undefined,
-  };
-}
-
-/**
- * Reduces one wire-level `RunAgentPayload` into zero or one renderable `AgentEvent`s.
- *
- * Exported (a pure function, so directly testable with no `EventSource`/`fetch` stub needed — see
- * `assistant-transport.transcript.test.ts`'s own module doc for the same reasoning applied to
- * `runPrompt`) so `assistant-transport.a2ui.test.ts` can assert the `"a2ui"` branch below in
- * isolation.
- *
- * @complexityExemption (2026-08-06, complexity pass, sixth pass; bar is ≤9/≤9) **Score: 12
- * cyclomatic / 3 cognitive. Bar: ≤9 cyclomatic AND ≤9 cognitive. Cyclomatic-only exemption —
- * cognitive already clears the bar since {@link parseUsageEvent} above took the switch's only real
- * branching out of this function's own scope.** (An earlier version of this comment attributed the
- * cognitive cost to the `mcp-ui`/`a2ui` cases below; that was wrong — an independent audit measured
- * that extracting `parseUsageEvent` alone drops cognitive from 11 to 3, which only makes sense if
- * `usage` was the real source. `mcp-ui`/`a2ui` are one-line unwraps with zero branching, exactly as
- * their own comments already said.) Cyclomatic stays over by construction, not by accident: this is
- * a flat `switch` over `RunProtocolEventWire`'s closed `payload.type` vocabulary, one `case` per
- * wire type, and cyclomatic counts every `case` as a branch regardless of shape. Tried and rejected:
- * a `Record<string, (payload) => AgentEvent | null>` lookup table scores lower but loses two things
- * a switch over a TS discriminated union keeps — exhaustiveness checking (a lookup table compiles
- * with a missing key; this switch does not, once `payload.type` is narrowed to the real union rather
- * than the wire's untyped `string`), and the ability to attach a multi-paragraph comment to one case
- * explaining a specific interop bug (the `mcp-ui`/`a2ui` cases' comments each document why THAT case
- * cannot fall through to `default` — see below). A lookup table would have to carry those as a
- * parallel structure, one step removed from the code they explain. Left as a `switch`, documented
- * here rather than only in this session's report.
- */
-export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
-  switch (payload.type) {
-    case "status":
-      return { kind: "status", label: asString(payload.label), detail: payload.detail ? asString(payload.detail) : undefined };
-    case "text_delta":
-      return { kind: "text", text: asString(payload.delta) };
-    case "thinking_delta":
-      return { kind: "thinking", text: asString(payload.delta) };
-    case "tool_use":
-      return { kind: "tool_use", id: asString(payload.id), name: asString(payload.name), input: payload.input };
-    case "tool_result":
-      return {
-        kind: "tool_result",
-        toolUseId: asString(payload.toolUseId),
-        content: asString(payload.content),
-        isError: Boolean(payload.isError),
-        // Typed media (currently just images) the daemon attached alongside the flattened `content`
-        // string — see `@jini-ai/protocol`'s `events.ts` doc on why the wire field is `unknown`
-        // rather than a checked type here: the real shape is validated where `ToolCard` renders it.
-        // Forwarded verbatim rather than re-validated a second time in this reducer — an
-        // `Array.isArray` guard rather than a deep shape check, since a malformed entry inside it
-        // is a rendering concern (`ToolCard`'s own `ToolResultMedia` already ignores anything that
-        // isn't a recognized block), not a transport one.
-        ...(Array.isArray(payload.media) ? { media: payload.media as readonly ToolResultMediaBlock[] } : {}),
-      };
-    case "usage":
-      return parseUsageEvent(payload);
-    case "raw":
-      return { kind: "raw", line: asString(payload.line) };
-    // An MCP content block the daemon withheld from the tool result because it is for the HUMAN,
-    // not the model (`@jini-ai/daemon`'s `delegated-tool-bridge.ts` → `tool-result-surfaces.ts`).
-    // Explicit rather than left to `default` below because the shapes do not line up: the default
-    // passes the WHOLE wire payload as `data`, but `@jini-ai/chat`'s `McpUiSurfaceCard` runs
-    // `parseUIResource` over each event's `data` and that requires the bare `EmbeddedResource`
-    // (`{type:'resource', resource:{uri,mimeType,text}}`). Handing it the envelope instead fails
-    // the `type !== 'resource'` check and renders an empty frame — a silent no-op, which is the
-    // worst possible failure for a confirmation dialog. Unwrapping here is what makes the two ends
-    // meet. `name` must stay `"mcp-ui"` to match `MCP_UI_EXT_EVENT_NAME`.
-    case "mcp-ui":
-      return { kind: "ext", name: "mcp-ui", data: payload.resource };
-    // A2UI's own agent->renderer envelope (`@jini-ai/core`'s `SurfaceEmission` with
-    // `channel: "a2ui"`, injected by `@jini-ai/daemon`'s `delegated-tool-bridge.ts` as
-    // `{type: "a2ui", message: <AgentToRendererMessage>}`). Unwrapped to the bare `.message` here,
-    // not left to the `default` branch below, for the same reason `mcp-ui` above is explicit:
-    // `@jini-ai/chat/react`'s `A2uiSurfaceCard` (registered against `'a2ui'` in
-    // `AssistantDock.tsx`) runs `extractSurfaceId`/`interpreter.applyAgentMessage` over each event's
-    // `data` directly, and both require a bare, spec-shaped envelope — not the `{type, message}`
-    // wire wrapper. Mirrors Jini's own reference host's identical `case "a2ui"` in
-    // `examples/reference-web/src/daemon-transport.ts`.
-    case "a2ui":
-      return { kind: "ext", name: "a2ui", data: payload.message };
-    // thinking_start/stage_start/stage_end/surface_request/surface_response: no dedicated
-    // chat-core variant. Routed through the `ext` escape hatch rather than dropped, so a future
-    // renderer can opt in without a transport change.
-    case "thinking_start":
-      return null;
-    default:
-      return { kind: "ext", name: payload.type, data: payload };
-  }
-}
-
-/**
- * Turns a terminal stream `reason` into the one renderable event a human needs to see, or `null`
- * when the reason speaks for itself.
- *
- * Only `max_tool_turns` qualifies today, and it qualifies for a specific reason: it is the one
- * terminal reason that is INDISTINGUISHABLE from success in the pane. `stop`/`end_turn` mean the
- * assistant finished; an `error` reason already renders as an error. A turn that hit the tool-step
- * ceiling just stops — mid-task, with whatever partial text it had, and nothing on screen saying
- * the work was cut short rather than completed. That is the failure this exists to close: the
- * server now reports the loop's real reason (`byok-provider-turn.ts`'s `normalizeTurnResult`
- * captures it instead of echoing the provider's last raw stop code), and until this, the browser
- * received that reason and dropped it.
- *
- * Rendered as a `status` event rather than an `error`, deliberately: nothing failed. The turn did
- * real work and stopped at a budget, and the useful next action is "ask it to continue", which is
- * what the detail says.
- */
-export function terminalReasonNotice(reason: string): AgentEvent | null {
-  if (reason !== "max_tool_turns") return null;
-  return {
-    kind: "status",
-    label: "Stopped early — tool-step limit reached",
-    detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.",
-  };
-}
-
-/** A daemon `end` frame's non-successful terminal classification, as the daemon itself recorded it
- *  in `@jini-ai/protocol`'s `RunEndPayload`. */
-interface TerminalOutcome {
-  readonly status: "failed" | "canceled";
-  readonly code: string;
-  readonly signal: string;
-  readonly resumable: string;
-}
-
-/**
- * Reads that classification off a raw `end` frame, or `null` when the run succeeded, sent nothing,
- * or sent something unparseable.
- *
- * `code`/`signal`/`resumable` come back pre-rendered as display strings rather than as their wire
- * types, because both callers ({@link terminalOutcomeNotice} and {@link terminalFailureError}) want
- * the same human-facing rendering of an absent value (`"none"`/`"no"`) and neither does arithmetic
- * on them. Rendering once, here, is what stops the operator-facing notice and the persisted error
- * from describing the same dead run in two different ways.
- *
- * Every field is `typeof`-checked before use, and a malformed body returns `null` rather than
- * throwing: this runs inside an `EventSource` listener whose other job is to END the run, and a
- * throw there would strand the pane mid-turn over a cosmetic detail.
- */
-function readTerminalOutcome(raw: string | undefined): TerminalOutcome | null {
-  if (!raw) return null;
-  let payload: Record<string, unknown>;
-  try {
-    payload = ((JSON.parse(raw) as Record<string, unknown>).payload ?? {}) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-  const status = payload.status;
-  if (status !== "failed" && status !== "canceled") return null;
-  return {
-    status,
-    code: typeof payload.code === "number" ? String(payload.code) : "none",
-    signal: typeof payload.signal === "string" ? payload.signal : "none",
-    resumable: payload.resumable === true ? "yes" : "no",
-  };
-}
-
-/**
- * Turns a daemon `end` frame's terminal outcome into a visible `status` event when — and only when —
- * the run did NOT succeed.
- *
- * WHY THIS EXISTS (2026-09-06 chat-death investigation, `ADS-memory/reports/2026-09-06-chat-death-investigation.md`):
- * `@jini-ai/protocol`'s `RunEndPayload` carries `status`/`code`/`signal`/`resumable`, and
- * `@jini-ai/daemon`'s `finish()` is the ONLY event a terminal run emits — there is no separate
- * `error` frame for a failed run. {@link subscribeToRun}'s `end` listener read only `reason` (a
- * field `RunEndPayload` does not even have — it is BYOK-only), so a run the daemon had already
- * classified `failed` arrived here indistinguishable from a completed one, was reported through
- * `onDone`, and was persisted to `chat.db` as `run_status='succeeded'` with empty content. Two such
- * rows exist in `sites/tovu-com/chat.db` — one `codex`, one `claude`, 578 ms and 552 ms — and they
- * are what "the chat just craps out with no error" actually looks like on disk.
- *
- * This is the SEEN half of that fix; {@link terminalFailureError} below is the WRITTEN-DOWN half
- * (2026-09-07, owner-approved). An earlier version of this comment said the persistence change was
- * deliberately NOT made and was out of scope until the owner signed off — that is no longer true,
- * and the two halves stayed separate functions only because they disagree on exactly one input:
- * `canceled` earns a notice but is not a failure.
- *
- * Returns `null` for a successful or absent status so a normal turn gains no extra event.
- */
-export function terminalOutcomeNotice(raw: string | undefined): AgentEvent | null {
-  const outcome = readTerminalOutcome(raw);
-  if (!outcome) return null;
-  const { status, code, signal, resumable } = outcome;
-  return {
-    kind: "status",
-    label: status === "canceled" ? "Run canceled" : "Run failed \u2014 the agent process exited without answering",
-    detail: `exit code ${code}, signal ${signal}, resumable ${resumable}. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for \`[agent-daemon] run <id> ended\`.`,
-  };
-}
-
-/**
- * The reportable `Error` for a daemon `end` frame the daemon itself classified as `failed`, or
- * `null` for every other terminal outcome.
- *
- * WHY THIS EXISTS (2026-09-07, owner-approved): it is what makes a dead run RECOVERABLE FROM THE
- * DATABASE ALONE. Until now a failed run was reported only through `onDone`, so the durable record
- * said `run_status='succeeded'` with empty content: the live transcript was the ONLY place the
- * failure was visible, and once it was gone the row was indistinguishable from a successful turn
- * that happened to answer with nothing. That lie is why diagnosing chat deaths burned multiple
- * sessions and carried a wrong premise through two handoffs. `f682eff2` deliberately left it in
- * place ("a behavior change to what the product writes down... out of scope until the owner signs
- * off"); the owner has now signed off, and this is that change.
- *
- * NOTHING IN THIS FILE COMPUTES `runStatus`. Three pieces of `@jini-ai/chat` do, and the whole
- * effect of this function rests on all three:
- *   1. `useRunStream`'s `onError` sets the run's status to `'error'` — and its `onDone` is written
- *      as `prev.status === 'error' ? prev.status : 'done'`, so an `onDone` arriving AFTER this
- *      preserves the failure instead of overwriting it. That is what lets {@link subscribeToRun}
- *      report the failure and STILL settle the run through `finish()` with its collected events
- *      intact, rather than having to choose between the two. The call order in that listener is
- *      load-bearing, not incidental.
- *   2. `useConversation` maps run status `'error'` to `ChatMessage.runStatus: 'failed'`.
- *   3. `isTerminalRunStatus` already counts `'failed'` as terminal, so `assistant-chats.ts`'s
- *      `persistableMessages` KEEPS the message (it discards only still-streaming turns) and
- *      `AssistantDock/hooks/AssistantDock.hooks.tsx`'s `shouldPublishOnMessagesChange` still
- *      settles the dock. A failed run therefore cannot hang the pane waiting for a terminal state
- *      that never arrives — which is the failure this change would otherwise have traded the wrong
- *      record for.
- *
- * `canceled` is excluded on purpose: a run the operator stopped is not a failure, and
- * `useRunStream.cancel()` already stamps its own `'canceled'` status. Marking it `failed` would
- * swap one wrong record for another.
- *
- * Historical rows are NOT retrofitted. `sites/tovu-com/chat.db` held 2 such rows on 2026-09-07 and
- * the pre-split `sites/tovu-com/content.db` copy held 6; nothing distinguishes a genuinely empty
- * successful answer from a death after the fact, so a migration could only guess. Going-forward
- * correctness is the goal.
- */
-export function terminalFailureError(raw: string | undefined): Error | null {
-  const outcome = readTerminalOutcome(raw);
-  if (!outcome || outcome.status !== "failed") return null;
-  return new Error(
-    `The agent process exited without answering (exit code ${outcome.code}, signal ${outcome.signal}, resumable ${outcome.resumable}).`,
-  );
-}
-
-/** Reads a terminal frame's `reason` from either stream shape without letting a malformed or absent
- *  body prevent the turn from ending: the daemon path wraps it in a `RunProtocolEventWire.payload`,
- *  the BYOK path sends a bare `{reason}`, and `subscribeToRun`'s `end` event may carry no data at
- *  all. A notice is a nicety; finishing the run is not. */
-function readTerminalReason(raw: string | undefined, wrapped: boolean): string {
-  if (!raw) return "";
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const source = wrapped ? ((parsed.payload ?? {}) as Record<string, unknown>) : parsed;
-    return asString(source.reason);
-  } catch {
-    return "";
-  }
-}
+// The daemon-stream translation (`translateRunAgentPayload`, the terminal notices, `translateRunFrame`)
+// lives in `apps/website/src/contracts/core/assistant-run-events.ts` since 2026-09-27, so the API's
+// run finalizer saves exactly what this transport would have. Re-exported here so existing importers
+// and tests keep their paths.
+export {
+  parseUsageEvent,
+  terminalFailureError,
+  terminalOutcomeNotice,
+  terminalReasonNotice,
+  translateRunAgentPayload,
+} from "@tovu/assistant-run-events";
 
 /**
  * The prompt for one run: the whole conversation so far, not just the newest message.
@@ -509,43 +245,36 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     }
   });
 
-  source.addEventListener("agent", (event) => {
-    const frame = JSON.parse((event as MessageEvent<string>).data) as RunProtocolEventWire;
-    const translated = translateRunAgentPayload(frame.payload as RunAgentPayload);
-    if (translated) {
+  // One daemon frame's effect, from the translation the API's run finalizer also uses
+  // (`@tovu/assistant-run-events`), so the row this tab saves and the row the server saves agree.
+  // ORDER IS LOAD-BEARING for an `end` frame: its notices first, then `onError` for a failed run,
+  // then `finish()`. `useRunStream`'s `onDone` keeps an existing `'error'` status
+  // (`prev.status === 'error' ? prev.status : 'done'`), so error-then-finish marks the run failed
+  // AND hands `onDone` the collected events — including `terminalOutcomeNotice`'s exit code.
+  // Swapping them would silently restore the old `succeeded` for a dead run (2026-09-07).
+  const apply = (outcome: RunFrameOutcome) => {
+    for (const translated of outcome.events) {
       collected.push(translated);
       handlers.onEvent(translated);
     }
-  });
+    if (outcome.error) handlers.onError(outcome.error);
+    if (outcome.terminal) finish();
+  };
+  const frameData = (event: Event) => (event as MessageEvent<string>).data;
 
-  source.addEventListener("stdout", (event) => {
-    const frame = JSON.parse((event as MessageEvent<string>).data) as RunProtocolEventWire;
-    const chunk = asString((frame.payload as { chunk?: unknown }).chunk);
-    const translated: AgentEvent = { kind: "raw", line: chunk };
-    collected.push(translated);
-    handlers.onEvent(translated);
-  });
-
+  source.addEventListener("agent", (event) => apply(translateRunFrame("agent", frameData(event))));
+  source.addEventListener("stdout", (event) => apply(translateRunFrame("stdout", frameData(event))));
   // The agent CLI's stderr. `@jini-ai/daemon`'s `agent-executor.ts` emits this as its own SSE event
-  // kind (one `lifecycle.emit(runId, { event: 'stderr', ... })` per supported driver), and until
-  // 2026-09-06 nothing here listened for it — an `EventSource` silently drops a named event with no
-  // listener. That is where a dying CLI prints WHY it is dying, so every diagnostic for the failure
-  // class this whole file's `terminalOutcomeNotice` exists to surface was crossing the wire and
-  // being discarded in the browser. Rendered as `raw`, exactly like `stdout` above.
-  source.addEventListener("stderr", (event) => {
-    const frame = JSON.parse((event as MessageEvent<string>).data) as RunProtocolEventWire;
-    const chunk = asString((frame.payload as { chunk?: unknown }).chunk);
-    const translated: AgentEvent = { kind: "raw", line: chunk };
-    collected.push(translated);
-    handlers.onEvent(translated);
-  });
+  // kind, and until 2026-09-06 nothing here listened for it — an `EventSource` silently drops a named
+  // event with no listener. That is where a dying CLI prints WHY it is dying. Rendered as `raw`,
+  // exactly like `stdout`.
+  source.addEventListener("stderr", (event) => apply(translateRunFrame("stderr", frameData(event))));
+  source.addEventListener("end", (event) => apply(translateRunFrame("end", frameData(event))));
 
   source.addEventListener("error", (event) => {
-    const raw = (event as MessageEvent<string>).data;
+    const raw = frameData(event);
     if (raw) {
-      const frame = JSON.parse(raw) as RunProtocolEventWire;
-      const message = asString((frame.payload as { message?: unknown }).message);
-      handlers.onError(new Error(message || "agent run failed"));
+      apply(translateRunFrame("error", raw));
       return;
     }
     // A bare EventSource connection error (no `data`, e.g. the server never responded) rather
@@ -560,42 +289,14 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
   const settleIfRunForgotten = async () => {
     const response = await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}`, { credentials: "same-origin" }).catch(() => null);
     if (settled || response?.status !== 404) return;
+    // Saved with the turn, not only shown: the error is live-only state, and without this event a
+    // reload shows a bare "failed". The server finalizer writes the same notice for the same death.
+    const notice = runInterruptedNotice();
+    collected.push(notice);
+    handlers.onEvent(notice);
     handlers.onError(new Error(RUN_FORGOTTEN_MESSAGE));
     finish();
   };
-
-  source.addEventListener("end", (event) => {
-    const raw = (event as MessageEvent<string>).data;
-    const notice = terminalReasonNotice(readTerminalReason(raw, true));
-    if (notice) {
-      collected.push(notice);
-      handlers.onEvent(notice);
-    }
-    // Additive, and ordered after `terminalReasonNotice` so a `max_tool_turns` turn keeps its own
-    // more specific wording first. `terminalOutcomeNotice` returns null on a successful run, so a
-    // normal turn is byte-identical to before.
-    const outcome = terminalOutcomeNotice(raw);
-    if (outcome) {
-      collected.push(outcome);
-      handlers.onEvent(outcome);
-    }
-    // The durable half (2026-09-07). `finish()` alone reports the run through `onDone`, which is
-    // what persisted a dead run as `run_status='succeeded'` with empty content. Reporting the
-    // daemon's own `failed` classification through `onError` FIRST is what makes the stored row
-    // say `failed` instead — see {@link terminalFailureError} for the three `@jini-ai/chat` steps
-    // that turn this call into that column value.
-    //
-    // ORDER IS LOAD-BEARING: `useRunStream`'s `onDone` keeps an existing `'error'` status
-    // (`prev.status === 'error' ? prev.status : 'done'`), so error-then-finish marks the run failed
-    // AND hands `onDone` the collected events — including the `terminalOutcomeNotice` above, so the
-    // persisted row carries its own exit code and stops being a mystery. Swapping the two lines
-    // would silently restore the old `succeeded`.
-    const failure = terminalFailureError(raw);
-    if (failure) {
-      handlers.onError(failure);
-    }
-    finish();
-  });
 }
 
 /** Client-minted, not server-minted — see module doc's path-2 section: a BYOK run has no server-side
