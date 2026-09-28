@@ -123,9 +123,6 @@
   "apps/website/src/features/presentation/repo.sqlite.ts": {
     "sync-terminal": 2
   },
-  "apps/website/src/features/taxonomy/repo.sqlite.ts": {
-    "sync-terminal": 21
-  },
   "apps/website/src/features/trash/adapters/comment.ts": {
     "better-sqlite3-import": 1
   },
