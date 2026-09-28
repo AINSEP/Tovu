@@ -49,7 +49,7 @@ function buildHarness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const sqliteTrashDb = createSqliteTrashDb({ db });
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const)

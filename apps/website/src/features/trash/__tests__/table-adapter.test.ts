@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -10,7 +9,7 @@ import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { buildTrashRegistry, type TrashEntry } from "../registry.js";
-import { createTableTrashAdapter, type TrashedItemsRef } from "../table-adapter.js";
+import { createTableTrashAdapter } from "../table-adapter.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../ports.js";
 
@@ -51,13 +50,13 @@ function buildMenuEntry(): TrashEntry {
     entityType: "test-menu",
     label: "Test Menu",
     permission: "test.menus.manage",
-    table: schema.menus,
-    idColumn: schema.menus.id,
-    workspaceColumn: schema.menus.workspaceId,
-    marker: { kind: "status", column: schema.menus.status, trashed: "trashed", restoreFallback: "draft" },
-    versionColumn: schema.menus.version,
-    touchColumn: schema.menus.updatedAt,
-    display: { title: schema.menus.title, subtitle: schema.menus.slug },
+    table: "menus",
+    idColumn: "id",
+    workspaceColumn: "workspace_id",
+    marker: { kind: "status", column: "status", trashed: "trashed", restoreFallback: "draft" },
+    versionColumn: "version",
+    touchColumn: "updated_at",
+    display: { title: "menus.title", subtitle: "menus.slug" },
   };
 }
 
@@ -69,27 +68,21 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const trashDb = createSqliteTrashDb({ db });
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const formEntry = registry.get("form")!;
   const menuEntry = buildMenuEntry();
   // `form`'s purgeFirst declares `entityType: "form_submission"` (T1 item 5) — needed for its own
   // phantom-row cleanup, same ref shape `deps.ts` builds at composition.
-  const trashedItems: TrashedItemsRef = {
-    table: schema.trashedItems,
-    workspaceId: schema.trashedItems.workspaceId,
-    entityType: schema.trashedItems.entityType,
-    entityId: schema.trashedItems.entityId,
-  };
 
   return {
     db,
     client,
-    formAdapter: createTableTrashAdapter({ entry: formEntry, db: trashDb, trashedItems }),
-    menuAdapter: createTableTrashAdapter({ entry: menuEntry, db: trashDb, trashedItems }),
+    formAdapter: createTableTrashAdapter({ entry: formEntry, db: trashDb }),
+    menuAdapter: createTableTrashAdapter({ entry: menuEntry, db: trashDb }),
     menuEntry,
-    realMenuAdapter: createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb, trashedItems }),
-    termAdapter: createTableTrashAdapter({ entry: registry.get("term")!, db: trashDb, trashedItems }),
-    taxonomyAdapter: createTableTrashAdapter({ entry: registry.get("taxonomy")!, db: trashDb, trashedItems }),
+    realMenuAdapter: createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb }),
+    termAdapter: createTableTrashAdapter({ entry: registry.get("term")!, db: trashDb }),
+    taxonomyAdapter: createTableTrashAdapter({ entry: registry.get("taxonomy")!, db: trashDb }),
   };
 }
 
@@ -522,20 +515,19 @@ test("real menu entry: a purge that fails after removing bindings rolls back the
   seedNavLocationBinding(h.client, "footer", "menu-bound");
 
   // A second `purgeFirst` cascade pointing at a table that does not exist, appended after the real
-  // `navLocationBindings` cascade — forces `runCascade`'s `deleteWhere` to throw a real SQL error
+  // `nav_location_bindings` cascade — forces `runCascade`'s delete to throw a real SQL error
   // partway through `purge`'s cascade loop (`table-adapter.ts`), exactly the shape "something after
   // the bindings cascade fails" takes in production (a later cascade, or the row's own delete,
   // erroring). Proves `registry.ts`'s doc comment for `menu`'s `purgeFirst` — bindings removed inside
   // the SAME transaction as the menu row — by observation, not by reading the code: if the two
   // deletes were NOT one transaction, the bindings cascade's DELETE (which runs first and succeeds)
   // would survive this throw; it does not.
-  const noSuchTable = sqliteTable("no_such_table_for_rollback_test", { id: text("id"), menuId: text("menu_id") });
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const realMenu = registry.get("menu")!;
   const failingEntry: TrashEntry = {
     ...realMenu,
     entityType: "test-menu-rollback",
-    purgeFirst: [...(realMenu.purgeFirst ?? []), { table: noSuchTable, parentIdColumn: noSuchTable.menuId }],
+    purgeFirst: [...(realMenu.purgeFirst ?? []), { table: "no_such_table_for_rollback_test", parentIdColumn: "menu_id" }],
   };
   const trashDb = createSqliteTrashDb({ db: h.db });
   const failingAdapter = createTableTrashAdapter({ entry: failingEntry, db: trashDb });

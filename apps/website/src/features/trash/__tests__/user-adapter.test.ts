@@ -66,7 +66,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
     idGen: counterIdGenNew(),
   };
 
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const adapter: TrashAdapter = createUserTrashAdapter({ db, purge: new SqliteUserPurge(db), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({

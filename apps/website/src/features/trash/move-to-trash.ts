@@ -14,9 +14,7 @@
  * `RestoreOutcome`/`TrashPurgeOutcome` elsewhere in this feature, so the route (`routes/trash/
  * items.ts`) maps outcomes to status codes without a try/catch around a business decision.
  */
-import { and, eq, type AnyColumn } from "drizzle-orm";
-
-import { notTrashed } from "./not-trashed.js";
+import { readLiveSnapshot } from "./entry-sql.js";
 import type { TrashActor, TrashEntityType, TrashPort } from "./ports.js";
 import type { TrashAuthorizeFn } from "./permissions.js";
 import type { TrashRegistry } from "./registry.js";
@@ -34,15 +32,6 @@ export type MoveToTrashOutcome =
   | { ok: false; reason: "forbidden"; permission: string }
   | { ok: false; reason: "version-changed" }
   | { ok: false; reason: "blocked"; code: string; count: number };
-
-/** The snapshot `moveToTrash` reads before calling `TrashPort.trash` — columns only, per every other
- *  Trash read in this feature. `subtitle`/`version` are present only when the entry declares them,
- *  which is exactly the shape `db.selectOne`'s conditional column set produces. */
-interface EntitySnapshotRow {
-  title: string;
-  subtitle?: string | null;
-  version?: number | null;
-}
 
 /**
  * Moves one entity of a `TRASHABLE` kind into the Trash.
@@ -95,21 +84,11 @@ export async function moveToTrash(
   });
   if (!decision.allowed) return { ok: false, reason: "forbidden", permission: entry.permission };
 
-  const columns: Record<string, AnyColumn> = { title: entry.display.title };
-  if (entry.display.subtitle) columns.subtitle = entry.display.subtitle;
-  if (entry.versionColumn) columns.version = entry.versionColumn;
-  const row = (await deps.db.selectOne({
-    table: entry.table,
-    columns,
-    join: entry.display.join,
-    where: and(
-      eq(entry.workspaceColumn, required.workspaceId),
-      eq(entry.idColumn, required.entityId),
-      // A shared table's other kinds (a collection row in `entries`) read as not-found here too.
-      entry.scope,
-      notTrashed({ entityType: required.entityType }, { registry: deps.registry })
-    )!,
-  })) as EntitySnapshotRow | null;
+  // A shared table's other kinds (a collection row in `entries`) read as not-found here too.
+  const row = await readLiveSnapshot(
+    { entry, workspaceId: required.workspaceId, entityId: required.entityId },
+    { kernel: deps.db, registry: deps.registry }
+  );
   if (!row) return { ok: false, reason: "not-found" };
 
   // The confirmation-dialog race: the human was shown `required.expectedVersion` before answering,

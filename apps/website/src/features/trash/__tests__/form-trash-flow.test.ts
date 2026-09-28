@@ -11,7 +11,7 @@ import { createContactFormResolver } from "#src/features/widgets/resolvers/conta
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter, type TrashedItemsRef } from "../table-adapter.js";
+import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashPort } from "../index.js";
@@ -39,18 +39,12 @@ function harness(): Harness {
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const trashDb = createSqliteTrashDb({ db });
   // Needed for `form`'s purgeFirst -> `form_submission` phantom-row cleanup (T1 item 5) — same ref
   // shape `deps.ts` builds at composition.
-  const trashedItems: TrashedItemsRef = {
-    table: schema.trashedItems,
-    workspaceId: schema.trashedItems.workspaceId,
-    entityType: schema.trashedItems.entityType,
-    entityId: schema.trashedItems.entityId,
-  };
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb, trashedItems })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
   );
   let seq = 0;
   const trash = createTrashService({

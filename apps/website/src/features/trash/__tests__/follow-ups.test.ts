@@ -45,13 +45,13 @@ function buildEntry(): TrashEntry {
     entityType: ENTITY_TYPE,
     label: "Test FollowUps",
     permission: "test.followups.manage",
-    table: schema.menus,
-    idColumn: schema.menus.id,
-    workspaceColumn: schema.menus.workspaceId,
-    marker: { kind: "status", column: schema.menus.status, trashed: "trashed", restoreFallback: "draft" },
-    versionColumn: schema.menus.version,
-    touchColumn: schema.menus.updatedAt,
-    display: { title: schema.menus.title, subtitle: schema.menus.slug },
+    table: "menus",
+    idColumn: "id",
+    workspaceColumn: "workspace_id",
+    marker: { kind: "status", column: "status", trashed: "trashed", restoreFallback: "draft" },
+    versionColumn: "version",
+    touchColumn: "updated_at",
+    display: { title: "menus.title", subtitle: "menus.slug" },
   };
 }
 

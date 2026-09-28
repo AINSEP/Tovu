@@ -51,9 +51,6 @@
   "apps/website/src/features/trash/adapters/user.ts": {
     "sync-terminal": 6
   },
-  "apps/website/src/features/trash/db-port.sqlite.ts": {
-    "sync-terminal": 5
-  },
   "apps/website/src/features/trash/repo.sqlite.ts": {
     "better-sqlite3-import": 1,
     "insert-or": 1,

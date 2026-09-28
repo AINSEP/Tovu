@@ -1,7 +1,8 @@
 /**
  * @file `createTableTrashAdapter` — the ONE `TrashAdapter` implementation for every `TRASHABLE` entry
- * (`registry.ts`), written once against the dialect-neutral `TrashDb` port (`db-port.ts`) instead of
- * once per domain. Design of record: `ADS-memory/.local-artifacts/handoffs/2026-09-21-t8f-trash-more-plan.md`
+ * (`registry.ts`), written once as ONE Kysely body over the content database's storage kernel
+ * (`TrashDb`, `db-port.ts`) instead of once per domain — the same statements on SQLite, PGlite and
+ * Postgres. Design of record: `ADS-memory/.local-artifacts/handoffs/2026-09-21-t8f-trash-more-plan.md`
  * §1. Supersedes the prior `t8f-trash-g1` handoff's sketch on one point: this file implements the
  * `"status"` marker kind fully, rather than throwing for it — the G1b dispatch asks for a tested
  * status-marker case, so there is no untested branch left to guard against with a thrown error.
@@ -10,84 +11,43 @@
  * contract, generically:
  *  - `hide`/`unhide` read the row FIRST, then classify not-found / version-changed / already-in-state
  *    / real transition, in that order — matching `flipMarker`'s precedence (a version mismatch always
- *    wins over "it's already in the target state"). The read-then-write here is exactly as atomic as
- *    `flipMarker`'s single compound `UPDATE ... WHERE`: `TrashDb.transaction` always runs inside a
- *    `BEGIN IMMEDIATE` (`db-port.sqlite.ts`), which takes SQLite's write lock immediately, so no other
- *    writer can interleave between the read and the write.
+ *    wins over "it's already in the target state"). Each runs in `kernel.transaction` holding
+ *    `kernel.lockKey` for the row, so the read-then-write is as atomic as `flipMarker`'s single
+ *    compound `UPDATE ... WHERE`: SQLite's `BEGIN IMMEDIATE` already takes the write lock, and on
+ *    Postgres the advisory lock keeps a second writer of the same row out until this one commits.
  *  - `purge` never deletes a LIVE row or its `purgeFirst` children, even at a matching version
  *    (decision 6) — checked before either delete runs, same order as `adapters/form.ts`'s bespoke
  *    purge.
  *
- * The one piece `db-port.ts`'s dialect-neutral shape does not give for free: Drizzle's
- * `.update(table).set(...)` wants its `SET` object keyed by the table's JS PROPERTY names
- * (`{ deletedAt: ... }`, see `forms/repo.sqlite.ts:182`), not by SQL column name and not by the column
- * object itself. `TrashEntry` only carries column OBJECTS (so `registry.ts` stays free of any
- * per-field string duplication), so this file resolves each writable column's property key ONCE at
- * adapter construction, via Drizzle's own `getTableColumns(table)` — the same map Drizzle keys by
- * property name internally — rather than adding a second, hand-maintained string field per column to
- * `TrashEntry`.
- *
  * T1 additions (blockers, the two-hop/phantom-row cascade — plan §2 T1 items 2/4/5): `purge`
  * resolves each `TrashCascadeSpec` generically (direct parent-id match, or the two-hop `via` join),
  * and, for a cascade that also declares `entityType`, reads the child ids BEFORE deleting them so
- * their `trashed_items` rows can be cleaned up in the same transaction. `hide` gains one guard clause
+ * their `trashed_items` rows can be cleaned up in the same transaction (`trashed_items` is the
+ * Trash's own core table, so it is named here, not passed in). `hide` gains one guard clause
  * ahead of the real transition for `TrashEntry.blocker`. Neither addition is type-specific: both read
  * entirely off the `TrashEntry`/`TrashCascadeSpec` the caller registered.
  */
-import { and, eq, getTableColumns, getTableName, inArray, sql, type AnyColumn, type SQL, type Table } from "drizzle-orm";
+import { type AliasedExpression, type Kysely, sql } from "kysely";
 
-import type { TrashDb, TrashDbAssignment } from "./db-port.js";
+import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
+import type { SqliteConnectionSource } from "../../platform/db/kernel/drivers/sqlite.js";
+import { createSqliteTrashDb } from "./db-port.sqlite.js";
+import type { TrashDb } from "./db-port.js";
+import { entryWhere, loose, qualified } from "./entry-sql.js";
 import type { TrashAdapter, TrashEntityType, TrashMarkerResult, TrashPurgeOutcome } from "./ports.js";
 import type { TrashCascadeSpec, TrashEntry, TrashMarkerSpec } from "./registry.js";
 
-/**
- * Column-only reference to `trashed_items`, passed once at composition and reused for every entry's
- * adapter (mirrors `db: TrashDb` — one instance, shared). Not part of `TrashEntry`/`registry.ts`:
- * `trashed_items` is a Trash-internal table, not a domain's own, so it does not belong alongside the
- * per-domain columns `TrashRegistrySchema` lists. Needed only by a cascade that declares
- * `entityType` (`registry.ts`'s `TrashCascadeSpec`) — every call site that never registers one such
- * cascade may omit this.
- */
-export interface TrashedItemsRef {
-  table: Table;
-  workspaceId: AnyColumn;
-  entityType: AnyColumn;
-  entityId: AnyColumn;
-}
-
 /** The row shape every `hide`/`unhide`/`purge` read needs: the marker's raw value, plus the version
- *  column when the entry has one. Cast once, right after the read — `TrashDb.selectOne`'s generic
- *  selection type loses its literal keys once `columns` is built as a plain `Record<string,
- *  AnyColumn>` (needed here because the key set is conditional on `entry.versionColumn`), so the
- *  precise row shape is asserted here instead. Safe: every column reaching this file comes from a
- *  `TrashEntry` built off `schema.sqlite.ts`, so the runtime row always has these keys. */
+ *  column when the entry has one. */
 interface MarkerRow {
   marker: unknown;
   version?: number | null;
 }
 
 /**
- * Resolves a column object to the JS property name Drizzle's `.set()` needs to write it — see the
- * file header. Runs once per entry at adapter construction, never per call.
- *
- * @throws if `column` is not actually one of `table`'s own columns — a `TrashEntry` registration bug
- *         (a column from the wrong table), not a runtime condition to degrade around.
- * @complexity O(c) in the table's column count, once per entry.
- */
-function resolveColumnKey(table: Table, column: AnyColumn): string {
-  const columns = getTableColumns(table);
-  for (const [key, value] of Object.entries(columns)) {
-    if (value === column) return key;
-  }
-  throw new Error(
-    `trash: column '${column.name}' is not a column of table '${getTableName(table)}' — check this TrashEntry's registration in registry.ts.`
-  );
-}
-
-/**
  * Whether a marker's raw column VALUE (already read from a row) currently means "live". The scalar
- * twin of `not-trashed.ts`'s SQL-condition builders (`notTrashed`/`isCurrentlyTrashed`) — this file
- * always has the value in hand from a prior `selectOne`, not a `WHERE` clause left to build.
+ * twin of `not-trashed.ts`'s SQL conditions (`notTrashed`/`isCurrentlyTrashed`) — this file always
+ * has the value in hand from a prior read, not a `WHERE` clause left to build.
  *
  * @complexity O(1).
  */
@@ -95,42 +55,53 @@ function isMarkerValueLive(marker: TrashMarkerSpec, value: unknown): boolean {
   return marker.kind === "timestamp" ? value === null : value !== marker.trashed;
 }
 
+/** A row count off a write result: Kysely reports `bigint` on some drivers. @complexity O(1). */
+function affected(value: bigint | number | undefined): number {
+  return Number(value ?? 0);
+}
+
 /**
  * Builds one `TrashAdapter` for a single {@link TrashEntry}. Registered once per entry into the
- * adapter map at composition (`deps.ts`), exactly like every bespoke adapter today.
+ * adapter map at composition (`deps.ts`), exactly like every bespoke adapter.
  *
- * @complexity O(c) to construct (resolving up to three column keys); each method is O(1) plus
- *             whatever index its `where` matches, same complexity class as the bespoke adapters,
- *             plus O(k) for `purge`'s k `purgeFirst` cascades (each still a single indexed statement).
+ * @param required.db the content database's kernel, or (while call sites still hold one) its SQLite
+ *        handle.
+ * @complexity O(1) to construct; each method is O(1) plus whatever index its `where` matches, plus
+ *             O(k) for `purge`'s k `purgeFirst` cascades (each still a single indexed statement).
  */
-export function createTableTrashAdapter(required: { entry: TrashEntry; db: TrashDb; trashedItems?: TrashedItemsRef }): TrashAdapter {
-  const { entry, db, trashedItems } = required;
-  const markerKey = resolveColumnKey(entry.table, entry.marker.column);
-  const versionKey = entry.versionColumn ? resolveColumnKey(entry.table, entry.versionColumn) : undefined;
-  const touchKey = entry.touchColumn ? resolveColumnKey(entry.table, entry.touchColumn) : undefined;
+export function createTableTrashAdapter(required: { entry: TrashEntry; db: TrashDb | SqliteConnectionSource }): TrashAdapter {
+  const { entry } = required;
+  // Resolved on first use, not here: a composition root may hand in a lazy proxy whose database
+  // should not open until a Trash call actually needs it.
+  let resolved: TrashDb | undefined;
+  const kernel = (): TrashDb => (resolved ??= createSqliteTrashDb({ db: required.db }));
+  const run = <T>(fn: (db: Kysely<ContentDatabase>) => Promise<T>): Promise<T> => kernel().run(fn);
+
+  /** Serializes read-then-write sequences on one row (Postgres advisory lock; SQLite no-op). */
+  const lockRow = (workspaceId: string, entityId: string) => kernel().lockKey(`trash:${entry.entityType}:${workspaceId}:${entityId}`);
 
   /**
    * Deletes the `trashed_items` rows of `childIds` for `childType` — the phantom-row cleanup
-   * (`TrashCascadeSpec.entityType`). A no-op when there are no ids, or when the caller never wired
-   * `trashedItems` (every entry with such a cascade must; see {@link TrashedItemsRef}'s doc).
+   * (`TrashCascadeSpec.entityType`). A no-op when there are no ids.
    *
    * @complexity O(1): one indexed `DELETE ... WHERE entity_type = ? AND entity_id IN (...)`.
    */
   async function cleanUpTrashedItemsRows(workspaceId: string, childType: TrashEntityType, childIds: readonly unknown[]): Promise<void> {
     if (childIds.length === 0) return;
-    if (!trashedItems) {
-      throw new Error(
-        `trash: '${entry.entityType}' has a purgeFirst cascade for '${childType}' but no trashedItems ref was passed to createTableTrashAdapter — check deps.ts.`
-      );
-    }
-    await db.deleteWhere({
-      table: trashedItems.table,
-      where: and(
-        eq(trashedItems.workspaceId, workspaceId),
-        eq(trashedItems.entityType, childType),
-        inArray(trashedItems.entityId, childIds as unknown[])
-      )!,
-    });
+    await run((db) =>
+      db
+        .deleteFrom("trashed_items")
+        .where("workspace_id", "=", workspaceId)
+        .where("entity_type", "=", childType)
+        .where("entity_id", "in", childIds as string[])
+        .execute()
+    );
+  }
+
+  /** All values of `column` in `table` where `parentColumn = parentId`. @complexity O(k) matches. */
+  async function selectIds(table: string, column: string, parentColumn: string, parentId: string): Promise<unknown[]> {
+    const rows = await run((db) => loose(db).selectFrom(table).select(column).where(parentColumn, "=", parentId).execute());
+    return rows.map((row) => row[column]);
   }
 
   /**
@@ -143,52 +114,64 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
    */
   async function runCascade(workspaceId: string, entityId: string, cascade: TrashCascadeSpec): Promise<void> {
     if (cascade.via) {
-      const throughIds = await db.selectIds({
-        table: cascade.via.throughTable,
-        column: cascade.via.throughIdColumn,
-        where: eq(cascade.via.throughParentIdColumn, entityId),
-      });
+      const via = cascade.via;
+      const throughIds = await selectIds(via.throughTable, via.throughIdColumn, via.throughParentIdColumn, entityId);
       if (throughIds.length === 0) return; // nothing on the other side of the join to cascade to
       if (cascade.entityType) await cleanUpTrashedItemsRows(workspaceId, cascade.entityType, throughIds);
-      await db.deleteWhere({ table: cascade.table, where: inArray(cascade.via.matchColumn, throughIds as unknown[]) });
+      await run((db) => loose(db).deleteFrom(cascade.table).where(via.matchColumn, "in", throughIds).execute());
       return;
     }
 
     // Direct case: `cascade.parentIdColumn` is always set when `via` is not (registration contract).
     const parentIdColumn = cascade.parentIdColumn!;
     if (cascade.entityType) {
-      const childIds = await db.selectIds({ table: cascade.table, column: cascade.idColumn!, where: eq(parentIdColumn, entityId) });
+      const childIds = await selectIds(cascade.table, cascade.idColumn!, parentIdColumn, entityId);
       await cleanUpTrashedItemsRows(workspaceId, cascade.entityType, childIds);
     }
-    await db.deleteWhere({ table: cascade.table, where: eq(parentIdColumn, entityId) });
+    await run((db) => loose(db).deleteFrom(cascade.table).where(parentIdColumn, "=", entityId).execute());
   }
 
-  /** `workspace_id = ? AND id = ?`, plus the entry's fixed `scope` predicate when it has one. Always
-   *  at least two conditions, so `and(...)` never returns `undefined`. */
-  function baseWhere(workspaceId: string, entityId: string): SQL {
-    const conditions: SQL[] = [eq(entry.workspaceColumn, workspaceId), eq(entry.idColumn, entityId)];
-    if (entry.scope) conditions.push(entry.scope);
-    return and(...conditions)!;
-  }
-
-  /** @complexity O(1) plus whatever index `baseWhere` matches. */
+  /** @complexity O(1) plus whatever index the entry's `where` matches. */
   async function readMarkerRow(workspaceId: string, entityId: string): Promise<MarkerRow | null> {
-    const columns: Record<string, AnyColumn> = { marker: entry.marker.column };
-    if (entry.versionColumn) columns.version = entry.versionColumn;
-    return (await db.selectOne({ table: entry.table, columns, where: baseWhere(workspaceId, entityId) })) as MarkerRow | null;
+    const row = await run((db) =>
+      loose(db)
+        .selectFrom(entry.table)
+        .select((eb) => {
+          const columns: AliasedExpression<unknown, string>[] = [eb.ref(qualified(entry.table, entry.marker.column)).as("marker")];
+          if (entry.versionColumn) columns.push(eb.ref(qualified(entry.table, entry.versionColumn)).as("version"));
+          return columns;
+        })
+        .where((eb) => entryWhere(eb, { entry, workspaceId, entityId }))
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return (row as MarkerRow | undefined) ?? null;
   }
 
   /** Re-reads the version after a write — never chained off the write itself (no `RETURNING`, see
    *  `db-port.ts`'s file header). `null` for an entry with no version column.
-   *  @complexity O(1) plus whatever index `baseWhere` matches. */
+   *  @complexity O(1) plus whatever index the entry's `where` matches. */
   async function readVersion(workspaceId: string, entityId: string): Promise<number | null> {
     if (!entry.versionColumn) return null;
-    const row = (await db.selectOne({
-      table: entry.table,
-      columns: { version: entry.versionColumn },
-      where: baseWhere(workspaceId, entityId),
-    })) as { version: number } | null;
+    const row = await readMarkerRow(workspaceId, entityId);
     return row?.version ?? null;
+  }
+
+  /**
+   * Writes the marker (plus the touch column, plus a version bump) on the one row.
+   * @complexity O(1) plus whatever index the entry's `where` matches.
+   */
+  async function writeMarker(workspaceId: string, entityId: string, markerValue: unknown, at: string): Promise<void> {
+    const set: Record<string, unknown> = { [entry.marker.column]: markerValue };
+    if (entry.touchColumn) set[entry.touchColumn] = at;
+    if (entry.versionColumn) set[entry.versionColumn] = sql`${sql.ref(entry.versionColumn)} + 1`;
+    await run((db) =>
+      loose(db)
+        .updateTable(entry.table)
+        .set(set)
+        .where((eb) => entryWhere(eb, { entry, workspaceId, entityId }))
+        .execute()
+    );
   }
 
   return {
@@ -202,43 +185,47 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
      * child has since appeared, since nothing is about to change.
      *
      * @complexity O(1): one read, at most one blocker count, at most one write, at most one re-read —
-     *             all inside the caller's transaction (reentrant, see `db-port.sqlite.ts`).
+     *             all inside one transaction (a nested one joins the caller's).
      */
     async hide(hideRequired): Promise<TrashMarkerResult> {
-      return db.transaction({
-        run: async () => {
-          const { workspaceId, entityId, at, expectedVersion } = hideRequired;
-          const before = await readMarkerRow(workspaceId, entityId);
-          if (!before) return { ok: false, reason: "not-found" };
-          if (entry.versionColumn && expectedVersion !== null && before.version !== expectedVersion) {
-            return { ok: false, reason: "version-changed" };
-          }
-          if (!isMarkerValueLive(entry.marker, before.marker)) {
-            // Already trashed -- idempotent success, no write (mirrors `flipMarker`'s fallback branch).
-            // `noop: true` (ports.ts) tells `withFollowUps` nothing actually changed here.
-            return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
-          }
-          if (entry.blocker) {
-            const count = await db.count({ table: entry.blocker.table, where: eq(entry.blocker.parentIdColumn, entityId) });
-            if (count > 0) return { ok: false, reason: "blocked", code: entry.blocker.code, count };
-          }
+      return kernel().transaction(async () => {
+        const { workspaceId, entityId, at, expectedVersion } = hideRequired;
+        await lockRow(workspaceId, entityId);
+        const before = await readMarkerRow(workspaceId, entityId);
+        if (!before) return { ok: false, reason: "not-found" };
+        if (entry.versionColumn && expectedVersion !== null && before.version !== expectedVersion) {
+          return { ok: false, reason: "version-changed" };
+        }
+        if (!isMarkerValueLive(entry.marker, before.marker)) {
+          // Already trashed -- idempotent success, no write (mirrors `flipMarker`'s fallback branch).
+          // `noop: true` (ports.ts) tells `withFollowUps` nothing actually changed here.
+          return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
+        }
+        if (entry.blocker) {
+          const blocker = entry.blocker;
+          const counted = await run((db) =>
+            loose(db)
+              .selectFrom(blocker.table)
+              .select((eb) => eb.fn.countAll().as("n"))
+              .where(blocker.parentIdColumn, "=", entityId)
+              .executeTakeFirst()
+          );
+          const count = Number(counted?.n ?? 0);
+          if (count > 0) return { ok: false, reason: "blocked", code: blocker.code, count };
+        }
 
-          const set: TrashDbAssignment = { [markerKey]: entry.marker.kind === "timestamp" ? at : entry.marker.trashed };
-          if (touchKey) set[touchKey] = at;
-          if (versionKey && entry.versionColumn) set[versionKey] = sql`${entry.versionColumn} + 1`;
-          await db.updateWhere({ table: entry.table, set, where: baseWhere(workspaceId, entityId) });
+        await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? at : entry.marker.trashed, at);
 
-          const version = await readVersion(workspaceId, entityId);
-          // `priorMarker` is additive (migration 0072) and only meaningful for a status marker's
-          // real transition — a timestamp marker has no "previous value" to remember, and the
-          // idempotent branch above never reaches here. Omitting the key (not setting it to
-          // `undefined`) keeps a timestamp entry's result shape byte-identical to the bespoke
-          // adapters' `{ ok: true, version }` (`ports.ts`'s `TrashMarkerResult` doc).
-          if (entry.marker.kind === "status") {
-            return { ok: true, version, priorMarker: before.marker as string };
-          }
-          return { ok: true, version };
-        },
+        const version = await readVersion(workspaceId, entityId);
+        // `priorMarker` is additive (migration 0072) and only meaningful for a status marker's
+        // real transition — a timestamp marker has no "previous value" to remember, and the
+        // idempotent branch above never reaches here. Omitting the key (not setting it to
+        // `undefined`) keeps a timestamp entry's result shape byte-identical to the bespoke
+        // adapters' `{ ok: true, version }` (`ports.ts`'s `TrashMarkerResult` doc).
+        if (entry.marker.kind === "status") {
+          return { ok: true, version, priorMarker: before.marker as string };
+        }
+        return { ok: true, version };
       });
     },
 
@@ -250,29 +237,23 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
      * @complexity O(1), same shape as `hide`.
      */
     async unhide(unhideRequired): Promise<TrashMarkerResult> {
-      return db.transaction({
-        run: async () => {
-          const { workspaceId, entityId, at, expectedVersion, priorMarker } = unhideRequired;
-          const before = await readMarkerRow(workspaceId, entityId);
-          if (!before) return { ok: false, reason: "not-found" };
-          if (entry.versionColumn && expectedVersion !== null && before.version !== expectedVersion) {
-            return { ok: false, reason: "version-changed" };
-          }
-          if (isMarkerValueLive(entry.marker, before.marker)) {
-            // Already live -- idempotent success, no write. `noop: true`, same as `hide`'s mirror
-            // branch above.
-            return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
-          }
+      return kernel().transaction(async () => {
+        const { workspaceId, entityId, at, expectedVersion, priorMarker } = unhideRequired;
+        await lockRow(workspaceId, entityId);
+        const before = await readMarkerRow(workspaceId, entityId);
+        if (!before) return { ok: false, reason: "not-found" };
+        if (entry.versionColumn && expectedVersion !== null && before.version !== expectedVersion) {
+          return { ok: false, reason: "version-changed" };
+        }
+        if (isMarkerValueLive(entry.marker, before.marker)) {
+          // Already live -- idempotent success, no write. `noop: true`, same as `hide`'s mirror
+          // branch above.
+          return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
+        }
 
-          const set: TrashDbAssignment = {
-            [markerKey]: entry.marker.kind === "timestamp" ? null : (priorMarker ?? entry.marker.restoreFallback),
-          };
-          if (touchKey) set[touchKey] = at;
-          if (versionKey && entry.versionColumn) set[versionKey] = sql`${entry.versionColumn} + 1`;
-          await db.updateWhere({ table: entry.table, set, where: baseWhere(workspaceId, entityId) });
+        await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? null : (priorMarker ?? entry.marker.restoreFallback), at);
 
-          return { ok: true, version: await readVersion(workspaceId, entityId) };
-        },
+        return { ok: true, version: await readVersion(workspaceId, entityId) };
       });
     },
 
@@ -287,36 +268,36 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
      *             the row's own delete.
      */
     async purge(purgeRequired): Promise<TrashPurgeOutcome> {
-      return db.transaction({
-        run: async () => {
-          const { workspaceId, entityId, expectedVersion } = purgeRequired;
-          const row = await readMarkerRow(workspaceId, entityId);
-          if (!row) return "already-gone";
-          if (isMarkerValueLive(entry.marker, row.marker)) return "version-changed"; // never purge a live row
-          if (entry.versionColumn && expectedVersion !== null && row.version !== expectedVersion) return "version-changed";
+      return kernel().transaction(async () => {
+        const { workspaceId, entityId, expectedVersion } = purgeRequired;
+        await lockRow(workspaceId, entityId);
+        const row = await readMarkerRow(workspaceId, entityId);
+        if (!row) return "already-gone";
+        if (isMarkerValueLive(entry.marker, row.marker)) return "version-changed"; // never purge a live row
+        if (entry.versionColumn && expectedVersion !== null && row.version !== expectedVersion) return "version-changed";
 
-          for (const cascade of entry.purgeFirst ?? []) {
-            await runCascade(workspaceId, entityId, cascade);
-          }
+        for (const cascade of entry.purgeFirst ?? []) {
+          await runCascade(workspaceId, entityId, cascade);
+        }
 
-          const deleteWhere =
-            entry.versionColumn && expectedVersion !== null
-              ? and(baseWhere(workspaceId, entityId), eq(entry.versionColumn, expectedVersion))!
-              : baseWhere(workspaceId, entityId);
-          const deleted = await db.deleteWhere({ table: entry.table, where: deleteWhere });
-          if (deleted > 0) return "purged";
+        const versionColumn = entry.versionColumn;
+        const result = await run((db) =>
+          loose(db)
+            .deleteFrom(entry.table)
+            .where((eb) => {
+              const base = entryWhere(eb, { entry, workspaceId, entityId });
+              return versionColumn && expectedVersion !== null
+                ? eb.and([base, eb(qualified(entry.table, versionColumn), "=", expectedVersion)])
+                : base;
+            })
+            .executeTakeFirst()
+        );
+        if (affected(result.numDeletedRows) > 0) return "purged";
 
-          // Raced between the read above and this delete (single-writer SQLite under `BEGIN
-          // IMMEDIATE` makes this unreachable in practice today, but the classification stays
-          // correct if that ever changes): distinguish "gone" from "moved" the same way
-          // `compareAndDelete` does.
-          const stillThere = await db.selectOne({
-            table: entry.table,
-            columns: { id: entry.idColumn },
-            where: baseWhere(workspaceId, entityId),
-          });
-          return stillThere ? "version-changed" : "already-gone";
-        },
+        // Raced between the read above and this delete (the row lock above makes this unreachable
+        // in practice, but the classification stays correct if that ever changes): distinguish
+        // "gone" from "moved" the same way `compareAndDelete` does.
+        return (await readMarkerRow(workspaceId, entityId)) ? "version-changed" : "already-gone";
       });
     },
   };

@@ -18,7 +18,7 @@ import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { withFollowUps } from "../follow-ups.js";
 import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter, type TrashedItemsRef } from "../table-adapter.js";
+import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "../write-service.js";
 import type { TrashAdapter, TrashEntityType, TrashPort } from "../index.js";
@@ -59,14 +59,8 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const trashDb = createSqliteTrashDb({ db });
-  const trashedItems: TrashedItemsRef = {
-    table: schema.trashedItems,
-    workspaceId: schema.trashedItems.workspaceId,
-    entityType: schema.trashedItems.entityType,
-    entityId: schema.trashedItems.entityId,
-  };
 
   const taxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: WS });
   const termRepo = new SqliteTermRepo({ db, workspaceId: WS });
@@ -81,7 +75,7 @@ function harness(): Harness {
   // the outbox event `deleteTerm`/`deleteTaxonomy` used to write alongside their own hard delete.
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => {
-      const base = createTableTrashAdapter({ entry, db: trashDb, trashedItems });
+      const base = createTableTrashAdapter({ entry, db: trashDb });
       if (entry.entityType === "term") {
         return [
           entry.entityType,

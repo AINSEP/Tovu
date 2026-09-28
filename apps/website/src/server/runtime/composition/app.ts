@@ -30,10 +30,8 @@ import {
   type RemoveEntity,
   type TrashAdapter,
   type TrashDb,
-  type TrashedItemsRef,
   withFollowUps,
 } from "#src/features/trash/index";
-import * as contentSchema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
@@ -526,16 +524,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const taxonomyDb = createLazyProxy<ContentDb>(() => openContentDb(":memory:"));
   const sqliteTrashDb = createLazyProxy<TrashDb>(() => createSqliteTrashDb({ db: taxonomyDb }));
   const trashRegistry = new Map(
-    [...buildTrashRegistry({ schema: contentSchema })].filter(([entityType]) =>
+    [...buildTrashRegistry()].filter(([entityType]) =>
       entityType === "term" || entityType === "taxonomy"
     )
   );
-  const trashedItemsRef: TrashedItemsRef = {
-    table: contentSchema.trashedItems,
-    workspaceId: contentSchema.trashedItems.workspaceId,
-    entityType: contentSchema.trashedItems.entityType,
-    entityId: contentSchema.trashedItems.entityId,
-  };
   const trashRepo = new InMemoryTrashRepo();
   const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
   const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
@@ -670,7 +662,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         adapter: createTableTrashAdapter({
           entry: trashRegistry.get("term")!,
           db: sqliteTrashDb,
-          trashedItems: trashedItemsRef,
         }),
         hooks: createTermPurgeFollowUp({
           termRepo: taxonomyFollowUpTermRepo,
@@ -687,7 +678,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         adapter: createTableTrashAdapter({
           entry: trashRegistry.get("taxonomy")!,
           db: sqliteTrashDb,
-          trashedItems: trashedItemsRef,
         }),
         hooks: createTaxonomyPurgeFollowUp({
           termRepo: taxonomyFollowUpTermRepo,

@@ -16,7 +16,6 @@ import { getRedirectsAgentToolCatalog } from "#src/features/redirects/agent-tool
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import type { RouteDeps } from "#src/server/routes/types";
-import * as contentSchema from "#src/platform/db/schema.sqlite";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashEntityType } from "#src/features/trash/ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -68,7 +67,7 @@ function harness(grants: Grants) {
 
 // This file's hermetic composition registers only the term/taxonomy GENERIC kinds. Built once from
 // the real schema module, the full registry lets tests reach the remaining generic kinds too.
-const REAL_REGISTRY = buildTrashRegistry({ schema: contentSchema });
+const REAL_REGISTRY = buildTrashRegistry();
 
 function withRealTrashRegistry(routeDeps: RouteDeps): RouteDeps {
   return {
@@ -121,7 +120,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
     )
     .run(workspaceId, NOW, NOW);
 
-  const registry = buildTrashRegistry({ schema: contentSchema });
+  const registry = buildTrashRegistry();
   const trashDb = createSqliteTrashDb({ db });
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])

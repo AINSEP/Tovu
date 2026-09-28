@@ -49,14 +49,13 @@ export type {
   TrashHiddenWithParentSpec,
   TrashMarkerSpec,
   TrashRegistry,
-  TrashRegistrySchema,
+  TrashDisplayJoin,
 } from "./registry.js";
 
 export { createSqliteTrashDb } from "./db-port.sqlite.js";
-export type { TrashDb, TrashDbAssignment, TrashDbRow } from "./db-port.js";
+export type { TrashDb } from "./db-port.js";
 
 export { createTableTrashAdapter } from "./table-adapter.js";
-export type { TrashedItemsRef } from "./table-adapter.js";
 export { withFollowUps } from "./follow-ups.js";
 export type { AfterPurge, BeforePurge, HideFollowUp, TrashFollowUpHooks, UnhideFollowUp } from "./follow-ups.js";
 

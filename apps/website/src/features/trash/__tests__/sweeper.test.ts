@@ -459,7 +459,7 @@ test("the sweeper purges a real, overdue menu through the real table adapter —
     .prepare(`INSERT INTO nav_location_bindings (workspace_id, location_key, menu_id, bound_at) VALUES (?, 'footer', 'menu-overdue', ?)`)
     .run(REAL_WS, REAL_AT);
 
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const trashDb = createSqliteTrashDb({ db });
   const menuAdapter = createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb });
   const adapters = new Map<string, TrashAdapter>([["menu", menuAdapter]]);

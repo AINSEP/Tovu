@@ -35,7 +35,6 @@
  * It holds no `TrashPort` at all, so it has no route to the Trash's permanent-delete operation. The
  * test file proves that behaviorally rather than leaving it to this sentence.
  */
-import { and, eq, type AnyColumn } from "drizzle-orm";
 
 import {
   type AuthorizeFn,
@@ -68,7 +67,7 @@ import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash, type MoveToTrashOutcome } from "./move-to-trash.js";
-import { notTrashed } from "./not-trashed.js";
+import { type EntitySnapshotRow, readLiveSnapshot } from "./entry-sql.js";
 import type { TrashActor, TrashEntityType, TrashPort } from "./ports.js";
 import type { TrashEntry, TrashRegistry } from "./registry.js";
 
@@ -281,22 +280,10 @@ export const trashItemDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
   [TRASH_ITEM_TOOL_ID, "deletes-durable-state"],
 ]);
 
-/** The column-only snapshot {@link readGenericEntityDisplay} reads for a GENERIC kind's confirmation
- *  dialog — mirrors `move-to-trash.ts`'s identical local `EntitySnapshotRow`, duplicated rather than
- *  imported (that file is T1-owned; see this file's own header for the "no type-specific code, no
- *  reach into T1's files" rule). */
-interface GenericEntitySnapshotRow {
-  title: string;
-  subtitle?: string | null;
-  version?: number | null;
-}
-
 /**
  * Reads the live display + version for one GENERIC `TRASHABLE` entity (no bespoke delegate) — the
- * SAME column-only query `moveToTrash` (`move-to-trash.ts`) runs right before it calls
- * `TrashPort.trash`, duplicated here because this is an earlier READ this tool needs in order to
- * raise its own confirmation dialog, one step before `moveToTrash` performs the equivalent read for
- * real. `notTrashed` excludes a row already in the Trash, same as `moveToTrash`'s own not-found
+ * SAME column-only query (`entry-sql.ts`'s `readLiveSnapshot`) `moveToTrash` runs right before it
+ * calls `TrashPort.trash`; this tool reads it one step earlier to raise its own confirmation dialog. `notTrashed` excludes a row already in the Trash, same as `moveToTrash`'s own not-found
  * reading — a caller cannot re-trash what already looks gone from its own point of view.
  *
  * @complexity O(1): one indexed row read.
@@ -305,21 +292,8 @@ async function readGenericEntityDisplay(
   deps: Pick<TrashItemToolDeps, "db" | "registry" | "workspaceId">,
   entry: TrashEntry,
   entityId: string
-): Promise<GenericEntitySnapshotRow | null> {
-  const columns: Record<string, AnyColumn> = { title: entry.display.title };
-  if (entry.display.subtitle) columns.subtitle = entry.display.subtitle;
-  if (entry.versionColumn) columns.version = entry.versionColumn;
-  return (await deps.db.selectOne({
-    table: entry.table,
-    columns,
-    join: entry.display.join,
-    where: and(
-      eq(entry.workspaceColumn, deps.workspaceId),
-      eq(entry.idColumn, entityId),
-      entry.scope,
-      notTrashed({ entityType: entry.entityType }, { registry: deps.registry })
-    )!,
-  })) as GenericEntitySnapshotRow | null;
+): Promise<EntitySnapshotRow | null> {
+  return readLiveSnapshot({ entry, workspaceId: deps.workspaceId, entityId }, { kernel: deps.db, registry: deps.registry });
 }
 
 /** The `ui://` URI for one `trash_item` generic-confirmation instance — mirrors every sibling

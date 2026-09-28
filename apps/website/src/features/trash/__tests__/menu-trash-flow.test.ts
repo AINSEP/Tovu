@@ -49,7 +49,7 @@ function harness(): Harness {
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-  const registry = buildTrashRegistry({ schema });
+  const registry = buildTrashRegistry();
   const trashDb = createSqliteTrashDb({ db });
   const menuRepo = new SqliteMenuRepo(db);
   const bindingRepo = new SqliteNavLocationBindingRepo(db);

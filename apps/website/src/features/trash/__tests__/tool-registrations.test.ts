@@ -14,7 +14,7 @@ import type { PurgeReport, RestoreOutcome, TrashActor, TrashItem, TrashPort } fr
 /** The real `form` entry (registry-derived permission), same source `deps.ts` composes from —
  *  needed because "form" -> "admin.forms.manage" is one of this file's pinned pairings, and that
  *  pairing now comes from `TRASHABLE`, not the bespoke `TRASH_PERMISSION_BY_ENTITY_TYPE` map. */
-const REGISTRY = buildTrashRegistry({ schema });
+const REGISTRY = buildTrashRegistry();
 
 /**
  * @file What the two trash tools actually do, and — the part that matters — **what they refuse to

@@ -220,11 +220,9 @@ import {
   createUserTrashAdapter,
   type RemoveEntity,
   type TrashAdapter,
-  type TrashedItemsRef,
   type TrashFollowUpHooks,
   withFollowUps,
 } from "#src/features/trash/index";
-import * as contentSchema from "#src/platform/db/schema.sqlite";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import {
   SqliteEntryTermRepo,
@@ -1160,20 +1158,11 @@ export function createSqliteRouteDeps(
   // unregister, so anything that filters at registration time runs exactly once — two real bugs
   // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
   const assetRenditionRepo = new SqliteAssetRenditionRepo(db);
-  // `TRASHABLE` (plan §1/§4) — built once here from the live `schema.sqlite.ts` tables. Adding a type needs
+  // `TRASHABLE` (plan §1/§4) — built once here. Adding a type needs
   // no edit below this line, only a new `registry.ts` `Map` entry — the adapter map beneath already
   // loops over every registered entry generically.
-  const trashRegistry = buildTrashRegistry({ schema: contentSchema });
+  const trashRegistry = buildTrashRegistry();
   const sqliteTrashDb = createSqliteTrashDb({ db });
-  // Column-only reference to `trashed_items`, shared by every generic entry's adapter — needed only
-  // by a `purgeFirst` cascade that declares `entityType` (`form` -> `form_submission`, `taxonomy` ->
-  // `term`): the phantom-row cleanup, T1 item 5 (`table-adapter.ts`'s `TrashedItemsRef`).
-  const trashedItemsRef: TrashedItemsRef = {
-    table: contentSchema.trashedItems,
-    workspaceId: contentSchema.trashedItems.workspaceId,
-    entityType: contentSchema.trashedItems.entityType,
-    entityId: contentSchema.trashedItems.entityId,
-  };
   // Finishes a hide/restore/purge a generic marker flip alone cannot (`follow-ups.ts`), per type.
   // `widget`: an adopted legacy widget keeps its `purged` payload while in the Trash (an older site
   // build still reads it), and its restore makes the payload active again. `routeDeps` is read at
@@ -1265,7 +1254,7 @@ export function createSqliteRouteDeps(
     // written once and driven entirely by each entry's own registration, so this line never changes
     // as G2-G4 add more entries.
     ...[...trashRegistry.values()].map((entry) => {
-      const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb, trashedItems: trashedItemsRef });
+      const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb });
       const hooks = trashFollowUpHooks.get(entry.entityType);
       return [entry.entityType, hooks ? withFollowUps({ adapter, hooks }) : adapter] as const;
     }),
