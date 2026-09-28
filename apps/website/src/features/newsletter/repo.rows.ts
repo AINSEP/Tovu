@@ -319,3 +319,31 @@ export function updatableSendColumns(row: Insertable<SendTableRow>) {
     updated_at: row.updated_at,
   };
 }
+
+/** One `p_newsletter__confirmation_tokens` row as a {@link ConfirmationTokenRecord}. */
+export function toConfirmationTokenRecord(row: Selectable<ConfirmationTokenTableRow>): ConfirmationTokenRecord {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    subscriptionId: row.subscription_id,
+    tokenHash: row.token_hash,
+    purpose: row.purpose as ConfirmationTokenRecord["purpose"],
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    consumedAt: row.consumed_at,
+  };
+}
+
+/** The `p_newsletter__confirmation_tokens` row an INSERT writes. */
+export function toConfirmationTokenRow(row: ConfirmationTokenRecord): Insertable<ConfirmationTokenTableRow> {
+  return {
+    id: row.id,
+    workspace_id: row.workspaceId,
+    subscription_id: row.subscriptionId,
+    token_hash: row.tokenHash,
+    purpose: row.purpose,
+    created_at: row.createdAt,
+    expires_at: row.expiresAt,
+    consumed_at: row.consumedAt,
+  };
+}

@@ -5,8 +5,8 @@ import { sql } from "kysely";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { newsletterAudienceSnapshotRepoFor, newsletterCampaignRepoFor, newsletterListRepoFor, newsletterSendRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
-import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
+import { newsletterAudienceSnapshotRepoFor, newsletterCampaignRepoFor, newsletterConfirmationTokenRepoFor, newsletterListRepoFor, newsletterSendRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
+import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
 
 /**
  * @file The six newsletter repos on every dialect through the kernel's matrix (`describeEachDialect`
@@ -42,13 +42,17 @@ const CREATE_TABLES = [
     subscriber_id TEXT NOT NULL, recipient_email TEXT NOT NULL, status TEXT NOT NULL, attempts INTEGER NOT NULL,
     idempotency_key TEXT NOT NULL, provider_message_id TEXT, last_error TEXT, next_attempt_at TEXT,
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+  sql`DROP TABLE IF EXISTS p_newsletter__confirmation_tokens`,
+  sql`CREATE TABLE p_newsletter__confirmation_tokens (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, subscription_id TEXT NOT NULL, token_hash TEXT NOT NULL,
+    purpose TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT)`,
 ];
 
 function repos(base: ContentKernel) {
   const pending = CREATE_TABLES.reduce((chain, statement) => chain.then(() => base.execute(statement)), Promise.resolve());
   pending.catch(() => {});
   const kernel = heldUntil(base, pending);
-  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel), snapshots: newsletterAudienceSnapshotRepoFor(kernel), sends: newsletterSendRepoFor(kernel) };
+  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel), snapshots: newsletterAudienceSnapshotRepoFor(kernel), sends: newsletterSendRepoFor(kernel), tokens: newsletterConfirmationTokenRepoFor(kernel) };
 }
 
 function list(id: string, overrides: Partial<NewsletterListRow> = {}): NewsletterListRow {
@@ -119,6 +123,20 @@ function send(id: string, overrides: Partial<SendRow> = {}): SendRow {
     nextAttemptAt: null,
     createdAt: T0,
     updatedAt: T0,
+    ...overrides,
+  };
+}
+
+function token(id: string, overrides: Partial<ConfirmationTokenRecord> = {}): ConfirmationTokenRecord {
+  return {
+    id,
+    workspaceId: WS,
+    subscriptionId: "sub-1",
+    tokenHash: `hash-${id}`,
+    purpose: "confirm",
+    createdAt: T0,
+    expiresAt: "2026-09-29T00:00:00.000Z",
+    consumedAt: null,
     ...overrides,
   };
 }
@@ -501,6 +519,53 @@ describeEachDialect(
         assert.deepEqual([kept?.status, kept?.providerMessageId, kept?.lastError], ["failed", "old", "bounce"]);
         assert.equal(await sends.recordOutcome({ ...outcome, id: "nope", providerMessageId: null }), null);
         assert.equal(await sends.recordOutcome({ ...outcome, workspaceId: OTHER, id: "s1", providerMessageId: null }), null);
+      });
+    });
+
+    describe("confirmation token repo", () => {
+      test("save then findById / findByTokenHash round-trip; misses and other workspaces are null", async () => {
+        const { tokens } = makeRepos();
+        await tokens.save(token("t1", { consumedAt: T1 }));
+        assert.deepEqual(await tokens.findById({ workspaceId: WS, id: "t1" }), token("t1", { consumedAt: T1 }));
+        assert.deepEqual(await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-t1" }), token("t1", { consumedAt: T1 }));
+        assert.equal(await tokens.findById({ workspaceId: WS, id: "nope" }), null);
+        assert.equal(await tokens.findById({ workspaceId: OTHER, id: "t1" }), null);
+        assert.equal(await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "nope" }), null);
+        assert.equal(await tokens.findByTokenHash({ workspaceId: OTHER, tokenHash: "hash-t1" }), null);
+      });
+
+      test("findUnconsumedBySubscription skips consumed tokens and other subscriptions or workspaces", async () => {
+        const { tokens } = makeRepos();
+        await tokens.save(token("t2"));
+        await tokens.save(token("t1"));
+        await tokens.save(token("t3", { consumedAt: T1 }));
+        await tokens.save(token("t4", { subscriptionId: "sub-2" }));
+        await tokens.save(token("t5", { workspaceId: OTHER }));
+        assert.deepEqual((await tokens.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" })).map((t) => t.id), ["t1", "t2"]);
+        assert.deepEqual(await tokens.findUnconsumedBySubscription({ workspaceId: "empty", subscriptionId: "sub-1" }), []);
+      });
+
+      test("re-saving only moves consumedAt; every other field stays as first stored", async () => {
+        const { tokens } = makeRepos();
+        await tokens.save(token("t1"));
+        await tokens.save(token("t1", { consumedAt: T1, tokenHash: "hijack", purpose: "unsubscribe", expiresAt: T1, subscriptionId: "sub-x" }));
+        assert.deepEqual(await tokens.findById({ workspaceId: WS, id: "t1" }), token("t1", { consumedAt: T1 }));
+        assert.deepEqual(await tokens.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" }), []);
+      });
+
+      test("a consume saved inside a rolled-back transaction leaves the token unconsumed", async () => {
+        const { kernel, tokens } = makeRepos();
+        await tokens.save(token("t1"));
+        await assert.rejects(
+          kernel.transaction(async () => {
+            await tokens.save(token("t1", { consumedAt: T1 }));
+            await tokens.save(token("t2"));
+            throw new Error("boom");
+          }),
+          /boom/
+        );
+        assert.equal((await tokens.findById({ workspaceId: WS, id: "t1" }))?.consumedAt, null);
+        assert.equal(await tokens.findById({ workspaceId: WS, id: "t2" }), null);
       });
     });
   }

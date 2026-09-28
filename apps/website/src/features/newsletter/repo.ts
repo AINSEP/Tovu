@@ -11,6 +11,8 @@ import {
   toCampaignRecord,
   toCampaignRevision,
   toCampaignRow,
+  toConfirmationTokenRecord,
+  toConfirmationTokenRow,
   toAudienceSnapshotRecord,
   toAudienceSnapshotRow,
   toListRecord,
@@ -29,6 +31,7 @@ import type {
   CampaignCounters,
   CampaignRecord,
   CampaignRevision,
+  ConfirmationTokenRecord,
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
@@ -542,4 +545,72 @@ export class SqlNewsletterSendRepo implements NewsletterSendRepoPort {
 /** The newsletter send repo for `kernel`. */
 export function newsletterSendRepoFor(kernel: ContentKernel): SqlNewsletterSendRepo {
   return new SqlNewsletterSendRepo(kernel);
+}
+
+export class SqlNewsletterConfirmationTokenRepo implements NewsletterConfirmationTokenRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findById(required: { workspaceId: string; id: string }): Promise<ConfirmationTokenRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__confirmation_tokens")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("id", "=", required.id)
+        .executeTakeFirst()
+    );
+    return row ? toConfirmationTokenRecord(row) : null;
+  }
+
+  async findUnconsumedBySubscription(required: {
+    workspaceId: string;
+    subscriptionId: string;
+  }): Promise<ConfirmationTokenRecord[]> {
+    const rows = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__confirmation_tokens")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("subscription_id", "=", required.subscriptionId)
+        .where("consumed_at", "is", null)
+        .orderBy("id", "asc")
+        .execute()
+    );
+    return rows.map(toConfirmationTokenRecord);
+  }
+
+  async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<ConfirmationTokenRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__confirmation_tokens")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("token_hash", "=", required.tokenHash)
+        .orderBy("id", "asc")
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toConfirmationTokenRecord(row) : null;
+  }
+
+  /** Upsert by id; a re-save only ever moves `consumed_at` (the rest of a token is immutable). */
+  async save(row: ConfirmationTokenRecord): Promise<void> {
+    const values = toConfirmationTokenRow(row);
+    await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .insertInto("p_newsletter__confirmation_tokens")
+        .values(values)
+        .onConflict((oc) => oc.column("id").doUpdateSet({ consumed_at: values.consumed_at }))
+        .execute()
+    );
+  }
+}
+
+/** The newsletter confirmation-token repo for `kernel`. */
+export function newsletterConfirmationTokenRepoFor(kernel: ContentKernel): SqlNewsletterConfirmationTokenRepo {
+  return new SqlNewsletterConfirmationTokenRepo(kernel);
 }

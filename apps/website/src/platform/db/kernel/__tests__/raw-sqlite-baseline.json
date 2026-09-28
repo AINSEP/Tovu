@@ -51,13 +51,6 @@
   "apps/website/src/features/newsletter/data-module-manifest.ts": {
     "better-sqlite3-import": 1
   },
-  "apps/website/src/features/newsletter/repo.sqlite.ts": {
-    "$client": 2,
-    "better-sqlite3-import": 1,
-    "prepare": 27,
-    "sqlite-json": 2,
-    "sync-terminal": 5
-  },
   "apps/website/src/features/plugin-runtime/repo.sqlite.ts": {
     "sync-terminal": 3
   },
