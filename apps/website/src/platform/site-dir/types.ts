@@ -54,7 +54,26 @@ export interface SiteMetaJson {
    * substitution of the physical key file be detected before any decrypt fails on it.
    */
   siteKeyFingerprint?: string;
+  /**
+   * Which database engine holds this site's content and AI chat (R1 plan §0, ADR-067). Absent means
+   * `{ kind: "sqlite" }`, so every site written before this field existed boots unchanged. Read
+   * through `resolveSiteStorage` (`site-storage.ts`), never directly.
+   */
+  storage?: SiteStorage;
 }
+
+/**
+ * A site's storage choice. The journal (`ops/database-journal.db`) is SQLite on every kind.
+ *
+ * - `sqlite`: `content.db` + `chat.db` in the site folder (the default).
+ * - `pglite`: one embedded Postgres data dir, `<site>/pglite/`, owned by the site's API process.
+ * - `postgres`: an external server. The connection string is never written here (owner decision O3):
+ *   `"site"` = sealed with the site key in the site folder; `{ env }` = read from that variable.
+ */
+export type SiteStorage =
+  | { kind: "sqlite" }
+  | { kind: "pglite" }
+  | { kind: "postgres"; secretRef: "site" | { env: string } };
 
 /** `templates/<id>/template.json` — repo data, read-only at runtime (INV-03). */
 export interface TemplateJson {

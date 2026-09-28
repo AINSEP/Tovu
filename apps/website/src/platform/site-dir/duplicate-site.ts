@@ -3,11 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { duplicateContentDb } from "./duplicate-content-db.js";
-import { InternalError, SiteDirInvalidError } from "./errors.js";
+import { InternalError, SiteDirInvalidError, ValidationError } from "./errors.js";
 import { cleanupAndRethrow, resolveSiteName, validateInitTarget } from "./init-site.js";
 import { CHAT_ATTACHMENTS_ENTRY_NAME, CONTENT_DB_FILENAME, isPortableSiteEntry, UPLOADS_ENTRY_NAME } from "./layout.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
+import { parseSiteStorage } from "./site-storage.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import type { ConfigJson, SiteMetaJson } from "./types.js";
 
@@ -187,6 +188,12 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
   const resolvedName = resolveSiteName(target, name); // pre-write VALIDATION, mirrors initSite step 1.
   validateInitTarget(target); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.
   const { meta: sourceMeta } = readSiteDir({ dir: source }); // pre-write SITE_DIR_INVALID — nothing created yet.
+  // The copy keeps the source's storage. Only SQLite is copied here (a whole-file copy); the other
+  // kinds copy row by row through their kernels, which the R1 plan's slice R1g adds.
+  const storage = parseSiteStorage(sourceMeta.storage);
+  if (storage.kind !== "sqlite") {
+    throw new ValidationError(`duplicating a site stored on ${storage.kind} is not supported yet (R1 plan slice R1g)`);
+  }
 
   const siteId = randomUUID(); // NEW identity — never copied from sourceMeta.siteId.
   const createdAt = new Date().toISOString();
@@ -249,6 +256,7 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
       // the source uses, or nothing in it can be decrypted. `?? sourceMeta.siteId` covers a source
       // written before this field existed (a pre-A4 `.site-meta.json` with no siteKeyId at all).
       siteKeyId: sourceMeta.siteKeyId ?? sourceMeta.siteId,
+      storage,
     };
     writeJsonFileAtomic(path.join(target, ".site-meta.json"), meta);
 

@@ -236,6 +236,8 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
       // visible in the file itself and a future `duplicateSite` always has a real value to carry
       // forward (see that function's own `siteKeyId ?? siteId` carry-over).
       siteKeyId: siteId,
+      // Written explicitly (absent also means SQLite) so the choice is visible in the file.
+      storage: { kind: "sqlite" },
     };
     writeJsonFileAtomic(path.join(target, ".site-meta.json"), meta);
 

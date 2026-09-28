@@ -165,6 +165,21 @@ test("EC-03: .site-meta.json contains invalid JSON -> SiteDirInvalidError naming
   }
 });
 
+test("R1d: an invalid .site-meta.json storage -> SiteDirInvalidError naming .site-meta.json; an absent one reads as before", () => {
+  const dir = mkTempDir();
+  try {
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(validConfig()));
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ ...validMeta(), storage: { kind: "mysql" } }));
+    assertSiteDirInvalid(() => readSiteDir({ dir }), /\.site-meta\.json storage kind "mysql"/, "unknown storage kind");
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ ...validMeta(), storage: { kind: "pglite" } }));
+    assert.deepEqual(readSiteDir({ dir }).meta.storage, { kind: "pglite" });
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify(validMeta()));
+    assert.equal(readSiteDir({ dir }).meta.storage, undefined, "an absent storage is left absent (content-equal to disk)");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("state.spec.md §2: config.json.name absent, or present but not a string, -> SiteDirInvalidError (a required field, not an optional one)", () => {
   for (const badName of [undefined, null, 42, ["Demo Site"], { value: "Demo Site" }]) {
     const dir = mkTempDir();

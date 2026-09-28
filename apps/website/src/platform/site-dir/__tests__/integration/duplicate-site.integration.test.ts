@@ -281,6 +281,30 @@ test("the schema stamp is carried from the SOURCE verbatim, never re-derived fro
   }
 });
 
+test("R1d: the duplicate keeps the source's storage; a source on another engine is refused before anything is written", async () => {
+  const parent = mkTempParent();
+  try {
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Storage Source" });
+    const targetDir = path.join(parent, "target");
+    await duplicateSite({ sourceDir: source.dir, targetDir });
+    const targetMeta = JSON.parse(fs.readFileSync(path.join(targetDir, ".site-meta.json"), "utf8"));
+    assert.deepEqual(targetMeta.storage, { kind: "sqlite" });
+
+    const metaPath = path.join(source.dir, ".site-meta.json");
+    const pgliteMeta = { ...JSON.parse(fs.readFileSync(metaPath, "utf8")), storage: { kind: "pglite" } };
+    fs.writeFileSync(metaPath, JSON.stringify(pgliteMeta, null, 2));
+    const refusedTarget = path.join(parent, "refused");
+    await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir: refusedTarget }), (err: unknown) => {
+      assert.ok(err instanceof ValidationError);
+      assert.match(err.message, /duplicating a site stored on pglite is not supported yet/);
+      return true;
+    });
+    assert.equal(fs.existsSync(refusedTarget), false, "nothing is created for a refused duplicate");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test("omitting name defaults the duplicate's display name to the target directory's basename", async () => {
   const parent = mkTempParent();
   try {

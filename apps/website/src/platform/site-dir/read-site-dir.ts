@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { SiteDirInvalidError } from "./errors.js";
+import { parseSiteStorage } from "./site-storage.js";
 import type { ConfigJson, SiteMetaJson } from "./types.js";
 
 /**
@@ -86,7 +87,8 @@ export function readSiteConfig(required: ReadSiteDirRequired): ConfigJson {
  * @param required.dir - the install dir path (already resolved by the caller).
  * @returns `{ config, meta }`, content-equal to the on-disk files.
  * @throws {SiteDirInvalidError} naming the failing file and reason — missing, not a file,
- *   oversized (behavior.spec.md §4), unparseable JSON (EC-03), or an invalid `config.json.name`.
+ *   oversized (behavior.spec.md §4), unparseable JSON (EC-03), an invalid `config.json.name`, or an
+ *   invalid `.site-meta.json` `storage` (an absent one is SQLite; see `site-storage.ts`).
  * @complexity O(1) — two small, bounded-size file reads; no directory scan.
  * @overallScore 100
  */
@@ -94,6 +96,7 @@ export function readSiteDir(required: ReadSiteDirRequired): ReadSiteDirResult {
   const { dir } = required;
   const config = readSiteConfig({ dir });
   const meta = readJsonFile(dir, ".site-meta.json") as SiteMetaJson;
+  parseSiteStorage((meta as Partial<SiteMetaJson> | null)?.storage);
   return { config, meta };
 }
 

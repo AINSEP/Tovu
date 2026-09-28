@@ -80,6 +80,7 @@ test("site-key plan §A.4: a freshly initialized site gets its own siteKeyId, eq
     const meta = JSON.parse(fs.readFileSync(path.join(target, ".site-meta.json"), "utf8"));
     assert.equal(meta.siteKeyId, result.siteId, "a brand-new site's siteKeyId must be stamped explicitly, equal to its own siteId");
     assert.equal(typeof meta.siteKeyId, "string");
+    assert.deepEqual(meta.storage, { kind: "sqlite" }, "R1d: a new site records its storage choice explicitly");
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
