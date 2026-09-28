@@ -35,7 +35,7 @@ export function buildConfirmationSurface(spec: { plan: DatabaseTransferPlan; exc
   const details = [
     { label: "Destination", value: where },
     { label: "Copies", value: `${plural(plan.tableCount, "table", "tables")}, ${plural(plan.rowCount, "row", "rows")}, as of ${formatSnapshotTime(plan.snapshotAt)}` },
-    { label: "Goes into", value: "A private area named \"tovu\". Nothing else in that database is touched." },
+    { label: "Goes into", value: `A private area named "${plan.schema}". Nothing else in that database is touched.` },
     { label: "Replaces", value: plan.replaces === null ? "Nothing. This is the first copy." : `The earlier copy from ${formatSnapshotTime(plan.replaces)}` },
     { label: "Left out", value: `Logins and saved keys (${plural(leftOutRows, "row", "rows")}). Photos and files stay where they are.` },
   ];

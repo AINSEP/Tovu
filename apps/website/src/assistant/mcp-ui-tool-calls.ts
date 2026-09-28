@@ -247,6 +247,10 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // the human's Copy/Cancel click (`features/database-transfer/confirmation-ui.ts`) before copying the
   // site's data into a Postgres database. Every call is gated; without this entry both buttons 403.
   "database_transfer_run",
+  // 2026-09-27 — `database_transfer_set_destination` parks on the human's private form for the
+  // destination database's address (`features/database-transfer/destination-ui.ts`); the address goes
+  // browser -> this route -> the parked call, never through the model. Without this entry Save 403s.
+  "database_transfer_set_destination",
   // 2026-09-21 (trash T4) — `trash_item` (`features/trash/trash-item-tool.ts`) holds up the SAME
   // held-open-exchange shape every entry above does, but only for a GENERIC `TRASHABLE` kind with no
   // bespoke delegate (`form`, `form_submission`, ...): for those it opens its OWN

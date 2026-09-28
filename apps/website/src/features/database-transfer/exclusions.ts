@@ -9,12 +9,13 @@
  * silently.
  */
 
-export type TransferExclusionReason = "login" | "saved-key" | "temporary";
+export type TransferExclusionReason = "login" | "saved-key" | "temporary" | "secret-setting";
 
 export const TRANSFER_EXCLUSION_REASON_TEXT: Readonly<Record<TransferExclusionReason, string>> = {
   login: "logins (password hashes, sessions and sign-in links) are not copied",
   "saved-key": "saved keys and credentials are not copied",
   temporary: "short-lived confirmation data is not copied",
+  "secret-setting": "settings marked secret, and their history, are not copied",
 };
 
 /** SQL table name -> why it is left out. */
@@ -40,3 +41,16 @@ export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReas
 
 /** A column name that holds (or seals) a secret: `sealed_*`, `*_sealed_*`, `password*`, `*_token_hash`, `key_hash`. */
 export const SECRET_COLUMN_PATTERN = /(^|_)(sealed|password|token_hash|key_hash)(_|$)/;
+
+/**
+ * Tables that are copied, minus some rows. `keep` is a SQLite predicate over the source table that
+ * selects the rows that ARE copied; the plan reports how many were left out. Settings declare their own
+ * secrecy (`setting_definitions.secret`), so every value and revision row of a secret setting stays
+ * behind, whichever scope it was saved at.
+ */
+export const PARTIALLY_EXCLUDED_TABLES: Readonly<Record<string, { readonly keep: string; readonly reason: TransferExclusionReason }>> = Object.fromEntries(
+  ["setting_values_global", "setting_values_workspace", "setting_values_user", "setting_revisions"].map((table) => [
+    table,
+    { keep: "setting_id NOT IN (SELECT setting_id FROM setting_definitions WHERE secret <> 0)", reason: "secret-setting" as const },
+  ])
+);

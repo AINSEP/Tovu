@@ -120,6 +120,8 @@ test("custom_credential_write_files is on the allowlist — every call holds up 
  * unrelated-looking reason.
  */
 const EXPECTED_ALLOWLIST = [
+  // 2026-09-27 (S-G1, 1ec285153) — the generic Agent Plugin Connect card; see the allowlist's own entry.
+  "agent_plugin_connect",
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",
@@ -144,7 +146,13 @@ const EXPECTED_ALLOWLIST = [
   "plugins_uninstall",
   "redirects_tombstone",
   "site_backup_push",
+  // 2026-09-27 — database transfer: the Copy/Cancel card and the private destination-address form
+  // (`features/database-transfer`).
+  "database_transfer_run",
+  "database_transfer_set_destination",
   "source_control_execute_commit",
+  // 2026-09-27 (Supabase Slice 1, a679de93d) — `supabase_get_database`'s prototype card.
+  "supabase_get_database",
   "supabase_set_access_token",
   "supabase_set_project_scope",
   "taxonomy_execute_merge_term",

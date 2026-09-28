@@ -18,6 +18,8 @@ export interface DatabaseTransferPlanContent {
   readonly snapshot: Buffer;
   readonly snapshotAt: string;
   readonly site: string;
+  /** The private schema this site's copy goes to, chosen by `inspectTarget` at plan time. */
+  readonly schema: string;
   readonly tableCount: number;
   readonly rowCount: number;
   readonly leftOut: readonly { readonly table: string; readonly rows: number; readonly reason: string }[];

@@ -10,14 +10,20 @@ import Database from "better-sqlite3";
 export interface TransferSource {
   /** The table's column names, or `null` when the source has no such table. */
   columns(table: string): readonly string[] | null;
-  countRows(table: string): number;
-  /** Every row, cells in `columns` order. */
-  rows(table: string, columns: readonly string[]): Iterable<unknown[]>;
+  /** `keep`, when given, is a predicate in the source's own SQL selecting the rows that count. */
+  countRows(table: string, keep?: string): number;
+  /** Every row (or every row matching `keep`), cells in `columns` order. */
+  rows(table: string, columns: readonly string[], keep?: string): Iterable<unknown[]>;
   close(): void;
 }
 
 function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
+}
+
+/** `keep` comes only from this feature's own constants (`exclusions.ts`), never from tool input. */
+function where(keep: string | undefined): string {
+  return keep === undefined ? "" : ` WHERE ${keep}`;
 }
 
 /**
@@ -41,11 +47,11 @@ export function openSqliteSnapshotSource(bytes: Buffer): TransferSource {
       const info = db.prepare(`PRAGMA table_info(${quoteIdent(table)})`).all() as { name: string }[];
       return info.length === 0 ? null : info.map((column) => column.name);
     },
-    countRows(table) {
-      return (db.prepare(`SELECT count(*) AS n FROM ${quoteIdent(table)}`).get() as { n: number }).n;
+    countRows(table, keep) {
+      return (db.prepare(`SELECT count(*) AS n FROM ${quoteIdent(table)}${where(keep)}`).get() as { n: number }).n;
     },
-    rows(table, columns) {
-      return db.prepare(`SELECT ${columns.map(quoteIdent).join(", ")} FROM ${quoteIdent(table)}`).raw().iterate() as Iterable<unknown[]>;
+    rows(table, columns, keep) {
+      return db.prepare(`SELECT ${columns.map(quoteIdent).join(", ")} FROM ${quoteIdent(table)}${where(keep)}`).raw().iterate() as Iterable<unknown[]>;
     },
     close: () => db.close(),
   };

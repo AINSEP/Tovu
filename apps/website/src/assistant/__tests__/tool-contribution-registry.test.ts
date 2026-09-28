@@ -168,6 +168,9 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // section header for what `agent-plugin-search` itself contributes.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "agent-plugin-search",
+    // 2026-09-27 (S-G1, 1ec285153): `agent_plugin_connect`, the generic "connect this plugin's
+    // account" tool (`features/agent-plugins/tool-registrations.ts`).
+    "agent-plugin-connect",
     // "agent-plugin-uninstall" was REMOVED 2026-09-24 (S4, b4ff558c6): its Agent Plugin branch is now
     // reached through `plugins_uninstall` (`plugins` below, family: "agent-plugin").
     "comments",
