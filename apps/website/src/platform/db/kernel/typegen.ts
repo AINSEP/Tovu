@@ -13,7 +13,7 @@ import type { StorageKernel } from "./port.js";
  * text → `string`; integer/bigint/real/double/numeric → `number`; boolean → `Bool` (reads
  * `SqlBool`: `true`/`false` on Postgres, `1`/`0` on SQLite — convert with `toBool`); json/jsonb →
  * `string` (JSON text); bytea → `Uint8Array`. Nullable adds `| null`; a NOT NULL column with a
- * default becomes `Generated<…>` (optional on insert).
+ * default or an identity column becomes `Generated<…>` (optional on insert).
  */
 
 interface ColumnRow {
@@ -22,6 +22,7 @@ interface ColumnRow {
   data_type: string;
   is_nullable: string;
   column_default: string | null;
+  is_identity: string;
 }
 
 const SCALAR: Readonly<Record<string, string>> = {
@@ -48,13 +49,14 @@ function pascal(name: string): string {
 
 function columnType(column: ColumnRow): string {
   const nullable = column.is_nullable === "YES";
-  if (column.data_type === "boolean") return nullable ? "NullableBool" : column.column_default !== null ? "GeneratedBool" : "Bool";
+  const generated = column.column_default !== null || column.is_identity === "YES";
+  if (column.data_type === "boolean") return nullable ? "NullableBool" : generated ? "GeneratedBool" : "Bool";
   const scalar = SCALAR[column.data_type];
   if (scalar === undefined) {
     throw new Error(`typegen: no TypeScript type for ${column.table_name}.${column.column_name} (${column.data_type})`);
   }
   if (nullable) return `${scalar} | null`;
-  return column.column_default !== null ? `Generated<${scalar}>` : scalar;
+  return generated ? `Generated<${scalar}>` : scalar;
 }
 
 /**
@@ -69,7 +71,7 @@ export async function renderDatabaseTypes(
 ): Promise<string> {
   if (kernel.dialect !== "postgres") throw new Error("typegen reads a Postgres reference database");
   const rows = await kernel.query<ColumnRow>(
-    sql`SELECT table_name, column_name, data_type, is_nullable, column_default
+    sql`SELECT table_name, column_name, data_type, is_nullable, column_default, is_identity
         FROM information_schema.columns
         WHERE table_schema = current_schema()
         ORDER BY table_name, ordinal_position`

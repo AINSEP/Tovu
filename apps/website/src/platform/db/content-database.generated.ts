@@ -123,7 +123,7 @@ export interface AdminExecutionCredentialsTable {
 }
 
 export interface AgentToolAttemptsTable {
-  id: number;
+  id: Generated<number>;
   attempt_id: string;
   execution_id: string | null;
   workspace_id: string;
@@ -136,7 +136,7 @@ export interface AgentToolAttemptsTable {
 }
 
 export interface AnalyticsEventsTable {
-  id: number;
+  id: Generated<number>;
   workspace_id: string;
   occurred_at: string;
   kind: string;
@@ -302,7 +302,7 @@ export interface CommerceWebhookEventsTable {
 }
 
 export interface ContentTypeRevisionsTable {
-  seq: number;
+  seq: Generated<number>;
   content_type_key: string;
   workspace_id: string;
   op: string;
@@ -428,7 +428,7 @@ export interface EntriesTable {
 }
 
 export interface EntryRefsTable {
-  id: number;
+  id: Generated<number>;
   workspace_id: string;
   source_entry_id: string;
   source_kind: string;
@@ -438,7 +438,7 @@ export interface EntryRefsTable {
 }
 
 export interface EntryRevisionsTable {
-  seq: number;
+  seq: Generated<number>;
   entry_id: string;
   workspace_id: string;
   op: string;
@@ -450,7 +450,7 @@ export interface EntryRevisionsTable {
 }
 
 export interface EntryTermsTable {
-  id: number;
+  id: Generated<number>;
   workspace_id: string;
   content_type: string;
   content_id: string;
@@ -617,7 +617,7 @@ export interface MemberMagicTokensTable {
 }
 
 export interface MemberRevisionsTable {
-  seq: number;
+  seq: Generated<number>;
   entity_kind: string;
   entity_id: string;
   workspace_id: string;
@@ -711,7 +711,7 @@ export interface NavLocationBindingsTable {
 }
 
 export interface NewsletterCampaignRevisionsTable {
-  seq: number;
+  seq: Generated<number>;
   campaign_id: string;
   workspace_id: string;
   state_json: string;
@@ -960,7 +960,7 @@ export interface PublishCredentialSetsTable {
 }
 
 export interface PublishHistoryTable {
-  id: number;
+  id: Generated<number>;
   workspace_id: string;
   target: string;
   url: string;
@@ -991,7 +991,7 @@ export interface RedirectHitsTable {
 }
 
 export interface RedirectRevisionsTable {
-  id: number;
+  id: Generated<number>;
   redirect_id: string;
   workspace_id: string;
   seq: number;
@@ -1084,7 +1084,7 @@ export interface SettingDefinitionsTable {
 }
 
 export interface SettingRevisionsTable {
-  seq: number;
+  seq: Generated<number>;
   entity_kind: string;
   setting_id: string;
   scope: string | null;
@@ -1182,7 +1182,7 @@ export interface TaxonomiesTable {
 }
 
 export interface TaxonomyRevisionsTable {
-  seq: number;
+  seq: Generated<number>;
   workspace_id: string;
   taxonomy_id: string;
   op: string;
