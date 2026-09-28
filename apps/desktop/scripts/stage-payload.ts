@@ -43,6 +43,7 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 
+import { assertDistImportsDeclared } from "../src/dist-import-check.ts";
 import { shellStalenessFailure } from "../src/shell-staleness.ts";
 import type { StalenessShell } from "../src/shell-staleness.ts";
 import {
@@ -143,6 +144,21 @@ function productionDependencyPaths(): string[] {
     fail(`npm ls listed no packages under ${repoModulesDir}. Has \`npm install\` run at the repo root?`);
   }
   return names;
+}
+
+/**
+ * The package names the built server may import bare: root `dependencies` plus every npm workspace
+ * package (`@tovu/sdk`), both of which {@link productionDependencyPaths} stages. Anything else it
+ * imports is a devDependency and absent from the payload -- see `../src/dist-import-check.ts`.
+ */
+function declaredRuntimePackages(): Set<string> {
+  const rootPackage = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+  const packagesDir = path.join(repoRoot, "packages");
+  const workspaces = readdirSync(packagesDir)
+    .map((entry) => path.join(packagesDir, entry, "package.json"))
+    .filter((manifestPath) => existsSync(manifestPath))
+    .map((manifestPath) => JSON.parse(readFileSync(manifestPath, "utf8")).name as string);
+  return new Set([...Object.keys(rootPackage.dependencies ?? {}), ...workspaces]);
 }
 
 function stagePackage(name: string): boolean {
@@ -354,8 +370,14 @@ let pruned;
 try {
   pruned = pruneNativePrebuilds({ outDir, targets });
   assertClosureComplete({ outDir });
+  assertDistImportsDeclared({
+    distDir: path.join(outDir, "dist"),
+    entry: path.join(outDir, manifest.cliEntry),
+    declared: declaredRuntimePackages(),
+  });
 } catch (err) {
-  // `as`: assertClosureComplete and pruneNativePrebuilds only ever throw a plain Error.
+  // `as`: assertClosureComplete, assertDistImportsDeclared and pruneNativePrebuilds only ever throw
+  // a plain Error.
   fail((err as Error).message);
 }
 
