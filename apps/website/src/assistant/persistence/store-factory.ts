@@ -1,7 +1,6 @@
-import Database from "better-sqlite3";
-import { ensureChatHistoryTables } from "@jini-ai/sqlite";
-import type { Database as SqliteDatabase } from "better-sqlite3";
-
+import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
+import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
+import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
 import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-scope.js";
 
@@ -9,21 +8,22 @@ import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-sco
  * @file The two ways a composition root supplies chat history, kept together so the difference
  * between them is one line rather than one architecture.
  *
- * Both return the same {@link ChatStoreFactory} backed by the same `@jini-ai/sqlite` adapter. Only
- * the database differs — the real one writes into `content.db`, the test one into an anonymous
- * `:memory:` handle that vanishes with the process.
+ * Both return the same {@link ChatStoreFactory} backed by the same chat-history store
+ * (`chat-history-store.ts`, one Kysely body on the chat kernel). Only the database differs — the
+ * real one writes into the site's chat database, the test one into an anonymous `:memory:`
+ * `chat.db` that vanishes with the process.
  */
 
 /**
- * Chat history backed by the host's own database.
+ * Chat history backed by the host's own chat database.
  *
- * The handle comes from `ContentDb.$client`, and the tables it uses were created by migration
- * `0023`, NOT by this package — see that migration's header on why `content.db` has exactly one
- * migrator.
+ * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`, which creates the
+ *   tables) whose kernel to use. The store and its run ledger share that one kernel.
  */
-export function createChatStoreFactory(db: SqliteDatabase): ChatStoreFactory {
-  const ledger = createChatRunLedger(db);
-  return (principal) => createTenantScopedChatStore(db, principal, ledger);
+export function createChatStoreFactory(store: ChatKernel | SqliteConnectionSource): ChatStoreFactory {
+  const kernel = chatKernel(store);
+  const ledger = createChatRunLedger(kernel);
+  return (principal) => createTenantScopedChatStore(kernel, principal, ledger);
 }
 
 /**
@@ -35,8 +35,7 @@ export function createChatStoreFactory(db: SqliteDatabase): ChatStoreFactory {
  * for the factory's lifetime, so a test can create a conversation in one request and read it back
  * in the next.
  *
- * This calls `ensureChatHistoryTables` — the one place in Tovu that does. A root with no migration
- * system is precisely the case that function exists for.
+ * The database is `openChatDb(":memory:")`: the same tables and pragmas as the real `chat.db`.
  */
 export function createInMemoryChatStoreFactory(): ChatStoreFactory {
   return createInMemoryChatHistory().chatHistory;
@@ -48,18 +47,11 @@ export function createInMemoryChatStoreFactory(): ChatStoreFactory {
  * every row the store wrote.
  */
 export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; chatRunLedger: ChatRunLedger } {
-  let db: SqliteDatabase | undefined;
-  const open = (): SqliteDatabase => {
-    if (!db) {
-      db = new Database(":memory:");
-      // Without this the schema's `ON DELETE CASCADE` is inert, and a test asserting that deleting
-      // a conversation removes its messages would pass against production and fail here — or,
-      // worse, the reverse.
-      db.pragma("foreign_keys = ON");
-      ensureChatHistoryTables(db);
-    }
-    return db;
-  };
+  let db: ChatKernel | undefined;
+  // `openChatDb` turns `foreign_keys` on: without it the schema's `ON DELETE CASCADE` is inert, and
+  // a test asserting that deleting a conversation removes its messages would pass against
+  // production and fail here — or, worse, the reverse.
+  const open = (): ChatKernel => (db ??= chatKernel(openChatDb(":memory:")));
   // One kernel per connection (memoized), so building a ledger per use costs nothing and keeps the
   // database lazy.
   const chatRunLedger: ChatRunLedger = {
