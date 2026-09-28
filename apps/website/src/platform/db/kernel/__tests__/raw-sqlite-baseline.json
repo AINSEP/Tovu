@@ -284,21 +284,6 @@
   "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts": {
     "sync-terminal": 5
   },
-  "apps/website/src/platform/db/sqlite/publish-content-baseline-repo.sqlite.ts": {
-    "sync-terminal": 2
-  },
-  "apps/website/src/platform/db/sqlite/publish-content-bundle-repo.sqlite.ts": {
-    "sync-terminal": 3
-  },
-  "apps/website/src/platform/db/sqlite/publish-content-peer-repo.sqlite.ts": {
-    "sync-terminal": 5
-  },
-  "apps/website/src/platform/db/sqlite/publish-content-run-repo.sqlite.ts": {
-    "sync-terminal": 2
-  },
-  "apps/website/src/platform/db/sqlite/publish-history-repo.sqlite.ts": {
-    "sync-terminal": 3
-  },
   "apps/website/src/platform/db/sqlite/publish-trust-revocations.sqlite.ts": {
     "sync-terminal": 4
   },

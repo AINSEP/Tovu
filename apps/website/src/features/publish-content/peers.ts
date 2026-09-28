@@ -1,3 +1,4 @@
+import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { buildPublishContentPeerAad, PUBLISH_CONTENT_PEER_AAD_VERSION } from "./peer-aad.js";
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
@@ -230,12 +231,11 @@ async function sealApiKey(
   }
 }
 
-/** True iff `err` is the underlying SQLite driver's "UNIQUE constraint failed" error — the same
- *  detection shape `publish-credentials/store.ts` already uses for the identical problem
- *  (better-sqlite3 has no typed constraint-violation error class).
+/** True iff `err` is the `(workspace_id, label)` UNIQUE index rejecting a write, from any database
+ *  (`isUniqueViolation`, storage kernel: SQLite's message, Postgres SQLSTATE 23505).
  *  @complexity O(n) in the message length. */
 function isUniqueLabelViolation(err: unknown): boolean {
-  return err instanceof Error && /UNIQUE constraint failed/i.test(err.message);
+  return isUniqueViolation(err);
 }
 
 export interface CreatePeerInput {
