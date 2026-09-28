@@ -1,6 +1,6 @@
 /**
  * @file SPIKE (probe/deploy-plugin-cloud-sandbox) — a minimal "deploy" plugin, built the same way
- * as `store-plugin.ts` (the concrete Tier-2 template this mirrors): declares its own SQLite table
+ * as `store-plugin.ts` (the concrete Tier-2 template this mirrors): declares its own table
  * via `declareDataModule()`, no raw DB handle held outside this module. NOT wired into
  * `src/server/bootstrap.ts` — that wiring decision is left to a human.
  *
@@ -21,10 +21,9 @@
  * is the *shape*: an env-var-backed production adapter plus an in-memory test double behind one
  * small port, rather than a hardcoded secret read inline in this file.
  */
-import Database from "better-sqlite3";
-
 import type { HttpClientPort } from "#src/platform/http/index";
 import { declareDataModule, type DataModuleDecl } from "../data-module.js";
+import { type PluginStore, pluginKernel } from "../plugin-store.js";
 
 export type DeployTarget = "vercel" | "netlify" | "github-pages" | "aws";
 
@@ -122,11 +121,11 @@ export class InMemoryDeployTokenKeyring implements DeployTokenPort {
 
 export interface DeployApi {
   deploy(target: DeployTarget, config: DeployConfig): Promise<DeployResult>;
-  listHistory(limit?: number): DeployHistoryEntry[];
+  listHistory(limit?: number): Promise<DeployHistoryEntry[]>;
 }
 
 export const DEPLOY_PLUGIN_ID = "deploy";
-const DEPLOYS = `p_${DEPLOY_PLUGIN_ID}__deploys`;
+const DEPLOYS = `p_${DEPLOY_PLUGIN_ID}__deploys` as const;
 
 export const DEPLOY_MANIFEST: DataModuleDecl = {
   pluginId: DEPLOY_PLUGIN_ID,
@@ -200,36 +199,49 @@ async function sendVercelDeployRequest(httpClient: HttpClientPort, config: Verce
   }
 }
 
-interface DeployRow {
-  id: string;
-  target: string;
-  status: string;
-  triggered_at: number;
-  result_summary: string;
-}
+/** The deploy plugin's one table, as Kysely sees it. A type alias: `withTables` needs its index signature. */
+type DeployTables = {
+  [DEPLOYS]: {
+    id: string;
+    target: string;
+    status: string;
+    triggered_at: number;
+    result_summary: string;
+  };
+};
 
-/** Declare the deploy plugin's table through core (snapshot→DDL) and return the deploy API. */
+/**
+ * Declare the deploy plugin's table through core (snapshot→DDL) and return the deploy API.
+ *
+ * `db` is the site's storage kernel (or a SQLite connection, bridged to its kernel); `dbPath` names
+ * the SQLite file behind it, for the declaration's snapshot.
+ */
 export async function activateDeploy(
-  required: { db: Database.Database; dbPath: string; httpClient: HttpClientPort; tokenPort: DeployTokenPort },
+  required: { db: PluginStore; dbPath: string; httpClient: HttpClientPort; tokenPort: DeployTokenPort },
   _optional: Record<string, never> = {}
 ): Promise<DeployApi> {
   const { db, dbPath, httpClient, tokenPort } = required;
-  const result = await declareDataModule({ db, dbPath, decl: DEPLOY_MANIFEST });
+  const kernel = pluginKernel(db);
+  const result = await declareDataModule({ db: kernel, dbPath, decl: DEPLOY_MANIFEST });
   if (!result.ok) {
     throw new Error(`deploy dataModule declaration failed: ${result.error?.code} — ${result.error?.message}`);
   }
 
-  function recordHistory(entry: { target: DeployTarget; status: "triggered" | "failed"; resultSummary: string }): void {
+  async function recordHistory(entry: { target: DeployTarget; status: "triggered" | "failed"; resultSummary: string }): Promise<void> {
     const id = `dep-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    db.prepare(
-      `INSERT INTO "${DEPLOYS}" (id, target, status, triggered_at, result_summary) VALUES (?, ?, ?, ?, ?)`
-    ).run(id, entry.target, entry.status, Date.now(), entry.resultSummary);
+    await kernel.run((k) =>
+      k
+        .withTables<DeployTables>()
+        .insertInto(DEPLOYS)
+        .values({ id, target: entry.target, status: entry.status, triggered_at: Date.now(), result_summary: entry.resultSummary })
+        .execute()
+    );
   }
 
   async function deployVercel(config: DeployConfig): Promise<DeployResult> {
     if (!isVercelConfig(config)) {
       const error: DeployError = { code: "INVALID_CONFIG", message: "vercel deploy requires 'projectId' and 'ref'" };
-      recordHistory({ target: "vercel", status: "failed", resultSummary: error.message });
+      await recordHistory({ target: "vercel", status: "failed", resultSummary: error.message });
       return { ok: false, target: "vercel", error };
     }
 
@@ -239,12 +251,12 @@ export async function activateDeploy(
         code: "NO_TOKEN_CONFIGURED",
         message: `no Vercel deploy token configured (expected ${ENV_VAR_BY_TARGET.vercel} or a DeployTokenPort entry)`,
       };
-      recordHistory({ target: "vercel", status: "failed", resultSummary: error.message });
+      await recordHistory({ target: "vercel", status: "failed", resultSummary: error.message });
       return { ok: false, target: "vercel", error };
     }
 
     const result = await sendVercelDeployRequest(httpClient, config, token);
-    recordHistory({
+    await recordHistory({
       target: "vercel",
       status: result.ok ? "triggered" : "failed",
       resultSummary: result.ok ? `deployment ${result.deploymentId} triggered` : result.error.message,
@@ -259,15 +271,19 @@ export async function activateDeploy(
         code: "TARGET_NOT_IMPLEMENTED",
         message: `deploy target '${target}' is not implemented yet`,
       };
-      recordHistory({ target, status: "failed", resultSummary: error.message });
+      await recordHistory({ target, status: "failed", resultSummary: error.message });
       return { ok: false, target, error };
     },
-    listHistory(limit = 50): DeployHistoryEntry[] {
-      const rows = db
-        .prepare(
-          `SELECT id, target, status, triggered_at, result_summary FROM "${DEPLOYS}" ORDER BY triggered_at DESC LIMIT ?`
-        )
-        .all(limit) as DeployRow[];
+    async listHistory(limit = 50): Promise<DeployHistoryEntry[]> {
+      const rows = await kernel.run((k) =>
+        k
+          .withTables<DeployTables>()
+          .selectFrom(DEPLOYS)
+          .select(["id", "target", "status", "triggered_at", "result_summary"])
+          .orderBy("triggered_at", "desc")
+          .limit(limit)
+          .execute()
+      );
       return rows.map((row) => ({
         id: row.id,
         target: row.target as DeployTarget,
@@ -277,23 +293,4 @@ export async function activateDeploy(
       }));
     },
   };
-}
-
-/**
- * Boot helper: open a dedicated connection to the site db and activate the deploy plugin on it.
- * Mirrors `bootstrapStore`'s dedicated-connection + busy-timeout pattern (`store-plugin.ts`).
- * `httpClient`/`tokenPort` are required inputs rather than constructed here — this codebase has no
- * composition-root-wired `EgressPolicy` default yet to copy (the same disclosed gap
- * `comments/spam.external.ts`'s own header notes for `AkismetSpamCheck`).
- */
-export async function bootstrapDeploy(required: {
-  dbPath: string;
-  httpClient: HttpClientPort;
-  tokenPort: DeployTokenPort;
-}): Promise<DeployApi> {
-  const { dbPath, httpClient, tokenPort } = required;
-  const db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
-  return activateDeploy({ db, dbPath, httpClient, tokenPort });
 }

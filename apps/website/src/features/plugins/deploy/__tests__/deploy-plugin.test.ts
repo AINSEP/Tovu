@@ -82,7 +82,7 @@ test("deploy: vercel fails gracefully with NO_TOKEN_CONFIGURED when no token is 
   }
   assert.equal(http.calls.length, 0, "no HTTP call was made without a token");
 
-  const history = deployApi.listHistory();
+  const history = await deployApi.listHistory();
   assert.equal(history.length, 1);
   assert.equal(history[0].status, "failed");
   assert.equal(history[0].target, "vercel");
@@ -114,7 +114,7 @@ test("deploy: vercel shapes the request correctly (endpoint, bearer auth, body) 
   assert.equal(call.headers["content-type"], "application/json");
   assert.deepEqual(JSON.parse(call.body ?? "{}"), { name: "proj-1", project: "proj-1", gitSource: { ref: "main" } });
 
-  const history = deployApi.listHistory();
+  const history = await deployApi.listHistory();
   assert.equal(history.length, 1);
   assert.equal(history[0].status, "triggered");
 

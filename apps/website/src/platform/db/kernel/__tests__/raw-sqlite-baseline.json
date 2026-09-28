@@ -33,11 +33,6 @@
   "apps/website/src/features/plugin-runtime/repo.sqlite.ts": {
     "sync-terminal": 3
   },
-  "apps/website/src/features/plugins/deploy/deploy-plugin.ts": {
-    "better-sqlite3-import": 1,
-    "pragma": 2,
-    "prepare": 2
-  },
   "apps/website/src/features/plugins/lipay/lipay-plugin.ts": {
     "better-sqlite3-import": 1,
     "pragma": 2,
