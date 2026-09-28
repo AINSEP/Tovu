@@ -1,5 +1,6 @@
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
+import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { authorize as authorizeCore } from "@jini-ai/cms/identity";
 import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
@@ -278,7 +279,8 @@ export function createInMemoryIdentityRouteDeps(required: {
  */
 export function createSqliteIdentityRouteDeps(
   required: {
-    db: ContentDb;
+    /** The content kernel, or the SQLite handle it is derived from. */
+    db: ContentKernel | ContentDb;
     workspaceId: UUID;
     clock: ClockPort;
     idGen: IdGeneratorPort;

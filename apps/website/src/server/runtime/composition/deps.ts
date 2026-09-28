@@ -60,6 +60,8 @@ import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore } from "./open-site-store.js";
+import { sqliteOnlyServices } from "./sqlite-only-services.js";
+import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
@@ -112,7 +114,6 @@ import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyrin
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
-import { SqliteDatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo.sqlite";
 import { SqliteAdminExecutionCredentialRepo } from "#src/platform/db/sqlite/execution-credential-repo.sqlite";
 import { SqliteMediaProviderCredentialRepo } from "#src/platform/db/sqlite/media-provider-credential-repo.sqlite";
 import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mcp-repo.sqlite";
@@ -160,7 +161,6 @@ import {
   type RedirectsWriteDeps,
 } from "#src/features/redirects/index";
 import { registerSlugChangeCapture } from "#src/platform/routing/index";
-import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
 import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
@@ -231,7 +231,6 @@ import {
   SqliteTaxonomyRepo,
   SqliteTaxonomyRevisionRepo,
   SqliteTermRepo,
-  sqliteStampWatermark,
 } from "#src/features/taxonomy/repo.sqlite";
 import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
@@ -748,8 +747,7 @@ async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Par
  * function cannot assume equals `dbPath`) before reaching here.
  */
 function applyAdminPasswordResetFromEnvIfConfigured(required: {
-  db: ContentDb;
-  dbPath: string;
+  dbOps: DbOpsPort;
   workspaceId: string;
   identity: IdentityRouteDepsSlice;
   clock: ClockPort;
@@ -762,7 +760,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
   if (!password) return Promise.resolve();
   const username = process.env.TOVU_ADMIN_RESET_USERNAME ?? "admin";
 
-  const { db, dbPath, workspaceId, identity, clock, idGen } = required;
+  const { dbOps, workspaceId, identity, clock, idGen } = required;
   const repos: IdentityRepos = {
     principals: identity.principalRepo,
     users: identity.userRepo,
@@ -774,8 +772,6 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
     principalRoles: identity.principalRoleRepo,
     principalPolicies: identity.principalPolicyRepo,
   };
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
-
   // eslint-disable-next-line no-console
   console.error(
     `TOVU_ADMIN_RESET_PASSWORD is set — resetting password for username='${username}' at boot. ` +
@@ -838,6 +834,9 @@ export async function createSiteRouteDeps(
   // The one content kernel over `db` (the SQLite driver keeps one per connection), read by the
   // prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
+  // Everything below is built from `kernel` / `chatDb` (the chat kernel) except these, which need the
+  // SQLite handle or file itself (`sqlite-only-services.ts`; R1f adds the PGlite/Postgres twin).
+  const storeBound = sqliteOnlyServices(db, dbPath);
   // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
   // internal construction below that used to read the old seeded-workspace literal directly —
   // this is the sole `resolveWorkspace` call site in this function's call graph
@@ -876,12 +875,12 @@ export async function createSiteRouteDeps(
   // half-indexed corpus; on a warm database it is a single indexed anti-join that writes nothing.
   // A failure is logged and search carries on over what is indexed. See
   // `backfillPostSearchIndex`'s own doc for why it fills gaps rather than rebuilding.
-  const postSearchBackfillReady = backfillPostSearchIndex(db).catch((err) => {
+  const postSearchBackfillReady = backfillPostSearchIndex(kernel).catch((err) => {
     console.error(`backfillPostSearchIndex failed at boot: ${(err as Error).message}`);
   });
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
-  const pluginActivationRepo = new SqlitePluginActivationRepo(db);
+  const pluginActivationRepo = new SqlitePluginActivationRepo(kernel);
   const pluginRuntime = composePluginRuntime({
     workspaceId,
     clock,
@@ -900,13 +899,13 @@ export async function createSiteRouteDeps(
   const pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen });
+  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen });
   // Fire-and-forget, mirroring `identityReady`/`blobHydrationReady` below — opt-in only (see the
   // function's own doc), so this is a genuine no-op on every ordinary boot.
-  const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ db, dbPath, workspaceId, identity, clock, idGen, overrides });
+  const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ dbOps: storeBound.dbOps, workspaceId, identity, clock, idGen, overrides });
   void adminPasswordResetReady;
-  const presentationRepo = new SqlitePresentationSettingsRepo(db);
-  const settingsRepo = new SqliteSettingsRepo(db);
+  const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
+  const settingsRepo = new SqliteSettingsRepo(kernel);
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
   // composition root stays synchronous; consumers await `settingsReady` before relying on the
   // migrated value being present.
@@ -998,7 +997,7 @@ export async function createSiteRouteDeps(
   // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
-  const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(db);
+  const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
   const siteDisplayName = createSiteDisplayNameSource(dbPath);
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: identity.principalRepo };
   const siteTitleReady = analyticsSettingsReady
@@ -1017,8 +1016,8 @@ export async function createSiteRouteDeps(
   // whatever menus this content.db already holds. Fire-and-forget, mirroring `settingsReady`'s
   // shape — logged and swallowed rather than aborting boot, matching W-003's "logs and continues
   // on failure" contract (ADR-PIPE-012 Wiring Map).
-  const menuRepo = new SqliteMenuRepo(db);
-  const navLocationBindingRepo = new SqliteNavLocationBindingRepo(db);
+  const menuRepo = new SqliteMenuRepo(kernel);
+  const navLocationBindingRepo = new SqliteNavLocationBindingRepo(kernel);
   const menuBindingsReady = rebuildNavLocationBindings({
     menuRepo,
     bindingRepo: navLocationBindingRepo,
@@ -1039,11 +1038,11 @@ export async function createSiteRouteDeps(
   // failure/rollback path separately). Fire-and-forget, mirroring `menuBindingsReady`'s shape: logged
   // and swallowed rather than aborting boot on failure — a failed install leaves Newsletter's admin
   // routes 404/500ing against missing tables, but never bricks the rest of the server.
-  const newsletterListRepo = new SqliteNewsletterListRepo(db);
+  const newsletterListRepo = new SqliteNewsletterListRepo(kernel);
   // T030: seed the workspace's default "all subscribers" list right after the tables exist —
   // idempotent (`ensureDefaultList` is itself a find-or-create), matching `declareDataModule()`'s own
   // skip-if-exists convention.
-  const newsletterReady = installNewsletterDataModule({ db, dbPath })
+  const newsletterReady = installNewsletterDataModule({ db: kernel, dbPath })
     .then(() => ensureDefaultList({ deps: { listRepo: newsletterListRepo, clock, ids: idGen }, input: { workspaceId: workspaceId } }))
     .then(() => undefined)
     .catch((err) => {
@@ -1062,7 +1061,7 @@ export async function createSiteRouteDeps(
    * own `seoReady` comment already documents; this fixes the same mistake made fresh here.
    */
   const commentsReady = newsletterReady
-    .then(() => installCommentsDataModule({ db, dbPath }))
+    .then(() => installCommentsDataModule({ db: kernel, dbPath }))
     .catch((err) => {
       // eslint-disable-next-line no-console
       console.error(`installCommentsDataModule failed at boot: ${(err as Error).message}`);
@@ -1079,7 +1078,7 @@ export async function createSiteRouteDeps(
   // `menuBindingsReady`'s shape — nothing downstream needs to gate a request on this resolving,
   // since `ensureCoreMediaTransform` is idempotent and the window between boot and its single
   // insert completing is a few milliseconds.
-  const transformDefinitionRepo = new SqliteTransformDefinitionRepo(db);
+  const transformDefinitionRepo = new SqliteTransformDefinitionRepo(kernel);
   const mediaTransformReady = commentsReady
     .then(() =>
       ensureCoreMediaTransform({
@@ -1125,7 +1124,7 @@ export async function createSiteRouteDeps(
   // ADR-046 Phase 1 (BR-04 resolution, 2026-07-16 swarm debate): durable SQLite outbox. Events
   // survive a restart; `SqliteChangeSetRepo.insert()`'s co-persisted event and this adapter's
   // `claimPending()`/`markDelivered()`/`markFailed()` share the same `outbox_events` table.
-  const outbox = new SqliteOutboxAdapter(db);
+  const outbox = new SqliteOutboxAdapter(kernel);
   const bus = new InMemoryEventBus();
   // ADR-046 Phase 1 (2026-07-16): durable SQLite origin-settings adapter.
   //
@@ -1161,10 +1160,10 @@ export async function createSiteRouteDeps(
   // The boot write is async (storage kernel); the origin repo's reads wait for it (`after`).
   let originReady: Promise<unknown> = Promise.resolve();
   if (originBoot.kind === "configured") {
-    originReady = registerConfiguredOrigin({ db, workspaceId: workspaceId, origin: originBoot.origin });
+    originReady = registerConfiguredOrigin({ db: kernel, workspaceId: workspaceId, origin: originBoot.origin });
   } else if (originBoot.kind === "dev-seed") {
     originReady = seedDevCapabilityOrigin({
-      db,
+      db: kernel,
       seed: {
         workspaceId: workspaceId,
         origin: createVerifiedOrigin({
@@ -1181,8 +1180,8 @@ export async function createSiteRouteDeps(
       },
     });
   }
-  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db, { after: originReady }) });
-  const redirectRepo = new SqliteRedirectRepo(db);
+  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(kernel, { after: originReady }) });
+  const redirectRepo = new SqliteRedirectRepo(kernel);
   const redirectHitSink = new RedirectHitSinkImpl();
   // ---------------------------------------------------------------------------
   // Local admin Trash (design: ADS-memory/reports/2026-09-20-trash-delete-architecture.md)
@@ -1191,12 +1190,12 @@ export async function createSiteRouteDeps(
   // codebase's registries (`ToolRegistry`, routing's `phaseRegistry`) are append-only with no
   // unregister, so anything that filters at registration time runs exactly once — two real bugs
   // already came from that. Adding a phase-2 domain means one more `set()` here and no migration.
-  const assetRenditionRepo = new SqliteAssetRenditionRepo(db);
+  const assetRenditionRepo = new SqliteAssetRenditionRepo(kernel);
   // `TRASHABLE` (plan §1/§4) — built once here. Adding a type needs
   // no edit below this line, only a new `registry.ts` `Map` entry — the adapter map beneath already
   // loops over every registered entry generically.
   const trashRegistry = buildTrashRegistry();
-  const sqliteTrashDb = createSqliteTrashDb({ db });
+  const sqliteTrashDb = createSqliteTrashDb({ db: kernel });
   // Finishes a hide/restore/purge a generic marker flip alone cannot (`follow-ups.ts`), per type.
   // `widget`: an adopted legacy widget keeps its `purged` payload while in the Trash (an older site
   // build still reads it), and its restore makes the payload active again. `routeDeps` is read at
@@ -1205,14 +1204,14 @@ export async function createSiteRouteDeps(
   // Hoisted above `trashFollowUpHooks` (needs `findByEntity` for the term/taxonomy purge
   // follow-ups below) — the constructor takes only `db`, no dependency on
   // `trashAdapters`/`trash` itself, so this is safe to build early (T6, step 3).
-  const trashRepo = new SqliteTrashRepo(db);
+  const trashRepo = new SqliteTrashRepo(kernel);
   // Purge-only audit trail for `term`/`taxonomy` (plan §6 Q2): one `taxonomy_revisions` row plus a
   // domain event, matching `deleteTerm`/`deleteTaxonomy`'s own writes — see
   // `taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
   // `SqliteTaxonomyRevisionRepo` instance each (stateless wrappers over the same tables `termRepo`/
   // `taxonomyRevisionRepo` below use) rather than hoisting those out of the return object literal.
-  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db, workspaceId });
-  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db, workspaceId });
+  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: kernel, workspaceId });
+  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId });
   const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
   const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([
     [
@@ -1253,14 +1252,14 @@ export async function createSiteRouteDeps(
     forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
   });
   const trashAdapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(db)],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db)],
-    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db)],
+    [POST_ENTITY_TYPE, createPostTrashAdapter(kernel)],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(kernel)],
+    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(kernel)],
     [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
     [
       MEDIA_ENTITY_TYPE,
       createMediaTrashAdapter({
-        db,
+        db: kernel,
         // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
         // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
         // reimplementing it in SQL and silently orphaning bytes.
@@ -1275,11 +1274,11 @@ export async function createSiteRouteDeps(
     [
       USER_ENTITY_TYPE,
       createUserTrashAdapter({
-        db,
+        db: kernel,
         // A fresh instance, not `identity.userPurge` (removed — see `wiring.ts`'s
         // `IdentityRouteDepsSlice.removeUser` doc): `purge`'s hard-delete is now reached only
         // through this adapter's own `purge()`, never directly from the route layer.
-        purge: new SqliteUserPurge(db),
+        purge: new SqliteUserPurge(kernel),
         idGen: { next: () => randomUUID() },
         clock,
       }),
@@ -1296,7 +1295,7 @@ export async function createSiteRouteDeps(
   // Reentrant: `deletePost` and `tombstoneRedirect` already open their own transaction around
   // "marker + revision append", and `remove` is called from inside it (a nested one joins). Named (not inlined) because
   // the comments moderation service needs the SAME runner to wrap its own two writes.
-  const trashTransaction = createContentDbTransactionRunner(db);
+  const trashTransaction = createContentDbTransactionRunner(kernel);
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
@@ -1389,37 +1388,37 @@ export async function createSiteRouteDeps(
   // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
   // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
   const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId });
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
-  // ADR-041 §3 (this dispatch) — reuses the SAME already-open `db`/`dbPath` pair `dbOps` above
-  // just used, rather than opening a second connection to the same `content.db` file.
-  const databaseIntrospection = new SqliteDatabaseIntrospectionAdapter({ db, dbPath });
+  const dbOps = storeBound.dbOps;
+  // ADR-041 §3 (this dispatch) — reuses the SAME already-open store `dbOps` above is bound to,
+  // rather than opening a second connection to the same `content.db` file.
+  const databaseIntrospection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath });
 
   // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
   // repo the rest of this composition root wires (mirrors `restorePointsRepo`'s identical
   // hoisting rationale above). The actual `commentsReady` I/O (declareDataModule against the
   // SAME shared `db.$client` connection) is chained AFTER `newsletterReady` below — this is
   // pure, synchronous, I/O-free wiring only.
-  const entryRepo = new SqliteEntryRepo(db);
+  const entryRepo = new SqliteEntryRepo(kernel);
   // Hoisted (2026-09-02 taxonomy render-surface gap fix) so the SAME instance backs both
   // `entryTermRepo` and the new `entryTermReadRepo` field below — one concrete class satisfying two
   // differently-shaped dependency slots, rather than two separate connections to the same table.
-  const sqliteEntryTermRepo = new SqliteEntryTermRepo({ db, workspaceId: workspaceId });
+  const sqliteEntryTermRepo = new SqliteEntryTermRepo({ db: kernel, workspaceId: workspaceId });
   // Hoisted so `routeDeps` and the publish apply bag share these instances.
-  const taxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: workspaceId });
-  const termRepo = new SqliteTermRepo({ db, workspaceId: workspaceId });
-  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db, workspaceId: workspaceId });
-  const stampWatermark = sqliteStampWatermark(db);
+  const taxonomyRepo = new SqliteTaxonomyRepo({ db: kernel, workspaceId: workspaceId });
+  const termRepo = new SqliteTermRepo({ db: kernel, workspaceId: workspaceId });
+  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId: workspaceId });
+  const stampWatermark = storeBound.stampWatermark;
   // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
   // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
   // W-004) read/write against the SAME real tables, via the same `db` connection.
-  const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(db);
-  const entryRefsRepo = new SqliteEntryRefsRepo(db);
-  const formDefinitionRepo = new SqliteFormDefinitionRepo(db);
+  const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);
+  const entryRefsRepo = new SqliteEntryRefsRepo(kernel);
+  const formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
   // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
   // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
   // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
   // keeps this identical to `server/app.ts`'s hermetic root, where sharing is load-bearing.
-  const contentTypeRepo = new SqliteContentTypeRepo(db);
+  const contentTypeRepo = new SqliteContentTypeRepo(kernel);
   const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — the boot-wiring pass
   // `resolvers/index.ts`'s `wireCoreResolvers` file header always said was needed before the app
@@ -1435,7 +1434,7 @@ export async function createSiteRouteDeps(
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
-    commentRepo: new SqliteCommentRepo(db),
+    commentRepo: new SqliteCommentRepo(kernel),
     entryRepo,
     outbox,
     clock,
@@ -1514,7 +1513,7 @@ export async function createSiteRouteDeps(
   // derives at boot (resolution is lazy) and no legitimate unsubscribe token can exist before a key
   // does, so no startup or first-run path depended on the mint. This instance still READS an
   // existing file; with no env var and no file, a local unsubscribe request now fails closed.
-  const memberRepo = new SqliteMemberRepo(db);
+  const memberRepo = new SqliteMemberRepo(kernel);
   // site-key plan §A3a: `sources` is threaded in ONLY outside production (`siteKeySourcesList` is
   // computed once, above). Passing it unconditionally would make `resolveRootKey()` take the
   // `sources`-driven early-return branch (`keyring.env.ts`'s own `if (this.sources)` check) and
@@ -1572,7 +1571,7 @@ export async function createSiteRouteDeps(
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one
   // and read it back from the other.
-  const externalMcpServerRepo = new SqliteExternalMcpServerRepo(db);
+  const externalMcpServerRepo = new SqliteExternalMcpServerRepo(kernel);
   // Same "one shared instance" reasoning as `externalMcpServerRepo` above, and also exposed as their
   // own `RouteDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` fields below — see that doc for
   // why `agent-daemon-server.ts`'s own second `ExternalMcpOAuthService` instance must reuse these
@@ -1580,15 +1579,15 @@ export async function createSiteRouteDeps(
   // Backed by THIS root's `db` — the same file the main web server's public OAuth callback route and
   // the agent daemon's `external_mcp_oauth_connect` tool both open their own handle onto, which is
   // what lets either process complete a handshake the other started.
-  const externalMcpOAuthPending = createSqlitePendingAuthorizationStore({ db, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
-  const externalMcpOAuthDevices = createSqliteDeviceAuthorizationStore({ db, workspaceId, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
+  const externalMcpOAuthPending = createSqlitePendingAuthorizationStore({ db: kernel, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
+  const externalMcpOAuthDevices = createSqliteDeviceAuthorizationStore({ db: kernel, workspaceId, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
 
   // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
   // literal below, because `mailer:` (built from it) is an earlier property than
   // `customCredentialSetRepo:` — see `resolve-mailer.ts`'s own header for the full design. Sealed
   // via the SAME shared sealer/keyring every other credential repo on this root already reuses (no
   // third `EnvOrFileKeyring` instance).
-  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(db);
+  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel);
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
   // comment above) — kept read here via the same local rather than re-hoisting every downstream
   // use, since everything below this point already assumed a local named `runtimeMode` exists.
@@ -1643,24 +1642,24 @@ export async function createSiteRouteDeps(
   // stateless wrappers over the shared `db`, so a second instance would behave identically, but one
   // instance matches this root's own stated convention). `changeSets` is hoisted for the identical
   // reason as `revertRegistry`'s `postRepo` above.
-  const changeSets = new SqliteChangeSetRepo(db);
+  const changeSets = new SqliteChangeSetRepo(kernel);
   // Hoisted out of the `routeDeps` literal below for the SAME reason as `changeSets` above: the
   // apply loop's `media.apply()` must read and write through the same adapters every media route
   // uses. Both are stateless wrappers over the shared `db`, so a second instance would behave
   // identically — one instance simply matches this root's own stated convention.
-  const mediaRepo = new SqliteMediaRepo(db);
-  const assetBlobRepo = new SqliteAssetBlobRepo(db);
+  const mediaRepo = new SqliteMediaRepo(kernel);
+  const assetBlobRepo = new SqliteAssetBlobRepo(kernel);
   // One instance for the render path and publish's media apply, which records what render reads.
-  const mediaContentTypeStore = new SqliteMediaContentTypeStore(db);
-  const publishContentBundleRepo = new SqlitePublishContentBundleRepo(db);
-  const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(db);
-  const publishContentRunRepo = new SqlitePublishContentRunRepo(db);
+  const mediaContentTypeStore = new SqliteMediaContentTypeStore(kernel);
+  const publishContentBundleRepo = new SqlitePublishContentBundleRepo(kernel);
+  const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(kernel);
+  const publishContentRunRepo = new SqlitePublishContentRunRepo(kernel);
   // `publish-files-plan-2026-09-24.md` §3 — ONE process-lifetime instance, same "hoisted, never
   // rebuilt per request" convention as every repo above. See `routes/types.ts`'s `fileBlobIndex` doc.
   const publishContentFileBlobIndex = createFileBlobIndex();
   // Task 10 — named remote Tovus, with their API keys sealed at rest under the shared ADR-058
   // sealer/keyring below. See `routes/types.ts`'s `publishContentPeerRepo` doc.
-  const publishContentPeerRepo = new SqlitePublishContentPeerRepo(db);
+  const publishContentPeerRepo = new SqlitePublishContentPeerRepo(kernel);
   // D1 — ONE seed lookup for both the import route's planner and the apply loop's re-verification
   // (`RouteDeps.publishContentSeedHash`), so the two can never disagree on "untouched since seed".
   const publishContentSeedHash = createSqlitePublishContentSeedHash({
@@ -1734,7 +1733,7 @@ export async function createSiteRouteDeps(
 
   const routeDeps: NewsletterRouteDeps = {
     workspaceId: workspaceId,
-    workspaceRepo: new SqliteWorkspaceRepo(db),
+    workspaceRepo: new SqliteWorkspaceRepo(kernel),
     trash,
     // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
     // another domain's entities by passing the wrong string.
@@ -1755,14 +1754,14 @@ export async function createSiteRouteDeps(
     registry: trashRegistry,
     db: sqliteTrashDb,
     postRepo,
-    postSearch: new SqlitePostSearchIndex(db, { ready: postSearchBackfillReady }),
+    postSearch: new SqlitePostSearchIndex(kernel, { ready: postSearchBackfillReady }),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
     // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
     // exposes — one shared index, not a second writer. `revisions: postRepo` (S1, fix plan
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
-    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db, clock, entryRefsRepo, revisions: postRepo }),
+    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     // `chatDb` (opened above, alongside `databaseJournalDb`) is the sidecar `chat.db` handle, NOT
     // `content.db`'s — ADS-memory/reports/2026-09-05-db-split-scoping.md §6. `@jini-ai/sqlite`'s
     // chat-history adapter takes a raw handle and never opens a database itself, which is exactly
@@ -1786,18 +1785,18 @@ export async function createSiteRouteDeps(
     // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
     // `server/app.ts`'s `createRouteDeps()`.
     adminAssistantEnabled: isAdminAssistantEnabled(),
-    siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(db),
+    siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(kernel),
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
-    databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: new SqliteDatabaseDestinationRepo(db), sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
+    databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: storeBound.databaseTransferDestinationRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
     // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing
     // capability is correct here rather than a third `EnvOrFileKeyring` instance).
-    adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo(db),
+    adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo(kernel),
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
-    mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(db),
+    mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(kernel),
     externalMcpServerRepo,
-    externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(db),
+    externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(kernel),
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
      * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
@@ -1835,7 +1834,7 @@ export async function createSiteRouteDeps(
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
-    changeSets: new SqliteChangeSetRepo(db),
+    changeSets: new SqliteChangeSetRepo(kernel),
     // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
@@ -1879,7 +1878,7 @@ export async function createSiteRouteDeps(
     // ADR-046 Phase 1 (final capability slice): analytics ingest buffer is durable — survives a
     // restart, closing the `LocalBufferSink.capabilities().durable` misreport the capability
     // inventory flagged.
-    analyticsSink: new SqliteBufferSink({ db, workspaceId: workspaceId }),
+    analyticsSink: new SqliteBufferSink({ db: kernel, workspaceId: workspaceId }),
     analyticsConfig: createSettingsAnalyticsConfig({ settingsRepo }),
     ...identity,
     // Overrides `identity`'s placeholder default (`undefined`/`async () => false`) — see
@@ -1893,10 +1892,10 @@ export async function createSiteRouteDeps(
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters — already fully built and
     // contract-tested, wired into a real composition root for the first time.
     memberRepo,
-    memberTierRepo: new SqliteMemberTierRepo(db),
-    memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(db),
-    memberSessionRepo: new SqliteMemberSessionRepo(db),
-    magicLinkRepo: new SqliteMagicLinkTokenRepo(db),
+    memberTierRepo: new SqliteMemberTierRepo(kernel),
+    memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
+    memberSessionRepo: new SqliteMemberSessionRepo(kernel),
+    magicLinkRepo: new SqliteMagicLinkTokenRepo(kernel),
     // SPEC-022 REQ-09/REQ-10: every send routes through the purpose-scoped seam. No capability
     // has a durable outbox path yet (Phase 1 territory — see capability-inventory.ts's "outbox"
     // entry), so `durableOutboxReady` is unconditionally false today; in `local` mode (the
@@ -1917,8 +1916,8 @@ export async function createSiteRouteDeps(
     // capabilityRouteGuard unconditionally contains "webhooks" in production mode regardless of
     // durability) until a Phase-1-follow-on spec supplies the rest of the production gate ADR-046
     // names for this row (guarded HttpClientPort, egress policy, worker lifecycle).
-    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo(db),
-    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo(db),
+    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo(kernel),
+    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo(kernel),
     // ADR-PIPE-015 Phase 1: the real KeyringPort-backed signer (GAP-02/GAP-03). Inert until
     // Phase 4 registers the fan-out subscriber + delivery worker — no route calls this directly
     // yet, so wiring it now carries no live-traffic risk ahead of that gated activation.
@@ -1936,8 +1935,8 @@ export async function createSiteRouteDeps(
     // `db` every other adapter above already shares — no plugin/`declareDataModule()` bootstrap
     // needed (unlike `store`/`lipay`), so this is as cheap as `mediaRepo` above, not a `store`-
     // style special case.
-    commerceProductRepo: new SqliteCommerceProductRepo(db),
-    commercePriceRepo: new SqliteCommercePriceRepo(db),
+    commerceProductRepo: new SqliteCommerceProductRepo(kernel),
+    commercePriceRepo: new SqliteCommercePriceRepo(kernel),
     blobStore,
     // Boot-time blob hydration readiness — see the `blobHydrationReady` construction above (hoisted
     // alongside `blobStore` itself) for why this is fired independently and exposed here.
@@ -1957,12 +1956,12 @@ export async function createSiteRouteDeps(
     // not shipped a real capability this pass (ADR-PIPE-011 Risks item 3); Newsletter must not
     // substitute a local stand-in that returns success by default.
     newsletterReady,
-    newsletterCampaignRepo: new SqliteNewsletterCampaignRepo(db),
+    newsletterCampaignRepo: new SqliteNewsletterCampaignRepo(kernel),
     newsletterListRepo,
-    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo(db),
-    newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo(db),
-    newsletterSendRepo: new SqliteNewsletterSendRepo(db),
-    newsletterConfirmationTokenRepo: new SqliteNewsletterConfirmationTokenRepo(db),
+    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo(kernel),
+    newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo(kernel),
+    newsletterSendRepo: new SqliteNewsletterSendRepo(kernel),
+    newsletterConfirmationTokenRepo: new SqliteNewsletterConfirmationTokenRepo(kernel),
     membersConsentCapability: null,
     // Stage 5 (routes) wiring — see the hoisted-vars comment above `commentsModule`/return.
     newsletterSubscriberDirectory,
@@ -1973,7 +1972,7 @@ export async function createSiteRouteDeps(
     // ship one). `formsRateLimiter` is one process-lifetime counter store, matching
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
-    formSubmissionRepo: new SqliteFormSubmissionRepo(db),
+    formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
     removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity(trash, "form_submission")),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
@@ -2011,7 +2010,7 @@ export async function createSiteRouteDeps(
     // consumes it — see `RouteDeps.toolAttemptAuditSink`'s own doc. Deliberately not a second
     // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
     // (and migrated) the one file both handles would point at.
-    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(db),
+    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(kernel),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     contentKernel: kernel,
@@ -2020,7 +2019,7 @@ export async function createSiteRouteDeps(
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
     // root for the first time this dispatch (Session 5's own disclosure: "a token-store-backed
     // primitive composed into ZERO composition roots in this codebase as of this session"). One
-    // process-lifetime `GatewayDeps`. `tokens: new SqliteTokenStore(db)` (SPEC-022 durability fix —
+    // process-lifetime `GatewayDeps`. `tokens: new SqliteTokenStore(kernel)` (SPEC-022 durability fix —
     // see `core/gated-mutations/composition.ts`'s file header): this composition root is the real
     // production one, so its `gated-mutations` capability must be durable, unlike `server/app.ts`'s
     // hermetic in-memory composition which still gets the default `InMemoryTokenStore`.
@@ -2034,7 +2033,7 @@ export async function createSiteRouteDeps(
         idGen,
         authorize: identity.authorize,
         authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }),
-        tokens: new SqliteTokenStore(db),
+        tokens: new SqliteTokenStore(kernel),
       }),
     },
     commentRepo: commentsModule.commentRepo,
@@ -2057,7 +2056,7 @@ export async function createSiteRouteDeps(
     pluginRuntimeReady,
     // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
     // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.
-    deploymentsReadRepo: new SqliteDeploymentsReadRepo(db),
+    deploymentsReadRepo: new SqliteDeploymentsReadRepo(kernel),
     // Task 6 of the publish-content (Publish Content) feature — see `routes/types.ts`'s
     // `publishContentBundleRepo` doc. Real, DB-backed (hoisted above so Task 8's
     // `publishContentApplyPort` reads the SAME store); `server/runtime/composition/app.ts`'s
@@ -2106,10 +2105,10 @@ export async function createSiteRouteDeps(
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
     // repos above already reuse (no third `EnvOrFileKeyring` instance).
-    publishCredentialSetRepo: new SqlitePublishCredentialSetRepo(db),
+    publishCredentialSetRepo: new SqlitePublishCredentialSetRepo(kernel),
     // 2026-08-16 rework — see `routes/types.ts`'s `publishHistoryStore` doc. Real, DB-backed;
     // `server/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
-    publishHistoryStore: new SqlitePublishHistoryStore(db),
+    publishHistoryStore: new SqlitePublishHistoryStore(kernel),
     publishExecutionMode: executionModeFromEnv(),
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see
     // `resolvePublishOutputRootDir`'s own doc above and `routes/types.ts`'s `publishOutputRootDir`
@@ -2123,7 +2122,7 @@ export async function createSiteRouteDeps(
     // 2026-08-15 — see `routes/types.ts`'s `sourceControlCredentialSetRepo` doc. Sealed via the
     // same shared sealer/keyring the credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).
-    sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(db),
+    sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(kernel),
     // Read ONCE here rather than deep in `source-control/commit-site.ts` — see
     // `resolveSourceControlExportRootDir`'s own doc above and `routes/types.ts`'s
     // `sourceControlExportRootDir` doc.
@@ -2131,7 +2130,7 @@ export async function createSiteRouteDeps(
     // 2026-08-16 (Phase 3) — see `routes/types.ts`'s `vendorCredentialSetRepo` doc. Sealed via the
     // same shared sealer/keyring the two legacy credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).
-    vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(db),
+    vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(kernel),
     // 2026-08-17 — see `routes/types.ts`'s `customCredentialSetRepo` doc. Sealed via the same
     // shared sealer/keyring the credential repos above already reuse (no third `EnvOrFileKeyring`
     // instance). Same instance `resolvedMailer` above was built from — not a second repo.
