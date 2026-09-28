@@ -4,36 +4,58 @@
  * so it survives a daemon/API restart and is deleted with the chat. See
  * `assistant/external-mcp-tool-approvals.ts` for the fingerprint and the "Always" half.
  */
-import type { Database as SqliteDatabase } from "better-sqlite3";
+import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
+import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
 
 import type { ConversationToolApprovalStore } from "../external-mcp-tool-approvals.js";
 
 /**
- * A {@link ConversationToolApprovalStore} over `chat.db`'s raw handle.
+ * A {@link ConversationToolApprovalStore} over the chat kernel: one Kysely body for every dialect.
+ * The name predates the kernel; kept so the composition roots need no edit.
  *
  * `grant` throws when the conversation is not in `ai_chats` (the foreign key); the confirmer catches
  * that and lets only the one call it was asked about run.
  *
+ * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
  * @complexity O(1) per call (primary-key lookups).
  */
-export function createSqliteConversationToolApprovalStore(db: SqliteDatabase): ConversationToolApprovalStore {
-  const selectStmt = db.prepare(
-    `SELECT fingerprint FROM assistant_conversation_tool_approvals
-     WHERE conversation_id = ? AND principal_id = ? AND connection_id = ? AND tool_name = ?`,
-  );
-  const upsertStmt = db.prepare(
-    `INSERT INTO assistant_conversation_tool_approvals (conversation_id, principal_id, connection_id, tool_name, fingerprint, granted_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT (conversation_id, principal_id, connection_id, tool_name)
-     DO UPDATE SET fingerprint = excluded.fingerprint, granted_at = excluded.granted_at`,
-  );
+export function createSqliteConversationToolApprovalStore(
+  store: ChatKernel | SqliteConnectionSource
+): ConversationToolApprovalStore {
+  const kernel = chatKernel(store);
   return {
     async has(key) {
-      const row = selectStmt.get(key.conversationId, key.principalId, key.connectionId, key.toolName) as { fingerprint: string } | undefined;
+      const row = await kernel.run((db) =>
+        db
+          .selectFrom("assistant_conversation_tool_approvals")
+          .select("fingerprint")
+          .where("conversation_id", "=", key.conversationId)
+          .where("principal_id", "=", key.principalId)
+          .where("connection_id", "=", key.connectionId)
+          .where("tool_name", "=", key.toolName)
+          .executeTakeFirst()
+      );
       return row?.fingerprint === key.fingerprint;
     },
     async grant(key, grantedAt) {
-      upsertStmt.run(key.conversationId, key.principalId, key.connectionId, key.toolName, key.fingerprint, grantedAt);
+      await kernel.run((db) =>
+        db
+          .insertInto("assistant_conversation_tool_approvals")
+          .values({
+            conversation_id: key.conversationId,
+            principal_id: key.principalId,
+            connection_id: key.connectionId,
+            tool_name: key.toolName,
+            fingerprint: key.fingerprint,
+            granted_at: grantedAt,
+          })
+          .onConflict((oc) =>
+            oc
+              .columns(["conversation_id", "principal_id", "connection_id", "tool_name"])
+              .doUpdateSet({ fingerprint: key.fingerprint, granted_at: grantedAt })
+          )
+          .execute()
+      );
     },
   };
 }

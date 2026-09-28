@@ -8,8 +8,8 @@ import { type SqliteConnectionSource, sqliteKernel, type StorageKernel } from ".
  * `content-kernel.ts`.
  *
  * `content-database.generated.ts` covers `content.db` only, so the chat tables are typed here by
- * hand, snake_case, exactly as `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` (SQLite) and
- * `pglite/chat-schema.ts` (Postgres) create them. Type aliases, not interfaces: Kysely's table
+ * hand, snake_case, exactly as `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` plus `sqlite/chat-db.ts`
+ * (SQLite) and `pglite/chat-schema.ts` (Postgres) create them. Type aliases, not interfaces: Kysely's table
  * typing needs them (see `features/comments/repo.rows.ts`). Times are epoch milliseconds.
  */
 
@@ -42,9 +42,29 @@ export type AiChatMessagesTable = {
   ended_at: number | null;
 };
 
+/** Tovu-owned (`sqlite/chat-db.ts`): which agent-CLI session a conversation's agent resumes. */
+export type AssistantAgentSessionsTable = {
+  conversation_id: string;
+  agent_id: string;
+  session_id: string;
+  updated_at: number;
+};
+
+/** Tovu-owned (`sqlite/chat-db.ts`): "Allow for this chat" tool approvals. `granted_at` is ISO text. */
+export type AssistantConversationToolApprovalsTable = {
+  conversation_id: string;
+  principal_id: string;
+  connection_id: string;
+  tool_name: string;
+  fingerprint: string;
+  granted_at: string;
+};
+
 export type ChatDatabase = {
   ai_chats: AiChatsTable;
   ai_chat_messages: AiChatMessagesTable;
+  assistant_agent_sessions: AssistantAgentSessionsTable;
+  assistant_conversation_tool_approvals: AssistantConversationToolApprovalsTable;
 };
 
 export type ChatKernel = StorageKernel<ChatDatabase>;

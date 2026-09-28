@@ -1,8 +1,9 @@
 import type { PGlite } from "@electric-sql/pglite";
 
 /**
- * @file The chat-history tables (`chat-kernel.ts`'s `ChatDatabase`) on a fresh Postgres (PGlite)
- * database: `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` in Postgres spelling. The one difference is the
+ * @file The chat tables (`chat-kernel.ts`'s `ChatDatabase`) on a fresh Postgres (PGlite) database:
+ * `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` and `sqlite/chat-db.ts`'s two Tovu tables in Postgres
+ * spelling. The one difference is the
  * time columns: epoch milliseconds overflow Postgres's 32-bit `INTEGER`, so they are `BIGINT`
  * (read back as numbers through `kernel/drivers/pg-types.ts`).
  *
@@ -49,6 +50,24 @@ CREATE TABLE IF NOT EXISTS ai_chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_ai_chat_messages_order
   ON ai_chat_messages(conversation_id, position);
+
+CREATE TABLE IF NOT EXISTS assistant_agent_sessions (
+  conversation_id TEXT NOT NULL REFERENCES ai_chats(id) ON DELETE CASCADE,
+  agent_id        TEXT NOT NULL,
+  session_id      TEXT NOT NULL,
+  updated_at      BIGINT NOT NULL,
+  PRIMARY KEY (conversation_id, agent_id)
+);
+
+CREATE TABLE IF NOT EXISTS assistant_conversation_tool_approvals (
+  conversation_id TEXT NOT NULL REFERENCES ai_chats(id) ON DELETE CASCADE,
+  principal_id    TEXT NOT NULL,
+  connection_id   TEXT NOT NULL,
+  tool_name       TEXT NOT NULL,
+  fingerprint     TEXT NOT NULL,
+  granted_at      TEXT NOT NULL,
+  PRIMARY KEY (conversation_id, principal_id, connection_id, tool_name)
+);
 `;
 
 /** Creates the chat tables in one transaction when they are absent. */

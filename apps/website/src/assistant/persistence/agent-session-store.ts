@@ -1,4 +1,5 @@
-import type { Database as SqliteDatabase } from "better-sqlite3";
+import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
+import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
 
 /**
  * @file Durable store for `assistant_agent_sessions` (migration `0051`) — the
@@ -45,35 +46,47 @@ export interface AgentSessionStore {
 }
 
 /**
- * `AgentSessionStore` backed by the host's own database — the same `content.db` handle
- * `createChatStoreFactory` (`store-factory.ts`) already uses, via migration `0051`'s table.
+ * `AgentSessionStore` over the chat kernel (`platform/db/chat-kernel.ts`): one Kysely body for
+ * every dialect, on `chat.db`'s `assistant_agent_sessions` table (`sqlite/chat-db.ts`; Postgres:
+ * `pglite/chat-schema.ts`). The name predates the kernel; kept so the composition roots need no edit.
  *
- * @param db Tovu's `content.db` handle (`ContentDb.$client`).
- * @complexity O(1); each method is a single indexed query against the table's own primary key.
+ * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
+ * @complexity O(1); each method is a single statement on the table's primary key.
  */
-export function createSqliteAgentSessionStore(db: SqliteDatabase): AgentSessionStore {
-  const selectStmt = db.prepare(
-    `SELECT session_id FROM assistant_agent_sessions WHERE conversation_id = ? AND agent_id = ?`,
-  );
-  const upsertStmt = db.prepare(
-    `INSERT INTO assistant_agent_sessions (conversation_id, agent_id, session_id, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT (conversation_id, agent_id)
-     DO UPDATE SET session_id = excluded.session_id, updated_at = excluded.updated_at`,
-  );
-  const deleteStmt = db.prepare(
-    `DELETE FROM assistant_agent_sessions WHERE conversation_id = ? AND agent_id = ?`,
-  );
+export function createSqliteAgentSessionStore(store: ChatKernel | SqliteConnectionSource): AgentSessionStore {
+  const kernel = chatKernel(store);
   return {
     async getSessionId(conversationId, agentId) {
-      const row = selectStmt.get(conversationId, agentId) as { session_id: string } | undefined;
+      const row = await kernel.run((db) =>
+        db
+          .selectFrom("assistant_agent_sessions")
+          .select("session_id")
+          .where("conversation_id", "=", conversationId)
+          .where("agent_id", "=", agentId)
+          .executeTakeFirst()
+      );
       return row?.session_id ?? null;
     },
     async setSessionId(conversationId, agentId, sessionId) {
-      upsertStmt.run(conversationId, agentId, sessionId, Date.now());
+      const updatedAt = Date.now();
+      await kernel.run((db) =>
+        db
+          .insertInto("assistant_agent_sessions")
+          .values({ conversation_id: conversationId, agent_id: agentId, session_id: sessionId, updated_at: updatedAt })
+          .onConflict((oc) =>
+            oc.columns(["conversation_id", "agent_id"]).doUpdateSet({ session_id: sessionId, updated_at: updatedAt })
+          )
+          .execute()
+      );
     },
     async clearSessionId(conversationId, agentId) {
-      deleteStmt.run(conversationId, agentId);
+      await kernel.run((db) =>
+        db
+          .deleteFrom("assistant_agent_sessions")
+          .where("conversation_id", "=", conversationId)
+          .where("agent_id", "=", agentId)
+          .execute()
+      );
     },
   };
 }

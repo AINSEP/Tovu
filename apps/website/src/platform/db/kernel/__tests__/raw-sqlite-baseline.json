@@ -1,12 +1,4 @@
 {
-  "apps/website/src/assistant/persistence/agent-session-store.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 3
-  },
-  "apps/website/src/assistant/persistence/conversation-tool-approval-store.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 2
-  },
   "apps/website/src/assistant/persistence/store-factory.ts": {
     "better-sqlite3-import": 2,
     "pragma": 1
