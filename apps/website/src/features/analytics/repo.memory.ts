@@ -87,7 +87,7 @@ export class LocalBufferSink implements AnalyticsSinkPort {
    * @complexity O(limit) — a bounded tail slice plus reverse, not a scan of the full buffer.
    * @overallScore 100/100
    */
-  list(input: { limit?: number } = {}): NormalizedHit[] {
+  async list(input: { limit?: number } = {}): Promise<NormalizedHit[]> {
     const limit = clampListLimit(input.limit);
     return this.hits.slice(-limit).reverse();
   }
