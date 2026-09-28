@@ -59,9 +59,6 @@
   "apps/website/src/features/forms/repo.sqlite.ts": {
     "sync-terminal": 8
   },
-  "apps/website/src/features/identity/repo.sqlite.ts": {
-    "sync-terminal": 28
-  },
   "apps/website/src/features/identity/user-purge.sqlite.ts": {
     "sync-terminal": 9
   },

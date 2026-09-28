@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -16,17 +16,17 @@ import {
 import { InMemoryApiKeyRepo } from "../repo.memory.js";
 import type { ApiKeyRepoPort } from "../api-key-types.js";
 import {
-  SqliteApiKeyRepo,
-  SqlitePolicyPermissionRepo,
-  SqlitePolicyRepo,
-  SqlitePrincipalPolicyRepo,
-  SqlitePrincipalRepo,
-  SqlitePrincipalRoleRepo,
-  SqliteRolePolicyRepo,
-  SqliteRoleRepo,
-  SqliteSessionRepo,
-  SqliteUserRepo,
-} from "../repo.sqlite.js";
+  SqlApiKeyRepo,
+  SqlPolicyPermissionRepo,
+  SqlPolicyRepo,
+  SqlPrincipalPolicyRepo,
+  SqlPrincipalRepo,
+  SqlPrincipalRoleRepo,
+  SqlRolePolicyRepo,
+  SqlRoleRepo,
+  SqlSessionRepo,
+  SqlUserRepo,
+} from "../repo.js";
 import type {
   PolicyPermissionRepoPort,
   PolicyRepoPort,
@@ -41,7 +41,7 @@ import type {
 
 /**
  * @file Shared contract-test suite for the identity repo ports, run against both
- * `repo.memory.ts` and `repo.sqlite.ts` — mirrors `src/members/__tests__/repo.contract.test.ts`'s
+ * `repo.memory.ts` and `repo.ts` (the one Kysely body, on SQLite and PGlite via `eachDialect`) — mirrors `src/members/__tests__/repo.contract.test.ts`'s
  * shape (that file's own header cites this exact convention).
  *
  * Nine of the ports (and their in-memory adapters) come from `@jini-ai/cms/identity`; the tenth,
@@ -297,28 +297,44 @@ function runPrincipalPolicyRepoSuite(adapterName: string, makeRepo: () => Princi
 }
 
 runPrincipalRepoSuite("InMemoryPrincipalRepo", () => new InMemoryPrincipalRepo());
-runPrincipalRepoSuite("SqlitePrincipalRepo", () => new SqlitePrincipalRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["principals"], make: (kernel) => new SqlPrincipalRepo(kernel) })) {
+  runPrincipalRepoSuite(`SqlPrincipalRepo [${each.name}]`, each.make);
+}
 
 runUserRepoSuite("InMemoryUserRepo", () => new InMemoryUserRepo());
-runUserRepoSuite("SqliteUserRepo", () => new SqliteUserRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["identity_users"], make: (kernel) => new SqlUserRepo(kernel) })) {
+  runUserRepoSuite(`SqlUserRepo [${each.name}]`, each.make);
+}
 
 runSessionRepoSuite("InMemorySessionRepo", () => new InMemorySessionRepo());
-runSessionRepoSuite("SqliteSessionRepo", () => new SqliteSessionRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["sessions"], make: (kernel) => new SqlSessionRepo(kernel) })) {
+  runSessionRepoSuite(`SqlSessionRepo [${each.name}]`, each.make);
+}
 
 runRoleRepoSuite("InMemoryRoleRepo", () => new InMemoryRoleRepo());
-runRoleRepoSuite("SqliteRoleRepo", () => new SqliteRoleRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["roles"], make: (kernel) => new SqlRoleRepo(kernel) })) {
+  runRoleRepoSuite(`SqlRoleRepo [${each.name}]`, each.make);
+}
 
 runPolicyRepoSuite("InMemoryPolicyRepo", () => new InMemoryPolicyRepo());
-runPolicyRepoSuite("SqlitePolicyRepo", () => new SqlitePolicyRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["policies"], make: (kernel) => new SqlPolicyRepo(kernel) })) {
+  runPolicyRepoSuite(`SqlPolicyRepo [${each.name}]`, each.make);
+}
 
 runPolicyPermissionRepoSuite("InMemoryPolicyPermissionRepo", () => new InMemoryPolicyPermissionRepo());
-runPolicyPermissionRepoSuite("SqlitePolicyPermissionRepo", () => new SqlitePolicyPermissionRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["policy_permissions"], make: (kernel) => new SqlPolicyPermissionRepo(kernel) })) {
+  runPolicyPermissionRepoSuite(`SqlPolicyPermissionRepo [${each.name}]`, each.make);
+}
 
 runRolePolicyRepoSuite("InMemoryRolePolicyRepo", () => new InMemoryRolePolicyRepo());
-runRolePolicyRepoSuite("SqliteRolePolicyRepo", () => new SqliteRolePolicyRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["role_policies"], make: (kernel) => new SqlRolePolicyRepo(kernel) })) {
+  runRolePolicyRepoSuite(`SqlRolePolicyRepo [${each.name}]`, each.make);
+}
 
 runPrincipalRoleRepoSuite("InMemoryPrincipalRoleRepo", () => new InMemoryPrincipalRoleRepo());
-runPrincipalRoleRepoSuite("SqlitePrincipalRoleRepo", () => new SqlitePrincipalRoleRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["principal_roles"], make: (kernel) => new SqlPrincipalRoleRepo(kernel) })) {
+  runPrincipalRoleRepoSuite(`SqlPrincipalRoleRepo [${each.name}]`, each.make);
+}
 
 function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort) {
   const row = {
@@ -392,7 +408,11 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
 }
 
 runPrincipalPolicyRepoSuite("InMemoryPrincipalPolicyRepo", () => new InMemoryPrincipalPolicyRepo());
-runPrincipalPolicyRepoSuite("SqlitePrincipalPolicyRepo", () => new SqlitePrincipalPolicyRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["principal_policies"], make: (kernel) => new SqlPrincipalPolicyRepo(kernel) })) {
+  runPrincipalPolicyRepoSuite(`SqlPrincipalPolicyRepo [${each.name}]`, each.make);
+}
 
 runApiKeyRepoSuite("InMemoryApiKeyRepo", () => new InMemoryApiKeyRepo());
-runApiKeyRepoSuite("SqliteApiKeyRepo", () => new SqliteApiKeyRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["api_keys"], make: (kernel) => new SqlApiKeyRepo(kernel) })) {
+  runApiKeyRepoSuite(`SqlApiKeyRepo [${each.name}]`, each.make);
+}
