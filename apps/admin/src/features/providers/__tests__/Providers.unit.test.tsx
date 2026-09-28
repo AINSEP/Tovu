@@ -70,10 +70,12 @@ describe("Providers — tab strip: MCP Server and Webhooks tagged Soon, External
 });
 
 describe("Providers — no Composio tab (Composio is the `composio` agent plugin since 2026-09-27)", () => {
-  it("renders exactly External MCP, MCP Server and Webhooks tabs", () => {
+  it("renders exactly External MCP, Always allow, MCP Server and Webhooks tabs, in that order", () => {
     renderPage("external-mcp");
     const names = screen.getAllByRole("tab").map((tab) => tab.textContent ?? "");
-    expect(names).toHaveLength(3);
+    expect(names).toHaveLength(4);
+    expect(names[0]).toMatch(/^External MCP/);
+    expect(names[1]).toMatch(/^Always allow/);
     expect(names.some((name) => /composio/i.test(name))).toBe(false);
   });
 

@@ -1,0 +1,12 @@
+/**
+ * `features/providers/AlwaysAllowPanel.tsx` — one heading + table per server. Existing tokens
+ * only, so light and dark mode come from `styles.css` like everything else.
+ */
+
+.always-allow-panel { display: grid; gap: var(--space-5); }
+.always-allow-panel > .page-description { margin: 0; }
+.always-allow-server { display: grid; gap: var(--space-2); }
+.always-allow-server .card-title { margin: 0; }
+.always-allow-server .list-table td:first-child { width: 100%; }
+.always-allow-server .list-table td { white-space: nowrap; }
+.always-allow-actions { text-align: right; }

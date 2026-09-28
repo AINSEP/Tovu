@@ -120,6 +120,15 @@ export interface AdminExternalMcpOAuthView {
  * to the two fields the generic streamable-HTTP + OAuth transport added on top of the original
  * stdio-only shape.
  */
+/** One saved "Always allow" from `GET .../mcp-servers/tool-approvals` — a remote tool the approval
+ *  card no longer asks about. Revoking it makes the card ask again. */
+export interface AdminExternalMcpToolApproval {
+  serverId: string;
+  toolName: string;
+  grantedByPrincipalId: string;
+  grantedAt: string;
+}
+
 export interface AdminExternalMcpServer {
   serverId: string;
   label: string;
@@ -2912,6 +2921,15 @@ export const api = {
       ...(raw.configFailures !== undefined ? { configFailures: raw.configFailures } : {}),
     };
   },
+  /** Every saved "Always allow" on this site, sorted by server then tool. */
+  listExternalMcpToolApprovals: () =>
+    request<{ approvals: AdminExternalMcpToolApproval[] }>(`/workspaces/${WORKSPACE_ID}/mcp-servers/tool-approvals`),
+  /** Revokes one "Always allow", so that tool asks again. 404s when none is saved. */
+  revokeExternalMcpToolApproval: (serverId: string, toolName: string) =>
+    request<{ removed: boolean }>(
+      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/tool-approvals/${encodeURIComponent(toolName)}`,
+      { method: "DELETE" }
+    ),
   /** Byte-serving URL for an asset's original file (MSG-05) — authenticated, same-origin, so a
    *  plain `<img src>`/`<video src>` sends the session cookie automatically with no `crossorigin`
    *  attribute needed. Not wrapped in `request()` like the rest of this file's methods: callers

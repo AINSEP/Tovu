@@ -8,6 +8,7 @@ import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ComingSoonPanel } from "../../components/ComingSoonPanel";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
+import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
 import { t as tCapability } from "../settings/settings-capabilities-i18n";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
@@ -84,8 +85,10 @@ import { useProviders } from "./hooks/use-providers.hooks";
  *  `DeveloperApi.tsx`'s own `DEVELOPER_API_TAB_IDS` — see this file's header for why those two tabs
  *  are here now. Order is the owner's explicit call (2026-09-10, second pass): External MCP first,
  *  then the two absorbed tabs in their original relative order (MCP Server,
- *  Webhooks) — see {@link resolveProvidersTabId} for the default. */
-const PROVIDERS_TAB_IDS = ["external-mcp", "mcp-server", "webhooks"] as const;
+ *  Webhooks) — see {@link resolveProvidersTabId} for the default. "Always allow" (2026-09-28, owner
+ *  call) sits right after External MCP: it lists that tab's servers' tools the chat approval card no
+ *  longer asks about. */
+const PROVIDERS_TAB_IDS = ["external-mcp", "always-allow", "mcp-server", "webhooks"] as const;
 type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
 
 /** Falls back to the External MCP tab (first in {@link PROVIDERS_TAB_IDS}) for an absent or
@@ -147,6 +150,18 @@ export function Providers(props: ProvidersProps) {
       ),
       handle: "providers-tab-external-mcp",
       handleLabel: "Switch to the External MCP tab — MCP tool servers this install connects out to",
+    },
+    {
+      id: "always-allow",
+      label: t(locale, "Always allow"),
+      icon: (
+        <TabIcon>
+          <path d="M9 2.5l5.5 2v4.2c0 3.3-2.3 5.9-5.5 6.8-3.2-.9-5.5-3.5-5.5-6.8V4.5z" />
+          <path d="M6.5 9l1.8 1.8L11.5 7.5" />
+        </TabIcon>
+      ),
+      handle: "providers-tab-always-allow",
+      handleLabel: "Switch to the Always allow tab — external tools that run without asking, each with a Revoke button",
     },
     {
       // Absorbed from `DeveloperApi.tsx`'s own `mcp-server` tab (2026-09-10, second pass) — same id,
@@ -253,6 +268,8 @@ export function Providers(props: ProvidersProps) {
             }
           />
         ) : null}
+
+        {activeTabId === "always-allow" ? <AlwaysAllowPanel /> : null}
 
         {activeTabId === "mcp-server" ? (
           // `<IntegrationsTab>` with no `port` prop falls back to `createFakeMcpIntegrationsPort()`,
