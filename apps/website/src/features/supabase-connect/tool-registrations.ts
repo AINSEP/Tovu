@@ -66,8 +66,7 @@ import { listSupabaseProjects, type SupabaseProject } from "./supabase-managemen
  *   exactly one with read-only ON by default, and writes the choice into the row's URL
  *   (`project_ref`, `read_only`). Written with a direct `repo.upsert` of the non-secret `url` column
  *   rather than `saveExternalMcpServer`, which would need every OAuth field resent and could clear an
- *   OAuth row's client identity. `readEnabledExternalMcpConfigs` refuses an unscoped Supabase row
- *   (`assistant/supabase-mcp-scope.ts`), so no tool is offered before this step (INV-04).
+ *   OAuth row's client identity.
  *
  * Neither tool touches `enabled`, `allowedToolNames`, or `writeAllowedToolNames`: the row stays
  * disabled with whatever lists the operator set, and write tools still need `trust.ts`'s explicit

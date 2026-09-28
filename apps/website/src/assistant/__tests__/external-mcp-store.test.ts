@@ -906,6 +906,18 @@ test("a connected hosted OAuth row resolves to its endpoint with the token in an
   assert.deepEqual(resolver.asked, ["higgsfield"]);
 });
 
+test("a hosted row with no project in its URL resolves like any other — core has no per-vendor URL scoping", async () => {
+  // The supabase agent plugin connects to the account-wide URL and passes `project_id` per tool
+  // call; scoping is the plugin's own business, never a vendor branch in the store.
+  const { repo, sealer } = makeDeps();
+  const url = "https://mcp.supabase.com/mcp?features=account,database,development,docs,debugging";
+  await seedHostedRow(repo, { serverId: "supabase", oauthProviderId: "supabase", url });
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+
+  assert.deepEqual(failures, []);
+  assert.equal(httpTarget(configs[0]).url, url);
+});
+
 test("a hosted row needs NO tokenEnvName — that is a stdio-only concept", async () => {
   const { repo, sealer } = makeDeps();
   // The row above already has `oauthTokenEnvName: null`. Before hosted support this was a hard

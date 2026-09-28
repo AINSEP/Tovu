@@ -190,14 +190,12 @@ test("a blank token is refused without a probe, and a cancel stores nothing", as
   assert.equal((await env.readRow())?.sealedOAuth, null);
 });
 
-test("AC-05/06/11/12: no tool is offered until a project is picked; then the scoped row carries the token only as a Bearer header", async () => {
+test("AC-05/06/12: once a project is picked, the scoped row carries the token only as a Bearer header", async () => {
+  // AC-11 (INV-04, "no tool until a project is picked") was dropped by plan v2 slice R1: the
+  // supabase agent plugin connects account-wide.
   const env = await setup();
   await submit(env, SET_TOKEN, { token: TOKEN });
   await enableRow(env);
-
-  const before = await readEnabledExternalMcpConfigs({ repo: env.repo, sealer: env.sealer }, WORKSPACE);
-  assert.deepEqual(before.configs, []);
-  assert.match(before.failures[0]?.reason ?? "", /no Supabase project has been selected yet/);
 
   const { html, result } = await submit(env, SET_SCOPE, { projectRef: SHOP_REF, readOnly: true });
   assert.match(html, /Shop \(abcdefghijklmnopqrst\)/);

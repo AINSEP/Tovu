@@ -1,16 +1,13 @@
 /**
- * @file Project scoping for a federated connection to Supabase's hosted MCP server (SPEC-052).
+ * @file URL helpers for `features/supabase-connect`'s project picker (SPEC-052).
  *
- * Supabase's hosted endpoint takes its scope from the connection URL itself: `project_ref` limits
- * every tool to one project, and `read_only=true` makes Supabase's own server refuse writes. A
- * connection to that host WITHOUT a `project_ref` reaches every project in the account, so
- * `external-mcp-store.ts`'s `readEnabledExternalMcpConfigs` never offers one (INV-04) and reports
- * {@link supabaseMcpScopeFailure}'s reason instead.
+ * Supabase's hosted endpoint takes an optional scope from the connection URL: `project_ref` limits
+ * every tool to one project, and `read_only=true` makes Supabase's own server refuse writes. Core no
+ * longer refuses an unscoped connection (the INV-04 block is gone): the `supabase` agent plugin
+ * connects account-wide and passes `project_id` per tool call. This file leaves with
+ * `features/supabase-connect` (plan v2 slice R2).
  *
- * Keyed on the HOST, not on the `supabase` connection id: an operator who hand-types the same
- * endpoint under a different id gets the same protection.
- *
- * Pure: no I/O and no imports, so both the store and `features/supabase-connect` can share it.
+ * Pure: no I/O and no imports.
  */
 
 export const SUPABASE_MCP_HOST = "mcp.supabase.com";
@@ -35,18 +32,6 @@ export function isSupabaseMcpUrl(url: string | null): boolean {
 }
 
 /**
- * Reads the scope a Supabase MCP URL carries. `readOnly` is `true` only for an explicit
- * `read_only=true`, matching how Supabase's server itself reads the parameter.
- *
- * @complexity O(n) in the URL length.
- */
-export function readSupabaseMcpScope(url: string): { projectRef: string | null; readOnly: boolean } {
-  const params = parseUrl(url)?.searchParams;
-  const projectRef = params?.get("project_ref") ?? "";
-  return { projectRef: projectRef === "" ? null : projectRef, readOnly: params?.get("read_only") === "true" };
-}
-
-/**
  * Returns `url` scoped to one project, with `read_only=true` set or removed.
  *
  * @throws {Error} When `projectRef` is not a Supabase project ref.
@@ -61,16 +46,4 @@ export function buildScopedSupabaseMcpUrl(input: { url: string; projectRef: stri
   if (input.readOnly) scoped.searchParams.set("read_only", "true");
   else scoped.searchParams.delete("read_only");
   return scoped.toString();
-}
-
-/**
- * Why a connection must not be offered yet, or `null` when scoping does not block it — either it is
- * not a Supabase connection, or it already names a project.
- *
- * @complexity O(n) in the URL length.
- */
-export function supabaseMcpScopeFailure(url: string | null): string | null {
-  if (url === null || !isSupabaseMcpUrl(url)) return null;
-  if (readSupabaseMcpScope(url).projectRef !== null) return null;
-  return "no Supabase project has been selected yet — pick one with supabase_set_project_scope before any Supabase tool is offered";
 }

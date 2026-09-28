@@ -235,8 +235,6 @@ export {
   SUPABASE_MCP_URL,
   buildScopedSupabaseMcpUrl,
   isSupabaseMcpUrl,
-  readSupabaseMcpScope,
-  supabaseMcpScopeFailure,
 } from "./supabase-mcp-scope.js";
 export type {
   ExternalMcpAuthMode,
