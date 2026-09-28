@@ -233,7 +233,7 @@ test("boolean-flag classification matches exactly the SQLiteBoolean columns in s
 // names (SQL name says JSON, TS name says JSON, or neither does — genuinely useful, it would catch e.g.
 // `bodyJson: text("body_html")`), which says nothing at all about a column that fails the convention on
 // BOTH sides consistently. `composio_config.auth_config_ids` (SQL: no `_json` suffix; TS: `authConfigIds`,
-// ends `Ids` not `Json`) is exactly that case — a real, live column, not the earlier hypothetical
+// ends `Ids` not `Json`; table dropped by migration 0075) was exactly that case — a real column, not the earlier hypothetical
 // "settings_payload" example — and it passed the self-consistency test below cleanly (both sides agree
 // it "isn't JSON"), right alongside `classifyAllCoreColumns()` silently classifying it `plain-text` and
 // `verifyJsonText` never running on it. Four more columns share the identical shape (`posts.ext`,
@@ -318,12 +318,11 @@ test("REVIEWED_JSON_COLUMNS: every entry actually classifies json-text via class
 // `allowed_tool_names`, but its own REVIEWED_JSON_COLUMNS entry was never added at the time — the
 // same naming-convention gap the round-3 audit exists to catch, just on a column the round-3 scan
 // predates rather than missed.
-test("REVIEWED_JSON_COLUMNS matches exactly the six columns known-reviewed today (the 2026-08-12 round-3 audit's five, plus write_allowed_tool_names) — not more, not fewer", () => {
+test("REVIEWED_JSON_COLUMNS matches exactly the five columns known-reviewed today (the 2026-08-12 round-3 audit's five, minus the dropped composio_config.auth_config_ids, plus write_allowed_tool_names) — not more, not fewer", () => {
   assert.deepEqual(
     new Set(Object.keys(REVIEWED_JSON_COLUMNS)),
     new Set([
       "posts.ext",
-      "composio_config.auth_config_ids",
       "external_mcp_servers.args",
       "external_mcp_servers.allowed_tool_names",
       "external_mcp_servers.env_names",
@@ -619,8 +618,8 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
   //   (b) it defaults to the JSON literal "{}" or "[]" on its own declaration line.
   //
   // `JSON.stringify`/`JSON.parse` mentions are excluded from signal (a) on purpose, not by oversight:
-  // several sealed-ciphertext columns (composio_connector_credentials.sealed_ciphertext is the real,
-  // live example, pinned by the sanity assertion at the end of this test) document that they encrypt
+  // a sealed-ciphertext column can document that it encrypts (composio_connector_credentials.sealed_ciphertext
+  // did, until migration 0075 dropped it; the sanity assertions at the end of this test pin the wording)
   // the OUTPUT of `JSON.stringify(...)` — the column itself stores base64 AES-GCM ciphertext, not
   // plaintext JSON, and verifyJsonText would fail on every real row if this heuristic treated that
   // mention as a JSON signal. Flagging that column would be the heuristic being wrong, not the schema.
@@ -664,20 +663,12 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
       `positive and needs its own fix.`
   );
 
-  // Confirm the JSON.stringify/parse exclusion is doing real work, not a dead branch that happens to
-  // never fire: composio_connector_credentials.sealed_ciphertext's own doc comment DOES mention "JSON"
-  // (via "JSON.stringify(credentials)") and the column is neither *_json-named nor in
-  // REVIEWED_JSON_COLUMNS — it is the live column that would turn into a false positive above if the
-  // exclusion regressed.
-  const sealedCiphertextDecl = textColumnDeclarations().find(
-    (d) => d.sqlColumnName === "sealed_ciphertext" && /JSON\.stringify/.test(d.docComment)
-  );
-  assert.ok(
-    sealedCiphertextDecl,
-    "sanity: expected to find the sealed_ciphertext column whose comment mentions JSON.stringify — if this " +
-      "fails, the trap case this test guards against no longer exists in schema.sqlite.ts in this exact shape and " +
-      "should be replaced with a live one"
-  );
+  // Confirm the JSON.stringify/parse exclusion is doing real work, not a dead branch. The live column
+  // that used to pin this (composio_connector_credentials.sealed_ciphertext, "JSON.stringify(credentials)")
+  // was dropped by migration 0075, and no other sealed column's doc mentions JSON.stringify today, so the
+  // exclusion is pinned against that doc comment's exact wording instead.
+  assert.equal(jsonMentionInOwnComment.test("Base64 `AEAD ciphertext || 16-byte GCM auth tag` over `JSON.stringify(credentials)`."), false);
+  assert.equal(jsonMentionInOwnComment.test("JSON object: connector id → auth-config id."), true);
 });
 
 // LOW #14 (2026-08-12 audit): this "independent" oracle filters with `name === "at" || name.endsWith("_at")`

@@ -1847,9 +1847,8 @@ export const publishCredentialSets = sqliteTable(
     isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
     /**
      * The verified credential's own public account login/username (GitHub's `login`, Vercel's
-     * `username`) — same "held in the clear because a decrypt-on-read would put an AEAD open on a
-     * cheap path" reasoning `composioConnectorCredentials.accountLabel` documents for its own column
-     * (see that table's own doc comment above): this value already appears, unencrypted, in a PUBLIC
+     * `username`) — held in the clear because a decrypt-on-read would put an AEAD open on a cheap
+     * path, and because this value already appears, unencrypted, in a PUBLIC
      * URL a real publish prints (`https://<login>.github.io/<repo>/`), so sealing it here would
      * protect nothing while forcing `deployment_get_static_publish_capabilities` to decrypt (or stay
      * blind) just to answer "whose account is this."
@@ -2008,8 +2007,8 @@ export const sourceControlCredentialSets = sqliteTable(
     isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
     /**
      * The verified account's public login (GitHub's `login` only, today) — same "held in the clear,
-     * not sealed" reasoning `composioConnectorCredentials.accountLabel` and this table's own sibling
-     * `publishCredentialSets.accountLabel` both document (see either doc comment for the full case).
+     * not sealed" reasoning this table's own sibling `publishCredentialSets.accountLabel` documents
+     * (see its doc comment for the full case).
      *
      * `NULL` until populated. Unlike `publishCredentialSets`, this table has no shared agent-facing
      * write path to protect (nothing under `features/source-control/`'s own tool catalog ever calls
@@ -2290,87 +2289,12 @@ export const mediaProviderCredentials = sqliteTable(
 );
 
 /**
- * The workspace's Composio project credentials — one row per workspace, backing the admin's
- * Settings → Connectors tab (`connectors/composio-config-store.ts`).
- *
- * Workspace-scoped rather than per-principal, for the same reason as `mediaProviderCredentials`
- * above and the opposite of `adminExecutionCredentials`: a Composio project key authorizes
- * third-party accounts on behalf of the whole install, so one roster per workspace is the honest
- * scope. Two admins do not each hold their own Composio project.
- *
- * Single-row-per-workspace, so `workspace_id` is the bare primary key rather than half of a
- * composite — `siteAssistantCredentials`' shape, not `mediaProviderCredentials`'.
- *
- * `auth_config_ids` holds `ComposioConfig.authConfigIds`: a JSON object mapping connector id →
- * Composio auth-config id. NOT secret (they are opaque Composio resource ids, not credentials),
- * so it is a plain column while the API key beside it is sealed. It is persisted rather than
- * rederived because `ComposioConnectorProvider.prepareAuthConfig` CREATES an auth config on
- * Composio's side the first time a connector is used; losing the id would orphan that remote
- * resource and silently provision a duplicate on the next attempt.
- *
- * Sealed via the SAME ADR-058 `AesGcmSecretSealer`/`KeyringPort` instances the tables above reuse,
- * with the sealed-shape CHECK copied from `media_provider_credentials_sealed_shape`. A row may
- * legitimately exist with no key at all — `auth_config_ids` alone is a valid state after a key is
- * cleared, which is why every sealed column is nullable.
- */
-export const composioConfig = sqliteTable(
-  "composio_config",
-  {
-    workspaceId: text("workspace_id")
-      .primaryKey()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** `SealedSecret.keyId`; NULL iff no Composio API key is stored. */
-    sealedKeyId: text("sealed_key_id"),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
-    sealedCiphertext: text("sealed_ciphertext"),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce"),
-    /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data, not a silent
-     *  reinterpretation of old rows. */
-    sealedAlg: text("sealed_alg"),
-    /** Last 4 characters of the key, precomputed at write time — feeds the tab's masked label.
-     *  Bare tail, no `••••` prefix, matching `media_provider_credentials.key_tail`. */
-    keyTail: text("key_tail"),
-    /** JSON object: connector id → Composio auth-config id. See this table's header. */
-    authConfigIds: text("auth_config_ids"),
-    /**
-     * Monotonic counter bumped every time the stored key's IDENTITY changes — a different key saved,
-     * or the key cleared. Re-saving the same key does not bump it, because nothing about the row's
-     * Composio project changed.
-     *
-     * It exists so `auth_config_ids` can be written with a compare-and-swap. Those ids are
-     * provisioned asynchronously during a connect handshake and persisted fire-and-forget, so a
-     * rotation can commit between the read that fetched the row and the write that stores the ids.
-     * Without this counter that late write would blind-overwrite the whole row, reverting the
-     * rotation AND attaching ids scoped to the previous Composio project to the new key. Comparing
-     * `sealed`/`key_tail` instead is not sufficient: those can coincide across keys, and the check
-     * needed is "did this change since I read it", not "does it equal what I remember".
-     *
-     * Defaulted rather than backfilled: every pre-existing row starts at 0 and is immediately valid.
-     */
-    keyGeneration: integer("key_generation").notNull().default(0),
-    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
-     *  `1`=`buildComposioConfigAad`-bound contract as `site_assistant_credentials.aad_version`
-     *  documents in full. Backfilled by `development/scripts/backfill-composio-config-aad.ts`. */
-    aadVersion: integer("aad_version").notNull().default(0),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    check(
-      "composio_config_sealed_shape",
-      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.keyTail} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.keyTail} IS NOT NULL)`
-    ),
-  ]
-);
-
-/**
  * Per-workspace external MCP server connections — what the admin's Settings → External MCP tab
  * persists, and what the agent daemon reads at boot to decide which third-party MCP servers to
  * federate (`assistant/mcp-federation/`).
  *
  * Multi-row per workspace and keyed by an operator-chosen id, so this follows
- * `mediaProviderCredentials`' composite-PK shape rather than the single-row `composioConfig`.
+ * `mediaProviderCredentials`' composite-PK shape rather than a single row per workspace.
  *
  * `server_id` becomes part of every federated tool id the model sees (`mcp__<server_id>__<tool>`),
  * which is why `mcp-federation/trust.ts` restricts it to `[a-z0-9-]` — a `_` would blur that
@@ -2614,65 +2538,6 @@ export const oauthDeviceAuthorizations = sqliteTable(
     createdAt: text("created_at").notNull(),
   },
   (table) => [primaryKey({ columns: [table.workspaceId, table.serverId] })]
-);
-
-/**
- * One connected third-party ACCOUNT per `(workspace_id, connector_id)` — what survives an OAuth
- * handshake, and what `connectors/connector-credential-store.ts` seals.
- *
- * Distinct from `composioConfig` above, which holds the one PROJECT key that authorizes talking to
- * Composio at all. This table holds the per-connector material Composio hands back after a user
- * authorizes an account (`ConnectorCredentialRecord.credentials`). Losing the project key means
- * nothing works; losing a row here means one connector needs reconnecting.
- *
- * Workspace-scoped for the same reason the project key is: an authorized GitHub or Notion account
- * acts on behalf of the whole install, and both are gated by the same `admin.integrations.manage`
- * permission. Cascade-deleted with the workspace.
- *
- * `credentials` is an opaque JSON object whose shape Composio owns, so it is sealed WHOLE rather
- * than decomposed into columns — Tovu never interprets it, and a schema that mirrored today's
- * fields would silently drop anything the provider adds. `account_label` is the only part held in
- * the clear, because the admin grid renders it on every card and decrypting the roster just to
- * paint labels would put an AEAD open on the page-load path.
- *
- * Sealed columns are nullable with the same all-null-or-all-set CHECK as every sibling credential
- * table, even though a row without credentials has no meaning today: the invariant belongs in the
- * CHECK, not in a NOT NULL that a later "record the account before the token arrives" flow would
- * have to migrate away from.
- */
-export const composioConnectorCredentials = sqliteTable(
-  "composio_connector_credentials",
-  {
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** Connector id from `@jini-ai/integrations/composio`'s catalog (`github`, `notion`, …). */
-    connectorId: text("connector_id").notNull(),
-    /** Human-facing account name shown on the connector card. Not secret. */
-    accountLabel: text("account_label"),
-    /** `SealedSecret.keyId` — names the root-key generation the credentials were wrapped under. */
-    sealedKeyId: text("sealed_key_id"),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` over `JSON.stringify(credentials)`. */
-    sealedCiphertext: text("sealed_ciphertext"),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce"),
-    /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data. */
-    sealedAlg: text("sealed_alg"),
-    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
-     *  `1`=`buildConnectorCredentialAad`-bound contract as `site_assistant_credentials.aad_version`
-     *  documents in full; per `(workspace_id, connector_id)` row. Backfilled by
-     *  `development/scripts/backfill-connector-credential-aad.ts`. */
-    aadVersion: integer("aad_version").notNull().default(0),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.workspaceId, table.connectorId] }),
-    check(
-      "composio_connector_credentials_sealed_shape",
-      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL)`
-    ),
-  ]
 );
 
 export const analyticsEvents = sqliteTable(

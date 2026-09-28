@@ -526,6 +526,13 @@
       "when": 1799841600007,
       "tag": "0074_bouncy_makkari",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1799841600008,
+      "tag": "0075_composio_tables_drop",
+      "breakpoints": true
     }
   ]
 }

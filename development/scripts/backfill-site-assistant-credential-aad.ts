@@ -7,8 +7,7 @@
  * Same design as `backfill-media-provider-credential-aad.ts` (see that script's own header for the
  * full "why not plain SQL", "in-place re-seal, not a new table", and dry-run/`--apply`/restore-point
  * safety story). This table's own shape difference: single-row-per-workspace (`workspace_id` the
- * bare primary key), matching `backfill-composio-config-aad.ts`'s identical shape for the sibling
- * `composio_config` table.
+ * bare primary key).
  *
  * `provider`/`base_url`/`model`/`masked` are left untouched — `masked` in particular was never
  * sealed (`site-credential-store.ts`'s own doc: precomputed plaintext, ADR-058 §3).

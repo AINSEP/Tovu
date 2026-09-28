@@ -189,27 +189,6 @@ const mediaProviderCredentials: SealedColumnDescriptor = {
     ),
 };
 
-/**
- * The two legacy Composio tables. Nothing reads or writes them since Composio moved to the
- * `content/agent-plugins/composio` plugin (2026-09-27); they stay in the schema until an owner-approved
- * drop migration (`ADS-memory/reports/2026-09-27-composio-agent-plugin-plan.md`, section 4). Their
- * descriptors stay with them so the inventory and key rotation still recognise leftover rows; the AAD
- * formats are restated here because their stores were deleted. Remove both with the drop.
- */
-const composioConfigAad = (workspaceId: string): string => `composio-config:v1:${workspaceId}`;
-const composioConnectorCredentialAad = (workspaceId: string, connectorId: string): string =>
-  `composio-connector-credential:v1:${workspaceId}:${connectorId}`;
-
-const composioConfig: SealedColumnDescriptor = {
-  table: "composio_config",
-  column: "sealed_ciphertext",
-  identityColumns: ["workspace_id", "aad_version"],
-  workspaceId: workspaceOf,
-  rowId: workspaceOf,
-  label: () => "Composio project API key",
-  aadFor: (row) => versionedAad(row.aad_version, STORE_AAD_VERSION, () => composioConfigAad(workspaceOf(row))),
-};
-
 const externalMcpServerEnv: SealedColumnDescriptor = {
   table: "external_mcp_servers",
   column: "sealed_ciphertext",
@@ -258,19 +237,6 @@ const oauthDeviceAuthorizations: SealedColumnDescriptor = {
   aadFor: (row) => ({ kind: "aad", aad: deviceAad(workspaceOf(row) as UUID, text(row, "server_id")) }),
 };
 
-const composioConnectorCredentials: SealedColumnDescriptor = {
-  table: "composio_connector_credentials",
-  column: "sealed_ciphertext",
-  identityColumns: ["workspace_id", "connector_id", "aad_version"],
-  workspaceId: workspaceOf,
-  rowId: (row) => `${workspaceOf(row)}:${text(row, "connector_id")}`,
-  label: (row) => `Connected account (${text(row, "connector_id")})`,
-  aadFor: (row) =>
-    versionedAad(row.aad_version, STORE_AAD_VERSION, () =>
-      composioConnectorCredentialAad(workspaceOf(row), text(row, "connector_id"))
-    ),
-};
-
 /** Every sealed column the app can open today, in `schema.sqlite.ts` order. */
 export const SEALED_COLUMN_DESCRIPTORS: readonly SealedColumnDescriptor[] = [
   siteAssistantCredentials,
@@ -281,10 +247,8 @@ export const SEALED_COLUMN_DESCRIPTORS: readonly SealedColumnDescriptor[] = [
   customCredentialSets,
   vendorCredentialSets,
   mediaProviderCredentials,
-  composioConfig,
   externalMcpServerEnv,
   externalMcpServerOAuth,
   oauthPendingAuthorizations,
   oauthDeviceAuthorizations,
-  composioConnectorCredentials,
 ];

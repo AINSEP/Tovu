@@ -8,7 +8,7 @@
  *
  * FTS5 search objects are absent on purpose — see the generator's module doc.
  *
- * Tables: 92
+ * Tables: 90
  */
 import { sql } from "drizzle-orm";
 import {
@@ -290,40 +290,6 @@ export const commerceWebhookEvents = mysqlTable("commerce_webhook_events", {
     check("commerce_webhook_events_status_check", sql`status IN ('received', 'applied', 'ignored', 'failed')`),
     uniqueIndex("commerce_webhook_events_provider_event_unique").on(t.provider, t.eventId),
     index("idx_commerce_webhook_events_claim").on(t.status, t.receivedAt),
-  ]);
-
-export const composioConfig = mysqlTable("composio_config", {
-  workspaceId: varchar("workspace_id", { length: 191 }).primaryKey(),
-  sealedKeyId: text("sealed_key_id"),
-  sealedCiphertext: text("sealed_ciphertext"),
-  sealedNonce: text("sealed_nonce"),
-  sealedAlg: text("sealed_alg"),
-  keyTail: text("key_tail"),
-  authConfigIds: jsonText("auth_config_ids"),
-  keyGeneration: bigint("key_generation", { mode: "number" }).notNull().default(0),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    check("composio_config_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND key_tail IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND key_tail IS NOT NULL)`),
-  ]);
-
-export const composioConnectorCredentials = mysqlTable("composio_connector_credentials", {
-  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
-  connectorId: varchar("connector_id", { length: 191 }).notNull(),
-  accountLabel: text("account_label"),
-  sealedKeyId: text("sealed_key_id"),
-  sealedCiphertext: text("sealed_ciphertext"),
-  sealedNonce: text("sealed_nonce"),
-  sealedAlg: text("sealed_alg"),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.workspaceId, t.connectorId] }),
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    check("composio_connector_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
   ]);
 
 export const contentTypeRevisions = mysqlTable("content_type_revisions", {

@@ -241,11 +241,6 @@ test("sealed-shape CHECK SQL text is semantically exact on every credential tabl
       sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg", "keyTail"],
     },
     {
-      table: sqliteSchema.composioConfig,
-      checkName: "composio_config_sealed_shape",
-      sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg", "keyTail"],
-    },
-    {
       table: sqliteSchema.externalMcpServers,
       checkName: "external_mcp_servers_sealed_shape",
       sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg"],
@@ -258,11 +253,6 @@ test("sealed-shape CHECK SQL text is semantically exact on every credential tabl
       table: sqliteSchema.externalMcpServers,
       checkName: "external_mcp_servers_oauth_sealed_shape",
       sealedColumns: ["oauthSealedKeyId", "oauthSealedCiphertext", "oauthSealedNonce", "oauthSealedAlg"],
-    },
-    {
-      table: sqliteSchema.composioConnectorCredentials,
-      checkName: "composio_connector_credentials_sealed_shape",
-      sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg"],
     },
   ];
   assert.equal(

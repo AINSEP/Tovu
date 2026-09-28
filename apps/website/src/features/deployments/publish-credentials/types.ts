@@ -141,7 +141,7 @@ export interface PublishCredentialSetRecord {
   readonly isDefault: boolean;
   /** Migration `0044` (2026-08-16) — the verified account's public login/username, held in the
    *  clear (never sealed) — see `db/schema.sqlite.ts`'s `publishCredentialSets.accountLabel` doc for the
-   *  full reasoning (mirrors `composioConnectorCredentials.accountLabel`) and `store.ts`'s header for
+   *  full reasoning and `store.ts`'s header for
    *  exactly which write paths are and are not allowed to populate it. */
   readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;

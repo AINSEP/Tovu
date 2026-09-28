@@ -103,10 +103,6 @@ async function seedEverySealedColumn(sealWith: { sealer: Sealer; keyring: InMemo
     workspace_id: WS, provider_id: "fal", key_tail: `${LEAK}key-tail-media`, aad_version: 1, ...stamps,
     ...(await seal("media_provider_credentials", buildMediaProviderCredentialAad({ workspaceId: WS as UUID, providerId: "fal" }))),
   });
-  insertRow(db, "composio_config", {
-    workspace_id: WS, key_tail: `${LEAK}key-tail-composio`, key_generation: 1, aad_version: 1, ...stamps,
-    ...(await seal("composio_config", `composio-config:v1:${WS}`)),
-  });
   insertRow(db, "external_mcp_servers", {
     workspace_id: WS, server_id: "linear", transport: "http", auth_mode: "oauth", enabled: 1, url: `https://mcp.example.test/?token=${LEAK}url-token`,
     aad_version: 1, oauth_aad_version: 1, ...stamps,
@@ -124,10 +120,6 @@ async function seedEverySealedColumn(sealWith: { sealer: Sealer; keyring: InMemo
     workspace_id: WS, server_id: "linear", user_code: `${LEAK}user-code`, verification_uri: "https://device.example.test", interval_seconds: 5, expires_at: NOW, created_at: NOW,
     ...(await seal("oauth_device_authorizations", `${WS}:linear`)),
   });
-  insertRow(db, "composio_connector_credentials", {
-    workspace_id: WS, connector_id: "github", account_label: `${LEAK}account-label`, aad_version: 1, ...stamps,
-    ...(await seal("composio_connector_credentials", `composio-connector-credential:v1:${WS}:github`)),
-  });
   // `publish_content_peers` — added by migration 0066 (the publish-content feature), two days after
   // this fixture's own introduction, and never added here; `label` is a real non-secret identity
   // column (like `publish_credential_sets.label`'s "Main site" above), so it gets a plain value, not
@@ -139,7 +131,7 @@ async function seedEverySealedColumn(sealWith: { sealer: Sealer; keyring: InMemo
   });
   secrets.push(
     `${LEAK}masked-site`, `${LEAK}masked-exec`, `${LEAK}username`, `${LEAK}token-tail`, `${LEAK}key-tail-media`,
-    `${LEAK}key-tail-composio`, `${LEAK}url-token`, `${LEAK}account-label`, `${LEAK}masked-peer`
+    `${LEAK}url-token`, `${LEAK}masked-peer`
   );
   return db;
 }
@@ -188,7 +180,7 @@ test("rows sealed under the active key with each store's own AAD all report open
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }));
 
   assert.equal(inventory.entries.length, SEALED_COLUMN_DESCRIPTORS.length);
-  assert.deepEqual(inventory.totals, { sealed: 14, opens: 14, doesNotOpen: 0, unknown: 0 });
+  assert.deepEqual(inventory.totals, { sealed: 12, opens: 12, doesNotOpen: 0, unknown: 0 });
   for (const entry of inventory.entries) {
     assert.equal(entry.opensUnderActiveKey, true, `${columnKey(entry)} should open`);
     assert.equal(entry.unknownReason, null);
@@ -213,7 +205,7 @@ test("the same rows sealed under a DIFFERENT root key report opensUnderActiveKey
   const activeKeyring = new InMemoryKeyring();
   const inventory = await listSealedCredentials(depsFor(other, { sealer: new AesGcmSecretSealer(activeKeyring), keyring: activeKeyring }));
 
-  assert.deepEqual(inventory.totals, { sealed: 14, opens: 0, doesNotOpen: 14, unknown: 0 });
+  assert.deepEqual(inventory.totals, { sealed: 12, opens: 0, doesNotOpen: 12, unknown: 0 });
   assert.ok(inventory.entries.every((entry) => entry.opensUnderActiveKey === false && entry.unknownReason === null));
   assertNoSecretIn(inventory, other.secrets);
 });
@@ -231,7 +223,7 @@ test("a sealed table with NO descriptor is still counted — its rows are unknow
 
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }));
 
-  assert.equal(inventory.totals.sealed, 16, "14 registered + 2 sealed vault rows; the NULL vault row holds nothing");
+  assert.equal(inventory.totals.sealed, 14, "12 registered + 2 sealed vault rows; the NULL vault row holds nothing");
   assert.deepEqual(inventory.columns.find((column) => column.table === "plugin_vault"), {
     table: "plugin_vault", column: "sealed_ciphertext", coverage: "no-descriptor", sealedRows: 2,
   });
@@ -252,7 +244,7 @@ test("removing a production descriptor does not make the count drop — that col
   const withoutVendor = SEALED_COLUMN_DESCRIPTORS.filter((descriptor) => descriptor.table !== "vendor_credential_sets");
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring, descriptors: withoutVendor }));
 
-  assert.deepEqual(inventory.totals, { sealed: 14, opens: 13, doesNotOpen: 0, unknown: 1 });
+  assert.deepEqual(inventory.totals, { sealed: 12, opens: 11, doesNotOpen: 0, unknown: 1 });
   const vendor = inventory.entries.find((entry) => entry.table === "vendor_credential_sets");
   assert.equal(vendor?.opensUnderActiveKey, "unknown");
   assert.equal(vendor?.unknownReason, "no-descriptor");
@@ -264,7 +256,7 @@ test("undeterminable: with no root key source present, every row is unknown/no-r
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring: fixture.keyring, hasRootKeySource: () => false }));
 
   assert.equal(sealer.calls, 0, "no derivation may run when no key source exists — a keyring could mint one");
-  assert.deepEqual(inventory.totals, { sealed: 14, opens: 0, doesNotOpen: 0, unknown: 14 });
+  assert.deepEqual(inventory.totals, { sealed: 12, opens: 0, doesNotOpen: 0, unknown: 12 });
   assert.ok(inventory.entries.every((entry) => entry.unknownReason === "no-root-key"));
 });
 
@@ -276,7 +268,7 @@ test("undeterminable: a key source that cannot round-trip a probe makes every ro
   };
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: broken, keyring: fixture.keyring }));
 
-  assert.deepEqual(inventory.totals, { sealed: 14, opens: 0, doesNotOpen: 0, unknown: 14 });
+  assert.deepEqual(inventory.totals, { sealed: 12, opens: 0, doesNotOpen: 0, unknown: 12 });
   assert.ok(inventory.entries.every((entry) => entry.unknownReason === "active-key-unavailable"));
   assertNoSecretIn(inventory, fixture.secrets);
 });
@@ -400,10 +392,10 @@ test("the inventory is read-only: no row changes, and a writing statement is ref
 
 test("above maxEntries the inventory refuses with counts only, rather than returning an understated list", async () => {
   const fixture = await freshFixture();
-  await assert.rejects(listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }), { maxEntries: 12 }), (error: unknown) => {
+  await assert.rejects(listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }), { maxEntries: 10 }), (error: unknown) => {
     assert.ok(error instanceof SealedCredentialInventoryLimitError);
-    assert.equal(error.message, "sealed-credential inventory found 14 sealed rows, over its limit of 12; refusing to return an understated count");
-    assert.equal(error.sealedRows, 14);
+    assert.equal(error.message, "sealed-credential inventory found 12 sealed rows, over its limit of 10; refusing to return an understated count");
+    assert.equal(error.sealedRows, 12);
     return true;
   });
 });

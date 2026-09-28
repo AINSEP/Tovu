@@ -89,6 +89,8 @@ const PRUNE_TABLES = [
   "site_assistant_credentials",
   "publish_credential_sets",
   "external_mcp_servers",
+  // Dropped by migration 0075; kept so a live DB that has not applied 0075 yet still has its sealed
+  // Composio key pruned rather than shipped (pruning skips tables that do not exist).
   "composio_config",
   "composio_connector_credentials",
   "vendor_credential_sets",

@@ -364,10 +364,10 @@ export function isJsonColumnName(sqlColumnName: string): boolean {
  * as `REVIEWED_INTEGER_ID_COLUMNS` above: this map IS the review, not a cache of one performed
  * elsewhere, so each entry carries its own rationale rather than being a bare name list.
  *
- * Found by the 2026-08-12 round-3 audit: `composio_config.auth_config_ids` is a JSON object per its
- * own schema.sqlite.ts doc comment ("a JSON object mapping connector id → Composio auth-config id"), but
- * neither its SQL name (`auth_config_ids` — no `_json` suffix) nor its TS name (`authConfigIds` — ends
- * `Ids`, not `Json`) matches the convention, so it silently classified `plain-text` and `verifyJsonText`
+ * Found by the 2026-08-12 round-3 audit: `composio_config.auth_config_ids` (a table since dropped by
+ * migration 0075) was a JSON object per its own doc comment, but neither its SQL name
+ * (`auth_config_ids` — no `_json` suffix) nor its TS name (`authConfigIds` — ends `Ids`, not `Json`)
+ * matched the convention, so it silently classified `plain-text` and `verifyJsonText`
  * never ran on it (see `classifyCoreColumn`'s `SQLiteText` case). Both of this schema's `_json`-scan
  * regression tests in `migration-manifest.test.ts` stayed green right alongside the gap, because both
  * read one of the two naming conventions this column fails on both sides of — see that file's own
@@ -390,11 +390,6 @@ export const REVIEWED_JSON_COLUMNS: Readonly<Record<string, { readonly rationale
     rationale:
       'the plugin extension-field bag, `{ [pluginId]: { ...fields } }` per schema.sqlite.ts\'s own doc comment on this ' +
       'column; defaults to the literal JSON object \'{}\', not an empty string',
-  },
-  "composio_config.auth_config_ids": {
-    rationale:
-      "a JSON object mapping connector id → Composio auth-config id, per schema.sqlite.ts's own table-header and " +
-      "column doc comments — the column this gap was originally found on",
   },
   "external_mcp_servers.args": {
     rationale: "a JSON array of argv strings for the federated MCP server's launch command, per schema.sqlite.ts's own doc comment",
