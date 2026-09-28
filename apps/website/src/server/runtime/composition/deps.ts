@@ -24,7 +24,8 @@ import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-
 import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
 import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
-import { SqlitePublishTrustRevocationStore } from "#src/platform/db/sqlite/publish-trust-revocations.sqlite";
+import { publishTrustRevocationStoreFor } from "#src/platform/db/repos/publish-trust-revocations";
+import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
@@ -716,13 +717,13 @@ function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSiteRo
 }
 
 /**
- * 2026-09-03 (complexity pass) — `overrides.workspaceId ?? resolveWorkspace({ db }).id`, hoisted
+ * 2026-09-03 (complexity pass) — `overrides.workspaceId ?? resolveWorkspace({ kernel }).id`, hoisted
  * for the same reason {@link assertOverridesPairedOrAbsent} is. CIC U-001 (Workspace-id
  * single-source-of-truth) still holds: this remains the sole `resolveWorkspace` call site: moving
  * it into its own function does not add a second one.
  */
-function resolveWorkspaceIdOverride(db: ContentDb, overrides?: Partial<CreateSiteRouteDepsOverrides>): string {
-  return overrides?.workspaceId ?? resolveWorkspace({ db }).id;
+async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<string> {
+  return overrides?.workspaceId ?? (await resolveWorkspace({ kernel })).id;
 }
 
 /**
@@ -810,8 +811,9 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
 
 /**
  * The site composition root: builds every `RouteDeps` service over the site's content database.
- * Async so storage opening can await (R1 plan); the body has no `await` yet, so it still runs to its
- * return synchronously and boot order is unchanged. Bad overrides reject rather than throw.
+ * Async so storage opening can await (R1 plan). Every `await` sits in the prelude (open → workspace →
+ * deny store → orphaned-chat check), before the body starts any fire-and-forget boot promise, so the
+ * body still runs to its return synchronously. Bad overrides reject rather than throw.
  */
 export async function createSiteRouteDeps(
   dbPath: string = defaultContentDbPath(),
@@ -832,6 +834,9 @@ export async function createSiteRouteDeps(
   hydrateContentDbIfNeeded(dbPath, overrides);
 
   const db = resolveOrOpenContentDb(dbPath, overrides);
+  // The one content kernel over `db` (the SQLite driver keeps one per connection), read by the
+  // prelude below and handed to boot modules as `deps.contentKernel`.
+  const kernel = contentKernel(db);
   // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
   // internal construction below that used to read the old seeded-workspace literal directly —
   // this is the sole `resolveWorkspace` call site in this function's call graph
@@ -841,7 +846,29 @@ export async function createSiteRouteDeps(
   // only), so both paths share one mechanism instead of two that could drift (REQ-06/REQ-10;
   // every existing seeded fixture has exactly one workspace row, so this is behavior-identical to
   // the old literal for every current caller — see CIC's Design Context).
-  const workspaceId = resolveWorkspaceIdOverride(db, overrides);
+  const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);
+  // Proves the deny store is readable before anything else is built: a missing or inaccessible
+  // table stops boot rather than making every disconnected publisher silently look connected.
+  const publishTrustRevocations = await publishTrustRevocationStoreFor(kernel);
+  // ADS-memory/reports/2026-09-05-db-split-scoping.md §6 — chat data lives in its own file,
+  // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
+  // erase) chat history" reason `databaseJournalDb` below is separate. No `mkdirSync` needed:
+  // `chat.db`'s directory is `dirname(dbPath)`, which `openContentDb` already required to exist.
+  // Opened here, in the prelude, so the orphaned-chat check below runs after it.
+  const chatDbPath = defaultChatDbPath(dbPath);
+  const chatDb = openChatDb(chatDbPath);
+  // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved
+  // the rows an already-deployed `content.db` was holding, and nothing anywhere reported that.
+  // Every such conversation is intact but unread, because the stores no longer look in that file.
+  // This counts them and prints one warning naming the counts and the migration script —
+  // read-only, and completely silent (one bounded `count(*)` per table) on the already-migrated
+  // boot. It deliberately does NOT migrate: `applyChatSplit` deletes from content.db after
+  // copying, and its own header requires a backup first — see `chat-orphan-check.ts`'s header for
+  // the rejected alternatives. A warning only: a failure is logged, never fatal.
+  await warnOnOrphanedChatRows({ contentDb: kernel, contentDbPath: dbPath, chatDbPath }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
+  });
   // Posts written before migration 0022 existed — and the demo content `openContentDb` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
   // `content_post_search` would not find them without an edit. Unconditional, and awaited by every
@@ -1348,25 +1375,6 @@ export async function createSiteRouteDeps(
   const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
   mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
   const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
-  // ADS-memory/reports/2026-09-05-db-split-scoping.md §6 — chat data lives in its own file,
-  // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
-  // erase) chat history" reason `databaseJournalDb` above is already separate. No `mkdirSync`
-  // needed: unlike `ops/`, `chat.db`'s directory is `dirname(dbPath)`, which `openContentDb`
-  // already required to exist.
-  const chatDbPath = defaultChatDbPath(dbPath);
-  const chatDb = openChatDb(chatDbPath);
-  // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved the
-  // rows an already-deployed `content.db` was holding, and nothing anywhere reported that. Every
-  // such conversation is intact but unread, because the stores no longer look in that file. This
-  // counts them and prints one warning naming the counts and the migration script — read-only, and
-  // completely silent (one bounded `count(*)` per table) on the already-migrated boot. It
-  // deliberately does NOT migrate: `applyChatSplit` deletes from content.db after copying, and its
-  // own header requires a backup first — see `chat-orphan-check.ts`'s header for the rejected
-  // alternatives. Not awaited: it only prints, and composition here is sync.
-  warnOnOrphanedChatRows({ contentDb: db, contentDbPath: dbPath, chatDbPath }).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
-  });
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
@@ -1864,10 +1872,8 @@ export async function createSiteRouteDeps(
     // see `platform/observability/index.ts`'s `createObservabilityPort` doc and `routes/types.ts`'s
     // `ObservabilityDeps` doc for the rule-of-two this mirrors.
     observability: createObservabilityPort(),
-    // Constructed over the same already-opened content.db that carries site content. Its
-    // constructor reads the table now, so a missing or inaccessible deny store stops boot rather
-    // than making every disconnected publisher silently look connected.
-    publishTrustRevocations: new SqlitePublishTrustRevocationStore(db),
+    // Built and probed in the prelude above, over the same content kernel that carries site content.
+    publishTrustRevocations,
     clock,
     idGen,
     // ADR-046 Phase 1 (final capability slice): analytics ingest buffer is durable — survives a
@@ -2008,6 +2014,7 @@ export async function createSiteRouteDeps(
     toolAttemptAuditSink: new SqliteToolAttemptAuditSink(db),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
+    contentKernel: kernel,
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
@@ -2200,7 +2207,7 @@ export async function createSiteRouteDepsForWorkspace(
     { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
     recoverIncompleteDataModuleMigrations
   );
-  const workspace = resolveWorkspace({ db }, { workspaceId: workspaceIdOverride });
+  const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
   return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, contentStoreRole });
 }
 

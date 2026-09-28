@@ -141,7 +141,10 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       owner: "features/plugins/store",
       criticality: "optional",
       prepare: async () => {
-        deps.store = await bootstrapStore(options.defaultContentDbPath());
+        if (deps.contentKernel === undefined) {
+          throw new Error("store-plugin: the composition root supplied no content kernel (deps.contentKernel)");
+        }
+        deps.store = await bootstrapStore({ kernel: deps.contentKernel, dbPath: options.defaultContentDbPath() });
       },
       start: noop,
       stop: noop,

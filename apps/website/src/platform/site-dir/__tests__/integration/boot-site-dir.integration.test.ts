@@ -71,10 +71,10 @@ function buildFixtureDir(opts: {
   return dir;
 }
 
-test("AC-08/REQ-06: bootSiteDir resolves workspaceId to the db's single actual row", () => {
+test("AC-08/REQ-06: bootSiteDir resolves workspaceId to the db's single actual row", async () => {
   const dir = buildFixtureDir({ workspaceRows: [{ id: "the-one-workspace", name: "Only", slug: "only", createdAt: "2026-01-01T00:00:00.000Z" }] });
   try {
-    const result = bootSiteDir({ dir });
+    const result = await bootSiteDir({ dir });
     assert.equal(result.workspaceId, "the-one-workspace");
     assert.equal(result.config.name, "Fixture Site");
   } finally {
@@ -82,7 +82,7 @@ test("AC-08/REQ-06: bootSiteDir resolves workspaceId to the db's single actual r
   }
 });
 
-test("B1: bootSiteDir with 2 workspace rows succeeds and resolves to the OLDEST by default (no more boot-bricking on a legitimately multi-workspace install)", () => {
+test("B1: bootSiteDir with 2 workspace rows succeeds and resolves to the OLDEST by default (no more boot-bricking on a legitimately multi-workspace install)", async () => {
   const dir = buildFixtureDir({
     workspaceRows: [
       { id: "ws-newer", name: "Newer", slug: "newer", createdAt: "2026-01-02T00:00:00.000Z" },
@@ -90,14 +90,14 @@ test("B1: bootSiteDir with 2 workspace rows succeeds and resolves to the OLDEST 
     ],
   });
   try {
-    const result = bootSiteDir({ dir });
+    const result = await bootSiteDir({ dir });
     assert.equal(result.workspaceId, "ws-older", "with no explicit selection, the oldest workspace must win");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("B1: bootSiteDir({ dir }, { workspaceId }) resolves to the explicitly named workspace even when it is not the oldest", () => {
+test("B1: bootSiteDir({ dir }, { workspaceId }) resolves to the explicitly named workspace even when it is not the oldest", async () => {
   const dir = buildFixtureDir({
     workspaceRows: [
       { id: "ws-older", name: "Older", slug: "older", createdAt: "2026-01-01T00:00:00.000Z" },
@@ -105,17 +105,17 @@ test("B1: bootSiteDir({ dir }, { workspaceId }) resolves to the explicitly named
     ],
   });
   try {
-    const result = bootSiteDir({ dir }, { workspaceId: "ws-newer" });
+    const result = await bootSiteDir({ dir }, { workspaceId: "ws-newer" });
     assert.equal(result.workspaceId, "ws-newer");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the id matches no workspace row", () => {
+test("B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the id matches no workspace row", async () => {
   const dir = buildFixtureDir();
   try {
-    assert.throws(
+    await assert.rejects(
       () => bootSiteDir({ dir }, { workspaceId: "does-not-exist" }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -128,10 +128,10 @@ test("B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the 
   }
 });
 
-test("AC-09/REQ-06: zero workspace rows -> SiteCorruptError", () => {
+test("AC-09/REQ-06: zero workspace rows -> SiteCorruptError", async () => {
   const dir = buildFixtureDir({ workspaceRows: [] });
   try {
-    assert.throws(
+    await assert.rejects(
       () => bootSiteDir({ dir }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -144,13 +144,13 @@ test("AC-09/REQ-06: zero workspace rows -> SiteCorruptError", () => {
   }
 });
 
-test("AC-06: site schemaVersion greater than the runtime's -> SiteNewerThanRuntimeError, content.db is not written", () => {
+test("AC-06: site schemaVersion greater than the runtime's -> SiteNewerThanRuntimeError, content.db is not written", async () => {
   const runtime = runtimeSchemaVersion();
   const dir = buildFixtureDir({ metaOverrides: { schemaVersion: runtime.index + 1, schemaTag: "a-future-tag" } });
   const dbPath = path.join(dir, "content.db");
   const statBefore = fs.statSync(dbPath);
   try {
-    assert.throws(
+    await assert.rejects(
       () => bootSiteDir({ dir }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -166,11 +166,11 @@ test("AC-06: site schemaVersion greater than the runtime's -> SiteNewerThanRunti
   }
 });
 
-test("RT-005/U-002-B1: equal schemaVersion index but a DIVERGENT schemaTag -> SiteNewerThanRuntimeError (not treated as compatible)", () => {
+test("RT-005/U-002-B1: equal schemaVersion index but a DIVERGENT schemaTag -> SiteNewerThanRuntimeError (not treated as compatible)", async () => {
   const runtime = runtimeSchemaVersion();
   const dir = buildFixtureDir({ metaOverrides: { schemaVersion: runtime.index, schemaTag: `${runtime.tag}-forked` } });
   try {
-    assert.throws(
+    await assert.rejects(
       () => bootSiteDir({ dir }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -183,12 +183,12 @@ test("RT-005/U-002-B1: equal schemaVersion index but a DIVERGENT schemaTag -> Si
   }
 });
 
-test("AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+schemaTag are bumped together, and a follow-up serve of the now-current site passes the guard cleanly (round-trip)", () => {
+test("AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+schemaTag are bumped together, and a follow-up serve of the now-current site passes the guard cleanly (round-trip)", async () => {
   const runtime = runtimeSchemaVersion();
   assert.ok(runtime.index > 0, "fixture assumption: at least 2 bundled migrations exist");
   const dir = buildFixtureDir({ metaOverrides: { schemaVersion: runtime.index - 1, schemaTag: "an-older-tag" } });
   try {
-    const first = bootSiteDir({ dir });
+    const first = await bootSiteDir({ dir });
     assert.equal(first.workspaceId, "ws-fixture");
 
     const metaAfterFirst = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
@@ -197,7 +197,7 @@ test("AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+
 
     // INV-05/AC-07 round trip: re-serving the now-current site with the same runtime must not
     // falsely trip SiteNewerThanRuntimeError.
-    const second = bootSiteDir({ dir });
+    const second = await bootSiteDir({ dir });
     assert.equal(second.workspaceId, "ws-fixture");
     const metaAfterSecond = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
     assert.equal(metaAfterSecond.schemaVersion, runtime.index);
@@ -207,7 +207,7 @@ test("AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+
   }
 });
 
-test("EC-07: an unknown .site-meta.json.templateId does not block serving — it is provenance only, and a warning is logged", () => {
+test("EC-07: an unknown .site-meta.json.templateId does not block serving — it is provenance only, and a warning is logged", async () => {
   const dir = buildFixtureDir({ metaOverrides: { templateId: "some-unknown-template-id" } });
   const originalWarn = console.warn;
   const warnCalls: unknown[][] = [];
@@ -215,7 +215,7 @@ test("EC-07: an unknown .site-meta.json.templateId does not block serving — it
     warnCalls.push(args);
   };
   try {
-    const result = bootSiteDir({ dir });
+    const result = await bootSiteDir({ dir });
     assert.equal(result.workspaceId, "ws-fixture", "EC-07: serve must still succeed despite the unknown templateId");
     assert.ok(warnCalls.length > 0, "EC-07: a warning must be logged for an unknown templateId");
     assert.ok(
@@ -228,7 +228,7 @@ test("EC-07: an unknown .site-meta.json.templateId does not block serving — it
   }
 });
 
-test("EC-05: content.db locked by another process -> SiteCorruptError-class failure naming the lock cause", () => {
+test("EC-05: content.db locked by another process -> SiteCorruptError-class failure naming the lock cause", async () => {
   const dir = buildFixtureDir();
   const dbPath = path.join(dir, "content.db");
 
@@ -249,7 +249,7 @@ test("EC-05: content.db locked by another process -> SiteCorruptError-class fail
   // multiple-rows SiteCorruptError (test passing for the wrong reason).
   locker.prepare("UPDATE workspaces SET name = name").run();
   try {
-    assert.throws(
+    await assert.rejects(
       () => bootSiteDir({ dir }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -268,7 +268,7 @@ test("EC-05: content.db locked by another process -> SiteCorruptError-class fail
   }
 });
 
-test("U-002-B2/U-002-ORD1: when the .site-meta.json stamp write is blocked (dir made read-only after migrate()-worthy content already exists), the OLD stamp survives byte-for-byte unchanged — never a torn write — and a later retry completes cleanly with both fields bumped together", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, () => {
+test("U-002-B2/U-002-ORD1: when the .site-meta.json stamp write is blocked (dir made read-only after migrate()-worthy content already exists), the OLD stamp survives byte-for-byte unchanged — never a torn write — and a later retry completes cleanly with both fields bumped together", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, async () => {
   const runtime = runtimeSchemaVersion();
   assert.ok(runtime.index > 0);
   const dir = buildFixtureDir({ metaOverrides: { schemaVersion: runtime.index - 1, schemaTag: "an-older-tag" } });
@@ -277,7 +277,7 @@ test("U-002-B2/U-002-ORD1: when the .site-meta.json stamp write is blocked (dir 
 
   fs.chmodSync(dir, 0o555); // blocks creating the temp file the atomic rename needs; content.db's OWN bytes remain writable (its permission bits are untouched by the dir's mode)
   try {
-    assert.throws(() => bootSiteDir({ dir }), "the stamp write must fail when the containing directory cannot accept a new temp-file entry");
+    await assert.rejects(() => bootSiteDir({ dir }), "the stamp write must fail when the containing directory cannot accept a new temp-file entry");
     fs.chmodSync(dir, 0o755); // restore before reading, in case the impl left a lingering handle
     const metaAfterFailedAttempt = fs.readFileSync(metaPath, "utf8");
     assert.equal(metaAfterFailedAttempt, originalMetaText, "U-002-ORD1: the stamp must be left completely unchanged (old version) — never partially bumped");
@@ -289,7 +289,7 @@ test("U-002-B2/U-002-ORD1: when the .site-meta.json stamp write is blocked (dir 
   // __drizzle_migrations journal), so re-running bootSiteDir must succeed cleanly and bump both
   // fields together this time.
   try {
-    const result = bootSiteDir({ dir });
+    const result = await bootSiteDir({ dir });
     assert.equal(result.workspaceId, "ws-fixture");
     const metaAfterRetry = JSON.parse(fs.readFileSync(metaPath, "utf8"));
     assert.equal(metaAfterRetry.schemaVersion, runtime.index);

@@ -298,7 +298,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
   // adopted or minted.
   await ensureSiteKeyForBoot({ siteDir: target, findKeyDependentData });
-  const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
+  const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   const port = resolveServePort(input, bootResult.config);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather

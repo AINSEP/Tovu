@@ -15,8 +15,8 @@ import type { ContentKernel } from "../content-kernel.js";
  * The site content database is the only backing store deliberately selected here. Its loss is
  * already a visible content-loss outage, so no host can accidentally turn a deploy into a silent
  * reconnect by forgetting to mount a second directory. {@link SqlPublishTrustRevocationStore.assertAvailable}
- * proves the table is readable; a composition root runs it while booting, before it can listen for
- * publishes (`sqlite/publish-trust-revocations.sqlite.ts` does it synchronously in its constructor).
+ * proves the table is readable; a composition root runs it while booting (through
+ * {@link publishTrustRevocationStoreFor}), before it can listen for publishes.
  *
  * `revoke`/`restore` read the list and write in one kernel transaction under
  * `lockKey("publish_trust_revocations")`, so the `MAX_REVOCATIONS` cap and the "already revoked"
@@ -25,8 +25,8 @@ import type { ContentKernel } from "../content-kernel.js";
 
 const LOCK_KEY = "publish_trust_revocations";
 
-/** The boot-time "deny store unreadable" error, shared with the SQLite subclass's synchronous probe. */
-export function publishTrustRevocationStoreUnavailable(error: unknown): Error {
+/** The boot-time "deny store unreadable" error. */
+function publishTrustRevocationStoreUnavailable(error: unknown): Error {
   return new Error(
     `publish trust revocation store is unavailable at boot: ${error instanceof Error ? error.message : "unknown error"}`
   );

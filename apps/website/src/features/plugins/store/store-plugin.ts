@@ -11,7 +11,7 @@
  * direct for the spike (a real build routes writes through the typed core repository, §7). Every
  * statement runs on the storage kernel (`kernel.run`), so the same code serves SQLite and Postgres.
  */
-import { openSqliteFileKernel } from "../../../platform/db/kernel/drivers/sqlite.js";
+import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import { declareDataModule, type DataModuleDecl } from "../data-module.js";
 import { type PluginStore, pluginKernel } from "../plugin-store.js";
 
@@ -171,17 +171,13 @@ export async function activateStore(
 }
 
 /**
- * Boot helper: activate the store on its own kernel over the site's SQLite file.
+ * Boot helper: activate the store on the site's own content kernel.
  *
- * A dedicated connection (`openSqliteFileKernel`) rather than the composition root's: the boot
- * module that calls this only has the file path (handing it the site's kernel is the async-boot
- * slice's job). That makes it a SEPARATE handle to the same `content.db` file the main connection
- * also writes to (Newsletter's and Comments' dataModule declares, settings/SEO seeding, …), so it
- * relies on the file kernel's `busy_timeout` (SPEC-033): without one, a transient lock held by one of
- * those writers throws `SQLITE_BUSY` ("database is locked") at once instead of retrying — caught via
- * a live multi-boot smoke test after ADR-046 Phase 2's boot-lifecycle reordering. WAL is already set
- * on the file by the main connection (`openContentDb`), and it is persistent.
+ * The composition root's kernel, not a second connection to the same file: every writer at boot
+ * (Newsletter's and Comments' dataModule declares, settings/SEO seeding, this store) takes turns on
+ * that one connection, so none of them can hit `SQLITE_BUSY` from another handle's transient lock.
+ * `dbPath` names the file behind the kernel, for the declaration's snapshot.
  */
-export async function bootstrapStore(dbPath: string): Promise<StoreApi> {
-  return activateStore({ db: openSqliteFileKernel(dbPath), dbPath });
+export async function bootstrapStore(required: { kernel: ContentKernel; dbPath: string }): Promise<StoreApi> {
+  return activateStore({ db: required.kernel, dbPath: required.dbPath });
 }

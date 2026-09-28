@@ -4,6 +4,7 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
 import type { ExportReport } from "#src/features/site-export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
@@ -1211,6 +1212,11 @@ export interface DatabaseOpsDeps {
    * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
    * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
   migrationRunsRepo: MigrationRunsRepoPort;
+  /** R1b — the site's content kernel (the one open content database), for boot modules that
+   * declare plugin tables on it (`store-plugin` in `runtime/boot/bootstrap.ts`) instead of opening
+   * a second connection to the same file. Set only by `server/deps.ts`; `server/app.ts`'s hermetic
+   * composition has no content database. */
+  contentKernel?: ContentKernel;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
    * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
    * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory

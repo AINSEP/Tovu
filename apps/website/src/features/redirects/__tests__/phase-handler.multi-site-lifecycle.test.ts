@@ -101,7 +101,7 @@ async function bootSite(t: TestContext, name: string): Promise<BootedSite> {
   const dir = path.join(parent, "site");
   initSite({ dir, name });
 
-  const boot = bootSiteDir({ dir });
+  const boot = await bootSiteDir({ dir });
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,

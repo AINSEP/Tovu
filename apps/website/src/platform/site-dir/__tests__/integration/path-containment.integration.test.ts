@@ -83,7 +83,7 @@ test("U-004-B1 (symlink at the target): every file initSite creates lands inside
   }
 });
 
-test("U-004-B1 (symlink at the target, serve path): bootSiteDir's .site-meta.json stamp update lands at the symlink's real destination, never beside the symlink", () => {
+test("U-004-B1 (symlink at the target, serve path): bootSiteDir's .site-meta.json stamp update lands at the symlink's real destination, never beside the symlink", async () => {
   const root = mkTempRoot();
   const realDestinationParent = mkTempRoot();
   const realDestination = path.join(realDestinationParent, "real-site-location");
@@ -112,7 +112,7 @@ test("U-004-B1 (symlink at the target, serve path): bootSiteDir's .site-meta.jso
   fs.symlinkSync(realDestination, symlinkPath, "dir");
 
   try {
-    const result = bootSiteDir({ dir: symlinkPath });
+    const result = await bootSiteDir({ dir: symlinkPath });
     assert.equal(result.workspaceId, "ws-symlink");
 
     const metaAtRealDestination = JSON.parse(fs.readFileSync(path.join(realDestination, ".site-meta.json"), "utf8"));

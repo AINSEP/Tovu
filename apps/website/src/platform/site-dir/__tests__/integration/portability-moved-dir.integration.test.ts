@@ -28,12 +28,12 @@ function mkTempParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-portability-"));
 }
 
-test("AC-10/REQ-08: an initialized, served install dir behaves identically after being moved to a new absolute path, and no install-dir file contains the OLD absolute path", () => {
+test("AC-10/REQ-08: an initialized, served install dir behaves identically after being moved to a new absolute path, and no install-dir file contains the OLD absolute path", async () => {
   const parentA = mkTempParent();
   const originalDir = path.join(parentA, "site-original-location");
 
   const initResult = initSite({ dir: originalDir, name: "Movable Site" });
-  const firstBoot = bootSiteDir({ dir: originalDir });
+  const firstBoot = await bootSiteDir({ dir: originalDir });
   assert.equal(firstBoot.config.name, "Movable Site");
   firstBoot.db.$client.close();
 
@@ -42,7 +42,7 @@ test("AC-10/REQ-08: an initialized, served install dir behaves identically after
   fs.renameSync(originalDir, movedDir);
 
   try {
-    const secondBoot = bootSiteDir({ dir: movedDir });
+    const secondBoot = await bootSiteDir({ dir: movedDir });
     try {
       assert.equal(secondBoot.workspaceId, firstBoot.workspaceId, "AC-10: the resolved workspace id must be unchanged after a move");
       assert.equal(secondBoot.config.name, "Movable Site", "AC-10: config content must be unchanged after a move");

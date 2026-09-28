@@ -64,6 +64,7 @@ import path from "node:path";
 
 import type { IdentityRepos } from "@jini-ai/cms/identity";
 
+import { contentKernel } from "../../apps/website/src/platform/db/content-kernel.js";
 import { openContentDb, openContentDbReadOnly } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
@@ -139,7 +140,7 @@ async function main(): Promise<void> {
   // header for why this exact call site needed it). Only `--apply` gets the read-write, migrating
   // open; every dry run opens strictly read-only.
   const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
-  const workspaceId = resolveWorkspace({ db }).id;
+  const workspaceId = (await resolveWorkspace({ kernel: contentKernel(db) })).id;
 
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };

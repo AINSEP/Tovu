@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
@@ -50,7 +51,8 @@ export interface BootSiteDirResult {
  * @param required.dir - the install dir path; resolved once (CIC U-004) into `target`.
  * @param options.workspaceId - when supplied, resolve exactly this workspace id instead of the
  *   default (oldest) — threaded from `tovu serve --workspace <id>`.
- * @returns `{ db, workspaceId, config }` — `db` is the one open, migrated content.db handle;
+ * @returns (as a promise; every failure below is a rejection) `{ db, workspaceId, config }` —
+ *   `db` is the one open, migrated content.db handle;
  *   `cli/commands/serve.ts` passes it straight to `createSiteRouteDeps`'s `overrides` (no
  *   second db is ever opened for the same boot).
  * @throws {SiteDirInvalidError} `config.json`/`.site-meta.json` invalid (via `readSiteDir`), or
@@ -64,7 +66,7 @@ export interface BootSiteDirResult {
  *   SELECT per call; not a function of any caller-controlled collection.
  * @overallScore 100
  */
-export function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirOptions = {}): BootSiteDirResult {
+export async function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirOptions = {}): Promise<BootSiteDirResult> {
   const { dir } = required;
   const target = resolveInstallDirTarget(dir);
 
@@ -100,7 +102,7 @@ export function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirO
 
     // BR-05 step 6 / CIC U-002-ORD2: workspace resolution is the final gate before the caller
     // may bind a listener — this must run AFTER the stamp write above, not before.
-    const workspace = resolveWorkspace({ db }, { workspaceId: options.workspaceId });
+    const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: options.workspaceId });
 
     // EC-07: an unrecognized templateId is provenance-only — warn, never block serving.
     if (meta.templateId !== "starter") {

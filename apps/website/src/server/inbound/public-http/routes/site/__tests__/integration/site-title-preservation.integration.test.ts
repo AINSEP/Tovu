@@ -119,7 +119,7 @@ function publishPricingPage(deps: RouteDeps): void {
  * any step of its chained boot registrations has run.
  */
 async function bootSite(t: TestContext, dir: string, beforeBootChain?: (deps: RouteDeps) => void): Promise<BootedSite> {
-  const boot = bootSiteDir({ dir });
+  const boot = await bootSiteDir({ dir });
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,

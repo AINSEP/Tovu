@@ -14,6 +14,9 @@ import test from "node:test";
  *  - `deps.ts` `createSiteRouteDeps`: hydrate → open, and the open carries the crash-recovery hook
  *    (`openContentDb` runs that hook before Drizzle migrations; behaviour proven by
  *    `platform/db/sqlite/__tests__/content-db-recovery.integration.test.ts`).
+ *  - `deps.ts` `createSiteRouteDeps` prelude (R1b): open → `await` workspace → `await` deny-store
+ *    probe → chat.db open → `await` orphaned-chat check, all before the body starts its first fire-and-forget boot
+ *    promise (`backfillPostSearchIndex`), so no boot promise interleaves with a prelude await.
  *
  * Source assertions, like `serving-app-boot-wiring.unit.test.ts`: `index.ts` boots a real server and
  * cannot be imported by a test.
@@ -62,4 +65,23 @@ test("createSiteRouteDeps: hydration runs before the open, and the open carries 
 
   const opener = functionBody(deps, "function resolveOrOpenContentDb(");
   assert.match(opener, /openContentDb\([\s\S]*recoverIncompleteDataModuleMigrations\s*\)/);
+});
+
+test("createSiteRouteDeps prelude: open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise", () => {
+  const body = functionBody(readCode("server/runtime/composition/deps.ts"), "export async function createSiteRouteDeps(");
+  const open = indexOfAnchor(body, "resolveOrOpenContentDb(dbPath, overrides)");
+  const kernel = indexOfAnchor(body, "const kernel = contentKernel(db)");
+  const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
+  const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
+  const chatOpen = indexOfAnchor(body, "const chatDb = openChatDb(chatDbPath)");
+  const orphanCheck = indexOfAnchor(body, "await warnOnOrphanedChatRows(");
+  const firstBootPromise = indexOfAnchor(body, "backfillPostSearchIndex(db)");
+  assert.ok(open < kernel && kernel < workspace, "the workspace is read on the kernel of the opened database");
+  assert.ok(workspace < denyStore, "the deny store is probed after the workspace resolves");
+  assert.ok(denyStore < chatOpen, "chat.db opens after the deny store probe");
+  assert.ok(chatOpen < orphanCheck, "the orphaned-chat check runs after chat.db is opened");
+  assert.ok(orphanCheck < firstBootPromise, "every prelude await must finish before the body starts a boot promise");
+  // Top-level (two-space indented) awaits only: nested async closures in the body may await freely.
+  const topLevelAwaits = body.slice(firstBootPromise).match(/^  (const [^=]+= )?await\b/gm) ?? [];
+  assert.equal(topLevelAwaits.length, 0, "the body after the prelude must not await at its top level");
 });

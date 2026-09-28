@@ -1,5 +1,4 @@
-import type { ContentDb } from "../db/sqlite/content-db.js";
-import { workspaces } from "../db/schema.sqlite.js";
+import type { ContentKernel } from "../db/content-kernel.js";
 import type { WorkspaceRecord } from "../../features/workspace/index.js";
 import { SiteCorruptError, ValidationError } from "./errors.js";
 
@@ -21,11 +20,12 @@ import { SiteCorruptError, ValidationError } from "./errors.js";
  * (B1 fix — a >1-row content.db used to be treated as corruption; it no longer is).
  *
  * Architectural role:
- * `site-dir` domain logic. Pure read (one SELECT), no imports from `cli/**` or `express`.
+ * `site-dir` domain logic. Pure read (one SELECT on the content kernel, any dialect), no imports
+ * from `cli/**` or `express`.
  */
 
 export interface ResolveWorkspaceRequired {
-  db: ContentDb;
+  kernel: ContentKernel;
 }
 
 export interface ResolveWorkspaceOptions {
@@ -36,10 +36,10 @@ export interface ResolveWorkspaceOptions {
 /**
  * Resolve which workspace row a content.db's boot/serve path should use.
  *
- * @param required.db - an already-open content.db handle.
+ * @param required.kernel - the site's content kernel (an already-open content database).
  * @param options.workspaceId - when supplied, resolve exactly this workspace id; otherwise the
  *   oldest row (by `createdAt`, ties broken by `id`) is returned.
- * @returns the resolved `WorkspaceRecord`.
+ * @returns the resolved `WorkspaceRecord` (as a promise; failures below are rejections).
  * @throws {SiteCorruptError} the `workspaces` table has zero rows.
  * @throws {ValidationError} `options.workspaceId` was supplied but matches no row.
  * @complexity O(n log n) in the row count, only to break ties deterministically when no id is
@@ -47,9 +47,12 @@ export interface ResolveWorkspaceOptions {
  *   collection.
  * @overallScore 100
  */
-export function resolveWorkspace(required: ResolveWorkspaceRequired, options: ResolveWorkspaceOptions = {}): WorkspaceRecord {
-  const { db } = required;
-  const rows = db.select().from(workspaces).all();
+export async function resolveWorkspace(
+  required: ResolveWorkspaceRequired,
+  options: ResolveWorkspaceOptions = {}
+): Promise<WorkspaceRecord> {
+  const selected = await required.kernel.run((db) => db.selectFrom("workspaces").selectAll().execute());
+  const rows: WorkspaceRecord[] = selected.map((row) => ({ id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at }));
 
   if (rows.length === 0) {
     throw new SiteCorruptError("resolveWorkspace: the content.db has zero workspace rows (expected at least one)");

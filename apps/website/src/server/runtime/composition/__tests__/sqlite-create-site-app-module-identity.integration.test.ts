@@ -86,7 +86,7 @@ async function bootSqliteSite(t: TestContext): Promise<NewsletterRouteDeps> {
   const dir = path.join(parent, "site");
   initSite({ dir, name: "Module Identity Site" });
 
-  const boot = bootSiteDir({ dir });
+  const boot = await bootSiteDir({ dir });
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,

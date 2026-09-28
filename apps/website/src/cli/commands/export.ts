@@ -131,7 +131,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
   registerPluginSdkResolver();
 
   const target = resolveInstallDirTarget(input.dir);
-  const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
+  const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
 
   const dbPath = path.join(target, "content.db");
   const routeDeps = await createSiteRouteDeps(dbPath, {

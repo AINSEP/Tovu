@@ -14,7 +14,8 @@ import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/provisioning"
 import type { KeyringPort } from "#src/features/webhooks/index";
 import { publishTrustRevocations } from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlitePublishTrustRevocationStore } from "#src/platform/db/sqlite/publish-trust-revocations.sqlite";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "#src/platform/db/repos/publish-trust-revocations";
 import { createApp } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
@@ -163,7 +164,7 @@ test("a database disconnect refuses the next real publish request even with its 
     process.env[PUBLISH_TRUST_ENV_VAR] = grantDocument(key.publicKeyB64u);
     deps = await createSiteRouteDeps(join(dir, "content.db"), { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") });
     deps.siteAssistantSecretKeyring = testKeyring(SOURCE_ROOT);
-    assert.ok(deps.publishTrustRevocations instanceof SqlitePublishTrustRevocationStore);
+    assert.ok(deps.publishTrustRevocations instanceof SqlPublishTrustRevocationStore);
 
     server = createServer(createApp(deps));
     const socketPath = join(dir, "publish-trust.sock");
@@ -202,8 +203,8 @@ test("the SQLite deny store fails loudly at boot when its migration table is una
   const { dir, db } = await copiedContentDb();
   try {
     db.$client.exec("DROP TABLE publish_trust_revocations");
-    assert.throws(
-      () => new SqlitePublishTrustRevocationStore(db),
+    await assert.rejects(
+      publishTrustRevocationStoreFor(contentKernel(db)),
       /publish trust revocation store is unavailable at boot/i
     );
   } finally {
@@ -216,13 +217,13 @@ test("a disconnect row survives reopening the copied site content database", asy
   const { dir, db } = await copiedContentDb();
   let reopened: ContentDb | undefined;
   try {
-    const store = new SqlitePublishTrustRevocationStore(db);
+    const store = await publishTrustRevocationStoreFor(contentKernel(db));
     const written = await store.revoke({ sourceInstallationId: SOURCE_INSTALL, nowIso: NOW, note: "lost device" });
     assert.equal(written.ok, true, written.ok ? "" : written.reason);
     db.$client.close();
 
     reopened = openContentDb(join(dir, "content.db"));
-    const reread = await new SqlitePublishTrustRevocationStore(reopened).list();
+    const reread = await (await publishTrustRevocationStoreFor(contentKernel(reopened))).list();
     assert.deepEqual(reread, {
       ok: true,
       revocations: [{ sourceInstallationId: SOURCE_INSTALL, revokedAt: NOW, note: "lost device" }],
