@@ -154,3 +154,20 @@ test("resolveAgentPluginPromptPrefix fails the run closed (via the REAL lifecycl
   const status = await lifecycle.get(run.id);
   assert.equal(status?.state, "failed");
 });
+
+test("resolveAgentPluginPromptPrefix tells the user why the run could not start (an error event before end)", async () => {
+  const { lifecycle, run } = await newRealLifecycleWithRun();
+
+  await resolveAgentPluginPromptPrefix(run, ["not-a-real-installed-plugin-id"], lifecycle, WORKSPACE_ID);
+
+  const kinds: string[] = [];
+  const errors: unknown[] = [];
+  await lifecycle.stream(run.id, (event) => {
+    kinds.push(event.kind);
+    if (event.kind === "error") errors.push(event.payload);
+  });
+  assert.deepEqual(kinds.slice(-2), ["error", "end"]);
+  assert.deepEqual(errors, [
+    { message: "The assistant could not start: a selected Agent Plugin could not be loaded. Remove it from the message or reinstall it, then send again." },
+  ]);
+});

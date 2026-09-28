@@ -101,7 +101,13 @@ import {
   shouldClearSessionOnFailedResume,
   wouldForcedColdStartLoseConversationContext,
 } from "./agent-session-resume.js";
-import { createLiveRunTracker } from "./agent-run-concurrency.js";
+import {
+  CONCURRENT_RUN_REFUSAL_MESSAGE,
+  createLiveRunTracker,
+  failRunBeforeStart,
+  STOPPING_RUN_WAIT_MS,
+  waitForStoppingRuns,
+} from "./agent-run-concurrency.js";
 import {
   agentAcceptsHostMintedSessionId,
   resolveHostMintedSessionId,
@@ -695,7 +701,7 @@ async function resolveAttachmentRunFields(
   if (!attachmentStore) {
     // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run, not the
     // process, if it somehow is.
-    void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: attachments are not ready yet. Send again in a moment.");
     console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
     return null;
   }
@@ -733,7 +739,7 @@ async function resolveAttachmentRunFields(
     // integrity check failure) would otherwise get a confusing answer about content the agent never
     // looked at, with nothing explaining why.
     const message = error instanceof Error ? error.message : String(error);
-    void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: an attached file could not be read. Attach it again, then send.");
     console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
     return null;
   }
@@ -775,7 +781,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     conversationId = decoded.conversationId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+    void failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: the request was malformed. Reload the page, then send again.");
     console.error(`[agent-daemon] run ${run.id}: malformed contextRef`, message);
     return;
   }
@@ -936,6 +942,17 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // deliberately NOT happening.
         const storedSessionId =
           conversationId !== undefined ? await routeDeps.agentSessions.getSessionId(conversationId, agentId) : null;
+        // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message
+        // sent right after Stop resumes the session instead of being refused (2026-09-27).
+        if (conversationId !== undefined) {
+          await waitForStoppingRuns({
+            tracker: liveRunTracker,
+            lifecycle: runLifecycle,
+            conversationId,
+            runId: run.id,
+            timeoutMs: STOPPING_RUN_WAIT_MS,
+          });
+        }
         // The H2 fix: refusing to resume when another run for this conversation is already live
         // means at most one process ever holds `--resume <id>` for that CLI session at a time,
         // closing the two-live-`--resume`-processes-on-one-transcript-file hazard even though the
@@ -958,7 +975,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
             carriesOwnMemory: agentCarriesOwnMemory(agentId),
           })
         ) {
-          void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+          await failRunBeforeStart(runLifecycle, run.id, CONCURRENT_RUN_REFUSAL_MESSAGE);
           console.error(
             `[agent-daemon] run ${run.id}: refused — conversation "${conversationId}" has a live concurrent run holding agent "${agentId}"'s resumable session, and this agent carries its own memory; starting cold would silently drop conversation history`,
           );

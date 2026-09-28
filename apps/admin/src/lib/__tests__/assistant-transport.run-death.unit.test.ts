@@ -99,6 +99,31 @@ describe("terminalOutcomeNotice", () => {
 });
 
 describe("subscribeToRun — a run that dies without answering", () => {
+  test("a run that failed before it started shows and saves the daemon's plain reason, then says nothing ran", async () => {
+    // Before this, a pre-spawn failure (the daemon's failBeforeSpawn, or the host refusing a run)
+    // showed only "Run failed — the agent process exited without answering", which was not even true:
+    // no process ever started, and the reason stayed in the server log.
+    const h = handlers();
+    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
+    const source = FakeEventSource.instances[0]!;
+
+    source.emit(
+      "error",
+      JSON.stringify({ runId: "run-1", kind: "error", payload: { message: 'The assistant could not start: unknown agentId "nope"' } }),
+    );
+    source.emit("end", endFrame({ status: "failed", code: null, signal: null, resumable: false }));
+
+    expect(h.done).toEqual([
+      { kind: "status", label: 'The assistant could not start: unknown agentId "nope"' },
+      {
+        kind: "status",
+        label: "Run failed before the agent started",
+        detail: "Nothing ran, so there is no exit code. The reason, when there is one, is shown above.",
+      },
+    ]);
+    expect(h.errors.map((error) => error.message)).toEqual(['The assistant could not start: unknown agentId "nope"', "The run failed before the agent started."]);
+  });
+
   test("forwards the agent CLI's stderr instead of dropping it", async () => {
     const h = handlers();
     await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);

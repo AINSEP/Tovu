@@ -17,6 +17,8 @@ import type { RunStartHandler } from "@jini-ai/http-kit";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
 
+import { failRunBeforeStart } from "./agent-run-concurrency.js";
+
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
 /**
@@ -46,7 +48,11 @@ export async function resolveAgentPluginPromptPrefix(
     // unresolvable attachment: a pinned plugin the operator explicitly selected silently not
     // reaching the agent would be a confusing "why didn't it use what I picked" failure, worse
     // than an explicit, loud one.
-    void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+    await failRunBeforeStart(
+      runLifecycle,
+      run.id,
+      "The assistant could not start: a selected Agent Plugin could not be loaded. Remove it from the message or reinstall it, then send again.",
+    );
     console.error(`[agent-daemon] run ${run.id}: Agent Plugin resolution failed`, result.reason);
     return null;
   }

@@ -196,6 +196,20 @@ export interface TerminalOutcome {
  * throwing: this runs inside an `EventSource` listener whose other job is to END the run, and a
  * throw there would strand the pane mid-turn over a cosmetic detail.
  */
+/**
+ * Whether a failed run never started a process: no exit code, no signal, not resumable. That is the
+ * exact end the daemon's `failBeforeSpawn` and the host's own start refusals write, and a process
+ * that did run always exits with a code or a signal.
+ */
+function neverStarted(outcome: TerminalOutcome): boolean {
+  return outcome.status === "failed" && outcome.code === "none" && outcome.signal === "none" && outcome.resumable === "no";
+}
+
+/** The saved line for a run that failed before a process started. Its reason, when the daemon or the
+ *  host gave one, arrives just before as an `error` frame and is shown above this line. */
+export const RUN_NEVER_STARTED_LABEL = "Run failed before the agent started";
+export const RUN_NEVER_STARTED_DETAIL = "Nothing ran, so there is no exit code. The reason, when there is one, is shown above.";
+
 export function readTerminalOutcome(raw: string | undefined): TerminalOutcome | null {
   if (!raw) return null;
   let payload: Record<string, unknown>;
@@ -240,6 +254,8 @@ export function terminalOutcomeNotice(raw: string | undefined): AgentEvent | nul
   const outcome = readTerminalOutcome(raw);
   if (!outcome) return null;
   const { status, code, signal, resumable } = outcome;
+  // "exited without answering" would be false here: no process ever ran.
+  if (neverStarted(outcome)) return { kind: "status", label: RUN_NEVER_STARTED_LABEL, detail: RUN_NEVER_STARTED_DETAIL };
   return {
     kind: "status",
     label: status === "canceled" ? "Run canceled" : "Run failed \u2014 the agent process exited without answering",
@@ -288,6 +304,7 @@ export function terminalOutcomeNotice(raw: string | undefined): AgentEvent | nul
 export function terminalFailureError(raw: string | undefined): Error | null {
   const outcome = readTerminalOutcome(raw);
   if (!outcome || outcome.status !== "failed") return null;
+  if (neverStarted(outcome)) return new Error("The run failed before the agent started.");
   return new Error(
     `The agent process exited without answering (exit code ${outcome.code}, signal ${outcome.signal}, resumable ${outcome.resumable}).`,
   );
@@ -458,9 +475,13 @@ export function translateRunFrame(kind: string, raw: string | undefined): RunFra
       // The agent CLI's own output. `stderr` is where a dying CLI says WHY it is dying.
       return { events: chunkEvent(raw) };
     case "error": {
+      // Shown AND saved as a status line, not only reported: the error is live-only state, so without
+      // the event the saved turn (and a reload) showed a bare "failed" with the reason lost. This is
+      // where the daemon's plain pre-spawn reason ("The assistant could not start: ...") and the
+      // host's start refusals reach the user.
       const frame = parseWire(raw);
-      const message = asString((frame?.payload as { message?: unknown } | null)?.message);
-      return { events: [], error: new Error(message || "agent run failed") };
+      const message = asString((frame?.payload as { message?: unknown } | null)?.message) || "agent run failed";
+      return { events: [{ kind: "status", label: message }], error: new Error(message) };
     }
     case "end":
       return endOutcome(raw);

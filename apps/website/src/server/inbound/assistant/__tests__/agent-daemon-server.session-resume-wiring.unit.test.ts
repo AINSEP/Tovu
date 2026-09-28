@@ -191,10 +191,12 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     // run as failed and return, exactly like the malformed-contextRef and attachment-claim-failure
     // guards earlier in this same handler — never let agentExecutor.run be reached in this branch.
     const refusalBlock = onStartedSource.slice(decisionCallIndex, runCallIndex);
+    // `failRunBeforeStart` (agent-run-concurrency.ts) finishes the run failed, after putting the plain
+    // reason on its stream (2026-09-27). Its own unit test pins that it always finishes.
     assert.match(
       refusalBlock,
-      /runLifecycle\.finish\(\{\s*runId:\s*run\.id,\s*status:\s*"failed"/,
-      "the refusal branch must finish the run as failed, the same pattern every other pre-flight guard in onStarted already uses",
+      /failRunBeforeStart\(runLifecycle,\s*run\.id,/,
+      "the refusal branch must finish the run as failed, through failRunBeforeStart so the user also sees why",
     );
     assert.match(refusalBlock, /\breturn\s*;/, "the refusal branch must return before falling through to agentExecutor.run");
   });
@@ -214,6 +216,23 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
       onStartedSource,
       /resolveResumeSessionField\(effectiveResumeSessionId\)/,
       "agentExecutor.run must be handed the gated effectiveResumeSessionId, not the raw storedSessionId, or H2's own concurrency guard would be defeated",
+    );
+  });
+});
+
+describe("Send right after Stop — wait for the stopped run, and say why when refusing", () => {
+  test("waits for a stopped run on the same chat before deciding whether another run holds the session", () => {
+    const waitIndex = onStartedSource.indexOf("await waitForStoppingRuns({");
+    assert.ok(waitIndex > -1, "onStarted must wait for a run the user stopped (it takes seconds to exit) before the concurrency check, or a send right after Stop is refused in 0.1 s");
+    const hasConcurrentIndex = onStartedSource.indexOf("const hasConcurrentLiveRun =");
+    assert.ok(hasConcurrentIndex > -1, "this test's own anchor (the hasConcurrentLiveRun declaration) must still exist verbatim");
+    assert.ok(waitIndex < hasConcurrentIndex, "the wait must come before liveRunTracker.hasConcurrentLiveRun is read");
+  });
+
+  test("the concurrent-run refusal puts its plain reason on the run's stream", () => {
+    assert.ok(
+      onStartedSource.includes("await failRunBeforeStart(runLifecycle, run.id, CONCURRENT_RUN_REFUSAL_MESSAGE);"),
+      "the refusal must go through failRunBeforeStart so the user sees why, not a bare runLifecycle.finish",
     );
   });
 });

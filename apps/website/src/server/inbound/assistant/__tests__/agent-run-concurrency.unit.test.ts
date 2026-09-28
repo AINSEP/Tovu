@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
-import { createLiveRunTracker } from "../agent-run-concurrency.js";
+import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns } from "../agent-run-concurrency.js";
 
 /**
  * @file H2 regression cover for `createLiveRunTracker`. Before this tracker existed, nothing
@@ -67,5 +67,114 @@ describe("createLiveRunTracker", () => {
 
     const trackerAfterRestart = createLiveRunTracker();
     assert.equal(trackerAfterRestart.hasConcurrentLiveRun("conv-1", "run-a"), false);
+  });
+});
+
+/**
+ * Send right after Stop (2026-09-27, `ADS-memory/reports/2026-09-27-chat-silent-gaps.md`): the
+ * stopped CLI turn takes seconds to exit, so the next run saw it still live, and a memory-carrying
+ * agent's run was refused in 0.1 s. The new run now waits for a run that is being stopped.
+ */
+describe("waitForStoppingRuns", () => {
+  function fakeLifecycle() {
+    const cancelled = new Set<string>();
+    const ends = new Map<string, () => void>();
+    const ended = new Map<string, Promise<void>>();
+    return {
+      cancel(runId: string) {
+        cancelled.add(runId);
+      },
+      end(runId: string) {
+        ends.get(runId)?.();
+      },
+      onCancelRequested(runId: string, listener: () => void) {
+        if (cancelled.has(runId)) listener();
+        return () => undefined;
+      },
+      waitForTerminal(runId: string) {
+        let promise = ended.get(runId);
+        if (!promise) {
+          promise = new Promise<void>((resolve) => ends.set(runId, resolve));
+          ended.set(runId, promise);
+        }
+        return promise;
+      },
+    };
+  }
+
+  test("waits for a run the user stopped to end, then no longer counts it as live", async () => {
+    const tracker = createLiveRunTracker();
+    const lifecycle = fakeLifecycle();
+    tracker.register("conv-1", "old");
+    tracker.register("conv-1", "new");
+    lifecycle.cancel("old");
+
+    let settled = false;
+    const waiting = waitForStoppingRuns({ tracker, lifecycle, conversationId: "conv-1", runId: "new", timeoutMs: 5_000 }).then(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(settled, false, "must wait while the stopped run is still exiting");
+
+    lifecycle.end("old");
+    await waiting;
+    assert.equal(tracker.hasConcurrentLiveRun("conv-1", "new"), false);
+  });
+
+  test("does not wait for a live run nobody stopped", async () => {
+    const tracker = createLiveRunTracker();
+    const lifecycle = fakeLifecycle();
+    tracker.register("conv-1", "other-tab");
+    tracker.register("conv-1", "new");
+
+    await waitForStoppingRuns({ tracker, lifecycle, conversationId: "conv-1", runId: "new", timeoutMs: 60_000 });
+    assert.equal(tracker.hasConcurrentLiveRun("conv-1", "new"), true);
+  });
+
+  test("gives up after the timeout when the stopped run never ends", async () => {
+    const tracker = createLiveRunTracker();
+    const lifecycle = fakeLifecycle();
+    tracker.register("conv-1", "old");
+    tracker.register("conv-1", "new");
+    lifecycle.cancel("old");
+
+    await waitForStoppingRuns({ tracker, lifecycle, conversationId: "conv-1", runId: "new", timeoutMs: 20 });
+    assert.equal(tracker.hasConcurrentLiveRun("conv-1", "new"), true);
+  });
+});
+
+describe("failRunBeforeStart", () => {
+  test("puts the plain reason on the run's stream before finishing it failed", async () => {
+    const calls: unknown[] = [];
+    const lifecycle = {
+      async emit(runId: string, input: unknown) {
+        calls.push(["emit", runId, input]);
+      },
+      async finish(input: unknown) {
+        calls.push(["finish", input]);
+      },
+    };
+
+    await failRunBeforeStart(lifecycle, "run-1", CONCURRENT_RUN_REFUSAL_MESSAGE);
+
+    assert.deepEqual(calls, [
+      ["emit", "run-1", { event: "error", data: { message: "The assistant could not start: another answer in this chat is still running. Wait for it to finish, or stop it, then send again." } }],
+      ["finish", { runId: "run-1", status: "failed", code: null, signal: null, resumable: false }],
+    ]);
+  });
+
+  test("still finishes the run when the stream refuses the event", async () => {
+    const finished: unknown[] = [];
+    const lifecycle = {
+      async emit() {
+        throw new Error("run already terminal");
+      },
+      async finish(input: unknown) {
+        finished.push(input);
+      },
+    };
+
+    await failRunBeforeStart(lifecycle, "run-1", "why");
+    assert.deepEqual(finished, [{ runId: "run-1", status: "failed", code: null, signal: null, resumable: false }]);
   });
 });
