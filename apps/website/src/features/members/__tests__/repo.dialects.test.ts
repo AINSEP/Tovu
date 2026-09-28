@@ -3,8 +3,8 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { memberRepoFor, memberTierRepoFor } from "../repo.js";
-import type { MemberRecord, MemberTierRecord } from "../types.js";
+import { memberRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
+import type { MemberRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
 
 /**
  * @file The members repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE
@@ -64,8 +64,27 @@ function tier(id: string, slug: string, overrides: Partial<MemberTierRecord> = {
   };
 }
 
+function subscription(id: string, overrides: Partial<MemberSubscriptionRecord> = {}): MemberSubscriptionRecord {
+  return {
+    id,
+    workspaceId: WS,
+    memberId: "m1",
+    tierId: "t1",
+    status: "active",
+    source: "manual",
+    externalRef: "ext-1",
+    startedAt: T0,
+    currentPeriodEnd: "2027-01-01T00:00:00.000Z",
+    canceledAt: undefined,
+    createdAt: T0,
+    updatedAt: T0,
+    version: 1,
+    ...overrides,
+  };
+}
+
 function repos(kernel: ContentKernel) {
-  return { kernel, members: memberRepoFor(kernel), tiers: memberTierRepoFor(kernel) };
+  return { kernel, members: memberRepoFor(kernel), tiers: memberTierRepoFor(kernel), subs: memberSubscriptionRepoFor(kernel) };
 }
 
 describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos) => {
@@ -207,6 +226,73 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
         /boom/
       );
       assert.equal(await tiers.findById({ workspaceId: WS, id: "t1" }), null);
+    });
+  });
+
+  describe("MemberSubscriptionRepo", () => {
+    test("save then findById round-trips; misses and other workspaces return null", async () => {
+      const { subs } = makeRepos();
+      await subs.save(subscription("s1", { canceledAt: "2026-10-01T00:00:00.000Z", status: "canceled" }));
+      assert.deepEqual(
+        await subs.findById({ workspaceId: WS, id: "s1" }),
+        subscription("s1", { canceledAt: "2026-10-01T00:00:00.000Z", status: "canceled" })
+      );
+      assert.equal(await subs.findById({ workspaceId: WS, id: "nope" }), null);
+      assert.equal(await subs.findById({ workspaceId: OTHER, id: "s1" }), null);
+    });
+
+    test("optional columns round-trip as undefined", async () => {
+      const { subs } = makeRepos();
+      const bare = subscription("s1", { externalRef: undefined, currentPeriodEnd: undefined });
+      await subs.save(bare);
+      assert.deepEqual(await subs.findById({ workspaceId: WS, id: "s1" }), bare);
+    });
+
+    test("save upserts by id", async () => {
+      const { subs } = makeRepos();
+      await subs.save(subscription("s1"));
+      await subs.save(subscription("s1", { status: "canceled", version: 2 }));
+      const row = await subs.findById({ workspaceId: WS, id: "s1" });
+      assert.equal(row?.status, "canceled");
+      assert.equal(row?.version, 2);
+      assert.equal((await subs.listByMember({ workspaceId: WS, memberId: "m1" })).length, 1);
+    });
+
+    test("listByMember is newest-started first and scoped to member and workspace", async () => {
+      const { subs } = makeRepos();
+      await subs.save(subscription("old", { startedAt: "2026-01-01T00:00:00.000Z" }));
+      await subs.save(subscription("new", { startedAt: "2026-06-01T00:00:00.000Z" }));
+      await subs.save(subscription("mid", { startedAt: "2026-03-01T00:00:00.000Z" }));
+      await subs.save(subscription("other-member", { memberId: "m2" }));
+      await subs.save(subscription("other-ws", { workspaceId: OTHER }));
+      assert.deepEqual((await subs.listByMember({ workspaceId: WS, memberId: "m1" })).map((s) => s.id), ["new", "mid", "old"]);
+      assert.deepEqual(await subs.listByMember({ workspaceId: WS, memberId: "nobody" }), []);
+    });
+
+    test("listActiveByMember keeps active/comped rows whose period has not ended", async () => {
+      const { subs } = makeRepos();
+      const now = "2026-09-28T00:00:00.000Z";
+      await subs.save(subscription("active-future", { currentPeriodEnd: "2026-12-01T00:00:00.000Z" }));
+      await subs.save(subscription("comped-open", { status: "comped", currentPeriodEnd: undefined }));
+      await subs.save(subscription("active-past", { currentPeriodEnd: "2026-01-01T00:00:00.000Z" }));
+      await subs.save(subscription("ends-now", { currentPeriodEnd: now }));
+      await subs.save(subscription("canceled", { status: "canceled" }));
+      await subs.save(subscription("other-member", { memberId: "m2" }));
+      await subs.save(subscription("other-ws", { workspaceId: OTHER }));
+      const active = await subs.listActiveByMember({ workspaceId: WS, memberId: "m1", nowIso: now });
+      assert.deepEqual(active.map((s) => s.id).sort(), ["active-future", "comped-open"]);
+    });
+
+    test("saves inside a rolled-back transaction leave nothing behind", async () => {
+      const { kernel, subs } = makeRepos();
+      await assert.rejects(
+        kernel.transaction(async () => {
+          await subs.save(subscription("s1"));
+          throw new Error("boom");
+        }),
+        /boom/
+      );
+      assert.equal(await subs.findById({ workspaceId: WS, id: "s1" }), null);
     });
   });
 });

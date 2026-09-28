@@ -2,13 +2,12 @@ import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import { SqlMemberRepo, SqlMemberTierRepo } from "./repo.js";
+import { SqlMemberRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "./repo.js";
 import {
   memberConsents,
   memberMagicTokens,
   memberRevisions,
   memberSessions,
-  memberSubscriptions,
 } from "../../platform/db/schema.sqlite.js";
 import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -17,7 +16,6 @@ import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
   MemberSessionRepoPort,
-  MemberSubscriptionRepoPort,
 } from "./ports.js";
 import type {
   ConsentEvidence,
@@ -27,9 +25,6 @@ import type {
   MemberConsentRecord,
   MemberConsentRevisionRecord,
   MemberSessionRecord,
-  MemberSubscriptionRecord,
-  MemberSubscriptionSource,
-  MemberSubscriptionStatus,
 } from "./types.js";
 
 /**
@@ -66,95 +61,11 @@ export class SqliteMemberTierRepo extends SqlMemberTierRepo {
   }
 }
 
-function toMemberSubscriptionRecord(row: typeof memberSubscriptions.$inferSelect): MemberSubscriptionRecord {
-  return {
-    id: row.id,
-    workspaceId: row.workspaceId,
-    memberId: row.memberId,
-    tierId: row.tierId,
-    status: row.status as MemberSubscriptionStatus,
-    source: row.source as MemberSubscriptionSource,
-    externalRef: row.externalRef ?? undefined,
-    startedAt: row.startedAt,
-    currentPeriodEnd: row.currentPeriodEnd ?? undefined,
-    canceledAt: row.canceledAt ?? undefined,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    version: row.version,
-  };
-}
-
-export class SqliteMemberSubscriptionRepo implements MemberSubscriptionRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findById(required: { workspaceId: string; id: string }): Promise<MemberSubscriptionRecord | null> {
-    return findOneBy(
-      this.db,
-      memberSubscriptions,
-      [eq(memberSubscriptions.workspaceId, required.workspaceId), eq(memberSubscriptions.id, required.id)],
-      toMemberSubscriptionRecord
-    );
-  }
-
-  async listByMember(required: { workspaceId: string; memberId: string }): Promise<MemberSubscriptionRecord[]> {
-    const rows = this.db
-      .select()
-      .from(memberSubscriptions)
-      .where(
-        and(
-          eq(memberSubscriptions.workspaceId, required.workspaceId),
-          eq(memberSubscriptions.memberId, required.memberId)
-        )
-      )
-      .all()
-      .sort((a, b) => (a.startedAt < b.startedAt ? 1 : a.startedAt > b.startedAt ? -1 : 0));
-    return rows.map(toMemberSubscriptionRecord);
-  }
-
-  async listActiveByMember(required: {
-    workspaceId: string;
-    memberId: string;
-    nowIso: string;
-  }): Promise<MemberSubscriptionRecord[]> {
-    const rows = this.db
-      .select()
-      .from(memberSubscriptions)
-      .where(
-        and(
-          eq(memberSubscriptions.workspaceId, required.workspaceId),
-          eq(memberSubscriptions.memberId, required.memberId)
-        )
-      )
-      .all()
-      .filter(
-        (row) =>
-          (row.status === "active" || row.status === "comped") &&
-          (!row.currentPeriodEnd || row.currentPeriodEnd > required.nowIso)
-      );
-    return rows.map(toMemberSubscriptionRecord);
-  }
-
-  async save(record: MemberSubscriptionRecord): Promise<void> {
-    const row = {
-      id: record.id,
-      workspaceId: record.workspaceId,
-      memberId: record.memberId,
-      tierId: record.tierId,
-      status: record.status,
-      source: record.source,
-      externalRef: record.externalRef ?? null,
-      startedAt: record.startedAt,
-      currentPeriodEnd: record.currentPeriodEnd ?? null,
-      canceledAt: record.canceledAt ?? null,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      version: record.version,
-    };
-    this.db
-      .insert(memberSubscriptions)
-      .values(row)
-      .onConflictDoUpdate({ target: memberSubscriptions.id, set: row })
-      .run();
+/** The member-subscription repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
+export class SqliteMemberSubscriptionRepo extends SqlMemberSubscriptionRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 

@@ -1,7 +1,14 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { MemberRepoPort, MemberTierRepoPort } from "./ports.js";
-import { toMemberRecord, toMemberRow, toMemberTierRecord, toMemberTierRow } from "./repo.rows.js";
-import type { MemberRecord, MemberTierRecord } from "./types.js";
+import type { MemberRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "./ports.js";
+import {
+  toMemberRecord,
+  toMemberRow,
+  toMemberSubscriptionRecord,
+  toMemberSubscriptionRow,
+  toMemberTierRecord,
+  toMemberTierRow,
+} from "./repo.rows.js";
+import type { MemberRecord, MemberSubscriptionRecord, MemberTierRecord } from "./types.js";
 
 /**
  * @file THE members repositories: one Kysely query body for every database the storage kernel drives
@@ -140,6 +147,68 @@ export class SqlMemberTierRepo implements MemberTierRepoPort {
   }
 }
 
+export class SqlMemberSubscriptionRepo implements MemberSubscriptionRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findById(required: { workspaceId: string; id: string }): Promise<MemberSubscriptionRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_subscriptions")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("id", "=", required.id)
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toMemberSubscriptionRecord(row) : null;
+  }
+
+  /** Newest `started_at` first (`id` breaks ties so the order is stable). */
+  async listByMember(required: { workspaceId: string; memberId: string }): Promise<MemberSubscriptionRecord[]> {
+    const rows = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_subscriptions")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("member_id", "=", required.memberId)
+        .orderBy("started_at", "desc")
+        .orderBy("id")
+        .execute()
+    );
+    return rows.map(toMemberSubscriptionRecord);
+  }
+
+  /** `active`/`comped` subscriptions whose period has not ended (or has no end) at `nowIso`. */
+  async listActiveByMember(required: {
+    workspaceId: string;
+    memberId: string;
+    nowIso: string;
+  }): Promise<MemberSubscriptionRecord[]> {
+    const rows = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_subscriptions")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("member_id", "=", required.memberId)
+        .where("status", "in", ["active", "comped"])
+        .where((eb) => eb.or([eb("current_period_end", "is", null), eb("current_period_end", ">", required.nowIso)]))
+        .execute()
+    );
+    return rows.map(toMemberSubscriptionRecord);
+  }
+
+  async save(record: MemberSubscriptionRecord): Promise<void> {
+    const row = toMemberSubscriptionRow(record);
+    await this.kernel.run((db) =>
+      db
+        .insertInto("member_subscriptions")
+        .values(row)
+        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
+        .execute()
+    );
+  }
+}
+
 /** The member repo for `kernel`. */
 export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
   return new SqlMemberRepo(kernel);
@@ -148,4 +217,9 @@ export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
 /** The member-tier repo for `kernel`. */
 export function memberTierRepoFor(kernel: ContentKernel): SqlMemberTierRepo {
   return new SqlMemberTierRepo(kernel);
+}
+
+/** The member-subscription repo for `kernel`. */
+export function memberSubscriptionRepoFor(kernel: ContentKernel): SqlMemberSubscriptionRepo {
+  return new SqlMemberSubscriptionRepo(kernel);
 }
