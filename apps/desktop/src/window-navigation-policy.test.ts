@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   installAppWindowNavigationPolicy,
+  installGuestWindowOpenPolicy,
   installSitesHomeNavigationPolicy,
   isExternalBrowserUrl,
   isSameOrigin,
@@ -185,6 +186,68 @@ test("isExternalBrowserUrl admits only parseable http and https URLs", () => {
   assert.equal(isExternalBrowserUrl("not a url"), false);
 });
 
+/** A `setWindowOpenHandler`-only stand-in for {@link installGuestWindowOpenPolicy}'s tests. */
+function installGuestPopupOnFake(isSupervisedGuestUrl: (url: string) => boolean) {
+  let openHandler: ((details: { url: string }) => WindowOpenResponse) | undefined;
+  const opened: string[] = [];
+  const contents: Pick<NavigableContents, "setWindowOpenHandler"> = {
+    setWindowOpenHandler(handler) {
+      openHandler = handler;
+    },
+  };
+  installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl, openExternal: (url) => opened.push(url) });
+  return {
+    opened,
+    windowOpen(url: string): WindowOpenResponse {
+      assert.ok(openHandler, "expected a window-open handler to be registered");
+      return openHandler({ url });
+    },
+  };
+}
+
+test("guest popup: an ordinary https(s) link is denied in-app and handed to the OS browser", () => {
+  // The defect this pins: a `window.open` from inside the admin webview (a chat card's sign-in
+  // link, say) used to be silently swallowed — the guest's popup handler only forwarded a
+  // SUPERVISED site's own url, never an ordinary external link, unlike the standalone
+  // `createWindow` path's `installAppWindowNavigationPolicy`.
+  const fake = installGuestPopupOnFake(() => false); // no site this launch supervises matches
+  assert.deepEqual(fake.windowOpen("https://example.com/sign-in?token=abc"), { action: "deny" });
+  assert.deepEqual(fake.windowOpen("http://example.com/x"), { action: "deny" });
+  assert.deepEqual(fake.opened, ["https://example.com/sign-in?token=abc", "http://example.com/x"]);
+});
+
+test("guest popup: a supervised site's own url is still handed to the OS browser", () => {
+  const fake = installGuestPopupOnFake((url) => url.startsWith("http://127.0.0.1:4567/"));
+  assert.deepEqual(fake.windowOpen("http://127.0.0.1:4567/admin/pages"), { action: "deny" });
+  assert.deepEqual(fake.opened, ["http://127.0.0.1:4567/admin/pages"]);
+});
+
+test("guest popup: a non-http(s) scheme is denied and never reaches shell.openExternal", () => {
+  const fake = installGuestPopupOnFake(() => false);
+  for (const url of ["javascript:alert(1)", "file:///etc/passwd", "not a url", ""]) {
+    assert.deepEqual(fake.windowOpen(url), { action: "deny" }, url);
+  }
+  assert.deepEqual(fake.opened, []);
+});
+
+test("guest popup: a throwing openExternal never escapes the handler — a guest callback throw blanks the window", () => {
+  const contents: Pick<NavigableContents, "setWindowOpenHandler"> = {
+    setWindowOpenHandler(handler) {
+      assert.deepEqual(
+        handler({ url: "https://example.com/" }),
+        { action: "deny" },
+        "the handler must still return deny even when openExternal throws",
+      );
+    },
+  };
+  installGuestWindowOpenPolicy(contents, {
+    isSupervisedGuestUrl: () => false,
+    openExternal: () => {
+      throw new Error("boom");
+    },
+  });
+});
+
 test("main.ts installs this policy on every createWindow window, against the loaded URL's parsed origin", () => {
   // Source text: `main.ts` imports "electron" at module scope and cannot load under plain node --test
   // (see `main-speech-wiring.test.ts`). Without this, the policy above could be correct and unused.
@@ -196,6 +259,16 @@ test("main.ts installs this policy on every createWindow window, against the loa
     /installAppWindowNavigationPolicy\(window\.webContents, \{\s*appOrigin: new URL\(url\)\.origin,/,
   );
   assert.doesNotMatch(source, /\.startsWith\(origin\)/, "a string prefix is not an origin check");
+});
+
+test("the webview guest's popup handler is wired through installGuestWindowOpenPolicy, not a second copy", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
+  assert.match(
+    guestPolicy,
+    /installGuestWindowOpenPolicy\(contents, \{ isSupervisedGuestUrl, openExternal: \(url\) => void shell\.openExternal\(url\) \}\);/,
+  );
+  assert.doesNotMatch(guestPolicy, /setWindowOpenHandler/, "the popup handler belongs in installGuestWindowOpenPolicy, not inline here");
 });
 
 test("the webview guest's will-navigate uses the same origin primitive, not a second copy", () => {

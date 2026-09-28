@@ -115,7 +115,13 @@ import { createShutdownTracker } from "./src/shutdown-tracker.ts";
 import { routeQuitSignals } from "./src/quit-signals.ts";
 import { decideBeforeQuit } from "./src/quit-drain-gate.ts";
 import { admitGuestSource, applyGuestWebPreferences } from "./src/webview-guest-policy.ts";
-import { installAppWindowNavigationPolicy, installSitesHomeNavigationPolicy, isSameOrigin, isShellPageUrl } from "./src/window-navigation-policy.ts";
+import {
+  installAppWindowNavigationPolicy,
+  installGuestWindowOpenPolicy,
+  installSitesHomeNavigationPolicy,
+  isSameOrigin,
+  isShellPageUrl,
+} from "./src/window-navigation-policy.ts";
 import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
@@ -1053,10 +1059,12 @@ function isShellPage(raw: string): boolean {
  * (`Tovu-Runner/src/main/main.ts`): a same-origin navigation (the site steering itself — a login
  * redirect, an admin route that round-trips the server) is left alone, since the tab IS that
  * project's admin and has to keep working; anything that would leave the guest's own origin is
- * denied INSIDE the guest and, only when it targets a site this launch actually supervises, handed
- * to the operator's own default browser instead. `allowpopups` on the tag (`App.tsx`) is the other
- * half — without it Electron's guest-view manager never lets a `target="_blank"` request reach this
- * process at all, so `setWindowOpenHandler` below would never fire.
+ * denied INSIDE the guest and, when it targets a site this launch actually supervises OR is an
+ * ordinary `isExternalBrowserUrl` (a `window.open` sign-in link, say — see
+ * {@link installGuestWindowOpenPolicy}), handed to the operator's own default browser instead.
+ * `allowpopups` on the tag (`App.tsx`) is the other half — without it Electron's guest-view manager
+ * never lets a `target="_blank"` request reach this process at all, so the popup handler below would
+ * never fire.
  *
  * Registered once, globally, from the sites-home boot branch: `web-contents-created` fires for every
  * guest ANY window's `<webview>` ever attaches, and `contents.getType() !== "webview"` filters out
@@ -1072,10 +1080,7 @@ function registerGuestNavigationPolicy(): void {
   app.on("web-contents-created", (_event, contents) => {
     if (contents.getType() !== "webview") return;
 
-    contents.setWindowOpenHandler(({ url }) => {
-      openExternally(url);
-      return { action: "deny" };
-    });
+    installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl, openExternal: (url) => void shell.openExternal(url) });
 
     contents.on("will-navigate", (event, url) => {
       if (isSameOrigin(url, contents.getURL())) return;

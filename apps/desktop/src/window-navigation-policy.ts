@@ -168,6 +168,49 @@ function installNavigationBoundary(contents: NavigableContents, isInApp: (url: s
   });
 }
 
+/** {@link installGuestWindowOpenPolicy}'s options. */
+interface GuestWindowOpenOptions {
+  /** Whether `url` is a site this launch supervises — `main.ts`'s `isSupervisedGuestUrl`, the same
+   *  predicate the guest's `will-navigate`/`will-redirect` handlers gate on. Kept as its own check
+   *  here (rather than folded into `isExternalBrowserUrl`) only so the "a site we run" and "any other
+   *  web link" cases stay visible at the call site — every url it admits is already http, so it adds
+   *  no url `isExternalBrowserUrl` would have refused. */
+  isSupervisedGuestUrl: (url: string) => boolean;
+  /** Hands a URL to the OS browser — `shell.openExternal` in `main.ts`. */
+  openExternal: (url: string) => void;
+}
+
+/**
+ * The `<webview>` guest's popup boundary — `registerGuestNavigationPolicy`'s `setWindowOpenHandler`
+ * in `main.ts`. A popup never opens INSIDE the guest (there is no second guest to open it in, unlike
+ * a `createWindow` window's own {@link installAppWindowNavigationPolicy}), so the action is always
+ * `"deny"`; the only question this answers is whether the url is handed to the OS browser instead.
+ *
+ * **The defect this closes.** Before this existed, the handler only forwarded a SUPERVISED site's
+ * own url (another tab of a site this shell runs) to `shell.openExternal`, and dropped everything
+ * else — so a `window.open` from inside the admin (a chat card's sign-in link, say) was silently
+ * swallowed, unlike the standalone window path, which already sent any http(s) `isExternalBrowserUrl`
+ * to the OS browser. Now both cases do: a supervised site's url, or any other `isExternalBrowserUrl`.
+ *
+ * Never throws: `openExternal` is called defensively, because a throw escaping a guest webContents
+ * callback blanks the whole desktop window in this app (`admitGuestSource`'s own doc), and a failed
+ * handoff is still a `"deny"`, not a crash.
+ *
+ * @complexity O(1) beyond the two predicates' own cost.
+ */
+function installGuestWindowOpenPolicy(contents: Pick<NavigableContents, "setWindowOpenHandler">, options: GuestWindowOpenOptions): void {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (options.isSupervisedGuestUrl(url) || isExternalBrowserUrl(url)) {
+      try {
+        options.openExternal(url);
+      } catch {
+        // A throw here would blank the whole guest window — see this function's own doc.
+      }
+    }
+    return { action: "deny" };
+  });
+}
+
 /** The pages this shell itself serves — {@link isShellPageUrl}'s second argument. */
 interface ShellPages {
   /** Whether a url is a site this launch supervises — `main.ts`'s `isSupervisedGuestUrl`. */
@@ -208,5 +251,12 @@ function isShellPageUrl(raw: string, pages: ShellPages): boolean {
   return page !== null && page === withoutQueryOrHash(pages.rendererFileUrl);
 }
 
-export { isSameOrigin, isExternalBrowserUrl, installAppWindowNavigationPolicy, installSitesHomeNavigationPolicy, isShellPageUrl };
-export type { NavigableContents, AppWindowPolicyOptions, WindowOpenResponse, ShellPages };
+export {
+  isSameOrigin,
+  isExternalBrowserUrl,
+  installAppWindowNavigationPolicy,
+  installGuestWindowOpenPolicy,
+  installSitesHomeNavigationPolicy,
+  isShellPageUrl,
+};
+export type { NavigableContents, AppWindowPolicyOptions, GuestWindowOpenOptions, WindowOpenResponse, ShellPages };
