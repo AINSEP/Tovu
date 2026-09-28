@@ -5,6 +5,7 @@ import {
   createMcpUiToolCaller,
   registerExtEventRenderer,
   MCP_UI_EXT_EVENT_NAME,
+  mcpUiSurfaceSlotKey,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
@@ -165,7 +166,10 @@ registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
     // it creates.
     sandboxProxyUrl={assistantMcpUiSandboxProxyUrl}
   />
-));
+// One transcript slot per `ui://` URI, so a run's second card (a second choice, a Connect card
+// after a choice) renders where it arrived instead of inside the first card's slot, far above the
+// tool row that is waiting on it (stuck-chat investigation, 2026-09-27).
+), { slotKey: mcpUiSurfaceSlotKey });
 
 /**
  * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
