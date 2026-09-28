@@ -107,11 +107,8 @@ import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyrin
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
 import { SqliteAdminExecutionCredentialRepo } from "#src/platform/db/sqlite/execution-credential-repo.sqlite";
-import { SqliteComposioConfigRepo } from "#src/platform/db/sqlite/composio-config-repo.sqlite";
-import { SqliteConnectorCredentialRepo } from "#src/platform/db/sqlite/composio-connector-credential-repo.sqlite";
 import { SqliteMediaProviderCredentialRepo } from "#src/platform/db/sqlite/media-provider-credential-repo.sqlite";
 import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mcp-repo.sqlite";
-import { createComposioConnectors } from "#src/platform/connectors/composio-service";
 import {
   LocalFsBlobStore,
   purgeMedia,
@@ -1613,29 +1610,6 @@ export function createSqliteRouteDeps(
     createPublishContentPeerEgressPolicy(parsePublishContentDevHosts(process.env.TOVU_PUBLISH_CONTENT_DEV_HOSTS))
   );
 
-  // Composio connectors. The service is built BEFORE the deps object because both the routes and
-  // the boot hydration below need the same instance — its provider holds the catalog cache and the
-  // OAuth pending-state map, so a second instance would silently not share either.
-  const composioConfigRepo = new SqliteComposioConfigRepo(db);
-  const composioConnectors = createComposioConnectors({
-    workspaceId,
-    repo: composioConfigRepo,
-    credentialRepo: new SqliteConnectorCredentialRepo(db),
-    sealer: siteAssistantSecretSealer,
-    keyring: siteAssistantSecretKeyring,
-    clock,
-    // Test-only seam: points the provider at a fake Composio for `development/e2e`. Unset in every
-    // real deployment, where the provider's own default origin applies.
-    ...(process.env.TOVU_COMPOSIO_BASE_URL ? { baseUrl: process.env.TOVU_COMPOSIO_BASE_URL } : {}),
-  });
-  // Loads the sealed API key into the provider's synchronous snapshot. Failure is logged, not
-  // fatal: an unhydrated provider still serves its static catalog, so the Connectors tab degrades
-  // to its unconfigured (gated) state rather than taking the whole admin down.
-  void composioConnectors.refresh().catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error(`composio connectors hydration failed at boot: ${(err as Error).message}`);
-  });
-
   // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
   // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(db)` — both
   // are stateless wrappers over the shared `db` handle, so a second instance would behave
@@ -1826,8 +1800,6 @@ export function createSqliteRouteDeps(
     // part of that resolution this needs.
     derivedPublicOrigin: `${devCapabilityScheme}://localhost:${Number(process.env.PORT ?? 3000)}`,
     // Same shared sealer/keyring once more — see the note above the BYOK repo.
-    composioConfigRepo,
-    composioConnectors,
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,

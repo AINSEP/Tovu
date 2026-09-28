@@ -120,9 +120,6 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#s
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { InMemoryComposioConfigRepo } from "#src/platform/connectors/composio-config-store.memory";
-import { createComposioConnectors } from "#src/platform/connectors/composio-service";
-import { InMemoryConnectorCredentialRepo } from "#src/platform/connectors/connector-credential-store.memory";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
 import {
   InMemoryAssetBlobRepo,
@@ -236,7 +233,6 @@ import { createApiKeysModule } from "./modules/api-keys.js";
 import { createWorkspaceModule } from "./modules/workspace.js";
 import { createIntegrationsModule } from "./modules/integrations.js";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
-import { createConnectorsModule } from "./modules/connectors.js";
 import { createExternalMcpModule } from "./modules/external-mcp.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
 import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
@@ -834,20 +830,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot();
   const derivedPublicOrigin = `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
 
-  // Composio connectors, hermetic half. No boot `refresh()` here, unlike `deps.ts`: the in-memory
-  // repo starts empty every time, so hydrating it could only ever install the same empty config
-  // the provider is already constructed with.
-  const composioConfigRepo = new InMemoryComposioConfigRepo();
-  const composioConnectors = createComposioConnectors({
-    workspaceId: seededWorkspace.id,
-    repo: composioConfigRepo,
-    credentialRepo: new InMemoryConnectorCredentialRepo(),
-    sealer: siteAssistantSecretSealer,
-    keyring: siteAssistantSecretKeyring,
-    clock,
-    ...(process.env.TOVU_COMPOSIO_BASE_URL ? { baseUrl: process.env.TOVU_COMPOSIO_BASE_URL } : {}),
-  });
-
   // Extracted (not inlined into the return object below), same reasoning as `restorePointsRepo`
   // above: Task 8's real `publishContentApplyPort` (`apply-loop.ts`) must read/write the SAME
   // in-memory bundle/baseline/run stores the routes below expose on `RouteDeps`, not a second,
@@ -1021,8 +1003,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     externalMcpOAuthPending,
     externalMcpOAuthDevices,
     derivedPublicOrigin,
-    composioConfigRepo,
-    composioConnectors,
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,
@@ -1740,11 +1720,6 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
       }),
     })
   );
-  // The `connectors` server module — Composio-backed third-party accounts behind the admin's
-  // Settings → Connectors tab. Registered next to `integrations-admin` above because the two share
-  // the `admin.integrations.manage` permission, but they own different subsystems (outbound
-  // webhooks there, inbound third-party accounts here) — see `modules/connectors.ts`.
-  mountRoutes(app, createConnectorsModule(routeDeps));
   mountRoutes(app, createExternalMcpModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).

@@ -11,8 +11,6 @@ import { buildSourceControlCredentialAad } from "#src/features/source-control/aa
 import type { SourceControlProviderId } from "#src/features/source-control/types";
 import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
 import type { VendorId } from "#src/features/vendor-credentials/types";
-import { buildComposioConfigAad } from "#src/platform/connectors/composio-config-aad";
-import { buildConnectorCredentialAad } from "#src/platform/connectors/connector-credential-aad";
 import { deviceAad } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 import type { SealedColumnDescriptor, SealedRowAadSelection, SealedRowIdentity } from "#src/platform/db/sqlite/sealed-credential-inventory.sqlite";
 
@@ -191,6 +189,17 @@ const mediaProviderCredentials: SealedColumnDescriptor = {
     ),
 };
 
+/**
+ * The two legacy Composio tables. Nothing reads or writes them since Composio moved to the
+ * `content/agent-plugins/composio` plugin (2026-09-27); they stay in the schema until an owner-approved
+ * drop migration (`ADS-memory/reports/2026-09-27-composio-agent-plugin-plan.md`, section 4). Their
+ * descriptors stay with them so the inventory and key rotation still recognise leftover rows; the AAD
+ * formats are restated here because their stores were deleted. Remove both with the drop.
+ */
+const composioConfigAad = (workspaceId: string): string => `composio-config:v1:${workspaceId}`;
+const composioConnectorCredentialAad = (workspaceId: string, connectorId: string): string =>
+  `composio-connector-credential:v1:${workspaceId}:${connectorId}`;
+
 const composioConfig: SealedColumnDescriptor = {
   table: "composio_config",
   column: "sealed_ciphertext",
@@ -198,7 +207,7 @@ const composioConfig: SealedColumnDescriptor = {
   workspaceId: workspaceOf,
   rowId: workspaceOf,
   label: () => "Composio project API key",
-  aadFor: (row) => versionedAad(row.aad_version, STORE_AAD_VERSION, () => buildComposioConfigAad({ workspaceId: workspaceOf(row) as UUID })),
+  aadFor: (row) => versionedAad(row.aad_version, STORE_AAD_VERSION, () => composioConfigAad(workspaceOf(row))),
 };
 
 const externalMcpServerEnv: SealedColumnDescriptor = {
@@ -258,7 +267,7 @@ const composioConnectorCredentials: SealedColumnDescriptor = {
   label: (row) => `Connected account (${text(row, "connector_id")})`,
   aadFor: (row) =>
     versionedAad(row.aad_version, STORE_AAD_VERSION, () =>
-      buildConnectorCredentialAad({ workspaceId: workspaceOf(row) as UUID, connectorId: text(row, "connector_id") })
+      composioConnectorCredentialAad(workspaceOf(row), text(row, "connector_id"))
     ),
 };
 

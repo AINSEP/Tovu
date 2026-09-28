@@ -14,7 +14,7 @@ import {
 } from "#src/assistant/index";
 import { isHttpLaunchSpec, type FederatedMcpConnectionConfig, type McpHttpLaunchSpec, type McpSessionPort } from "#src/assistant/mcp-federation/ports";
 import { describeRemoteToolSurface } from "#src/assistant/mcp-federation/trust";
-import { CONNECTOR_OUTBOUND_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { OUTBOUND_CALL_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -81,12 +81,12 @@ async function defaultProbeConnect(spec: McpHttpLaunchSpec, requestTimeoutMs: nu
   return connectMcpHttpSession({ exchange: createFetchMcpHttpExchange(), spec, requestTimeoutMs });
 }
 
-/** Builds this route's own probe rate limiter. Reuses {@link CONNECTOR_OUTBOUND_PER_IP} rather than
+/** Builds this route's own probe rate limiter. Reuses {@link OUTBOUND_CALL_PER_IP} rather than
  *  a new profile: a probe is the same self-DoS shape that profile already names — a real outbound
  *  call using the workspace's own credentials — with its own instance so a burst on one connector
  *  family never eats another's budget. */
 export function createExternalMcpProbeLimiter(deps: Pick<ExternalMcpRouteDeps, "clock">): RateLimiter {
-  return createRateLimiter({ profile: CONNECTOR_OUTBOUND_PER_IP, clock: deps.clock });
+  return createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
 }
 
 /** Answers the shared limiter check, writing the 429 itself. Mirrors `oauth.ts`'s

@@ -18,8 +18,6 @@ import { resolveExistingDbPath, missingDbPathMessage } from "../backfill-db-path
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 
 const SCRIPTS = [
-  "backfill-composio-config-aad.ts",
-  "backfill-connector-credential-aad.ts",
   "backfill-execution-credential-aad.ts",
   "backfill-media-provider-credential-aad.ts",
   "backfill-site-assistant-credential-aad.ts",

@@ -120,57 +120,14 @@ export const SITE_ASSISTANT_PER_IP: RateLimitProfile = {
 };
 
 /**
- * The public Composio OAuth callback (`routes/connectors/composio-callback.ts`) is anonymous by
- * necessity — a `SameSite=Strict` cookie cannot survive the cross-site redirect that reaches it —
- * and each hit can cost outbound requests to Composio. Keyed by `resolveClientIp(req)`.
- *
- * The 24-byte single-use `state` is the real control and makes guessing infeasible; this is
- * secondary, the same defence-in-depth role {@link MAGIC_LINK_COMPLETE_ATTEMPT} plays for its own
- * unguessable token. Generous enough that a human retrying a flaky authorization never trips it.
+ * Admin routes that make a real outbound call to a third-party service on every hit, today the
+ * external-MCP probe (`routes/admin/external-mcp/probe.ts`). Session auth alone does not bound how
+ * often they can be called, and a retry storm (a double-clicked button, a buggy client retry loop)
+ * can get the workspace's own credential rate-limited or blocked provider-side: a self-inflicted
+ * denial of service against every admin, not just the caller. Keyed by `resolveClientIp(req)`,
+ * matching every other limiter in this file.
  */
-export const CONNECTOR_CALLBACK_PER_IP: RateLimitProfile = {
-  windowSeconds: 60,
-  max: 20,
-  burst: 5,
-};
-
-/**
- * `POST .../connectors/:connectorId/connect` (`routes/admin/connectors/connect.ts`) requires an
- * admin session, but session auth alone does not bound how often it can be called: every hit
- * prunes the provider's pending-state map and then makes a REAL outbound call to Composio
- * (`ComposioConnectorProvider.connect`, minting/looking up an auth config and creating a connected-
- * account link) before this process ever sees a callback. A retry storm — a double-clicked
- * "Connect" button, a buggy client-side retry loop, or a misbehaving script reusing a valid session
- * — can drive an unbounded burst of these against Composio's own API using the workspace's single
- * shared project key. Composio rate-limiting or provisionally blocking that key in response would
- * be a self-inflicted denial of service against every admin in the workspace, not just the caller
- * who triggered it — the same class of harm {@link CONNECTOR_CALLBACK_PER_IP} was already guarding
- * on the public callback side, just unguarded here because this route sits behind
- * `requireAdminSession` and was assumed safe on that basis alone. Keyed by `resolveClientIp(req)`,
- * matching every other limiter in this file; an authenticated caller does not need a higher-fidelity
- * key (e.g. principal id) for this to be effective, since the abuse shape is "one client hammering
- * one connection attempt," not cross-admin collision.
- */
-export const CONNECTOR_CONNECT_PER_IP: RateLimitProfile = {
-  windowSeconds: 60,
-  max: 10,
-  burst: 2,
-};
-
-/**
- * Same self-DoS class {@link CONNECTOR_CONNECT_PER_IP} closes for the `connect` route, extended to
- * the other authenticated connector routes that also trigger a real outbound Composio call using
- * the workspace's single shared project key:
- * - `POST .../connectors/:connectorId/disconnect` (revokes the account at Composio)
- * - `GET .../connectors/:connectorId?hydrateTools=1` (paginated tool-preview fetch)
- * - `GET .../connectors?refresh=1` (re-fetches the catalog from Composio)
- * - `PUT .../connectors/config` (verifies a candidate API key against Composio before persisting)
- *
- * `connect`'s own limiter is left as its own instance/profile rather than reused here, so a burst
- * on one action never eats another action's budget. Keyed by `resolveClientIp(req)`, same shape as
- * every other limiter in this file.
- */
-export const CONNECTOR_OUTBOUND_PER_IP: RateLimitProfile = {
+export const OUTBOUND_CALL_PER_IP: RateLimitProfile = {
   windowSeconds: 60,
   max: 10,
   burst: 2,
@@ -180,14 +137,14 @@ export const CONNECTOR_OUTBOUND_PER_IP: RateLimitProfile = {
  * `POST .../mcp-servers/:serverId/oauth/connect` and its device-poll sibling
  * (`routes/admin/external-mcp/oauth-connect.ts`, `.../oauth-device-poll.ts`).
  *
- * Same self-DoS class {@link CONNECTOR_CONNECT_PER_IP} closes, with one addition specific to OAuth:
+ * Same self-DoS class {@link OUTBOUND_CALL_PER_IP} closes, with one addition specific to OAuth:
  * every hit mints a pending `state` (or starts a device authorization) and makes a real outbound
  * call to a third-party authorization server using the workspace's own client id. A double-clicked
  * Connect button therefore accumulates pending authorizations AND can get the client id
  * rate-limited or provisionally blocked provider-side — a self-inflicted denial of service against
  * every admin in the workspace, not just the caller who caused it.
  *
- * Deliberately more generous than {@link CONNECTOR_CONNECT_PER_IP}: device-grant polling is a
+ * Deliberately more generous than {@link OUTBOUND_CALL_PER_IP}: device-grant polling is a
  * legitimate repeated call, driven by the provider's own `interval`, and a limiter tight enough for
  * a one-shot connect would strangle a normal five-second poll over a two-minute approval. Keyed by
  * `resolveClientIp(req)`, matching every other limiter in this file.
@@ -201,8 +158,7 @@ export const EXTERNAL_MCP_OAUTH_PER_IP: RateLimitProfile = {
 /**
  * The PUBLIC external-MCP OAuth callback (`routes/external-mcp/oauth-callback.ts`).
  *
- * Same role as {@link CONNECTOR_CALLBACK_PER_IP} on the other public callback: the route is
- * anonymous by necessity (a `SameSite=Strict` cookie cannot survive the cross-site redirect that
+ * The route is anonymous by necessity (a `SameSite=Strict` cookie cannot survive the cross-site redirect that
  * reaches it), and each hit can cost an outbound token exchange. The single-use 24-byte `state` is
  * the real control; this is defence in depth, generous enough that a human retrying a flaky
  * authorization never trips it.

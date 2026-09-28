@@ -62,8 +62,6 @@ import type { CustomCredentialSetRepoPort } from "../../features/custom-credenti
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
-import type { ComposioConfigRepoPort } from "../../platform/connectors/composio-config-store.js";
-import type { ComposioConnectors } from "../../platform/connectors/composio-service.js";
 import type { MediaProviderCredentialRepoPort } from "../../features/media/index.js";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
@@ -758,7 +756,7 @@ export interface DatabaseRecoveryDeps {
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
  * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2),
  * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3),
- * `DatabaseRecoveryDeps` (Slice 4), `ComposioDeps` (Slice 5), `WebhooksDeps` (Slice 6),
+ * `DatabaseRecoveryDeps` (Slice 4), `WebhooksDeps` (Slice 6),
  * `FormsDeps` (Slice 7), and `PostDeps`/`PresentationDeps`/`SettingsDeps`/`ChangeSetDeps`/
  * `EventBusDeps`/`AnalyticsDeps`/`NavigationDeps`/`DatabaseOpsDeps`/`RedirectsDeps`/
  * `CommerceCatalogDeps`/`WidgetsDeps`/`PluginRuntimeDeps` (Slice 8) above are an incremental
@@ -770,8 +768,7 @@ export interface DatabaseRecoveryDeps {
  * (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s
  * `MembersRouteDeps` (Slice 3, to `MembersDeps` directly); `routes/admin/database-recovery/deps.ts`'s
  * `DatabaseRecoveryRouteDeps` (Slice 4, to `DatabaseRecoveryDeps` directly);
- * `routes/admin/connectors/deps.ts`'s `ConnectorsRouteDeps`/`ConnectorsConfigRouteDeps` (Slice 5, to
- * `ComposioDeps`/a `Pick` of it); `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps`
+ * `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps`
  * (Slice 6, to `WebhooksDeps` directly); and `routes/admin/forms/deps.ts`'s `FormsRouteDeps`
  * (Slice 7, to `FormsDeps` directly) — see those files' own docs.
  *
@@ -792,39 +789,6 @@ export interface DatabaseRecoveryDeps {
  * source-control/`, which carry 7 already-diagnosed, unrelated violations this slice does not
  * touch.
  */
-/**
- * Slice 5 of the `RouteDeps` god-object decomposition (2026-08-18) — the Composio connectors
- * domain (config repo + long-lived provider/service), extracted verbatim (fields + doc comments
- * unchanged) from where they lived inline in `RouteDeps` below.
- *
- * A real narrow consumer already existed before this extraction: `routes/admin/connectors/deps.ts`
- * declares TWO Composio-shaped types on the same axis media's `MediaRouteDeps` established —
- * `ConnectorsRouteDeps` (catalog routes, `composioConnectors` alone) and `ConnectorsConfigRouteDeps`
- * (the 2 config routes, both fields plus the shared ADR-058 sealer/keyring already in
- * `CredentialsDeps`). Both are rewired to compose `ComposioDeps` (or a `Pick` of it) instead of
- * re-declaring `composioConnectors`'s type inline.
- */
-export interface ComposioDeps {
-  /**
-   * The workspace's sealed Composio project key + provisioned auth-config ids, backing the admin's
-   * Settings → Connectors tab (`connectors/composio-config-store.ts`).
-   *
-   * Single-row per workspace, unlike `mediaProviderCredentialRepo` above — a workspace has one
-   * Composio project, not a roster. Sealed with the same shared ADR-058 sealer/keyring as every
-   * other credential table here. No matching `*Ready` promise: a plain table, usable as soon as
-   * migrations run.
-   */
-  composioConfigRepo: ComposioConfigRepoPort;
-  /**
-   * The long-lived Composio provider + service the connectors routes read through.
-   *
-   * A live service rather than a repo because `ComposioConnectorProvider` owns in-process caches
-   * and (for OAuth) pending-authorization state that must survive across requests — see
-   * `connectors/composio-service.ts` for why it cannot be rebuilt per request.
-   */
-  composioConnectors: ComposioConnectors;
-}
-
 /**
  * Slice 6 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-036 webhook
  * subscription/delivery persistence pair, extracted verbatim (fields + doc comments unchanged)
@@ -1484,7 +1448,7 @@ export interface TrashDeps {
   db: TrashDb;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.

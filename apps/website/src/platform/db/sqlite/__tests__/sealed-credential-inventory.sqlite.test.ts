@@ -14,8 +14,6 @@ import { buildPublishContentPeerAad } from "#src/features/publish-content/peer-a
 import { buildSourceControlCredentialAad } from "#src/features/source-control/aad";
 import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
-import { buildComposioConfigAad } from "#src/platform/connectors/composio-config-aad";
-import { buildConnectorCredentialAad } from "#src/platform/connectors/connector-credential-aad";
 import { InMemoryKeyring } from "../../../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../../features/webhooks/secret-sealer.aesgcm.js";
 import { principals, workspaces } from "../../schema.sqlite.js";
@@ -107,7 +105,7 @@ async function seedEverySealedColumn(sealWith: { sealer: Sealer; keyring: InMemo
   });
   insertRow(db, "composio_config", {
     workspace_id: WS, key_tail: `${LEAK}key-tail-composio`, key_generation: 1, aad_version: 1, ...stamps,
-    ...(await seal("composio_config", buildComposioConfigAad({ workspaceId: WS as UUID }))),
+    ...(await seal("composio_config", `composio-config:v1:${WS}`)),
   });
   insertRow(db, "external_mcp_servers", {
     workspace_id: WS, server_id: "linear", transport: "http", auth_mode: "oauth", enabled: 1, url: `https://mcp.example.test/?token=${LEAK}url-token`,
@@ -128,7 +126,7 @@ async function seedEverySealedColumn(sealWith: { sealer: Sealer; keyring: InMemo
   });
   insertRow(db, "composio_connector_credentials", {
     workspace_id: WS, connector_id: "github", account_label: `${LEAK}account-label`, aad_version: 1, ...stamps,
-    ...(await seal("composio_connector_credentials", buildConnectorCredentialAad({ workspaceId: WS as UUID, connectorId: "github" }))),
+    ...(await seal("composio_connector_credentials", `composio-connector-credential:v1:${WS}:github`)),
   });
   // `publish_content_peers` — added by migration 0066 (the publish-content feature), two days after
   // this fixture's own introduction, and never added here; `label` is a real non-secret identity
