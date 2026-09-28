@@ -296,9 +296,6 @@
   "apps/website/src/platform/db/sqlite/publish-content-run-repo.sqlite.ts": {
     "sync-terminal": 2
   },
-  "apps/website/src/platform/db/sqlite/publish-credential-repo.sqlite.ts": {
-    "sync-terminal": 12
-  },
   "apps/website/src/platform/db/sqlite/publish-history-repo.sqlite.ts": {
     "sync-terminal": 3
   },
@@ -319,12 +316,6 @@
     "pragma": 1,
     "prepare": 1,
     "sqlite-catalog": 1
-  },
-  "apps/website/src/platform/db/sqlite/source-control-credential-repo.sqlite.ts": {
-    "sync-terminal": 11
-  },
-  "apps/website/src/platform/db/sqlite/vendor-credential-repo.sqlite.ts": {
-    "sync-terminal": 12
   },
   "apps/website/src/platform/db/sqlite/watermark.ts": {
     "sync-terminal": 3
