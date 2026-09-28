@@ -193,13 +193,10 @@
     "sync-terminal": 6
   },
   "apps/website/src/features/trash/db-port.sqlite.ts": {
-    "$client": 1,
     "sync-terminal": 5
   },
   "apps/website/src/features/trash/repo.sqlite.ts": {
-    "begin-transaction": 1,
     "better-sqlite3-import": 1,
-    "in-transaction": 1,
     "insert-or": 1,
     "prepare": 9
   },
@@ -391,7 +388,7 @@
     "sync-terminal": 1
   },
   "apps/website/src/server/runtime/composition/deps.ts": {
-    "$client": 12,
+    "$client": 11,
     "better-sqlite3-import": 1
   },
   "apps/website/src/server/runtime/lifecycle/boot-lifecycle.ts": {

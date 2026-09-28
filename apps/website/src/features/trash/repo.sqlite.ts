@@ -13,6 +13,8 @@
  */
 import type Database from "better-sqlite3";
 
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import type { SqliteConnectionSource } from "../../platform/db/kernel/index.js";
 import { decodeTrashCursor, encodeTrashCursor } from "./cursor.js";
 import type { TrashEntityType, TrashItem, TrashPage, TrashRepoPort, TrashSweepClaim } from "./ports.js";
 
@@ -226,26 +228,20 @@ export class SqliteTrashRepo implements TrashRepoPort {
 }
 
 /**
- * A reentrant {@link import("./ports.js").TransactionRunner} over one better-sqlite3 connection.
+ * The {@link import("./ports.js").TransactionRunner} over the content db: its storage-kernel
+ * transaction (`platform/db/kernel`).
  *
- * Checks `client.inTransaction` and passes straight through when one is already open. Posts and
- * redirects both open their own `BEGIN IMMEDIATE` around "marker write + revision-ledger append",
- * and `deps.remove` is called from inside it — a nested `BEGIN IMMEDIATE` would throw. Passing
- * through preserves both-or-neither exactly: a throw inside propagates to the outer `ROLLBACK`.
+ * A nested call joins the caller's open transaction — posts and redirects wrap "marker write +
+ * revision-ledger append" in their own, and `deps.remove` runs inside it — so a throw anywhere rolls
+ * back both. A concurrent caller (another async context) waits for its own transaction instead of
+ * joining someone else's.
  *
+ * @param store the content db handle, its better-sqlite3 client, or the kernel itself.
  * @complexity O(1) beyond `fn`.
  */
-export function createContentDbTransactionRunner(client: Database.Database) {
-  return async function runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
-    if (client.inTransaction) return fn();
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+export function createContentDbTransactionRunner(store: ContentKernel | SqliteConnectionSource) {
+  const kernel = contentKernel(store);
+  return function runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    return kernel.transaction(fn);
   };
 }

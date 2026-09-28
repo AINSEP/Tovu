@@ -2,12 +2,10 @@
  * @file The only `TrashDb` implementation today: Drizzle's better-sqlite3 query builder, reentrant
  * with the caller's own transaction.
  *
- * `transaction` reuses `createContentDbTransactionRunner` (`repo.sqlite.ts`) rather than Drizzle's
- * own `db.transaction()` wrapper, for the same reason that runner already exists: `write-service.ts`
- * calls it from inside `TrashService.trash`/`restore`/`purgeSelected`, which themselves run inside a
- * domain's own already-open `BEGIN IMMEDIATE` (posts and redirects both open one around "marker +
- * revision append"). Drizzle's `transaction()` requires a synchronous callback and cannot nest, so it
- * cannot stand in here — the raw-client runner already handles both constraints.
+ * `transaction` is the content db's storage-kernel transaction (`createContentDbTransactionRunner`,
+ * `repo.sqlite.ts`): `write-service.ts` calls it from inside `TrashService.trash`/`restore`/
+ * `purgeSelected`, which themselves run inside a domain's own already-open transaction (posts and
+ * redirects both open one around "marker + revision append"); a nested kernel transaction joins it.
  */
 import { count as countOf, type AnyColumn, type SQL, type Table } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
@@ -17,7 +15,7 @@ import { createContentDbTransactionRunner } from "./repo.sqlite.js";
 import type { TrashDb, TrashDbAssignment, TrashDbJoin, TrashDbRow } from "./db-port.js";
 
 /**
- * @param required.db the Drizzle handle over `content.db` (its `$client` backs the transaction
+ * @param required.db the Drizzle handle over `content.db` (its kernel backs the transaction
  *        runner; every other method uses the Drizzle builder directly on the same connection, so it
  *        automatically joins whatever transaction is currently open — SQLite has one connection and
  *        one writer, so there is nothing extra to coordinate).
@@ -25,7 +23,7 @@ import type { TrashDb, TrashDbAssignment, TrashDbJoin, TrashDbRow } from "./db-p
  */
 export function createSqliteTrashDb(required: { db: ContentDb }): TrashDb {
   const { db } = required;
-  const runInTransaction = createContentDbTransactionRunner(db.$client);
+  const runInTransaction = createContentDbTransactionRunner(db);
 
   return {
     async transaction({ run }) {

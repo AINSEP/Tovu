@@ -339,6 +339,10 @@ function createLazyProxy<T extends object>(factory: () => T): T {
       const value = Reflect.get(object, property, object);
       return typeof value === "function" ? value.bind(object) : value;
     },
+    // `in` must see the real instance too: `sqliteKernel` tells a Drizzle handle from its client by `"$client" in`.
+    has(_target, property) {
+      return Reflect.has((instance ??= factory()), property);
+    },
   });
 }
 

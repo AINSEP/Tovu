@@ -1269,10 +1269,10 @@ export function createSqliteRouteDeps(
       return [entry.entityType, hooks ? withFollowUps({ adapter, hooks }) : adapter] as const;
     }),
   ]);
-  // Reentrant: `deletePost` and `tombstoneRedirect` already open their own BEGIN IMMEDIATE around
-  // "marker + revision append", and `remove` is called from inside it. Named (not inlined) because
+  // Reentrant: `deletePost` and `tombstoneRedirect` already open their own transaction around
+  // "marker + revision append", and `remove` is called from inside it (a nested one joins). Named (not inlined) because
   // the comments moderation service needs the SAME runner to wrap its own two writes.
-  const trashTransaction = createContentDbTransactionRunner(db.$client);
+  const trashTransaction = createContentDbTransactionRunner(db);
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
