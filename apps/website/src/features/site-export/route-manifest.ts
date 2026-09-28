@@ -278,6 +278,9 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
     { path: "/robots.txt", kind: "well-known", label: "robots.txt" },
     { path: "/sitemap.xml", kind: "well-known", label: "sitemap.xml" },
     { path: "/llms.txt", kind: "well-known", label: "llms.txt" },
+    // RSS (`registerFeedRoute`, also mounted unconditionally by `modules/seo.ts`). Feed readers find
+    // it through the `<link rel="alternate">` in every page head, but request it by name.
+    { path: "/feed.xml", kind: "well-known", label: "feed.xml" },
   ];
   const skipped: ManifestSkip[] = [
     // Also convention-addressed and also invisible to a crawl — but unlike robots.txt/sitemap.xml,

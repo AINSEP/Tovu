@@ -512,6 +512,8 @@ interface RouteWriteOutcome {
  *  as a named constant rather than the two literal manifest routes they already are. */
 const SITEMAP_PATH = "/sitemap.xml";
 const ROBOTS_PATH = "/robots.txt";
+/** `features/seo/feed.ts`'s `FEED_PATH`. Written verbatim: see {@link rewriteRouteBodyForBasePath}. */
+const FEED_PATH = "/feed.xml";
 
 /**
  * Applies whichever base-path rewrite matches this route's real content shape — HTML for every
@@ -519,6 +521,9 @@ const ROBOTS_PATH = "/robots.txt";
  * robots.txt. A no-op (returns `body` unchanged) when `basePath` is `""` (rewriting off).
  */
 function rewriteRouteBodyForBasePath(route: ManifestRoute, body: string, basePath: string): string {
+  // The RSS feed is never rewritten: feed readers need absolute links, which the feed already
+  // carries, and its only `href` is its own absolute `atom:link`.
+  if (route.path === FEED_PATH) return body;
   if (route.path === SITEMAP_PATH) return rewriteSitemapBasePath(body, basePath);
   if (route.path === ROBOTS_PATH) return rewriteRobotsBasePath(body, basePath);
   return rewriteHtmlBasePath(body, basePath);

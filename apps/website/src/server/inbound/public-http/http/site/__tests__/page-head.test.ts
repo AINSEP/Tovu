@@ -167,3 +167,22 @@ test("serializeHeadElements: escaping this module's five entities agrees with it
 
   assert.match(html, /<title>&amp;&lt;&gt;&quot;&#39;<\/title>/);
 });
+
+test("serializeHeadElements: a link's optional type and title render as escaped attributes (RSS auto-discovery)", async () => {
+  const html = serializeHeadElements([
+    { kind: "link", rel: "alternate", type: "application/rss+xml", title: `Tom & "Jerry"`, href: "/feed.xml", priority: 125 },
+  ]);
+  assert.equal(html, `<link rel="alternate" href="/feed.xml" type="application/rss+xml" title="Tom &amp; &quot;Jerry&quot;"/>`);
+});
+
+test("foldPageHead: an RSS alternate link does not collide with an hreflang-free canonical or another alternate type", async () => {
+  registerPageHeadContributor(
+    hook(10, [
+      { kind: "link", rel: "canonical", href: "/a", priority: 120 },
+      { kind: "link", rel: "alternate", type: "application/rss+xml", href: "/feed.xml", priority: 125 },
+      { kind: "link", rel: "alternate", type: "application/atom+xml", href: "/atom.xml", priority: 125 },
+    ])
+  );
+  const folded = await foldPageHead(ctx);
+  assert.equal(folded.length, 3);
+});

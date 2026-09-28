@@ -1,4 +1,5 @@
 import type { HeadElement, PageHeadContext, PageHeadEntryRef, PageHeadHook, SeoMeta } from "./types.js";
+import { FEED_PATH } from "./feed.js";
 import { getEntryMeta, type GetEntryMetaDeps } from "./seo.js";
 
 /**
@@ -62,6 +63,13 @@ function buildBreadcrumbJsonLd(ancestors: PageHeadEntryRef["ancestors"]): HeadEl
   };
 }
 
+/** RSS auto-discovery (`features/seo/feed.ts`), on every page. Root-relative, so a static export's
+ *  base-path rewrite prefixes it like any other site link. Priority 125: after canonical, before
+ *  robots. */
+function feedAlternateLink(siteTitle: string): HeadElement {
+  return { kind: "link", rel: "alternate", type: "application/rss+xml", title: siteTitle, href: FEED_PATH, priority: 125 };
+}
+
 /** Builds SEO's own `PageHeadHook`, closing over the deps `getEntryMeta` needs. */
 export function createSeoPageHeadHook(
   deps: GetEntryMetaDeps,
@@ -75,6 +83,7 @@ export function createSeoPageHeadHook(
         return [
           { kind: "title", text: ctx.siteTitle, priority: 100 },
           { kind: "link", rel: "canonical", href: ctx.canonicalUrl, priority: 120 },
+          feedAlternateLink(ctx.siteTitle),
         ];
       }
 
@@ -85,6 +94,7 @@ export function createSeoPageHeadHook(
         elements.push({ kind: "meta", name: "description", content: resolved.description, priority: 110 });
       }
       elements.push({ kind: "link", rel: "canonical", href: resolved.canonical, priority: 120 });
+      elements.push(feedAlternateLink(ctx.siteTitle));
       elements.push({
         kind: "meta",
         name: "robots",

@@ -41,6 +41,11 @@ export type SeoRouteDeps = Pick<
   // file's header already documents for the `media:` argument) so the admin SEO preview shows the
   // same absolute canonical/og:url/og:image the live public render now emits.
   | "originRegistry"
+  // RSS feed (`routes/site/feed.ts`): the channel title is the site title, read through
+  // `resolveSiteTitle`, which needs these three.
+  | "siteTitlePreservationStore"
+  | "workspaceRepo"
+  | "siteDisplayName"
 >;
 
 export type SeoRouteRegistrar = (app: Express, deps: SeoRouteDeps) => void;

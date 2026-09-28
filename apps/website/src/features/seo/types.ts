@@ -85,6 +85,9 @@ export type HeadElement =
       readonly rel: string;
       readonly href: string;
       readonly hreflang?: string;
+      /** MIME type, e.g. `application/rss+xml` on a feed's `rel="alternate"`. Part of the dedup key. */
+      readonly type?: string;
+      readonly title?: string;
     })
   | (HeadElementBase & { readonly kind: "jsonld"; readonly data: JsonLd });
 

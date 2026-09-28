@@ -163,6 +163,10 @@ test("buildRouteManifest: always includes the convention routes robots.txt/sitem
   assert.ok(llmsTxt, "expected /llms.txt — no HTML page links to it, so a crawl alone would never find it (registerLlmsTxtRoute is always mounted, see modules/seo.ts)");
   assert.equal(llmsTxt?.kind, "well-known");
 
+  const feed = manifest.routes.find((r) => r.path === "/feed.xml");
+  assert.ok(feed, "expected /feed.xml — feed readers request it by name (registerFeedRoute is always mounted, see modules/seo.ts)");
+  assert.equal(feed?.kind, "well-known");
+
   assert.ok(
     manifest.skipped.some((s) => s.reason === "no-favicon-or-manifest-route"),
     "Tovu has no favicon/manifest route today — the gap must be named, not silently absent"

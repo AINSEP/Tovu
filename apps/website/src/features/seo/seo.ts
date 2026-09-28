@@ -116,8 +116,9 @@ function extractPlainTextFromHtml(html: string): string {
 /** override > site default > derived excerpt (behavior.spec.md §1.1). Derivation reads whichever
  *  body column `bodyFormat` says is live — `bodyJson` (TipTap doc) or `bodyHtml` (bespoke-HTML
  *  Page, SPEC-047/ADR-056 Decision 3) — so an html-format Page gets a real excerpt instead of
- *  silently resolving to `undefined`. */
-function deriveExcerpt(post: PostRecord): string | undefined {
+ *  silently resolving to `undefined`. Exported for the RSS feed (`feed.ts`), whose item description
+ *  is the post's own excerpt, never the site-wide default. */
+export function deriveExcerpt(post: PostRecord): string | undefined {
   const rawText = post.bodyFormat === "html" ? extractPlainTextFromHtml(post.bodyHtml ?? "") : extractPlainText(post.bodyJson);
   const text = rawText.replace(/\s+/g, " ").trim();
   if (!text) return undefined;

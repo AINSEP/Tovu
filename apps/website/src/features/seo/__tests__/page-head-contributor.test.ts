@@ -183,3 +183,13 @@ test("seoPageHeadHook: a home/entry-less context still emits site-level tags", a
   });
   assert.ok(elements.some((e) => e.kind === "title"));
 });
+
+test("seoPageHeadHook: every page, with or without an entry, advertises the RSS feed for auto-discovery", async () => {
+  const deps = await makeDeps([seedPost()]);
+  const hook = createSeoPageHeadHook(deps);
+  const expected = { kind: "link", rel: "alternate", type: "application/rss+xml", title: "Example Site", href: "/feed.xml", priority: 125 };
+  const onEntry = await hook.handle(baseCtx("post-1"));
+  assert.deepEqual(onEntry.find((e) => e.kind === "link" && e.rel === "alternate"), expected);
+  const onHome = await hook.handle({ workspaceId: WORKSPACE, route: "/", canonicalUrl: "/", siteTitle: "Example Site" });
+  assert.deepEqual(onHome.find((e) => e.kind === "link" && e.rel === "alternate"), expected);
+});

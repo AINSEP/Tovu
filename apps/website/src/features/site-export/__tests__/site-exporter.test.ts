@@ -89,6 +89,12 @@ test("exportSite: --base-path unset leaves every written byte identical to a pla
 
   const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
   assert.match(robots, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
+
+  // The RSS feed is written exactly as served: feed readers need absolute links, and the base-path
+  // rewrite has nothing to add to them.
+  const feed = readFileSync(path.join(outputDir, "feed.xml"), "utf8");
+  assert.match(feed, /<link>http:\/\/localhost:3000\/welcome<\/link>/);
+  assert.equal(feed.includes("/my-repo"), false, "the feed must not be base-path rewritten");
 });
 
 const alwaysAllowAssistantSettingsWrite = async () => ({ allowed: true, reason: "test" });
@@ -308,7 +314,8 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   //       always-mounted well-known convention route, after this count was first set.
   //   +1  2026-09-27: the seed gained a `kind: "page"` Blog row at /blog (seed.ts's `page-blog`),
   //       the target of the default theme's "Read the blog"/"All posts" links.
-  // 19 - 7 + 1 + 1 = 14. Asserting the actual path LIST, not a bare count, so the next drift is legible
+  //   +1  2026-09-28: /feed.xml (RSS), another always-mounted well-known route.
+  // 19 - 7 + 1 + 1 + 1 = 15. Asserting the actual path LIST, not a bare count, so the next drift is legible
   // instead of a mystery integer.
   assert.deepEqual(
     report.routes.succeeded.map((r) => r.path).sort(),
@@ -316,6 +323,7 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
       "/",
       "/about",
       "/blog",
+      "/feed.xml",
       "/how-plugins-work",
       "/how-themes-work",
       "/llms.txt",

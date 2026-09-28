@@ -52,6 +52,9 @@ export type HeadElement =
       readonly rel: string;
       readonly href: string;
       readonly hreflang?: string;
+      /** MIME type, e.g. `application/rss+xml` on a feed's `rel="alternate"`. Part of the dedup key. */
+      readonly type?: string;
+      readonly title?: string;
     })
   | (HeadElementBase & { readonly kind: "jsonld"; readonly data: JsonLd });
 
@@ -146,7 +149,9 @@ function headElementKey(element: HeadElement): HeadElementKey {
     case "og":
       return `og:${element.property}`;
     case "link":
-      return `link:${element.rel}`;
+      // `type` joins the key only when present, so every existing key is unchanged; it keeps an RSS
+      // and an Atom `alternate` from overwriting each other.
+      return element.type === undefined ? `link:${element.rel}` : `link:${element.rel}:${element.type}`;
     case "jsonld": {
       const type = element.data["@type"];
       return `jsonld:${typeof type === "string" ? type : "untyped"}`;
@@ -211,7 +216,9 @@ function serializeElement(element: HeadElement): string {
       return `<meta property="${escapeHtml(element.property)}" content="${escapeHtml(element.content)}"/>`;
     case "link": {
       const hreflang = element.hreflang ? ` hreflang="${escapeHtml(element.hreflang)}"` : "";
-      return `<link rel="${escapeHtml(element.rel)}" href="${escapeHtml(element.href)}"${hreflang}/>`;
+      const type = element.type ? ` type="${escapeHtml(element.type)}"` : "";
+      const title = element.title ? ` title="${escapeHtml(element.title)}"` : "";
+      return `<link rel="${escapeHtml(element.rel)}" href="${escapeHtml(element.href)}"${hreflang}${type}${title}/>`;
     }
     case "jsonld":
       return `<script type="application/ld+json">${serializeJsonLd(element.data)}</script>`;

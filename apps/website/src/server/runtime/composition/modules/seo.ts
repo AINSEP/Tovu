@@ -7,6 +7,7 @@ import { registerAdminSeoPostSitemapRegenerateRoute } from "#src/server/inbound/
 import { registerSeoSitemapRoute } from "#src/server/inbound/public-http/routes/site/sitemap";
 import { registerSeoRobotsRoute } from "#src/server/inbound/public-http/routes/site/robots";
 import { registerLlmsTxtRoute } from "#src/server/inbound/public-http/routes/site/llms";
+import { registerFeedRoute } from "#src/server/inbound/public-http/routes/site/feed";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -19,7 +20,9 @@ import type { ServerModuleHandle } from "./types.js";
  * `routes/admin/seo/` — mirrors `media.ts`'s precedent of bundling a public route into an
  * otherwise-admin module. The first 8 were moved here verbatim from `app.ts`'s `createApp()`,
  * same registrar function bodies, no behavior change, same relative order; `registerLlmsTxtRoute`
- * (`llms.ts`, ai-first-docs-checklist "Do now" item 1) joined them 2026-08-31.
+ * (`llms.ts`, ai-first-docs-checklist "Do now" item 1) joined them 2026-08-31, and
+ * `registerFeedRoute` (`GET /feed.xml`, RSS) on 2026-09-28 — a fixed well-known path, registered
+ * here for the same before-`/:slug` ordering reason.
  *
  * CRITICAL ORDERING REQUIREMENT (verified, per SPEC-042 REQ-06): the public routes
  * (`registerSeoSitemapRoute`/`registerSeoRobotsRoute`/`registerLlmsTxtRoute`) MUST still register
@@ -44,6 +47,7 @@ export function createSeoModule(deps: SeoRouteDeps): ServerModuleHandle {
       registerSeoSitemapRoute(app, deps);
       registerSeoRobotsRoute(app, deps);
       registerLlmsTxtRoute(app, deps);
+      registerFeedRoute(app, deps);
     },
   };
 }
