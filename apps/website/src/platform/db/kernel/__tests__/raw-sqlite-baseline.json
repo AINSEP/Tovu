@@ -52,9 +52,6 @@
     "sqlite-catalog": 2,
     "sync-terminal": 7
   },
-  "apps/website/src/features/deployments/repo.sqlite.ts": {
-    "sync-terminal": 4
-  },
   "apps/website/src/features/entries/repo.sqlite.ts": {
     "sqlite-json": 2,
     "sync-terminal": 5
