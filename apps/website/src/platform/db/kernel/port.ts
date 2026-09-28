@@ -83,5 +83,11 @@ export interface StorageKernel<DB> {
   inTransaction(): boolean;
   /** Throws {@link UnsupportedCapabilityError} when this kernel lacks `capability`. */
   require(capability: StorageCapability): void;
+  /**
+   * A consistent copy of the whole database written to `destPath` (SQLite: the online backup API,
+   * a normal SQLite file; PGlite: a data-dir tarball). Throws {@link UnsupportedCapabilityError}
+   * without `backup`. Call it outside a transaction.
+   */
+  backupTo(destPath: string): Promise<void>;
   close(): Promise<void>;
 }

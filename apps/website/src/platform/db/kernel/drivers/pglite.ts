@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 
 import { PGlite } from "@electric-sql/pglite";
 import { Kysely } from "kysely";
@@ -53,6 +54,10 @@ export function openPgliteKernel<DB>(
     oneConnection: true,
     begin: (body) => base.transaction().execute((tx) => body(tx)),
     lockKey: postgresLockKey,
+    async backup(destPath) {
+      const dump = await client.dumpDataDir("none");
+      await writeFile(destPath, Buffer.from(await dump.arrayBuffer()));
+    },
     async close() {
       await ready.catch(() => {});
       await client.close();

@@ -39,6 +39,8 @@ export interface KernelDriver<DB> {
    * runners use — instead of failing on a nested `BEGIN`. Removed once no legacy site remains.
    */
   foreignTransactionOpen?(): boolean;
+  /** `StorageKernel.backupTo`; required when `capabilities.backup` is true. */
+  backup?(destPath: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -111,6 +113,13 @@ export function buildKernel<DB>(driver: KernelDriver<DB>): StorageKernel<DB> {
     },
     inTransaction: () => scope.getStore()?.kind === "transaction",
     require,
+    async backupTo(destPath) {
+      require("backup");
+      if (driver.backup === undefined) throw new UnsupportedCapabilityError("backup", driver.transport);
+      if (scope.getStore()?.kind === "transaction") throw new Error("backupTo() must be called outside a transaction");
+      await driver.ready;
+      await driver.backup(destPath);
+    },
     close: () => driver.close(),
   };
 }

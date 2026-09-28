@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import { Kysely, type SqliteDatabase, SqliteDialect } from "kysely";
 
 import { buildKernel } from "../kernel-core.js";
@@ -80,8 +80,28 @@ export function sqliteKernel<DB>(source: SqliteConnectionSource): SqliteKernel<D
     // BEGIN IMMEDIATE already holds the database write lock for the whole transaction.
     lockKey: async () => {},
     foreignTransactionOpen: () => client.inTransaction,
+    backup: async (destPath) => {
+      await client.backup(destPath);
+    },
     close: async () => {},
   });
   kernels.set(client, kernel as SqliteKernel<unknown>);
   return kernel;
+}
+
+/**
+ * A kernel over a new private in-memory SQLite database (foreign keys on, as `openContentDb` sets
+ * them). `close()` closes the connection. For scratch work, e.g. building a reference schema.
+ */
+export function openMemorySqliteKernel<DB>(): SqliteKernel<DB> {
+  const client = new Database(":memory:");
+  client.pragma("foreign_keys = ON");
+  const kernel = sqliteKernel<DB>(client);
+  return {
+    ...kernel,
+    close: async () => {
+      kernels.delete(client);
+      client.close();
+    },
+  };
 }
