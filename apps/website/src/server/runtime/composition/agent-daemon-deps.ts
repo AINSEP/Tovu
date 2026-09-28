@@ -126,7 +126,7 @@ export function createAgentDaemonRouteDeps(
 ): NewsletterRouteDeps {
   const { env } = required;
   const routeDeps =
-    env.TOVU_DB === "memory" ? createRouteDeps() : createSqliteRouteDepsForWorkspace(env.TOVU_WORKSPACE, optional.dbPath);
+    env.TOVU_DB === "memory" ? createRouteDeps() : createSqliteRouteDepsForWorkspace(env.TOVU_WORKSPACE, optional.dbPath, "client");
   // Mutated, not spread into a copy: `createSiteApp` is closed over this exact object (see
   // `RouteDeps.exportSiteBound`'s doc in `routes/types.ts`), so a copy would leave the export app's
   // routes on the claiming outbox. Services the factory built earlier kept the raw outbox, which is

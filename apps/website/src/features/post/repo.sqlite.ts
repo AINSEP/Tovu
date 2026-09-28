@@ -66,7 +66,7 @@ function parseExt(rawExt: string): JsonObject | undefined {
  * `toHeadlessPost` (SPEC-047 REQ-3's discriminated union) is the reference branch; any new consumer
  * of `bodyJson` must check `bodyFormat` the same way before trusting it.
  */
-function toRecord(row: PostRow): PostRecord {
+export function toRecord(row: PostRow): PostRecord {
   const ext = parseExt(row.ext);
   return {
     id: row.id,
@@ -101,7 +101,7 @@ function toRecord(row: PostRow): PostRecord {
  *
  * @complexity O(size of the record's JSON fields) — two `JSON.stringify` calls.
  */
-function toRow(record: PostRecord) {
+export function toRow(record: PostRecord) {
   return {
     ...record,
     // The exact inverse of `toRecord`'s `row.bodyJson === null ? DEFAULT_BODY_JSON : parse(...)`
@@ -158,7 +158,7 @@ function toRow(record: PostRecord) {
  *
  * @complexity O(1).
  */
-function updatableColumns(row: ReturnType<typeof toRow>) {
+export function updatableColumns(row: ReturnType<typeof toRow>) {
   return {
     workspaceId: row.workspaceId,
     title: row.title,

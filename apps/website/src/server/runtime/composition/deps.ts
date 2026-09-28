@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { selectPostRepo, type ContentStoreRole } from "#src/server/runtime/composition/content-store";
 import { createObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
@@ -11,7 +12,7 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
+import { backfillPostSearchIndex, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
@@ -579,6 +580,11 @@ export interface CreateSqliteRouteDepsOverrides {
    * See `RouteDeps.siteBinding`'s own doc for the full defect this fixes.
    */
   siteBinding: SiteBinding;
+  /**
+   * Which process this is for the `TOVU_CONTENT_STORE=pglite` switch (see `content-store.ts`):
+   * the agent daemon passes `"client"`; omitted means `"owner"` (the API process).
+   */
+  contentStoreRole: ContentStoreRole;
 }
 
 /**
@@ -1621,7 +1627,7 @@ export function createSqliteRouteDeps(
   // are stateless wrappers over the shared `db` handle, so a second instance would behave
   // identically, but reusing one matches this root's existing single-instance convention (see
   // `outbox`/`settingsRepo` above).
-  const postRepo = new SqlitePostRepo(db);
+  const postRepo = selectPostRepo({ db, contentDbPath: dbPath, env: process.env, role: overrides?.contentStoreRole ?? "owner" });
 
   // Task 8 of the publish-content (Publish Content) feature — same "reuse one instance" convention
   // as `postRepo` just above: `publishContentApplyPort`'s own bundle/baseline reads must hit the
@@ -2184,9 +2190,10 @@ export function createSqliteRouteDeps(
  */
 export function createSqliteRouteDepsForWorkspace(
   workspaceIdOverride: string | undefined,
-  dbPath: string = defaultContentDbPath()
+  dbPath: string = defaultContentDbPath(),
+  contentStoreRole: ContentStoreRole = "owner"
 ): NewsletterRouteDeps {
-  if (workspaceIdOverride === undefined) return createSqliteRouteDeps(dbPath);
+  if (workspaceIdOverride === undefined) return createSqliteRouteDeps(dbPath, { contentStoreRole });
 
   const db = openContentDb(
     dbPath,
@@ -2194,5 +2201,5 @@ export function createSqliteRouteDepsForWorkspace(
     recoverIncompleteDataModuleMigrations
   );
   const workspace = resolveWorkspace({ db }, { workspaceId: workspaceIdOverride });
-  return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id });
+  return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id, contentStoreRole });
 }
