@@ -125,7 +125,7 @@ test("the agent daemon's composition (client) leaves the sweep to the API proces
   try {
     const chatDbPath = path.join(dir, "chat.db");
     seedGuestChats(chatDbPath);
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), { contentStoreRole: "client" });
+    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), { storeRole: "client" });
     await deps.commentsReady;
     await new Promise((resolve) => setTimeout(resolve, 300));
     assert.deepEqual(chatIds(chatDbPath), ["expired", "fresh"]);

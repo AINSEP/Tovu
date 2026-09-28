@@ -18,8 +18,8 @@ import { type MigrationContext, type MigrationStep, LegacyHistoryError } from ".
  *   and verifies the schema before the runner records this step. A brand-new file gets the whole
  *   chain. Nothing is copied or rewritten.
  * - Postgres/PGlite: the frozen baseline statements on an empty schema. A schema that already has
- *   tables but no ledger (the dev-only `TOVU_CONTENT_STORE=pglite` prototype dirs) is refused:
- *   recreate it.
+ *   tables but no ledger (e.g. a data dir left by the deleted 2026-09-28 posts-on-PGlite
+ *   prototype) is refused: recreate it.
  */
 
 export const LEGACY_BASELINE_ID = "0000_legacy_baseline";

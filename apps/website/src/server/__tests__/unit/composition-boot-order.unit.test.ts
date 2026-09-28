@@ -99,3 +99,10 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const topLevelAwaits = body.slice(firstBootPromise).match(/^  (const [^=]+= )?await\b/gm) ?? [];
   assert.equal(topLevelAwaits.length, 0, "the body after the prelude must not await at its top level");
 });
+
+test("createSiteRouteDeps body: every repo is built from the kernels; the SQLite handle reaches only sqliteOnlyServices", () => {
+  const body = functionBody(readCode("server/runtime/composition/deps.ts"), "export async function createSiteRouteDeps(");
+  // `db` used as a value (not a property key `db:`, not a member `x.db`).
+  const uses = [...body.matchAll(/(?<![.\w$])db(?![\w$:])/g)].map((match) => body.slice(body.lastIndexOf("\n", match.index) + 1, body.indexOf("\n", match.index)).trim());
+  assert.deepEqual(uses, ["const db = store.sqliteDb as ContentDb;", "const storeBound = sqliteOnlyServices(db, dbPath);"], "R1f's pg branch has no `db`: anything else reading it breaks there");
+});

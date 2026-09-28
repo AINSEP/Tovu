@@ -4,7 +4,6 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { selectPostRepo, type ContentStoreRole } from "#src/server/runtime/composition/content-store";
 import { createObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
@@ -12,7 +11,7 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { backfillPostSearchIndex, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
+import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
@@ -59,7 +58,7 @@ import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/inde
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "./open-site-content-db.js";
-import { openSiteStore, type SiteStore } from "./open-site-store.js";
+import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { sqliteOnlyServices } from "./sqlite-only-services.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
@@ -580,10 +579,10 @@ export interface CreateSiteRouteDepsOverrides {
    */
   siteBinding: SiteBinding;
   /**
-   * Which process this is for the `TOVU_CONTENT_STORE=pglite` switch (see `content-store.ts`):
-   * the agent daemon passes `"client"`; omitted means `"owner"` (the API process).
+   * Which process opens the site's store (`open-site-store.ts`): the agent daemon passes
+   * `"client"`; omitted means `"owner"` (the API process, which also runs the guest-chat sweep).
    */
-  contentStoreRole: ContentStoreRole;
+  storeRole: SiteStoreRole;
 }
 
 /**
@@ -706,7 +705,7 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
 async function openCompositionStore(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<SiteStore> {
   const storage = resolveSiteStorage(isInMemoryDbPath(dbPath) ? ":memory:" : dirname(dbPath));
   hydrateContentDbIfNeeded(dbPath, storage, overrides);
-  const role = overrides?.contentStoreRole ?? "owner";
+  const role = overrides?.storeRole ?? "owner";
   // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
@@ -834,7 +833,7 @@ export async function createSiteRouteDeps(
   // The one content kernel over `db` (the SQLite driver keeps one per connection), read by the
   // prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
-  // Everything below is built from `kernel` / `chatDb` (the chat kernel) except these, which need the
+  // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which need the
   // SQLite handle or file itself (`sqlite-only-services.ts`; R1f adds the PGlite/Postgres twin).
   const storeBound = sqliteOnlyServices(db, dbPath);
   // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
@@ -855,7 +854,7 @@ export async function createSiteRouteDeps(
   // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
   // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
   const chatDbPath = defaultChatDbPath(dbPath);
-  const chatDb = store.chat;
+  const chat = store.chat;
   // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved
   // the rows an already-deployed `content.db` was holding, and nothing anywhere reported that.
   // Every such conversation is intact but unread, because the stores no longer look in that file.
@@ -1630,11 +1629,11 @@ export async function createSiteRouteDeps(
   );
 
   // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
-  // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(db)` — both
-  // are stateless wrappers over the shared `db` handle, so a second instance would behave
+  // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(kernel)` — both
+  // are stateless wrappers over the shared kernel, so a second instance would behave
   // identically, but reusing one matches this root's existing single-instance convention (see
   // `outbox`/`settingsRepo` above).
-  const postRepo = selectPostRepo({ db, contentDbPath: dbPath, env: process.env, role: overrides?.contentStoreRole ?? "owner" });
+  const postRepo = new SqlitePostRepo(kernel);
 
   // Task 8 of the publish-content (Publish Content) feature — same "reuse one instance" convention
   // as `postRepo` just above: `publishContentApplyPort`'s own bundle/baseline reads must hit the
@@ -1762,18 +1761,16 @@ export async function createSiteRouteDeps(
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
     pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo }),
-    // `chatDb` (opened above, alongside `databaseJournalDb`) is the sidecar `chat.db` handle, NOT
-    // `content.db`'s — ADS-memory/reports/2026-09-05-db-split-scoping.md §6. `@jini-ai/sqlite`'s
-    // chat-history adapter takes a raw handle and never opens a database itself, which is exactly
-    // what let this move from `db.$client` to `chatDb` be a two-line redirect rather than a
-    // refactor.
-    chatHistory: createChatStoreFactory(chatDb),
-    chatRunLedger: createChatRunLedger(chatDb),
+    // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
+    // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
+    // itself.
+    chatHistory: createChatStoreFactory(chat),
+    chatRunLedger: createChatRunLedger(chat),
     // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
-    agentSessions: createSqliteAgentSessionStore(chatDb),
+    agentSessions: createSqliteAgentSessionStore(chat),
     // G3 "Allow for this chat": with the conversation, over the same sidecar handle.
-    conversationToolApprovals: createSqliteConversationToolApprovalStore(chatDb),
+    conversationToolApprovals: createSqliteConversationToolApprovalStore(chat),
     presentationRepo,
     settingsRepo,
     getEffective,
@@ -2197,12 +2194,12 @@ export async function createSiteRouteDeps(
 export async function createSiteRouteDepsForWorkspace(
   workspaceIdOverride: string | undefined,
   dbPath: string = defaultContentDbPath(),
-  contentStoreRole: ContentStoreRole = "owner"
+  storeRole: SiteStoreRole = "owner"
 ): Promise<NewsletterRouteDeps> {
-  if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { contentStoreRole });
+  if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { storeRole });
 
   const db = await openSiteContentDb(dbPath);
   const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
-  return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, contentStoreRole });
+  return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole });
 }
 
