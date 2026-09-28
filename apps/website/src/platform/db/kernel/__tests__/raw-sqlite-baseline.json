@@ -45,9 +45,6 @@
     "sqlite-catalog": 2,
     "sync-terminal": 7
   },
-  "apps/website/src/features/members/repo.sqlite.ts": {
-    "sync-terminal": 17
-  },
   "apps/website/src/features/newsletter/data-module-manifest.ts": {
     "better-sqlite3-import": 1
   },
