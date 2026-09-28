@@ -605,6 +605,9 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
         <input
           id={id}
           type={visible ? "text" : "password"}
+          // `new-password`, not `off` (Chrome ignores `off`): without it Chrome filled a saved
+          // login into "New password" only. Kept while revealed as `type="text"`, too.
+          autoComplete="new-password"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           style={{ flex: "1 1 auto", minWidth: 0 }}

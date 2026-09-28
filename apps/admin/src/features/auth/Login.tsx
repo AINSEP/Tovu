@@ -31,11 +31,11 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
         <p>{t("Sign in to your workspace")}</p>
         <label>
           {t("Username")}
-          <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+          <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
         </label>
         <label>
           {t("Password")}
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         {error ? <div className="login-error">{error}</div> : null}
         <button disabled={busy}>{busy ? t("Signing in…") : t("Sign in")}</button>

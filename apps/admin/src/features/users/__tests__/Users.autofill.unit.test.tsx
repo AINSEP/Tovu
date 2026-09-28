@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -74,5 +74,54 @@ describe("Users — New user form autofill guard", () => {
     await user.click(await screen.findByRole("button", { name: "New user" }));
 
     expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "new-password");
+  });
+});
+
+/** Owner report 2026-09-27: Chrome filled a saved password into the Reset password dialog's
+ *  "New password" field (`RevealablePasswordField`), leaving "Confirm" empty and showing "Passwords
+ *  do not match." The field had no `autoComplete`. It toggles to `type="text"` when revealed, so the
+ *  attribute must hold in both states. */
+describe("Users — Reset password dialog autofill guard", () => {
+  const ALICE = {
+    principalId: "u1",
+    workspaceId: "w1",
+    username: "alice",
+    email: "alice@example.com",
+    status: "active" as const,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    roleIds: [],
+    policyIds: [],
+  };
+
+  it("marks New and Confirm new-password, hidden and revealed", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ users: [ALICE] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+    render(
+      <FetchQueryProvider>
+        <Users />
+      </FetchQueryProvider>,
+    );
+
+    await screen.findByText("alice");
+    await user.click(screen.getByRole("button", { name: 'Actions for user "alice"' }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Reset password" }));
+    const dialog = screen.getByText(/reset password\?/i).closest("dialog") as HTMLElement;
+
+    for (const label of ["New password", "Confirm new password"]) {
+      const input = within(dialog).getByLabelText(label);
+      expect(input).toHaveAttribute("type", "password");
+      expect(input).toHaveAttribute("autocomplete", "new-password");
+    }
+    for (const button of within(dialog).getAllByRole("button", { name: "Show password" })) {
+      await user.click(button);
+    }
+    for (const label of ["New password", "Confirm new password"]) {
+      const input = within(dialog).getByLabelText(label);
+      expect(input).toHaveAttribute("type", "text");
+      expect(input).toHaveAttribute("autocomplete", "new-password");
+    }
   });
 });

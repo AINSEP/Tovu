@@ -222,6 +222,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
               id={`security-other-credential-${rowHandleBase(row)}`}
               className="access-tokens-row-field-disabled"
               type="text"
+              autoComplete="off"
               value={row.valueFact}
               disabled
             />

@@ -411,6 +411,8 @@ function SourceControlCredentialFields({
             <input
               id={`source-control-credentials-username-${row.providerId}`}
               type="text"
+              // The Bitbucket account's name, never this site's own saved login.
+              autoComplete="off"
               value={row.username}
               onChange={(e) => controller.setUsername(row.providerId, e.target.value)}
               {...agentHandle(`source-control-credentials-username-${row.providerId}`, {

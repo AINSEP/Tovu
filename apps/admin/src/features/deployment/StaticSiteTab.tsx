@@ -971,6 +971,8 @@ function PublishCredentialFields({
             <input
               id={`deployment-static-site-credentials-account-${row.providerId}`}
               type="text"
+              // Not a login: the token field above is `new-password`, so this plain id is `off`.
+              autoComplete="off"
               value={row.accountId}
               onChange={(e) => controller.setAccountId(row.providerId, e.target.value)}
               {...agentHandle(`deployment-static-site-credentials-account-${row.providerId}`, {
