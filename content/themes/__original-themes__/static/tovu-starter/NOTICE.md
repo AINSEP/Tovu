@@ -100,3 +100,13 @@ type.
   — `"fonts": [{ "family": "Geist", "weights": [400,500], "files": ["assets/fonts/geist-var.woff2"] }]`
   — that is self-hosted and theme-relative; these files were placed at that exact documented
   path so that seam, when built, consumes them where they already are.
+
+## kUInetic now loads from jsDelivr first (2026-09-27)
+
+Every page now loads `https://cdn.jsdelivr.net/npm/kuinetic@0/dist/kuinetic.all.min.js` (major
+range `@0`, so new 0.x releases arrive without a hand re-vendor), then an inline
+`window.kuinetic||document.write(...)` loads the vendored `scripts/vendor/kuinetic.all.js` only when
+the CDN script did not run (offline desktop app, self-hosted site without internet). The
+`document.write` fallback is synchronous, so load order and self-init timing match the old single
+tag. The vendored copy is now the offline fallback, not the primary source. No SRI hash: a range
+URL cannot carry one.
