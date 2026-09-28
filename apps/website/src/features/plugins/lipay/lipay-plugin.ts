@@ -11,10 +11,8 @@
  *
  * Kept verbatim from `deploy-plugin.ts` (the established Tier-2 template): typed result/error
  * unions that never throw out of the public API; the guarded `HttpClientPort` seam, never a raw
- * `fetch`; the rule-of-two credential shape; and `declareDataModule()` + a dedicated connection +
- * `journal_mode = WAL` + `busy_timeout = 5000` (that last pragma was added there after a live
- * multi-boot smoke test found deterministic `SQLITE_BUSY` failures — see `store-plugin.ts`'s
- * `bootstrapStore` header).
+ * `fetch`; the rule-of-two credential shape; and `declareDataModule()` on the storage kernel it is
+ * handed, every statement through `kernel.run` so one body serves SQLite and Postgres.
  *
  * Deviating from it on three points, deliberately. (1) An open registry replaces the closed
  * `DeployTarget` union and its `if (target === "vercel")` dispatch — a closed union makes every
@@ -32,10 +30,11 @@
  * notification is persisted verbatim with its verification outcome, and every outbound attempt is a
  * row. Wiring a real telemetry seam is left for when one exists.
  */
-import Database from "better-sqlite3";
+import type { Kysely } from "kysely";
 
 import type { HttpClientPort } from "#src/platform/http/index";
 import { declareDataModule, type DataModuleDecl } from "../data-module.js";
+import { type PluginCoreTables, type PluginStore, pluginKernel } from "../plugin-store.js";
 import { createPaymentProviderRegistry } from "./registry.js";
 import { canTransition, isTerminalPaymentStatus, statusForEventKind, type PaymentStatus } from "./state-machine.js";
 import type {
@@ -53,9 +52,9 @@ import type {
 
 export const LIPAY_PLUGIN_ID = "lipay";
 
-const PAYMENTS = `p_${LIPAY_PLUGIN_ID}__payments`;
-const EVENTS = `p_${LIPAY_PLUGIN_ID}__events`;
-const REFUNDS = `p_${LIPAY_PLUGIN_ID}__refunds`;
+const PAYMENTS = `p_${LIPAY_PLUGIN_ID}__payments` as const;
+const EVENTS = `p_${LIPAY_PLUGIN_ID}__events` as const;
+const REFUNDS = `p_${LIPAY_PLUGIN_ID}__refunds` as const;
 
 /** The public path the core-owned webhook route is mounted on. One route, every provider. */
 export const WEBHOOK_ROUTE_PATH = "/payments/webhook/:providerId";
@@ -258,11 +257,11 @@ export interface LipayApi {
     readonly rawBody: Buffer;
     readonly headers: Readonly<Record<string, string>>;
   }): Promise<WebhookAck>;
-  getPayment(required: { workspaceId: string; id: string }): PaymentRecord | null;
-  listPayments(required: { workspaceId: string }, optional?: { limit?: number }): readonly PaymentRecord[];
+  getPayment(required: { workspaceId: string; id: string }): Promise<PaymentRecord | null>;
+  listPayments(required: { workspaceId: string }, optional?: { limit?: number }): Promise<readonly PaymentRecord[]>;
 }
 
-interface PaymentRow {
+type PaymentRow = {
   id: string;
   workspace_id: string;
   provider_id: string;
@@ -276,9 +275,9 @@ interface PaymentRow {
   created_at: number;
   updated_at: number;
   last_error: string | null;
-}
+};
 
-interface RefundRow {
+type RefundRow = {
   id: string;
   workspace_id: string;
   payment_id: string;
@@ -290,7 +289,28 @@ interface RefundRow {
   reason: string | null;
   created_at: number;
   updated_at: number;
-}
+};
+
+type EventRow = {
+  id: string;
+  workspace_id: string;
+  provider_id: string;
+  provider_event_id: string;
+  payment_id: string | null;
+  kind: string;
+  occurred_at: number;
+  received_at: number;
+  /** 0/1 — the declared type set has no BOOLEAN. */
+  applied: number;
+  payload: string;
+};
+
+/** lipay's three tables, as Kysely sees them. Type aliases: `withTables` needs their index signature. */
+type LipayTables = {
+  [PAYMENTS]: PaymentRow;
+  [EVENTS]: EventRow;
+  [REFUNDS]: RefundRow;
+};
 
 const toPaymentRecord = (row: PaymentRow): PaymentRecord => ({
   id: row.id,
@@ -343,16 +363,6 @@ function invalidAmount(amount: Money): string | null {
 
 function supportsCurrency(capabilities: PaymentProviderCapabilities, currency: string): boolean {
   return capabilities.currencies === "any" || capabilities.currencies.includes(currency);
-}
-
-/**
- * A UNIQUE-index collision, as opposed to any other SQLite failure. This is the whole inbound
- * idempotency mechanism: replay protection is a database constraint inside a transaction, not a
- * status guard a provider author has to remember to write.
- */
-function isUniqueViolation(err: unknown): boolean {
-  const code = (err as { code?: unknown }).code;
-  return typeof code === "string" && code.startsWith("SQLITE_CONSTRAINT");
 }
 
 /** The three request-shape checks `charge()` needs before it may touch the database at all. */
@@ -568,10 +578,18 @@ function moneyOnlyTransition(
  * `webhookBaseUrl` and `returnUrl` are required beyond the review's §4.6 parameter list because
  * §4.3's `ProviderContext` mandates both and neither can be derived inside the plugin: the
  * externally reachable origin is a deployment fact.
+ *
+ * `db` is the site's storage kernel (or a SQLite connection, bridged to its kernel); `dbPath` names
+ * the SQLite file behind it, for the declaration's snapshot.
+ *
+ * Idempotency is a UNIQUE index, never a status guard a provider author has to remember: every
+ * keyed INSERT is `ON CONFLICT (<the unique columns>) DO NOTHING`, and zero inserted rows means a
+ * replay. (Not a caught constraint error: on Postgres a failed statement aborts its transaction.)
+ * Every read-then-write of a payment row runs in a transaction holding `lockKey` on that payment.
  */
 export async function activateLipay(
   required: {
-    db: Database.Database;
+    db: PluginStore;
     dbPath: string;
     workspaceId: string;
     httpClient: HttpClientPort;
@@ -584,10 +602,10 @@ export async function activateLipay(
   },
   _optional: Record<string, never> = {}
 ): Promise<LipayApi> {
-  const { db, dbPath, workspaceId, httpClient, credentials, providers, clock, idGen, webhookBaseUrl, returnUrl } =
-    required;
+  const { dbPath, workspaceId, httpClient, credentials, providers, clock, idGen, webhookBaseUrl, returnUrl } = required;
+  const kernel = pluginKernel(required.db);
 
-  const declaration = await declareDataModule({ db, dbPath, decl: LIPAY_MANIFEST });
+  const declaration = await declareDataModule({ db: kernel, dbPath, decl: LIPAY_MANIFEST });
   if (!declaration.ok) {
     throw new Error(`lipay dataModule declaration failed: ${declaration.error?.code} — ${declaration.error?.message}`);
   }
@@ -602,17 +620,35 @@ export async function activateLipay(
     returnUrl,
   });
 
-  const selectPaymentById = db.prepare(`SELECT * FROM "${PAYMENTS}" WHERE workspace_id = ? AND id = ?`);
-  const selectPaymentByKey = db.prepare(`SELECT * FROM "${PAYMENTS}" WHERE workspace_id = ? AND idempotency_key = ?`);
-  const selectPaymentByRef = db.prepare(
-    `SELECT * FROM "${PAYMENTS}" WHERE provider_id = ? AND provider_ref = ? AND workspace_id = ?`
-  );
-  const selectRefundByKey = db.prepare(`SELECT * FROM "${REFUNDS}" WHERE workspace_id = ? AND idempotency_key = ?`);
+  const tables = <T>(fn: (db: Kysely<PluginCoreTables & LipayTables>) => Promise<T>): Promise<T> =>
+    kernel.run((k) => fn(k.withTables<LipayTables>()));
+  const paymentLock = (paymentId: string): Promise<void> => kernel.lockKey(`${PAYMENTS}:${paymentId}`);
 
-  const selectPaymentByRowId = db.prepare(`SELECT * FROM "${PAYMENTS}" WHERE id = ?`);
+  const selectPaymentById = (scope: string, id: string): Promise<PaymentRow | undefined> =>
+    tables((db) => db.selectFrom(PAYMENTS).selectAll().where("workspace_id", "=", scope).where("id", "=", id).executeTakeFirst());
+  const selectPaymentByKey = (scope: string, key: string): Promise<PaymentRow | undefined> =>
+    tables((db) =>
+      db.selectFrom(PAYMENTS).selectAll().where("workspace_id", "=", scope).where("idempotency_key", "=", key).executeTakeFirst()
+    );
+  const selectPaymentByRef = (providerId: string, providerRef: string): Promise<PaymentRow | undefined> =>
+    tables((db) =>
+      db
+        .selectFrom(PAYMENTS)
+        .selectAll()
+        .where("provider_id", "=", providerId)
+        .where("provider_ref", "=", providerRef)
+        .where("workspace_id", "=", workspaceId)
+        .executeTakeFirst()
+    );
+  const selectRefundByKey = (scope: string, key: string): Promise<RefundRow | undefined> =>
+    tables((db) =>
+      db.selectFrom(REFUNDS).selectAll().where("workspace_id", "=", scope).where("idempotency_key", "=", key).executeTakeFirst()
+    );
+  const selectPaymentByRowId = (id: string): Promise<PaymentRow | undefined> =>
+    tables((db) => db.selectFrom(PAYMENTS).selectAll().where("id", "=", id).executeTakeFirst());
 
-  const readPayment = (id: string): PaymentRecord | null => {
-    const row = selectPaymentByRowId.get(id) as PaymentRow | undefined;
+  const readPayment = async (id: string): Promise<PaymentRecord | null> => {
+    const row = await selectPaymentByRowId(id);
     return row ? toPaymentRecord(row) : null;
   };
 
@@ -627,37 +663,38 @@ export async function activateLipay(
    * Inserts the pending payment row, absorbing the race where a concurrent request holding the
    * same idempotency key wins the UNIQUE index first (see the module-level idempotency contract).
    */
-  function insertPendingPayment(
+  async function insertPendingPayment(
     id: string,
     input: ChargeRequest,
     createdAt: number
-  ): { kind: "inserted" } | { kind: "raced"; row: PaymentRow } {
-    try {
-      db.prepare(
-        `INSERT INTO "${PAYMENTS}" (id, workspace_id, provider_id, idempotency_key, status, amount_minor, currency,
-           amount_refunded_minor, provider_ref, reference, created_at, updated_at, last_error)
-         VALUES (?, ?, ?, ?, 'pending', ?, ?, 0, NULL, ?, ?, ?, NULL)`
-      ).run(
-        id,
-        input.workspaceId,
-        input.providerId,
-        input.idempotencyKey,
-        input.amount.minorUnits,
-        input.amount.currency,
-        input.reference ?? null,
-        createdAt,
-        createdAt
-      );
-      return { kind: "inserted" };
-    } catch (err) {
-      // Lost the race to a concurrent request holding the same key — the unique index is the
-      // arbiter, so re-read and treat it as the replay it is.
-      if (isUniqueViolation(err)) {
-        const raced = selectPaymentByKey.get(input.workspaceId, input.idempotencyKey) as PaymentRow | undefined;
-        if (raced) return { kind: "raced", row: raced };
-      }
-      throw err;
-    }
+  ): Promise<{ kind: "inserted" } | { kind: "raced"; row: PaymentRow }> {
+    const inserted = await tables((db) =>
+      db
+        .insertInto(PAYMENTS)
+        .values({
+          id,
+          workspace_id: input.workspaceId,
+          provider_id: input.providerId,
+          idempotency_key: input.idempotencyKey,
+          status: "pending",
+          amount_minor: input.amount.minorUnits,
+          currency: input.amount.currency,
+          amount_refunded_minor: 0,
+          provider_ref: null,
+          reference: input.reference ?? null,
+          created_at: createdAt,
+          updated_at: createdAt,
+          last_error: null,
+        })
+        .onConflict((oc) => oc.columns(["workspace_id", "idempotency_key"]).doNothing())
+        .executeTakeFirst()
+    );
+    if (Number(inserted.numInsertedOrUpdatedRows ?? 0n) > 0) return { kind: "inserted" };
+    // Lost the race to a concurrent request holding the same key — the unique index is the
+    // arbiter, so re-read and treat it as the replay it is.
+    const raced = await selectPaymentByKey(input.workspaceId, input.idempotencyKey);
+    if (!raced) throw new Error(`lipay: payment insert for key '${input.idempotencyKey}' conflicted but no row holds the key`);
+    return { kind: "raced", row: raced };
   }
 
   async function charge(input: ChargeRequest): Promise<ChargeResult> {
@@ -677,7 +714,7 @@ export async function activateLipay(
 
     // Outbound idempotency, checked BEFORE the provider is called. The case a naive
     // "just return the stored row" implementation gets wrong is the second branch.
-    const existing = selectPaymentByKey.get(input.workspaceId, input.idempotencyKey) as PaymentRow | undefined;
+    const existing = await selectPaymentByKey(input.workspaceId, input.idempotencyKey);
     const existingResult = resolveExistingCharge(existing, input);
     if (existingResult) return existingResult;
 
@@ -693,7 +730,7 @@ export async function activateLipay(
 
     const id = idGen.newId();
     const createdAt = clock.now();
-    const insertOutcome = insertPendingPayment(id, input, createdAt);
+    const insertOutcome = await insertPendingPayment(id, input, createdAt);
     if (insertOutcome.kind === "raced") {
       return { ok: true, payment: toPaymentRecord(insertOutcome.row), next: null, replayed: true };
     }
@@ -702,21 +739,21 @@ export async function activateLipay(
 
     const updatedAt = clock.now();
     if (!result.ok) {
-      db.prepare(`UPDATE "${PAYMENTS}" SET status = 'failed', updated_at = ?, last_error = ? WHERE id = ?`).run(
-        updatedAt,
-        `${result.error.code}: ${result.error.message}`,
-        id
+      const lastError = `${result.error.code}: ${result.error.message}`;
+      await tables((db) =>
+        db.updateTable(PAYMENTS).set({ status: "failed", updated_at: updatedAt, last_error: lastError }).where("id", "=", id).execute()
       );
-      return { ok: false, payment: readPayment(id), error: result.error };
+      return { ok: false, payment: await readPayment(id), error: result.error };
     }
 
-    db.prepare(`UPDATE "${PAYMENTS}" SET status = ?, provider_ref = ?, updated_at = ? WHERE id = ?`).run(
-      result.status,
-      result.providerRef,
-      updatedAt,
-      id
+    await tables((db) =>
+      db
+        .updateTable(PAYMENTS)
+        .set({ status: result.status, provider_ref: result.providerRef, updated_at: updatedAt })
+        .where("id", "=", id)
+        .execute()
     );
-    const payment = readPayment(id);
+    const payment = await readPayment(id);
     if (!payment) throw new Error(`lipay: payment ${id} vanished immediately after write`);
     return { ok: true, payment, next: result.next, replayed: false };
   }
@@ -755,36 +792,35 @@ export async function activateLipay(
    * Inserts the pending refund row, absorbing the same UNIQUE-index race `insertPendingPayment`
    * absorbs on the charge side.
    */
-  function insertPendingRefund(
+  async function insertPendingRefund(
     refundId: string,
     input: RefundRequest,
     amount: Money,
     createdAt: number
-  ): { kind: "inserted" } | { kind: "raced"; row: RefundRow } {
-    try {
-      db.prepare(
-        `INSERT INTO "${REFUNDS}" (id, workspace_id, payment_id, idempotency_key, provider_ref, amount_minor,
-           currency, status, reason, created_at, updated_at)
-         VALUES (?, ?, ?, ?, NULL, ?, ?, 'pending', ?, ?, ?)`
-      ).run(
-        refundId,
-        input.workspaceId,
-        input.paymentId,
-        input.idempotencyKey,
-        amount.minorUnits,
-        amount.currency,
-        input.reason ?? null,
-        createdAt,
-        createdAt
-      );
-      return { kind: "inserted" };
-    } catch (err) {
-      if (isUniqueViolation(err)) {
-        const raced = selectRefundByKey.get(input.workspaceId, input.idempotencyKey) as RefundRow | undefined;
-        if (raced) return { kind: "raced", row: raced };
-      }
-      throw err;
-    }
+  ): Promise<{ kind: "inserted" } | { kind: "raced"; row: RefundRow }> {
+    const inserted = await tables((db) =>
+      db
+        .insertInto(REFUNDS)
+        .values({
+          id: refundId,
+          workspace_id: input.workspaceId,
+          payment_id: input.paymentId,
+          idempotency_key: input.idempotencyKey,
+          provider_ref: null,
+          amount_minor: amount.minorUnits,
+          currency: amount.currency,
+          status: "pending",
+          reason: input.reason ?? null,
+          created_at: createdAt,
+          updated_at: createdAt,
+        })
+        .onConflict((oc) => oc.columns(["workspace_id", "idempotency_key"]).doNothing())
+        .executeTakeFirst()
+    );
+    if (Number(inserted.numInsertedOrUpdatedRows ?? 0n) > 0) return { kind: "inserted" };
+    const raced = await selectRefundByKey(input.workspaceId, input.idempotencyKey);
+    if (!raced) throw new Error(`lipay: refund insert for key '${input.idempotencyKey}' conflicted but no row holds the key`);
+    return { kind: "raced", row: raced };
   }
 
   /**
@@ -804,7 +840,7 @@ export async function activateLipay(
   }): Promise<RefundResult> {
     const { refundId, input, amount, payment, provider, resolvedCredentials, createdAt } = args;
 
-    const insertOutcome = insertPendingRefund(refundId, input, amount, createdAt);
+    const insertOutcome = await insertPendingRefund(refundId, input, amount, createdAt);
     if (insertOutcome.kind === "raced") {
       return { ok: true, refund: toRefundRecord(insertOutcome.row), payment, replayed: true };
     }
@@ -823,47 +859,47 @@ export async function activateLipay(
 
     const updatedAt = clock.now();
     if (!result.ok) {
-      db.prepare(`UPDATE "${REFUNDS}" SET status = 'failed', updated_at = ? WHERE id = ?`).run(updatedAt, refundId);
+      await tables((db) => db.updateTable(REFUNDS).set({ status: "failed", updated_at: updatedAt }).where("id", "=", refundId).execute());
       return { ok: false, error: result.error };
     }
 
-    // The refund row and the payment's refunded total move together or not at all.
-    db.transaction(() => {
-      db.prepare(`UPDATE "${REFUNDS}" SET status = ?, provider_ref = ?, updated_at = ? WHERE id = ?`).run(
-        result.status,
-        result.providerRef,
-        updatedAt,
-        refundId
+    // The refund row and the payment's refunded total move together or not at all. The payment is
+    // re-read under its lock: the provider call above took real time, and a webhook may have moved
+    // the refunded total meanwhile.
+    await kernel.transaction(async () => {
+      await tables((db) =>
+        db
+          .updateTable(REFUNDS)
+          .set({ status: result.status, provider_ref: result.providerRef, updated_at: updatedAt })
+          .where("id", "=", refundId)
+          .execute()
       );
       if (result.status !== "succeeded") return;
-      const refundedTotal = payment.amountRefundedMinor + amount.minorUnits;
-      const next = refundedTotal >= payment.amount.minorUnits ? "refunded" : "partially_refunded";
+      await paymentLock(payment.id);
+      const current = await readPayment(payment.id);
+      if (!current) throw new Error(`lipay: payment ${payment.id} vanished during refund`);
+      const refundedTotal = current.amountRefundedMinor + amount.minorUnits;
+      const next = refundedTotal >= current.amount.minorUnits ? "refunded" : "partially_refunded";
       // A second partial refund moves the money without moving the status, so the total is written
       // either way and the status only when the machine actually allows the step.
-      if (canTransition(payment.status, next)) {
-        db.prepare(`UPDATE "${PAYMENTS}" SET amount_refunded_minor = ?, status = ?, updated_at = ? WHERE id = ?`).run(
-          refundedTotal,
-          next,
-          updatedAt,
-          payment.id
-        );
-      } else {
-        db.prepare(`UPDATE "${PAYMENTS}" SET amount_refunded_minor = ?, updated_at = ? WHERE id = ?`).run(
-          refundedTotal,
-          updatedAt,
-          payment.id
-        );
-      }
-    })();
+      const status = canTransition(current.status, next) ? { status: next } : {};
+      await tables((db) =>
+        db
+          .updateTable(PAYMENTS)
+          .set({ amount_refunded_minor: refundedTotal, ...status, updated_at: updatedAt })
+          .where("id", "=", payment.id)
+          .execute()
+      );
+    });
 
-    const refundRow = db.prepare(`SELECT * FROM "${REFUNDS}" WHERE id = ?`).get(refundId) as RefundRow;
-    const after = readPayment(payment.id);
+    const refundRow = await tables((db) => db.selectFrom(REFUNDS).selectAll().where("id", "=", refundId).executeTakeFirstOrThrow());
+    const after = await readPayment(payment.id);
     if (!after) throw new Error(`lipay: payment ${payment.id} vanished immediately after refund`);
     return { ok: true, refund: toRefundRecord(refundRow), payment: after, replayed: false };
   }
 
   async function refund(input: RefundRequest): Promise<RefundResult> {
-    const paymentRow = selectPaymentById.get(input.workspaceId, input.paymentId) as PaymentRow | undefined;
+    const paymentRow = await selectPaymentById(input.workspaceId, input.paymentId);
     if (!paymentRow) {
       return { ok: false, error: error("INVALID_REQUEST", `no payment '${input.paymentId}' in this workspace`) };
     }
@@ -880,7 +916,7 @@ export async function activateLipay(
     if (!amountResolution.ok) return { ok: false, error: amountResolution.error };
     const { amount } = amountResolution;
 
-    const existing = selectRefundByKey.get(input.workspaceId, input.idempotencyKey) as RefundRow | undefined;
+    const existing = await selectRefundByKey(input.workspaceId, input.idempotencyKey);
     const existingResult = resolveExistingRefund(existing, input, amount, payment);
     if (existingResult) return existingResult;
 
@@ -900,28 +936,43 @@ export async function activateLipay(
 
   /**
    * Inserts one inbound event row, absorbing the UNIQUE-index dedupe on `(provider_id,
-   * provider_event_id)` — the whole inbound idempotency mechanism (see the module-level doc
-   * comment on `isUniqueViolation`).
+   * provider_event_id)` — the whole inbound idempotency mechanism (see `activateLipay`'s doc).
    */
-  function insertPaymentEvent(
+  async function insertPaymentEvent(
     providerId: PaymentProviderId,
     event: NormalizedPaymentEvent,
     payload: string,
     paymentId: string | null
-  ): { kind: "duplicate" } | { kind: "inserted"; eventId: string; receivedAt: number } {
+  ): Promise<{ kind: "duplicate" } | { kind: "inserted"; eventId: string; receivedAt: number }> {
     const eventId = idGen.newId();
     const receivedAt = clock.now();
-    try {
-      db.prepare(
-        `INSERT INTO "${EVENTS}" (id, workspace_id, provider_id, provider_event_id, payment_id, kind,
-           occurred_at, received_at, applied, payload)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
-      ).run(eventId, workspaceId, providerId, event.providerEventId, paymentId, event.kind, event.occurredAt, receivedAt, payload);
-      return { kind: "inserted", eventId, receivedAt };
-    } catch (err) {
-      if (isUniqueViolation(err)) return { kind: "duplicate" };
-      throw err;
-    }
+    const inserted = await tables((db) =>
+      db
+        .insertInto(EVENTS)
+        .values({
+          id: eventId,
+          workspace_id: workspaceId,
+          provider_id: providerId,
+          provider_event_id: event.providerEventId,
+          payment_id: paymentId,
+          kind: event.kind,
+          occurred_at: event.occurredAt,
+          received_at: receivedAt,
+          applied: 0,
+          payload,
+        })
+        .onConflict((oc) => oc.columns(["provider_id", "provider_event_id"]).doNothing())
+        .executeTakeFirst()
+    );
+    return Number(inserted.numInsertedOrUpdatedRows ?? 0n) > 0 ? { kind: "inserted", eventId, receivedAt } : { kind: "duplicate" };
+  }
+
+  /** The payment an event names, locked for the rest of the transaction and read fresh under it. */
+  async function lockedPaymentForEvent(providerId: PaymentProviderId, event: NormalizedPaymentEvent): Promise<PaymentRow | undefined> {
+    const found = await selectPaymentByRef(providerId, event.providerRef);
+    if (!found) return undefined;
+    await paymentLock(found.id);
+    return selectPaymentByRowId(found.id);
   }
 
   /**
@@ -929,43 +980,42 @@ export async function activateLipay(
    * i.e. only for an event this install has never seen — which is why no code path here needs its
    * own "have I already handled this?" branch.
    */
-  function applyEvent(providerId: PaymentProviderId, event: NormalizedPaymentEvent, payload: string): "duplicate" | "applied" | "recorded" {
-    return db.transaction((): "duplicate" | "applied" | "recorded" => {
-      const paymentRow = selectPaymentByRef.get(providerId, event.providerRef, workspaceId) as PaymentRow | undefined;
-      const inserted = insertPaymentEvent(providerId, event, payload, paymentRow === undefined ? null : paymentRow.id);
+  function applyEvent(providerId: PaymentProviderId, event: NormalizedPaymentEvent, payload: string): Promise<"duplicate" | "applied" | "recorded"> {
+    return kernel.transaction(async (): Promise<"duplicate" | "applied" | "recorded"> => {
+      const paymentRow = await lockedPaymentForEvent(providerId, event);
+      const inserted = await insertPaymentEvent(providerId, event, payload, paymentRow === undefined ? null : paymentRow.id);
       if (inserted.kind === "duplicate") return "duplicate";
 
       if (!paymentRow) return "recorded";
 
       // Out-of-order rejection: an event older than the newest one already applied to this payment
       // is recorded for the audit trail but never allowed to move the state backwards.
-      const lastApplied = db
-        .prepare(`SELECT MAX(occurred_at) AS at FROM "${EVENTS}" WHERE payment_id = ? AND applied = 1`)
-        .get(paymentRow.id) as { at: number | null };
+      const lastApplied = await tables((db) =>
+        db
+          .selectFrom(EVENTS)
+          .select((eb) => eb.fn.max("occurred_at").as("at"))
+          .where("payment_id", "=", paymentRow.id)
+          .where("applied", "=", 1)
+          .executeTakeFirstOrThrow()
+      );
 
-      const transition = computeEventTransition(paymentRow, event, lastApplied.at);
+      const transition = computeEventTransition(paymentRow, event, lastApplied.at === null ? null : Number(lastApplied.at));
       if (!transition.apply) return "recorded";
 
       // Two statements rather than one that restates the current status: this is the same pair
       // `executeRefundAttempt` writes on the direct `refund()` path, and the whole point of
       // `next: null` is that the status column is not part of this event's effect.
-      if (transition.next === null) {
-        db.prepare(`UPDATE "${PAYMENTS}" SET amount_refunded_minor = ?, updated_at = ? WHERE id = ?`).run(
-          transition.refundedTotal,
-          inserted.receivedAt,
-          paymentRow.id
-        );
-      } else {
-        db.prepare(`UPDATE "${PAYMENTS}" SET status = ?, amount_refunded_minor = ?, updated_at = ? WHERE id = ?`).run(
-          transition.next,
-          transition.refundedTotal,
-          inserted.receivedAt,
-          paymentRow.id
-        );
-      }
-      db.prepare(`UPDATE "${EVENTS}" SET applied = 1 WHERE id = ?`).run(inserted.eventId);
+      const status = transition.next === null ? {} : { status: transition.next };
+      await tables((db) =>
+        db
+          .updateTable(PAYMENTS)
+          .set({ ...status, amount_refunded_minor: transition.refundedTotal, updated_at: inserted.receivedAt })
+          .where("id", "=", paymentRow.id)
+          .execute()
+      );
+      await tables((db) => db.updateTable(EVENTS).set({ applied: 1 }).where("id", "=", inserted.eventId).execute());
       return "applied";
-    })();
+    });
   }
 
   async function handleWebhook(input: {
@@ -1005,7 +1055,7 @@ export async function activateLipay(
     let processed = 0;
     let duplicates = 0;
     for (const event of parsed.events) {
-      const outcome = applyEvent(provider.id, event, payload);
+      const outcome = await applyEvent(provider.id, event, payload);
       if (outcome === "duplicate") duplicates += 1;
       else processed += 1;
     }
@@ -1025,38 +1075,16 @@ export async function activateLipay(
     charge,
     refund,
     handleWebhook,
-    getPayment(request: { workspaceId: string; id: string }): PaymentRecord | null {
-      const row = selectPaymentById.get(request.workspaceId, request.id) as PaymentRow | undefined;
+    async getPayment(request: { workspaceId: string; id: string }): Promise<PaymentRecord | null> {
+      const row = await selectPaymentById(request.workspaceId, request.id);
       return row ? toPaymentRecord(row) : null;
     },
-    listPayments(request: { workspaceId: string }, optional: { limit?: number } = {}): readonly PaymentRecord[] {
+    async listPayments(request: { workspaceId: string }, optional: { limit?: number } = {}): Promise<readonly PaymentRecord[]> {
       const limit = Math.min(Math.max(optional.limit ?? 50, 1), 500);
-      const rows = db
-        .prepare(`SELECT * FROM "${PAYMENTS}" WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
-        .all(request.workspaceId, limit) as PaymentRow[];
+      const rows = await tables((db) =>
+        db.selectFrom(PAYMENTS).selectAll().where("workspace_id", "=", request.workspaceId).orderBy("created_at", "desc").limit(limit).execute()
+      );
       return rows.map(toPaymentRecord);
     },
   };
-}
-
-/**
- * Boot helper: open a dedicated connection to the site db and activate lipay on it. `busy_timeout`
- * is not optional — see `store-plugin.ts`'s `bootstrapStore` header for the live multi-boot smoke
- * test that made a missing one a deterministic `SQLITE_BUSY` boot failure.
- */
-export async function bootstrapLipay(required: {
-  dbPath: string;
-  workspaceId: string;
-  httpClient: HttpClientPort;
-  credentials: PaymentCredentialsPort;
-  providers: readonly PaymentProvider[];
-  clock: { now(): number };
-  idGen: { newId(): string };
-  webhookBaseUrl: string;
-  returnUrl: string;
-}): Promise<LipayApi> {
-  const db = new Database(required.dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
-  return activateLipay({ ...required, db });
 }

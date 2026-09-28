@@ -68,7 +68,7 @@ test("webhook: a genuinely signed delivery verifies and advances the payment to 
   });
 
   assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "succeeded");
 
   const rows = eventRows(harness.db);
   assert.equal(rows.length, 1);
@@ -95,7 +95,7 @@ test("webhook: a tampered body fails verification and changes nothing", async ()
 
   assert.equal(ack.accepted, false);
   assert.equal(ack.error?.code, "SIGNATURE_INVALID");
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "pending");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "pending");
   assert.equal(eventRows(harness.db).length, 0, "an unverified delivery is never recorded");
 
   cleanup(harness.db, harness.dir);
@@ -196,7 +196,7 @@ test("webhook: a redelivered event is a database constraint hit, not a code bran
   assert.deepEqual(third, { accepted: true, processed: 0, duplicates: 1 });
 
   // The failure this prevents: an incrementing refund total applied once per redelivery.
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.amountRefundedMinor, 400);
   assert.equal(after?.status, "partially_refunded");
   assert.equal(eventRows(harness.db).filter((r) => r.provider_event_id === "evt_refund_1").length, 1);
@@ -232,7 +232,7 @@ test("webhook: distinct refund events accumulate, and the total is capped at the
     }),
   });
 
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.amountRefundedMinor, 1000, "the refunded total never exceeds the payment");
   assert.equal(after?.status, "refunded");
 
@@ -256,7 +256,7 @@ test("webhook: a refund event that omits an amount is treated as a full refund o
   });
 
   assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.amountRefundedMinor, 1000, "an amount-less refund event infers the full charge amount");
   assert.equal(after?.status, "refunded");
 
@@ -282,7 +282,7 @@ test("webhook: an event older than the last applied one is recorded but never ap
   });
 
   assert.equal(late.accepted, true);
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "succeeded");
   const stale = eventRows(harness.db).find((r) => r.provider_event_id === "evt_1");
   assert.equal(stale?.applied, 0, "the out-of-order event is kept for the audit trail, unapplied");
 
@@ -298,7 +298,7 @@ test("webhook: a terminal payment rejects further transitions", async () => {
     providerId: "lipay",
     ...delivery({ id: "evt_1", type: "charge.failed", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
   });
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "failed");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "failed");
 
   await harness.api.handleWebhook({
     providerId: "lipay",
@@ -306,7 +306,7 @@ test("webhook: a terminal payment rejects further transitions", async () => {
   });
 
   assert.equal(
-    harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status,
+    (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status,
     "failed",
     "a failed payment must not be resurrected by a later success event"
   );
@@ -325,7 +325,7 @@ test("webhook: an expired out-of-band charge is canceled", async () => {
     ...delivery({ id: "evt_1", type: "charge.expired", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
   });
 
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "canceled");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "canceled");
 
   cleanup(harness.db, harness.dir);
 });
@@ -345,7 +345,7 @@ test("webhook: a chargeback is recorded without a status claim, since no status 
   });
 
   assert.equal(ack.accepted, true);
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "succeeded");
   assert.equal(eventRows(harness.db).find((r) => r.provider_event_id === "evt_2")?.kind, "chargeback");
 
   cleanup(harness.db, harness.dir);
@@ -421,7 +421,7 @@ test("webhook: a signature header sent in uppercase is still recognized", async 
   });
 
   assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "succeeded");
 
   cleanup(harness.db, harness.dir);
 });
@@ -521,7 +521,7 @@ test("webhook: a refund event whose amount is not a safe integer is treated as a
   });
 
   assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.amountRefundedMinor, 1000, "a non-integer amount is not usable money, so the full charge is inferred");
   assert.equal(after?.status, "refunded");
 
@@ -549,7 +549,7 @@ test("webhook: a refund event whose currency is not a string is treated as a ful
   });
 
   assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.amountRefundedMinor, 1000, "a non-string currency is not usable money, so the full charge is inferred");
   assert.equal(after?.status, "refunded");
 
@@ -586,7 +586,7 @@ test("webhook: a second distinct partial-refund event that doesn't complete the 
     }),
   });
   assert.deepEqual(firstRefund, { accepted: true, processed: 1, duplicates: 0 });
-  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "partially_refunded");
+  assert.equal((await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.status, "partially_refunded");
 
   // A second, genuinely distinct refund event (different provider_event_id) for another 300 — still
   // short of the 1000 charged, so the target status ("partially_refunded") equals the current one.
@@ -603,7 +603,7 @@ test("webhook: a second distinct partial-refund event that doesn't complete the 
   // `processed` counts every non-duplicate event whether or not it moved the payment, so the ack
   // alone proves nothing either way — the ledger does:
   assert.deepEqual(secondRefund, { accepted: true, processed: 1, duplicates: 0 });
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.amountRefundedMinor, 600, "300 + 300 against a 1000 charge accumulates to 600");
   assert.equal(after?.status, "partially_refunded", "status is unchanged, not reset or cleared: 600 is still short of 1000");
   const rows = eventRows(harness.db);
@@ -645,7 +645,7 @@ test("webhook: a second partial-refund event that lands exactly on the charged a
     }),
   });
 
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.amountRefundedMinor, 1000, "300 + 700 lands exactly on the charged amount");
   assert.equal(after?.status, "refunded", "an exact hit completes the refund rather than staying partial");
   const rows = eventRows(harness.db);
@@ -674,7 +674,7 @@ test("webhook: a second distinct succeeded event for an already-succeeded paymen
   });
 
   assert.deepEqual(second, { accepted: true, processed: 1, duplicates: 0 });
-  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  const after = (await harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }));
   assert.equal(after?.status, "succeeded");
   assert.equal(after?.amountRefundedMinor, 0, "a succeeded event moves no money");
   const rows = eventRows(harness.db);

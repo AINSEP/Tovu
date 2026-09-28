@@ -116,7 +116,7 @@ test("payments webhook: a real HMAC-signed request validates through the app tha
     });
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { processed: 1, duplicates: 0 });
-    return lipay.getPayment({ workspaceId: WORKSPACE_ID, id: paymentId })?.status;
+    return (await lipay.getPayment({ workspaceId: WORKSPACE_ID, id: paymentId }))?.status;
   });
 
   assert.equal(status, "succeeded");
@@ -141,7 +141,7 @@ test("payments webhook: a body tampered with after signing is rejected with 401"
     });
     assert.equal(response.status, 401);
     assert.equal((await response.json()).code, "SIGNATURE_INVALID");
-    return lipay.getPayment({ workspaceId: WORKSPACE_ID, id: paymentId })?.status;
+    return (await lipay.getPayment({ workspaceId: WORKSPACE_ID, id: paymentId }))?.status;
   });
 
   assert.equal(status, "pending");

@@ -149,7 +149,7 @@ test("lipay: charging an unregistered provider is a typed error and writes nothi
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "PROVIDER_NOT_REGISTERED");
   assert.equal(http.calls.length, 0);
-  assert.equal(api.listPayments({ workspaceId: WORKSPACE_ID }).length, 0);
+  assert.equal((await api.listPayments({ workspaceId: WORKSPACE_ID })).length, 0);
 
   cleanup(db, dir);
 });

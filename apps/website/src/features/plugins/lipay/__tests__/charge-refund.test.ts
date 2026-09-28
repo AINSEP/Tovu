@@ -107,7 +107,7 @@ test("charge: replaying an idempotency key returns the original payment and neve
     assert.equal(second.next, null);
   }
   assert.equal(http.calls.length, 1, "the provider was called exactly once for two identical requests");
-  assert.equal(api.listPayments({ workspaceId: WORKSPACE_ID }).length, 1);
+  assert.equal((await api.listPayments({ workspaceId: WORKSPACE_ID })).length, 1);
 
   cleanup(db, dir);
 });
@@ -163,7 +163,7 @@ test("charge: a missing credential bundle fails before any HTTP call and writes 
     assert.equal(result.payment, null);
   }
   assert.equal(http.calls.length, 0);
-  assert.equal(api.listPayments({ workspaceId: WORKSPACE_ID }).length, 0, "no attempt was possible, so none is recorded");
+  assert.equal((await api.listPayments({ workspaceId: WORKSPACE_ID })).length, 0, "no attempt was possible, so none is recorded");
 
   cleanup(db, dir);
 });
@@ -276,7 +276,7 @@ test("charge: a transport failure is typed and retryable, and the attempt is sti
     assert.equal(result.error.retryable, true);
     assert.equal(result.payment?.status, "failed");
   }
-  assert.equal(api.listPayments({ workspaceId: WORKSPACE_ID }).length, 1);
+  assert.equal((await api.listPayments({ workspaceId: WORKSPACE_ID })).length, 1);
 
   cleanup(db, dir);
 });
@@ -316,9 +316,9 @@ test("charge: workspace scoping — another workspace cannot read the payment", 
   assert.equal(created.ok, true);
   if (!created.ok) return;
 
-  assert.notEqual(api.getPayment({ workspaceId: WORKSPACE_ID, id: created.payment.id }), null);
-  assert.equal(api.getPayment({ workspaceId: "workspace-2", id: created.payment.id }), null);
-  assert.equal(api.listPayments({ workspaceId: "workspace-2" }).length, 0);
+  assert.notEqual((await api.getPayment({ workspaceId: WORKSPACE_ID, id: created.payment.id })), null);
+  assert.equal((await api.getPayment({ workspaceId: "workspace-2", id: created.payment.id })), null);
+  assert.equal((await api.listPayments({ workspaceId: "workspace-2" })).length, 0);
 
   cleanup(db, dir);
 });
@@ -395,7 +395,7 @@ test("refund: partial refunds that individually pass but together exceed the pay
     assert.match(overshoot.error.message, /exceeds the 300 still refundable/);
   }
   assert.equal(http.calls.length, callsBefore, "the over-refund never reached the provider");
-  assert.equal(api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.amountRefundedMinor, 700);
+  assert.equal((await api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.amountRefundedMinor, 700);
 
   cleanup(db, dir);
 });
@@ -433,7 +433,7 @@ test("refund: replaying a refund key returns the stored refund without calling t
     assert.equal(replay.replayed, true);
   }
   assert.equal(http.calls.length, callsAfterFirst);
-  assert.equal(api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.amountRefundedMinor, 400);
+  assert.equal((await api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.amountRefundedMinor, 400);
 
   cleanup(db, dir);
 });
@@ -621,7 +621,7 @@ test("charge: two concurrent charges racing the same idempotency key resolve to 
     );
   }
   assert.equal(http.calls.length, 1, "only the race's winner ever reached the provider");
-  assert.equal(api.listPayments({ workspaceId: WORKSPACE_ID }).length, 1, "no duplicate payment row from the race");
+  assert.equal((await api.listPayments({ workspaceId: WORKSPACE_ID })).length, 1, "no duplicate payment row from the race");
 
   cleanup(db, dir);
 });
@@ -717,7 +717,7 @@ test("refund: a provider-side failure marks the refund row failed, never a throw
   assert.equal(rows.length, 1);
   assert.equal(rows[0].status, "failed");
   // The payment itself is untouched by a refund attempt that never reached the provider successfully.
-  assert.equal(api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.amountRefundedMinor, 0);
+  assert.equal((await api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id }))?.amountRefundedMinor, 0);
 
   cleanup(db, dir);
 });
