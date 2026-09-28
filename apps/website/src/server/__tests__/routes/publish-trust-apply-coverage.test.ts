@@ -62,7 +62,9 @@ async function site(extraTheme?: string): Promise<Site> {
   process.env.TOVU_STOCK_THEMES_DIR = await themesDir(extraTheme);
   try {
     const deps = createRouteDeps();
-    await deps.settingsReady;
+    // The END of the boot settings chain, not `settingsReady`: each link opens its own transaction on the
+    // non-reentrant in-memory `settingsRepo`, so the `site-setting` fixture's write would overlap one.
+    await deps.siteTitleReady;
     return deps;
   } finally {
     delete process.env.TOVU_STOCK_THEMES_DIR;
@@ -77,7 +79,7 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
     const [seed] = await s.postRepo.list({ workspaceId: s.workspaceId });
     await s.postRepo.save({ ...seed!, id: "cov-post", slug: "cov-post", kind: "post", createdAt: at, updatedAt: at });
     // A tagged post also syncs its term assignments on apply.
-    s.entryTermRepo.upsert({ contentType: "post", contentId: "cov-post", termId: "cov-term", addedAt: at });
+    await s.entryTermRepo.upsert({ contentType: "post", contentId: "cov-post", termId: "cov-term", addedAt: at });
   },
   page: async (s) => {
     const [seed] = await s.postRepo.list({ workspaceId: s.workspaceId });
@@ -131,7 +133,7 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
       id: "cov-entry", workspaceId: s.workspaceId, type: "cov_recipe", slug: "cov-soup", status: "published", title: "Soup",
       bodyJson: { type: "doc", content: [] }, fieldsJson: { ext: { site: { servings: 2 } } }, publishedAt: at, createdAt: at, updatedAt: at, version: 1,
     } as never);
-    s.entryTermRepo.upsert({ contentType: "cov_recipe", contentId: "cov-entry", termId: "cov-term", addedAt: at });
+    await s.entryTermRepo.upsert({ contentType: "cov_recipe", contentId: "cov-entry", termId: "cov-term", addedAt: at });
   },
   widget: async (s) => {
     await createWidgetInstance({
