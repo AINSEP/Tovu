@@ -52,7 +52,7 @@ export class StorageOpError extends Error {
  * @throws {Error} a better-sqlite3 kernel this driver did not build (no connection to act on); an
  *   op called inside a transaction.
  */
-export function storageOps(kernel: StorageKernel<unknown>): StorageOps {
+export function storageOps<DB>(kernel: StorageKernel<DB>): StorageOps {
   if (kernel.transport !== "better-sqlite3") return unsupportedOps(kernel.transport);
   const client = sqliteConnectionOf(kernel);
   if (client === undefined) throw new Error("storageOps: this SQLite kernel was not built by the sqlite driver");

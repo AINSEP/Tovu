@@ -142,7 +142,7 @@ export function openSqliteFileKernel<DB>(filePath: string, optional: { readOnly?
     ...kernel,
     close: async () => closeSqliteConnection(client),
   };
-  connectionsByKernel.set(owned, client);
+  connectionsByKernel.set(owned as SqliteKernel<unknown>, client);
   return owned;
 }
 
@@ -158,6 +158,6 @@ export function closeSqliteConnection(source: SqliteConnectionSource): void {
 }
 
 /** The connection under a kernel this driver built, for the SQLite `StorageOps` (`../ops.ts`). */
-export function sqliteConnectionOf(kernel: StorageKernel<unknown>): Database.Database | undefined {
-  return connectionsByKernel.get(kernel);
+export function sqliteConnectionOf<DB>(kernel: StorageKernel<DB>): Database.Database | undefined {
+  return connectionsByKernel.get(kernel as StorageKernel<unknown>);
 }
