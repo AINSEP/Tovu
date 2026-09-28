@@ -43,6 +43,20 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // submission of either form is refused with 403.
   "supabase_set_access_token",
   "supabase_set_project_scope",
+  // 2026-09-27 — `supabase_get_database` (`features/supabase-connect/tool-registrations.ts`) opens
+  // the SAME `SurfaceExchangeStore` exchange the two entries above do, and holds it open while it
+  // polls the connection for the human's sign-in rather than waiting on a click. Today's card carries
+  // no callback — its one action is an outbound `openLink`, not a delivery through this route — but it
+  // is listed here anyway so a later slice's cancel/retry action needs no second edit to stop being a
+  // silent 403.
+  "supabase_get_database",
+  // 2026-09-27 — `agent_plugin_connect` (`features/agent-plugins/connect-tool.ts`, S-G1 of the
+  // generic-agent-plugin v2 plan) holds up the SAME shape `supabase_get_database` above does: it
+  // opens a `SurfaceExchangeStore` exchange and holds it open while it polls for the human's
+  // sign-in rather than waiting on a click. Today's card carries no callback either — its one action
+  // is an outbound `openLink` — but it is listed here anyway for the same reason, so a later
+  // cancel/retry action needs no second edit to stop being a silent 403.
+  "agent_plugin_connect",
   // 2026-08-15 — `deployment_execute_static_publish` (`features/deployments/publish-agent-tools.ts`)
   // holds up the SAME shape `content_post_delete` does: its handler opens a `SurfaceExchangeStore`
   // exchange and parks on `ctx.emitSurface` until this endpoint delivers the human's confirm/cancel

@@ -28,6 +28,20 @@ const NO_INPUT_SCHEMA = { type: "object", additionalProperties: false, required:
 
 export const supabaseConnectAgentToolCatalog: AgentToolDefinition[] = [
   {
+    name: "supabase_get_database",
+    description:
+      "The one call for 'I need a database': connects the user's Supabase account with almost no setup. Takes no arguments. " +
+      "Enables the 'supabase' plugin if it is off (the user asking is the consent), starts Supabase sign-in, and shows the human " +
+      "a card with a sign-in link that opens in a new tab. This ONE call waits until sign-in completes or the wait times out. " +
+      "If Supabase is already connected, returns immediately with no card and no wait. " +
+      "Returns { connected: true } once Supabase is connected — creating the database itself is a later step, not wired here yet; " +
+      "{ connected: false, reason: 'waiting-for-sign-in' } if nobody finished signing in during the wait: call this again later to " +
+      "resume, it never loops or retries on its own. Never mention a token, a password, an org, a region, or the word 'OAuth' to the human.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: SUPABASE_CONNECT_PERMISSION },
+    inputSchema: NO_INPUT_SCHEMA,
+  },
+  {
     name: "supabase_set_access_token",
     description:
       "FALLBACK ONLY: connects Supabase with a personal access token when the OAuth sign-in link cannot start (external_mcp_oauth_connect { id: 'supabase' } was refused). Takes no arguments. " +

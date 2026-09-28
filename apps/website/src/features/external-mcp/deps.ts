@@ -33,20 +33,23 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/as
  * each of those two handlers, fail-closed, the same posture `content_post_delete` takes for a missing
  * `ctx.emitSurface`.
  *
- * ## The cross-process caveat this domain does NOT solve
+ * ## The cross-process gap this domain no longer has
  *
- * `external-mcp-oauth.ts`'s own header states its `pending`/`devices` stores are in-memory and must
- * therefore live in the SAME process as the public OAuth callback route
- * (`server/routes/external-mcp/oauth-callback.ts`), which today is the admin web server's process.
- * If THIS domain is wired into a composition root running in a DIFFERENT process from that callback
- * route — the spawned agent-daemon path (`server/agent-daemon/agent-daemon-server.ts`), as opposed to
- * the in-process BYOK path (`server/modules/assistant-byok.ts`) — an `authorization_code` connect
- * started via `external_mcp_oauth_connect` mints a `pending` authorization the callback route's
- * process can never see, and the human's completed browser sign-in fails to redeem. This is a
- * pre-existing tradeoff (`external-mcp-oauth.ts` names it as a known limitation of the in-memory
- * stores), not something introduced or silently worked around here, and it is disclosed again on
- * `tool-registrations.ts`'s `external_mcp_oauth_connect` handler. The `device_code` grant is
- * unaffected — this domain owns both its begin and poll steps in the same process either way.
+ * Before commit `3c4e30d89` (2026-09-10, migration 0062), `external-mcp-oauth.ts`'s `pending`/
+ * `devices` stores were in-memory and had to live in the SAME process as the public OAuth callback
+ * route (`server/routes/external-mcp/oauth-callback.ts`), which is the admin web server's process. A
+ * composition root wired into a DIFFERENT process — the spawned agent-daemon path
+ * (`server/agent-daemon/agent-daemon-server.ts`), as opposed to the in-process BYOK path
+ * (`server/modules/assistant-byok.ts`) — could start an `authorization_code` connect via
+ * `external_mcp_oauth_connect` whose `pending` authorization the callback route's process could never
+ * see, so the human's completed browser sign-in failed to redeem.
+ *
+ * That gap is closed: pending and device-authorization state now lives in two `content.db` tables
+ * (`oauth_pending_authorizations`, `oauth_device_authorizations`) behind SQLite-backed adapters
+ * (`platform/db/sqlite/oauth-pending-store.sqlite.ts`), shared by every composition root that opens
+ * the same `content.db` handle. A chat-started `authorization_code` connect from the agent daemon now
+ * completes across the process boundary like any other — `tool-registrations.ts`'s
+ * `external_mcp_oauth_connect` handler no longer needs to disclose this as a limitation either.
  */
 export interface ExternalMcpToolDeps {
   workspaceId: UUID;

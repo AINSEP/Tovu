@@ -15,9 +15,10 @@ import type { SupabaseProject } from "./supabase-management-api.js";
 
 export const SUPABASE_SET_ACCESS_TOKEN_TOOL_ID = "supabase_set_access_token";
 export const SUPABASE_SET_PROJECT_SCOPE_TOOL_ID = "supabase_set_project_scope";
+export const SUPABASE_GET_DATABASE_TOOL_ID = "supabase_get_database";
 export const SUPABASE_TOKENS_PAGE_URL = "https://supabase.com/dashboard/account/tokens";
 
-export type SupabaseSurfaceKind = "access-token" | "project-scope";
+export type SupabaseSurfaceKind = "access-token" | "project-scope" | "connect";
 
 export function supabaseSurfaceUri(kind: SupabaseSurfaceKind, exchangeId: string): UIResourceUri {
   return `ui://tovu/supabase-${kind}/${exchangeId}` as UIResourceUri;
@@ -96,6 +97,39 @@ export function buildProjectScopeFormResource(spec: { exchangeId: string; projec
     cancel: cancelFor(SUPABASE_SET_PROJECT_SCOPE_TOOL_ID, exchangeId),
     app: { appName: "tovu-supabase-project-scope", appVersion: "1" },
     preferredFrameSize: ["100%", "380px"],
+  });
+}
+
+/**
+ * `supabase_get_database`'s card (C2 of the 2026-09-27 plan): a single sign-in link, worded with no
+ * jargon ("OAuth", "token", "MCP" never appear). Built on the SAME `buildOutcomeSurface` primitive
+ * {@link buildSupabaseOutcomeResource} uses, per the plan's "reusing its existing outcome-card style" —
+ * `openLinkUrl` renders one button wired to the bridge's `openLink` (opens in a new tab, per the
+ * owner's standing `links_open_new_tab` rule; no extra wiring needed here), and is meaningful at
+ * `state: 'partial'` too (`outcome.ts`'s own renderer only conditions the button's color, not its
+ * presence, on `state`). Re-sent under the SAME uri (same `exchangeId`) once the human finishes
+ * signing in, so the card updates from "waiting" to "connected" in place — the identical URI-reuse
+ * mechanism {@link buildSupabaseOutcomeResource}'s own header documents.
+ *
+ * @complexity O(1).
+ */
+export function buildConnectCardResource(spec: {
+  exchangeId: string;
+  state: "partial" | "success";
+  message: string;
+  /** The Supabase authorization URL. Omitted once `state` is `'success'` — nothing left to click. */
+  authorizeUrl?: string;
+}): UIResource {
+  const { exchangeId, state, message, authorizeUrl } = spec;
+  return buildOutcomeSurface({
+    uri: supabaseSurfaceUri("connect", exchangeId),
+    title: "Let's set up your database",
+    details: [{ label: "Connection", value: "Supabase" }],
+    state,
+    message,
+    ...(authorizeUrl !== undefined ? { openLinkUrl: authorizeUrl, openLinkLabel: "Connect Supabase →" } : {}),
+    app: { appName: "tovu-supabase-connect", appVersion: "1" },
+    preferredFrameSize: ["100%", "260px"],
   });
 }
 

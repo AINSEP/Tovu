@@ -121,15 +121,17 @@ import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAV
  * loopback origin). A real deployment behind a proxy or custom domain sets `TOVU_PUBLIC_URL`, per the
  * precedence above, so the derived guess never even reaches that case.
  *
- * NOT fixed by this: `deps.ts`'s own "cross-process caveat" — an `authorization_code` connect started
- * from the spawned agent-daemon still mints a `pending` record the public callback route's process
- * (the main web server) cannot see, so that grant still cannot complete from a chat tool call running
- * in the daemon, regardless of how correct the redirect URI is. That is a separate, pre-existing,
- * still-open gap this change does not touch; `beginConnect`'s in-process BYOK path is unaffected by
- * it. The last-resort refusal (still naming `TOVU_PUBLIC_URL`, now also naming the derived attempt)
- * fires only when a caller's `ExternalMcpToolDeps` never wires `derivedPublicOrigin` at all — in every
- * real composition root today, it always does, so the honest case for that refusal is a future
- * composition root that forgot to, not "the operator forgot an env var".
+ * Separately fixed since: `deps.ts`'s own former "cross-process caveat" — an `authorization_code`
+ * connect started from the spawned agent-daemon used to mint a `pending` record the public callback
+ * route's process (the main web server) could never see, so that grant could not complete from a chat
+ * tool call running in the daemon, regardless of how correct the redirect URI is. Commit `3c4e30d89`
+ * (migration 0062) moved that pending/device state into `content.db`, so a chat-started
+ * `authorization_code` connect now completes across the process boundary; `beginConnect`'s in-process
+ * BYOK path was unaffected either way. The last-resort refusal (still naming `TOVU_PUBLIC_URL`, now
+ * also naming the derived attempt) fires only when a caller's `ExternalMcpToolDeps` never wires
+ * `derivedPublicOrigin` at all — in every real composition root today, it always does, so the honest
+ * case for that refusal is a future composition root that forgot to, not "the operator forgot an env
+ * var".
  */
 
 const CATALOG_BY_ID = indexCatalogById(externalMcpAgentToolCatalog);
