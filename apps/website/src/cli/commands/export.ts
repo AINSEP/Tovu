@@ -3,6 +3,7 @@ import path from "node:path";
 import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { exportSite, type ExportReport } from "../../features/site-export/index.js";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
+import { closeSqliteConnection } from "../../platform/db/kernel/drivers/sqlite.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
@@ -168,6 +169,6 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
       );
     }
   } finally {
-    bootResult.db.$client.close();
+    closeSqliteConnection(bootResult.db);
   }
 }

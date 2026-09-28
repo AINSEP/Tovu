@@ -34,6 +34,10 @@ test("comment stripping: prose never counts, SQL in strings and templates does",
   assert.deepEqual(countRawSqlite(stripComments("probe.ts", source)), { prepare: 1, "sqlite-json": 1, pragma: 1 });
 });
 
+test("a bare `.prepare()` (a lifecycle hook, no SQL) is not a prepared statement", () => {
+  assert.deepEqual(countRawSqlite("await module.prepare();\nconst s = db.prepare(\n  `SELECT 1`\n);"), { prepare: 1 });
+});
+
 test("no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)", () => {
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) as Counts;
   const current = scan();

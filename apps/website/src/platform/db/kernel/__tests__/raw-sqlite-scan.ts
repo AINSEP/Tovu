@@ -22,7 +22,9 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
     id: "better-sqlite3-import",
     pattern: /(?:from\s*|require\(\s*|import\(\s*)["'](?:better-sqlite3|drizzle-orm\/better-sqlite3(?:\/[\w-]+)?)["']/g,
   },
-  { id: "prepare", pattern: /\.prepare\s*\(/g },
+  // A statement is always prepared FROM something; a bare `.prepare()` is some other API's hook
+  // (the boot lifecycle's `module.prepare()`), not better-sqlite3.
+  { id: "prepare", pattern: /\.prepare\s*\(\s*[^\s)]/g },
   // Drizzle's better-sqlite3 terminals run synchronously; pg-core has none of them. (`Map#get`,
   // `Promise.all` always take an argument, so the empty call is specific.)
   { id: "sync-terminal", pattern: /\.(?:all|get|run)\(\)/g },

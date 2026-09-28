@@ -6,12 +6,6 @@
   "apps/website/src/assistant/tool-catalog-query.ts": {
     "better-sqlite3-import": 1
   },
-  "apps/website/src/cli/commands/export.ts": {
-    "$client": 1
-  },
-  "apps/website/src/cli/commands/serve.ts": {
-    "$client": 2
-  },
   "apps/website/src/features/database-transfer/destination-repo.sqlite.ts": {
     "sync-terminal": 3
   },
@@ -133,8 +127,5 @@
   },
   "apps/website/src/server/runtime/composition/deps.ts": {
     "$client": 7
-  },
-  "apps/website/src/server/runtime/lifecycle/boot-lifecycle.ts": {
-    "prepare": 1
   }
 }
