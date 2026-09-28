@@ -215,9 +215,6 @@
   "apps/website/src/platform/db/sqlite/watermark.ts": {
     "sync-terminal": 3
   },
-  "apps/website/src/platform/site-dir/boot-site-dir.ts": {
-    "$client": 1
-  },
   "apps/website/src/platform/site-dir/duplicate-content-db.ts": {
     "$client": 2,
     "better-sqlite3-import": 1,
@@ -227,9 +224,6 @@
     "sqlite-file-ops": 4,
     "sync-terminal": 1,
     "sync-transaction": 1
-  },
-  "apps/website/src/platform/site-dir/init-site.ts": {
-    "$client": 1
   },
   "apps/website/src/platform/site-dir/read-applied-schema-identity.ts": {
     "$client": 1,

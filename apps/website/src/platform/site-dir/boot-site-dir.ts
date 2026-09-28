@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { closeSqliteConnection } from "../db/kernel/index.js";
 import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
@@ -109,7 +110,7 @@ export function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirO
 
     return { db, workspaceId: workspace.id, config };
   } catch (err) {
-    db.$client.close();
+    closeSqliteConnection(db);
     throw err;
   }
 }

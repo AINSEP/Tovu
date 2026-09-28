@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { closeSqliteConnection } from "../db/kernel/index.js";
 import { openContentDb } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { seedSiteThemes } from "./seed-site-themes.js";
@@ -212,7 +213,7 @@ export function initSite(required: InitSiteRequired): InitSiteResult {
     // why these two BR-01 steps are not independently fault-isolable at the fs level).
     const dbPath = path.join(target, "content.db");
     const db = openContentDb(dbPath, seed);
-    db.$client.close();
+    closeSqliteConnection(db);
 
     // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
     // success (CIC U-003-ORD1), gated on every prior step having already succeeded.
