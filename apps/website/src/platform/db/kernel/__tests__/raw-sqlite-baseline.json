@@ -127,9 +127,6 @@
   "apps/website/src/platform/db/sqlite/publish-trust-revocations.sqlite.ts": {
     "sync-terminal": 1
   },
-  "apps/website/src/platform/db/sqlite/repo-helpers.ts": {
-    "sync-terminal": 1
-  },
   "apps/website/src/platform/db/sqlite/watermark.ts": {
     "sync-terminal": 3
   },
