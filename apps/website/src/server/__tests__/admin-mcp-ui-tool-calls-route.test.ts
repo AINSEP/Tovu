@@ -128,6 +128,30 @@ test("SECURITY-CRITICAL: a non-allowlisted toolName is rejected before the daemo
   assert.equal(recorded.length, 0, "this endpoint must never become a general tool-execution surface");
 });
 
+test("G3: a federated tool id is refused 403 at the proxy unless it answers an open card, and an answer is forwarded", async (t) => {
+  const { baseUrl, cookie } = await boot(t);
+
+  const run = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "mcp__supabase__execute_sql", params: { query: "drop table g3" } }),
+  });
+  assert.equal(run.status, 403);
+  assert.deepEqual(await run.json(), {
+    error: "'mcp__supabase__execute_sql' is not an MCP-UI-redeemable tool",
+    code: "TOOL_NOT_ALLOWLISTED",
+  });
+  assert.equal(recorded.length, 0, "a federated tool is never executed through this endpoint");
+
+  const answer = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "mcp__supabase__execute_sql", params: { __exchangeId: "daemon-held-card", decision: "confirm" } }),
+  });
+  assert.notEqual(answer.status, 403);
+  assert.equal(recorded.length, 1, "an answer to a card is forwarded to the daemon, which owns the exchange");
+});
+
 test("rejects a missing/empty toolName without reaching the daemon", async (t) => {
   const { baseUrl, cookie } = await boot(t);
 

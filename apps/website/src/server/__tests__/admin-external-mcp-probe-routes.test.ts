@@ -244,10 +244,9 @@ test("a successful probe describes every advertised tool, admitted or not, with 
     });
   };
   const { app, deps } = buildTestApp({ connect });
-  // `drop_everything` is deliberately ALSO allowlisted — R3's destructive refusal must hold even for
-  // a tool the operator otherwise requested, which is the case worth proving (a name that never
-  // cleared the allowlist would be refused for that reason first, per INV-002's check order, and
-  // never reach the destructive check at all).
+  // `drop_everything` is deliberately ALSO allowlisted — since G3 (`trust.ts` R3) the allowlist alone
+  // admits it, and its destructiveHint puts every call behind the danger-styled per-call card
+  // instead of refusing it.
   await saveHttp(deps, "higgs", { allowedToolNames: "generate_image,read_thing,drop_everything" });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -266,8 +265,8 @@ test("a successful probe describes every advertised tool, admitted or not, with 
   assert.equal(byName.generate_image?.writeDeclared, true);
   assert.equal(byName.generate_image?.admitted, true, "on both lists — allowedToolNames AND writeAllowedToolNames");
   assert.equal(byName.drop_everything?.destructiveDeclared, true);
-  assert.equal(byName.drop_everything?.admitted, false);
-  assert.equal(byName.drop_everything?.refusalReason, "remote-declares-destructive");
+  assert.equal(byName.drop_everything?.admitted, true);
+  assert.equal(byName.drop_everything?.refusalReason, null);
   assert.equal(byName.silent_tool?.hintsAbsent, true, "no annotations at all — must read as 'the server does not say', never as read-only");
   assert.equal(byName.not_allowlisted?.admitted, false);
   assert.equal(byName.not_allowlisted?.refusalReason, "not-in-operator-allowlist");

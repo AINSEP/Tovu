@@ -1,6 +1,6 @@
 ---
 name: supabase
-description: Set up a hosted database (Supabase) for this site from chat. Start with agent_plugin_connect, then find or create the database, handle Supabase's free limit of two active databases (reuse, pause, or paid), and say everything in plain words. Database changes from chat (tables, SQL) are not available yet.
+description: Set up a hosted database (Supabase) for this site from chat. Start with agent_plugin_connect, then find or create the database, handle Supabase's free limit of two active databases (reuse, pause, or paid), and say everything in plain words. Small database changes (make a table, add or change rows) run from chat with execute_sql, after the person confirms each one.
 ---
 
 # Supabase database
@@ -112,9 +112,29 @@ status is `ACTIVE_HEALTHY`. Still not ready after that:
 
 (`<id>` is the project's `id` from Supabase; it goes only in the link, never in the text.)
 
-Then offer one useful next step, for example showing them where their data will appear. Making
-tables or changing data from chat is not available yet: if they ask, use the "change data" row in
-`references/failure-modes.md`.
+Then offer one useful next step, for example showing them where their data will appear.
+
+## Changing data or tables
+
+For a small change the person asks for (make a table, add a column, add, change or delete rows), use
+`mcp__supabase__execute_sql` on the database they chose, with one short SQL statement per call. Use
+`mcp__supabase__apply_migration` only if they ask for a tracked schema change.
+
+1. Say in one plain sentence what will change, and show the SQL in a code block:
+   > I'll make a table called "signups" with an id column. This is the SQL:
+2. Call the tool. The person then sees a card with the exact SQL and **Confirm** / **Cancel**
+   buttons; nothing runs until they click Confirm. Every change asks again, so keep to one change
+   per call. A card marked as able to delete data is expected for these tools.
+3. After it runs, check the result (for example `mcp__supabase__list_tables`) and say what changed
+   in plain words.
+
+If the result says they cancelled, say:
+
+> OK, I didn't change anything.
+
+Do not try the same change again unless they ask. If the card expired, say it timed out and ask if
+they still want it. Never delete a table or data they did not name, and ask first before any change
+that deletes data.
 
 ## At the free limit
 

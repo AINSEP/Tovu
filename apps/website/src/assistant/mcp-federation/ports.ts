@@ -276,3 +276,31 @@ export interface McpHttpResponse {
   /** The full body. Bounded by the adapter's own cap before it is parsed. */
   readonly text: string;
 }
+
+/**
+ * What a per-call confirmation card (G3, `trust.ts` R3) is asked to show, as
+ * `mcp-federation/registrations.ts`'s handler hands it to `FederationDeps.confirmCall`.
+ *
+ * `arguments` is the exact, already-frozen object that will be sent on Confirm — the handler builds it
+ * once, before the card is drawn, and sends that same object afterwards, so the card can never show
+ * one thing while the remote receives another.
+ */
+export interface FederatedCallConfirmationRequest {
+  /** The namespaced registry id (`mcp__<connection>__<name>`) — the card's clicks are routed back to it. */
+  readonly toolId: string;
+  readonly remoteName: string;
+  readonly connectionId: string;
+  /** The operator's label for the connection, e.g. "Supabase" — the "target" the card names. */
+  readonly connectionLabel: string;
+  readonly arguments: Readonly<Record<string, unknown>>;
+  /** The remote declared `destructiveHint: true` — the card carries the stronger, danger-styled warning. */
+  readonly destructive: boolean;
+}
+
+/**
+ * The human's answer. Only an explicit Confirm is `{ confirmed: true }`; anything else carries the
+ * model-facing result that replaces the call (cancelled, expired, or the run ended).
+ */
+export type FederatedCallConfirmationOutcome =
+  | { readonly confirmed: true }
+  | { readonly confirmed: false; readonly result: Readonly<Record<string, unknown>> };

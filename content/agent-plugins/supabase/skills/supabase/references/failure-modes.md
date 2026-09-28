@@ -46,12 +46,20 @@ times) until it is `ACTIVE_HEALTHY`.
 
 On yes, go back to the skill's Step 4 once. Never remove or pause anything to fix this.
 
-## They want to change data or make tables
+## They cancelled a change
 
-Making tables or changing or deleting data from chat is not available yet.
+The card showed the SQL and they clicked Cancel (the result says `cancelled`). Nothing ran.
 
-> I can't make tables or change data in your database from chat yet. You can do it in Supabase's
-> table editor for now. [Open it in Supabase →](https://supabase.com/dashboard/project/<id>/editor)
+> OK, I didn't change anything.
+
+Don't retry it on your own. If they want a different change, show the new SQL first.
+
+## A change to data or tables failed
+
+`execute_sql` returned an error (a typo, a table that already exists, a missing table). Nothing was
+changed. Say what went wrong in one plain sentence, show the corrected SQL, and ask before trying
+again. For a big or risky change, offer the table editor instead:
+[Open it in Supabase →](https://supabase.com/dashboard/project/<id>/editor)
 
 ## Connection stopped working
 

@@ -200,13 +200,15 @@ test("Supabase: the default allowlist excludes every write, every account-wide t
   ]);
 });
 
-test("Supabase: apply_migration is refused twice over — allowlist first, and its own destructiveHint too", () => {
+test("Supabase: apply_migration stays out of the default allowlist, and even when allowlisted it runs only behind the destructive per-call card (G3)", () => {
   const report = admitRemoteTools({
     tools: [remoteTool({ name: "apply_migration", annotations: { destructiveHint: true } })],
     config: { ...CONFIG, allowedToolNames: ["apply_migration"] },
   });
 
-  // With the operator having explicitly (and unwisely) allowlisted it, R3 is the backstop that
-  // still keeps it out, because Supabase honestly marks it destructive.
-  assert.equal(refusalFor(report, "apply_migration"), "remote-declares-destructive");
+  // G3 (`trust.ts` R3): hints no longer refuse; Supabase's honest destructiveHint puts every call
+  // behind the danger-styled Confirm/Cancel card instead.
+  assert.equal(refusalFor(report, "apply_migration"), undefined);
+  assert.equal(report.admitted[0]?.confirmation, "confirm-destructive");
+  assert.equal(SUPABASE_DEFAULT_ALLOWED_TOOLS.includes("apply_migration"), false);
 });

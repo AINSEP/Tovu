@@ -14,6 +14,8 @@
  * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
  */
 
+import { FEDERATED_TOOL_ID_PREFIX } from "./mcp-federation/trust.js";
+
 /**
  * Tool ids `mcp-ui-tool-calls-route.ts`'s callback endpoint is willing to reach at all — for either
  * shape it speaks: an exchange delivery (ADR-055 Decisions 1/2) or the legacy token-redemption call
@@ -281,4 +283,23 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
  */
 export function isMcpUiToolCallAllowed(toolName: string): boolean {
   return MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName);
+}
+
+/**
+ * The one rule both halves of the redemption path apply (the daemon route and Tovu's proxy):
+ * an allowlisted id always passes; a FEDERATED id (`mcp__<connection>__<name>`) passes only when the
+ * request answers an open card (names an exchange, or is a typed answer resolved to one).
+ *
+ * Why federated ids are not simply allowlisted: they are discovered at runtime, and every one of them
+ * that is not marked read-only opens a per-call confirmation card (G3, `external-mcp-call-
+ * confirmation.ts`). Answering that card only hands a decision to a call that is already parked and
+ * already authorized; it executes nothing, and the exchange's own binding (tool id + principal)
+ * decides whether the answer lands. Letting the same id reach Shape 2 would make this route a way to
+ * RUN a third-party tool from a surface's HTML with no human in the loop, so it never does.
+ *
+ * @complexity O(1).
+ */
+export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean): boolean {
+  if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return true;
+  return answersAnExchange && toolName.startsWith(FEDERATED_TOOL_ID_PREFIX);
 }

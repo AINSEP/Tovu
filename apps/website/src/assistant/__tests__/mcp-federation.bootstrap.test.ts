@@ -135,7 +135,8 @@ test("attachFederatedMcpTools stamps preset connections with a preset origin, fo
     },
     connections: [{ config, launch: HTTP_LAUNCH }],
     connect: async () => ({
-      listTools: async () => [{ name: "ping", inputSchema: { type: "object" } }],
+      // Server-marked read-only, so the call runs without a G3 card — this case is only about origin.
+      listTools: async () => [{ name: "ping", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } }],
       callTool: async () => ({ content: [] }),
       close: async () => undefined,
     }),

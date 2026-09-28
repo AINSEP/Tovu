@@ -1239,6 +1239,9 @@ async function start(): Promise<void> {
     // gate catches the NEXT call cheaply) and replaces the transport-shaped error with the same
     // terminal message the gate throws.
     oauth: externalMcpOAuth,
+    // G3: a federated tool that is not marked read-only asks on a per-call Confirm/Cancel card, held
+    // open on the SAME store `registerMcpUiToolCallsRoute` delivers clicks to.
+    surfaceExchanges,
   });
 
   /**

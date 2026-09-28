@@ -2,6 +2,9 @@ import type { AuthorizeFn, UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../features/webhooks/index.js";
 
+import type { SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
+
+import { createFederatedCallConfirmer } from "./external-mcp-call-confirmation.js";
 import { createExternalMcpConnectionGate, type ExternalMcpOAuthService } from "./external-mcp-oauth.js";
 import {
   readEnabledExternalMcpConfigs,
@@ -104,19 +107,27 @@ export function buildExternalMcpFederationDeps(inputs: {
    *  message. Absent, `onAuthFailed` is left unset — not set to a no-op — so `FederationDeps`'s own
    *  "propagate unchanged" default applies. */
   readonly oauth?: Pick<ExternalMcpOAuthService, "reportAuthFailure">;
+  /**
+   * G3: the exchange store the root's MCP-UI click route is mounted with. When present, every
+   * federated tool that is not marked read-only asks the human on a per-call Confirm/Cancel card
+   * (`external-mcp-call-confirmation.ts`). Absent, `confirmCall` is left unset and those tools are
+   * refused at the call — fail closed, nothing is sent.
+   */
+  readonly surfaceExchanges?: SurfaceExchangeStore;
 }): FederationDeps {
   const assertConnectionUsable = createExternalMcpConnectionGate({
     workspaceId: inputs.workspaceId,
     repo: inputs.repo,
   });
-  if (!inputs.oauth) {
-    return { authorize: inputs.authorize, workspaceId: inputs.workspaceId, assertConnectionUsable };
-  }
   const oauth = inputs.oauth;
+  const surfaceExchanges = inputs.surfaceExchanges;
   return {
     authorize: inputs.authorize,
     workspaceId: inputs.workspaceId,
     assertConnectionUsable,
-    onAuthFailed: (connectionId: string, error: McpAuthFailedError) => oauth.reportAuthFailure(connectionId, error),
+    ...(oauth
+      ? { onAuthFailed: (connectionId: string, error: McpAuthFailedError) => oauth.reportAuthFailure(connectionId, error) }
+      : {}),
+    ...(surfaceExchanges ? { confirmCall: createFederatedCallConfirmer({ surfaceExchanges }) } : {}),
   };
 }

@@ -6,7 +6,7 @@ import type { Principal } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
-import { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls.js";
+import { isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   SURFACE_TYPED_ANSWER_PARAM,
@@ -191,10 +191,6 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
   // Checked again here even though Tovu's proxy (`server/modules/assistant.ts`) already checks it,
   // because this route — not the proxy — is the one call site that can actually reach
   // `toolExecutor.execute`. A proxy-only check would be a suggestion, not a boundary.
-  if (!isMcpUiToolCallAllowed(toolName)) {
-    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
-    return null;
-  }
   const params = isPlainObject(body.params) ? body.params : {};
   // Read from a top-level `exchangeId` first, falling back to the callback param. The param is
   // MCP-UI's carrier specifically — an mcp-ui surface can only answer by issuing a tool call, so
@@ -203,6 +199,12 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
   // keeps this route from being MCP-only.
   const rawExchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
   const exchangeId = typeof rawExchangeId === "string" && rawExchangeId.length > 0 ? rawExchangeId : undefined;
+  // `isMcpUiToolCallPermitted` also admits a federated id, but ONLY as an answer to an open card
+  // (G3) — so the answer shape is decided before the check, and Shape 2 can never run one.
+  if (!isMcpUiToolCallPermitted(toolName, exchangeId !== undefined || isTypedSurfaceAnswer(params))) {
+    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+    return null;
+  }
   return { toolName, params, exchangeId };
 }
 

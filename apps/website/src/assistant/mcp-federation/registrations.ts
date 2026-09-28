@@ -4,8 +4,16 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { McpAuthFailedError } from "./mcp-protocol.js";
-import type { FederatedCallTarget, FederatedMcpConnectionConfig, McpSessionPort, RemoteToolResult } from "./ports.js";
+import type {
+  FederatedCallConfirmationOutcome,
+  FederatedCallConfirmationRequest,
+  FederatedCallTarget,
+  FederatedMcpConnectionConfig,
+  McpSessionPort,
+  RemoteToolResult,
+} from "./ports.js";
 import {
   admitRemoteTools,
   assertNoNativeCollision,
@@ -13,6 +21,7 @@ import {
   FEDERATED_ENTITY_TYPE,
   FEDERATED_TOOL_PERMISSION,
   wrapUntrustedResult,
+  type AdmittedFederatedTool,
   type FederatedAdmissionReport,
 } from "./trust.js";
 
@@ -107,6 +116,16 @@ export interface FederationDeps {
    * Always throws; this module does not decide what replaces the original error.
    */
   readonly onAuthFailed?: (connectionId: string, error: McpAuthFailedError) => Promise<never>;
+  /**
+   * G3 (`trust.ts` R3): asks a human to Confirm or Cancel ONE call to a tool that is not marked
+   * read-only, before anything reaches the remote. Wired by the composition root to the held-open
+   * MCP-UI card (`assistant/external-mcp-call-confirmation.ts`).
+   *
+   * Optional only so a root with no human in the loop still type-checks: when it is absent, every
+   * tool whose confirmation is not `"none"` is refused at the call and nothing is sent — fail closed,
+   * never "run it anyway".
+   */
+  readonly confirmCall?: (ctx: ToolExecutionContext, request: FederatedCallConfirmationRequest) => Promise<FederatedCallConfirmationOutcome>;
 }
 
 export interface FederatedRegistrationResult {
@@ -164,13 +183,19 @@ export function buildFederatedMcpRegistrations(params: {
         entityId: config.connectionId,
       });
 
+      // Fixed ONCE, before any card is drawn: the frozen copy the human sees is the same object that
+      // is sent, so nothing that happens to `ctx.input` while the card waits can change what runs.
+      const args = frozenArguments(ctx.input);
+      const declined = await askBeforeCall(ctx, deps, config, tool, args);
+      if (declined) return declined;
+
       let result: RemoteToolResult;
       try {
         result = await session.callTool({
           // The REMOTE name, not the namespaced id — namespacing exists for Tovu's registry, and a
           // remote must never see, or be able to depend on, Tovu's naming.
           name: tool.remoteName,
-          arguments: normalizeArguments(ctx.input),
+          arguments: args,
           signal: ctx.signal,
         });
       } catch (error) {
@@ -242,6 +267,55 @@ export async function federateSession(params: {
 }): Promise<FederatedRegistrationResult> {
   const tools = await params.session.listTools();
   return buildFederatedMcpRegistrations({ ...params, tools });
+}
+
+/**
+ * G3: the per-call human gate for a tool that is not marked read-only (`trust.ts` R3). Returns
+ * `null` when the call may proceed — a read-only tool, or an explicit Confirm — and otherwise the
+ * model-facing result that replaces the call. One card per call: the card is opened here, inside the
+ * call it guards, and closes when answered, so one Confirm authorizes exactly one call.
+ *
+ * @throws {ToolInputError} `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL` when the root wired no confirmer —
+ *   nothing is sent.
+ * @complexity O(1) plus the wait for the human.
+ */
+async function askBeforeCall(
+  ctx: ToolExecutionContext,
+  deps: FederationDeps,
+  config: FederatedMcpConnectionConfig,
+  tool: AdmittedFederatedTool,
+  args: Readonly<Record<string, unknown>>,
+): Promise<Record<string, unknown> | null> {
+  if (tool.confirmation === "none") return null;
+  if (!deps.confirmCall) {
+    throw new ToolInputError(
+      `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${tool.toolId}: this tool is not marked read-only by ${config.label}, ` +
+        "so a person must approve each call, and nothing here can ask one. Nothing was sent.",
+    );
+  }
+  const outcome = await deps.confirmCall(ctx, {
+    toolId: tool.toolId,
+    remoteName: tool.remoteName,
+    connectionId: config.connectionId,
+    connectionLabel: config.label,
+    arguments: args,
+    destructive: tool.confirmation === "confirm-destructive",
+  });
+  if (outcome.confirmed) return null;
+  return { federated: { connectionId: config.connectionId, tool: tool.remoteName }, ran: false, ...outcome.result };
+}
+
+/** {@link normalizeArguments}, then a deep, frozen copy — the one object both shown and sent (G3). */
+function frozenArguments(input: unknown): Readonly<Record<string, unknown>> {
+  return deepFreeze(structuredClone(normalizeArguments(input)));
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value)) deepFreeze(child);
+    Object.freeze(value);
+  }
+  return value;
 }
 
 /**

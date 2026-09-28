@@ -67,29 +67,30 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports
  *     structural analogue of `DerivedRiskByToolId`: the classification that decides admission is
  *     authored by someone other than the thing being classified.
  *
- * R3. SELF-DECLARED HINTS DEMOTE ONLY, NEVER PROMOTE — BY THE REMOTE. `destructiveHint: true` or
- *     `readOnlyHint: false` REMOVES an otherwise-allowlisted tool. `readOnlyHint: true` grants
- *     nothing. The untrusted party is given exactly one power over its own privileges — the power
- *     to reduce them — so lying is never profitable, only self-defeating. This is the single most
- *     important line in the file.
+ * R3. SELF-DECLARED HINTS ONLY ADD FRICTION, NEVER REMOVE IT (G3, owner rule 2026-09-27). The
+ *     operator allowlist (R2) alone decides WHETHER a tool exists. The remote's hints decide only how
+ *     much friction each call carries, and every hint can only ever add some:
+ *     - `readOnlyHint: true` with `destructiveHint` not `true` — the call runs with no card.
+ *     - anything else — `readOnlyHint: false`, `destructiveHint: true`, or no hints at all — each
+ *       call waits on a per-call Confirm/Cancel card (`registrations.ts`'s handler, through
+ *       `FederationDeps.confirmCall`), and nothing reaches the remote until a human clicks Confirm.
+ *       `destructiveHint: true` gets the danger-styled card with the stronger warning, and it wins
+ *       over a contradictory `readOnlyHint: true` on the same tool.
+ *     See {@link federatedCallConfirmationFor}. One confirmation authorizes exactly one call: the
+ *     card is opened inside the call it guards, and the call's arguments are fixed before the card
+ *     is drawn, so what the human approves is exactly what is sent.
  *
- *     The TRUSTED party — the operator — has a separate power the remote does not: naming a tool in
- *     `FederatedMcpConnectionConfig.writeAllowedToolNames` lifts the `readOnlyHint: false` refusal
- *     for that tool alone. This is a SECOND, explicit list, not a flag on the first: a tool must
- *     clear R2's allowlist before the write list is even consulted (see {@link classifyRemoteTool}'s
- *     order, INV-002 in the write-tools outline), and every tool the operator has not named twice
- *     keeps R3's exact original meaning. The override does NOT reach `destructiveHint: true` — that
- *     refusal stays unconditional in this slice, regardless of either list, because the verified
- *     live case motivating the override is a write, and the codebase's own native tier still
- *     withholds irreversible operations on purpose (`database_execute_migrate_forward` unwired).
+ *     This replaced the earlier posture — refuse `destructiveHint: true` unconditionally, and refuse
+ *     `readOnlyHint: false` unless the operator also named the tool in
+ *     `FederatedMcpConnectionConfig.writeAllowedToolNames`. That write list is still carried and
+ *     reported (`writeAuthorized`), but it no longer gates admission: a per-call human decision is a
+ *     stronger grant than a standing list, and it applies identically to every external tool with no
+ *     per-plugin config. Silence is no longer a free pass either: a server that declares NO hints
+ *     used to be admitted with no friction at all; it now gets a card on every call.
  *
- *     What the override does not fix, and cannot: a remote that declares NO annotations at all —
- *     `annotations: undefined`, `{}`, or a bag with neither hint field set — is admitted with no
- *     override needed and no operator awareness that a write may have just entered the catalog. R3
- *     only ever catches a server that HONESTLY says `readOnlyHint: false`; a silent server was never
- *     inside this rule's reach, override or not. That gap is real, is not closed by this file, and
- *     is exactly why {@link describeRemoteToolSurface} exists — it is the surface that can mark a
- *     silently-admitted tool as "the server does not say", which this gate alone cannot do.
+ *     What this does not fix, and cannot: a dishonest server can label a write `readOnlyHint: true`
+ *     and skip the card. The mitigations are the operator allowlist (R2) and reviewed first-party
+ *     plugins. A lie can only ever cost the liar its own card — it can never widen the allowlist.
  *
  * R4. SCHEMA REQUIRED. A tool whose `inputSchema` is not a JSON-Schema object is refused, matching
  *     `buildDomainRegistrations`'s identical native rule ("add one... so the model gets a contract,
@@ -173,11 +174,12 @@ const REMOTE_TOOL_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
  * discipline as `buildDomainRegistrations`'s "silence is never the outcome". */
 export type ToolRefusalReason =
   | "not-in-operator-allowlist"
+  /** No longer produced since G3 (R3: hints only add a per-call card, they never refuse). Kept in the
+   * union, with the next one, so an admission report persisted or logged before G3 — and the admin
+   * UI's copy table, which mirrors this union — still type-check. Removing both, and their dead copy
+   * in `refusal-notice.ts` / `external-mcp-revocation.ts` / the admin Settings, is a separate
+   * clean-up. */
   | "remote-declares-destructive"
-  /** Narrowed by R3's override: means "declares `readOnlyHint: false`, AND the operator has not
-   * ALSO named this tool in `writeAllowedToolNames`". The literal string is kept exactly as it was
-   * before the override existed, so existing log greps and test names naming this reason stay
-   * true — only the condition that produces it grew a second clause. */
   | "remote-declares-not-read-only"
   | "missing-or-invalid-input-schema"
   | "invalid-remote-tool-name"
@@ -193,8 +195,8 @@ export interface AdmittedFederatedTool {
   readonly description: string;
   /** The remote's schema, already validated to be a JSON-Schema object by R4. */
   readonly inputSchema: Readonly<Record<string, unknown>>;
-  /** Carried for audit/logging only at admission time — consulted only to DEMOTE (per-call
-   * narrowing, via {@link refusalForAdmittedToolUnderCurrentGrants}), never to grant. See R3. */
+  /** The remote's own hints, recorded at admission. Only ever ADD friction (R3): they set
+   * {@link confirmation} and are passed to the per-call gate; they never grant anything. */
   readonly declaredAnnotations?: RemoteToolDescriptorAnnotations;
   /** Whether the OPERATOR — not the remote — separately named this tool in `writeAllowedToolNames`.
    * `true` means an explicit, second, write-specific decision was made about this exact tool. It
@@ -203,7 +205,14 @@ export interface AdmittedFederatedTool {
    * and still be capable of writing — see R3's header paragraph on the silent-write gap this field
    * cannot close on its own. */
   readonly writeAuthorized: boolean;
+  /** How much friction each call carries — R3, {@link federatedCallConfirmationFor}. Anything but
+   *  `"none"` means every call waits on a human's Confirm before it reaches the remote. */
+  readonly confirmation: FederatedCallConfirmation;
 }
+
+/** R3's per-call friction: `"none"` runs directly; `"confirm"` waits on a Confirm/Cancel card;
+ *  `"confirm-destructive"` waits on the danger-styled card with the stronger warning. */
+export type FederatedCallConfirmation = "none" | "confirm" | "confirm-destructive";
 
 type RemoteToolDescriptorAnnotations = RemoteToolDescriptor["annotations"];
 
@@ -340,30 +349,28 @@ function admitRemoteToolName(remoteName: string, seen: Set<string>): ToolRefusal
   return null;
 }
 
-/** R3's gate: the ONLY directions a hint may move a tool — demotion by the remote (unconditional for
- *  `destructiveHint`, overridable for `readOnlyHint: false`) and restoration by the operator's own
- *  separate write list. Split out of {@link classifyRemoteTool} purely to keep that function's
- *  complexity under the shop ceiling.
+/**
+ * R3: how much friction one call to this tool carries, from the remote's own hints. Hints can only
+ * ADD friction: only an explicit `readOnlyHint: true`, with `destructiveHint` not `true`, earns a
+ * call with no card; everything else — including a server that says nothing — asks a human first.
  *
- *  `writeAuthorized` lifts ONLY the `readOnlyHint: false` refusal. A tool declaring
- *  `destructiveHint: true` is refused regardless of `writeAuthorized` — see R3's header for why the
- *  override deliberately does not reach destructive tools in this slice. */
-function refusalForRemoteToolHints(annotations: RemoteToolDescriptorAnnotations, writeAuthorized: boolean): ToolRefusalReason | null {
-  if (annotations?.destructiveHint === true) return "remote-declares-destructive";
-  if (annotations?.readOnlyHint === false && !writeAuthorized) return "remote-declares-not-read-only";
-  return null;
+ * @complexity O(1).
+ */
+export function federatedCallConfirmationFor(annotations: RemoteToolDescriptorAnnotations): FederatedCallConfirmation {
+  if (annotations?.destructiveHint === true) return "confirm-destructive";
+  if (annotations?.readOnlyHint === true) return "none";
+  return "confirm";
 }
 
 /**
- * R2 + R3, reapplied to an ALREADY-ADMITTED tool against the operator's CURRENT grant lists — the
+ * R2, reapplied to an ALREADY-ADMITTED tool against the operator's CURRENT allowlist — the
  * narrowing-only, per-call counterpart of {@link classifyRemoteTool} that `external-mcp-revocation.ts`
- * `rosterRefusalFor` uses to catch a tool an operator removed from the allowlist or the write list
- * after admission. Sharing this function with admission is what makes the two agree by construction:
- * there is only one place "does this hint set clear these lists" is decided.
+ * `rosterRefusalFor` uses to catch a tool an operator removed from the allowlist after admission.
+ * Since G3 the hints never refuse (R3 turns them into a per-call card instead), so the write list is
+ * accepted but no longer consulted; the signature stays so that caller need not change.
  *
  * Only ever narrows: a tool admission already approved can, per call, lose access; it can never gain
- * any it did not already have — the write list is not consulted at all unless the allowlist already
- * passes, exactly as at admission.
+ * any it did not already have.
  *
  * @complexity O(1).
  * @overallScore 100
@@ -373,7 +380,8 @@ export function refusalForAdmittedToolUnderCurrentGrants(
   grants: { readonly allowedToolNames: readonly string[]; readonly writeAllowedToolNames: readonly string[] },
 ): ToolRefusalReason | null {
   if (!grants.allowedToolNames.includes(tool.remoteName)) return "not-in-operator-allowlist";
-  return refusalForRemoteToolHints(tool.declaredAnnotations, grants.writeAllowedToolNames.includes(tool.remoteName));
+  // R3 (G3): hints never refuse — they only decide the per-call card, which the handler applies.
+  return null;
 }
 
 /** Narrows `tool.name` — the one place the "not a string" case degrades to `""` rather than
@@ -417,8 +425,6 @@ function classifyRemoteTool(
   if (!allowed.has(remoteName)) return { ok: false, remoteName, reason: "not-in-operator-allowlist" };
 
   const writeAuthorized = writeAllowed.has(remoteName);
-  const hintRefusal = refusalForRemoteToolHints(tool.annotations, writeAuthorized);
-  if (hintRefusal) return { ok: false, remoteName, reason: hintRefusal };
 
   const inputSchema = asJsonSchemaObject(tool.inputSchema);
   if (!inputSchema) return { ok: false, remoteName, reason: "missing-or-invalid-input-schema" };
@@ -434,6 +440,7 @@ function classifyRemoteTool(
       inputSchema,
       declaredAnnotations: tool.annotations,
       writeAuthorized,
+      confirmation: federatedCallConfirmationFor(tool.annotations),
     },
   };
 }

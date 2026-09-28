@@ -124,26 +124,27 @@ test("R2: an allowlisted name the server never advertised is reported rather tha
 });
 
 // ---------------------------------------------------------------------------
-// R3 — self-declared hints demote only, never promote
+// R3 — self-declared hints only add friction (G3): they set the per-call card, never refuse
 // ---------------------------------------------------------------------------
 
-test("R3: a remote declaring destructiveHint removes its own tool, even when the operator allowlisted it", () => {
+test("R3 (G3): a remote declaring destructiveHint is admitted from the allowlist only behind the destructive per-call card", () => {
   const report = admitRemoteTools({
     tools: [remoteTool({ name: "list_tables", annotations: { destructiveHint: true } })],
     config: CONFIG,
   });
 
-  assert.equal(report.admitted.length, 0);
-  assert.equal(refusalFor(report, "list_tables"), "remote-declares-destructive");
+  assert.equal(report.refused.length, 0);
+  assert.equal(report.admitted[0]?.confirmation, "confirm-destructive");
 });
 
-test("R3: a remote declaring readOnlyHint:false removes its own tool", () => {
+test("R3 (G3): a remote declaring readOnlyHint:false is admitted from the allowlist only behind the per-call card", () => {
   const report = admitRemoteTools({
     tools: [remoteTool({ name: "get_advisors", annotations: { readOnlyHint: false } })],
     config: CONFIG,
   });
 
-  assert.equal(refusalFor(report, "get_advisors"), "remote-declares-not-read-only");
+  assert.equal(report.refused.length, 0);
+  assert.equal(report.admitted[0]?.confirmation, "confirm");
 });
 
 test("R3 (the load-bearing case): readOnlyHint:true grants NOTHING — a lying remote gains no access", () => {
@@ -251,14 +252,13 @@ test("(c) INV-002: a write-authorized tool absent from the allowlist is still no
   assert.equal(refusalFor(report, "drop_all_tables"), "not-in-operator-allowlist");
 });
 
-test("(d) INV-003 / D-1: a tool on BOTH lists declaring destructiveHint:true is still refused — the write override does not reach destructive tools", () => {
+test("(d) G3: a tool on BOTH lists declaring destructiveHint:true still gets the destructive per-call card — the write list never skips it", () => {
   const report = admitRemoteTools({
     tools: [remoteTool({ name: "drop_all_tables", annotations: { destructiveHint: true, readOnlyHint: false } })],
     config: { ...CONFIG, allowedToolNames: ["drop_all_tables"], writeAllowedToolNames: ["drop_all_tables"] },
   });
 
-  assert.equal(report.admitted.length, 0);
-  assert.equal(refusalFor(report, "drop_all_tables"), "remote-declares-destructive");
+  assert.equal(report.admitted[0]?.confirmation, "confirm-destructive");
 });
 
 test("(e) INV-004: a write list naming a tool absent from the allowlist is reported as drift, never silent", () => {
@@ -326,7 +326,7 @@ test("describeRemoteToolSurface: hintsAbsent is true only when neither readOnlyH
   assert.equal(byName("list_tables")?.admitted, true);
 });
 
-test("describeRemoteToolSurface: writeDeclared/destructiveDeclared/allowlisted/writeAllowed/refusalReason describe a refused write tool completely", () => {
+test("describeRemoteToolSurface: writeDeclared/destructiveDeclared/allowlisted/writeAllowed/refusalReason describe an allowlisted write tool completely (admitted behind the G3 card)", () => {
   const config = { ...CONFIG, allowedToolNames: ["get_advisors"], writeAllowedToolNames: [] };
   const surface = describeRemoteToolSurface({
     tools: [remoteTool({ name: "get_advisors", annotations: { readOnlyHint: false } })],
@@ -342,8 +342,8 @@ test("describeRemoteToolSurface: writeDeclared/destructiveDeclared/allowlisted/w
     hintsAbsent: false,
     allowlisted: true,
     writeAllowed: false,
-    admitted: false,
-    refusalReason: "remote-declares-not-read-only",
+    admitted: true,
+    refusalReason: null,
   });
 });
 
@@ -539,12 +539,12 @@ test("refusalForAdmittedToolUnderCurrentGrants: a write tool named in both lists
   assert.equal(refusal, null);
 });
 
-test("refusalForAdmittedToolUnderCurrentGrants: a write tool removed from the write list is refused as remote-declares-not-read-only", () => {
+test("refusalForAdmittedToolUnderCurrentGrants (G3): a write tool off the write list is NOT refused — the per-call card gates it instead", () => {
   const refusal = refusalForAdmittedToolUnderCurrentGrants(
     { remoteName: "write_thing", declaredAnnotations: { readOnlyHint: false } },
     { allowedToolNames: ["write_thing"], writeAllowedToolNames: [] },
   );
-  assert.equal(refusal, "remote-declares-not-read-only");
+  assert.equal(refusal, null);
 });
 
 test("refusalForAdmittedToolUnderCurrentGrants: a tool with no declared hints removed from the write list is NOT refused — matches admission (R3 only catches an honest readOnlyHint:false)", () => {

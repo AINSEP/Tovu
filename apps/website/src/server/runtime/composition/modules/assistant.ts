@@ -55,7 +55,7 @@ import {
   deliverA2uiAction,
   getLiveClaudeModels,
   unionModels,
-  isMcpUiToolCallAllowed,
+  isMcpUiToolCallPermitted,
   isTypedSurfaceAnswer,
   MCP_UI_TOOL_CALLS_PATH,
   readA2uiAction,
@@ -333,17 +333,19 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
     res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
     return;
   }
-  if (!isMcpUiToolCallAllowed(toolName)) {
-    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
-    return;
-  }
-
   // Same extraction `mcp-ui-tool-calls-route.ts` uses on the daemon side: a top-level `exchangeId`
   // for a channel that can name one directly, falling back to the MCP-UI-specific callback param
   // (an mcp-ui surface can only answer by issuing a tool call, so its correlation has to ride inside
   // that call's own params — see `surface-exchanges.ts`'s doc on `SURFACE_EXCHANGE_ID_PARAM`).
   const params = isPlainObject(body.params) ? body.params : {};
   const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
+  // The same rule the daemon route applies: a federated id (G3's per-call card) may only ANSWER an
+  // open card, never be executed.
+  const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || isTypedSurfaceAnswer(params);
+  if (!isMcpUiToolCallPermitted(toolName, answersAnExchange)) {
+    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+    return;
+  }
   // A TYPED answer (prose from the chat composer) names no exchange — the human never saw one. The
   // daemon-side route recovers the correlation from its own store; this hop does the same against
   // the BYOK store first, for the identical reason the exchange-id branch tries local first: a

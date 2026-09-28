@@ -162,9 +162,16 @@ test("failure-modes.md covers every failure the plan lists", async () => {
   }
 });
 
-test("SKILL.md grants no database changes yet: execute_sql and apply_migration are never called", async () => {
+test("SKILL.md (G3): small database changes go through execute_sql, the SQL is shown first, and the confirm card is expected", async () => {
   const skill = await readSkill();
-  assert.doesNotMatch(skill, /mcp__supabase__(execute_sql|apply_migration)/);
+  assert.match(skill, /## Changing data or tables/);
+  assert.match(skill, /mcp__supabase__execute_sql/);
+  assert.match(skill, /show the SQL/i);
+  assert.match(skill, /Confirm/);
+  assert.match(skill, /cancel/i);
+  assert.doesNotMatch(skill, /not available yet/i);
+  const failureModes = await readFailureModes();
+  assert.doesNotMatch(failureModes, /I can't make tables or change data/);
 });
 
 test("the user signs up for their own account, and a sign-up link opens in a new tab", async () => {

@@ -569,6 +569,9 @@ export function createByokToolSurface(
                 workspaceId: routeDeps.workspaceId,
                 repo: routeDeps.externalMcpServerRepo,
                 ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth } : {}),
+                // G3: federated calls that are not read-only ask on a card through THIS surface's
+                // store — the one the API proxy delivers a Local-CLI run's clicks to.
+                surfaceExchanges,
               }),
               resolveConnections: () => connectionSource.resolve(),
               // Only a RELOAD pass reaches this — see `FederationRuntime.reload`'s own doc — so the
