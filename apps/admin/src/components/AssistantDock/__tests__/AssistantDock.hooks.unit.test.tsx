@@ -18,6 +18,7 @@ import {
   buildAssistantMcpUiSandboxProxyUrl,
   extractResumeCapableAgentIds,
   getResumeCapableAgentIds,
+  openMcpUiLink,
   resetResumeCapableAgentIds,
   useComposerCapabilities,
   useRuntimeAccess,
@@ -144,6 +145,43 @@ describe("buildAssistantMcpUiSandboxProxyUrl", () => {
     const html = decodeURIComponent(encoded);
     expect(html).toContain(`var hostOrigin = ${JSON.stringify(hostOrigin)};`);
     expect(html).not.toContain("window.location.origin");
+  });
+});
+
+/**
+ * @file Coverage for `openMcpUiLink` (S-G1b, generic MCP-UI chat card link handling — memory
+ * `links_open_new_tab`). `useMcpUiHost`'s `onOpenLink` is omitted by default (`McpUiHostOptions`'s
+ * own doc: "Omit and the Host refuses the request"), so before this fix a View's `ui/open-link`
+ * request was silently refused — every link inside a rendered MCP-UI card was inert. This is the
+ * callback `AssistantDock.tsx` now passes down through `OverflowAwareMcpUiSurfaceCard` ->
+ * `McpUiSurfaceCard` -> `McpUiHost` -> `useMcpUiHost`.
+ */
+describe("openMcpUiLink", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("opens an https URL in a new, unreferrered tab", () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openMcpUiLink("https://example.com/docs");
+
+    expect(openSpy).toHaveBeenCalledExactlyOnceWith("https://example.com/docs", "_blank", "noopener,noreferrer");
+  });
+
+  it("refuses a javascript: URL — a View cannot run script in this admin origin via a rendered link", () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openMcpUiLink("javascript:alert(document.cookie)");
+
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unparseable URL rather than throwing", () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    expect(() => openMcpUiLink("not a url")).not.toThrow();
+    expect(openSpy).not.toHaveBeenCalled();
   });
 });
 

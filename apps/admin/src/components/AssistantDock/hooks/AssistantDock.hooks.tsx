@@ -1445,6 +1445,41 @@ export function buildAssistantMcpUiSandboxProxyUrl(hostOrigin: string): URL {
 }
 
 /**
+ * `useMcpUiHost`'s `onOpenLink` implementation for this admin dock (S-G1b, memory
+ * `links_open_new_tab` — generic, not Supabase-specific: any bundled or third-party plugin's
+ * rendered MCP-UI card gets the same "links open in a new tab" behavior). `McpUiHostOptions`'s own
+ * doc is explicit that omitting this option makes the Host refuse every `ui/open-link` request, so
+ * before this existed a link inside a rendered card did nothing at all — not a broken link, an
+ * inert one.
+ *
+ * `https:` only, on purpose: a View is untrusted content (a third-party MCP server's own HTML,
+ * `@mcp-ui/client`'s whole reason for existing), and `window.open` will happily hand a
+ * `javascript:` URL a same-tab execution context, or hand a `file:`/`data:` URL more than a chat
+ * card should ever be able to reach. Rejecting everything except `https:` is a strict allowlist,
+ * not a denylist of the schemes seen so far. A URL that fails to parse at all (`new URL` throwing)
+ * is treated the same as a wrong scheme — refused, not surfaced as an error to the View.
+ *
+ * `noopener,noreferrer` on the `window.open` call itself closes `window.opener` back-reference
+ * access (the tab-nabbing vector `rel="noopener"` exists for on a plain `<a>`) and withholds the
+ * `Referer` header, matching how this app already opens every other off-site link — see memory
+ * `links_open_new_tab`.
+ *
+ * @param url - The View's requested target, exactly as `useMcpUiHost` receives it from the
+ *   `ui/open-link` request — not yet validated.
+ * @complexity O(1) — one `URL` parse, at most one `window.open` call.
+ */
+export function openMcpUiLink(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return;
+  }
+  if (parsed.protocol !== "https:") return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/**
  * Builds the `runContext` callback `AssistantDock.tsx` passes to `<ChatPane>` — a thin memoized
  * wrapper around {@link resolveRunContext}. Pure derivation, not I/O of its own (`agentBridge` is
  * caller-owned, `model` is a plain string); no `INFO.md` rule-3 seam.

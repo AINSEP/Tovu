@@ -31,6 +31,7 @@ import {
   // `AssistantDockProps`) — every actual call in this component goes through the matching
   // `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
   buildAssistantMcpUiSandboxProxyUrl,
+  openMcpUiLink,
   useAssistantDockChrome,
   useAssistantTransport,
   useAssistantTransportSeam,
@@ -153,6 +154,10 @@ registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
   <OverflowAwareMcpUiSurfaceCard
     {...props}
     onToolCall={mcpUiToolCaller}
+    // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see
+    // `openMcpUiLink`'s own doc (`AssistantDock.hooks.tsx`) for the `https:`-only allowlist and why
+    // omitting this makes `useMcpUiHost` refuse every `ui/open-link` request instead.
+    onOpenLink={openMcpUiLink}
     // A same-document `data:` URL, not a route on this admin app's own origin — see
     // `buildAssistantMcpUiSandboxProxyUrl`'s own doc (`AssistantDock.hooks.tsx`) for why: a
     // same-origin route would hand any third-party MCP server's HTML this admin origin's full
