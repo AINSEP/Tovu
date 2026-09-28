@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import { SqlMemberRepo } from "./repo.js";
 import {
   memberConsents,
   memberMagicTokens,
   memberRevisions,
-  members,
   memberSessions,
   memberSubscriptions,
   memberTiers,
@@ -16,7 +17,6 @@ import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
-  MemberRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
@@ -28,9 +28,7 @@ import type {
   MagicLinkTokenRecord,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
-  MemberRecord,
   MemberSessionRecord,
-  MemberStatus,
   MemberSubscriptionRecord,
   MemberSubscriptionSource,
   MemberSubscriptionStatus,
@@ -57,78 +55,11 @@ import type {
  * traffic, exactly like `SqlitePostRepo` today.
  */
 
-function toMemberRecord(row: typeof members.$inferSelect): MemberRecord {
-  return {
-    id: row.id,
-    workspaceId: row.workspaceId,
-    email: row.email,
-    name: row.name ?? undefined,
-    emailVerifiedAt: row.emailVerifiedAt ?? undefined,
-    status: row.status as MemberStatus,
-    note: row.note ?? undefined,
-    fields: row.fieldsJson == null ? undefined : (JSON.parse(row.fieldsJson) as JsonObject),
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    version: row.version,
-  };
-}
-
-export class SqliteMemberRepo implements MemberRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findById(required: { workspaceId: string; id: string }): Promise<MemberRecord | null> {
-    return findOneBy(
-      this.db,
-      members,
-      [eq(members.workspaceId, required.workspaceId), eq(members.id, required.id)],
-      toMemberRecord
-    );
-  }
-
-  async findByEmail(required: { workspaceId: string; email: string }): Promise<MemberRecord | null> {
-    const normalized = required.email.trim().toLowerCase();
-    return findOneBy(
-      this.db,
-      members,
-      [eq(members.workspaceId, required.workspaceId), eq(members.email, normalized)],
-      toMemberRecord
-    );
-  }
-
-  async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<MemberRecord[]> {
-    const rows = this.db
-      .select()
-      .from(members)
-      .where(eq(members.workspaceId, required.workspaceId))
-      .all()
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-
-    const afterIndex = required.afterId ? rows.findIndex((row) => row.id === required.afterId) : -1;
-    const start = afterIndex === -1 ? 0 : afterIndex + 1;
-    const limit = Math.min(required.limit ?? 100, 100);
-
-    return rows.slice(start, start + limit).map(toMemberRecord);
-  }
-
-  async save(record: MemberRecord): Promise<void> {
-    const row = {
-      id: record.id,
-      workspaceId: record.workspaceId,
-      email: record.email,
-      name: record.name ?? null,
-      emailVerifiedAt: record.emailVerifiedAt ?? null,
-      status: record.status,
-      note: record.note ?? null,
-      fieldsJson: record.fields == null ? null : JSON.stringify(record.fields),
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      version: record.version,
-    };
-    this.db
-      .insert(members)
-      .values(row)
-      .onConflictDoUpdate({ target: members.id, set: row })
-      .run();
+/** The member repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
+export class SqliteMemberRepo extends SqlMemberRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 
