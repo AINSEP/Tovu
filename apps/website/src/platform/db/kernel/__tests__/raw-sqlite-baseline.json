@@ -251,12 +251,6 @@
     "sqlite-catalog": 1,
     "sync-terminal": 1
   },
-  "apps/website/src/platform/db/sqlite/sealed-credential-inventory.sqlite.ts": {
-    "better-sqlite3-import": 1,
-    "pragma": 1,
-    "prepare": 1,
-    "sqlite-catalog": 1
-  },
   "apps/website/src/platform/db/sqlite/watermark.ts": {
     "sync-terminal": 3
   },

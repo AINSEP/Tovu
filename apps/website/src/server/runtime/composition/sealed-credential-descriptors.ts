@@ -13,11 +13,11 @@ import type { SourceControlProviderId } from "#src/features/source-control/types
 import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
 import type { VendorId } from "#src/features/vendor-credentials/types";
 import { deviceAad } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
-import type { SealedColumnDescriptor, SealedRowAadSelection, SealedRowIdentity } from "#src/platform/db/sqlite/sealed-credential-inventory.sqlite";
+import type { SealedColumnDescriptor, SealedRowAadSelection, SealedRowIdentity } from "#src/platform/db/sealed-credential-inventory";
 
 /**
  * @file One {@link SealedColumnDescriptor} per sealed column the app knows how to open — the per-store
- * half of `platform/db/sqlite/sealed-credential-inventory.sqlite.ts`.
+ * half of `platform/db/sealed-credential-inventory.ts`.
  *
  * Lives in the composition root, not beside the inventory engine: it imports the AAD builder of every
  * feature that seals a column, and `platform` importing `features`/`assistant` closed a module cycle

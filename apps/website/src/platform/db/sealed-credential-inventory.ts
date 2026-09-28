@@ -1,9 +1,12 @@
-import type Database from "better-sqlite3";
+import { type RawBuilder, sql } from "kysely";
 
+import type { ContentKernel } from "./content-kernel.js";
+import { listColumns, listTables } from "./kernel/dialect.js";
+import type { StorageKernel } from "./kernel/port.js";
 import type { KeyringPort, RootKeyHandle, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
 
 /**
- * @file Read-only inventory of every sealed credential in `content.db`: which rows exist, what they
+ * @file Read-only inventory of every sealed credential in the content database: which rows exist, what they
  * are (by a non-secret label), which key generation stamped them, and whether each one opens under
  * the root key this process resolves right now.
  *
@@ -14,7 +17,8 @@ import type { KeyringPort, RootKeyHandle, SealedSecret, SecretSealerPort } from 
  * the old key?" (Design C) both trust this answer, so it is built alone, read-only, first.
  *
  * ## Discovery comes from the database catalog, not from a list
- * Sealed columns are found by reading `sqlite_master` + `pragma_table_info` for every column whose
+ * Sealed columns are found by reading the catalog (the kernel's `listTables` + `listColumns`: SQLite's
+ * `sqlite_schema` + `pragma_table_info`, Postgres's `information_schema`) for every column whose
  * name ends in `sealed_ciphertext` (which also catches `external_mcp_servers.oauth_sealed_ciphertext`).
  * A hand-maintained list is how the prior design went wrong: a sealed table with no entry would be
  * invisible to the very count that guards deleting a key. Here, a discovered column with no
@@ -24,7 +28,7 @@ import type { KeyringPort, RootKeyHandle, SealedSecret, SecretSealerPort } from 
  *
  * ## No generic cross-table decrypt
  * Each sealed column is opened only through its OWN store's AAD choice, supplied by its descriptor
- * (`sealed-credential-descriptors.sqlite.ts`, which imports each store's own AAD builder). This file
+ * (`server/runtime/composition/sealed-credential-descriptors.ts`, which imports each store's own AAD builder). This file
  * never guesses an AAD and never retries a failed open with a different one.
  *
  * ## What `opensUnderActiveKey` means, and when it is `"unknown"`
@@ -42,8 +46,9 @@ import type { KeyringPort, RootKeyHandle, SealedSecret, SecretSealerPort } from 
  * reading their messages; the inventory carries enum reason codes only. Nothing here logs.
  *
  * ## Read-only
- * Every statement is checked with better-sqlite3's `Statement.readonly` before it runs, and all
- * reads happen in one deferred transaction so the counts and rows are one consistent snapshot. No
+ * Every statement is a SELECT built here from catalog names (identifiers quoted by Kysely, never
+ * spliced text), so the inventory cannot write by construction; all reads happen in one kernel
+ * transaction so the counts and rows are one consistent snapshot, on any dialect. No
  * open (and so no keyring derivation) is attempted when `hasRootKeySource()` reports no key source:
  * a keyring allowed to auto-generate a key file would otherwise MINT one on first use.
  */
@@ -145,8 +150,8 @@ export interface SealedColumnDescriptor {
 }
 
 export interface SealedCredentialInventoryDeps {
-  /** The `content.db` handle (`ContentDb.$client`). Only read statements are ever run on it. */
-  readonly db: Pick<Database.Database, "prepare" | "transaction">;
+  /** The content database's storage kernel (any dialect). Only SELECTs are ever run on it. */
+  readonly kernel: ContentKernel;
   readonly sealer: Pick<SecretSealerPort, "seal" | "open">;
   readonly keyring: Pick<KeyringPort, "activeKey">;
   /**
@@ -215,22 +220,19 @@ function unknownVerdict(reason: SealedCredentialUnknownReason): OpenVerdict {
   return { opens: "unknown", reason };
 }
 
-function quoteIdentifier(name: string): string {
-  return `"${name.replaceAll('"', '""')}"`;
+/** Rows of one SELECT, positionally: column `i` of each row is `select[i]` (aliased `c<i>`, so no
+ *  column name can collide with another). @complexity O(rows returned). */
+async function selectColumns(kernel: ContentKernel, required: { table: string; select: readonly RawBuilder<unknown>[]; nonNull: string }): Promise<unknown[][]> {
+  const columns = sql.join(required.select.map((expression, index) => sql`${expression} AS ${sql.id(`c${index}`)}`));
+  const rows = await kernel.query<Record<string, unknown>>(
+    sql`SELECT ${columns} FROM ${sql.id(required.table)} WHERE ${sql.id(required.nonNull)} IS NOT NULL`
+  );
+  return rows.map((row) => required.select.map((_, index) => row[`c${index}`]));
 }
 
-/**
- * Runs one statement after proving it cannot write.
- *
- * @throws If the statement is not read-only — a programming error in this file, never data-driven.
- * @complexity O(rows returned).
- */
-function readAll(db: Pick<Database.Database, "prepare">, source: string, params: readonly unknown[] = [], raw = false): unknown[] {
-  const statement = db.prepare(source);
-  if (!statement.readonly) {
-    throw new Error("sealed-credential inventory refused to run a statement that can write");
-  }
-  return raw ? statement.raw(true).all(...params) : statement.all(...params);
+/** A column reference that is never split on dots (catalog names are used verbatim). */
+function column(name: string): RawBuilder<unknown> {
+  return sql.id(name);
 }
 
 /** The key-id/nonce/alg columns that sit beside a `<prefix>sealed_ciphertext` column. */
@@ -240,15 +242,19 @@ function siblingColumns(column: string): { keyId: string; nonce: string; alg: st
 }
 
 /**
- * Every table column in the database whose name ends in `sealed_ciphertext`, read from the catalog.
+ * Every table column in the database whose name ends in `sealed_ciphertext`, read from the catalog,
+ * in table-name (code-unit) order, then declaration order.
  *
- * @complexity O(T·C) for T tables with C columns each — two catalog reads per table.
+ * @complexity O(T·C) for T tables with C columns each — one catalog read per table.
  */
-export function discoverSealedColumns(db: Pick<Database.Database, "prepare">): DiscoveredSealedColumn[] {
-  const tables = readAll(db, "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name") as { name: string }[];
+export async function discoverSealedColumns(kernel: ContentKernel): Promise<DiscoveredSealedColumn[]> {
+  // Code-unit order on every dialect (Postgres would otherwise sort by its collation).
+  // The catalog helpers take any kernel; the content schema's row types play no part in them.
+  const catalog = kernel as unknown as StorageKernel<unknown>;
+  const tables = (await listTables(catalog)).sort();
   const discovered: DiscoveredSealedColumn[] = [];
-  for (const { name: table } of tables) {
-    const columns = (readAll(db, "SELECT name FROM pragma_table_info(?)", [table]) as { name: string }[]).map((c) => c.name);
+  for (const table of tables) {
+    const columns = (await listColumns(catalog, table)).map((c) => c.name);
     const tableColumns = new Set(columns);
     for (const column of columns) {
       if (column.endsWith(SEALED_CIPHERTEXT_SUFFIX)) discovered.push({ table, column, tableColumns });
@@ -258,7 +264,7 @@ export function discoverSealedColumns(db: Pick<Database.Database, "prepare">): D
 }
 
 function descriptorKey(input: { table: string; column: string }): string {
-  return `${input.table} ${input.column}`;
+  return `${input.table}\u0000${input.column}`;
 }
 
 /** The table has every column the descriptor needs, and no identity column is part of a sealed quad. */
@@ -270,53 +276,56 @@ function descriptorFits(ref: DiscoveredSealedColumn, descriptor: SealedColumnDes
 }
 
 /** Only the key-id stamp of each sealed row — for columns this inventory cannot classify. */
-function readKeyIds(db: Pick<Database.Database, "prepare">, ref: DiscoveredSealedColumn): unknown[] {
+async function readKeyIds(kernel: ContentKernel, ref: DiscoveredSealedColumn): Promise<unknown[]> {
   const { keyId } = siblingColumns(ref.column);
-  const keyIdSelect = ref.tableColumns.has(keyId) ? quoteIdentifier(keyId) : "NULL";
-  const source = `SELECT ${keyIdSelect} FROM ${quoteIdentifier(ref.table)} WHERE ${quoteIdentifier(ref.column)} IS NOT NULL`;
-  return (readAll(db, source, [], true) as unknown[][]).map((row) => row[0]);
+  const keyIdSelect = ref.tableColumns.has(keyId) ? column(keyId) : sql`NULL`;
+  const rows = await selectColumns(kernel, { table: ref.table, select: [keyIdSelect], nonNull: ref.column });
+  return rows.map((row) => row[0]);
 }
 
 /** The descriptor's identity columns plus the sealed quad, positionally, so no alias can collide. */
-function readRegisteredRows(db: Pick<Database.Database, "prepare">, ref: DiscoveredSealedColumn, descriptor: SealedColumnDescriptor): SnapshotRow[] {
+async function readRegisteredRows(kernel: ContentKernel, ref: DiscoveredSealedColumn, descriptor: SealedColumnDescriptor): Promise<SnapshotRow[]> {
   const siblings = siblingColumns(ref.column);
   const selected = [...descriptor.identityColumns, siblings.keyId, ref.column, siblings.nonce, siblings.alg];
-  const source = `SELECT ${selected.map(quoteIdentifier).join(", ")} FROM ${quoteIdentifier(ref.table)} WHERE ${quoteIdentifier(ref.column)} IS NOT NULL`;
   const width = descriptor.identityColumns.length;
-  return (readAll(db, source, [], true) as unknown[][]).map((values) => ({
+  const rows = await selectColumns(kernel, { table: ref.table, select: selected.map(column), nonNull: ref.column });
+  return rows.map((values) => ({
     identity: Object.fromEntries(descriptor.identityColumns.map((column, index) => [column, values[index]])),
     cells: { keyId: values[width], ciphertext: values[width + 1], nonce: values[width + 2], alg: values[width + 3] },
   }));
 }
 
-function snapshotColumn(db: Pick<Database.Database, "prepare">, ref: DiscoveredSealedColumn, descriptor: SealedColumnDescriptor | undefined): ColumnSnapshot {
-  if (!descriptor) return { kind: "unclassifiable", ref, reason: "no-descriptor", keyIds: readKeyIds(db, ref) };
+async function snapshotColumn(kernel: ContentKernel, ref: DiscoveredSealedColumn, descriptor: SealedColumnDescriptor | undefined): Promise<ColumnSnapshot> {
+  if (!descriptor) return { kind: "unclassifiable", ref, reason: "no-descriptor", keyIds: await readKeyIds(kernel, ref) };
   if (!descriptorFits(ref, descriptor)) {
-    return { kind: "unclassifiable", ref, reason: "descriptor-schema-mismatch", keyIds: readKeyIds(db, ref) };
+    return { kind: "unclassifiable", ref, reason: "descriptor-schema-mismatch", keyIds: await readKeyIds(kernel, ref) };
   }
-  return { kind: "registered", ref, descriptor, rows: readRegisteredRows(db, ref, descriptor) };
+  return { kind: "registered", ref, descriptor, rows: await readRegisteredRows(kernel, ref, descriptor) };
 }
 
-function countSealedRows(db: Pick<Database.Database, "prepare">, ref: DiscoveredSealedColumn): number {
-  const source = `SELECT COUNT(*) AS n FROM ${quoteIdentifier(ref.table)} WHERE ${quoteIdentifier(ref.column)} IS NOT NULL`;
-  return (readAll(db, source) as { n: number }[])[0].n;
+async function countSealedRows(kernel: ContentKernel, ref: DiscoveredSealedColumn): Promise<number> {
+  const [row] = await selectColumns(kernel, { table: ref.table, select: [sql`COUNT(*)`], nonNull: ref.column });
+  return Number(row?.[0] ?? 0);
 }
 
 /**
- * Discovery, the limit check, and every row read, in one deferred (read) transaction.
+ * Discovery, the limit check, and every row read, in one kernel transaction (one snapshot).
  *
  * @throws {SealedCredentialInventoryLimitError} Above `maxEntries` sealed rows.
  * @complexity O(T·C + R) for the catalog plus R sealed rows.
  */
-function takeSnapshot(deps: SealedCredentialInventoryDeps, maxEntries: number): ColumnSnapshot[] {
+async function takeSnapshot(deps: SealedCredentialInventoryDeps, maxEntries: number): Promise<ColumnSnapshot[]> {
+  const { kernel } = deps;
   const byColumn = new Map(deps.descriptors.map((descriptor) => [descriptorKey(descriptor), descriptor]));
-  const read = deps.db.transaction((): ColumnSnapshot[] => {
-    const discovered = discoverSealedColumns(deps.db);
-    const sealedRows = discovered.reduce((sum, ref) => sum + countSealedRows(deps.db, ref), 0);
+  return kernel.transaction(async () => {
+    const discovered = await discoverSealedColumns(kernel);
+    let sealedRows = 0;
+    for (const ref of discovered) sealedRows += await countSealedRows(kernel, ref);
     if (sealedRows > maxEntries) throw new SealedCredentialInventoryLimitError({ sealedRows, maxEntries });
-    return discovered.map((ref) => snapshotColumn(deps.db, ref, byColumn.get(descriptorKey(ref))));
+    const snapshots: ColumnSnapshot[] = [];
+    for (const ref of discovered) snapshots.push(await snapshotColumn(kernel, ref, byColumn.get(descriptorKey(ref))));
+    return snapshots;
   });
-  return read.deferred();
 }
 
 /**
@@ -450,7 +459,7 @@ function tally(entries: readonly SealedCredentialEntry[]): SealedCredentialInven
  * Lists every sealed credential in the database. Read-only; see this file's header for the
  * discovery, AAD, honesty and no-secret rules it keeps.
  *
- * @param deps - Database handle, the app's sealer + keyring, a root-key-source check, and the
+ * @param deps - The content database's kernel, the app's sealer + keyring, a root-key-source check, and the
  *   per-store descriptors (production: `SEALED_COLUMN_DESCRIPTORS`).
  * @returns Entries in catalog order (table name, then column order), per-column summaries, totals.
  * @throws {SealedCredentialInventoryLimitError} Above `options.maxEntries` sealed rows. Database
@@ -459,7 +468,7 @@ function tally(entries: readonly SealedCredentialEntry[]): SealedCredentialInven
  *   row that fails to open (the open plus a two-call probe), one call per row that opens.
  */
 export async function listSealedCredentials(deps: SealedCredentialInventoryDeps, options: SealedCredentialInventoryOptions = {}): Promise<SealedCredentialInventory> {
-  const snapshots = takeSnapshot(deps, options.maxEntries ?? DEFAULT_MAX_ENTRIES);
+  const snapshots = await takeSnapshot(deps, options.maxEntries ?? DEFAULT_MAX_ENTRIES);
   const activeKey = await readActiveKey(deps.keyring);
   const keyCheck = await createActiveKeyCheck(deps, activeKey);
   const entries: SealedCredentialEntry[] = [];
