@@ -277,6 +277,20 @@ export interface ExternalMcpOAuthDeps {
   /** Resolves a REGISTERED provider descriptor. Injected so a test can register its own without
    *  mutating the process-wide registry. Defaults to `src/platform/oauth/`'s. */
   readonly lookupProvider?: (providerId: string) => OAuthProviderDescriptor;
+  /** Runs after a sign-in succeeds (redirect callback or device poll), once the token is durable.
+   *  The composition root wires `features/agent-plugins/apply-connect-defaults.ts` here. A throw is
+   *  logged and never fails the sign-in: the connection itself already succeeded. */
+  readonly onConnected?: (serverId: string) => Promise<void>;
+}
+
+/** Calls {@link ExternalMcpOAuthDeps.onConnected}, keeping its failure out of the sign-in's result. */
+async function notifyConnected(deps: ExternalMcpOAuthDeps, serverId: string): Promise<void> {
+  if (!deps.onConnected) return;
+  try {
+    await deps.onConnected(serverId);
+  } catch (error) {
+    console.warn(`[external-mcp] '${serverId}': post-connect step failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /** What an authorization-code connect hands back to the route. Carries no secret. */
@@ -1121,6 +1135,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       // Re-read rather than reusing `record`: `beginConnect` wrote `pending` to it, and persisting a
       // stale copy would resurrect the pre-connect row wholesale.
       await persistTokens(deps, await requireOAuthRecord(deps, input.serverId), tokens);
+      await notifyConnected(deps, input.serverId);
     },
 
     async pollDeviceAuthorization(input) {
@@ -1146,6 +1161,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
         );
         await deps.devices.delete(input.serverId);
         await persistTokens(deps, record, tokens);
+        await notifyConnected(deps, input.serverId);
         return { status: "connected" };
       } catch (error) {
         // The ONLY retryable branch in this whole module — RFC 8628 §3.5 requires the client to keep

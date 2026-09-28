@@ -42,10 +42,22 @@ test("AC-01: mcp.json declares exactly one streamable-http OAuth server at Supab
 
   assert.deepEqual(parsed.config.serverIds, ["supabase"]);
   const server = parsed.config.servers.supabase;
-  assert.deepEqual(server, { type: "streamable-http", url: "https://mcp.supabase.com/mcp", tovuAuthMode: "oauth" });
+  assert.ok(server && server.type !== "stdio");
+  if (!server || server.type === "stdio") return;
+  assert.deepEqual(
+    { type: server.type, url: server.url, tovuAuthMode: server.tovuAuthMode },
+    { type: "streamable-http", url: "https://mcp.supabase.com/mcp", tovuAuthMode: "oauth" },
+  );
+  // Granted on the first sign-in (`apply-connect-defaults.ts`). SQL writes stay out of `write` until
+  // the confirm-before-destructive-SQL step (plan S-G3) exists.
+  const defaults = server.tovuDefaultTools;
+  assert.ok(defaults);
+  assert.ok(defaults.write.every((name) => defaults.allow.includes(name)));
+  assert.equal(defaults.write.includes("execute_sql"), false);
+  assert.equal(defaults.write.includes("apply_migration"), false);
   // Remote + oauth carries no secret and no local execution, so `federate-mcp.ts` auto-provisions the
   // `supabase` row (disabled, empty allowlists) rather than waiting on the stdio confirmation gate.
-  if (server) assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
+  assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
 });
 
 test("plugin.json's keywords reach an operator who says 'database', 'postgres', or 'connect'", async () => {

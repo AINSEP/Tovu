@@ -90,6 +90,7 @@ type OnStartedContext = Parameters<RunStartHandler>[0];
 import { attachAssistantToolExtensions, type AssistantToolExtensions } from "#src/assistant/installed-extension-tools";
 import { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
 import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
+import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
@@ -1197,6 +1198,7 @@ const externalMcpOAuth = createExternalMcpOAuthService({
   // these unset (see `routes/types.ts`'s doc on both fields) — every real composition root sets them.
   pending: routeDeps.externalMcpOAuthPending ?? createPendingAuthorizationStore({ clock: routeDeps.clock }),
   devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
+  onConnected: createApplyConnectDefaults({ workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock }),
 });
 
 async function start(): Promise<void> {

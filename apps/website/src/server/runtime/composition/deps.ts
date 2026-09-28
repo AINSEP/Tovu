@@ -13,6 +13,7 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
+import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -1791,6 +1792,7 @@ export function createSqliteRouteDeps(
       clock,
       pending: externalMcpOAuthPending,
       devices: externalMcpOAuthDevices,
+      onConnected: createApplyConnectDefaults({ workspaceId, repo: externalMcpServerRepo, clock }),
     }),
     externalMcpOAuthPending,
     externalMcpOAuthDevices,

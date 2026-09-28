@@ -43,7 +43,9 @@
  *   OAuth (Higgsfield's own `mcp.json` sets it) can say so; a strictly spec-conformant client
  *   ignores an unknown property on an object with no `additionalProperties: false` and loses
  *   nothing. Absent, it defaults to `"none"` wherever it is consulted
- *   (`capability-projection.ts`'s `resolveAgentPluginMcpAuthMode`). A malformed per-server entry
+ *   (`capability-projection.ts`'s `resolveAgentPluginMcpAuthMode`). A second extension on the same
+ *   entries, `tovuDefaultTools: { allow, write? }`, names the tools granted on the operator's first
+ *   sign-in (`apply-connect-defaults.ts`); `write` must be a subset of `allow`. A malformed per-server entry
  *   (wrong/missing `type`, missing required field) does not fail the whole file — see
  *   `ParseAgentPluginMcpConfigResult`'s own doc for the fail-open contract this preserves.
  *
@@ -184,6 +186,15 @@ export interface RemoteMcpServerConfig {
   /** Tovu-specific extension, not part of the spec — see this file's header for why it exists and
    * what a strictly spec-conformant client does with it (ignores it). */
   readonly tovuAuthMode?: "oauth" | "none";
+  /** Tovu-specific extension, not part of the spec: the tools this server's row is granted on the
+   *  operator's FIRST successful sign-in (`apply-connect-defaults.ts`), so connecting is the only step.
+   *  `write` is a subset of `allow`, the same rule the external-MCP store enforces on a save. */
+  readonly tovuDefaultTools?: AgentPluginDefaultTools;
+}
+
+export interface AgentPluginDefaultTools {
+  readonly allow: readonly string[];
+  readonly write: readonly string[];
 }
 
 export type McpServerConfig = StdioMcpServerConfig | RemoteMcpServerConfig;
@@ -237,6 +248,33 @@ function parseStdioServerConfig(raw: Readonly<Record<string, unknown>>): StdioMc
   };
 }
 
+/** Same bound and grammar as `external-mcp-store.ts`'s `MAX_ALLOWED_TOOLS`/`REMOTE_TOOL_NAME_PATTERN`,
+ *  so a declared default can never be one the store would refuse on save. */
+const MAX_DEFAULT_TOOLS = 64;
+const DEFAULT_TOOL_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
+
+/** A bounded array of valid tool names, or `null`. */
+function parseDefaultToolNames(value: unknown): readonly string[] | null {
+  if (!Array.isArray(value) || value.length > MAX_DEFAULT_TOOLS) return null;
+  return value.every((name): name is string => typeof name === "string" && DEFAULT_TOOL_NAME_PATTERN.test(name)) ? value : null;
+}
+
+/**
+ * Validates a remote entry's `tovuDefaultTools` extension: `allow` required, `write` optional
+ * (defaults to `[]`) and a subset of `allow`.
+ *
+ * @returns The parsed value, or `null` for any shape violation — the caller excludes the whole server.
+ * @complexity O(n) in the two lists' length.
+ */
+function parseDefaultTools(value: unknown): AgentPluginDefaultTools | null {
+  if (!isJsonObject(value)) return null;
+  const allow = parseDefaultToolNames(value.allow);
+  const write = value.write === undefined ? [] : parseDefaultToolNames(value.write);
+  if (allow === null || write === null) return null;
+  const allowed = new Set(allow);
+  return write.every((name) => allowed.has(name)) ? { allow, write } : null;
+}
+
 /**
  * Validates one `type: "streamable-http"` or `type: "sse"` server entry — the two remote transports
  * share this one implementation because they share every field (see {@link RemoteMcpServerConfig}).
@@ -251,12 +289,15 @@ function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<
   const { headers, tovuAuthMode } = raw;
   if (headers !== undefined && !isStringRecord(headers)) return null;
   if (tovuAuthMode !== undefined && tovuAuthMode !== "oauth" && tovuAuthMode !== "none") return null;
+  const tovuDefaultTools = raw.tovuDefaultTools === undefined ? undefined : parseDefaultTools(raw.tovuDefaultTools);
+  if (tovuDefaultTools === null) return null;
 
   return {
     type,
     url: raw.url,
     ...(headers !== undefined ? { headers } : {}),
     ...(tovuAuthMode !== undefined ? { tovuAuthMode } : {}),
+    ...(tovuDefaultTools !== undefined ? { tovuDefaultTools } : {}),
   };
 }
 

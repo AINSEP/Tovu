@@ -80,7 +80,10 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  *    names. A downloaded marketplace package must not be able to grant itself tool access — the same
  *    trust argument Phase 3's stdio split makes, applied here to the allowlist instead of to
  *    execution. The operator ticks tools in Settings → External MCP's picker, which already lets
- *    them choose from a live, server-advertised list (`probe.ts`) rather than guessing names.
+ *    them choose from a live, server-advertised list (`probe.ts`) rather than guessing names. The one
+ *    other writer is the operator's own first sign-in, which grants the plugin's declared
+ *    `tovuDefaultTools` to a still-empty row (`apply-connect-defaults.ts`) — the sign-in, not this
+ *    file, is what authorizes.
  *
  * ---------------------------------------------------------------------------
  * What happens on plugin disable or uninstall: THE ROW SURVIVES

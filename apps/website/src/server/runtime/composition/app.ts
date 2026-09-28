@@ -174,6 +174,7 @@ import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memor
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
+import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { createAgentPluginsModule } from "./modules/agent-plugins.js";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
@@ -999,6 +1000,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       clock,
       pending: externalMcpOAuthPending,
       devices: externalMcpOAuthDevices,
+      onConnected: createApplyConnectDefaults({ workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock }),
     }),
     externalMcpOAuthPending,
     externalMcpOAuthDevices,

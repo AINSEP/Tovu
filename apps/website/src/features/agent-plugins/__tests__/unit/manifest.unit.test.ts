@@ -162,6 +162,60 @@ test("mcp.json: the non-spec tovuAuthMode extension passes through on a remote s
   assert.equal((result.config.servers.remote as { tovuAuthMode?: string }).tovuAuthMode, "oauth");
 });
 
+test("mcp.json: tovuDefaultTools on a remote server passes through when write is a subset of allow", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: {
+      remote: {
+        type: "streamable-http",
+        url: "https://mcp.example.com/mcp",
+        tovuDefaultTools: { allow: ["list_things", "make_thing"], write: ["make_thing"] },
+      },
+    },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual((result.config.servers.remote as { tovuDefaultTools?: unknown }).tovuDefaultTools, {
+    allow: ["list_things", "make_thing"],
+    write: ["make_thing"],
+  });
+});
+
+test("mcp.json: tovuDefaultTools whose write names a tool outside allow excludes the server (like any shape error)", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: {
+      remote: {
+        type: "streamable-http",
+        url: "https://mcp.example.com/mcp",
+        tovuDefaultTools: { allow: ["list_things"], write: ["drop_everything"] },
+      },
+    },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.config.serverIds, ["remote"]);
+  assert.equal(Object.hasOwn(result.config.servers, "remote"), false);
+});
+
+test("mcp.json: tovuDefaultTools with a malformed name, a non-array, or more than 64 names excludes the server", () => {
+  const bad: readonly unknown[] = [
+    { allow: ["has space"], write: [] },
+    { allow: "list_things", write: [] },
+    { allow: ["list_things"], write: "list_things" },
+    { allow: Array.from({ length: 65 }, (_, i) => `t${i}`), write: [] },
+  ];
+  for (const tovuDefaultTools of bad) {
+    const result = parseAgentPluginMcpConfig({
+      $schema: MCP_SCHEMA_1_0_0,
+      mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuDefaultTools } },
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(Object.hasOwn(result.config.servers, "remote"), false, JSON.stringify(tovuDefaultTools));
+  }
+});
+
 test("mcp.json: a server with an unrecognized type still counts toward serverIds but is excluded from servers (fail-open)", () => {
   const result = parseAgentPluginMcpConfig({
     $schema: MCP_SCHEMA_1_0_0,
