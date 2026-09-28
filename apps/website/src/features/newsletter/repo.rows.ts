@@ -242,3 +242,27 @@ export function updatableSubscriptionColumns(row: Insertable<SubscriptionTableRo
     updated_at: row.updated_at,
   };
 }
+
+/** One `p_newsletter__audience_snapshots` row as an {@link AudienceSnapshotRow}. */
+export function toAudienceSnapshotRecord(row: Selectable<AudienceSnapshotTableRow>): AudienceSnapshotRow {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    campaignId: row.campaign_id,
+    listId: row.list_id,
+    recipientCount: row.recipient_count,
+    createdAt: row.created_at,
+  };
+}
+
+/** The `p_newsletter__audience_snapshots` row an INSERT writes. */
+export function toAudienceSnapshotRow(row: AudienceSnapshotRow): Insertable<AudienceSnapshotTableRow> {
+  return {
+    id: row.id,
+    workspace_id: row.workspaceId,
+    campaign_id: row.campaignId,
+    list_id: row.listId,
+    recipient_count: row.recipientCount,
+    created_at: row.createdAt,
+  };
+}

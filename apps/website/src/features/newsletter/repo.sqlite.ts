@@ -20,7 +20,12 @@ import type Database from "better-sqlite3";
 
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { SqlNewsletterCampaignRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "./repo.js";
+import {
+  SqlNewsletterAudienceSnapshotRepo,
+  SqlNewsletterCampaignRepo,
+  SqlNewsletterListRepo,
+  SqlNewsletterSubscriptionRepo,
+} from "./repo.js";
 import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest.js";
 import type {
   NewsletterAudienceSnapshotRepoPort,
@@ -69,59 +74,10 @@ export class SqliteNewsletterSubscriptionRepo extends SqlNewsletterSubscriptionR
   }
 }
 
-interface AudienceSnapshotDbRow {
-  id: string;
-  workspace_id: string;
-  campaign_id: string;
-  list_id: string;
-  recipient_count: number;
-  created_at: string;
-}
-const toAudienceSnapshotRow = (r: AudienceSnapshotDbRow): AudienceSnapshotRow => ({
-  id: r.id,
-  workspaceId: r.workspace_id,
-  campaignId: r.campaign_id,
-  listId: r.list_id,
-  recipientCount: r.recipient_count,
-  createdAt: r.created_at,
-});
-
-export class SqliteNewsletterAudienceSnapshotRepo implements NewsletterAudienceSnapshotRepoPort {
-  private readonly table = NEWSLETTER_TABLE_NAMES.audienceSnapshots;
-  constructor(private readonly db: ContentDb) {}
-  private get client(): Database.Database {
-    return rawClient(this.db);
-  }
-
-  async findByCampaignId(required: { workspaceId: string; campaignId: string }): Promise<AudienceSnapshotRow | null> {
-    const row = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND campaign_id = ?`)
-      .get(required.workspaceId, required.campaignId) as AudienceSnapshotDbRow | undefined;
-    return row ? toAudienceSnapshotRow(row) : null;
-  }
-
-  async findById(required: { workspaceId: string; id: string }): Promise<AudienceSnapshotRow | null> {
-    const row = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND id = ?`)
-      .get(required.workspaceId, required.id) as AudienceSnapshotDbRow | undefined;
-    return row ? toAudienceSnapshotRow(row) : null;
-  }
-
-  /** INV-06: immutable after creation — plain INSERT (no upsert), a PK collision surfaces as a thrown error. */
-  async save(row: AudienceSnapshotRow): Promise<void> {
-    this.client
-      .prepare(
-        `INSERT INTO "${this.table}" (id, workspace_id, campaign_id, list_id, recipient_count, created_at)
-         VALUES (@id, @workspaceId, @campaignId, @listId, @recipientCount, @createdAt)`
-      )
-      .run({
-        id: row.id,
-        workspaceId: row.workspaceId,
-        campaignId: row.campaignId,
-        listId: row.listId,
-        recipientCount: row.recipientCount,
-        createdAt: row.createdAt,
-      });
+export class SqliteNewsletterAudienceSnapshotRepo extends SqlNewsletterAudienceSnapshotRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 

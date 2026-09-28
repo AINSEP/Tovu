@@ -1,10 +1,17 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { CampaignOutcomeCounter, NewsletterCampaignRepoPort, NewsletterListRepoPort, NewsletterSubscriptionRepoPort } from "./ports.js";
+import type {
+  CampaignOutcomeCounter,
+  NewsletterAudienceSnapshotRepoPort,
+  NewsletterListRepoPort,
+  NewsletterSubscriptionRepoPort,
+} from "./ports.js";
 import {
   type NewsletterTables,
   toCampaignRecord,
   toCampaignRevision,
   toCampaignRow,
+  toAudienceSnapshotRecord,
+  toAudienceSnapshotRow,
   toListRecord,
   toListRow,
   toSubscriptionRecord,
@@ -13,7 +20,14 @@ import {
   updatableListColumns,
   updatableSubscriptionColumns,
 } from "./repo.rows.js";
-import type { CampaignCounters, CampaignRecord, CampaignRevision, NewsletterListRow, SubscriptionRow } from "./types.js";
+import type {
+  AudienceSnapshotRow,
+  CampaignCounters,
+  CampaignRecord,
+  CampaignRevision,
+  NewsletterListRow,
+  SubscriptionRow,
+} from "./types.js";
 
 /**
  * @file THE newsletter repositories: one Kysely query body for every database the storage kernel
@@ -306,4 +320,48 @@ export class SqlNewsletterSubscriptionRepo implements NewsletterSubscriptionRepo
 /** The newsletter subscription repo for `kernel`. */
 export function newsletterSubscriptionRepoFor(kernel: ContentKernel): SqlNewsletterSubscriptionRepo {
   return new SqlNewsletterSubscriptionRepo(kernel);
+}
+
+export class SqlNewsletterAudienceSnapshotRepo implements NewsletterAudienceSnapshotRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findByCampaignId(required: { workspaceId: string; campaignId: string }): Promise<AudienceSnapshotRow | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__audience_snapshots")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("campaign_id", "=", required.campaignId)
+        .orderBy("id", "asc")
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toAudienceSnapshotRecord(row) : null;
+  }
+
+  async findById(required: { workspaceId: string; id: string }): Promise<AudienceSnapshotRow | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__audience_snapshots")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("id", "=", required.id)
+        .executeTakeFirst()
+    );
+    return row ? toAudienceSnapshotRecord(row) : null;
+  }
+
+  /** INV-06: immutable after creation. A plain INSERT (no upsert), so a primary-key collision surfaces as a thrown error. */
+  async save(row: AudienceSnapshotRow): Promise<void> {
+    await this.kernel.run((db) =>
+      db.withTables<NewsletterTables>().insertInto("p_newsletter__audience_snapshots").values(toAudienceSnapshotRow(row)).execute()
+    );
+  }
+}
+
+/** The newsletter audience-snapshot repo for `kernel`. */
+export function newsletterAudienceSnapshotRepoFor(kernel: ContentKernel): SqlNewsletterAudienceSnapshotRepo {
+  return new SqlNewsletterAudienceSnapshotRepo(kernel);
 }

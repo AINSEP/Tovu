@@ -5,8 +5,8 @@ import { sql } from "kysely";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { newsletterCampaignRepoFor, newsletterListRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
-import type { CampaignRecord, CampaignRevision, NewsletterListRow, SubscriptionRow } from "../types.js";
+import { newsletterAudienceSnapshotRepoFor, newsletterCampaignRepoFor, newsletterListRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
+import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, NewsletterListRow, SubscriptionRow } from "../types.js";
 
 /**
  * @file The six newsletter repos on every dialect through the kernel's matrix (`describeEachDialect`
@@ -32,13 +32,17 @@ const CREATE_TABLES = [
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, list_id TEXT NOT NULL, subscriber_id TEXT NOT NULL,
     status TEXT NOT NULL, source TEXT NOT NULL, consent_revision_id_at_subscribe TEXT, subscribed_at TEXT,
     unsubscribed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+  sql`DROP TABLE IF EXISTS p_newsletter__audience_snapshots`,
+  sql`CREATE TABLE p_newsletter__audience_snapshots (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, campaign_id TEXT NOT NULL, list_id TEXT NOT NULL,
+    recipient_count INTEGER NOT NULL, created_at TEXT NOT NULL)`,
 ];
 
 function repos(base: ContentKernel) {
   const pending = CREATE_TABLES.reduce((chain, statement) => chain.then(() => base.execute(statement)), Promise.resolve());
   pending.catch(() => {});
   const kernel = heldUntil(base, pending);
-  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel) };
+  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel), snapshots: newsletterAudienceSnapshotRepoFor(kernel) };
 }
 
 function list(id: string, overrides: Partial<NewsletterListRow> = {}): NewsletterListRow {
@@ -87,6 +91,10 @@ function subscription(id: string, overrides: Partial<SubscriptionRow> = {}): Sub
     updatedAt: T0,
     ...overrides,
   };
+}
+
+function snapshot(id: string, overrides: Partial<AudienceSnapshotRow> = {}): AudienceSnapshotRow {
+  return { id, workspaceId: WS, campaignId: `camp-${id}`, listId: "list-1", recipientCount: 3, createdAt: T0, ...overrides };
 }
 
 describeEachDialect(
@@ -321,6 +329,38 @@ describeEachDialect(
         );
         assert.equal(await subscriptions.findById({ workspaceId: WS, id: "s2" }), null);
         assert.ok(await subscriptions.findById({ workspaceId: WS, id: "s1" }));
+      });
+    });
+
+    describe("audience snapshot repo", () => {
+      test("save then findById / findByCampaignId round-trip; misses and other workspaces are null", async () => {
+        const { snapshots } = makeRepos();
+        await snapshots.save(snapshot("a1"));
+        assert.deepEqual(await snapshots.findById({ workspaceId: WS, id: "a1" }), snapshot("a1"));
+        assert.deepEqual(await snapshots.findByCampaignId({ workspaceId: WS, campaignId: "camp-a1" }), snapshot("a1"));
+        assert.equal(await snapshots.findById({ workspaceId: WS, id: "nope" }), null);
+        assert.equal(await snapshots.findById({ workspaceId: OTHER, id: "a1" }), null);
+        assert.equal(await snapshots.findByCampaignId({ workspaceId: WS, campaignId: "nope" }), null);
+        assert.equal(await snapshots.findByCampaignId({ workspaceId: OTHER, campaignId: "camp-a1" }), null);
+      });
+
+      test("a snapshot is immutable: saving the same id again throws and keeps the original", async () => {
+        const { snapshots } = makeRepos();
+        await snapshots.save(snapshot("a1"));
+        await assert.rejects(snapshots.save(snapshot("a1", { recipientCount: 99, listId: "other" })));
+        assert.deepEqual(await snapshots.findById({ workspaceId: WS, id: "a1" }), snapshot("a1"));
+      });
+
+      test("a snapshot saved inside a rolled-back transaction is not there afterwards", async () => {
+        const { kernel, snapshots } = makeRepos();
+        await assert.rejects(
+          kernel.transaction(async () => {
+            await snapshots.save(snapshot("a1"));
+            throw new Error("boom");
+          }),
+          /boom/
+        );
+        assert.equal(await snapshots.findById({ workspaceId: WS, id: "a1" }), null);
       });
     });
   }
