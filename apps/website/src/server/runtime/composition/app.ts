@@ -214,6 +214,7 @@ import { applyRequestTracking } from "../../inbound/shared/observability-middlew
 import { parsePublicJsonBody, respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
 import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
+import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
 import { registerThemePreviewStatic } from "../../inbound/public-http/middleware/theme-preview-static.js";
@@ -1497,6 +1498,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
   // handled it. See site-serving-gate.ts's own header for the allowlist rationale.
   applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
+  // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
+  // public route runs. See `public-page-security-headers.ts`.
+  applyPublicPageSecurityHeaders(app);
 
   // MUST stay ahead of the blanket `express.json()` immediately below. Payment webhooks are
   // HMAC-signed over the exact received bytes, and the blanket parser destroys them — so this one
