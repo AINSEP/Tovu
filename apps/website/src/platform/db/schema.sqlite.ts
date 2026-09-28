@@ -1628,6 +1628,34 @@ export const agentToolAttempts = sqliteTable(
 );
 
 /**
+ * Where this site's database copies go (`features/database-transfer`): one saved Postgres destination
+ * per workspace, typed by the human into a private form. The connection string (with its password) is
+ * sealed whole under `features/database-transfer/destination-aad.ts`'s AAD; only its non-secret
+ * description (host, port, database, user) is plaintext, because the tools already show it.
+ * `last_run_json` is the last copy's summary (never row data, never the address). Never copied by a
+ * database transfer itself (`exclusions.ts`: saved keys). No foreign key, like
+ * `site_assistant_credentials`: a single row per workspace, keyed by it.
+ */
+export const databaseTransferDestinations = sqliteTable("database_transfer_destinations", {
+  workspaceId: text("workspace_id").primaryKey(),
+  host: text("host").notNull(),
+  port: text("port").notNull(),
+  databaseName: text("database_name").notNull(),
+  userName: text("user_name").notNull(),
+  /** `SealedSecret.keyId`. */
+  sealedKeyId: text("sealed_key_id").notNull(),
+  /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the connection string. */
+  sealedCiphertext: text("sealed_ciphertext").notNull(),
+  /** Base64 12-byte AES-GCM IV. */
+  sealedNonce: text("sealed_nonce").notNull(),
+  sealedAlg: text("sealed_alg").notNull(),
+  /** Always `1` (born with AAD); stored so a future AAD format is data, not a guess. */
+  aadVersion: integer("aad_version").notNull(),
+  savedAt: text("saved_at").notNull(),
+  lastRunJson: text("last_run_json"),
+});
+
+/**
  * The SITE's provider credential for the public visitor assistant (ADR-058) — one row per
  * workspace, single-row-per-workspace shape matching `originSettings`/`presentationSettings` above
  * (`workspace_id` as the primary key, no surrogate id, upsert semantics).

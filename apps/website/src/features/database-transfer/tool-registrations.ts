@@ -28,7 +28,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 import { buildConfirmationSurface, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confirmation-ui.js";
 import { countPartialExclusions, countSourceRows, inspectTarget, planSnapshotTables, runCopy, SourceSchemaMismatchError } from "./copy-engine.js";
-import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, type DatabaseDestinationStorePort, type SavedDatabaseDestination } from "./destination-store.js";
+import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, DestinationUnreadableError, type DatabaseDestinationStorePort, type SavedDatabaseDestination } from "./destination-store.js";
 import { buildDestinationForm, buildDestinationOutcome, DESTINATION_ADDRESS_FIELD, SET_DESTINATION_TOOL_ID } from "./destination-ui.js";
 import { databaseTransferPlanStore as DEFAULT_PLAN_STORE, type DatabaseTransferPlan, type DatabaseTransferPlanStore } from "./plan-store.js";
 import { createPsqlPostgresTarget, InvalidConnectionStringError, type PostgresTargetPort, type TargetDescription } from "./postgres-target.js";
@@ -133,7 +133,7 @@ export interface DatabaseTransferToolDeps {
   readonly siteBinding?: { readonly name: string };
   /** Test-only; defaults to the process-wide store. */
   readonly databaseTransferPlanStore?: DatabaseTransferPlanStore;
-  /** Test-only; defaults to the process-wide store. */
+  /** The sealed, persistent store (`server/runtime/composition/deps.ts`); absent -> the in-memory fallback. */
   readonly databaseTransferDestinationStore?: DatabaseDestinationStorePort;
   /** Test-only; defaults to the `psql` adapter. */
   readonly databaseTransferTarget?: (connectionString: string) => PostgresTargetPort;
@@ -252,7 +252,7 @@ function planResult(plan: DatabaseTransferPlan): Record<string, unknown> {
  */
 async function handlePlan(deps: DatabaseTransferToolDeps, ctx: ToolExecutionContext): Promise<Record<string, unknown>> {
   await requireToolPermission(deps, { principalId: ctx.principal.id, permission: RUN_PERMISSION, entityType: DOMAIN });
-  const destination = destinationsOf(deps).get(deps.workspaceId);
+  const destination = await destinationsOf(deps).get(deps.workspaceId);
   if (destination === null) {
     return {
       planned: false,
@@ -316,12 +316,12 @@ async function copyPlanned(deps: DatabaseTransferToolDeps, plan: DatabaseTransfe
     const result = await runCopy({ source, target: targetFor(deps, plan.connectionString), tables, counts, schema: plan.schema, marker: { site: plan.site, snapshotAt: plan.snapshotAt } });
     if (!result.ok) {
       if (result.logDetail !== undefined) log(deps, `${DATABASE_TRANSFER_RUN_TOOL_ID}: ${result.code} ${result.logDetail}`);
-      destinationsOf(deps).recordRun(deps.workspaceId, { copied: false, snapshotAt: plan.snapshotAt, code: result.code, message: result.message });
+      await destinationsOf(deps).recordRun(deps.workspaceId, { copied: false, snapshotAt: plan.snapshotAt, code: result.code, message: result.message });
       return { copied: false, cancelled: false, code: result.code, message: result.message };
     }
     if (result.warning !== undefined) log(deps, `${DATABASE_TRANSFER_RUN_TOOL_ID}: ${result.warning}`);
     const rowCount = result.tables.reduce((sum, table) => sum + table.rows, 0);
-    destinationsOf(deps).recordRun(deps.workspaceId, { copied: true, snapshotAt: plan.snapshotAt, tableCount: result.tables.length, rowCount });
+    await destinationsOf(deps).recordRun(deps.workspaceId, { copied: true, snapshotAt: plan.snapshotAt, tableCount: result.tables.length, rowCount });
     return {
       copied: true,
       destination: plan.destination,
@@ -390,7 +390,7 @@ async function handleDestinationAnswer(deps: DatabaseTransferToolDeps, exchangeI
   const checked = await checkTarget(target, siteOf(deps));
   if (!("ok" in checked)) return failedDestination(exchangeId, checked.code, checked.message);
   const destination: SavedDatabaseDestination = { connectionString: address, description: target.describe(), savedAt: new Date().toISOString() };
-  destinationsOf(deps).save(deps.workspaceId, destination);
+  await destinationsOf(deps).save(deps.workspaceId, destination);
   const { database, host } = destination.description;
   return {
     result: { saved: true, destination: destination.description, replaces: checked.replaces },
@@ -421,8 +421,8 @@ async function handleSetDestination(deps: DatabaseTransferToolDeps, surfaces: As
  */
 async function handleStatus(deps: DatabaseTransferToolDeps, ctx: ToolExecutionContext): Promise<Record<string, unknown>> {
   await requireToolPermission(deps, { principalId: ctx.principal.id, permission: RUN_PERMISSION, entityType: DOMAIN });
-  const destination = destinationsOf(deps).get(deps.workspaceId);
-  const lastRun = destinationsOf(deps).lastRun(deps.workspaceId);
+  const destination = await destinationsOf(deps).get(deps.workspaceId);
+  const lastRun = await destinationsOf(deps).lastRun(deps.workspaceId);
   if (destination === null) return { destination: null, lastRun, copyOnDestination: null };
   const inspected = await inspectTarget(targetFor(deps, destination.connectionString), siteOf(deps));
   const copyOnDestination = inspected.ok ? inspected.lastCopy : { unreachable: inspected.error };
@@ -433,6 +433,7 @@ async function handleStatus(deps: DatabaseTransferToolDeps, ctx: ToolExecutionCo
 const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   forbiddenRule("DATABASE_TRANSFER"),
   { error: InvalidConnectionStringError, code: "DATABASE_TRANSFER_INVALID_CONNECTION_STRING" },
+  { error: DestinationUnreadableError, code: "DATABASE_TRANSFER_DESTINATION_UNREADABLE" },
 ];
 
 /** @complexity O(1) at registration. */

@@ -533,6 +533,13 @@
       "when": 1799841600008,
       "tag": "0075_composio_tables_drop",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1799841600009,
+      "tag": "0076_database_transfer_destinations",
+      "breakpoints": true
     }
   ]
 }

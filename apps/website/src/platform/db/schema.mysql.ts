@@ -8,7 +8,7 @@
  *
  * FTS5 search objects are absent on purpose — see the generator's module doc.
  *
- * Tables: 90
+ * Tables: 91
  */
 import { sql } from "drizzle-orm";
 import {
@@ -340,6 +340,21 @@ export const customCredentialSets = mysqlTable("custom_credential_sets", {
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     uniqueIndex("custom_credential_sets_workspace_label_unique").on(t.workspaceId, t.label),
   ]);
+
+export const databaseTransferDestinations = mysqlTable("database_transfer_destinations", {
+  workspaceId: varchar("workspace_id", { length: 191 }).primaryKey(),
+  host: text("host").notNull(),
+  port: text("port").notNull(),
+  databaseName: text("database_name").notNull(),
+  userName: text("user_name").notNull(),
+  sealedKeyId: text("sealed_key_id").notNull(),
+  sealedCiphertext: text("sealed_ciphertext").notNull(),
+  sealedNonce: text("sealed_nonce").notNull(),
+  sealedAlg: text("sealed_alg").notNull(),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull(),
+  savedAt: text("saved_at").notNull(),
+  lastRunJson: jsonText("last_run_json"),
+});
 
 export const databaseWriteWatermark = mysqlTable("database_write_watermark", {
   id: bigint("id", { mode: "number" }).primaryKey(),

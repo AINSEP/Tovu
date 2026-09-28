@@ -8,6 +8,7 @@ import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad } from "#src/assistant
 import { buildSiteAssistantCredentialAad } from "#src/assistant/site-credential-aad";
 import { resolveSiteAssistantApiKey, setSiteAssistantCredential } from "#src/assistant/site-credential-store";
 import { buildCustomCredentialAad } from "#src/features/custom-credentials/aad";
+import { buildDatabaseDestinationAad } from "#src/features/database-transfer/destination-aad";
 import { buildPublishCredentialAad } from "#src/features/deployments/publish-credentials/index";
 import { buildMediaProviderCredentialAad } from "#src/features/media/aad";
 import { buildPublishContentPeerAad } from "#src/features/publish-content/peer-aad";
@@ -129,6 +130,12 @@ async function seedEverySealedColumn(sealWith: { sealer: Sealer; keyring: InMemo
     masked: `${LEAK}masked-peer`, aad_version: 1, ...stamps,
     ...(await seal("publish_content_peers", buildPublishContentPeerAad({ workspaceId: WS as UUID, id: "peer-1" as UUID }))),
   });
+  // `database_transfer_destinations` — the database-transfer feature's sealed address (migration 0076).
+  insertRow(db, "database_transfer_destinations", {
+    workspace_id: WS, host: "db.example.test", port: "5432", database_name: "postgres", user_name: `${LEAK}db-user`, aad_version: 1, saved_at: "x",
+    ...(await seal("database_transfer_destinations", buildDatabaseDestinationAad({ workspaceId: WS }))),
+  });
+  secrets.push(`${LEAK}db-user`);
   secrets.push(
     `${LEAK}masked-site`, `${LEAK}masked-exec`, `${LEAK}username`, `${LEAK}token-tail`, `${LEAK}key-tail-media`,
     `${LEAK}url-token`, `${LEAK}masked-peer`
@@ -180,7 +187,7 @@ test("rows sealed under the active key with each store's own AAD all report open
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }));
 
   assert.equal(inventory.entries.length, SEALED_COLUMN_DESCRIPTORS.length);
-  assert.deepEqual(inventory.totals, { sealed: 12, opens: 12, doesNotOpen: 0, unknown: 0 });
+  assert.deepEqual(inventory.totals, { sealed: 13, opens: 13, doesNotOpen: 0, unknown: 0 });
   for (const entry of inventory.entries) {
     assert.equal(entry.opensUnderActiveKey, true, `${columnKey(entry)} should open`);
     assert.equal(entry.unknownReason, null);
@@ -205,7 +212,7 @@ test("the same rows sealed under a DIFFERENT root key report opensUnderActiveKey
   const activeKeyring = new InMemoryKeyring();
   const inventory = await listSealedCredentials(depsFor(other, { sealer: new AesGcmSecretSealer(activeKeyring), keyring: activeKeyring }));
 
-  assert.deepEqual(inventory.totals, { sealed: 12, opens: 0, doesNotOpen: 12, unknown: 0 });
+  assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 13, unknown: 0 });
   assert.ok(inventory.entries.every((entry) => entry.opensUnderActiveKey === false && entry.unknownReason === null));
   assertNoSecretIn(inventory, other.secrets);
 });
@@ -223,7 +230,7 @@ test("a sealed table with NO descriptor is still counted — its rows are unknow
 
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }));
 
-  assert.equal(inventory.totals.sealed, 14, "12 registered + 2 sealed vault rows; the NULL vault row holds nothing");
+  assert.equal(inventory.totals.sealed, 15, "13 registered + 2 sealed vault rows; the NULL vault row holds nothing");
   assert.deepEqual(inventory.columns.find((column) => column.table === "plugin_vault"), {
     table: "plugin_vault", column: "sealed_ciphertext", coverage: "no-descriptor", sealedRows: 2,
   });
@@ -244,7 +251,7 @@ test("removing a production descriptor does not make the count drop — that col
   const withoutVendor = SEALED_COLUMN_DESCRIPTORS.filter((descriptor) => descriptor.table !== "vendor_credential_sets");
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring, descriptors: withoutVendor }));
 
-  assert.deepEqual(inventory.totals, { sealed: 12, opens: 11, doesNotOpen: 0, unknown: 1 });
+  assert.deepEqual(inventory.totals, { sealed: 13, opens: 12, doesNotOpen: 0, unknown: 1 });
   const vendor = inventory.entries.find((entry) => entry.table === "vendor_credential_sets");
   assert.equal(vendor?.opensUnderActiveKey, "unknown");
   assert.equal(vendor?.unknownReason, "no-descriptor");
@@ -256,7 +263,7 @@ test("undeterminable: with no root key source present, every row is unknown/no-r
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring: fixture.keyring, hasRootKeySource: () => false }));
 
   assert.equal(sealer.calls, 0, "no derivation may run when no key source exists — a keyring could mint one");
-  assert.deepEqual(inventory.totals, { sealed: 12, opens: 0, doesNotOpen: 0, unknown: 12 });
+  assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
   assert.ok(inventory.entries.every((entry) => entry.unknownReason === "no-root-key"));
 });
 
@@ -268,7 +275,7 @@ test("undeterminable: a key source that cannot round-trip a probe makes every ro
   };
   const inventory = await listSealedCredentials(depsFor(fixture, { sealer: broken, keyring: fixture.keyring }));
 
-  assert.deepEqual(inventory.totals, { sealed: 12, opens: 0, doesNotOpen: 0, unknown: 12 });
+  assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
   assert.ok(inventory.entries.every((entry) => entry.unknownReason === "active-key-unavailable"));
   assertNoSecretIn(inventory, fixture.secrets);
 });
@@ -394,8 +401,8 @@ test("above maxEntries the inventory refuses with counts only, rather than retur
   const fixture = await freshFixture();
   await assert.rejects(listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }), { maxEntries: 10 }), (error: unknown) => {
     assert.ok(error instanceof SealedCredentialInventoryLimitError);
-    assert.equal(error.message, "sealed-credential inventory found 12 sealed rows, over its limit of 10; refusing to return an understated count");
-    assert.equal(error.sealedRows, 12);
+    assert.equal(error.message, "sealed-credential inventory found 13 sealed rows, over its limit of 10; refusing to return an understated count");
+    assert.equal(error.sealedRows, 13);
     return true;
   });
 });

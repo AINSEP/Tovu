@@ -108,6 +108,8 @@ import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-ke
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
+import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
+import { SqliteDatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo.sqlite";
 import { SqliteAdminExecutionCredentialRepo } from "#src/platform/db/sqlite/execution-credential-repo.sqlite";
 import { SqliteMediaProviderCredentialRepo } from "#src/platform/db/sqlite/media-provider-credential-repo.sqlite";
 import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mcp-repo.sqlite";
@@ -1769,6 +1771,7 @@ export function createSqliteRouteDeps(
     siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(db),
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
+    databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: new SqliteDatabaseDestinationRepo(db), sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
     // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing
     // capability is correct here rather than a third `EnvOrFileKeyring` instance).

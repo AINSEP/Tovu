@@ -27,6 +27,7 @@ export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReas
   member_magic_tokens: "login",
   admin_execution_credentials: "saved-key",
   custom_credential_sets: "saved-key",
+  database_transfer_destinations: "saved-key",
   external_mcp_servers: "saved-key",
   media_provider_credentials: "saved-key",
   oauth_device_authorizations: "saved-key",

@@ -4,6 +4,7 @@ import { buildExecutionCredentialAad } from "#src/assistant/execution-credential
 import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad, EXTERNAL_MCP_AAD_VERSION } from "#src/assistant/external-mcp-aad";
 import { buildSiteAssistantCredentialAad } from "#src/assistant/site-credential-aad";
 import { buildCustomCredentialAad } from "#src/features/custom-credentials/aad";
+import { buildDatabaseDestinationAad, DATABASE_DESTINATION_AAD_VERSION } from "#src/features/database-transfer/destination-aad";
 import { buildPublishCredentialAad, type PublishProviderId } from "#src/features/deployments/publish-credentials/index";
 import { buildMediaProviderCredentialAad } from "#src/features/media/aad";
 import { buildPublishContentPeerAad, PUBLISH_CONTENT_PEER_AAD_VERSION } from "#src/features/publish-content/peer-aad";
@@ -238,6 +239,22 @@ const oauthDeviceAuthorizations: SealedColumnDescriptor = {
 };
 
 /** Every sealed column the app can open today, in `schema.sqlite.ts` order. */
+/**
+ * `database_transfer_destinations` — born with AAD (`destination-aad.ts`), like
+ * `publish_content_peers`: only v1 is opened; any other stored version is `unrecognized-aad-version`.
+ * Host and user are not identity columns (personal data a support transcript does not need).
+ */
+const databaseTransferDestinations: SealedColumnDescriptor = {
+  table: "database_transfer_destinations",
+  column: "sealed_ciphertext",
+  identityColumns: ["workspace_id", "aad_version"],
+  workspaceId: workspaceOf,
+  rowId: workspaceOf,
+  label: () => "Database copy destination",
+  aadFor: (row) =>
+    row.aad_version === DATABASE_DESTINATION_AAD_VERSION ? { kind: "aad", aad: buildDatabaseDestinationAad({ workspaceId: workspaceOf(row) }) } : { kind: "unrecognized-aad-version" },
+};
+
 export const SEALED_COLUMN_DESCRIPTORS: readonly SealedColumnDescriptor[] = [
   siteAssistantCredentials,
   adminExecutionCredentials,
@@ -251,4 +268,5 @@ export const SEALED_COLUMN_DESCRIPTORS: readonly SealedColumnDescriptor[] = [
   externalMcpServerOAuth,
   oauthPendingAuthorizations,
   oauthDeviceAuthorizations,
+  databaseTransferDestinations,
 ];

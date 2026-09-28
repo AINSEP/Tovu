@@ -56,6 +56,7 @@ import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store.js";
+import type { DatabaseDestinationStorePort } from "../../features/database-transfer/destination-store.js";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
@@ -317,6 +318,13 @@ export interface CredentialsDeps {
    * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.
    */
   siteAssistantSecretKeyring: KeyringPort;
+  /**
+   * Where this site's database copies go (`features/database-transfer`): the address sealed under the
+   * SAME `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` above, in
+   * `database_transfer_destinations`, so it survives a restart. Optional: a composition without a
+   * database (route tests) leaves it out and the tools fall back to an in-memory store.
+   */
+  databaseTransferDestinationStore?: DatabaseDestinationStorePort;
   /**
    * The ADMIN's own encrypted BYOK credential store — one row per `(workspaceId, principalId)`,
    * backing `modules/assistant-byok.ts`'s `createStoredExecutionCredentialPort` and the
