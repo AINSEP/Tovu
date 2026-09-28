@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
-import type { ContentDb } from "../content-db.js";
 import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "#src/features/webhooks/repo.memory";
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { webhookDeliveryRepoFor } from "#src/platform/db/repos/webhook-repo";
 import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
 import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
 import type { WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
@@ -281,17 +282,11 @@ test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlyi
 });
 
 /**
- * `enqueue`'s catch block delegates to the module-private `isUniqueConstraintViolation(err)` to
- * decide "swallow (already enqueued)" vs. "rethrow (a real failure)". That helper's own message
- * fallback (`err.message.includes("UNIQUE constraint failed")`) exists because SQLite's PRIMARY
- * KEY constraint reports a *different* extended code (`SQLITE_CONSTRAINT_PRIMARYKEY`, not
- * `SQLITE_CONSTRAINT_UNIQUE`) for what is still, textually, a "UNIQUE constraint failed" message —
- * verified empirically against this schema's own `webhook_deliveries.id` primary key. Colliding on
- * `id` alone (same id, different workspace/subscription/event) reaches that fallback path, which a
- * same-`(workspace,subscription,event)` collision (the contract-suite's own idempotency test above)
- * never does, since that always reports `SQLITE_CONSTRAINT_UNIQUE` directly.
+ * `enqueue` is `ON CONFLICT DO NOTHING` over every unique index: colliding on `id` alone (same id,
+ * different workspace/subscription/event) trips the PRIMARY KEY, not the compound UNIQUE index the
+ * contract-suite idempotency test uses, and must be a silent no-op too.
  */
-test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the unique index) is also silently swallowed, via the message-text fallback", async () => {
+test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the unique index) is also a silent no-op", async () => {
   const db = openContentDb(":memory:");
   const repo = new SqliteWebhookDeliveryRepo(db);
   await repo.enqueue(makeDelivery());
@@ -304,11 +299,8 @@ test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the un
   assert.deepEqual(found, makeDelivery(), "the original row must be untouched -- the colliding insert must not have partially applied");
 });
 
-/** The other side of the same catch block: a constraint failure that is NOT a uniqueness violation
- *  at all (here, a NOT NULL failure on `topic`) must propagate, not be swallowed as "already
- *  enqueued". `SqliteError`'s `.code` is `SQLITE_CONSTRAINT_NOTNULL` and its message never contains
- *  "UNIQUE constraint failed", so `isUniqueConstraintViolation` must return false down both of its
- *  checks and `enqueue` must rethrow. */
+/** The other side: a constraint failure that is NOT a uniqueness violation at all (here, a NOT
+ *  NULL failure on `topic`) must propagate, not be swallowed as "already enqueued". */
 test("SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (NOT NULL) is rethrown, not swallowed", async () => {
   const db = openContentDb(":memory:");
   const repo = new SqliteWebhookDeliveryRepo(db);
@@ -323,27 +315,7 @@ test("SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (
   );
 });
 
-/** `isUniqueConstraintViolation`'s first guard, `!(err instanceof Error)`, defends against a
- *  driver throwing something other than an `Error` -- something the real better-sqlite3 driver
- *  never does (both cases above confirm it always throws a `SqliteError`), so there is no way to
- *  reach this branch through the real driver. A minimal stub standing in for just the one call
- *  chain `enqueue` makes (`insert().values().run()`) is the only seam available without adding any
- *  production code; it proves the guard's own behavior (treat a non-Error throw as "not a
- *  constraint violation" and let it propagate unchanged) rather than anything about SQLite itself. */
-test("SqliteWebhookDeliveryRepo.enqueue: a non-Error thrown by the underlying driver is rethrown as-is", async () => {
-  const fakeDb = {
-    insert: () => ({
-      values: () => ({
-        run: () => {
-          throw "boom"; // deliberately not an Error -- see the test's doc comment above
-        },
-      }),
-    }),
-  } as unknown as ContentDb;
-  const repo = new SqliteWebhookDeliveryRepo(fakeDb);
-
-  await assert.rejects(
-    () => repo.enqueue(makeDelivery()),
-    (err: unknown) => err === "boom"
-  );
-});
+// The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral factory, and PGlite.
+for (const each of eachDialect({ tables: ["webhook_deliveries"], make: webhookDeliveryRepoFor })) {
+  runContractSuite(`kysely/${each.name}`, each.make);
+}

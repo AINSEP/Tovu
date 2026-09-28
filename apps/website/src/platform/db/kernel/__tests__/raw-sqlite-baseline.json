@@ -281,9 +281,6 @@
   "apps/website/src/platform/db/sqlite/watermark.ts": {
     "sync-terminal": 3
   },
-  "apps/website/src/platform/db/sqlite/webhook-repo.sqlite.ts": {
-    "sync-terminal": 13
-  },
   "apps/website/src/platform/site-dir/boot-site-dir.ts": {
     "$client": 1
   },

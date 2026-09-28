@@ -6,6 +6,8 @@ import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
 import { InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { webhookSubscriptionRepoFor } from "#src/platform/db/repos/webhook-repo";
 import { SqliteWebhookSubscriptionRepo } from "../webhook-repo.sqlite.js";
 import type { WebhookSubscriptionRepoPort } from "#src/features/webhooks/ports";
 import type { WebhookSubscriptionRecord } from "#src/features/webhooks/types";
@@ -113,3 +115,8 @@ test("ADR-046 Phase 1: SqliteWebhookSubscriptionRepo persists across a simulated
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral factory, and PGlite.
+for (const each of eachDialect({ tables: ["webhook_subscriptions"], make: webhookSubscriptionRepoFor })) {
+  runContractSuite(`kysely/${each.name}`, each.make);
+}
