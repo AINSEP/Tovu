@@ -5,6 +5,7 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
+import { agentPluginConnectAgentToolCatalog } from "../../features/agent-plugins/connect-tool.js";
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
@@ -238,6 +239,9 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // dynamic `agent_plugin_<pluginId>` tools that same file also registers (those are NOT wired
   // through the tool-contribution registry at all, so they never appear in this map either).
   "agent-plugin-search": agentPluginSearchAgentToolCatalog as unknown as AgentToolDefinition[],
+  // 2026-09-27: `agent-plugin-connect` — `agent_plugin_connect` (S-G1), wired via
+  // `contributeAgentPluginConnectTools()`, same static seam as `agent-plugin-search` above.
+  "agent-plugin-connect": agentPluginConnectAgentToolCatalog as unknown as AgentToolDefinition[],
   // Pre-existing gap, unrelated to `agent-plugin-search` — found and fixed opportunistically while
   // adding the entry above. `content-duplication` (`content_duplicate`, 2026-09-07 per
   // `tool-catalog-manifest.ts`'s own header) was already wired in production with no entry here,

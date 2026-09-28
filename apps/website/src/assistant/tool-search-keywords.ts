@@ -467,6 +467,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "supabase connect token access personal access token pat login sign in fallback database postgres save secret",
   supabase_set_project_scope:
     "supabase project pick choose select scope connect database postgres read-only read only",
+  // 2026-09-27 — agent_plugin_connect (features/agent-plugins/connect-tool.ts): the generic connect
+  // card any OAuth-authenticated Agent Plugin uses (v2 plan, replaces the supabase-specific tools above).
+  agent_plugin_connect:
+    "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin",
 };
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by

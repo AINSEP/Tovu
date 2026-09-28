@@ -15,6 +15,14 @@ import {
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
+import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import {
+  AGENT_PLUGIN_CONNECT_TOOL_ID,
+  agentPluginConnectAgentToolCatalog,
+  agentPluginConnectDerivedRisk,
+  runAgentPluginConnect,
+  type AgentPluginConnectToolDeps,
+} from "./connect-tool.js";
 import {
   filterActiveAgentPlugins,
   isAgentPluginActive,
@@ -1070,5 +1078,37 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
  */
 export function contributeAgentPluginSearchTools(): ToolContributor {
   return { domain: "agent-plugin-search", build: buildAgentPluginSearchRegistrations, risk: agentPluginSearchDerivedRisk };
+}
+
+/**
+ * Builds the `agent_plugin_connect` registration (`connect-tool.ts`, S-G1 of the 2026-09-27
+ * Supabase-agent-plugin v2 plan) — pure catalog/schema construction plus one handler closure that
+ * hands straight off to `runAgentPluginConnect`, matching `buildAgentPluginSearchRegistrations`'s
+ * shape immediately above. Kept in this file rather than in `connect-tool.ts` itself so every
+ * static tool this domain contributes is wired from the one place, the same split that file already
+ * uses for `search_agent_plugin_local`.
+ */
+export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginConnectToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const pluginId = requireString(input, "pluginId");
+      return runAgentPluginConnect(routeDeps, surfaces, ctx, pluginId);
+    },
+  };
+
+  return buildDomainRegistrations({
+    domain: "agent-plugin-connect",
+    catalogModule: "features/agent-plugins/connect-tool.ts",
+    catalog: indexCatalogById(agentPluginConnectAgentToolCatalog),
+    handlers,
+    derivedRisk: agentPluginConnectDerivedRisk,
+  });
+}
+
+/** Contributes `agent_plugin_connect` to the assistant's static tool catalog — called once by
+ *  `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
+export function contributeAgentPluginConnectTools(): ToolContributor {
+  return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDerivedRisk };
 }
 
