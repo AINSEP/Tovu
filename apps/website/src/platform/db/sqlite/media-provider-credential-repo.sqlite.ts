@@ -8,6 +8,7 @@ import type {
   MediaProviderCredentialRepoPort,
 } from "#src/features/media/provider-credential-store";
 import { mediaProviderCredentials } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -21,25 +22,17 @@ import type { ContentDb } from "./content-db.js";
  * job); it only moves the DB's all-null-or-all-set shape (enforced by the table's CHECK) into and
  * out of `SealedSecret | null`.
  *
- * `replaceWorkspace()` uses Drizzle's own `db.transaction((tx) => ...)` wrapper, which requires a
- * *synchronous* callback (better-sqlite3 itself is synchronous). This file previously carried a
- * manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the raw handle instead, because the caller's
- * chokepoint callback made `await`ed repo calls — but every `await` inside an open transaction
- * hands the event loop back while this single shared connection sits mid-transaction, so another
- * queued continuation could read (or write) half-replaced state, and a second concurrent open
- * failed outright with better-sqlite3's `cannot start a transaction within a transaction`. The port
- * now takes a synchronous planner instead of an async callback, so the built-in wrapper fits and
- * the interleaving window is gone by construction rather than by convention.
+ * `replaceWorkspace()` runs in the content db's storage-kernel transaction (`BEGIN IMMEDIATE` on
+ * SQLite; other callers of the kernel wait their turn). The port takes a synchronous planner, so the
+ * read, the plan and every write run with no `await` between them: nothing on this connection can
+ * observe half-replaced state, by construction rather than by convention.
  */
 
 type Row = typeof mediaProviderCredentials.$inferSelect;
 
-/** The transaction handle Drizzle hands its synchronous callback. Structurally the same query
- *  builder as `ContentDb`, which is why the private helpers below accept either. */
-type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
 
 /** Either the connection itself or an open transaction on it. */
-type Writer = Pick<ContentDb, "select" | "insert" | "delete"> | Pick<ContentDbTx, "select" | "insert" | "delete">;
+type Writer = Pick<ContentDb, "select" | "insert" | "delete">;
 
 function toRecord(row: Row): MediaProviderCredentialRecord {
   const sealed =
@@ -131,17 +124,15 @@ export class SqliteMediaProviderCredentialRepo implements MediaProviderCredentia
   /**
    * Read, plan, and write the whole workspace inside one `BEGIN IMMEDIATE` transaction.
    *
-   * The callback Drizzle runs is synchronous end to end — the fresh read, the caller's planner, all
+   * The body is synchronous end to end — the fresh read, the caller's planner, all
    * upserts and the tombstone delete — so this connection is never handed back to the event loop
    * while the transaction is open. That is the property the port promises and the reason the planner
    * cannot be async (see this file's header, and
    * `MediaProviderCredentialRepoPort.replaceWorkspace`).
    *
-   * `behavior: "immediate"` preserves the write lock this path used to take explicitly: the read
+   * `BEGIN IMMEDIATE` (the kernel's SQLite transaction) takes the write lock up front: the read
    * that feeds the planner is a read-for-update, so deferring the lock until the first write would
-   * let a second writer slip in behind it.
-   *
-   * Deliberately NOT reentrant — same rationale as `SqliteSettingsRepo.transaction`'s doc comment.
+   * let a second writer slip in behind it. Called inside a caller's kernel transaction, it joins it.
    *
    * @throws whatever `plan` throws, after the transaction has rolled back.
    * @complexity O(n) statements for `n` submitted providers, plus one read and at most one delete.
@@ -151,14 +142,11 @@ export class SqliteMediaProviderCredentialRepo implements MediaProviderCredentia
     workspaceId: UUID;
     plan: MediaProviderCredentialReplacePlanner;
   }): Promise<readonly MediaProviderCredentialRecord[]> {
-    return this.db.transaction(
-      (tx) => {
-        const { upserts, tombstoneProviderIds } = input.plan(selectByWorkspaceId(tx, input.workspaceId));
-        for (const record of upserts) upsertRow(tx, record);
-        deleteRows(tx, input.workspaceId, tombstoneProviderIds);
-        return upserts;
-      },
-      { behavior: "immediate" }
-    );
+    return contentKernel(this.db).transaction(async () => {
+      const { upserts, tombstoneProviderIds } = input.plan(selectByWorkspaceId(this.db, input.workspaceId));
+      for (const record of upserts) upsertRow(this.db, record);
+      deleteRows(this.db, input.workspaceId, tombstoneProviderIds);
+      return upserts;
+    });
   }
 }

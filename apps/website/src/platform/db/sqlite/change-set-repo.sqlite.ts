@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { changeSetItems, changeSets, outboxEvents } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 import type {
   DomainEvent,
@@ -78,8 +79,8 @@ export class SqliteChangeSetRepo implements ChangeSetRepoPort {
    * partial write (ADR-046 Phase 1's "transaction participation" requirement, and BR-04's
    * resolution for the outbox event specifically; see this file's header). */
   async insert(record: ChangeSetRecord, items: ChangeSetItemRecord[], event?: DomainEvent): Promise<void> {
-    this.db.transaction((tx) => {
-      tx.insert(changeSets)
+    await contentKernel(this.db).transaction(async () => {
+      this.db.insert(changeSets)
         .values({
           id: record.id,
           workspaceId: record.workspaceId,
@@ -95,7 +96,7 @@ export class SqliteChangeSetRepo implements ChangeSetRepoPort {
         .run();
 
       for (const item of items) {
-        tx.insert(changeSetItems)
+        this.db.insert(changeSetItems)
           .values({
             id: item.id,
             changeSetId: item.changeSetId,
@@ -112,7 +113,7 @@ export class SqliteChangeSetRepo implements ChangeSetRepoPort {
       }
 
       if (event) {
-        tx.insert(outboxEvents)
+        this.db.insert(outboxEvents)
           .values({
             id: event.id,
             workspaceId: event.workspaceId,

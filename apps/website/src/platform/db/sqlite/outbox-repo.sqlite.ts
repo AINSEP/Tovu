@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, lte } from "drizzle-orm";
 
 import { outboxEvents } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/outbox-worker";
 import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";
@@ -86,13 +87,13 @@ export class SqliteOutboxAdapter implements OutboxPort {
   }
 
   /** Selects due rows (pending, or processing under an expired claim lease) and marks them
-   * `processing` under a fresh lease in one synchronous transaction — the select-then-update is never
+   * `processing` under a fresh lease in one kernel transaction — the select-then-update is never
    * observable as two separate steps to a concurrent claimer. Returned records keep the due time
    * they were claimed at. */
   async claimPending(batchSize: number, nowIso: ISODateTime): Promise<OutboxRecord[]> {
     const leaseExpiresAt = new Date(Date.parse(nowIso) + this.claimLeaseMs).toISOString();
-    return this.db.transaction((tx) => {
-      const eligible = tx
+    return contentKernel(this.db).transaction(async () => {
+      const eligible = this.db
         .select()
         .from(outboxEvents)
         .where(and(inArray(outboxEvents.status, CLAIMABLE_STATUSES), lte(outboxEvents.nextAttemptAt, nowIso)))
@@ -101,7 +102,7 @@ export class SqliteOutboxAdapter implements OutboxPort {
         .all();
 
       for (const row of eligible) {
-        tx.update(outboxEvents)
+        this.db.update(outboxEvents)
           .set({ status: "processing", attempts: row.attempts + 1, nextAttemptAt: leaseExpiresAt })
           .where(eq(outboxEvents.id, row.id))
           .run();

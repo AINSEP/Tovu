@@ -1,6 +1,7 @@
 import { count, eq } from "drizzle-orm";
 
 import { gatedMutationTokens } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 import { isRedeemable } from "#src/contracts/core/gated-mutations/token";
 import type { ConfirmationTokenRecord, TokenStorePort } from "#src/contracts/core/gated-mutations/token";
@@ -19,9 +20,9 @@ import type { ConfirmationTokenRecord, TokenStorePort } from "#src/contracts/cor
  * `tryRedeem`'s atomicity requirement (`TokenStorePort.tryRedeem`'s own doc comment: "must perform
  * the check and the mutation without an intervening await") is satisfied the same way
  * `outbox-repo.sqlite.ts`'s `claimPending()` satisfies it for outbox events: the read, the
- * `isRedeemable` check, and the conditional write all run inside one `this.db.transaction()`
- * callback, which better-sqlite3 executes fully synchronously — no other statement (from this
- * process or a concurrent request handler) can interleave partway through.
+ * `isRedeemable` check, and the conditional write all run inside one storage-kernel transaction
+ * (`BEGIN IMMEDIATE`) with no `await` between them — no other statement (from this process or a
+ * concurrent request handler) can interleave partway through.
  *
  * Architectural role:
  * Infrastructure adapter. `core/gated-mutations` never imports this file — it depends only on
@@ -59,14 +60,14 @@ export class SqliteTokenStore implements TokenStorePort {
   /** See this file's own header for why the transaction (not a raw conditional `UPDATE`) is what
    * makes this atomic. */
   async tryRedeem(params: { token: string; now: string }): Promise<{ redeemed: boolean; record: ConfirmationTokenRecord | null }> {
-    return this.db.transaction((tx) => {
-      const row = tx.select().from(gatedMutationTokens).where(eq(gatedMutationTokens.confirmationToken, params.token)).get();
+    return contentKernel(this.db).transaction(async () => {
+      const row = this.db.select().from(gatedMutationTokens).where(eq(gatedMutationTokens.confirmationToken, params.token)).get();
       if (!row) return { redeemed: false, record: null };
 
       const record = toRecord(row);
       if (!isRedeemable({ record, now: params.now })) return { redeemed: false, record };
 
-      tx.update(gatedMutationTokens)
+      this.db.update(gatedMutationTokens)
         .set({ status: "redeemed" })
         .where(eq(gatedMutationTokens.confirmationToken, params.token))
         .run();
