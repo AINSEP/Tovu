@@ -12,7 +12,8 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import { buildSupabaseConnectRegistrations, type SupabaseConnectToolDeps } from "../tool-registrations.js";
 
 /**
- * @file SPEC-052's two form tools, driven end to end over the REAL External MCP store, sealer, and
+ * @file SPEC-052's access-token form tool (the last Supabase tool in core; the project picker was
+ * deleted 2026-09-27), driven end to end over the REAL External MCP store, sealer, and
  * surface-exchange store — only Supabase's Management API is faked. A submission is simulated with
  * `surfaceExchanges.deliver(...)`, exactly as `mcp-ui-tool-calls-route.ts` delivers a human's click.
  */
@@ -20,16 +21,13 @@ import { buildSupabaseConnectRegistrations, type SupabaseConnectToolDeps } from 
 const WORKSPACE = "ws-supabase-connect";
 const PRINCIPAL = "principal-1";
 const TOKEN = "sbp_unit_test_token_that_must_never_echo";
-const SHOP_REF = "abcdefghijklmnopqrst";
-const BLOG_REF = "zyxwvutsrqponmlkjihg";
 const RAW_SUPABASE_BODY = "raw supabase error body";
 const SET_TOKEN = "supabase_set_access_token";
-const SET_SCOPE = "supabase_set_project_scope";
 
 const projectsOk = (): HttpResponse => ({
   status: 200,
   headers: {},
-  bodyText: JSON.stringify([{ ref: SHOP_REF, name: "Shop", organization_id: "org-1" }, { id: BLOG_REF, name: "Blog" }]),
+  bodyText: JSON.stringify([{ ref: "abcdefghijklmnopqrst", name: "Shop", organization_id: "org-1" }]),
 });
 const unauthorized = (): HttpResponse => ({ status: 401, headers: {}, bodyText: JSON.stringify({ message: RAW_SUPABASE_BODY }) });
 
@@ -122,22 +120,18 @@ async function enableRow(env: Env): Promise<void> {
   await env.repo.upsert({ ...row, enabled: true });
 }
 
-test("REQ-02: with no 'supabase' connection both tools refuse before any form or network call", async () => {
+test("REQ-02: with no 'supabase' connection the token tool refuses before any form or network call", async () => {
   const env = await setup({ withRow: false });
-  for (const toolId of [SET_TOKEN, SET_SCOPE]) {
-    const emitted: unknown[] = [];
-    await assert.rejects(call(env.tools.get(toolId), { emitSurface: async (s) => void emitted.push(s) }), /turn on the 'supabase' plugin in the Agent Plugins admin screen/);
-    assert.equal(emitted.length, 0);
-  }
+  const emitted: unknown[] = [];
+  await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async (s) => void emitted.push(s) }), /turn on the 'supabase' plugin in the Agent Plugins admin screen/);
+  assert.equal(emitted.length, 0);
   assert.equal(env.http.requests.length, 0);
   assert.equal(env.surfaceExchanges.size(), 0);
 });
 
-test("INV-01: neither tool accepts any input, so a token can never ride in on the model's own call", async () => {
+test("INV-01: the token tool accepts no input, so a token can never ride in on the model's own call", async () => {
   const env = await setup();
-  for (const toolId of [SET_TOKEN, SET_SCOPE]) {
-    await assert.rejects(call(env.tools.get(toolId), { input: { token: TOKEN }, emitSurface: async () => undefined }), /accepts no input/);
-  }
+  await assert.rejects(call(env.tools.get(SET_TOKEN), { input: { token: TOKEN }, emitSurface: async () => undefined }), /accepts no input/);
   assert.equal(env.surfaceExchanges.size(), 0);
 });
 
@@ -188,75 +182,29 @@ test("a blank token is refused without a probe, and a cancel stores nothing", as
   assert.equal((await env.readRow())?.sealedOAuth, null);
 });
 
-test("AC-05/06/12: once a project is picked, the scoped row carries the token only as a Bearer header", async () => {
-  // AC-11 (INV-04, "no tool until a project is picked") was dropped by plan v2 slice R1: the
-  // supabase agent plugin connects account-wide.
+test("AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header", async () => {
+  // AC-05/06/07 (the one-project picker) and AC-11 (INV-04) were dropped: the supabase agent plugin
+  // connects account-wide (plan v2 slices R1, and the picker's deletion on 2026-09-27).
   const env = await setup();
-  await submit(env, SET_TOKEN, { token: TOKEN });
+  const { result } = await submit(env, SET_TOKEN, { token: TOKEN });
+  assert.equal(result.saved, true);
+  assert.doesNotMatch(String(result.next), /supabase_set_project_scope/, "never points at a deleted tool");
   await enableRow(env);
-
-  const { html, result } = await submit(env, SET_SCOPE, { projectRef: SHOP_REF, readOnly: true });
-  assert.match(html, /Shop \(abcdefghijklmnopqrst\)/);
-  assert.match(html, /Blog \(zyxwvutsrqponmlkjihg\)/, "EC-02: every project the account can see is listed");
-  assert.match(html, /name="readOnly"[^>]*checked|checked[^>]*name="readOnly"/, "AC-06: read-only starts on");
-  assert.deepEqual({ scoped: result.scoped, projectRef: result.projectRef, readOnly: result.readOnly }, { scoped: true, projectRef: SHOP_REF, readOnly: true });
 
   const after = await readEnabledExternalMcpConfigs({ repo: env.repo, sealer: env.sealer }, WORKSPACE);
   assert.equal(after.configs.length, 1);
   const target = after.configs[0]!.target;
   assert.equal(target.kind, "streamable_http");
   if (target.kind !== "streamable_http") return;
-  assert.equal(target.url, `https://mcp.supabase.com/mcp?project_ref=${SHOP_REF}&read_only=true`);
+  assert.equal(target.url, "https://mcp.supabase.com/mcp");
   assert.deepEqual(target.headers, { authorization: `Bearer ${TOKEN}` });
   assert.deepEqual(after.configs[0]!.writeAllowedToolNames, [], "INV-02: no write grant appears");
 });
 
-test("AC-07: turning read-only off removes read_only but grants no write tool; a missing value keeps read-only on", async () => {
-  const env = await setup();
-  await submit(env, SET_TOKEN, { token: TOKEN });
-
-  await submit(env, SET_SCOPE, { projectRef: BLOG_REF, readOnly: false });
-  let row = await env.readRow();
-  assert.equal(row?.url, `https://mcp.supabase.com/mcp?project_ref=${BLOG_REF}`);
-  assert.equal(row?.writeAllowedToolNames, "[]");
-
-  await submit(env, SET_SCOPE, { projectRef: SHOP_REF });
-  row = await env.readRow();
-  assert.equal(row?.url, `https://mcp.supabase.com/mcp?project_ref=${SHOP_REF}&read_only=true`, "last submission wins, read-only back on");
-});
-
-test("a project outside the listed account, or no project, is refused and nothing is written", async () => {
-  const env = await setup();
-  await submit(env, SET_TOKEN, { token: TOKEN });
-  assert.equal((await submit(env, SET_SCOPE, { projectRef: "notinaccount" })).result.reason, "project-not-in-account");
-  assert.equal((await submit(env, SET_SCOPE, { projectRef: "" })).result.reason, "no-project-selected");
-  assert.equal((await env.readRow())?.url, "https://mcp.supabase.com/mcp");
-});
-
-test("REQ-14/EC-05: project scope refuses with a plain reconnect message when Supabase rejects the stored token", async () => {
-  const env = await setup();
-  await submit(env, SET_TOKEN, { token: TOKEN });
-  env.http.respond = unauthorized;
-  await assert.rejects(call(env.tools.get(SET_SCOPE), { emitSurface: async () => undefined }), /^ToolInputError: Your Supabase connection was revoked\. Reconnect to keep using it\.$/);
-});
-
-test("project scope is refused as not connected before any credential exists, and uses a connected OAuth token when one does", async () => {
-  const env = await setup();
-  await assert.rejects(call(env.tools.get(SET_SCOPE), { emitSurface: async () => undefined }), /Supabase isn't connected/);
-  assert.equal(env.http.requests.length, 0);
-
-  const row = await env.readRow();
-  assert.ok(row);
-  await env.repo.upsert({ ...row, oauthStatus: "connected" });
-  const tools = env.build({ externalMcpOAuth: { tokenResolver: { resolveAccessToken: async () => "oauth-access-token" } } });
-  const { result } = await submit(env, SET_SCOPE, { projectRef: SHOP_REF, readOnly: true }, tools);
-  assert.equal(result.scoped, true);
-  assert.equal(env.http.requests.at(-1)?.headers.authorization, "Bearer oauth-access-token");
-});
-
-test("AC-08: both form tool ids are redeemable; an unlisted Supabase tool id is not", () => {
+test("AC-08: the token form's tool id is redeemable; an unlisted or deleted Supabase tool id is not", () => {
   assert.equal(isMcpUiToolCallAllowed(SET_TOKEN), true);
-  assert.equal(isMcpUiToolCallAllowed(SET_SCOPE), true);
+  assert.equal(isMcpUiToolCallAllowed("supabase_set_project_scope"), false);
+  assert.equal(isMcpUiToolCallAllowed("supabase_get_database"), false);
   assert.equal(isMcpUiToolCallAllowed("supabase_execute_sql"), false);
   assert.equal(isMcpUiToolCallAllowed("mcp__supabase__execute_sql"), false);
 });

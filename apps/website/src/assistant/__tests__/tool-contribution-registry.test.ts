@@ -350,10 +350,12 @@ test("installing the contributor afterward makes the same id wirable — proving
 // 2026-09-27 — vendor logic lives in `content/agent-plugins/<id>/`, not core. The Supabase-only
 // `supabase_get_database` prototype (a679de93d) out-competed the generic
 // `agent_plugin_connect { pluginId: "supabase" }` in a live test because its wording was more
-// attractive to the model; it was deleted. The only `supabase_*` tools core may still register are
-// the two named below, which leave with the rest of `features/supabase-connect/` (plan v2, slice R2,
-// after the token form moves into the generic Connect card). This list only ever shrinks.
-const SUPABASE_TOOLS_STILL_IN_CORE: readonly string[] = ["supabase_set_access_token", "supabase_set_project_scope"];
+// attractive to the model; it was deleted, and so was the one-project picker
+// `supabase_set_project_scope` (the plugin works account-wide). The only `supabase_*` tool core may
+// still register is the token fallback below, which leaves with the rest of
+// `features/supabase-connect/` (plan v2, slice R2, after the token form moves into the generic
+// Connect card). This list only ever shrinks.
+const SUPABASE_TOOLS_STILL_IN_CORE: readonly string[] = ["supabase_set_access_token"];
 
 test("core registers no Supabase-specific connect tool — the generic agent_plugin_connect is the only way in", async () => {
   installFirstPartyToolContributors();

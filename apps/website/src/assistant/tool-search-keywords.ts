@@ -466,13 +466,12 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   custom_credential_create:
     "credential add new create save connect account api key token provider registrar hosting third-party " +
     "service dns fly.io name.com",
-  // 2026-09-13 (SPEC-052) — the supabase agent plugin's two form tools.
-  supabase_set_access_token:
-    "supabase connect token access personal access token pat login sign in fallback database postgres save secret",
-  supabase_set_project_scope:
-    "supabase project pick choose select scope connect database postgres read-only read only",
+  // 2026-09-13 (SPEC-052) — the supabase token fallback form. Deliberately NO "connect", "sign in",
+  // "database" or "postgres" (2026-09-27): those belong to agent_plugin_connect below, and a
+  // Supabase-only tool outranking the generic one is exactly how supabase_get_database was misused.
+  supabase_set_access_token: "supabase token access personal access token pat fallback save secret",
   // 2026-09-27 — agent_plugin_connect (features/agent-plugins/connect-tool.ts): the generic connect
-  // card any OAuth-authenticated Agent Plugin uses (v2 plan, replaces the supabase-specific tools above).
+  // card any OAuth-authenticated Agent Plugin uses (v2 plan, replaces the supabase-specific tools).
   agent_plugin_connect:
     "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin",
 };

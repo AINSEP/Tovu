@@ -18,16 +18,9 @@ import { askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import {
-  buildScopedSupabaseMcpUrl,
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
-  isSupabaseMcpUrl,
-  openExternalMcpOAuthPayload,
-  resolveExternalMcpAuthMode,
-  resolveExternalMcpOAuthStatus,
   saveExternalMcpServer,
-  SUPABASE_MCP_URL,
-  type ExternalMcpOAuthTokenResolverPort,
   type ExternalMcpServerRecord,
   type ExternalMcpServerRepoPort,
   type ToolContributor,
@@ -35,37 +28,36 @@ import {
 import { supabaseConnectAgentToolCatalog, SUPABASE_CONNECT_PERMISSION } from "./agent-tools.js";
 import {
   buildAccessTokenFormResource,
-  buildProjectScopeFormResource,
   buildSupabaseOutcomeResource,
   SUPABASE_SET_ACCESS_TOKEN_TOOL_ID,
-  SUPABASE_SET_PROJECT_SCOPE_TOOL_ID,
   type SupabaseSurfaceKind,
 } from "./supabase-connect-ui.js";
-import { listSupabaseProjects, type SupabaseProject } from "./supabase-management-api.js";
+import { listSupabaseProjects } from "./supabase-management-api.js";
+import { isSupabaseMcpUrl, SUPABASE_MCP_URL } from "./supabase-mcp-url.js";
 
 /**
- * @file Wires the two SPEC-052 form tools onto existing generic machinery — no new credential store,
- * sealer, or rendering path (INV-03).
+ * @file Wires `supabase_set_access_token`, the one Supabase form tool left in core, onto existing
+ * generic machinery — no new credential store, sealer, or rendering path (INV-03).
  *
- * - `supabase_set_access_token` (fallback, REQ-08..10): a masked form; the submitted token is probed
- *   against Supabase's Management API (EC-03), then saved as the `supabase` External MCP row's sealed
- *   `static_env` access token through `saveExternalMcpServer`. The store already sends that token to
- *   a hosted server as `Authorization: Bearer`, and switching the row's auth mode replaces any
- *   unfinished OAuth attempt on it (EC-04) — there is only ever one `supabase` row.
- * - `supabase_set_project_scope` (REQ-05/06): lists the connection's projects, asks the human to pick
- *   exactly one with read-only ON by default, and writes the choice into the row's URL
- *   (`project_ref`, `read_only`). Written with a direct `repo.upsert` of the non-secret `url` column
- *   rather than `saveExternalMcpServer`, which would need every OAuth field resent and could clear an
- *   OAuth row's client identity.
+ * A masked form; the submitted token is probed against Supabase's Management API (EC-03), then saved
+ * as the `supabase` External MCP row's sealed `static_env` access token through
+ * `saveExternalMcpServer`. The store already sends that token to a hosted server as
+ * `Authorization: Bearer`, and switching the row's auth mode replaces any unfinished OAuth attempt on
+ * it (EC-04) — there is only ever one `supabase` row.
  *
- * Neither tool touches `enabled`, `allowedToolNames`, or `writeAllowedToolNames`: the row stays
- * disabled with whatever lists the operator set, and write tools still need `trust.ts`'s explicit
- * write grant (REQ-12). Both refuse before any form or network call when the `supabase` row does
- * not exist, which is the state before the plugin is enabled (REQ-02).
+ * It does not touch `enabled`, `allowedToolNames`, or `writeAllowedToolNames`: the row keeps whatever
+ * the operator set, and write tools still need `trust.ts`'s explicit write grant (REQ-12). It refuses
+ * before any form or network call when the `supabase` row does not exist, which is the state before
+ * the plugin is enabled (REQ-02).
  *
- * Both are driven by `askThenReport`, like `custom_credential_set_token`: the form's own round trip
- * resolves the moment the submission is delivered, so a second send replaces the form with the real
- * outcome once the probe and save have actually run. Both fail closed with no `emitSurface`.
+ * Driven by `askThenReport`, like `custom_credential_set_token`: the form's own round trip resolves
+ * the moment the submission is delivered, so a second send replaces the form with the real outcome
+ * once the probe and save have actually run. Fails closed with no `emitSurface`.
+ *
+ * 2026-09-27: `supabase_get_database` and `supabase_set_project_scope` were deleted. The generic
+ * `agent_plugin_connect { pluginId: "supabase" }` connects, and the plugin works account-wide, so a
+ * one-project picker contradicted it. This whole folder leaves core once the token form moves into
+ * the generic Connect card (plan v2 slice S-G10, then R2).
  */
 
 /** The composition-root slice these handlers read. Declared structurally, like
@@ -77,8 +69,6 @@ export interface SupabaseConnectToolDeps {
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
-  /** Optional: only an OAuth-connected row needs it, and a context without it reports "not connected". */
-  readonly externalMcpOAuth?: { readonly tokenResolver: ExternalMcpOAuthTokenResolverPort };
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
 }
@@ -91,36 +81,24 @@ const CATALOG_BY_ID = indexCatalogById(supabaseConnectAgentToolCatalog);
 const MESSAGES = {
   notInstalled:
     "Supabase isn't set up yet: there is no 'supabase' connection. Ask the operator to turn on the 'supabase' plugin in the Agent Plugins admin screen and restart the assistant. Nothing was changed.",
-  notConnected:
-    "Supabase isn't connected. Connect it again to continue: start with external_mcp_oauth_connect { id: 'supabase' }, or supabase_set_access_token if sign-in cannot start.",
-  revoked: "Your Supabase connection was revoked. Reconnect to keep using it.",
   unavailable: "Supabase is unavailable right now. Try again shortly.",
   tokenInvalid: "That access token didn't work. Create a new one and try again. Nothing was saved.",
   blankToken: "The access token cannot be blank. Nothing was saved.",
   saveFailed: "The access token could not be saved. Nothing was changed.",
-  noProjectSelected: "Pick a Supabase project to continue.",
-  projectNotInAccount: "That project isn't available to this Supabase account.",
-  noProjects: "This Supabase account has no projects yet. Create one in Supabase, then try again.",
 } as const;
 
-const NEXT_AFTER_TOKEN = "Call supabase_set_project_scope so the human can pick the one project to connect.";
-const NEXT_AFTER_SCOPE =
+const NEXT_AFTER_TOKEN =
   "Ask the operator to enable 'supabase' in Settings → External MCP, tick the tools it may use, and restart the assistant.";
 
 type UnansweredReason = "cancelled" | "expired" | "abandoned";
 type SetAccessTokenResult =
   | { saved: true; next: string }
   | { saved: false; reason: UnansweredReason | "invalid" | "unavailable" | "error"; message?: string };
-type SetProjectScopeResult =
-  | { scoped: true; projectRef: string; readOnly: boolean; next: string }
-  | { scoped: false; reason: UnansweredReason | "no-project-selected" | "project-not-in-account" | "no-projects" | "error"; message?: string };
 type AnswerOutcome<T> = { result: T; outcome?: SurfaceEmission };
 
 export const supabaseConnectDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> listSupabaseProjects (one outbound GET) then saveExternalMcpServer: a sealed write, via the human's form.
   ["supabase_set_access_token", "mutates-durable-state"],
-  // -> listSupabaseProjects then repo.upsert of the row's url, via the human's form.
-  ["supabase_set_project_scope", "mutates-durable-state"],
 ]);
 
 function outcome(kind: SupabaseSurfaceKind, exchange: SurfaceExchange, state: "success" | "failure", title: string, message: string): SurfaceEmission {
@@ -130,11 +108,6 @@ function outcome(kind: SupabaseSurfaceKind, exchange: SurfaceExchange, state: "s
 function readSubmittedString(params: Record<string, unknown>, key: string): string {
   const value = params[key];
   return typeof value === "string" ? value.trim() : "";
-}
-
-/** Only an explicit `false` turns read-only off; a missing or unrecognized value keeps it on (REQ-06). */
-function readReadOnlyChoice(value: unknown): boolean {
-  return value !== false && value !== "false";
 }
 
 function joinStoredList(raw: string | null): string {
@@ -183,35 +156,6 @@ async function holdFormOpen<T>(input: {
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
   }
-}
-
-/** The row's stored static token. @throws {ToolInputError} When none is stored or it will not open. */
-async function openStaticToken(routeDeps: SupabaseConnectToolDeps, record: ExternalMcpServerRecord): Promise<string> {
-  let token: string | undefined;
-  try {
-    token = record.sealedOAuth === null ? undefined : (await openExternalMcpOAuthPayload(routeDeps.siteAssistantSecretSealer, record)).staticAccessToken;
-  } catch {
-    token = undefined;
-  }
-  if (!token) throw new ToolInputError(MESSAGES.notConnected);
-  return token;
-}
-
-/** A connected OAuth row's access token, refreshed if due. @throws {ToolInputError} When not connected or revoked. */
-async function resolveOAuthToken(routeDeps: SupabaseConnectToolDeps, record: ExternalMcpServerRecord): Promise<string> {
-  if (resolveExternalMcpOAuthStatus(record) !== "connected" || !routeDeps.externalMcpOAuth) throw new ToolInputError(MESSAGES.notConnected);
-  try {
-    return await routeDeps.externalMcpOAuth.tokenResolver.resolveAccessToken({ serverId: record.serverId });
-  } catch {
-    throw new ToolInputError(MESSAGES.revoked);
-  }
-}
-
-async function resolveConnectionToken(routeDeps: SupabaseConnectToolDeps, record: ExternalMcpServerRecord): Promise<string> {
-  const authMode = resolveExternalMcpAuthMode(record);
-  if (authMode === "static_env") return openStaticToken(routeDeps, record);
-  if (authMode === "oauth") return resolveOAuthToken(routeDeps, record);
-  throw new ToolInputError(MESSAGES.notConnected);
 }
 
 /**
@@ -276,50 +220,7 @@ async function handleAccessTokenAnswer(
   } catch (err) {
     return tokenFailure(ctx.exchange, "error", describeSaveError(err));
   }
-  return { result: { saved: true, next: NEXT_AFTER_TOKEN }, outcome: outcome("access-token", ctx.exchange, "success", "Token saved", "Token saved. Next, pick your Supabase project.") };
-}
-
-function scopeFailure(exchange: SurfaceExchange, reason: "no-project-selected" | "project-not-in-account" | "error", message: string): AnswerOutcome<SetProjectScopeResult> {
-  return { result: { scoped: false, reason, message }, outcome: outcome("project-scope", exchange, "failure", "Project not connected", message) };
-}
-
-/** Writes the chosen project and read-only choice into the freshly re-read row's URL. */
-async function persistProjectScope(routeDeps: SupabaseConnectToolDeps, choice: { projectRef: string; readOnly: boolean }): Promise<void> {
-  const record = await requireSupabaseConnection(routeDeps);
-  const url = buildScopedSupabaseMcpUrl({ url: record.url ?? SUPABASE_MCP_URL, projectRef: choice.projectRef, readOnly: choice.readOnly });
-  await routeDeps.externalMcpServerRepo.upsert({ ...record, url, updatedAt: routeDeps.clock.nowIso() });
-}
-
-/**
- * `supabase_set_project_scope`'s answer. The submitted ref must be one of the projects listed when the
- * form opened (behavior.spec.md §4: exactly one, no "all projects"). A repeat submission simply
- * overwrites the URL; enablement is re-derived from the URL on every read, so nothing stale survives.
- *
- * @complexity O(n) in the listed project count.
- */
-async function handleProjectScopeAnswer(
-  answer: SurfaceMessage,
-  ctx: { routeDeps: SupabaseConnectToolDeps; exchange: SurfaceExchange; projects: readonly SupabaseProject[] },
-): Promise<AnswerOutcome<SetProjectScopeResult>> {
-  if (answer.status !== "received") return { result: { scoped: false, reason: answer.status } };
-  if (answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: { scoped: false, reason: "cancelled" } };
-
-  const projectRef = readSubmittedString(answer.params, "projectRef");
-  if (projectRef === "") return scopeFailure(ctx.exchange, "no-project-selected", MESSAGES.noProjectSelected);
-  const project = ctx.projects.find((candidate) => candidate.ref === projectRef);
-  if (project === undefined) return scopeFailure(ctx.exchange, "project-not-in-account", MESSAGES.projectNotInAccount);
-
-  const readOnly = readReadOnlyChoice(answer.params["readOnly"]);
-  try {
-    await persistProjectScope(ctx.routeDeps, { projectRef, readOnly });
-  } catch (err) {
-    return scopeFailure(ctx.exchange, "error", err instanceof ToolInputError ? err.message : "The project could not be saved. Nothing was changed.");
-  }
-  const mode = readOnly ? "read-only" : "read-only off (writes still need an admin's per-tool grant)";
-  return {
-    result: { scoped: true, projectRef, readOnly, next: NEXT_AFTER_SCOPE },
-    outcome: outcome("project-scope", ctx.exchange, "success", "Project connected", `Connected to ${project.name}, ${mode}.`),
-  };
+  return { result: { saved: true, next: NEXT_AFTER_TOKEN }, outcome: outcome("access-token", ctx.exchange, "success", "Token saved", "Token saved.") };
 }
 
 export function buildSupabaseConnectRegistrations(routeDeps: SupabaseConnectToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
@@ -339,25 +240,6 @@ export function buildSupabaseConnectRegistrations(routeDeps: SupabaseConnectTool
       });
     },
 
-    supabase_set_project_scope: async (ctx): Promise<SetProjectScopeResult> => {
-      requireNoInput(ctx.input);
-      await requirePermission(routeDeps, ctx.principal.id);
-      const record = await requireSupabaseConnection(routeDeps);
-      const emitSurface = requireEmitSurface(ctx, SUPABASE_SET_PROJECT_SCOPE_TOOL_ID);
-      const token = await resolveConnectionToken(routeDeps, record);
-      const listed = await listSupabaseProjects({ httpClient: routeDeps.customCredentialsHttpClient }, { token });
-      if (!listed.ok) throw new ToolInputError(listed.reason === "token-invalid" ? MESSAGES.revoked : MESSAGES.unavailable);
-      if (listed.projects.length === 0) return { scoped: false, reason: "no-projects", message: MESSAGES.noProjects };
-      const projects = listed.projects;
-      return holdFormOpen<SetProjectScopeResult>({
-        ctx,
-        surfaces,
-        emitSurface,
-        toolId: SUPABASE_SET_PROJECT_SCOPE_TOOL_ID,
-        build: (exchange) => buildProjectScopeFormResource({ exchangeId: exchange.id, projects }),
-        handle: (answer, exchange) => handleProjectScopeAnswer(answer, { routeDeps, exchange, projects }),
-      });
-    },
   };
 
   return buildDomainRegistrations({
@@ -369,7 +251,7 @@ export function buildSupabaseConnectRegistrations(routeDeps: SupabaseConnectTool
   });
 }
 
-/** Contributes the two Supabase form tools — called once by `tool-catalog-manifest.ts`. */
+/** Contributes the Supabase token form tool — called once by `tool-catalog-manifest.ts`. */
 export function contributeSupabaseConnectTools(): ToolContributor {
   return { domain: DOMAIN, build: buildSupabaseConnectRegistrations, risk: supabaseConnectDerivedRisk };
 }

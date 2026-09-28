@@ -35,14 +35,13 @@
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "content_post_delete",
-  // 2026-09-13 (SPEC-052) — `supabase_set_access_token` and `supabase_set_project_scope`
-  // (`features/supabase-connect/tool-registrations.ts`) hold up the SAME held-open-exchange shape
-  // `custom_credential_set_token` does: each opens a `SurfaceExchangeStore` exchange and parks on the
-  // human's form submission. One seals a Supabase access token, the other scopes the connection to a
-  // project — both durable writes the human must submit themselves. Without these entries every
-  // submission of either form is refused with 403.
+  // 2026-09-13 (SPEC-052) — `supabase_set_access_token`
+  // (`features/supabase-connect/tool-registrations.ts`) holds up the SAME held-open-exchange shape
+  // `custom_credential_set_token` does: it opens a `SurfaceExchangeStore` exchange and parks on the
+  // human's form submission, which seals a Supabase access token — a durable write the human must
+  // submit themselves. Without this entry every submission of the form is refused with 403.
+  // (`supabase_set_project_scope` was deleted 2026-09-27; the plugin works account-wide.)
   "supabase_set_access_token",
-  "supabase_set_project_scope",
   // 2026-09-27 — `agent_plugin_connect` (`features/agent-plugins/connect-tool.ts`, S-G1 of the
   // generic-agent-plugin v2 plan) opens a `SurfaceExchangeStore` exchange and holds it open while it
   // polls for the human's sign-in rather than waiting on a click. Today's card carries no callback —

@@ -77,17 +77,9 @@ const EXEMPT_FILE_SYMBOLS = new Map<string, Set<string>>([
     // naming this file. Imports the External MCP CRUD/OAuth-status surface its own tool handlers
     // call directly, same seam `server/inbound/admin-http/routes/external-mcp/{put,probe}.ts` use.
     path.join(REPO_ROOT, "apps", "website", "src", "features", "supabase-connect", "tool-registrations.ts"),
-    new Set([
-      "buildScopedSupabaseMcpUrl",
-      "ExternalMcpSecretStoreUnconfiguredError",
-      "ExternalMcpValidationError",
-      "isSupabaseMcpUrl",
-      "openExternalMcpOAuthPayload",
-      "resolveExternalMcpAuthMode",
-      "resolveExternalMcpOAuthStatus",
-      "saveExternalMcpServer",
-      "SUPABASE_MCP_URL",
-    ]),
+    // Narrowed 2026-09-27: the project picker and its URL/token helpers were deleted; only the
+    // token form's save path is left.
+    new Set(["ExternalMcpSecretStoreUnconfiguredError", "ExternalMcpValidationError", "saveExternalMcpServer"]),
   ],
   [
     // Has the identical shape and was already exempt in practice — it only surfaced once

@@ -152,7 +152,6 @@ const EXPECTED_ALLOWLIST = [
   "database_transfer_set_destination",
   "source_control_execute_commit",
   "supabase_set_access_token",
-  "supabase_set_project_scope",
   "taxonomy_execute_merge_term",
   "theme_trash_file",
   "trash_item",
