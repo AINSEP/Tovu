@@ -59,6 +59,11 @@ import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/inde
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "./open-site-content-db.js";
+import { openSiteStore, type SiteStore } from "./open-site-store.js";
+import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
+import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
+import type { SiteStorage } from "#src/platform/site-dir/types";
+import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
@@ -69,7 +74,6 @@ import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sql
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
-import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { warnOnOrphanedChatRows } from "#src/platform/db/sqlite/chat-orphan-check";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { ensureSeoSettingDefinitions } from "#src/features/seo/index";
@@ -623,8 +627,8 @@ function pluginFailureThresholdOverride(
  * install-dir path) has already opened its own db before reaching here, so `dbPath` is never even
  * read in that branch.
  */
-function hydrateContentDbIfNeeded(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
-  if (overrides?.db !== undefined) return;
+function hydrateContentDbIfNeeded(dbPath: string, storage: SiteStorage, overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
+  if (overrides?.db !== undefined || storage.kind !== "sqlite") return;
   hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath(), dbPath });
 }
 
@@ -691,14 +695,25 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
 }
 
 /**
- * 2026-09-03 (complexity pass) — `overrides.db ?? openSiteContentDb(...)`, hoisted for the same reason
- * {@link assertOverridesPairedOrAbsent} is. When `overrides.db` is supplied (the install-dir
- * `serve` path), reuse that SAME handle rather than opening/migrating a second db — `bootSiteDir`
- * has already validated, migrated, and stamped this db before calling here (BR-05/BR-06).
+ * The prelude's store step (R1 plan R1d): the site's storage choice from its `.site-meta.json`
+ * (absent = SQLite), then the content + chat store it names. When `overrides.db` is supplied (the
+ * install-dir `serve` path), that SAME handle is reused rather than opening/migrating a second db —
+ * `bootSiteDir` has already validated, migrated, and stamped it (BR-05/BR-06).
+ *
+ * The API process (`owner`) also starts the hourly guest-chat expiry sweep here, on the chat kernel
+ * it just opened; the agent daemon (`client`) leaves retention to it. The sweep's timer is
+ * `unref`'d and nothing tears a composition down today, so its stop function is not kept.
  */
-async function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<ContentDb> {
-  // `openSiteContentDb`: open → ADR-023 §2 crash recovery → migrate → watermark + demo seed.
-  return overrides?.db ?? (await openSiteContentDb(dbPath));
+async function openCompositionStore(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<SiteStore> {
+  const storage = resolveSiteStorage(isInMemoryDbPath(dbPath) ? ":memory:" : dirname(dbPath));
+  hydrateContentDbIfNeeded(dbPath, storage, overrides);
+  const role = overrides?.contentStoreRole ?? "owner";
+  // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
+  // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
+  // directory is `dirname(dbPath)`, which the content open already required to exist.
+  const store = await openSiteStore({ storage, dbPath, chatDbPath: defaultChatDbPath(dbPath), role }, { db: overrides?.db });
+  if (role === "owner") startChatExpirySweep(store.chat);
+  return store;
 }
 
 /**
@@ -816,12 +831,13 @@ export async function createSiteRouteDeps(
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
 
-  hydrateContentDbIfNeeded(dbPath, overrides);
-
-  const db = await resolveOrOpenContentDb(dbPath, overrides);
+  const store = await openCompositionStore(dbPath, overrides);
+  // The Drizzle handle behind the content kernel. Only SQLite opens in this slice (pglite/postgres
+  // are refused inside `openSiteStore`), so it is always present here.
+  const db = store.sqliteDb as ContentDb;
   // The one content kernel over `db` (the SQLite driver keeps one per connection), read by the
   // prelude below and handed to boot modules as `deps.contentKernel`.
-  const kernel = contentKernel(db);
+  const kernel = store.content;
   // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
   // internal construction below that used to read the old seeded-workspace literal directly —
   // this is the sole `resolveWorkspace` call site in this function's call graph
@@ -837,11 +853,10 @@ export async function createSiteRouteDeps(
   const publishTrustRevocations = await publishTrustRevocationStoreFor(kernel);
   // ADS-memory/reports/2026-09-05-db-split-scoping.md §6 — chat data lives in its own file,
   // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
-  // erase) chat history" reason `databaseJournalDb` below is separate. No `mkdirSync` needed:
-  // `chat.db`'s directory is `dirname(dbPath)`, which `openSiteContentDb` already required to exist.
-  // Opened here, in the prelude, so the orphaned-chat check below runs after it.
+  // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
+  // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
   const chatDbPath = defaultChatDbPath(dbPath);
-  const chatDb = openChatDb(chatDbPath);
+  const chatDb = store.chat;
   // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved
   // the rows an already-deployed `content.db` was holding, and nothing anywhere reported that.
   // Every such conversation is intact but unread, because the stores no longer look in that file.

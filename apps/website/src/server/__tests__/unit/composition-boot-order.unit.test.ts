@@ -11,12 +11,12 @@ import test from "node:test";
  * Pinned order:
  *  - `src/index.ts` `main()`: schema guard → site key → `await createSiteRouteDeps()`, so a
  *    newer-schema `content.db` is refused before anything opens it.
- *  - `deps.ts` `createSiteRouteDeps`: hydrate → open, and the open carries the crash-recovery hook
- *    (`openContentDb` runs that hook before Drizzle migrations; behaviour proven by
- *    `platform/db/sqlite/__tests__/content-db-recovery.integration.test.ts`).
- *  - `deps.ts` `createSiteRouteDeps` prelude (R1b): open → `await` workspace → `await` deny-store
- *    probe → chat.db open → `await` orphaned-chat check, all before the body starts its first fire-and-forget boot
- *    promise (`backfillPostSearchIndex`), so no boot promise interleaves with a prelude await.
+ *  - `deps.ts` `openCompositionStore` (R1d): storage choice → hydrate → `openSiteStore` (content.db via
+ *    the recovering `openSiteContentDb`, then chat.db) → the guest-chat expiry sweep on the chat kernel.
+ *  - `deps.ts` `createSiteRouteDeps` prelude (R1b/R1d): store open → `await` workspace → `await`
+ *    deny-store probe → `await` orphaned-chat check, all before the body starts its first
+ *    fire-and-forget boot promise (`backfillPostSearchIndex`), so no boot promise interleaves with a
+ *    prelude await.
  *
  * Source assertions, like `serving-app-boot-wiring.unit.test.ts`: `index.ts` boots a real server and
  * cannot be imported by a test.
@@ -56,15 +56,22 @@ test("index.ts main(): the content.db schema guard and site key run before the c
   assert.ok(siteKey < compose, "the site key must be resolved before createSiteRouteDeps reads it");
 });
 
-test("createSiteRouteDeps: hydration runs before the open, and the open is the recovering site opener", () => {
+test("createSiteRouteDeps: storage choice, then hydration, then the store open (the recovering site opener), then the chat sweep", () => {
   const deps = readCode("server/runtime/composition/deps.ts");
   const body = functionBody(deps, "export async function createSiteRouteDeps(");
-  const hydrate = indexOfAnchor(body, "hydrateContentDbIfNeeded(dbPath, overrides)");
-  const open = indexOfAnchor(body, "resolveOrOpenContentDb(dbPath, overrides)");
-  assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
+  indexOfAnchor(body, "await openCompositionStore(dbPath, overrides)");
 
-  const opener = functionBody(deps, "async function resolveOrOpenContentDb(");
-  assert.match(opener, /await openSiteContentDb\(dbPath\)/);
+  const prelude = functionBody(deps, "async function openCompositionStore(");
+  const storage = indexOfAnchor(prelude, "const storage = resolveSiteStorage(");
+  const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded(dbPath, storage, overrides)");
+  const open = indexOfAnchor(prelude, "await openSiteStore(");
+  const sweep = indexOfAnchor(prelude, "startChatExpirySweep(store.chat)");
+  assert.ok(storage < hydrate, "the storage choice decides whether a SQLite seed is hydrated");
+  assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
+  assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");
+
+  const opener = functionBody(readCode("server/runtime/composition/open-site-store.ts"), "export async function openSiteStore(");
+  assert.match(opener, /await openSiteContentDb\(required\.dbPath\)/);
 });
 
 test("openSiteContentDb: crash recovery runs on the fresh connection before the migrations, and the store is prepared after them", () => {
@@ -76,19 +83,17 @@ test("openSiteContentDb: crash recovery runs on the fresh connection before the 
   assert.ok(open < recover && recover < migrate && migrate < prepare, "open → recover → migrate → prepare");
 });
 
-test("createSiteRouteDeps prelude: open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise", () => {
+test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise", () => {
   const body = functionBody(readCode("server/runtime/composition/deps.ts"), "export async function createSiteRouteDeps(");
-  const open = indexOfAnchor(body, "resolveOrOpenContentDb(dbPath, overrides)");
-  const kernel = indexOfAnchor(body, "const kernel = contentKernel(db)");
+  const open = indexOfAnchor(body, "await openCompositionStore(dbPath, overrides)");
+  const kernel = indexOfAnchor(body, "const kernel = store.content");
   const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
   const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
-  const chatOpen = indexOfAnchor(body, "const chatDb = openChatDb(chatDbPath)");
   const orphanCheck = indexOfAnchor(body, "await warnOnOrphanedChatRows(");
-  const firstBootPromise = indexOfAnchor(body, "backfillPostSearchIndex(db)");
-  assert.ok(open < kernel && kernel < workspace, "the workspace is read on the kernel of the opened database");
+  const firstBootPromise = indexOfAnchor(body, "backfillPostSearchIndex(");
+  assert.ok(open < kernel && kernel < workspace, "the workspace is read on the kernel of the opened store");
   assert.ok(workspace < denyStore, "the deny store is probed after the workspace resolves");
-  assert.ok(denyStore < chatOpen, "chat.db opens after the deny store probe");
-  assert.ok(chatOpen < orphanCheck, "the orphaned-chat check runs after chat.db is opened");
+  assert.ok(denyStore < orphanCheck, "the orphaned-chat check runs after the deny store probe (chat.db opened with the store)");
   assert.ok(orphanCheck < firstBootPromise, "every prelude await must finish before the body starts a boot promise");
   // Top-level (two-space indented) awaits only: nested async closures in the body may await freely.
   const topLevelAwaits = body.slice(firstBootPromise).match(/^  (const [^=]+= )?await\b/gm) ?? [];
