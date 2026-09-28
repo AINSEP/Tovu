@@ -2,14 +2,13 @@ import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import { SqlMemberRepo } from "./repo.js";
+import { SqlMemberRepo, SqlMemberTierRepo } from "./repo.js";
 import {
   memberConsents,
   memberMagicTokens,
   memberRevisions,
   memberSessions,
   memberSubscriptions,
-  memberTiers,
 } from "../../platform/db/schema.sqlite.js";
 import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -19,7 +18,6 @@ import type {
   MemberConsentRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
-  MemberTierRepoPort,
 } from "./ports.js";
 import type {
   ConsentEvidence,
@@ -32,9 +30,6 @@ import type {
   MemberSubscriptionRecord,
   MemberSubscriptionSource,
   MemberSubscriptionStatus,
-  MemberTierRecord,
-  MemberTierStatus,
-  MemberTierType,
 } from "./types.js";
 
 /**
@@ -63,75 +58,11 @@ export class SqliteMemberRepo extends SqlMemberRepo {
   }
 }
 
-function toMemberTierRecord(row: typeof memberTiers.$inferSelect): MemberTierRecord {
-  return {
-    id: row.id,
-    workspaceId: row.workspaceId,
-    name: row.name,
-    slug: row.slug,
-    type: row.type as MemberTierType,
-    status: row.status as MemberTierStatus,
-    description: row.description ?? undefined,
-    welcomePagePath: row.welcomePagePath ?? undefined,
-    visibleInPortal: row.visibleInPortal === 1,
-    monthlyPriceCents: row.monthlyPriceCents ?? undefined,
-    yearlyPriceCents: row.yearlyPriceCents ?? undefined,
-    currency: row.currency ?? undefined,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    version: row.version,
-  };
-}
-
-export class SqliteMemberTierRepo implements MemberTierRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findById(required: { workspaceId: string; id: string }): Promise<MemberTierRecord | null> {
-    return findOneBy(
-      this.db,
-      memberTiers,
-      [eq(memberTiers.workspaceId, required.workspaceId), eq(memberTiers.id, required.id)],
-      toMemberTierRecord
-    );
-  }
-
-  async findBySlug(required: { workspaceId: string; slug: string }): Promise<MemberTierRecord | null> {
-    return findOneBy(
-      this.db,
-      memberTiers,
-      [eq(memberTiers.workspaceId, required.workspaceId), eq(memberTiers.slug, required.slug)],
-      toMemberTierRecord
-    );
-  }
-
-  async list(required: { workspaceId: string }): Promise<MemberTierRecord[]> {
-    const rows = this.db.select().from(memberTiers).where(eq(memberTiers.workspaceId, required.workspaceId)).all();
-    return rows.map(toMemberTierRecord);
-  }
-
-  async save(record: MemberTierRecord): Promise<void> {
-    const row = {
-      id: record.id,
-      workspaceId: record.workspaceId,
-      name: record.name,
-      slug: record.slug,
-      type: record.type,
-      status: record.status,
-      description: record.description ?? null,
-      welcomePagePath: record.welcomePagePath ?? null,
-      visibleInPortal: record.visibleInPortal ? 1 : 0,
-      monthlyPriceCents: record.monthlyPriceCents ?? null,
-      yearlyPriceCents: record.yearlyPriceCents ?? null,
-      currency: record.currency ?? null,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      version: record.version,
-    };
-    this.db
-      .insert(memberTiers)
-      .values(row)
-      .onConflictDoUpdate({ target: memberTiers.id, set: row })
-      .run();
+/** The member-tier repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
+export class SqliteMemberTierRepo extends SqlMemberTierRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 

@@ -1,7 +1,7 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { MemberRepoPort } from "./ports.js";
-import { toMemberRecord, toMemberRow } from "./repo.rows.js";
-import type { MemberRecord } from "./types.js";
+import type { MemberRepoPort, MemberTierRepoPort } from "./ports.js";
+import { toMemberRecord, toMemberRow, toMemberTierRecord, toMemberTierRow } from "./repo.rows.js";
+import type { MemberRecord, MemberTierRecord } from "./types.js";
 
 /**
  * @file THE members repositories: one Kysely query body for every database the storage kernel drives
@@ -92,7 +92,60 @@ export class SqlMemberRepo implements MemberRepoPort {
   }
 }
 
+export class SqlMemberTierRepo implements MemberTierRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findById(required: { workspaceId: string; id: string }): Promise<MemberTierRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_tiers")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("id", "=", required.id)
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toMemberTierRecord(row) : null;
+  }
+
+  async findBySlug(required: { workspaceId: string; slug: string }): Promise<MemberTierRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_tiers")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("slug", "=", required.slug)
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toMemberTierRecord(row) : null;
+  }
+
+  async list(required: { workspaceId: string }): Promise<MemberTierRecord[]> {
+    const rows = await this.kernel.run((db) =>
+      db.selectFrom("member_tiers").selectAll().where("workspace_id", "=", required.workspaceId).execute()
+    );
+    return rows.map(toMemberTierRecord);
+  }
+
+  async save(record: MemberTierRecord): Promise<void> {
+    const row = toMemberTierRow(record);
+    await this.kernel.run((db) =>
+      db
+        .insertInto("member_tiers")
+        .values(row)
+        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
+        .execute()
+    );
+  }
+}
+
 /** The member repo for `kernel`. */
 export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
   return new SqlMemberRepo(kernel);
+}
+
+/** The member-tier repo for `kernel`. */
+export function memberTierRepoFor(kernel: ContentKernel): SqlMemberTierRepo {
+  return new SqlMemberTierRepo(kernel);
 }

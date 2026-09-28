@@ -3,8 +3,8 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { memberRepoFor } from "../repo.js";
-import type { MemberRecord } from "../types.js";
+import { memberRepoFor, memberTierRepoFor } from "../repo.js";
+import type { MemberRecord, MemberTierRecord } from "../types.js";
 
 /**
  * @file The members repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE
@@ -43,8 +43,29 @@ function member(id: string, email: string, overrides: Partial<MemberRecord> = {}
   };
 }
 
+function tier(id: string, slug: string, overrides: Partial<MemberTierRecord> = {}): MemberTierRecord {
+  return {
+    id,
+    workspaceId: WS,
+    name: `Tier ${slug}`,
+    slug,
+    type: "paid",
+    status: "active",
+    description: "desc",
+    welcomePagePath: "/welcome",
+    visibleInPortal: true,
+    monthlyPriceCents: 500,
+    yearlyPriceCents: 5000,
+    currency: "usd",
+    createdAt: T0,
+    updatedAt: T0,
+    version: 1,
+    ...overrides,
+  };
+}
+
 function repos(kernel: ContentKernel) {
-  return { kernel, members: memberRepoFor(kernel) };
+  return { kernel, members: memberRepoFor(kernel), tiers: memberTierRepoFor(kernel) };
 }
 
 describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos) => {
@@ -131,6 +152,61 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
         /boom/
       );
       assert.equal(await members.findById({ workspaceId: WS, id: "m1" }), null);
+    });
+  });
+
+  describe("MemberTierRepo", () => {
+    test("save then findById / findBySlug / list round-trip, booleans and prices included", async () => {
+      const { tiers } = makeRepos();
+      await tiers.save(tier("t1", "gold"));
+      await tiers.save(tier("t2", "free", { type: "free", visibleInPortal: false, monthlyPriceCents: undefined, yearlyPriceCents: undefined, currency: undefined, description: undefined, welcomePagePath: undefined }));
+      await tiers.save(tier("tx", "gold", { workspaceId: OTHER }));
+      assert.deepEqual(await tiers.findById({ workspaceId: WS, id: "t1" }), tier("t1", "gold"));
+      const free = await tiers.findBySlug({ workspaceId: WS, slug: "free" });
+      assert.equal(free?.visibleInPortal, false);
+      assert.equal(free?.monthlyPriceCents, undefined);
+      assert.deepEqual((await tiers.list({ workspaceId: WS })).map((t) => t.id).sort(), ["t1", "t2"]);
+    });
+
+    test("reads miss unknown ids/slugs and never cross workspaces", async () => {
+      const { tiers } = makeRepos();
+      await tiers.save(tier("t1", "gold"));
+      assert.equal(await tiers.findById({ workspaceId: WS, id: "nope" }), null);
+      assert.equal(await tiers.findById({ workspaceId: OTHER, id: "t1" }), null);
+      assert.equal(await tiers.findBySlug({ workspaceId: WS, slug: "nope" }), null);
+      assert.equal(await tiers.findBySlug({ workspaceId: OTHER, slug: "gold" }), null);
+      assert.deepEqual(await tiers.list({ workspaceId: OTHER }), []);
+    });
+
+    test("save upserts by id and can flip visibleInPortal", async () => {
+      const { tiers } = makeRepos();
+      await tiers.save(tier("t1", "gold"));
+      await tiers.save(tier("t1", "gold", { name: "Renamed", visibleInPortal: false, version: 2 }));
+      assert.deepEqual(
+        await tiers.findById({ workspaceId: WS, id: "t1" }),
+        tier("t1", "gold", { name: "Renamed", visibleInPortal: false, version: 2 })
+      );
+      assert.equal((await tiers.list({ workspaceId: WS })).length, 1);
+    });
+
+    test("the unique index rejects a duplicate slug in a workspace; another workspace may reuse it", async () => {
+      const { tiers } = makeRepos();
+      await tiers.save(tier("t1", "gold"));
+      await tiers.save(tier("t3", "gold", { workspaceId: OTHER }));
+      await assert.rejects(tiers.save(tier("t2", "gold")));
+      assert.equal(await tiers.findById({ workspaceId: WS, id: "t2" }), null);
+    });
+
+    test("saves inside a rolled-back transaction leave nothing behind", async () => {
+      const { kernel, tiers } = makeRepos();
+      await assert.rejects(
+        kernel.transaction(async () => {
+          await tiers.save(tier("t1", "gold"));
+          throw new Error("boom");
+        }),
+        /boom/
+      );
+      assert.equal(await tiers.findById({ workspaceId: WS, id: "t1" }), null);
     });
   });
 });
