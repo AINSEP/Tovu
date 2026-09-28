@@ -45,6 +45,9 @@ class FailingSlugPostRepo implements PostRepoPort {
   list(required: { workspaceId: UUID }): Promise<PostRecord[]> {
     return this.inner.list(required);
   }
+  listPublishedPreviews(required: { workspaceId: UUID; limit: number }): Promise<PostRecord[]> {
+    return this.inner.listPublishedPreviews(required);
+  }
   save(record: PostRecord): Promise<void> {
     return this.inner.save(record);
   }
@@ -195,13 +198,16 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   //       publish state (see the shadowed-about.html assertion below).
   //   +1  `8633b4ef` ("feat(seo): serve /llms.txt for AI crawlers") added /llms.txt as an
   //       always-mounted well-known convention route, after this count was first set.
-  // 19 - 7 + 1 = 13. Asserting the actual path LIST, not a bare count, so the next drift is legible
+  //   +1  2026-09-27: the seed gained a `kind: "page"` Blog row at /blog (seed.ts's `page-blog`),
+  //       the target of the default theme's "Read the blog"/"All posts" links.
+  // 19 - 7 + 1 + 1 = 14. Asserting the actual path LIST, not a bare count, so the next drift is legible
   // instead of a mystery integer.
   assert.deepEqual(
     report.routes.succeeded.map((r) => r.path).sort(),
     [
       "/",
       "/about",
+      "/blog",
       "/how-plugins-work",
       "/how-themes-work",
       "/llms.txt",

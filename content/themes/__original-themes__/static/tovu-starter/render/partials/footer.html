@@ -6,8 +6,11 @@
       </div>
       <!-- Marker: the footer resources menu (Admin > Menus, slug "footer-resources"). The link
            inside is the fallback shown until that menu has entries. -->
-      <div class="footer-col"><h4>Site</h4><div data-embed-config='{"type":"menu","id":"footer-resources"}'><a href="/">Home</a></div></div>
-      <div class="footer-col"><h4>Legal</h4><div data-embed-config='{"type":"menu","id":"menu-footer-nav"}'><a href="#">Privacy</a><a href="#">Terms</a></div></div>
+      <div class="footer-col"><h4>Site</h4><div data-embed-config='{"type":"menu","id":"footer-resources"}'><a href="/">Home</a><a href="/blog">Blog</a></div></div>
+      <!-- Marker: the footer legal menu (Admin > Menus, slug "menu-footer-nav"). No fallback links:
+           a new site has no Privacy or Terms page, and "#" placeholders read as broken links. The
+           column hides itself until the menu has entries (theme.css, "footer"). -->
+      <div class="footer-col footer-col-menu"><h4>Legal</h4><div data-embed-config='{"type":"menu","id":"menu-footer-nav"}'></div></div>
     </div>
     <div class="footer-bottom">
       <span>© Your Site</span>

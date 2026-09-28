@@ -349,6 +349,18 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .feature-card h3 { font-size: 17px; font-weight: 500; margin-bottom: 8px; letter-spacing: -0.01em; }
 .feature-card p { font-size: 14px; }
 
+/* ---------- home landing (render/pages/index.html) ---------- */
+/* The Home page's body sits between the hero and the cards, so it gets section spacing, not the
+   article spacing `.post-detail` gives every other template. With no Home page (or an empty one)
+   the content marker renders nothing and the section drops out instead of leaving a gap. */
+.landing-content { padding-block: 0 72px; }
+.hero:has(+ .landing-content) { padding-bottom: 40px; }
+@media (max-width: 900px) { .hero:has(+ .landing-content) { padding-block: 64px 32px; } .landing-content { padding-bottom: 56px; } }
+.landing-content:not(:has(.post-detail-body > *)) { display: none; }
+.landing-posts-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 32px; }
+.landing-posts-head h2 { font-size: clamp(28px, 3.4vw, 38px); letter-spacing: -0.02em; }
+.hero .cta-row { flex-wrap: wrap; }
+
 /* ---------- footer ---------- */
 .site-footer { border-top: 1px solid var(--border); padding: 56px 0 40px; }
 /* repeat(3,1fr) -> repeat(2,1fr): the footer's "Account" column was commented out in footer.html
@@ -358,6 +370,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .footer-col h4 { font-size: 13px; color: var(--fg); margin-bottom: 14px; font-family: var(--font-body); font-weight: 500; }
 .footer-col a { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .footer-col a:hover { color: var(--fg); }
+.footer-col-menu:not(:has(a)) { display: none; }
 .footer-bottom { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 24px; }
 
 /* ---------- pricing ---------- */

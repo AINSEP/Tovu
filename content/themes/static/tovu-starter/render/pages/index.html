@@ -19,25 +19,29 @@
 <div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>
 
 <main>
-  <!-- Content-owned homepage (SPEC-0XX) — filled only when a `kind: "page"` row has claimed the
-       site's own "/" slug and this template was explicitly chosen for it (theme.json's `templates`
-       array lists "index" for exactly this). Every other request never reaches this marker at all:
-       `renderStaticTierHomePage` (server/http/site/render.ts) renders this file's OWN unmodified
-       bytes for the ordinary "no page claims /" case, bypassing content-marker resolution entirely,
-       so this section stays invisible dead markup on every site that hasn't authored such a page.
+  <!-- Landing home page (2026-09-27). The seeded Home page (slug "/", `templateChoice: "index"`,
+       seed.ts) renders through this file, and so does "/" on a site with no Home page at all
+       (pages.ts serves index.html directly). Everything here except the content marker is theme
+       markup: edit this file to change the hero, the three cards, or the section order.
 
-       This is a landing shell, not an article: the demo's hero/logo-wall/features-grid/testimonial/
-       CTA regions were removed rather than kept as empty scaffolding, because there is no per-region
-       authoring path to fill them — a Page's body is one linear document dropped into this ONE
-       marker (`.post-detail-body`'s typography), never distributed across named sub-regions. Empty
-       structural boxes an author can never reach would be dead weight, not a head start. The marker's
-       own `"header":false` (2026-09-04) opts out of the shared `.post-detail-header` title/date
-       byline this marker's target normally gets — a landing page must not look like a dated article
-       — replacing an earlier `.landing-content .post-detail-header { display: none; }` CSS
-       workaround (removed from theme.css) that hid the byline but still shipped a real, indexable
-       `<h1>` as `display:none`, an SEO liability. `.post-detail-body`'s prose typography is kept for
-       whatever the page is authored with. -->
-  <!-- Deliberately no `threshold:` token, and there must never be one again. kUInetic hands
+       The hero animates on load with no delay, so the first paint is never an empty band. Every
+       section below it fades in on scroll. None of them carries a `threshold:` token — see the
+       content section's note and NOTICE.md, "Why the page wrappers carry no threshold:". -->
+  <section class="hero wrap">
+    <h1 data-kui="fade-blur-in 700ms expo-out on:load">Your Site</h1>
+    <p class="lede" data-kui="fade-up 600ms expo-out distance:12px on:load">A short line about what this site is for.</p>
+    <div class="cta-row" data-kui="fade-up 600ms expo-out distance:12px on:load">
+      <a href="/blog" class="btn btn-solid btn-lg">Read the blog</a>
+      <a href="/admin/pages" class="btn btn-ghost btn-lg">Edit this page</a>
+    </div>
+  </section>
+
+  <!-- The Home page's own body (Admin > Pages) goes here. `"header":false` drops the automatic
+       title/date byline: a landing page must not look like a dated article, and a hidden `<h1>`
+       would be an SEO liability. On a site with no Home page this marker stays empty and the
+       section hides itself (theme.css, "home landing").
+
+       Deliberately no `threshold:` token, and there must never be one again. kUInetic hands
        `threshold:` straight to IntersectionObserver, where it is a fraction of THIS element's OWN
        area, not of the viewport — so anything taller than `viewport / threshold` can never reach it.
        And a deferred (`on:enter`) reveal compiles to `animation-fill-mode: both` +
@@ -49,6 +53,42 @@
   <section class="wrap post-detail landing-content" data-kui="fade-up 600ms expo-out distance:18px on:enter">
     <!-- Marker: the body of the page or post at this URL goes inside this element. "header":false hides the automatic title/date header. -->
     <div data-embed-config='{"type":"content","header":false}'></div>
+  </section>
+
+  <section class="band wrap landing-features">
+    <div class="section-head" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+      <span class="kicker">What's here</span>
+      <h2>Three things to start with</h2>
+      <p>Swap these cards for what your site offers.</p>
+    </div>
+    <div class="feature-grid" data-kui-stagger="70ms">
+      <div class="feature-card" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+        <h3>Pages</h3>
+        <p>An about page, a contact page, anything that should stay put. Each one gets its own address.</p>
+      </div>
+      <div class="feature-card" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
+        <h3>Posts</h3>
+        <p>News, notes and articles. The newest ones show up on this page on their own.</p>
+      </div>
+      <div class="feature-card" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M12 3.5a8.5 8.5 0 0 1 0 17"/></svg>
+        <h3>Your design</h3>
+        <p>Light and dark modes, your own colours and fonts, and plain HTML and CSS you can change.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band wrap landing-posts">
+    <div class="landing-posts-head" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+      <h2>Latest posts</h2>
+      <a href="/blog" class="btn btn-ghost">All posts</a>
+    </div>
+    <!-- Marker: your 3 latest posts, as cards. What is inside shows only when there are no posts. -->
+    <div class="blog-grid" data-embed-config='{"type":"post-previews","limit":3}' data-kui="fade-up 600ms expo-out distance:18px on:enter">
+      <p>No posts yet.</p>
+    </div>
   </section>
 </main>
 

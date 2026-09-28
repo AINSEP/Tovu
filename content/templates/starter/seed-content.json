@@ -1579,32 +1579,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "Welcome to your new Tovu site."
-              }
-            ]
-          },
-          {
-            "type": "paragraph",
-            "content": [
-              {
-                "type": "text",
-                "text": "This home page is real, editable content — open the admin's Pages panel to rewrite it. See "
-              },
-              {
-                "type": "text",
-                "text": "Welcome to Tovu",
-                "marks": [
-                  {
-                    "type": "link",
-                    "attrs": {
-                      "href": "/welcome"
-                    }
-                  }
-                ]
-              },
-              {
-                "type": "text",
-                "text": " for a quick tour of what's already here."
+                "text": "This is your home page. The heading, buttons, cards and latest posts around this text come from your theme; this paragraph is yours to change under Pages in the admin."
               }
             ]
           }
@@ -1616,7 +1591,34 @@
       "kind": "page",
       "updatedAt": "2026-07-07T00:00:00.000Z",
       "version": 1,
-      "templateChoice": "page-shell.html"
+      "templateChoice": "index"
+    },
+    {
+      "id": "page-blog",
+      "workspaceId": "workspace-local",
+      "title": "Blog",
+      "slug": "blog",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Everything published on this site, newest first."
+              }
+            ]
+          }
+        ]
+      },
+      "bodyFormat": "doc",
+      "bodyHtml": null,
+      "status": "published",
+      "kind": "page",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1,
+      "templateChoice": "listing-default.html"
     }
   ],
   "presentation": {

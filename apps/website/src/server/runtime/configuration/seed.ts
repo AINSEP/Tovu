@@ -153,12 +153,19 @@ const welcomeDoc: JsonObject = doc(
 // duplicating `welcomeDoc`'s longer walkthrough, which stays reachable at its own `/welcome` slug.
 
 const rootDoc: JsonObject = doc(
-  p("Welcome to your new Tovu site."),
-  p(
-    "This home page is real, editable content — open the admin's Pages panel to rewrite it. See ",
-    link("Welcome to Tovu", "/welcome"),
-    " for a quick tour of what's already here.",
-  ),
+  p("This is your home page. The heading, buttons, cards and latest posts around this text come from your theme; this paragraph is yours to change under Pages in the admin."),
+);
+
+// --- Blog listing page ---
+//
+// The landing template's "Read the blog" and "All posts" buttons (`tovu-starter`'s index.html) link
+// to `/blog`; without a row at that slug both are dead links on a brand-new site. Bound to the
+// starter's `listing-default.html`, whose post-previews marker lists the newest posts under this
+// short intro. Another theme without that template falls back to its own first template
+// (`resolveTemplate`), so the choice never strands the page.
+
+const blogDoc: JsonObject = doc(
+  p("Everything published on this site, newest first."),
 );
 
 // --- Site explainer pages (content, not theme-baked) ---
@@ -295,19 +302,15 @@ export const seededPosts: PostRecord[] = [
   // Content-owned homepage — see `rootDoc`'s own comment above. `kind: "page"` (not "post") is
   // what gates the literal "/" slug (`post.ts`'s `ROOT_SLUG`/`resolveExplicitSlug`).
   //
-  // `templateChoice: "page-shell.html"` (2026-09-04 fix) — binds this row to the stock `basic`
-  // theme's own content-agnostic document shell (`content/themes/static/basic/render/pages/
-  // page-shell.html`: real nav + footer partials around one `{"type":"content"}` slot) so `GET /`
-  // renders inside the theme's actual site chrome instead of Tovu's generic placeholder
-  // header/footer. See `seededPost`'s own doc for the full regression this closes.
-  //
-  // Named `"page-shell.html"`, the theme's CURRENT (pre-rename) filename, not `"pages-default.html"`
-  // (the name `sites/tovu-com`'s already-renamed copy uses) — deliberately, because
-  // `content/themes/static/basic/` is the stock theme every `tovu init` installs, and it has not
-  // been renamed (see that dir's own history). `resolveTemplate`'s `LEGACY_TEMPLATE_FILENAME_ALIASES`
-  // (`features/theme/static-render.ts`) maps `"page-shell"` -> `"pages-default"` automatically, so
-  // this stays correct unmodified if the stock theme is ever renamed the same way later.
-  seededPost("page-root", "Home", "/", rootDoc, "page", "page-shell.html"),
+  // `templateChoice: "index"` (2026-09-27) — renders the page through the default theme's landing
+  // template (`tovu-starter/render/pages/index.html`: hero, this page's body, feature cards, latest
+  // posts) instead of the plain article shell. An explicit choice is required: a `kind: "page"` row
+  // has no "never chosen" fallback into the template branch (`seededPost`'s doc). It replaced
+  // `"page-shell.html"` (2026-09-04), which rendered "/" as a bare dated article. A theme without an
+  // `index` template that carries a content slot falls back to its first template (`resolveTemplate`,
+  // `features/theme/static-render.ts`).
+  seededPost("page-root", "Home", "/", rootDoc, "page", "index"),
+  seededPost("page-blog", "Blog", "blog", blogDoc, "page", "listing-default.html"),
 ];
 
 export const seededPresentation: PresentationSettingsRecord = {
