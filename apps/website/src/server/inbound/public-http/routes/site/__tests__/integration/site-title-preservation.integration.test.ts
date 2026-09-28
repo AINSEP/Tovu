@@ -7,7 +7,7 @@ import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/cms/settings";
 
-import { migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
+import { copyRowsIntoOlderSchema, migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
 import { seedContentDb } from "#src/platform/db/sqlite/content-db";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
@@ -69,8 +69,18 @@ function createPreExistingSite(t: TestContext): string {
   const dbPath = path.join(dir, "content.db");
   for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${dbPath}${suffix}`, { force: true });
 
-  const { seed } = readTemplate({ templateId: "starter" });
-  const lastPreFeatureMigration = migrateToBeforeSiteTitleMarker(dbPath, (db) => seedContentDb({ db, seed }));
+  const { seed: starterSeed } = readTemplate({ templateId: "starter" });
+  // Every pre-existing site was seeded on Tovu Theme (new sites start on Tovu Starter since
+  // 2026-09-27, which has no `/pricing` page — the S2 surface below).
+  const seed = { ...starterSeed, presentation: { ...starterSeed.presentation, activeThemeId: "tovu-theme" } };
+  // The seed goes in through today's schema, restricted to the columns the pre-feature schema has.
+  const lastPreFeatureMigration = migrateToBeforeSiteTitleMarker(dbPath, (db) =>
+    copyRowsIntoOlderSchema({
+      target: db,
+      tables: ["workspaces", "posts", "presentation_settings"],
+      populate: (current) => seedContentDb({ db: current, seed }),
+    })
+  );
 
   const metaPath = path.join(dir, ".site-meta.json");
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf8")) as Record<string, unknown>;

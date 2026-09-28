@@ -7,7 +7,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import * as schema from "../../schema.sqlite.js";
-import type { ContentDb } from "../../sqlite/content-db.js";
+import { openContentDb, type ContentDb } from "../../sqlite/content-db.js";
 
 /**
  * @file SPEC-050 v0.2.0 (NC-3 = A) test fixture: a real SQLite database migrated up to, but not
@@ -45,6 +45,44 @@ export function siteTitleMarkerEntry(journal: Journal = readRealJournal()): Jour
   const entry = journal.entries.find((candidate) => candidate.tag.endsWith(SITE_TITLE_MARKER_TAG_SUFFIX));
   if (!entry) throw new Error(`no migration tagged *${SITE_TITLE_MARKER_TAG_SUFFIX} in the real journal`);
   return entry;
+}
+
+/**
+ * Writes into `target` — a database on an OLDER schema — the rows `populate` writes into a fresh
+ * database on today's schema, copying only `tables`, and only the columns `target` has.
+ *
+ * Why not run `populate` against `target` directly: Drizzle's INSERT names every column today's
+ * schema declares, so it fails on an older schema as soon as a later migration adds a column to a
+ * seeded table (0065 added `posts.created_by_principal_id` after the site-title marker, 0063). Every
+ * such later column is nullable or defaulted, so leaving it out is what the older database held.
+ *
+ * @complexity O(R·C) for R copied rows of C columns.
+ */
+export function copyRowsIntoOlderSchema(required: {
+  target: ContentDb;
+  tables: readonly string[];
+  populate: (current: ContentDb) => void;
+}): void {
+  const current = openContentDb(":memory:");
+  try {
+    required.populate(current);
+    for (const table of required.tables) {
+      const targetColumns = new Set(
+        (required.target.$client.pragma(`table_info("${table}")`) as { name: string }[]).map((column) => column.name)
+      );
+      const columns = (current.$client.pragma(`table_info("${table}")`) as { name: string }[])
+        .map((column) => column.name)
+        .filter((name) => targetColumns.has(name));
+      const list = columns.map((name) => `"${name}"`).join(", ");
+      const rows = current.$client.prepare(`SELECT ${list} FROM "${table}"`).raw(true).all() as unknown[][];
+      const insert = required.target.$client.prepare(
+        `INSERT INTO "${table}" (${list}) VALUES (${columns.map(() => "?").join(", ")})`
+      );
+      for (const row of rows) insert.run(...row);
+    }
+  } finally {
+    current.$client.close();
+  }
 }
 
 /**
