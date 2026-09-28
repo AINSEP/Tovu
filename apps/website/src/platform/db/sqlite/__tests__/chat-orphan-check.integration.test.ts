@@ -73,13 +73,13 @@ function seedChatRows(db: Database.Database, count: number, prefix: string): voi
   }
 }
 
-test("checkForOrphanedChatRows reports the exact per-table counts still sitting in content.db", () => {
+test("checkForOrphanedChatRows reports the exact per-table counts still sitting in content.db", async () => {
   const { tmpDir, contentDbPath } = makeFixture();
   const contentDb = openChatDb(contentDbPath);
   try {
     seedChatRows(contentDb, 3, "orphan");
 
-    const check = checkForOrphanedChatRows(contentDb);
+    const check = await checkForOrphanedChatRows(contentDb);
 
     assert.equal(check.orphaned, true, "3 conversations left in content.db must be reported as orphaned");
     assert.deepEqual(check.counts, { aiChats: 3, aiChatMessages: 3, assistantAgentSessions: 3 });
@@ -90,7 +90,7 @@ test("checkForOrphanedChatRows reports the exact per-table counts still sitting 
   }
 });
 
-test("checkForOrphanedChatRows never writes: it succeeds against a strictly read-only connection", () => {
+test("checkForOrphanedChatRows never writes: it succeeds against a strictly read-only connection", async () => {
   const { tmpDir, contentDbPath } = makeFixture();
   const writable = openChatDb(contentDbPath);
   seedChatRows(writable, 2, "ro");
@@ -100,7 +100,7 @@ test("checkForOrphanedChatRows never writes: it succeeds against a strictly read
   // comment: any INSERT/UPDATE/DDL the check performed would throw SQLITE_READONLY here.
   const readOnly = new Database(contentDbPath, { readonly: true, fileMustExist: true });
   try {
-    const check = checkForOrphanedChatRows(readOnly);
+    const check = await checkForOrphanedChatRows(readOnly);
     assert.equal(check.total, 6);
   } finally {
     readOnly.close();
@@ -108,7 +108,7 @@ test("checkForOrphanedChatRows never writes: it succeeds against a strictly read
   }
 });
 
-test("warnOnOrphanedChatRows is a silent no-op when content.db holds no chat rows", () => {
+test("warnOnOrphanedChatRows is a silent no-op when content.db holds no chat rows", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
   const contentDb = openChatDb(contentDbPath);
   const chatDb = openChatDb(chatDbPath);
@@ -116,7 +116,7 @@ test("warnOnOrphanedChatRows is a silent no-op when content.db holds no chat row
     seedChatRows(chatDb, 5, "already-migrated");
     const logged: string[] = [];
 
-    const check = warnOnOrphanedChatRows({
+    const check = await warnOnOrphanedChatRows({
       contentDb,
       contentDbPath,
       chatDbPath,
@@ -133,14 +133,14 @@ test("warnOnOrphanedChatRows is a silent no-op when content.db holds no chat row
   }
 });
 
-test("warnOnOrphanedChatRows tolerates a content.db that has no chat tables at all", () => {
+test("warnOnOrphanedChatRows tolerates a content.db that has no chat tables at all", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
   const contentDb = new Database(contentDbPath);
   contentDb.exec(`CREATE TABLE posts (id TEXT PRIMARY KEY)`);
   try {
     const logged: string[] = [];
 
-    const check = warnOnOrphanedChatRows({
+    const check = await warnOnOrphanedChatRows({
       contentDb,
       contentDbPath,
       chatDbPath,
@@ -156,14 +156,14 @@ test("warnOnOrphanedChatRows tolerates a content.db that has no chat tables at a
   }
 });
 
-test("warnOnOrphanedChatRows names the counts, both database paths, and the exact recovery command", () => {
+test("warnOnOrphanedChatRows names the counts, both database paths, and the exact recovery command", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
   const contentDb = openChatDb(contentDbPath);
   try {
     seedChatRows(contentDb, 4, "loud");
     const logged: string[] = [];
 
-    warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
+    await warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
 
     assert.equal(logged.length, 1, "exactly one warning per boot — not one per table, not zero");
     const warning = logged[0]!;
@@ -187,7 +187,7 @@ test("warnOnOrphanedChatRows names the counts, both database paths, and the exac
   }
 });
 
-test("warnOnOrphanedChatRows still reports when SOME rows were already copied into chat.db (interrupted migration)", () => {
+test("warnOnOrphanedChatRows still reports when SOME rows were already copied into chat.db (interrupted migration)", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
   const contentDb = openChatDb(contentDbPath);
   const chatDb = openChatDb(chatDbPath);
@@ -196,7 +196,7 @@ test("warnOnOrphanedChatRows still reports when SOME rows were already copied in
     seedChatRows(chatDb, 2, "both"); // same ids — a crashed run that copied but never deleted
     const logged: string[] = [];
 
-    const check = warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
+    const check = await warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
 
     assert.equal(check.orphaned, true, "rows present in chat.db do NOT excuse rows still in content.db");
     assert.equal(check.total, 6);
@@ -208,7 +208,7 @@ test("warnOnOrphanedChatRows still reports when SOME rows were already copied in
   }
 });
 
-test("warnOnOrphanedChatRows is safe to run twice: same result, and neither database changes", () => {
+test("warnOnOrphanedChatRows is safe to run twice: same result, and neither database changes", async () => {
   const { tmpDir, contentDbPath, chatDbPath } = makeFixture();
   const contentDb = openChatDb(contentDbPath);
   const chatDb = openChatDb(chatDbPath);
@@ -228,8 +228,8 @@ test("warnOnOrphanedChatRows is safe to run twice: same result, and neither data
     const before = snapshot();
     const logged: string[] = [];
 
-    const first = warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
-    const second = warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
+    const first = await warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
+    const second = await warnOnOrphanedChatRows({ contentDb, contentDbPath, chatDbPath, log: (m) => logged.push(m) });
 
     assert.deepEqual(second, first, "a second run must report exactly what the first did");
     assert.deepEqual(snapshot(), before, "detection must not move, copy, or delete a single row");

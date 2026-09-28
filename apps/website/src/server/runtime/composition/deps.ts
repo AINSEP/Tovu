@@ -1366,8 +1366,11 @@ export function createSqliteRouteDeps(
   // completely silent (one bounded `count(*)` per table) on the already-migrated boot. It
   // deliberately does NOT migrate: `applyChatSplit` deletes from content.db after copying, and its
   // own header requires a backup first — see `chat-orphan-check.ts`'s header for the rejected
-  // alternatives.
-  warnOnOrphanedChatRows({ contentDb: db.$client, contentDbPath: dbPath, chatDbPath });
+  // alternatives. Not awaited: it only prints, and composition here is sync.
+  warnOnOrphanedChatRows({ contentDb: db, contentDbPath: dbPath, chatDbPath }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
+  });
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.

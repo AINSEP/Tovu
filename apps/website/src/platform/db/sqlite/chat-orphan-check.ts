@@ -1,4 +1,8 @@
-import type Database from "better-sqlite3";
+import { sql } from "kysely";
+
+import { type ContentKernel, contentKernel } from "../content-kernel.js";
+import { listTables } from "../kernel/dialect.js";
+import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
 
 /**
  * @file Boot-time detection of chat rows stranded in `content.db` by the `chat.db` split.
@@ -78,38 +82,31 @@ const CHAT_TABLES = [
  */
 export const CHAT_TABLE_NAMES: readonly string[] = CHAT_TABLES.map(({ table }) => table);
 
-/** Which of {@link CHAT_TABLES} actually exist in this database. A `content.db` that never carried
- *  them (or a future one that drops them) must count as zero rather than throwing "no such table"
- *  and taking down a boot over a diagnostic. */
-function existingChatTables(db: Database.Database): Set<string> {
-  const names = CHAT_TABLES.map((t) => t.table);
-  const placeholders = names.map(() => "?").join(", ");
-  const rows = db
-    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`)
-    .all(...names) as { name: string }[];
-  return new Set(rows.map((row) => row.name));
-}
-
 /**
- * Counts the chat rows still present in `contentDb`. Read-only — a `SELECT` against `sqlite_master`
- * plus one `count(*)` per table that exists, nothing more; the accompanying integration test proves
- * this by running it against a `readonly: true` connection, where any write would raise
- * `SQLITE_READONLY`.
+ * Counts the chat rows still present in `contentDb`. Read-only: the table list plus one `count(*)`
+ * per chat table that exists (a `content.db` that never carried them, or a Postgres content store,
+ * counts as zero rather than throwing "no such table" and taking down a boot over a diagnostic);
+ * the accompanying integration test proves it by running it against a `readonly: true` connection,
+ * where any write would raise `SQLITE_READONLY`.
  *
- * @param contentDb Raw handle for the site's `content.db` (in `deps.ts`, `db.$client`).
+ * @param contentDb The site's content store: a kernel, or the SQLite content db handle.
  * @returns Per-table counts, their sum, and whether any were found at all.
  * @complexity O(1) statements — three bounded `count(*)` queries over indexed tables, independent of
  *   any caller-supplied collection.
  */
-export function checkForOrphanedChatRows(contentDb: Database.Database): OrphanedChatRowsCheck {
-  const present = existingChatTables(contentDb);
+export async function checkForOrphanedChatRows(
+  contentDb: ContentKernel | SqliteConnectionSource
+): Promise<OrphanedChatRowsCheck> {
+  const kernel = contentKernel(contentDb);
+  const present = new Set(await listTables(kernel));
   const counts = { aiChats: 0, aiChatMessages: 0, assistantAgentSessions: 0 };
   let total = 0;
   for (const { table, key } of CHAT_TABLES) {
     if (!present.has(table)) continue;
-    const row = contentDb.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number };
-    counts[key] = row.n;
-    total += row.n;
+    const [row] = await kernel.query<{ n: number | string }>(sql`SELECT count(*) AS n FROM ${sql.table(table)}`);
+    const n = Number(row?.n ?? 0);
+    counts[key] = n;
+    total += n;
   }
   return { counts, total, orphaned: total > 0 };
 }
@@ -176,13 +173,13 @@ export function formatOrphanedChatRowsWarning(
  *   counts without re-querying.
  * @complexity O(1) — delegates to {@link checkForOrphanedChatRows} plus at most one format call.
  */
-export function warnOnOrphanedChatRows(deps: {
-  contentDb: Database.Database;
+export async function warnOnOrphanedChatRows(deps: {
+  contentDb: ContentKernel | SqliteConnectionSource;
   contentDbPath: string;
   chatDbPath: string;
   log?: (message: string) => void;
-}): OrphanedChatRowsCheck {
-  const check = checkForOrphanedChatRows(deps.contentDb);
+}): Promise<OrphanedChatRowsCheck> {
+  const check = await checkForOrphanedChatRows(deps.contentDb);
   const warning = formatOrphanedChatRowsWarning(check, {
     contentDbPath: deps.contentDbPath,
     chatDbPath: deps.chatDbPath,
