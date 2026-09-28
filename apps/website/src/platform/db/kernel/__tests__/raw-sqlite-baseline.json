@@ -20,9 +20,6 @@
   "apps/website/src/features/post/search-index.sqlite.ts": {
     "fts5": 1
   },
-  "apps/website/src/features/trash/adapters/user.ts": {
-    "sync-terminal": 6
-  },
   "apps/website/src/platform/db/migration/manifest.ts": {
     "autoincrement": 8,
     "fts5": 7
