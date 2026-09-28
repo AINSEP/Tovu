@@ -45,8 +45,8 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
  *
  * `rules.ts`'s `ACCESS_TOKEN_PROVIDERS` (Tier 1: `publish_credential_sets`, `source_control_
  * credential_sets` — both label + `isDefault`, both full CRUD, multi-row per provider) and
- * `OTHER_CREDENTIAL_STORES` (Tier 2: the six single-row/per-item sealed-credential stores — BYOK x2,
- * media providers, Composio project key + connector accounts, external MCP) are ALL read and
+ * `OTHER_CREDENTIAL_STORES` (Tier 2: the four single-row/per-item sealed-credential stores — BYOK x2,
+ * media providers, external MCP) are ALL read and
  * rendered in one flat list, filtered by one search box and one category row
  * (`AccessTokensTab.tsx`'s own header has the ruling in full: "a Cloudinary key and a GitHub token
  * are the same kind of thing"). The tier split survives only as a per-row capability difference —

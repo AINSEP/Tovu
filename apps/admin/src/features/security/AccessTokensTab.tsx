@@ -219,7 +219,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
  *  unaffected by the category filter below it). "token(s)" stays the noun even though the count now
  *  spans Tier 2's keys/credentials too — the existing e2e suite pins the exact string
  *  (`development/e2e/access-tokens.spec.ts`'s `/^0 tokens saved$/`), and nothing in this pass asked
- *  for new copy here; a person calling a Composio key a "token" loosely is the same shorthand this
+ *  for new copy here; a person calling an API key a "token" loosely is the same shorthand this
  *  page's own tab name already uses for the whole install. The line itself is `rules.ts`'s
  *  `accessTokensCountText` — a whole translated sentence per plural form, not fragments glued in
  *  English word order (see that function's own doc for why). */

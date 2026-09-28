@@ -110,10 +110,10 @@ describe("OtherCredentialEntryBody dispatch", () => {
   });
 
   it("a store that does NOT support Replace renders just the value fact and a direct Remove (OtherCredentialStaticRow)", () => {
-    const store = otherCredentialStoreInfo("composio-connector"); // supportsReplace: false
-    const row = rowFixture(store, { valueFact: "Connected as: me@example.com" });
+    const store = otherCredentialStoreInfo("external-mcp"); // supportsReplace: false
+    const row = rowFixture(store, { valueFact: "2 environment variables set" });
     render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
-    expect(screen.getByText("Connected as: me@example.com")).toBeInTheDocument();
+    expect(screen.getByText("2 environment variables set")).toBeInTheDocument();
     expect(screen.queryByLabelText("Access token")).not.toBeInTheDocument();
   });
 });
@@ -121,21 +121,14 @@ describe("OtherCredentialEntryBody dispatch", () => {
 describe("OtherCredentialStaticRow", () => {
   // Regression (terra security review 2026-09-20, High #1): this row's Remove used to call
   // `controller.remove(row)` on the first click — the one Tier-2 row with NO confirm, even though its
-  // two stores are the most destructive ones on the page (an External MCP delete loses a sealed OAuth
-  // secret for good; a Composio disconnect revokes the account at Composio). Both stores are covered,
-  // since each is its own route to its own irreversible sink.
+  // store is the most destructive one on the page (an External MCP delete loses a sealed OAuth
+  // secret for good).
   const STATIC_CASES = [
     {
       storeId: "external-mcp",
       itemId: "local-fs",
       name: "Local filesystem",
       body: "This deletes the server and its saved credentials. It can't be undone — you'd have to set it up again, and sign in again if it uses OAuth.",
-    },
-    {
-      storeId: "composio-connector",
-      itemId: "github",
-      name: "GitHub",
-      body: "This disconnects the account and revokes its access at Composio. To use it again, you'd have to connect it and sign in again.",
     },
   ] as const;
 
@@ -298,8 +291,8 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
 });
 
 describe("OtherCredentialEntry — agentHandle id safety (unsafe item ids never crash the row)", () => {
-  it("renders a media-provider/composio-connector row whose raw item id is not handle-safe (contains an underscore), without throwing", () => {
-    const store = otherCredentialStoreInfo("composio-connector");
+  it("renders an external-mcp row whose raw item id is not handle-safe (contains an underscore), without throwing", () => {
+    const store = otherCredentialStoreInfo("external-mcp");
     const row = rowFixture(store, { itemId: "google_calendar", name: "Google Calendar" });
     expect(() => render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />)).not.toThrow();
     expect(screen.getByText("Google Calendar")).toBeInTheDocument();

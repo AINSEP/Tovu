@@ -12,22 +12,12 @@ import type { ProvidersController } from "../hooks/use-providers.hooks";
  * @file `Providers.tsx` — MCP Server and Webhooks tabs, "Soon" and greyed-inert (owner call,
  * 2026-09-19, revised twice: first brief was "delete the fake install command," the owner's actual
  * ask was "keep the real content visible, grey it out, make it genuinely inert" — see
- * `ComingSoonPanel.tsx`'s own header). Composio/External MCP already have their own coverage
- * through `ComposioKeyField`/`ExternalMcpSettingsPanel`, untouched by this change.
+ * `ComingSoonPanel.tsx`'s own header). External MCP has its own coverage through
+ * `ExternalMcpSettingsPanel`.
  */
 
 function fixtureProviders(): ProvidersController {
   return {
-    composio: {
-      config: null,
-      unlocked: false,
-      loadError: null,
-      saveState: "idle",
-      saveError: null,
-      catalogRefreshKey: 0,
-      save: async () => {},
-      clear: async () => {},
-    },
     externalMcp: {
       dependencies: createFakeSourceConfigDependencies<SourceConfigItem>({
         sources: [],
@@ -76,6 +66,21 @@ describe("Providers — tab strip: MCP Server and Webhooks tagged Soon, External
 
     await user.click(mcpTab);
     expect(window.location.search).toBe("?tab=mcp-server");
+  });
+});
+
+describe("Providers — no Composio tab (Composio is the `composio` agent plugin since 2026-09-27)", () => {
+  it("renders exactly External MCP, MCP Server and Webhooks tabs", () => {
+    renderPage("external-mcp");
+    const names = screen.getAllByRole("tab").map((tab) => tab.textContent ?? "");
+    expect(names).toHaveLength(3);
+    expect(names.some((name) => /composio/i.test(name))).toBe(false);
+  });
+
+  it("an old ?tab=composio link opens External MCP rather than a Composio panel", () => {
+    renderPage("composio");
+    expect(screen.getByRole("tab", { name: /^External MCP/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText(/Composio/)).not.toBeInTheDocument();
   });
 });
 

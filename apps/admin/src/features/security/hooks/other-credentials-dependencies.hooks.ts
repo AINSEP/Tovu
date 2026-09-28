@@ -1,10 +1,10 @@
-import { api, type AdminComposioConfig, type AdminConnector, type AdminMediaProviderMap } from "@/lib/api";
+import { api, type AdminMediaProviderMap } from "@/lib/api";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `access-tokens-dependencies.hooks.ts`'s `defaultAccessTokensPort`. Every method is a thin bind
  *  onto an existing `api.*` call already used by AI Assistant, Settings' Execution mode tab, Media's
- *  Providers tab, or Settings' Connectors/External MCP tabs — see `other-credentials-port.hooks.ts`'s
+ *  Providers tab, or Settings' External MCP tab — see `other-credentials-port.hooks.ts`'s
  *  own header for why this page adds no new HTTP surface. */
 export const defaultOtherCredentialsPort: OtherCredentialsPort = {
   getSiteAssistantCredential: () => api.getAssistantSiteCredential(),
@@ -17,13 +17,6 @@ export const defaultOtherCredentialsPort: OtherCredentialsPort = {
 
   getMediaProviders: () => api.getMediaProviders(),
   saveMediaProviders: (providers) => api.saveMediaProviders(providers),
-
-  getComposioConfig: () => api.getComposioConfig(),
-  saveComposioConfig: (apiKey) => api.saveComposioConfig(apiKey),
-
-  listConnectors: () => api.listConnectors(),
-  getConnectorStatuses: () => api.getConnectorStatuses(),
-  disconnectConnector: (connectorId) => api.disconnectConnector(connectorId),
 
   listExternalMcpServers: () => api.listExternalMcpServers(),
   deleteExternalMcpServer: (serverId) => api.deleteExternalMcpServer(serverId),
@@ -72,26 +65,6 @@ function mediaProvidersDefaults(overrides: Partial<OtherCredentialsPort>): Pick<
   };
 }
 
-/** {@link createFakeOtherCredentialsPort}'s Composio-project slice — see {@link siteAssistantCredentialDefaults}'s doc.
- *  @complexity O(1) — two independent `??` fallbacks. */
-function composioConfigDefaults(overrides: Partial<OtherCredentialsPort>): Pick<OtherCredentialsPort, "getComposioConfig" | "saveComposioConfig"> {
-  const emptyComposioConfig: AdminComposioConfig = { configured: false, apiKeyTail: "" };
-  return {
-    getComposioConfig: overrides.getComposioConfig ?? (() => Promise.resolve(emptyComposioConfig)),
-    saveComposioConfig: overrides.saveComposioConfig ?? (() => Promise.reject(new Error("saveComposioConfig not stubbed for this test"))),
-  };
-}
-
-/** {@link createFakeOtherCredentialsPort}'s Composio-connectors slice — see {@link siteAssistantCredentialDefaults}'s doc.
- *  @complexity O(1) — three independent `??` fallbacks. */
-function connectorsDefaults(overrides: Partial<OtherCredentialsPort>): Pick<OtherCredentialsPort, "listConnectors" | "getConnectorStatuses" | "disconnectConnector"> {
-  return {
-    listConnectors: overrides.listConnectors ?? (() => Promise.resolve({ connectors: [] as AdminConnector[] })),
-    getConnectorStatuses: overrides.getConnectorStatuses ?? (() => Promise.resolve({})),
-    disconnectConnector: overrides.disconnectConnector ?? (() => Promise.reject(new Error("disconnectConnector not stubbed for this test"))),
-  };
-}
-
 /** {@link createFakeOtherCredentialsPort}'s external-MCP slice — see {@link siteAssistantCredentialDefaults}'s doc.
  *  @complexity O(1) — two independent `??` fallbacks. */
 function externalMcpDefaults(overrides: Partial<OtherCredentialsPort>): Pick<OtherCredentialsPort, "listExternalMcpServers" | "deleteExternalMcpServer"> {
@@ -106,17 +79,15 @@ function externalMcpDefaults(overrides: Partial<OtherCredentialsPort>): Pick<Oth
  *  "get" defaults to the honest empty/unconfigured state (nothing saved anywhere in this
  *  workspace), never to a fabricated connected one.
  *
- *  Composes the six per-store helpers above by plain object spread — zero branches of its own
+ *  Composes the four per-store helpers above by plain object spread — zero branches of its own
  *  (spreading is not a conditional), which is what brings this function back under the complexity
  *  cap; the original flat version inlined all fifteen `??` fallbacks here directly and hit 17.
- *  @complexity O(1) — no branches, six spreads. */
+ *  @complexity O(1) — no branches, four spreads. */
 export function createFakeOtherCredentialsPort(overrides: Partial<OtherCredentialsPort> = {}): OtherCredentialsPort {
   return {
     ...siteAssistantCredentialDefaults(overrides),
     ...adminByokCredentialDefaults(overrides),
     ...mediaProvidersDefaults(overrides),
-    ...composioConfigDefaults(overrides),
-    ...connectorsDefaults(overrides),
     ...externalMcpDefaults(overrides),
   };
 }

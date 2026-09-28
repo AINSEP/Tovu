@@ -8,7 +8,6 @@ import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessag
 import {
   OTHER_CREDENTIAL_STORES,
   accessTokenCategoryMatches,
-  connectedAsFact,
   envNamesFact,
   maskedTailFact,
   mediaProviderLabel,
@@ -20,10 +19,9 @@ import { defaultOtherCredentialsPort } from "./other-credentials-dependencies.ho
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 
 /**
- * @file The Security page's Tier-2 controller — reads all six single-row/per-item credential stores
- * (`rules.ts`'s `OTHER_CREDENTIAL_STORES`) and exposes Replace/Remove for the four that support it
- * (`store.supportsReplace` — see that constant's own doc for why `composio-connector`/`external-mcp`
- * don't). Sibling to `use-access-tokens.hooks.ts` (Tier 1), not a merge with it: the two tiers read
+ * @file The Security page's Tier-2 controller — reads all four single-row/per-item credential stores
+ * (`rules.ts`'s `OTHER_CREDENTIAL_STORES`) and exposes Replace/Remove for the three that support it
+ * (`store.supportsReplace` — see that constant's own doc for why `external-mcp` doesn't). Sibling to `use-access-tokens.hooks.ts` (Tier 1), not a merge with it: the two tiers read
  * from completely different endpoints with completely different wire shapes, and `AccessTokensTab.tsx`
  * is the one place that renders both controllers' `groups` as one visual list — see that file's
  * header for the 2026-08-16 owner ruling this split answers to.
@@ -49,19 +47,17 @@ import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 
 export interface OtherCredentialRowState {
   /** `${storeId}:${itemId}` — stable across re-renders, and unique even though `media-provider`/
-   *  `composio-connector`/`external-mcp` can each hold more than one item. */
+   *  `external-mcp` can each hold more than one item. */
   readonly key: string;
   readonly store: OtherCredentialStoreInfo;
-  /** The specific item within a multi-item store (a provider id, connector id, or server id) — equal
+  /** The specific item within a multi-item store (a provider id or server id) — equal
    *  to `store.id` itself for the three single-scope stores, which only ever have one possible item. */
   readonly itemId: string;
   /** This row's own display name — the store's generic label for a single-scope store, or the
-   *  item's own name (a media provider's catalog label, a connector's own name, an MCP server's own
-   *  label) for a multi-item one. */
+   *  item's own name (a media provider's catalog label, an MCP server's own label) for a multi-item one. */
   readonly name: string;
-  /** What `§10`'s "never a reveal control" ceiling actually allows showing — a masked tail, an
-   *  OAuth account fact, or an environment-variable-name count. See `rules.ts`'s `maskedTailFact`/
-   *  `connectedAsFact`/`envNamesFact`. */
+  /** What `§10`'s "never a reveal control" ceiling actually allows showing — a masked tail or an
+   *  environment-variable-name count. See `rules.ts`'s `maskedTailFact`/`envNamesFact`. */
   readonly valueFact: string;
   readonly updatedAt: string | null;
   readonly token: string;
@@ -96,7 +92,7 @@ export interface OtherCredentialsController {
 }
 
 /** One store's raw read result — `items` is `undefined` until this SPECIFIC store's read settles
- *  (independent of every other store's), so a slow Composio call never blocks a fast BYOK one from
+ *  (independent of every other store's), so a slow media-provider call never blocks a fast BYOK one from
  *  rendering. `loadError` is this store's own failure, kept apart from every other store's so one
  *  down store never hides the rest. */
 interface RawStoreItem {
@@ -114,9 +110,8 @@ function idleStoreState(): StoreState {
 }
 
 /** Reads one single-`apiKey` store's current value into its (0 or 1) row — `site-assistant`/
- *  `admin-byok`/`composio-project` all share this exact "isSet-or-configured, plus a bare tail"
- *  shape; only the three GET calls' own field names differ, which the three small readers below
- *  normalize before this shared mapper ever runs. @complexity O(1). */
+ *  `admin-byok` share this exact "isSet, plus a bare tail" shape; only the two GET calls' own field
+ *  names differ, which the two small readers below normalize before this shared mapper ever runs. @complexity O(1). */
 function singleKeyItems(store: OtherCredentialStoreInfo, isSet: boolean, tail: string | null, updatedAt: string | null): RawStoreItem[] {
   if (!isSet) return [];
   return [{ itemId: store.id, name: store.label, valueFact: maskedTailFact(tail ?? ""), updatedAt }];
@@ -129,10 +124,6 @@ async function readSiteAssistant(port: OtherCredentialsPort, store: OtherCredent
 async function readAdminByok(port: OtherCredentialsPort, store: OtherCredentialStoreInfo): Promise<RawStoreItem[]> {
   const { data } = await port.getAdminByokCredential();
   return singleKeyItems(store, data.isSet, data.masked, data.updatedAt);
-}
-async function readComposioProject(port: OtherCredentialsPort, store: OtherCredentialStoreInfo): Promise<RawStoreItem[]> {
-  const config = await port.getComposioConfig();
-  return singleKeyItems(store, config.configured, config.apiKeyTail, null);
 }
 /** Every configured media-provider key — one row per provider whose `apiKeyConfigured` is true, not
  *  one row for the whole store (the owner's own mock names a SPECIFIC provider, "Cloudinary (media)",
@@ -147,22 +138,6 @@ async function readMediaProviders(port: OtherCredentialsPort): Promise<RawStoreI
       itemId: providerId,
       name: mediaProviderLabel(providerId),
       valueFact: maskedTailFact(credentials.apiKeyTail ?? ""),
-      updatedAt: null,
-    }));
-}
-/** Every connected Composio account — status comes from the lightweight live-status map
- *  (`getConnectorStatuses`), names from the static catalog (`listConnectors`, no live call) — see
- *  `other-credentials-port.hooks.ts`'s own doc for why two reads beat one heavier live refetch here.
- *  @complexity O(c) in Composio's own (small) connector catalog size. */
-async function readComposioConnectors(port: OtherCredentialsPort, t: Translate): Promise<RawStoreItem[]> {
-  const [{ connectors }, statuses] = await Promise.all([port.listConnectors(), port.getConnectorStatuses()]);
-  const nameById = new Map(connectors.map((connector) => [connector.id, connector.name]));
-  return Object.entries(statuses)
-    .filter(([, status]) => status.status === "connected" || status.status === "error")
-    .map(([connectorId, status]) => ({
-      itemId: connectorId,
-      name: nameById.get(connectorId) ?? connectorId,
-      valueFact: connectedAsFact(status.accountLabel, t),
       updatedAt: null,
     }));
 }
@@ -189,10 +164,6 @@ function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, 
       return readAdminByok(port, store);
     case "media-provider":
       return readMediaProviders(port);
-    case "composio-project":
-      return readComposioProject(port, store);
-    case "composio-connector":
-      return readComposioConnectors(port, t);
     case "external-mcp":
       return readExternalMcpServers(port, t);
   }
@@ -374,11 +345,9 @@ async function refetchOne(
 
 /** Dispatches one store's Replace write — the one place `OtherCredentialStoreId` is switched over
  *  for writes. `media-provider` rebuilds the whole map first (see {@link rebuildMediaProviderMap});
- *  every other supported store is a direct single-field PUT. Throws for `composio-connector`/
- *  `external-mcp` — unreachable in practice (`replace` itself checks `supportsReplace` first), kept
- *  as a defensive fallthrough rather than a silent no-op so a future caller that skips that check
- *  fails loudly instead of quietly doing nothing. @complexity O(1) plus the media-provider rebuild's
- *  own O(p). */
+ *  every other supported store is a direct single-field PUT. `external-mcp`
+ *  never reaches here (`replace` checks `supportsReplace` first). @complexity O(1) plus the
+ *  media-provider rebuild's own O(p). */
 async function writeReplace(port: OtherCredentialsPort, storeId: OtherCredentialStoreInfo["id"], itemId: string, apiKey: string): Promise<void> {
   if (storeId === "site-assistant") {
     await port.setSiteAssistantCredential({ apiKey });
@@ -386,10 +355,6 @@ async function writeReplace(port: OtherCredentialsPort, storeId: OtherCredential
   }
   if (storeId === "admin-byok") {
     await port.setAdminByokCredential({ apiKey });
-    return;
-  }
-  if (storeId === "composio-project") {
-    await port.saveComposioConfig(apiKey);
     return;
   }
   if (storeId === "media-provider") {
@@ -410,17 +375,9 @@ async function writeRemove(port: OtherCredentialsPort, storeId: OtherCredentialS
     await port.deleteAdminByokCredential();
     return;
   }
-  if (storeId === "composio-project") {
-    await port.saveComposioConfig(null);
-    return;
-  }
   if (storeId === "media-provider") {
     const current = await port.getMediaProviders();
     await port.saveMediaProviders(rebuildMediaProviderMap(current, itemId, { remove: true }));
-    return;
-  }
-  if (storeId === "composio-connector") {
-    await port.disconnectConnector(itemId);
     return;
   }
   await port.deleteExternalMcpServer(itemId);

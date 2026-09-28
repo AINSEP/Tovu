@@ -826,31 +826,25 @@ export function buildAdditionalHostsInput(raw: string): readonly string[] | unde
   return parsed.length > 0 ? parsed : undefined;
 }
 
-/** A stable id for one of the six Tier-2 credential stores — `AccessTokenRow.id`'s counterpart for
+/** A stable id for one of the four Tier-2 credential stores — `AccessTokenRow.id`'s counterpart for
  *  the stores this page reads through a completely different set of endpoints (see
- *  `hooks/other-credentials-port.hooks.ts`). Not a union of the underlying table names on purpose:
- *  `composio-connector`/`composio-project` are two different reads of the SAME `composio_config`/
- *  `composio_connector_credentials` pair (`ADS-memory/reports/design/2026-08-16-access-tokens-visual-
- *  spec.md` §1's eight-row table), and this id names the ROW this page renders, not the table. */
-export type OtherCredentialStoreId = "site-assistant" | "admin-byok" | "media-provider" | "composio-project" | "composio-connector" | "external-mcp";
+ *  `hooks/other-credentials-port.hooks.ts`). This id names the ROW this page renders, not the table. */
+export type OtherCredentialStoreId = "site-assistant" | "admin-byok" | "media-provider" | "external-mcp";
 
 /**
- * One Tier-2 credential store — single connection per scope, or per-connector/per-server, but never
+ * One Tier-2 credential store — single connection per scope, or per-provider/per-server, but never
  * *named* the way Tier 1 is (no operator-typed label, so no Name field and no `[+ Add]` — see
  * `Security.tsx`'s own header for why Create stays on each store's OWN screen). Read + Replace +
  * Remove + a deep link is the 2026-08-16 owner ruling for every row this produces
  * (`ACCESS-TOKENS-VISUAL-SPEC.md`'s "OWNER RULING" section) — `supportsReplace` narrows that for the
- * two stores where "replace" has no honest single-field meaning:
+ * one store where "replace" has no honest single-field meaning:
  *
- * - `composio-connector`: an OAuth-connected account, not a typed-in secret — there is no field to
- *   retype. "Replace" for this row is "reconnect," which only the Connectors screen's own OAuth popup
- *   can do; the deep link covers it, Remove (`disconnectConnector`) still applies here directly.
  * - `external-mcp`: a multi-field server config (transport, command, args, allowed tools), not a
  *   single token — a real "Replace" would have to reproduce that whole form, which is exactly the
  *   second-entry-point risk the session-6 handoff warns against for a cross-cutting page. Remove
  *   (`deleteExternalMcpServer`) still applies; editing the rest stays on Settings → External MCP.
  *
- * The other four (`site-assistant`, `admin-byok`, `media-provider`, `composio-project`) are all a
+ * The other three (`site-assistant`, `admin-byok`, `media-provider`) are all a
  * single `apiKey` field end to end — `supportsReplace: true`, wired through the same
  * retype-and-save shape Tier 1's own Replace already uses.
  */
@@ -858,8 +852,8 @@ export interface OtherCredentialStoreInfo {
   readonly id: OtherCredentialStoreId;
   /** The store's own generic label — shown as a row's heading only when the store has nothing
    *  configured yet (a "— none —" placeholder needs SOME name to search on); a configured row is
-   *  headed by its OWN item name instead (a media provider's catalog label, a connector's own name,
-   *  an MCP server's own label) — see `use-other-credentials.hooks.ts` for where that split happens. */
+   *  headed by its OWN item name instead (a media provider's catalog label, an MCP server's own
+   *  label) — see `use-other-credentials.hooks.ts` for where that split happens. */
   readonly label: string;
   /** The category-filter bucket this store's rows land in — see {@link ACCESS_TOKEN_CATEGORIES}. */
   readonly category: AccessTokenRowCategoryId;
@@ -875,11 +869,9 @@ export interface OtherCredentialStoreInfo {
 }
 
 /**
- * The six Tier-2 stores, in the order this page renders them within each category —
- * `development/todos.md:1208`'s eight-store inventory minus the two Tier 1 already covers
- * (`publish_credential_sets`, `source_control_credential_sets`). All eight are read in v1 (the
- * 2026-08-16 owner ruling deleted the old "showing 7 of 8" partial-inventory disclosure along with
- * the two-surface layout it was disclosing a gap in — see `AccessTokensTab.tsx`'s header).
+ * The four Tier-2 stores, in the order this page renders them within each category. The two
+ * Composio rows left on 2026-09-27 with the core Composio integration (now the `composio` agent
+ * plugin, whose sign-in lives in the `external-mcp` row).
  */
 export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
   {
@@ -910,24 +902,6 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     screenPath: "/providers?tab=media",
   },
   {
-    id: "composio-project",
-    label: "Composio project key",
-    category: "ops",
-    purposeLabel: "Ops",
-    supportsReplace: true,
-    screenLabel: "Providers · Composio",
-    screenPath: "/providers?tab=composio",
-  },
-  {
-    id: "composio-connector",
-    label: "Composio connector accounts",
-    category: "ops",
-    purposeLabel: "Ops",
-    supportsReplace: false,
-    screenLabel: "Providers · Composio",
-    screenPath: "/providers?tab=composio",
-  },
-  {
     id: "external-mcp",
     label: "External MCP servers",
     category: "ai",
@@ -940,7 +914,7 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
 
 /** Looks up one store's registry entry, falling back to the first — same "the row list can never
  *  render something absent from its own table" guarantee {@link accessTokenProviderInfo} gives Tier 1.
- *  @complexity O(1) — the array has exactly six entries. */
+ *  @complexity O(1) — the array has exactly four entries. */
 export function otherCredentialStoreInfo(id: OtherCredentialStoreId): OtherCredentialStoreInfo {
   return OTHER_CREDENTIAL_STORES.find((store) => store.id === id) ?? OTHER_CREDENTIAL_STORES[0]!;
 }
@@ -967,20 +941,12 @@ export function mediaProviderLabel(providerId: string): string {
 }
 
 /** The masked-tail value fact for a configured single-`apiKey` row (`site-assistant`/`admin-byok`/
- *  `media-provider`/`composio-project` — the four stores whose GET response carries a precomputed
- *  last-4, per the visual spec §10: "that's ALL they ever return"). `tail` is already the last 4
- *  characters with no leading `••••` — every one of those four API shapes name the field
- *  differently (`masked`, `apiKeyTail`) but agree on the bare-tail contract, so this is the one place
+ *  `media-provider` — the three stores whose GET response carries a precomputed last-4, per the
+ *  visual spec §10: "that's ALL they ever return"). `tail` is already the last 4 characters with no
+ *  leading `••••` — those API shapes agree on the bare-tail contract, so this is the one place
  *  that prefix gets added. @complexity O(1). */
 export function maskedTailFact(tail: string): string {
   return `••••${tail}`;
-}
-
-/** The value fact for an OAuth-connected `composio-connector` row — "Connected as: {label}" when
- *  Composio returned a human account label, or a bare "Connected" when it did not (a real, observed
- *  case: some connectors report status with no `accountLabel`). @complexity O(1). */
-export function connectedAsFact(accountLabel: string | undefined, t: Translate = (key) => key): string {
-  return accountLabel ? t("Connected as: {label}").replace("{label}", accountLabel) : t("Connected");
 }
 
 /** The value fact for an `external-mcp` row — there is no single token to characterize (§10: "no

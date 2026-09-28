@@ -6,13 +6,13 @@ import type { OtherCredentialStoreInfo } from "./rules";
 const SECURITY_DICT: Record<string, Record<string, string>> = {
   en: {
     "unknown error": "unknown error", "this workspace": "this workspace", All: "All", Secrets: "Secrets", "Source control": "Source control", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Ops", General: "General",
-    "External MCP servers": "External MCP servers", "Providers · External MCP": "Providers · External MCP", "No environment variables set": "No environment variables set", "1 environment variable set": "1 environment variable set", "{count} environment variables set": "{count} environment variables set", Connected: "Connected", "Connected as: {label}": "Connected as: {label}",
+    "External MCP servers": "External MCP servers", "Providers · External MCP": "Providers · External MCP", "No environment variables set": "No environment variables set", "1 environment variable set": "1 environment variable set", "{count} environment variables set": "{count} environment variables set",
     "A key is created automatically when this site starts.": "A key is created automatically when this site starts.",
   },
   es: {
     "Access Tokens": "Tokens de acceso", "Site Token": "Token del sitio", Operations: "Operaciones", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un solo lugar para ver todos los tokens de acceso de esta instalación y crear, rotar o eliminar uno sin buscar entre las pantallas que lo crearon.",
     "unknown error": "error desconocido", "this workspace": "este espacio de trabajo", All: "Todos", Secrets: "Secretos", "Source control": "Control de código fuente", Hosting: "Alojamiento", Media: "Medios", AI: "IA", Ops: "Operaciones", General: "General",
-    "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Proveedores · MCP externo", "No environment variables set": "No hay variables de entorno configuradas", "1 environment variable set": "1 variable de entorno configurada", "{count} environment variables set": "{count} variables de entorno configuradas", Connected: "Conectado", "Connected as: {label}": "Conectado como: {label}",
+    "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Proveedores · MCP externo", "No environment variables set": "No hay variables de entorno configuradas", "1 environment variable set": "1 variable de entorno configurada", "{count} environment variables set": "{count} variables de entorno configuradas",
     "Loading access tokens…": "Cargando tokens de acceso…", "Filter by category": "Filtrar por categoría", "+ Add custom provider": "+ Añadir proveedor personalizado", token: "token", saved: "guardado",
     "{count} token saved": "{count} token guardado", "{count} tokens saved": "{count} tokens guardados", "{matched} of {count} token matching “{query}”": "{matched} de {count} token que coincide con “{query}”", "{matched} of {count} tokens matching “{query}”": "{matched} de {count} tokens que coinciden con “{query}”",
     "Search access tokens": "Buscar tokens de acceso", "Search by provider, name, or purpose": "Buscar por proveedor, nombre o propósito", "Add another": "Añadir otro", "Not connected": "No conectado", Connect: "Conectar", "Replace token": "Reemplazar token", Default: "Predeterminado", "Make default": "Establecer como predeterminado",
@@ -31,14 +31,14 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Needs a Bitbucket API token scoped to repository access only (the \"read:repository:bitbucket\" and \"write:repository:bitbucket\" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.": "Necesita un token de API de Bitbucket limitado solo al acceso al repositorio (los permisos \"read:repository:bitbucket\" y \"write:repository:bitbucket\"), además del nombre de usuario de Bitbucket al que pertenece: Bitbucket autentica el par, no el token por sí solo.",
     "Paste the access token this provider issued from its own dashboard.": "Pega el token de acceso que este proveedor emitió desde su propio panel.",
     "Manage on": "Administrar en", "Not configured": "No configurado",
-    "Site assistant model key": "Clave de modelo del asistente del sitio", "Admin AI Assistant key (BYOK)": "Clave del asistente de IA de administración (BYOK)", "Media provider keys": "Claves de proveedores de medios", "Composio project key": "Clave de proyecto de Composio", "Composio connector accounts": "Cuentas de conectores de Composio",
-    "AI Assistant": "Asistente de IA", "Settings · Execution mode": "Configuración · Modo de ejecución", "Providers · Media": "Proveedores · Medios", "Providers · Composio": "Proveedores · Composio",
+    "Site assistant model key": "Clave de modelo del asistente del sitio", "Admin AI Assistant key (BYOK)": "Clave del asistente de IA de administración (BYOK)", "Media provider keys": "Claves de proveedores de medios",
+    "AI Assistant": "Asistente de IA", "Settings · Execution mode": "Configuración · Modo de ejecución", "Providers · Media": "Proveedores · Medios",
     "A key is created automatically when this site starts.": "La clave se crea automáticamente cuando este sitio se inicia.",
   },
   de: {
     "Access Tokens": "Zugriffstoken", "Site Token": "Website-Token", Operations: "Vorgänge", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Ein Ort, um alle Zugriffstoken dieser Installation zu sehen und eines zu erstellen, zu rotieren oder zu entfernen, ohne die Bildschirme durchsuchen zu müssen, die es erstellt haben.",
     "unknown error": "unbekannter Fehler", "this workspace": "dieser Arbeitsbereich", All: "Alle", Secrets: "Geheimnisse", "Source control": "Quellcodeverwaltung", Hosting: "Hosting", Media: "Medien", AI: "KI", Ops: "Betrieb", General: "Allgemein",
-    "External MCP servers": "Externe MCP-Server", "Providers · External MCP": "Anbieter · Externes MCP", "No environment variables set": "Keine Umgebungsvariablen festgelegt", "1 environment variable set": "1 Umgebungsvariable festgelegt", "{count} environment variables set": "{count} Umgebungsvariablen festgelegt", Connected: "Verbunden", "Connected as: {label}": "Verbunden als: {label}",
+    "External MCP servers": "Externe MCP-Server", "Providers · External MCP": "Anbieter · Externes MCP", "No environment variables set": "Keine Umgebungsvariablen festgelegt", "1 environment variable set": "1 Umgebungsvariable festgelegt", "{count} environment variables set": "{count} Umgebungsvariablen festgelegt",
     "Loading access tokens…": "Zugriffstoken werden geladen…", "Filter by category": "Nach Kategorie filtern", "+ Add custom provider": "+ Benutzerdefinierten Anbieter hinzufügen", token: "Token", saved: "gespeichert",
     "{count} token saved": "{count} Token gespeichert", "{count} tokens saved": "{count} Tokens gespeichert", "{matched} of {count} token matching “{query}”": "{matched} von {count} Token, das zu “{query}” passt", "{matched} of {count} tokens matching “{query}”": "{matched} von {count} Tokens, die zu “{query}” passen",
     "Search access tokens": "Zugriffstoken durchsuchen", "Search by provider, name, or purpose": "Nach Anbieter, Name oder Zweck suchen", "Add another": "Weiteres hinzufügen", "Not connected": "Nicht verbunden", Connect: "Verbinden", "Replace token": "Token ersetzen", Default: "Standard", "Make default": "Als Standard festlegen",
@@ -57,14 +57,14 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Needs a Bitbucket API token scoped to repository access only (the \"read:repository:bitbucket\" and \"write:repository:bitbucket\" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.": "Benötigt ein Bitbucket-API-Token, das ausschließlich auf Repository-Zugriff beschränkt ist (die Bereiche \"read:repository:bitbucket\" und \"write:repository:bitbucket\"), sowie den Bitbucket-Benutzernamen, zu dem es gehört — Bitbucket authentifiziert das Paar, nicht das Token allein.",
     "Paste the access token this provider issued from its own dashboard.": "Fügen Sie das Zugriffstoken ein, das dieser Anbieter über sein eigenes Dashboard ausgestellt hat.",
     "Manage on": "Verwalten unter", "Not configured": "Nicht konfiguriert",
-    "Site assistant model key": "Modellschlüssel des Website-Assistenten", "Admin AI Assistant key (BYOK)": "Admin-KI-Assistent-Schlüssel (BYOK)", "Media provider keys": "Medienanbieter-Schlüssel", "Composio project key": "Composio-Projektschlüssel", "Composio connector accounts": "Composio-Connector-Konten",
-    "AI Assistant": "KI-Assistent", "Settings · Execution mode": "Einstellungen · Ausführungsmodus", "Providers · Media": "Anbieter · Medien", "Providers · Composio": "Anbieter · Composio",
+    "Site assistant model key": "Modellschlüssel des Website-Assistenten", "Admin AI Assistant key (BYOK)": "Admin-KI-Assistent-Schlüssel (BYOK)", "Media provider keys": "Medienanbieter-Schlüssel",
+    "AI Assistant": "KI-Assistent", "Settings · Execution mode": "Einstellungen · Ausführungsmodus", "Providers · Media": "Anbieter · Medien",
     "A key is created automatically when this site starts.": "Ein Schlüssel wird automatisch erstellt, wenn diese Website startet.",
   },
   fr: {
     "Access Tokens": "Jetons d’accès", "Site Token": "Jeton du site", Operations: "Opérations", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un seul endroit pour voir tous les jetons d’accès de cette installation et en créer, renouveler ou supprimer un sans chercher parmi les écrans qui l’ont créé.",
     "unknown error": "erreur inconnue", "this workspace": "cet espace de travail", All: "Tous", Secrets: "Secrets", "Source control": "Gestion du code source", Hosting: "Hébergement", Media: "Médias", AI: "IA", Ops: "Opérations", General: "Général",
-    "External MCP servers": "Serveurs MCP externes", "Providers · External MCP": "Fournisseurs · MCP externe", "No environment variables set": "Aucune variable d'environnement définie", "1 environment variable set": "1 variable d'environnement définie", "{count} environment variables set": "{count} variables d'environnement définies", Connected: "Connecté", "Connected as: {label}": "Connecté en tant que : {label}",
+    "External MCP servers": "Serveurs MCP externes", "Providers · External MCP": "Fournisseurs · MCP externe", "No environment variables set": "Aucune variable d'environnement définie", "1 environment variable set": "1 variable d'environnement définie", "{count} environment variables set": "{count} variables d'environnement définies",
     "Loading access tokens…": "Chargement des jetons d'accès…", "Filter by category": "Filtrer par catégorie", "+ Add custom provider": "+ Ajouter un fournisseur personnalisé", token: "jeton", saved: "enregistré",
     "{count} token saved": "{count} jeton enregistré", "{count} tokens saved": "{count} jetons enregistrés", "{matched} of {count} token matching “{query}”": "{matched} sur {count} jeton correspondant à “{query}”", "{matched} of {count} tokens matching “{query}”": "{matched} sur {count} jetons correspondant à “{query}”",
     "Search access tokens": "Rechercher des jetons d'accès", "Search by provider, name, or purpose": "Rechercher par fournisseur, nom ou objet", "Add another": "Ajouter un autre", "Not connected": "Non connecté", Connect: "Connecter", "Replace token": "Remplacer le jeton", Default: "Par défaut", "Make default": "Définir par défaut",
@@ -83,14 +83,14 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Needs a Bitbucket API token scoped to repository access only (the \"read:repository:bitbucket\" and \"write:repository:bitbucket\" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.": "Nécessite un jeton API Bitbucket limité au seul accès au dépôt (les champs d'application \"read:repository:bitbucket\" et \"write:repository:bitbucket\"), ainsi que le nom d'utilisateur Bitbucket auquel il appartient — Bitbucket authentifie la paire, pas le jeton seul.",
     "Paste the access token this provider issued from its own dashboard.": "Collez le jeton d'accès que ce fournisseur a émis depuis son propre tableau de bord.",
     "Manage on": "Gérer sur", "Not configured": "Non configuré",
-    "Site assistant model key": "Clé de modèle de l'assistant du site", "Admin AI Assistant key (BYOK)": "Clé de l'assistant IA d'administration (BYOK)", "Media provider keys": "Clés des fournisseurs de médias", "Composio project key": "Clé de projet Composio", "Composio connector accounts": "Comptes connecteurs Composio",
-    "AI Assistant": "Assistant IA", "Settings · Execution mode": "Paramètres · Mode d'exécution", "Providers · Media": "Fournisseurs · Médias", "Providers · Composio": "Fournisseurs · Composio",
+    "Site assistant model key": "Clé de modèle de l'assistant du site", "Admin AI Assistant key (BYOK)": "Clé de l'assistant IA d'administration (BYOK)", "Media provider keys": "Clés des fournisseurs de médias",
+    "AI Assistant": "Assistant IA", "Settings · Execution mode": "Paramètres · Mode d'exécution", "Providers · Media": "Fournisseurs · Médias",
     "A key is created automatically when this site starts.": "Une clé est créée automatiquement au démarrage de ce site.",
   },
   it: {
     "Access Tokens": "Token di accesso", "Site Token": "Token del sito", Operations: "Operazioni", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un unico posto per vedere tutti i token di accesso di questa installazione e crearne, ruotarne o rimuoverne uno senza cercare nelle schermate che lo hanno creato.",
     "unknown error": "errore sconosciuto", "this workspace": "questo spazio di lavoro", All: "Tutti", Secrets: "Segreti", "Source control": "Controllo del codice sorgente", Hosting: "Hosting", Media: "Media", AI: "IA", Ops: "Operazioni", General: "Generale",
-    "External MCP servers": "Server MCP esterni", "Providers · External MCP": "Provider · MCP esterno", "No environment variables set": "Nessuna variabile d'ambiente impostata", "1 environment variable set": "1 variabile d'ambiente impostata", "{count} environment variables set": "{count} variabili d'ambiente impostate", Connected: "Connesso", "Connected as: {label}": "Connesso come: {label}",
+    "External MCP servers": "Server MCP esterni", "Providers · External MCP": "Provider · MCP esterno", "No environment variables set": "Nessuna variabile d'ambiente impostata", "1 environment variable set": "1 variabile d'ambiente impostata", "{count} environment variables set": "{count} variabili d'ambiente impostate",
     "Loading access tokens…": "Caricamento dei token di accesso…", "Filter by category": "Filtra per categoria", "+ Add custom provider": "+ Aggiungi provider personalizzato", token: "token", saved: "salvato",
     "{count} token saved": "{count} token salvato", "{count} tokens saved": "{count} token salvati", "{matched} of {count} token matching “{query}”": "{matched} su {count} token corrispondente a “{query}”", "{matched} of {count} tokens matching “{query}”": "{matched} su {count} token corrispondenti a “{query}”",
     "Search access tokens": "Cerca token di accesso", "Search by provider, name, or purpose": "Cerca per provider, nome o scopo", "Add another": "Aggiungine un altro", "Not connected": "Non connesso", Connect: "Connetti", "Replace token": "Sostituisci token", Default: "Predefinito", "Make default": "Imposta come predefinito",
@@ -109,14 +109,14 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Needs a Bitbucket API token scoped to repository access only (the \"read:repository:bitbucket\" and \"write:repository:bitbucket\" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.": "Richiede un token API Bitbucket limitato al solo accesso al repository (gli ambiti \"read:repository:bitbucket\" e \"write:repository:bitbucket\"), oltre al nome utente Bitbucket a cui appartiene — Bitbucket autentica la coppia, non il token da solo.",
     "Paste the access token this provider issued from its own dashboard.": "Incolla il token di accesso emesso da questo provider dalla sua dashboard.",
     "Manage on": "Gestisci su", "Not configured": "Non configurato",
-    "Site assistant model key": "Chiave del modello dell'assistente del sito", "Admin AI Assistant key (BYOK)": "Chiave dell'assistente IA di amministrazione (BYOK)", "Media provider keys": "Chiavi dei provider multimediali", "Composio project key": "Chiave di progetto Composio", "Composio connector accounts": "Account connettori Composio",
-    "AI Assistant": "Assistente IA", "Settings · Execution mode": "Impostazioni · Modalità di esecuzione", "Providers · Media": "Provider · Media", "Providers · Composio": "Provider · Composio",
+    "Site assistant model key": "Chiave del modello dell'assistente del sito", "Admin AI Assistant key (BYOK)": "Chiave dell'assistente IA di amministrazione (BYOK)", "Media provider keys": "Chiavi dei provider multimediali",
+    "AI Assistant": "Assistente IA", "Settings · Execution mode": "Impostazioni · Modalità di esecuzione", "Providers · Media": "Provider · Media",
     "A key is created automatically when this site starts.": "Una chiave viene creata automaticamente all'avvio di questo sito.",
   },
   "pt-BR": {
     "Access Tokens": "Tokens de acesso", "Site Token": "Token do site", Operations: "Operações", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Um só lugar para ver todos os tokens de acesso desta instalação e criar, alternar ou remover um sem procurar nas telas que o criaram.",
     "unknown error": "erro desconhecido", "this workspace": "este espaço de trabalho", All: "Todos", Secrets: "Segredos", "Source control": "Controle de código-fonte", Hosting: "Hospedagem", Media: "Mídia", AI: "IA", Ops: "Operações", General: "Geral",
-    "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Provedores · MCP externo", "No environment variables set": "Nenhuma variável de ambiente definida", "1 environment variable set": "1 variável de ambiente definida", "{count} environment variables set": "{count} variáveis de ambiente definidas", Connected: "Conectado", "Connected as: {label}": "Conectado como: {label}",
+    "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Provedores · MCP externo", "No environment variables set": "Nenhuma variável de ambiente definida", "1 environment variable set": "1 variável de ambiente definida", "{count} environment variables set": "{count} variáveis de ambiente definidas",
     "Loading access tokens…": "Carregando tokens de acesso…", "Filter by category": "Filtrar por categoria", "+ Add custom provider": "+ Adicionar provedor personalizado", token: "token", saved: "salvo",
     "{count} token saved": "{count} token salvo", "{count} tokens saved": "{count} tokens salvos", "{matched} of {count} token matching “{query}”": "{matched} de {count} token correspondente a “{query}”", "{matched} of {count} tokens matching “{query}”": "{matched} de {count} tokens correspondentes a “{query}”",
     "Search access tokens": "Pesquisar tokens de acesso", "Search by provider, name, or purpose": "Pesquisar por provedor, nome ou finalidade", "Add another": "Adicionar outro", "Not connected": "Não conectado", Connect: "Conectar", "Replace token": "Substituir token", Default: "Padrão", "Make default": "Tornar padrão",
@@ -135,14 +135,14 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Needs a Bitbucket API token scoped to repository access only (the \"read:repository:bitbucket\" and \"write:repository:bitbucket\" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.": "Precisa de um token de API do Bitbucket restrito apenas ao acesso ao repositório (os escopos \"read:repository:bitbucket\" e \"write:repository:bitbucket\"), além do nome de usuário do Bitbucket ao qual pertence — o Bitbucket autentica o par, não o token sozinho.",
     "Paste the access token this provider issued from its own dashboard.": "Cole o token de acesso que este provedor emitiu no próprio painel dele.",
     "Manage on": "Gerenciar em", "Not configured": "Não configurado",
-    "Site assistant model key": "Chave de modelo do assistente do site", "Admin AI Assistant key (BYOK)": "Chave do assistente de IA de administração (BYOK)", "Media provider keys": "Chaves de provedores de mídia", "Composio project key": "Chave de projeto do Composio", "Composio connector accounts": "Contas de conectores do Composio",
-    "AI Assistant": "Assistente de IA", "Settings · Execution mode": "Configurações · Modo de execução", "Providers · Media": "Provedores · Mídia", "Providers · Composio": "Provedores · Composio",
+    "Site assistant model key": "Chave de modelo do assistente do site", "Admin AI Assistant key (BYOK)": "Chave do assistente de IA de administração (BYOK)", "Media provider keys": "Chaves de provedores de mídia",
+    "AI Assistant": "Assistente de IA", "Settings · Execution mode": "Configurações · Modo de execução", "Providers · Media": "Provedores · Mídia",
     "A key is created automatically when this site starts.": "Uma chave é criada automaticamente quando este site é iniciado.",
   },
   pl: {
     "Access Tokens": "Tokeny dostępu", "Site Token": "Token witryny", Operations: "Operacje", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Jedno miejsce, aby zobaczyć wszystkie tokeny dostępu tej instalacji oraz utworzyć, zmienić lub usunąć token bez przeszukiwania ekranów, na których go utworzono.",
     "unknown error": "nieznany błąd", "this workspace": "ten obszar roboczy", All: "Wszystkie", Secrets: "Sekrety", "Source control": "Kontrola wersji", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Operacje", General: "Ogólne",
-    "External MCP servers": "Zewnętrzne serwery MCP", "Providers · External MCP": "Dostawcy · Zewnętrzne MCP", "No environment variables set": "Nie ustawiono zmiennych środowiskowych", "1 environment variable set": "Ustawiono 1 zmienną środowiskową", "{count} environment variables set": "Ustawiono {count} zmiennych środowiskowych", Connected: "Połączono", "Connected as: {label}": "Połączono jako: {label}",
+    "External MCP servers": "Zewnętrzne serwery MCP", "Providers · External MCP": "Dostawcy · Zewnętrzne MCP", "No environment variables set": "Nie ustawiono zmiennych środowiskowych", "1 environment variable set": "Ustawiono 1 zmienną środowiskową", "{count} environment variables set": "Ustawiono {count} zmiennych środowiskowych",
     "Loading access tokens…": "Wczytywanie tokenów dostępu…", "Filter by category": "Filtruj według kategorii", "+ Add custom provider": "+ Dodaj niestandardowego dostawcę", token: "token", saved: "zapisano",
     "{count} token saved": "Zapisano {count} token", "{count} tokens saved": "Zapisano {count} tokenów", "{matched} of {count} token matching “{query}”": "{matched} z {count} tokena pasującego do “{query}”", "{matched} of {count} tokens matching “{query}”": "{matched} z {count} tokenów pasujących do “{query}”",
     "Search access tokens": "Szukaj tokenów dostępu", "Search by provider, name, or purpose": "Szukaj według dostawcy, nazwy lub przeznaczenia", "Add another": "Dodaj kolejny", "Not connected": "Nie połączono", Connect: "Połącz", "Replace token": "Zamień token", Default: "Domyślny", "Make default": "Ustaw jako domyślny",
@@ -161,14 +161,14 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Needs a Bitbucket API token scoped to repository access only (the \"read:repository:bitbucket\" and \"write:repository:bitbucket\" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.": "Wymaga tokena API Bitbucket ograniczonego wyłącznie do dostępu do repozytorium (zakresy \"read:repository:bitbucket\" i \"write:repository:bitbucket\"), a także nazwy użytkownika Bitbucket, do którego należy — Bitbucket uwierzytelnia tę parę, nie sam token.",
     "Paste the access token this provider issued from its own dashboard.": "Wklej token dostępu wydany przez tego dostawcę z jego własnego panelu.",
     "Manage on": "Zarządzaj w", "Not configured": "Nie skonfigurowano",
-    "Site assistant model key": "Klucz modelu asystenta witryny", "Admin AI Assistant key (BYOK)": "Klucz asystenta AI administratora (BYOK)", "Media provider keys": "Klucze dostawców mediów", "Composio project key": "Klucz projektu Composio", "Composio connector accounts": "Konta konektorów Composio",
-    "AI Assistant": "Asystent AI", "Settings · Execution mode": "Ustawienia · Tryb wykonania", "Providers · Media": "Dostawcy · Media", "Providers · Composio": "Dostawcy · Composio",
+    "Site assistant model key": "Klucz modelu asystenta witryny", "Admin AI Assistant key (BYOK)": "Klucz asystenta AI administratora (BYOK)", "Media provider keys": "Klucze dostawców mediów",
+    "AI Assistant": "Asystent AI", "Settings · Execution mode": "Ustawienia · Tryb wykonania", "Providers · Media": "Dostawcy · Media",
     "A key is created automatically when this site starts.": "Klucz jest tworzony automatycznie podczas uruchamiania tej witryny.",
   },
   hu: {
     "Access Tokens": "Hozzáférési tokenek", "Site Token": "Webhelytoken", Operations: "Műveletek", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Egy helyen láthatja a telepítés összes hozzáférési tokenjét, és létrehozhat, lecserélhet vagy eltávolíthat egyet anélkül, hogy végig kellene keresnie a létrehozó képernyőket.",
     "unknown error": "ismeretlen hiba", "this workspace": "ez a munkaterület", All: "Összes", Secrets: "Titkok", "Source control": "Forráskód-kezelés", Hosting: "Tárhely", Media: "Média", AI: "MI", Ops: "Műveletek", General: "Általános",
-    "External MCP servers": "Külső MCP-kiszolgálók", "Providers · External MCP": "Szolgáltatók · Külső MCP", "No environment variables set": "Nincsenek beállított környezeti változók", "1 environment variable set": "1 környezeti változó van beállítva", "{count} environment variables set": "{count} környezeti változó van beállítva", Connected: "Csatlakoztatva", "Connected as: {label}": "Csatlakozva mint: {label}",
+    "External MCP servers": "Külső MCP-kiszolgálók", "Providers · External MCP": "Szolgáltatók · Külső MCP", "No environment variables set": "Nincsenek beállított környezeti változók", "1 environment variable set": "1 környezeti változó van beállítva", "{count} environment variables set": "{count} környezeti változó van beállítva",
     "Loading access tokens…": "Hozzáférési tokenek betöltése…", "Filter by category": "Szűrés kategória szerint", "+ Add custom provider": "+ Egyéni szolgáltató hozzáadása", token: "token", saved: "mentve",
     "{count} token saved": "{count} token mentve", "{count} tokens saved": "{count} token mentve", "{matched} of {count} token matching “{query}”": "{matched} a {count} tokenből, amely megfelel ennek: “{query}”", "{matched} of {count} tokens matching “{query}”": "{matched} a {count} tokenből, amely megfelel ennek: “{query}”",
     "Search access tokens": "Hozzáférési tokenek keresése", "Search by provider, name, or purpose": "Keresés szolgáltató, név vagy cél szerint", "Add another": "Másik hozzáadása", "Not connected": "Nincs csatlakoztatva", Connect: "Csatlakozás", "Replace token": "Token cseréje", Default: "Alapértelmezett", "Make default": "Beállítás alapértelmezettként",
@@ -187,14 +187,14 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Needs a Bitbucket API token scoped to repository access only (the \"read:repository:bitbucket\" and \"write:repository:bitbucket\" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.": "Bitbucket API-token szükséges, amely kizárólag tárolóhozzáférésre korlátozódik (a \"read:repository:bitbucket\" és \"write:repository:bitbucket\" hatókörök), valamint a Bitbucket-felhasználónév, amelyhez tartozik — a Bitbucket a párost hitelesíti, nem önmagában a tokent.",
     "Paste the access token this provider issued from its own dashboard.": "Illessze be a hozzáférési tokent, amelyet ez a szolgáltató a saját irányítópultjáról adott ki.",
     "Manage on": "Kezelés itt:", "Not configured": "Nincs beállítva",
-    "Site assistant model key": "Webhelyasszisztens modellkulcsa", "Admin AI Assistant key (BYOK)": "Admin AI-asszisztens kulcs (BYOK)", "Media provider keys": "Médiaszolgáltatói kulcsok", "Composio project key": "Composio projektkulcs", "Composio connector accounts": "Composio konnektorfiókok",
-    "AI Assistant": "AI-asszisztens", "Settings · Execution mode": "Beállítások · Végrehajtási mód", "Providers · Media": "Szolgáltatók · Média", "Providers · Composio": "Szolgáltatók · Composio",
+    "Site assistant model key": "Webhelyasszisztens modellkulcsa", "Admin AI Assistant key (BYOK)": "Admin AI-asszisztens kulcs (BYOK)", "Media provider keys": "Médiaszolgáltatói kulcsok",
+    "AI Assistant": "AI-asszisztens", "Settings · Execution mode": "Beállítások · Végrehajtási mód", "Providers · Media": "Szolgáltatók · Média",
     "A key is created automatically when this site starts.": "A kulcs automatikusan létrejön, amikor ez a webhely elindul.",
   },
   tr: {
     "Access Tokens": "Erişim belirteçleri", "Site Token": "Site belirteci", Operations: "İşlemler", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Bu kurulumdaki tüm erişim belirteçlerini görebileceğiniz ve onu oluşturan ekranlarda aramadan bir belirteç oluşturabileceğiniz, değiştirebileceğiniz veya kaldırabileceğiniz tek yer.",
     "unknown error": "bilinmeyen hata", "this workspace": "bu çalışma alanı", All: "Tümü", Secrets: "Gizli bilgiler", "Source control": "Kaynak kod yönetimi", Hosting: "Barındırma", Media: "Medya", AI: "YZ", Ops: "İşlemler", General: "Genel",
-    "External MCP servers": "Harici MCP sunucuları", "Providers · External MCP": "Sağlayıcılar · Harici MCP", "No environment variables set": "Ortam değişkeni ayarlanmadı", "1 environment variable set": "1 ortam değişkeni ayarlandı", "{count} environment variables set": "{count} ortam değişkeni ayarlandı", Connected: "Bağlandı", "Connected as: {label}": "Şu olarak bağlandı: {label}",
+    "External MCP servers": "Harici MCP sunucuları", "Providers · External MCP": "Sağlayıcılar · Harici MCP", "No environment variables set": "Ortam değişkeni ayarlanmadı", "1 environment variable set": "1 ortam değişkeni ayarlandı", "{count} environment variables set": "{count} ortam değişkeni ayarlandı",
     "Loading access tokens…": "Erişim jetonları yükleniyor…",
     "Filter by category": "Kategoriye göre filtrele",
     "+ Add custom provider": "+ Özel sağlayıcı ekle",
@@ -249,18 +249,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Site asistanı model anahtarı",
     "Admin AI Assistant key (BYOK)": "Yönetici AI Asistanı anahtarı (BYOK)",
     "Media provider keys": "Medya sağlayıcı anahtarları",
-    "Composio project key": "Composio proje anahtarı",
-    "Composio connector accounts": "Composio konektör hesapları",
+
+
     "AI Assistant": "AI Asistanı",
     "Settings · Execution mode": "Ayarlar · Yürütme modu",
     "Providers · Media": "Sağlayıcılar · Medya",
-    "Providers · Composio": "Sağlayıcılar · Composio",
+
     "A key is created automatically when this site starts.": "Bu site başladığında bir anahtar otomatik olarak oluşturulur.",
   },
   ru: {
     "Access Tokens": "Токены доступа", "Site Token": "Токен сайта", Operations: "Операции", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одно место, где можно увидеть все токены доступа этой установки, создать, заменить или удалить токен без поиска по экранам, в которых он был создан.",
     "unknown error": "неизвестная ошибка", "this workspace": "это рабочее пространство", All: "Все", Secrets: "Секреты", "Source control": "Управление исходным кодом", Hosting: "Хостинг", Media: "Медиа", AI: "ИИ", Ops: "Операции", General: "Общее",
-    "External MCP servers": "Внешние серверы MCP", "Providers · External MCP": "Провайдеры · Внешний MCP", "No environment variables set": "Переменные окружения не заданы", "1 environment variable set": "Задана 1 переменная окружения", "{count} environment variables set": "Задано переменных окружения: {count}", Connected: "Подключено", "Connected as: {label}": "Подключено как: {label}",
+    "External MCP servers": "Внешние серверы MCP", "Providers · External MCP": "Провайдеры · Внешний MCP", "No environment variables set": "Переменные окружения не заданы", "1 environment variable set": "Задана 1 переменная окружения", "{count} environment variables set": "Задано переменных окружения: {count}",
     "Loading access tokens…": "Загрузка токенов доступа…",
     "Filter by category": "Фильтр по категории",
     "+ Add custom provider": "+ Добавить пользовательского провайдера",
@@ -315,18 +315,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Ключ модели ассистента сайта",
     "Admin AI Assistant key (BYOK)": "Ключ AI-ассистента администратора (BYOK)",
     "Media provider keys": "Ключи провайдеров медиа",
-    "Composio project key": "Ключ проекта Composio",
-    "Composio connector accounts": "Учётные записи коннекторов Composio",
+
+
     "AI Assistant": "AI-ассистент",
     "Settings · Execution mode": "Настройки · Режим выполнения",
     "Providers · Media": "Провайдеры · Медиа",
-    "Providers · Composio": "Провайдеры · Composio",
+
     "A key is created automatically when this site starts.": "Ключ создаётся автоматически при запуске этого сайта.",
   },
   uk: {
     "Access Tokens": "Токени доступу", "Site Token": "Токен сайту", Operations: "Операції", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одне місце, щоб переглянути всі токени доступу цієї інсталяції та створити, замінити чи вилучити токен без пошуку на екранах, де його створено.",
     "unknown error": "невідома помилка", "this workspace": "цей робочий простір", All: "Усі", Secrets: "Секрети", "Source control": "Керування вихідним кодом", Hosting: "Хостинг", Media: "Медіа", AI: "ШІ", Ops: "Операції", General: "Загальне",
-    "External MCP servers": "Зовнішні сервери MCP", "Providers · External MCP": "Постачальники · Зовнішній MCP", "No environment variables set": "Змінні середовища не встановлено", "1 environment variable set": "Встановлено 1 змінну середовища", "{count} environment variables set": "Встановлено змінних середовища: {count}", Connected: "Підключено", "Connected as: {label}": "Підключено як: {label}",
+    "External MCP servers": "Зовнішні сервери MCP", "Providers · External MCP": "Постачальники · Зовнішній MCP", "No environment variables set": "Змінні середовища не встановлено", "1 environment variable set": "Встановлено 1 змінну середовища", "{count} environment variables set": "Встановлено змінних середовища: {count}",
     "Loading access tokens…": "Завантаження токенів доступу…",
     "Filter by category": "Фільтр за категорією",
     "+ Add custom provider": "+ Додати власного провайдера",
@@ -381,18 +381,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Ключ моделі асистента сайту",
     "Admin AI Assistant key (BYOK)": "Ключ AI-асистента адміністратора (BYOK)",
     "Media provider keys": "Ключі провайдерів медіа",
-    "Composio project key": "Ключ проєкту Composio",
-    "Composio connector accounts": "Облікові записи конекторів Composio",
+
+
     "AI Assistant": "AI-асистент",
     "Settings · Execution mode": "Налаштування · Режим виконання",
     "Providers · Media": "Провайдери · Медіа",
-    "Providers · Composio": "Провайдери · Composio",
+
     "A key is created automatically when this site starts.": "Ключ створюється автоматично під час запуску цього сайту.",
   },
   id: {
     "Access Tokens": "Token akses", "Site Token": "Token situs", Operations: "Operasi", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Satu tempat untuk melihat setiap token akses yang dimiliki instalasi ini, serta membuat, merotasi, atau menghapusnya tanpa mencari di layar yang membuatnya.",
     "unknown error": "kesalahan tidak diketahui", "this workspace": "ruang kerja ini", All: "Semua", Secrets: "Rahasia", "Source control": "Kontrol sumber", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Operasi", General: "Umum",
-    "External MCP servers": "Server MCP eksternal", "Providers · External MCP": "Penyedia · MCP eksternal", "No environment variables set": "Tidak ada variabel lingkungan yang ditetapkan", "1 environment variable set": "1 variabel lingkungan ditetapkan", "{count} environment variables set": "{count} variabel lingkungan ditetapkan", Connected: "Terhubung", "Connected as: {label}": "Terhubung sebagai: {label}",
+    "External MCP servers": "Server MCP eksternal", "Providers · External MCP": "Penyedia · MCP eksternal", "No environment variables set": "Tidak ada variabel lingkungan yang ditetapkan", "1 environment variable set": "1 variabel lingkungan ditetapkan", "{count} environment variables set": "{count} variabel lingkungan ditetapkan",
     "Loading access tokens…": "Memuat token akses…",
     "Filter by category": "Filter berdasarkan kategori",
     "+ Add custom provider": "+ Tambah penyedia khusus",
@@ -447,18 +447,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Kunci model asisten situs",
     "Admin AI Assistant key (BYOK)": "Kunci AI Assistant admin (BYOK)",
     "Media provider keys": "Kunci penyedia media",
-    "Composio project key": "Kunci proyek Composio",
-    "Composio connector accounts": "Akun konektor Composio",
+
+
     "AI Assistant": "AI Assistant",
     "Settings · Execution mode": "Pengaturan · Mode eksekusi",
     "Providers · Media": "Penyedia · Media",
-    "Providers · Composio": "Penyedia · Composio",
+
     "A key is created automatically when this site starts.": "Kunci dibuat secara otomatis saat situs ini dimulai.",
   },
   ar: {
     "Access Tokens": "رموز الوصول", "Site Token": "رمز الموقع", Operations: "العمليات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "مكان واحد لرؤية كل رموز الوصول التي يحتفظ بها هذا التثبيت، وإنشاء أحدها أو تدويره أو إزالته دون البحث في الشاشات التي أنشأته.",
     "unknown error": "خطأ غير معروف", "this workspace": "مساحة العمل هذه", All: "الكل", Secrets: "الأسرار", "Source control": "إدارة الشفرة المصدرية", Hosting: "الاستضافة", Media: "الوسائط", AI: "الذكاء الاصطناعي", Ops: "العمليات", General: "عام",
-    "External MCP servers": "خوادم MCP الخارجية", "Providers · External MCP": "الموفرون · MCP خارجي", "No environment variables set": "لم يتم تعيين متغيرات بيئة", "1 environment variable set": "تم تعيين متغير بيئة واحد", "{count} environment variables set": "تم تعيين {count} من متغيرات البيئة", Connected: "متصل", "Connected as: {label}": "متصل باسم: {label}",
+    "External MCP servers": "خوادم MCP الخارجية", "Providers · External MCP": "الموفرون · MCP خارجي", "No environment variables set": "لم يتم تعيين متغيرات بيئة", "1 environment variable set": "تم تعيين متغير بيئة واحد", "{count} environment variables set": "تم تعيين {count} من متغيرات البيئة",
     "Loading access tokens…": "جارٍ تحميل رموز الوصول…",
     "Filter by category": "التصفية حسب الفئة",
     "+ Add custom provider": "+ إضافة مزوّد مخصص",
@@ -513,18 +513,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "مفتاح نموذج مساعد الموقع",
     "Admin AI Assistant key (BYOK)": "مفتاح مساعد الذكاء الاصطناعي للمسؤول (BYOK)",
     "Media provider keys": "مفاتيح مزوّدي الوسائط",
-    "Composio project key": "مفتاح مشروع Composio",
-    "Composio connector accounts": "حسابات موصلات Composio",
+
+
     "AI Assistant": "مساعد الذكاء الاصطناعي",
     "Settings · Execution mode": "الإعدادات · وضع التنفيذ",
     "Providers · Media": "المزوّدون · الوسائط",
-    "Providers · Composio": "المزوّدون · Composio",
+
     "A key is created automatically when this site starts.": "يتم إنشاء مفتاح تلقائيًا عند بدء تشغيل هذا الموقع.",
   },
   fa: {
     "Access Tokens": "توکن‌های دسترسی", "Site Token": "توکن سایت", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "یک جا برای دیدن همهٔ توکن‌های دسترسی این نصب و ایجاد، چرخش یا حذف یکی از آن‌ها، بدون جست‌وجو در صفحه‌هایی که آن را ساخته‌اند.",
     "unknown error": "خطای ناشناخته", "this workspace": "این فضای کاری", All: "همه", Secrets: "اسرار", "Source control": "کنترل کد منبع", Hosting: "میزبانی", Media: "رسانه", AI: "هوش مصنوعی", Ops: "عملیات", General: "عمومی",
-    "External MCP servers": "سرورهای MCP خارجی", "Providers · External MCP": "ارائه‌دهندگان · MCP خارجی", "No environment variables set": "هیچ متغیر محیطی تنظیم نشده است", "1 environment variable set": "۱ متغیر محیطی تنظیم شده است", "{count} environment variables set": "{count} متغیر محیطی تنظیم شده است", Connected: "متصل", "Connected as: {label}": "متصل به‌عنوان: {label}",
+    "External MCP servers": "سرورهای MCP خارجی", "Providers · External MCP": "ارائه‌دهندگان · MCP خارجی", "No environment variables set": "هیچ متغیر محیطی تنظیم نشده است", "1 environment variable set": "۱ متغیر محیطی تنظیم شده است", "{count} environment variables set": "{count} متغیر محیطی تنظیم شده است",
     "Loading access tokens…": "در حال بارگذاری توکن‌های دسترسی…",
     "Filter by category": "فیلتر بر اساس دسته",
     "+ Add custom provider": "+ افزودن ارائه‌دهنده سفارشی",
@@ -579,18 +579,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "کلید مدل دستیار سایت",
     "Admin AI Assistant key (BYOK)": "کلید دستیار هوش مصنوعی مدیر (BYOK)",
     "Media provider keys": "کلیدهای ارائه‌دهندگان رسانه",
-    "Composio project key": "کلید پروژه Composio",
-    "Composio connector accounts": "حساب‌های کانکتور Composio",
+
+
     "AI Assistant": "دستیار هوش مصنوعی",
     "Settings · Execution mode": "تنظیمات · حالت اجرا",
     "Providers · Media": "ارائه‌دهندگان · رسانه",
-    "Providers · Composio": "ارائه‌دهندگان · Composio",
+
     "A key is created automatically when this site starts.": "کلید هنگام شروع این سایت به‌طور خودکار ایجاد می‌شود.",
   },
   hi: {
     "Access Tokens": "एक्सेस टोकन", "Site Token": "साइट टोकन", Operations: "संचालन", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "इस इंस्टॉलेशन के सभी एक्सेस टोकन देखने और उन्हें बनाने, बदलने या हटाने के लिए एक जगह, बिना उन्हें बनाने वाली स्क्रीन खोजे।",
     "unknown error": "अज्ञात त्रुटि", "this workspace": "यह कार्यस्थान", All: "सभी", Secrets: "रहस्य", "Source control": "स्रोत नियंत्रण", Hosting: "होस्टिंग", Media: "मीडिया", AI: "AI", Ops: "संचालन", General: "सामान्य",
-    "External MCP servers": "बाहरी MCP सर्वर", "Providers · External MCP": "प्रदाता · बाहरी MCP", "No environment variables set": "कोई परिवेश चर सेट नहीं है", "1 environment variable set": "1 परिवेश चर सेट है", "{count} environment variables set": "{count} परिवेश चर सेट हैं", Connected: "कनेक्टेड", "Connected as: {label}": "इस रूप में कनेक्टेड: {label}",
+    "External MCP servers": "बाहरी MCP सर्वर", "Providers · External MCP": "प्रदाता · बाहरी MCP", "No environment variables set": "कोई परिवेश चर सेट नहीं है", "1 environment variable set": "1 परिवेश चर सेट है", "{count} environment variables set": "{count} परिवेश चर सेट हैं",
     "Loading access tokens…": "एक्सेस टोकन लोड हो रहे हैं…",
     "Filter by category": "श्रेणी के अनुसार फ़िल्टर करें",
     "+ Add custom provider": "+ कस्टम प्रदाता जोड़ें",
@@ -645,18 +645,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "साइट असिस्टेंट मॉडल कुंजी",
     "Admin AI Assistant key (BYOK)": "एडमिन AI असिस्टेंट कुंजी (BYOK)",
     "Media provider keys": "मीडिया प्रदाता कुंजियां",
-    "Composio project key": "Composio प्रोजेक्ट कुंजी",
-    "Composio connector accounts": "Composio कनेक्टर खाते",
+
+
     "AI Assistant": "AI असिस्टेंट",
     "Settings · Execution mode": "सेटिंग्स · निष्पादन मोड",
     "Providers · Media": "प्रदाता · मीडिया",
-    "Providers · Composio": "प्रदाता · Composio",
+
     "A key is created automatically when this site starts.": "यह साइट शुरू होने पर कुंजी स्वचालित रूप से बन जाती है।",
   },
   bn: {
     "Access Tokens": "অ্যাক্সেস টোকেন", "Site Token": "সাইট টোকেন", Operations: "কার্যক্রম", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "এই ইনস্টলেশনের সব অ্যাক্সেস টোকেন দেখার এবং যে স্ক্রিনে তৈরি হয়েছে তা খুঁজে না বেড়িয়ে টোকেন তৈরি, পরিবর্তন বা সরানোর একটি জায়গা।",
     "unknown error": "অজানা ত্রুটি", "this workspace": "এই কর্মক্ষেত্র", All: "সব", Secrets: "গোপন তথ্য", "Source control": "সোর্স নিয়ন্ত্রণ", Hosting: "হোস্টিং", Media: "মিডিয়া", AI: "AI", Ops: "কার্যক্রম", General: "সাধারণ",
-    "External MCP servers": "বাহ্যিক MCP সার্ভার", "Providers · External MCP": "প্রদানকারী · বাহ্যিক MCP", "No environment variables set": "কোনো পরিবেশ ভেরিয়েবল সেট করা নেই", "1 environment variable set": "1টি পরিবেশ ভেরিয়েবল সেট করা আছে", "{count} environment variables set": "{count}টি পরিবেশ ভেরিয়েবল সেট করা আছে", Connected: "সংযুক্ত", "Connected as: {label}": "এই হিসেবে সংযুক্ত: {label}",
+    "External MCP servers": "বাহ্যিক MCP সার্ভার", "Providers · External MCP": "প্রদানকারী · বাহ্যিক MCP", "No environment variables set": "কোনো পরিবেশ ভেরিয়েবল সেট করা নেই", "1 environment variable set": "1টি পরিবেশ ভেরিয়েবল সেট করা আছে", "{count} environment variables set": "{count}টি পরিবেশ ভেরিয়েবল সেট করা আছে",
     "Loading access tokens…": "অ্যাক্সেস টোকেন লোড হচ্ছে…",
     "Filter by category": "বিভাগ অনুসারে ফিল্টার করুন",
     "+ Add custom provider": "+ কাস্টম প্রদানকারী যোগ করুন",
@@ -711,18 +711,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "সাইট অ্যাসিস্ট্যান্ট মডেল কী",
     "Admin AI Assistant key (BYOK)": "অ্যাডমিন AI অ্যাসিস্ট্যান্ট কী (BYOK)",
     "Media provider keys": "মিডিয়া প্রদানকারী কী",
-    "Composio project key": "Composio প্রজেক্ট কী",
-    "Composio connector accounts": "Composio কানেক্টর অ্যাকাউন্ট",
+
+
     "AI Assistant": "AI অ্যাসিস্ট্যান্ট",
     "Settings · Execution mode": "সেটিংস · এক্সিকিউশন মোড",
     "Providers · Media": "প্রদানকারী · মিডিয়া",
-    "Providers · Composio": "প্রদানকারী · Composio",
+
     "A key is created automatically when this site starts.": "এই সাইট শুরু হলে একটি কী স্বয়ংক্রিয়ভাবে তৈরি হয়।",
   },
   ur: {
     "Access Tokens": "رسائی ٹوکن", "Site Token": "سائٹ ٹوکن", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "اس انسٹالیشن کے تمام رسائی ٹوکن دیکھنے اور انہیں بنانے، تبدیل کرنے یا ہٹانے کے لیے ایک جگہ، انہیں بنانے والی اسکرینیں ڈھونڈے بغیر۔",
     "unknown error": "نامعلوم خرابی", "this workspace": "یہ ورک اسپیس", All: "سب", Secrets: "راز", "Source control": "ماخذ کنٹرول", Hosting: "ہوسٹنگ", Media: "میڈیا", AI: "AI", Ops: "عملیات", General: "عمومی",
-    "External MCP servers": "بیرونی MCP سرورز", "Providers · External MCP": "فراہم کنندگان · بیرونی MCP", "No environment variables set": "کوئی ماحول متغیر سیٹ نہیں ہے", "1 environment variable set": "1 ماحول متغیر سیٹ ہے", "{count} environment variables set": "{count} ماحول متغیر سیٹ ہیں", Connected: "منسلک", "Connected as: {label}": "بطور منسلک: {label}",
+    "External MCP servers": "بیرونی MCP سرورز", "Providers · External MCP": "فراہم کنندگان · بیرونی MCP", "No environment variables set": "کوئی ماحول متغیر سیٹ نہیں ہے", "1 environment variable set": "1 ماحول متغیر سیٹ ہے", "{count} environment variables set": "{count} ماحول متغیر سیٹ ہیں",
     "Loading access tokens…": "رسائی ٹوکنز لوڈ ہو رہے ہیں…",
     "Filter by category": "قسم کے مطابق فلٹر کریں",
     "+ Add custom provider": "+ کسٹم فراہم کنندہ شامل کریں",
@@ -777,18 +777,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "سائٹ اسسٹنٹ ماڈل کلید",
     "Admin AI Assistant key (BYOK)": "ایڈمن AI اسسٹنٹ کلید (BYOK)",
     "Media provider keys": "میڈیا فراہم کنندہ کلیدیں",
-    "Composio project key": "Composio پروجیکٹ کلید",
-    "Composio connector accounts": "Composio کنیکٹر اکاؤنٹس",
+
+
     "AI Assistant": "AI اسسٹنٹ",
     "Settings · Execution mode": "ترتیبات · عملدرآمد موڈ",
     "Providers · Media": "فراہم کنندگان · میڈیا",
-    "Providers · Composio": "فراہم کنندگان · Composio",
+
     "A key is created automatically when this site starts.": "جب یہ سائٹ شروع ہوتی ہے تو ایک کی خودکار طور پر بن جاتی ہے۔",
   },
   ja: {
     "Access Tokens": "アクセストークン", "Site Token": "サイトトークン", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "このインストールが保持するすべてのアクセストークンを確認し、作成元の画面を探し回らずに作成、ローテーション、削除できる場所です。",
     "unknown error": "不明なエラー", "this workspace": "このワークスペース", All: "すべて", Secrets: "シークレット", "Source control": "ソース管理", Hosting: "ホスティング", Media: "メディア", AI: "AI", Ops: "運用", General: "一般",
-    "External MCP servers": "外部 MCP サーバー", "Providers · External MCP": "プロバイダー · 外部 MCP", "No environment variables set": "環境変数は設定されていません", "1 environment variable set": "環境変数が 1 件設定されています", "{count} environment variables set": "環境変数が {count} 件設定されています", Connected: "接続済み", "Connected as: {label}": "接続先: {label}",
+    "External MCP servers": "外部 MCP サーバー", "Providers · External MCP": "プロバイダー · 外部 MCP", "No environment variables set": "環境変数は設定されていません", "1 environment variable set": "環境変数が 1 件設定されています", "{count} environment variables set": "環境変数が {count} 件設定されています",
     "Loading access tokens…": "アクセストークンを読み込み中…",
     "Filter by category": "カテゴリで絞り込む",
     "+ Add custom provider": "+ カスタムプロバイダーを追加",
@@ -843,18 +843,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "サイトアシスタントモデルキー",
     "Admin AI Assistant key (BYOK)": "管理者AIアシスタントキー（BYOK）",
     "Media provider keys": "メディアプロバイダーキー",
-    "Composio project key": "Composioプロジェクトキー",
-    "Composio connector accounts": "Composioコネクターアカウント",
+
+
     "AI Assistant": "AIアシスタント",
     "Settings · Execution mode": "設定 · 実行モード",
     "Providers · Media": "プロバイダー · メディア",
-    "Providers · Composio": "プロバイダー · Composio",
+
     "A key is created automatically when this site starts.": "このサイトが起動すると、キーが自動的に作成されます。",
   },
   ko: {
     "Access Tokens": "액세스 토큰", "Site Token": "사이트 토큰", Operations: "작업", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "이 설치에 있는 모든 액세스 토큰을 보고, 생성한 화면을 찾지 않아도 토큰을 만들고 교체하거나 제거할 수 있는 곳입니다.",
     "unknown error": "알 수 없는 오류", "this workspace": "이 작업 공간", All: "전체", Secrets: "비밀", "Source control": "소스 제어", Hosting: "호스팅", Media: "미디어", AI: "AI", Ops: "운영", General: "일반",
-    "External MCP servers": "외부 MCP 서버", "Providers · External MCP": "공급자 · 외부 MCP", "No environment variables set": "설정된 환경 변수가 없습니다", "1 environment variable set": "환경 변수 1개가 설정되었습니다", "{count} environment variables set": "환경 변수 {count}개가 설정되었습니다", Connected: "연결됨", "Connected as: {label}": "다음으로 연결됨: {label}",
+    "External MCP servers": "외부 MCP 서버", "Providers · External MCP": "공급자 · 외부 MCP", "No environment variables set": "설정된 환경 변수가 없습니다", "1 environment variable set": "환경 변수 1개가 설정되었습니다", "{count} environment variables set": "환경 변수 {count}개가 설정되었습니다",
     "Loading access tokens…": "액세스 토큰 불러오는 중…",
     "Filter by category": "카테고리별로 필터링",
     "+ Add custom provider": "+ 사용자 지정 공급자 추가",
@@ -909,18 +909,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "사이트 어시스턴트 모델 키",
     "Admin AI Assistant key (BYOK)": "관리자 AI 어시스턴트 키(BYOK)",
     "Media provider keys": "미디어 공급자 키",
-    "Composio project key": "Composio 프로젝트 키",
-    "Composio connector accounts": "Composio 커넥터 계정",
+
+
     "AI Assistant": "AI 어시스턴트",
     "Settings · Execution mode": "설정 · 실행 모드",
     "Providers · Media": "공급자 · 미디어",
-    "Providers · Composio": "공급자 · Composio",
+
     "A key is created automatically when this site starts.": "이 사이트가 시작되면 키가 자동으로 생성됩니다.",
   },
   th: {
     "Access Tokens": "โทเค็นการเข้าถึง", "Site Token": "โทเค็นเว็บไซต์", Operations: "การดำเนินการ", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "ที่เดียวสำหรับดูโทเค็นการเข้าถึงทั้งหมดของการติดตั้งนี้ และสร้าง หมุนเวียน หรือลบโทเค็นโดยไม่ต้องค้นหาจากหน้าจอที่สร้างโทเค็นนั้น",
     "unknown error": "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "this workspace": "พื้นที่ทำงานนี้", All: "ทั้งหมด", Secrets: "ความลับ", "Source control": "การควบคุมซอร์ส", Hosting: "โฮสติ้ง", Media: "สื่อ", AI: "AI", Ops: "การดำเนินงาน", General: "ทั่วไป",
-    "External MCP servers": "เซิร์ฟเวอร์ MCP ภายนอก", "Providers · External MCP": "ผู้ให้บริการ · MCP ภายนอก", "No environment variables set": "ไม่ได้ตั้งค่าตัวแปรสภาพแวดล้อม", "1 environment variable set": "ตั้งค่าตัวแปรสภาพแวดล้อม 1 รายการ", "{count} environment variables set": "ตั้งค่าตัวแปรสภาพแวดล้อม {count} รายการ", Connected: "เชื่อมต่อแล้ว", "Connected as: {label}": "เชื่อมต่อเป็น: {label}",
+    "External MCP servers": "เซิร์ฟเวอร์ MCP ภายนอก", "Providers · External MCP": "ผู้ให้บริการ · MCP ภายนอก", "No environment variables set": "ไม่ได้ตั้งค่าตัวแปรสภาพแวดล้อม", "1 environment variable set": "ตั้งค่าตัวแปรสภาพแวดล้อม 1 รายการ", "{count} environment variables set": "ตั้งค่าตัวแปรสภาพแวดล้อม {count} รายการ",
     "Loading access tokens…": "กำลังโหลดโทเคนการเข้าถึง…",
     "Filter by category": "กรองตามหมวดหมู่",
     "+ Add custom provider": "+ เพิ่มผู้ให้บริการที่กำหนดเอง",
@@ -975,18 +975,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "คีย์โมเดลผู้ช่วยไซต์",
     "Admin AI Assistant key (BYOK)": "คีย์ผู้ช่วย AI ของผู้ดูแลระบบ (BYOK)",
     "Media provider keys": "คีย์ผู้ให้บริการสื่อ",
-    "Composio project key": "คีย์โปรเจกต์ Composio",
-    "Composio connector accounts": "บัญชีตัวเชื่อมต่อ Composio",
+
+
     "AI Assistant": "ผู้ช่วย AI",
     "Settings · Execution mode": "การตั้งค่า · โหมดการทำงาน",
     "Providers · Media": "ผู้ให้บริการ · สื่อ",
-    "Providers · Composio": "ผู้ให้บริการ · Composio",
+
     "A key is created automatically when this site starts.": "คีย์จะถูกสร้างขึ้นโดยอัตโนมัติเมื่อไซต์นี้เริ่มทำงาน",
   },
   "zh-CN": {
     "Access Tokens": "访问令牌", "Site Token": "站点令牌", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在一个位置查看此安装保存的所有访问令牌，并可创建、轮换或删除令牌，无需在创建它的各个界面中查找。",
     "unknown error": "未知错误", "this workspace": "此工作区", All: "全部", Secrets: "密钥", "Source control": "源代码管理", Hosting: "托管", Media: "媒体", AI: "AI", Ops: "运维", General: "常规",
-    "External MCP servers": "外部 MCP 服务器", "Providers · External MCP": "提供商 · 外部 MCP", "No environment variables set": "未设置环境变量", "1 environment variable set": "已设置 1 个环境变量", "{count} environment variables set": "已设置 {count} 个环境变量", Connected: "已连接", "Connected as: {label}": "连接身份：{label}",
+    "External MCP servers": "外部 MCP 服务器", "Providers · External MCP": "提供商 · 外部 MCP", "No environment variables set": "未设置环境变量", "1 environment variable set": "已设置 1 个环境变量", "{count} environment variables set": "已设置 {count} 个环境变量",
     "Loading access tokens…": "正在加载访问令牌…",
     "Filter by category": "按类别筛选",
     "+ Add custom provider": "+ 添加自定义提供商",
@@ -1041,18 +1041,18 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "站点助手模型密钥",
     "Admin AI Assistant key (BYOK)": "管理员 AI 助手密钥（BYOK）",
     "Media provider keys": "媒体提供商密钥",
-    "Composio project key": "Composio 项目密钥",
-    "Composio connector accounts": "Composio 连接器账户",
+
+
     "AI Assistant": "AI 助手",
     "Settings · Execution mode": "设置 · 执行模式",
     "Providers · Media": "提供商 · 媒体",
-    "Providers · Composio": "提供商 · Composio",
+
     "A key is created automatically when this site starts.": "此站点启动时会自动创建密钥。",
   },
   "zh-TW": {
     "Access Tokens": "存取權杖", "Site Token": "網站權杖", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在同一處查看此安裝保有的所有存取權杖，並可建立、輪替或移除權杖，不必在建立它的各個畫面中尋找。",
     "unknown error": "未知錯誤", "this workspace": "此工作區", All: "全部", Secrets: "機密", "Source control": "原始碼管理", Hosting: "代管", Media: "媒體", AI: "AI", Ops: "維運", General: "一般",
-    "External MCP servers": "外部 MCP 伺服器", "Providers · External MCP": "提供者 · 外部 MCP", "No environment variables set": "未設定環境變數", "1 environment variable set": "已設定 1 個環境變數", "{count} environment variables set": "已設定 {count} 個環境變數", Connected: "已連線", "Connected as: {label}": "連線身分：{label}",
+    "External MCP servers": "外部 MCP 伺服器", "Providers · External MCP": "提供者 · 外部 MCP", "No environment variables set": "未設定環境變數", "1 environment variable set": "已設定 1 個環境變數", "{count} environment variables set": "已設定 {count} 個環境變數",
     "Loading access tokens…": "正在載入存取權杖…",
     "Filter by category": "依類別篩選",
     "+ Add custom provider": "+ 新增自訂供應商",
@@ -1107,12 +1107,12 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "網站助理模型金鑰",
     "Admin AI Assistant key (BYOK)": "管理員 AI 助理金鑰（BYOK）",
     "Media provider keys": "媒體供應商金鑰",
-    "Composio project key": "Composio 專案金鑰",
-    "Composio connector accounts": "Composio 連接器帳戶",
+
+
     "AI Assistant": "AI 助理",
     "Settings · Execution mode": "設定 · 執行模式",
     "Providers · Media": "供應商 · 媒體",
-    "Providers · Composio": "供應商 · Composio",
+
     "A key is created automatically when this site starts.": "此網站啟動時會自動建立金鑰。",
   },
 };
@@ -1217,42 +1217,12 @@ const REMOVE_DIALOG_EXTERNAL_MCP_BODY: Record<string, string> = {
   bn: "এটি সার্ভার এবং এর সংরক্ষিত ক্রেডেনশিয়াল মুছে ফেলবে। এটি পূর্বাবস্থায় ফেরানো যাবে না — আপনাকে এটি আবার সেট আপ করতে হবে, এবং OAuth ব্যবহার করলে আবার সাইন ইন করতে হবে।",
 };
 
-/** `composio-connector`'s Remove body — here the shared {@link removeDialogBody} would be FALSE:
- *  `POST …/connectors/:id/disconnect` revokes the account at Composio (that route's own header),
- *  so "It does NOT revoke the token" must never be said about this store. Fully translated for the
- *  same reason as {@link REMOVE_DIALOG_EXTERNAL_MCP_BODY}. */
-const REMOVE_DIALOG_COMPOSIO_CONNECTOR_BODY: Record<string, string> = {
-  en: "This disconnects the account and revokes its access at Composio. To use it again, you'd have to connect it and sign in again.",
-  es: "Esto desconecta la cuenta y revoca su acceso en Composio. Para volver a usarla, tendrías que conectarla e iniciar sesión de nuevo.",
-  id: "Ini memutus akun dan mencabut aksesnya di Composio. Untuk menggunakannya lagi, Anda harus menghubungkannya dan masuk lagi.",
-  de: "Dadurch wird das Konto getrennt und sein Zugriff bei Composio widerrufen. Um es wieder zu nutzen, müssten Sie es erneut verbinden und sich neu anmelden.",
-  "zh-CN": "这会断开该账户，并在 Composio 撤销其访问权限。要再次使用，你需要重新连接并重新登录。",
-  "zh-TW": "這會中斷該帳戶的連線，並在 Composio 撤銷其存取權限。要再次使用，你需要重新連線並重新登入。",
-  "pt-BR": "Isso desconecta a conta e revoga o acesso dela no Composio. Para usá-la de novo, você teria que conectá-la e entrar novamente.",
-  ru: "Это отключит аккаунт и отзовёт его доступ в Composio. Чтобы снова им пользоваться, придётся подключить его и войти заново.",
-  fa: "این کار حساب را قطع می‌کند و دسترسی آن را در Composio لغو می‌کند. برای استفادهٔ دوباره، باید دوباره آن را متصل کنید و وارد شوید.",
-  ar: "سيؤدي هذا إلى فصل الحساب وإلغاء وصوله في Composio. لاستخدامه مجددًا، سيتعين عليك ربطه وتسجيل الدخول مرة أخرى.",
-  ja: "アカウントの接続を解除し、Composio でのアクセス権を取り消します。再度使うには、もう一度接続してサインインする必要があります。",
-  ko: "계정 연결이 해제되고 Composio에서 액세스 권한이 취소됩니다. 다시 사용하려면 다시 연결하고 로그인해야 합니다.",
-  pl: "Spowoduje to odłączenie konta i cofnięcie jego dostępu w Composio. Aby znów z niego korzystać, trzeba będzie połączyć je ponownie i się zalogować.",
-  hu: "Ez leválasztja a fiókot, és visszavonja a hozzáférését a Composióban. Az újbóli használathoz újra össze kellene kapcsolni és be kellene jelentkezni.",
-  fr: "Cela déconnecte le compte et révoque son accès sur Composio. Pour l'utiliser à nouveau, vous devriez le reconnecter et vous connecter de nouveau.",
-  uk: "Це від'єднає обліковий запис і відкличе його доступ у Composio. Щоб знову ним користуватися, доведеться під'єднати його й увійти заново.",
-  tr: "Bu işlem hesabın bağlantısını keser ve Composio'daki erişimini iptal eder. Yeniden kullanmak için tekrar bağlamanız ve oturum açmanız gerekir.",
-  th: "การดำเนินการนี้จะยกเลิกการเชื่อมต่อบัญชีและเพิกถอนสิทธิ์การเข้าถึงใน Composio หากต้องการใช้อีกครั้ง คุณจะต้องเชื่อมต่อและลงชื่อเข้าใช้ใหม่",
-  it: "Questa operazione scollega l'account e ne revoca l'accesso su Composio. Per usarlo di nuovo, dovresti ricollegarlo e accedere di nuovo.",
-  hi: "इससे खाता डिस्कनेक्ट हो जाएगा और Composio पर उसकी पहुँच रद्द हो जाएगी। इसे फिर से उपयोग करने के लिए आपको इसे दोबारा कनेक्ट करना और साइन इन करना होगा।",
-  ur: "اس سے اکاؤنٹ منقطع ہو جائے گا اور Composio پر اس کی رسائی منسوخ ہو جائے گی۔ اسے دوبارہ استعمال کرنے کے لیے آپ کو اسے پھر سے منسلک کر کے سائن ان کرنا ہوگا۔",
-  bn: "এটি অ্যাকাউন্টটি সংযোগ বিচ্ছিন্ন করবে এবং Composio-তে এর অ্যাক্সেস প্রত্যাহার করবে। আবার ব্যবহার করতে, আপনাকে এটি আবার সংযুক্ত করে সাইন ইন করতে হবে।",
-};
-
-/** The Tier-2 Remove dialog's body, per store — the two non-replaceable stores get their own
- *  wording (above), the other four keep {@link removeDialogBody} with `purposeLabel` for both
+/** The Tier-2 Remove dialog's body, per store — the non-replaceable `external-mcp` store gets its own
+ *  wording (above), the other three keep {@link removeDialogBody} with `purposeLabel` for both
  *  placeholders, exactly as before (Tier 2 has no vendor/destination split — its deep links go to
  *  Tovu's own screens). @complexity O(1). */
 export function otherCredentialRemoveDialogBody(locale: string, store: Pick<OtherCredentialStoreInfo, "id" | "purposeLabel">): string {
   if (store.id === "external-mcp") return REMOVE_DIALOG_EXTERNAL_MCP_BODY[locale] ?? REMOVE_DIALOG_EXTERNAL_MCP_BODY.en!;
-  if (store.id === "composio-connector") return REMOVE_DIALOG_COMPOSIO_CONNECTOR_BODY[locale] ?? REMOVE_DIALOG_COMPOSIO_CONNECTOR_BODY.en!;
   return removeDialogBody(locale, store.purposeLabel, store.purposeLabel);
 }
 

@@ -14,9 +14,8 @@ import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks"
  * (`@jini-ai/agentic`'s own `HANDLE_PATTERN`, `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` — no underscores, no
  * colons, no spaces). Tier 1's providers are all drawn from this app's own fixed tables, so every
  * id there is already handle-safe by construction. Tier 2's per-item ids are NOT: `media-provider`'s
- * ids come from a vendor catalog, and `composio-connector`'s come straight from Composio's own live
- * connector list — this app does not own either spelling, and Composio in particular is known to use
- * underscores (`google_calendar`-shaped ids). The predecessor already caught the identical class of
+ * ids come from a vendor catalog and `external-mcp`'s are operator- or plugin-chosen — this app does
+ * not own either spelling, and either can carry underscores. The predecessor already caught the identical class of
  * bug once, for a raw provider LABEL fed into a Tier-1 handle (`AccessTokensTab.tsx`'s own
  * `NotConnectedRow` comment); this is the same trap for a raw ITEM ID here — caught live via a
  * headless-browser console check before this reached the owner's own screen, the same way it was
@@ -39,8 +38,8 @@ const HANDLE_SAFE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  *
  * Tier 1's `ProviderGroup` shows one `<h3>` (the PROVIDER's name, e.g. "GitHub") with multiple named
  * `TokenRow`s underneath it, because one provider can hold several operator-named tokens. Nothing on
- * Tier 2 is named that way — `media-provider`/`composio-connector`/`external-mcp` can each hold more
- * than one ITEM (a provider, a connector, a server), but never more than one CREDENTIAL per item, so
+ * Tier 2 is named that way — `media-provider`/`external-mcp` can each hold more
+ * than one ITEM (a provider, a server), but never more than one CREDENTIAL per item, so
  * there is nothing to nest. The owner's own mock reflects this directly: "Cloudinary (media)" reads
  * at the SAME indentation as "GitHub"/"Cloudflare", not nested under a "Media provider keys" parent —
  * each configured item (or, when a store has none configured, the store itself) gets its own
@@ -66,7 +65,7 @@ function rowHandleBase(row: OtherCredentialRowState): string {
 
 /** `agentHandle()`'s own spread, guarded against an unsafe id — mirrors `TabBar.tsx`'s own
  *  `tabHandleProps` ("omit the spread entirely when there is nothing safe to hand it"), extended
- *  from "handle is absent" to "handle is present but not safe": a Composio/media-provider id this
+ *  from "handle is absent" to "handle is present but not safe": a media-provider or server id this
  *  app doesn't control just never gets tagged, rather than crashing the row that would have rendered
  *  it — see this file's header for why the id can be unsafe at all. @complexity O(1). */
 function safeAgentHandle(handle: string, options: Parameters<typeof agentHandle>[1]): ReturnType<typeof agentHandle> | Record<string, never> {
@@ -142,12 +141,11 @@ function OtherCredentialPlaceholderRow({ store, t: translate }: { store: OtherCr
   );
 }
 
-/** Configured, but this store does not support inline Replace (`composio-connector`/`external-mcp`
+/** Configured, but this store does not support inline Replace (`external-mcp`
  *  — see `rules.ts`'s `OtherCredentialStoreInfo.supportsReplace` doc for why) — just the value fact,
  *  Remove, and the deep link, no disclosure to expand. Remove asks first, through the same
- *  {@link OtherCredentialRemoveDialog} the replaceable row uses: these two stores are the most
- *  destructive on the page (an External MCP delete loses a sealed OAuth secret for good, a Composio
- *  disconnect revokes the account at Composio), and this button used to fire on the first click. */
+ *  {@link OtherCredentialRemoveDialog} the replaceable row uses: this store is the most
+ *  destructive on the page (an External MCP delete loses a sealed OAuth secret for good), and this button used to fire on the first click. */
 function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRowState; controller: OtherCredentialsController }) {
   const translate = controller.t;
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -281,8 +279,7 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
         <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
         {/* Per-store body — `otherCredentialRemoveDialogBody`'s own doc: the shared "does NOT
-            revoke" sentence is kept for the four replaceable stores and would be false for a
-            Composio disconnect, which DOES revoke at Composio. */}
+            revoke" sentence is kept for the replaceable stores; External MCP gets its own. */}
         <p className="confirm-dialog-body">{otherCredentialRemoveDialogBody(locale, row.store)}</p>
         <div className="confirm-dialog-actions">
           <button

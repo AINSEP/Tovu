@@ -1,4 +1,4 @@
-import { ConnectorsBrowser, I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -7,14 +7,12 @@ import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ComingSoonPanel } from "../../components/ComingSoonPanel";
-import { ComposioKeyField } from "../settings/ComposioKeyField";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
-import { connectorsDependencies } from "../settings/connectors-port";
 import { t as tCapability } from "../settings/settings-capabilities-i18n";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
 import { t as tIntegrations } from "../integrations/integrations-i18n";
-import { composioGateCopy, t } from "./providers-i18n";
+import { t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
 
 /**
@@ -23,11 +21,12 @@ import { useProviders } from "./hooks/use-providers.hooks";
  *
  * ## Why these belong together (owner call, 2026-09-10)
  *
- * Composio and External MCP were two of the Settings page's thirteen tabs, reachable only by
- * knowing to open Settings and scroll a sidebar of unrelated concerns (Instructions, Privacy,
- * Dialog appearance, About). They are not settings in the sense the rest of that page is — they are
- * connections to third-party systems, each holding a credential, each able to fail independently of
- * anything Tovu itself does.
+ * External MCP was one of the Settings page's thirteen tabs, reachable only by knowing to open
+ * Settings and scroll a sidebar of unrelated concerns (Instructions, Privacy, Dialog appearance,
+ * About). It is not a setting in the sense the rest of that page is — it is connections to
+ * third-party systems, each holding a credential, each able to fail independently of anything Tovu
+ * itself does. (A Composio tab lived here too until 2026-09-27, when Composio became the `composio`
+ * agent plugin, connected through External MCP like any other remote server.)
  *
  * MCP Server and Webhooks joined this SAME screen on 2026-09-10 (second pass, owner call) — moved
  * here verbatim from `features/integrations/DeveloperApi.tsx`, which this change retires. That page
@@ -53,14 +52,11 @@ import { useProviders } from "./hooks/use-providers.hooks";
  * ## Naming
  *
  * The nav row is "Integrations", never "MCP" or "Connectors" — the owner's call. "MCP" appears only
- * as a TAB label here, where the page around it supplies the context an operator needs. "Connectors"
- * was the old Settings tab label for what is really just Composio, so the tab now says the vendor's
- * name outright rather than a generic word that told an operator nothing about what they were
- * configuring.
+ * as a TAB label here, where the page around it supplies the context an operator needs.
  *
  * ## The `I18nProvider` below is load-bearing, not decoration
  *
- * `ExternalMcpSettingsPanel`, `ConnectorsBrowser` and `IntegrationsTab` all resolve their own copy
+ * `ExternalMcpSettingsPanel` and `IntegrationsTab` both resolve their own copy
  * through `@jini-ai/ui`'s `useT()`, which reads `I18nContext` from an ANCESTOR. On the Settings page
  * that ancestor was `SettingsUi`'s own `<I18nProvider>`; on the old `/admin/integrations` page it was
  * `DeveloperApi.tsx`'s own copy of this same provider. Mounting these components here WITHOUT one
@@ -84,13 +80,12 @@ import { useProviders } from "./hooks/use-providers.hooks";
  */
 
 /** Tab ids are independent of tab LABELS, the same way panel ids are independent of nav labels
- *  throughout `panels.tsx`. `composio` names the vendor rather than the old "Connectors" wording so
- *  a deep link says what it opens. `webhooks`/`mcp-server` are carried over unchanged from
+ *  throughout `panels.tsx`. `webhooks`/`mcp-server` are carried over unchanged from
  *  `DeveloperApi.tsx`'s own `DEVELOPER_API_TAB_IDS` — see this file's header for why those two tabs
  *  are here now. Order is the owner's explicit call (2026-09-10, second pass): External MCP first,
- *  Composio second, then the two absorbed tabs in their original relative order (MCP Server,
+ *  then the two absorbed tabs in their original relative order (MCP Server,
  *  Webhooks) — see {@link resolveProvidersTabId} for the default. */
-const PROVIDERS_TAB_IDS = ["external-mcp", "composio", "mcp-server", "webhooks"] as const;
+const PROVIDERS_TAB_IDS = ["external-mcp", "mcp-server", "webhooks"] as const;
 type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
 
 /** Falls back to the External MCP tab (first in {@link PROVIDERS_TAB_IDS}) for an absent or
@@ -103,17 +98,6 @@ type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
 function resolveProvidersTabId(tabId: string | null | undefined): ProvidersTabId {
   return resolveActiveTabId(tabId, PROVIDERS_TAB_IDS, "external-mcp");
 }
-
-/** Tab ids hidden from the {@link TabBar} row without touching {@link PROVIDERS_TAB_IDS} —
- *  `composio` was hidden 2026-09-10 at the owner's request: Composio is a vendor she does not want
- *  surfaced to operators yet. This is a HIDE, not a removal — the panel body below (`activeTabId ===
- *  "composio"`) and {@link resolveProvidersTabId}'s acceptance of `"composio"` are both untouched, so
- *  `/providers?tab=composio` keeps resolving and rendering exactly as before. That deep link is still
- *  live: `features/security/rules.ts`'s `composio-project` and `composio-connector` rows both point
- *  `screenPath` at `/providers?tab=composio`, and removing the id from `PROVIDERS_TAB_IDS` instead of
- *  listing it here would strand both rules on a tab that falls back to `external-mcp` instead of
- *  opening the panel they name. To restore the tab button, remove `"composio"` from this array. */
-const HIDDEN_PROVIDERS_TAB_IDS: readonly ProvidersTabId[] = ["composio"];
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data — same helper shape
  *  `SettingsUi.tsx` and `DeveloperApi.tsx` both used for their own tab icons. */
@@ -163,23 +147,6 @@ export function Providers(props: ProvidersProps) {
       ),
       handle: "providers-tab-external-mcp",
       handleLabel: "Switch to the External MCP tab — MCP tool servers this install connects out to",
-    },
-    {
-      id: "composio",
-      // The vendor's own name, not the old Settings tab's generic "Connectors" label — see this
-      // file's header. No dictionary entry for it in `providers-i18n.ts`, deliberately: it is a
-      // brand, so every locale falling through to the English string is the correct rendering.
-      label: t(locale, "Composio"),
-      icon: (
-        <TabIcon>
-          <path d="M4 5h10M4 9h10M4 13h10" />
-          <circle cx="7" cy="5" r="1.4" />
-          <circle cx="11" cy="9" r="1.4" />
-          <circle cx="6" cy="13" r="1.4" />
-        </TabIcon>
-      ),
-      handle: "providers-tab-composio",
-      handleLabel: "Switch to the Composio tab — third-party accounts and APIs connected through Composio",
     },
     {
       // Absorbed from `DeveloperApi.tsx`'s own `mcp-server` tab (2026-09-10, second pass) — same id,
@@ -253,38 +220,18 @@ export function Providers(props: ProvidersProps) {
             <p className="page-description">
               {t(
                 locale,
-                "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.",
+                "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.",
               )}
             </p>
           </div>
         </div>
         <TabBar
           ariaLabel={t(locale, "Integrations")}
-          tabs={tabs.filter((tab) => !HIDDEN_PROVIDERS_TAB_IDS.includes(tab.id as ProvidersTabId))}
+          tabs={tabs}
           activeId={activeTabId}
           onChange={handleTabChange}
           containerHandle="providers-tab-bar"
         />
-
-        {activeTabId === "composio" ? (
-          <>
-            {/* Both mounts are verbatim from the Settings page's old "Connectors" tab — same
-                component, same real `ConnectorsPort` over the `/connectors` admin routes, same
-                `unlocked` gate driven by whether a Composio API key is actually saved, same
-                `agentHandle`. Only the address changed. */}
-            <ComposioKeyField composio={p.composio} />
-            <ConnectorsBrowser
-              unlocked={p.composio.unlocked}
-              dependencies={connectorsDependencies}
-              catalogRefreshKey={p.composio.catalogRefreshKey}
-              gate={{
-                ...composioGateCopy(locale),
-                ctaHref: "https://app.composio.dev",
-              }}
-              agentHandle="settings-connectors"
-            />
-          </>
-        ) : null}
 
         {activeTabId === "external-mcp" ? (
           // Verbatim from the Settings page's old "External MCP" tab, plus one addition

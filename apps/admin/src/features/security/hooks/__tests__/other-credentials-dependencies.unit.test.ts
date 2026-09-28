@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type {
-  AdminComposioConfig,
-  AdminConnector,
   AdminExecutionCredential,
   AdminExternalMcpServer,
   AdminMediaProviderMap,
@@ -16,7 +14,7 @@ import type {
  *    `use-admin-execution-credential.hooks.test.ts` exercises `defaultAdminExecutionCredentialPort`
  *    (a mocked `lib/api`, one assertion per bind: right `api.*` call, args forwarded, result
  *    returned unchanged).
- * 2. `createFakeOtherCredentialsPort` — the six per-store default-slice helpers this file composes;
+ * 2. `createFakeOtherCredentialsPort` — the four per-store default-slice helpers this file composes;
  *    covered by calling every unstubbed method's default AND confirming an override wins over it.
  */
 
@@ -29,11 +27,6 @@ const {
   deleteAdminExecutionCredential,
   getMediaProviders,
   saveMediaProviders,
-  getComposioConfig,
-  saveComposioConfig,
-  listConnectors,
-  getConnectorStatuses,
-  disconnectConnector,
   listExternalMcpServers,
   deleteExternalMcpServer,
 } = vi.hoisted(() => ({
@@ -45,11 +38,6 @@ const {
   deleteAdminExecutionCredential: vi.fn(),
   getMediaProviders: vi.fn(),
   saveMediaProviders: vi.fn(),
-  getComposioConfig: vi.fn(),
-  saveComposioConfig: vi.fn(),
-  listConnectors: vi.fn(),
-  getConnectorStatuses: vi.fn(),
-  disconnectConnector: vi.fn(),
   listExternalMcpServers: vi.fn(),
   deleteExternalMcpServer: vi.fn(),
 }));
@@ -68,11 +56,6 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
       deleteAdminExecutionCredential,
       getMediaProviders,
       saveMediaProviders,
-      getComposioConfig,
-      saveComposioConfig,
-      listConnectors,
-      getConnectorStatuses,
-      disconnectConnector,
       listExternalMcpServers,
       deleteExternalMcpServer,
     },
@@ -161,50 +144,6 @@ describe("defaultOtherCredentialsPort — media providers", () => {
   });
 });
 
-describe("defaultOtherCredentialsPort — Composio project key", () => {
-  it("getComposioConfig delegates to api.getComposioConfig", async () => {
-    const config: AdminComposioConfig = { configured: true, apiKeyTail: "5678" };
-    getComposioConfig.mockResolvedValue(config);
-    await expect(defaultOtherCredentialsPort.getComposioConfig()).resolves.toEqual(config);
-    expect(getComposioConfig).toHaveBeenCalledWith();
-  });
-
-  it("saveComposioConfig forwards the apiKey (string or null) to api.saveComposioConfig", async () => {
-    const config: AdminComposioConfig = { configured: true, apiKeyTail: "9999" };
-    saveComposioConfig.mockResolvedValue(config);
-    await expect(defaultOtherCredentialsPort.saveComposioConfig("sk-composio")).resolves.toEqual(config);
-    expect(saveComposioConfig).toHaveBeenCalledWith("sk-composio");
-
-    const cleared: AdminComposioConfig = { configured: false, apiKeyTail: "" };
-    saveComposioConfig.mockResolvedValue(cleared);
-    await expect(defaultOtherCredentialsPort.saveComposioConfig(null)).resolves.toEqual(cleared);
-    expect(saveComposioConfig).toHaveBeenCalledWith(null);
-  });
-});
-
-describe("defaultOtherCredentialsPort — Composio connectors", () => {
-  const connector: AdminConnector = { id: "google_calendar", name: "Google Calendar", provider: "google", category: "productivity", status: "connected", tools: [] };
-
-  it("listConnectors delegates to api.listConnectors", async () => {
-    listConnectors.mockResolvedValue({ connectors: [connector] });
-    await expect(defaultOtherCredentialsPort.listConnectors()).resolves.toEqual({ connectors: [connector] });
-    expect(listConnectors).toHaveBeenCalledWith();
-  });
-
-  it("getConnectorStatuses delegates to api.getConnectorStatuses", async () => {
-    const statuses = { google_calendar: { status: "connected", accountLabel: "me@example.com" } };
-    getConnectorStatuses.mockResolvedValue(statuses);
-    await expect(defaultOtherCredentialsPort.getConnectorStatuses()).resolves.toEqual(statuses);
-    expect(getConnectorStatuses).toHaveBeenCalledWith();
-  });
-
-  it("disconnectConnector forwards the connector id to api.disconnectConnector", async () => {
-    disconnectConnector.mockResolvedValue({ ...connector, status: "available" });
-    await expect(defaultOtherCredentialsPort.disconnectConnector("google_calendar")).resolves.toEqual({ ...connector, status: "available" });
-    expect(disconnectConnector).toHaveBeenCalledWith("google_calendar");
-  });
-});
-
 describe("defaultOtherCredentialsPort — external MCP servers", () => {
   const server: AdminExternalMcpServer = {
     serverId: "local-fs",
@@ -256,9 +195,6 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
       data: { isSet: false, masked: null, protocol: "anthropic-messages", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null },
     });
     await expect(port.getMediaProviders()).resolves.toEqual({});
-    await expect(port.getComposioConfig()).resolves.toEqual({ configured: false, apiKeyTail: "" });
-    await expect(port.listConnectors()).resolves.toEqual({ connectors: [] });
-    await expect(port.getConnectorStatuses()).resolves.toEqual({});
     await expect(port.listExternalMcpServers()).resolves.toEqual({ servers: [] });
   });
 
@@ -270,18 +206,14 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
     await expect(port.setAdminByokCredential({ apiKey: "x" })).rejects.toThrow("setAdminByokCredential not stubbed for this test");
     await expect(port.deleteAdminByokCredential()).rejects.toThrow("deleteAdminByokCredential not stubbed for this test");
     await expect(port.saveMediaProviders({})).rejects.toThrow("saveMediaProviders not stubbed for this test");
-    await expect(port.saveComposioConfig("x")).rejects.toThrow("saveComposioConfig not stubbed for this test");
-    await expect(port.disconnectConnector("x")).rejects.toThrow("disconnectConnector not stubbed for this test");
     await expect(port.deleteExternalMcpServer("x")).rejects.toThrow("deleteExternalMcpServer not stubbed for this test");
   });
 
-  it("an override wins over its store's default for every one of the six stores", async () => {
+  it("an override wins over its store's default for every one of the four stores", async () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: siteCredential({ masked: "••••site" }) }),
       getAdminByokCredential: () => Promise.resolve({ data: executionCredential({ masked: "••••byok" }) }),
       getMediaProviders: () => Promise.resolve({ cloudinary: { apiKeyConfigured: true } }),
-      getComposioConfig: () => Promise.resolve({ configured: true, apiKeyTail: "comp" }),
-      listConnectors: () => Promise.resolve({ connectors: [{ id: "c1", name: "C1", provider: "p", category: "cat", status: "connected", tools: [] }] }),
       listExternalMcpServers: () =>
         Promise.resolve({
           servers: [
@@ -317,8 +249,6 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
     await expect(port.getSiteAssistantCredential()).resolves.toMatchObject({ data: { masked: "••••site" } });
     await expect(port.getAdminByokCredential()).resolves.toMatchObject({ data: { masked: "••••byok" } });
     await expect(port.getMediaProviders()).resolves.toEqual({ cloudinary: { apiKeyConfigured: true } });
-    await expect(port.getComposioConfig()).resolves.toEqual({ configured: true, apiKeyTail: "comp" });
-    await expect(port.listConnectors()).resolves.toMatchObject({ connectors: [{ id: "c1" }] });
     await expect(port.listExternalMcpServers()).resolves.toMatchObject({ servers: [{ serverId: "s1" }] });
   });
 });

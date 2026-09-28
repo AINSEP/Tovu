@@ -25,7 +25,6 @@ import {
   buildCustomCredentialUpdatePatch,
   buildCustomProviderConnectionInput,
   classifyAccessTokenSubmitError,
-  connectedAsFact,
   customCredentialNameTaken,
   customCredentialReadyToSave,
   customCredentialReplaceReadyToSave,
@@ -171,24 +170,16 @@ describe("category filter", () => {
 });
 
 describe("OTHER_CREDENTIAL_STORES / otherCredentialStoreInfo", () => {
-  it("lists all six Tier 2 stores, in the documented order", () => {
-    expect(OTHER_CREDENTIAL_STORES.map((s) => s.id)).toEqual([
-      "site-assistant",
-      "admin-byok",
-      "media-provider",
-      "composio-project",
-      "composio-connector",
-      "external-mcp",
-    ]);
+  it("lists all four Tier 2 stores, in the documented order", () => {
+    expect(OTHER_CREDENTIAL_STORES.map((s) => s.id)).toEqual(["site-assistant", "admin-byok", "media-provider", "external-mcp"]);
   });
 
-  it("marks composio-connector and external-mcp as NOT supporting inline Replace", () => {
-    expect(otherCredentialStoreInfo("composio-connector").supportsReplace).toBe(false);
+  it("marks external-mcp as NOT supporting inline Replace", () => {
     expect(otherCredentialStoreInfo("external-mcp").supportsReplace).toBe(false);
   });
 
-  it("marks the four single-apiKey stores as supporting inline Replace", () => {
-    for (const id of ["site-assistant", "admin-byok", "media-provider", "composio-project"] as const) {
+  it("marks the three single-apiKey stores as supporting inline Replace", () => {
+    for (const id of ["site-assistant", "admin-byok", "media-provider"] as const) {
       expect(otherCredentialStoreInfo(id).supportsReplace).toBe(true);
     }
   });
@@ -226,14 +217,6 @@ describe("otherCredentialMatchesQuery", () => {
 describe("value-fact formatters", () => {
   it("maskedTailFact adds the bullet prefix to a bare tail", () => {
     expect(maskedTailFact("7f2a")).toBe("••••7f2a");
-  });
-
-  it("connectedAsFact names the account when a label is present", () => {
-    expect(connectedAsFact("alice@example.com")).toBe("Connected as: alice@example.com");
-  });
-
-  it("connectedAsFact falls back to a bare fact when Composio returned no label", () => {
-    expect(connectedAsFact(undefined)).toBe("Connected");
   });
 
   it("envNamesFact singularizes exactly one variable", () => {
@@ -335,11 +318,11 @@ describe("sortAccessTokenGroups", () => {
       group("Cloudinary", "media", 1),
       group("OpenAI", "ai", 1),
       group("GitHub", "source-control", 1),
-      group("Composio", "ops", 1),
+      group("Ops Co", "ops", 1),
       group("Custom Co", "general", 1),
       group("Vercel", "hosting", 1),
     ];
-    expect(labelsOf(groups)).toEqual(["GitHub", "Vercel", "Cloudinary", "OpenAI", "Composio", "Custom Co"]);
+    expect(labelsOf(groups)).toEqual(["GitHub", "Vercel", "Cloudinary", "OpenAI", "Ops Co", "Custom Co"]);
   });
 
   it("orders the unsaved tier by the same category order, independently of the saved tier", () => {

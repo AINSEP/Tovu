@@ -53,17 +53,11 @@ const {
   getAssistantSiteCredential,
   getAdminExecutionCredential,
   getMediaProviders,
-  getComposioConfig,
-  listConnectors,
-  getConnectorStatuses,
   listExternalMcpServers,
 } = vi.hoisted(() => ({
   getAssistantSiteCredential: vi.fn(),
   getAdminExecutionCredential: vi.fn(),
   getMediaProviders: vi.fn(),
-  getComposioConfig: vi.fn(),
-  listConnectors: vi.fn(),
-  getConnectorStatuses: vi.fn(),
   listExternalMcpServers: vi.fn(),
 }));
 
@@ -76,9 +70,6 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
       getAssistantSiteCredential,
       getAdminExecutionCredential,
       getMediaProviders,
-      getComposioConfig,
-      listConnectors,
-      getConnectorStatuses,
       listExternalMcpServers,
     },
   };
@@ -96,7 +87,7 @@ function findGroup(groups: readonly OtherCredentialGroupState[] | undefined, sto
   return groups?.find((g) => g.store.id === storeId);
 }
 
-describe("useOtherCredentials — reading all six stores", () => {
+describe("useOtherCredentials — reading all four stores", () => {
   it("settles each store independently into its own row(s), covering every reader and readStore's dispatch", async () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "site", provider: "openai", baseUrl: null, model: null, updatedAt: "2026-08-01T00:00:00.000Z" } }),
@@ -106,17 +97,6 @@ describe("useOtherCredentials — reading all six stores", () => {
           "totally-unknown-vendor": { apiKeyConfigured: true, apiKeyTail: "1234" },
           "not-configured-vendor": { apiKeyConfigured: false },
         } as AdminMediaProviderMap),
-      getComposioConfig: () => Promise.resolve({ configured: true, apiKeyTail: "9999" }),
-      listConnectors: () =>
-        Promise.resolve({
-          connectors: [{ id: "google_calendar", name: "Google Calendar", provider: "google", category: "productivity", status: "connected", tools: [] }],
-        }),
-      getConnectorStatuses: () =>
-        Promise.resolve({
-          google_calendar: { status: "connected", accountLabel: "me@example.com" },
-          unknown_connector: { status: "error", lastError: "expired" },
-          never_connected: { status: "available" },
-        }),
       listExternalMcpServers: () =>
         Promise.resolve({ servers: [fakeExternalMcpServer({ envNames: ["FOO", "BAR"] })] }),
     });
@@ -141,40 +121,24 @@ describe("useOtherCredentials — reading all six stores", () => {
     expect(media?.rows[0]?.name).toBe("totally-unknown-vendor");
     expect(media?.rows[0]?.valueFact).toBe("••••1234");
 
-    // composio-project: singleKeyItems via getComposioConfig's configured/apiKeyTail fields.
-    const composioProject = findGroup(result.current.groups, "composio-project");
-    expect(composioProject?.rows[0]?.valueFact).toBe("••••9999");
-
-    // composio-connector: "connected" AND "error" statuses both surface; "available" is excluded.
-    // Named connector resolves via the catalog map; an id absent from the catalog falls back to the
-    // raw connector id itself.
-    const connectors = findGroup(result.current.groups, "composio-connector");
-    expect(connectors?.rows).toHaveLength(2);
-    const googleRow = connectors?.rows.find((r) => r.itemId === "google_calendar");
-    expect(googleRow?.name).toBe("Google Calendar");
-    expect(googleRow?.valueFact).toBe("Connected as: me@example.com");
-    const unknownRow = connectors?.rows.find((r) => r.itemId === "unknown_connector");
-    expect(unknownRow?.name).toBe("unknown_connector");
-    expect(unknownRow?.valueFact).toBe("Connected"); // no accountLabel on the "error" status entry
-
     // external-mcp: envNamesFact with more than one name.
     const mcp = findGroup(result.current.groups, "external-mcp");
     expect(mcp?.rows[0]?.valueFact).toBe("2 environment variables set");
 
     // totalCount sums every store's item count regardless of filter.
-    expect(result.current.totalCount).toBe(1 + 0 + 1 + 1 + 2 + 1);
+    expect(result.current.totalCount).toBe(1 + 0 + 1 + 1);
   });
 
-  it("a rejected store read reports its own loadError with the exact banner text, without blocking the other five stores", async () => {
+  it("a rejected store read reports its own loadError with the exact banner text, without blocking the other three stores", async () => {
     const port = createFakeOtherCredentialsPort({
-      getComposioConfig: () => Promise.reject(new Error("composio down")),
+      getMediaProviders: () => Promise.reject(new Error("media down")),
     });
     const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
 
     await waitFor(() => expect(result.current.groups).toBeDefined());
-    expect(result.current.loadError).toBe("Couldn't load saved access tokens: composio down");
+    expect(result.current.loadError).toBe("Couldn't load saved access tokens: media down");
     // The failed store still renders (as empty), and its neighbors are unaffected.
-    expect(findGroup(result.current.groups, "composio-project")?.rows).toHaveLength(0);
+    expect(findGroup(result.current.groups, "media-provider")?.rows).toHaveLength(0);
     expect(findGroup(result.current.groups, "site-assistant")).toBeDefined();
   });
 });
@@ -196,7 +160,6 @@ describe("useOtherCredentials — category and query filtering", () => {
     expect(ids).toContain("admin-byok");
     expect(ids).toContain("external-mcp");
     expect(ids).not.toContain("media-provider");
-    expect(ids).not.toContain("composio-project");
   });
 
   it("matchCount only counts items whose name matches the query, independent of totalCount", async () => {
@@ -244,20 +207,19 @@ describe("useOtherCredentials — replace: no-op guards", () => {
   });
 
   it("does nothing for a store that does not support Replace, even with a token typed", async () => {
-    const disconnectConnector = vi.fn();
+    const deleteExternalMcpServer = vi.fn();
     const port = createFakeOtherCredentialsPort({
-      listConnectors: () => Promise.resolve({ connectors: [{ id: "c1", name: "C1", provider: "p", category: "cat", status: "connected", tools: [] }] }),
-      getConnectorStatuses: () => Promise.resolve({ c1: { status: "connected" } }),
-      disconnectConnector,
+      listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1" })] }),
+      deleteExternalMcpServer,
     });
     const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
-    const row = findGroup(result.current.groups, "composio-connector")!.rows[0]!;
+    const row = findGroup(result.current.groups, "external-mcp")!.rows[0]!;
     act(() => result.current.setDraftToken(row.key, "irrelevant"));
 
-    await act(() => result.current.replace(findGroup(result.current.groups, "composio-connector")!.rows[0]!));
+    await act(() => result.current.replace(findGroup(result.current.groups, "external-mcp")!.rows[0]!));
 
-    expect(disconnectConnector).not.toHaveBeenCalled();
+    expect(deleteExternalMcpServer).not.toHaveBeenCalled();
   });
 });
 
@@ -303,22 +265,6 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
     await act(() => result.current.replace(findGroup(result.current.groups, "admin-byok")!.rows[0]!));
 
     expect(setAdminByokCredential).toHaveBeenCalledWith({ apiKey: "sk-byok" });
-  });
-
-  it("composio-project: writes via saveComposioConfig(apiKey)", async () => {
-    const saveComposioConfig = vi.fn(() => Promise.resolve({ configured: true, apiKeyTail: "new3" }));
-    const port = createFakeOtherCredentialsPort({
-      getComposioConfig: () => Promise.resolve({ configured: true, apiKeyTail: "old3" }),
-      saveComposioConfig,
-    });
-    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
-    await waitFor(() => expect(result.current.groups).toBeDefined());
-    const row = findGroup(result.current.groups, "composio-project")!.rows[0]!;
-    act(() => result.current.setDraftToken(row.key, "sk-composio"));
-
-    await act(() => result.current.replace(findGroup(result.current.groups, "composio-project")!.rows[0]!));
-
-    expect(saveComposioConfig).toHaveBeenCalledWith("sk-composio");
   });
 
   it("media-provider: rebuilds the WHOLE map — target gets the new key, every other provider is preserved as {}", async () => {
@@ -385,7 +331,7 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
   });
 });
 
-describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all six stores", () => {
+describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all four stores", () => {
   it("site-assistant: deleteSiteAssistantCredential, then refetches", async () => {
     let stored = { isSet: true, masked: "abcd" as string | null, provider: "openai", baseUrl: null as string | null, model: null as string | null, updatedAt: null as string | null };
     const deleteSiteAssistantCredential = vi.fn(() => {
@@ -417,20 +363,6 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
     await act(() => result.current.remove(findGroup(result.current.groups, "admin-byok")!.rows[0]!));
 
     expect(deleteAdminByokCredential).toHaveBeenCalledWith();
-  });
-
-  it("composio-project: saveComposioConfig(null)", async () => {
-    const saveComposioConfig = vi.fn(() => Promise.resolve({ configured: false, apiKeyTail: "" }));
-    const port = createFakeOtherCredentialsPort({
-      getComposioConfig: () => Promise.resolve({ configured: true, apiKeyTail: "abcd" }),
-      saveComposioConfig,
-    });
-    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
-    await waitFor(() => expect(result.current.groups).toBeDefined());
-
-    await act(() => result.current.remove(findGroup(result.current.groups, "composio-project")!.rows[0]!));
-
-    expect(saveComposioConfig).toHaveBeenCalledWith(null);
   });
 
   it("media-provider: rebuilds the map WITHOUT the removed provider, preserving every other provider as {}", async () => {
@@ -483,21 +415,6 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
       openai: { model: "gpt-image-1" },
       fal: { baseUrl: "https://fal.example" },
     });
-  });
-
-  it("composio-connector: disconnectConnector(itemId)", async () => {
-    const disconnectConnector = vi.fn(() => Promise.resolve({ id: "c1", name: "C1", provider: "p", category: "cat", status: "available" as const, tools: [] }));
-    const port = createFakeOtherCredentialsPort({
-      listConnectors: () => Promise.resolve({ connectors: [{ id: "c1", name: "C1", provider: "p", category: "cat", status: "connected", tools: [] }] }),
-      getConnectorStatuses: () => Promise.resolve({ c1: { status: "connected" } }),
-      disconnectConnector,
-    });
-    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
-    await waitFor(() => expect(result.current.groups).toBeDefined());
-
-    await act(() => result.current.remove(findGroup(result.current.groups, "composio-connector")!.rows[0]!));
-
-    expect(disconnectConnector).toHaveBeenCalledWith("c1");
   });
 
   it("external-mcp: deleteExternalMcpServer(itemId)", async () => {
@@ -613,9 +530,6 @@ describe("useWiredOtherCredentials", () => {
     getAssistantSiteCredential.mockResolvedValue({ data: { isSet: true, masked: "wire", provider: "openai", baseUrl: null, model: null, updatedAt: null } });
     getAdminExecutionCredential.mockResolvedValue({ data: { isSet: false, masked: null, protocol: "anthropic-messages", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null } });
     getMediaProviders.mockResolvedValue({});
-    getComposioConfig.mockResolvedValue({ configured: false, apiKeyTail: "" });
-    listConnectors.mockResolvedValue({ connectors: [] });
-    getConnectorStatuses.mockResolvedValue({});
     listExternalMcpServers.mockResolvedValue({ servers: [] });
 
     const { result } = renderHook(() => useWiredOtherCredentials({ query: "", category: "all" }), { wrapper });

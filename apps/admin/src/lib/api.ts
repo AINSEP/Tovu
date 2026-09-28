@@ -280,7 +280,7 @@ export interface AdminExternalMcpProbeResult {
  * `admitted` intentionally carries only what a drift banner needs (a name and whether it is
  * write-authorized), not the full `AdmittedFederatedTool` the daemon holds (which also carries a
  * `toolId` and the remote's raw input schema) — same "richer server shape, unread extra fields"
- * precedent {@link AdminConnector}'s own doc states.
+ * precedent {@link AdminMediaProviderCredentials} follows.
  */
 export interface AdminFederatedAdmissionEntry {
   connectionId: string;
@@ -982,45 +982,6 @@ export interface AdminPublishDestinationView {
   message: string;
   /** One sentence naming what the owner does next, or `null` when nothing is pending. */
   nextStep: string | null;
-}
-
-/**
- * Whether this workspace has a Composio API key. Mirrors `src/platform/connectors/composio-config-store.ts`'s
- * `ComposioConfigView` and, structurally, `@jini-ai/integrations/composio`'s `PublicComposioConfig`.
- *
- * Markers only, in both directions of the two-kinds-of-present distinction: `configured` says a key
- * exists, `apiKeyTail` shows its last 4 characters. The key itself is send-only and never returned.
- */
-export interface AdminComposioConfig {
-  configured: boolean;
-  apiKeyTail: string;
-}
-
-/**
- * One connector as the Connectors tab sees it.
- *
- * Structurally `@jini-ai/ui`'s `Connector`, restated here rather than imported so this file stays
- * the single description of Tovu's admin wire shapes (the same call
- * {@link AdminMediaProviderCredentials} makes). The server returns
- * `@jini-ai/integrations/composio`'s richer `ConnectorDetail`, which is a superset — the extra
- * fields are simply unread by the UI.
- */
-export interface AdminConnector {
-  id: string;
-  name: string;
-  provider: string;
-  category: string;
-  description?: string;
-  status: "available" | "connected" | "error" | "disabled";
-  accountLabel?: string;
-  lastError?: string;
-  auth?: { provider: string };
-  tools: { name: string; title?: string; description?: string; safety: { sideEffect: string; reason?: string } }[];
-  toolCount?: number;
-  toolsNextCursor?: string;
-  toolsHasMore?: boolean;
-  featuredToolNames?: string[];
-  logoUrl?: string;
 }
 
 /** Mirrors `@jini-ai/ui`'s `ExecutionTab` `DetectedAgent` shape — see
@@ -2236,15 +2197,11 @@ const unauthenticatedListeners = new Set<UnauthenticatedListener>();
  * notification, which re-triggers the EXISTING `<Login>` gate rather than adding a second one.
  *
  * Gated on `code === "UNAUTHENTICATED"`, not bare `status === 401`, since found by adversarial
- * review the same day: 401 is not exclusively "this session is invalid" in this codebase — a bad
- * Composio API key relays as a verbatim 401 through `sendConnectorError`
- * (`src/server/routes/admin/connectors/errors.ts`, sourced from
- * `@jini-ai/integrations`'s `composio.ts`, which deliberately preserves Composio's own 401 rather
- * than folding it into its usual 502). That is a documented, pre-existing failure mode
- * (`put-config.ts`'s own comment: a bad key surfaces when "a detail drawer 401s") — before this
- * whole mechanism existed it broke one drawer; without this narrower gate it would silently log the
- * whole tab out instead. Every genuine session-invalidity 401 (`dev-auth.ts`) sets
- * `code: "UNAUTHENTICATED"`; Composio's relayed error does not.
+ * review the same day: 401 is not exclusively "this session is invalid": a route that relays a
+ * third-party service's own 401 (a bad vendor key) returns one too — the removed Composio connector
+ * routes did exactly that. Treating every 401 as a logout would silently log the whole tab out over
+ * one bad vendor key. Every genuine session-invalidity 401 (`dev-auth.ts`) sets
+ * `code: "UNAUTHENTICATED"`; a relayed vendor error does not.
  */
 export function onUnauthenticated(listener: UnauthenticatedListener): () => void {
   unauthenticatedListeners.add(listener);
@@ -2314,8 +2271,8 @@ async function parseJsonBody(res: Response): Promise<{ body: Record<string, unkn
 /** The one side effect on `request`'s error path: notifying every {@link onUnauthenticated}
  *  listener when, and only when, this non-2xx response is a genuine session invalidation. Gated on
  *  `status === 401 && code === "UNAUTHENTICATED"` specifically — not bare 401, and not 403. Bare 401
- *  is overloaded in this codebase: a relayed Composio failure (bad API key) is also a verbatim 401,
- *  see `onUnauthenticated`'s own doc comment for the concrete route that proved it. Only
+ *  is overloaded in this codebase: a relayed third-party failure (bad vendor key) can also be a 401,
+ *  see `onUnauthenticated`'s own doc comment. Only
  *  `dev-auth.ts`'s genuine session-invalidity 401s carry this code. 403 means an authenticated
  *  principal lacks a permission, a completely different, per-action condition that must not kick the
  *  operator back to the login screen. Pulled out of `request` (2026-09-04, complexity pass) as its
@@ -2954,64 +2911,6 @@ export const api = {
       // doc on why "absent" and "empty" must stay distinguishable one more hop upstream too.
       ...(raw.configFailures !== undefined ? { configFailures: raw.configFailures } : {}),
     };
-  },
-  /** Whether this workspace has a Composio API key, as markers only — drives `ConnectorsBrowser`'s
-   *  `unlocked` prop. Never carries key material. */
-  getComposioConfig: () =>
-    request<AdminComposioConfig>(`/workspaces/${WORKSPACE_ID}/connectors/config`),
-  /** Stores (`string`) or clears (`null`) the workspace's Composio API key. A missing `apiKey`
-   *  property is a 400 server-side — "leave it alone" is not expressible against one field. */
-  saveComposioConfig: (apiKey: string | null) =>
-    request<AdminComposioConfig>(`/workspaces/${WORKSPACE_ID}/connectors/config`, {
-      method: "PUT",
-      body: JSON.stringify({ apiKey }),
-    }),
-  /** The Composio connector catalog. Without `refresh` this is the provider's in-process static
-   *  catalog (no API key needed, no outbound request); with it, a live re-fetch that does need one. */
-  listConnectors: (refresh?: boolean) =>
-    request<{ connectors: AdminConnector[] }>(
-      `/workspaces/${WORKSPACE_ID}/connectors${refresh ? "?refresh=1" : ""}`
-    ),
-  /** Every connector's connection status, as a bare map keyed by connector id. */
-  getConnectorStatuses: () =>
-    request<Record<string, { status: string; accountLabel?: string; lastError?: string }>>(
-      `/workspaces/${WORKSPACE_ID}/connectors/statuses`
-    ),
-  /** Begins authorizing a connector. Resolves `{ connector, auth }`; `auth.kind` is
-   *  `redirect_required` for the normal OAuth path, or `connected` when Composio already had a
-   *  validated account. */
-  connectConnector: (connectorId: string) =>
-    request<{
-      connector: AdminConnector;
-      auth?: { kind: "redirect_required" | "pending" | "connected"; redirectUrl?: string; expiresAt?: string };
-    }>(`/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}/connect`, {
-      method: "POST",
-    }),
-  /** Revokes the account at Composio and deletes the sealed local credentials. */
-  disconnectConnector: (connectorId: string) =>
-    request<AdminConnector>(
-      `/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}/disconnect`,
-      { method: "POST" }
-    ),
-  /** Drops an in-flight authorization. Nothing was stored, so this only clears pending state. */
-  cancelConnectorAuthorization: (connectorId: string) =>
-    request<AdminConnector>(
-      `/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}/cancel`,
-      { method: "POST" }
-    ),
-  /** One connector, optionally with a page of its tools (the drawer's bounded preview read). */
-  getConnector: (
-    connectorId: string,
-    options?: { hydrateTools?: boolean; toolsLimit?: number; toolsCursor?: string }
-  ) => {
-    const query = new URLSearchParams();
-    if (options?.hydrateTools) query.set("hydrateTools", "1");
-    if (options?.toolsLimit !== undefined) query.set("toolsLimit", String(options.toolsLimit));
-    if (options?.toolsCursor !== undefined) query.set("toolsCursor", options.toolsCursor);
-    const suffix = query.size > 0 ? `?${query.toString()}` : "";
-    return request<AdminConnector>(
-      `/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}${suffix}`
-    );
   },
   /** Byte-serving URL for an asset's original file (MSG-05) — authenticated, same-origin, so a
    *  plain `<img src>`/`<video src>` sends the session cookie automatically with no `crossorigin`

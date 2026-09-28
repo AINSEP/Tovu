@@ -106,16 +106,16 @@ function otherGroup(storeId: OtherCredentialGroupState["store"]["id"], rows: Oth
 }
 
 describe("useMergedSecretsOrder — the owner's literal regression case", () => {
-  it("ranks a configured external-mcp entry above an unconfigured composio-project placeholder", () => {
+  it("ranks a configured external-mcp entry above an unconfigured media-provider placeholder", () => {
     const controller = makeAccessTokens([]);
     const otherController = makeOtherCredentials([
-      otherGroup("composio-project"), // Ops, not configured
+      otherGroup("media-provider"), // Media (ranks before AI), not configured
       otherGroup("external-mcp", [otherRow("external-mcp", { itemId: "higgsfield", name: "Higgsfield" })]), // AI, configured
     ]);
     const { result } = renderHook(() => useMergedSecretsOrder(controller, otherController, ""));
 
     const labels = result.current.map((e) => e.info.label);
-    expect(labels.indexOf("Higgsfield")).toBeLessThan(labels.indexOf("Composio project key"));
+    expect(labels.indexOf("Higgsfield")).toBeLessThan(labels.indexOf("Media provider keys"));
   });
 });
 
