@@ -282,14 +282,14 @@ async function publishedFilesFor(config: StaticPublishConfig): Promise<DeployFil
 }
 
 /** Static publishes carry the live server's security headers (see `static-security-headers.ts`):
- *  a `_headers` file for Netlify, `vercel.json` for Vercel, and a `<meta name="referrer">` in every
- *  exported HTML page for every host. Cloudflare Pages gets no `_headers`: Jini's direct upload sends
- *  every file as a plain asset, which Pages would serve publicly instead of applying. */
+ *  a `_headers` file for Netlify and Cloudflare Pages (Jini's direct upload sends a root `_headers`
+ *  as its own form field, which Pages applies), `vercel.json` for Vercel, and a `<meta name="referrer">`
+ *  in every exported HTML page for every host. */
 test("publishStaticSite: each target gets the live security headers in the form its host applies", async () => {
   const expectations: Array<{ config: StaticPublishConfig; file?: { name: string; data: string } }> = [
     { config: { target: "netlify" }, file: { name: "_headers", data: renderHeadersFile() } },
     { config: { target: "vercel" }, file: { name: "vercel.json", data: renderVercelConfig() } },
-    { config: { target: "cloudflare-pages" } },
+    { config: { target: "cloudflare-pages" }, file: { name: "_headers", data: renderHeadersFile() } },
     { config: { target: "github-pages", owner: "octo", repo: "demo-repo" } },
     { config: { target: "s3-compatible" } },
   ];

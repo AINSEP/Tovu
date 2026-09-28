@@ -6,12 +6,12 @@ import { escapeHtml } from "#src/platform/html/escape";
  * plain files served by someone else's host. Every value comes from the ONE shared set in
  * `contracts/core/public-page-security-headers.ts`; nothing here retypes a header.
  *
- * - Netlify: a `_headers` file ({@link renderHeadersFile}), applied by Netlify to every path.
+ * - Netlify and Cloudflare Pages: a `_headers` file ({@link renderHeadersFile}), applied to every
+ *   path. Cloudflare Pages applies it only when the uploader sends it as its own form field, which
+ *   Jini's direct upload does for a root `_headers` (sent as a plain asset, it would be served publicly).
  * - Vercel: `vercel.json`'s `headers` block ({@link renderVercelConfig}).
- * - Everywhere else (GitHub Pages, S3-compatible buckets, Cloudflare Pages, a hand-copied folder):
- *   only what HTML itself can say, via {@link withSecurityMeta}. Cloudflare Pages does read a
- *   `_headers` file, but only when the uploader sends it as its own form field; Jini's direct upload
- *   sends every file as a plain asset, so Pages would serve it publicly instead of applying it.
+ * - Everywhere else (GitHub Pages, S3-compatible buckets, a hand-copied folder): only what HTML
+ *   itself can say, via {@link withSecurityMeta}.
  *
  * What a `<meta>` CANNOT carry, so those hosts go without it:
  * - `X-Content-Type-Options`: a response header only; no HTML equivalent exists.
@@ -26,7 +26,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 export const HEADERS_FILE_NAME = "_headers";
 export const VERCEL_CONFIG_FILE_NAME = "vercel.json";
 
-/** Netlify's `_headers` format: a path pattern, then two-space-indented `Name: value` lines. */
+/** The Netlify / Cloudflare Pages `_headers` format: a path pattern, then two-space-indented `Name: value` lines. */
 export function renderHeadersFile(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS): string {
   const lines = Object.entries(headers).map(([name, value]) => `  ${name}: ${value}`);
   return `/*\n${lines.join("\n")}\n`;

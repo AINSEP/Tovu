@@ -483,6 +483,7 @@ async function runExportForPublish(
  *  applies one from an uploaded file (`static-security-headers.ts` says why the others get none). */
 const SECURITY_HEADER_FILES: Partial<Record<StaticPublishTargetId, () => DeployFile>> = {
   netlify: () => ({ file: HEADERS_FILE_NAME, data: renderHeadersFile() }),
+  "cloudflare-pages": () => ({ file: HEADERS_FILE_NAME, data: renderHeadersFile() }),
   vercel: () => ({ file: VERCEL_CONFIG_FILE_NAME, data: renderVercelConfig() }),
 };
 
