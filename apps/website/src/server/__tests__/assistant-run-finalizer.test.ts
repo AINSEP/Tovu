@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
 import test from "node:test";
 
 import express from "express";
@@ -76,11 +75,10 @@ function streamOf(...chunks: string[]): Response {
 }
 
 function harness(daemon: RunDaemonClient, deps: RouteDeps = createRouteDeps()) {
-  const exitHook = new EventEmitter();
   const finalizer: AssistantRunFinalizer = createAssistantRunFinalizer({
     ledger: deps.chatRunLedger,
     daemon,
-    exitHook,
+    checkpointIntervalMs: 0,
     reconnectDelayMs: 1,
     maxReconnects: 2,
   });
@@ -88,7 +86,7 @@ function harness(daemon: RunDaemonClient, deps: RouteDeps = createRouteDeps()) {
   app.use(express.json());
   registerAuthRoutes(app, deps);
   createAssistantChatsModule(deps, { finalizer }).registerRoutes?.(app);
-  return { app, deps, finalizer, exitHook };
+  return { app, deps, finalizer };
 }
 
 async function api(baseUrl: string, cookie: string, path: string, init: RequestInit = {}) {
@@ -227,22 +225,27 @@ test("a run the daemon forgot (it restarted) is saved failed, keeping what it pr
   ]);
 });
 
-test("a run in flight when the API process exits is saved failed with what it produced so far", async (t) => {
+test("a run in flight when the API process dies is saved failed at the next boot, with what it produced so far", async (t) => {
   const stream = controllableStream();
   const daemon = fakeDaemon({ events: () => stream.response, runStatus: 404 });
-  const { app, finalizer, exitHook } = harness(daemon);
+  const deps = createRouteDeps();
+  const { app, finalizer } = harness(daemon, deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const conversationId = await startConversation(baseUrl, cookie);
 
   await putStub(baseUrl, cookie, conversationId);
   stream.push(text("Still writ"));
-  // Let the frame reach the finalizer before the process "exits".
+  // Let the frame reach the finalizer and its checkpoint land before the process "dies".
   await new Promise((r) => setTimeout(r, 30));
 
-  assert.equal(exitHook.listenerCount("exit"), 1, "no exit flush registered while a run is watched");
-  exitHook.emit("exit");
+  const running = await assistantRow(baseUrl, cookie, conversationId);
+  assert.equal(running.runStatus, "running", "a checkpoint must not change the status");
+  assert.equal(running.content, "Still writ", "the in-flight answer was not checkpointed");
 
-  const row = await assistantRow(baseUrl, cookie, conversationId);
+  // The next boot over the same chat database: building the routes runs the repair.
+  const reboot = harness(fakeDaemon({ events: () => streamOf() }), deps);
+  const rebooted = await bootAuthenticated(reboot.app, t);
+  const row = await assistantRow(rebooted.baseUrl, rebooted.cookie, conversationId);
   assert.equal(row.runStatus, "failed");
   assert.equal(row.content, "Still writ");
   assert.deepEqual(row.events, [
@@ -252,7 +255,6 @@ test("a run in flight when the API process exits is saved failed with what it pr
 
   stream.close();
   await finalizer.idle();
-  assert.equal(exitHook.listenerCount("exit"), 0, "the exit flush must be removed once nothing is watched");
 });
 
 test("when the browser saves the finished turn first, the finalizer does not overwrite it", async (t) => {
@@ -367,7 +369,9 @@ test("on boot, turns stuck at running or queued are marked failed with the plain
 
   // Building the routes is "boot" for this module; the repair must be done before anything is served.
   const { app, finalizer } = harness(fakeDaemon({ events: () => streamOf() }), deps);
-  await bootAuthenticated(app, t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  // Any chat route answers only once the async repair has finished.
+  assert.equal((await api(baseUrl, cookie, "")).status, 200);
 
   const messages = (await store.messages("c-old")) as SavedMessage[];
   const byId = new Map(messages.map((m) => [m.id, m]));

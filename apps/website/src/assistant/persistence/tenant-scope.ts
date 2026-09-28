@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 
 import { createChatHistoryStore } from "@jini-ai/sqlite";
 import type { ChatHistoryStore } from "@jini-ai/chat/core";
-import type { Database as SqliteDatabase } from "better-sqlite3";
 
 import { createChatRunLedger, type ChatRunLedger } from "./run-ledger.js";
 
@@ -73,6 +72,13 @@ export type ChatPrincipal = AdminChatPrincipal | GuestChatPrincipal;
 export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 
 /**
+ * The open `chat.db` handle `@jini-ai/sqlite`'s store writes through — whatever that store takes,
+ * so this file names no driver. The Postgres `ChatHistoryStore` (storage plan slice H2) replaces
+ * it with the chat kernel.
+ */
+export type ChatHistoryHandle = Parameters<typeof createChatHistoryStore>[0];
+
+/**
  * Returns chat history scoped to exactly one principal.
  *
  * There is no sibling function that returns an unscoped store, and that absence is the design.
@@ -80,12 +86,12 @@ export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
  * `retention-sweep.ts` and talks to `@jini-ai/sqlite`'s maintenance factory directly, so it does
  * not need an escape hatch here.
  *
- * @param db Tovu's `content.db` handle. The Jini store writes through it and never opens a
+ * @param db Tovu's `chat.db` handle. The Jini store writes through it and never opens a
  *   database of its own, which is what keeps this out of that package's `app.sqlite`.
  * @complexity O(1); the returned store's methods are single indexed queries.
  */
 export function createTenantScopedChatStore(
-  db: SqliteDatabase,
+  db: ChatHistoryHandle,
   principal: ChatPrincipal,
   ledger: ChatRunLedger = createChatRunLedger(db),
 ): ChatHistoryStore {
@@ -105,15 +111,19 @@ export function createTenantScopedChatStore(
      * returned instead, read through the scoped store, so a caller that does not own the
      * conversation still gets `null` exactly as before.
      *
-     * No `await` between the check and `store.appendMessage`'s synchronous write, so nothing can
-     * settle the row in between.
+     * The check and `store.appendMessage`'s write run in one ledger transaction under the run's
+     * lock, so nothing can settle the row in between. The store writes on the same `chat.db`
+     * connection, so on SQLite its write lands inside that transaction.
      */
     async appendMessage(conversationId, message) {
-      if (message.role === "assistant" && message.runId && ledger.isSettled(conversationId, message.id, message.runId)) {
-        const saved = await store.messages(conversationId);
-        return saved.find((m) => m.id === message.id) ?? null;
-      }
-      return store.appendMessage(conversationId, message);
+      if (message.role !== "assistant" || !message.runId) return store.appendMessage(conversationId, message);
+      const outcome = await ledger.unlessSettled(
+        { conversationId, messageId: message.id, runId: message.runId },
+        () => store.appendMessage(conversationId, message)
+      );
+      if (outcome.written) return outcome.value;
+      const saved = await store.messages(conversationId);
+      return saved.find((m) => m.id === message.id) ?? null;
     },
   };
 }

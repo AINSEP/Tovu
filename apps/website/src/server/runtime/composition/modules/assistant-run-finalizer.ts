@@ -16,10 +16,11 @@
  *   answer and events.
  * - the daemon answers 404 for the run (it restarted and forgot it): `failed`, keeping every event
  *   received so far, plus the plain restart notice.
- * - this API process exits (which also kills the daemon, `daemon-supervisor.ts`): the same, written
- *   synchronously from a `process` `exit` listener.
- * - a hard kill leaves no chance to write: the next boot's `ChatRunLedger.reconcileInterrupted`
- *   marks the row failed instead, with whatever the stub held.
+ * - this API process exits or is killed (which also kills the daemon, `daemon-supervisor.ts`): no
+ *   write can finish then (storage is async, an `exit` listener cannot await), so the finalizer
+ *   checkpoints the answer as it streams (`ChatRunLedger.checkpoint`, at most once per
+ *   `checkpointIntervalMs`), and the next boot's `ChatRunLedger.reconcileInterrupted` marks the row
+ *   failed, keeping that partial answer and appending the plain restart notice.
  *
  * Every write goes through `ChatRunLedger.settle`, which only changes a row that still belongs to
  * this run and is not yet terminal. So when a browser IS attached and saves the same turn first, the
@@ -62,8 +63,8 @@ export interface AssistantRunFinalizerOptions {
   readonly reconnectDelayMs?: number;
   /** Reconnects to try before leaving the row for the browser or the next boot to settle. */
   readonly maxReconnects?: number;
-  /** Where the exit flush is registered. Defaults to `process`; tests pass a stub. */
-  readonly exitHook?: Pick<NodeJS.EventEmitter, "on" | "off">;
+  /** Least time between two in-flight checkpoints of one run. Default 1000 ms; tests pass 0. */
+  readonly checkpointIntervalMs?: number;
 }
 
 export interface AssistantRunFinalizer {
@@ -110,6 +111,9 @@ interface Watch {
   readonly runId: string;
   events: AgentEvent[];
   failed: boolean;
+  /** How many events the last checkpoint saved, and when (see `checkpoint`). */
+  checkpointedEvents: number;
+  checkpointedAt: number;
 }
 
 type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | { kind: "gone" } | { kind: "dropped" };
@@ -124,11 +128,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const now = options.now ?? Date.now;
   const reconnectDelayMs = options.reconnectDelayMs ?? 2_000;
   const maxReconnects = options.maxReconnects ?? 30;
-  const exitHook = options.exitHook ?? process;
+  const checkpointIntervalMs = options.checkpointIntervalMs ?? 1_000;
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
 
-  function settle(watch: Watch, status: RunSettlement["status"], events: AgentEvent[]): void {
-    options.ledger.settle({
+  async function settle(watch: Watch, status: RunSettlement["status"], events: AgentEvent[]): Promise<void> {
+    await options.ledger.settle({
       conversationId: watch.conversationId,
       messageId: watch.messageId,
       runId: watch.runId,
@@ -139,18 +143,31 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     });
   }
 
-  function settleInterrupted(watch: Watch): void {
-    settle(watch, "failed", [...watch.events, runInterruptedNotice()]);
+  function settleInterrupted(watch: Watch): Promise<void> {
+    return settle(watch, "failed", [...watch.events, runInterruptedNotice()]);
   }
 
   /**
-   * The exit flush. Synchronous on purpose: `better-sqlite3` writes are, and a `process` `exit`
-   * listener cannot await anything. Registered only while something is being watched, so repeated
-   * app construction in tests never piles up listeners.
+   * Saves what the run has produced so far, when it has grown since the last save and the interval
+   * has passed. Only growth counts: a reconnect replays from event 0, and a checkpoint of the
+   * replay's first events would shrink the saved answer.
    */
-  const onExit = () => {
-    for (const { watch } of active.values()) settleInterrupted(watch);
-  };
+  async function checkpoint(watch: Watch): Promise<void> {
+    if (watch.events.length <= watch.checkpointedEvents) return;
+    if (now() - watch.checkpointedAt < checkpointIntervalMs) return;
+    watch.checkpointedEvents = watch.events.length;
+    watch.checkpointedAt = now();
+    // Best effort: a failed checkpoint only loses what a restart would keep; the stream goes on.
+    await options.ledger
+      .checkpoint({
+        conversationId: watch.conversationId,
+        messageId: watch.messageId,
+        runId: watch.runId,
+        content: runContentFromEvents(watch.events),
+        events: runEventsForSave(watch.events),
+      })
+      .catch((error: unknown) => console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error));
+  }
 
   /** Reads one connection to the end. The daemon replays from event 0 on every connection, so the
    *  events collected by an earlier, dropped connection are discarded rather than doubled. */
@@ -167,6 +184,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       if (outcome.terminal) {
         return { kind: "ended", status: watch.failed && outcome.terminal === "succeeded" ? "failed" : outcome.terminal };
       }
+      await checkpoint(watch);
     }
     return { kind: "dropped" };
   }
@@ -192,15 +210,22 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       if (message.runStatus === undefined || isTerminalRunStatus(message.runStatus)) return;
       if (active.has(runId)) return;
 
-      const watch: Watch = { principalId, conversationId, messageId: message.id, runId, events: [], failed: false };
-      if (active.size === 0) exitHook.on("exit", onExit);
+      const watch: Watch = {
+        principalId,
+        conversationId,
+        messageId: message.id,
+        runId,
+        events: [],
+        failed: false,
+        checkpointedEvents: 0,
+        checkpointedAt: Number.NEGATIVE_INFINITY,
+      };
       const done = follow(watch)
         .catch((error: unknown) => {
           console.error(`[assistant-run-finalizer] watching run ${runId} failed`, error);
         })
         .finally(() => {
           active.delete(runId);
-          if (active.size === 0) exitHook.off("exit", onExit);
         });
       active.set(runId, { watch, done });
     },

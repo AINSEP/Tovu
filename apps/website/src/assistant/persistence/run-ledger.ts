@@ -1,7 +1,9 @@
 import type { AgentEvent, ChatRunStatus } from "@jini-ai/chat/core";
-import type { Database as SqliteDatabase } from "better-sqlite3";
+import type { ExpressionBuilder } from "kysely";
 
 import { runInterruptedNotice } from "#src/contracts/core/assistant-run-events";
+import { type ChatDatabase, type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
+import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
 
 /**
  * @file The run-status half of chat history: the writes that decide how an assistant turn ENDS.
@@ -14,55 +16,97 @@ import { runInterruptedNotice } from "#src/contracts/core/assistant-run-events";
  * a second terminal save, or a stub that arrives late — is ignored. A write for a DIFFERENT run id
  * (a retry reuses the message id with a new run) is a new turn and goes through as normal.
  *
- * Why here and not in the route: every check below is one synchronous `better-sqlite3` statement,
- * so no `await` sits between "is it settled?" and the write. Both writers live in the API process,
- * so that makes the rule race-free without a lock.
+ * How it stays race-free with async storage: every "is it settled?" check and the write it guards
+ * run in ONE kernel transaction holding the run's lock ({@link runLockKey}), and {@link
+ * ChatRunLedger.settle} takes the same lock. On SQLite that is `BEGIN IMMEDIATE` (the write lock);
+ * on Postgres a transaction-scoped advisory lock, since a plain transaction does not serialize there.
  *
  * Architectural role:
- * Holds the raw `chat.db` handle, like `tenant-scope.ts`. Nothing here returns message content to a
- * caller; the one cross-owner operation ({@link ChatRunLedger.reconcileInterrupted}) only ever
- * moves rows from `queued`/`running` to `failed`. No row is ever deleted.
+ * ONE Kysely body over the chat kernel (`platform/db/chat-kernel.ts`), for every dialect. Nothing
+ * here returns message content to a caller; the one cross-owner operation
+ * ({@link ChatRunLedger.reconcileInterrupted}) only ever moves rows from `queued`/`running` to
+ * `failed`. No row is ever deleted.
  */
 
 const TERMINAL_STATUSES = ["succeeded", "failed", "canceled"] as const;
-const NOT_TERMINAL_SQL = `(run_status IS NULL OR run_status NOT IN ('succeeded','failed','canceled'))`;
 
-/** The finished state of one run's row, as the finalizer saves it. */
-export interface RunSettlement {
+/** Which run of which assistant row. */
+export interface RunRef {
   readonly conversationId: string;
   readonly messageId: string;
   readonly runId: string;
-  readonly status: Extract<ChatRunStatus, "succeeded" | "failed" | "canceled">;
+}
+
+/** What a run has produced so far (the finalizer's in-flight save). */
+export interface RunProgress extends RunRef {
   readonly content: string;
   readonly events: readonly AgentEvent[];
+}
+
+/** The finished state of one run's row, as the finalizer saves it. */
+export interface RunSettlement extends RunProgress {
+  readonly status: Extract<ChatRunStatus, "succeeded" | "failed" | "canceled">;
   readonly endedAt: number;
 }
 
+/** {@link ChatRunLedger.unlessSettled}'s result: the write's value, or that the run had settled. */
+export type UnlessSettled<T> = { readonly written: true; readonly value: T } | { readonly written: false };
+
 export interface ChatRunLedger {
   /**
-   * Whether this run's row already holds a terminal status. `false` for an unknown row, another run
-   * id, or a row still `queued`/`running`.
+   * Runs `write` only while `run`'s row holds no terminal status (an unknown row, another run id, or
+   * a row still `queued`/`running` all count as unsettled), with no settle able to land in between.
+   * `write` must reach the chat database through this ledger's kernel (the same connection, on
+   * SQLite) so it joins the transaction.
    */
-  isSettled(conversationId: string, messageId: string, runId: string): boolean;
+  unlessSettled<T>(run: RunRef, write: () => Promise<T>): Promise<UnlessSettled<T>>;
   /**
    * Writes the run's final content, events and status — only if the row still belongs to that run
-   * and is not yet terminal. Returns `true` when this call was the one that settled it.
+   * and is not yet terminal. Resolves `true` when this call was the one that settled it.
    */
-  settle(settlement: RunSettlement): boolean;
+  settle(settlement: RunSettlement): Promise<boolean>;
+  /**
+   * Saves what a still-running run has produced so far (content and events; the status stays), so
+   * a process that dies mid-run leaves its partial answer for {@link reconcileInterrupted} to keep.
+   * A no-op once the row is terminal or belongs to another run. Resolves `true` when it wrote.
+   */
+  checkpoint(progress: RunProgress): Promise<boolean>;
   /**
    * Boot-time repair: marks every assistant row still `queued`/`running` as `failed`, keeping its
-   * content and events and appending the plain restart notice. Returns how many rows it changed.
+   * content and events and appending the plain restart notice. Resolves how many rows it changed.
    *
    * Correct at boot because the agent daemon is a child of this process
    * (`daemon-supervisor.ts`): a run from before this boot cannot still be alive. BYOK and AG-UI turns
-   * lived on a request to the old process, so the same holds for them.
+   * lived on a request to the old process, so the same holds for them. No run lock: nothing else
+   * writes these rows before the routes that serve them exist, and each row's update re-checks its
+   * status.
    */
-  reconcileInterrupted(now?: number): number;
+  reconcileInterrupted(now?: number): Promise<number>;
+}
+
+/** The lock every read-then-write on one run's row takes. */
+export function runLockKey(run: RunRef): string {
+  return `chat-run:${run.conversationId}:${run.messageId}`;
 }
 
 function isTerminal(status: unknown): boolean {
   return typeof status === "string" && (TERMINAL_STATUSES as readonly string[]).includes(status);
 }
+
+type MessagesBuilder = ExpressionBuilder<ChatDatabase, "ai_chat_messages">;
+
+/** `run_status` is not terminal (NULL counts as not terminal). */
+const notTerminal = (eb: MessagesBuilder) =>
+  eb.or([eb("run_status", "is", null), eb("run_status", "not in", TERMINAL_STATUSES)]);
+
+/** The assistant row of exactly this run. */
+const isRunRow = (eb: MessagesBuilder, run: RunRef) =>
+  eb.and([
+    eb("id", "=", run.messageId),
+    eb("conversation_id", "=", run.conversationId),
+    eb("run_id", "=", run.runId),
+    eb("role", "=", "assistant"),
+  ]);
 
 function eventsWithNotice(eventsJson: string | null): AgentEvent[] {
   let events: unknown = [];
@@ -75,57 +119,101 @@ function eventsWithNotice(eventsJson: string | null): AgentEvent[] {
 }
 
 /**
- * @param db the `chat.db` handle `createChatStoreFactory` also wraps.
- * @complexity each method is one indexed statement, except `reconcileInterrupted`, which is O(stuck rows).
+ * @param store the chat kernel, or the open `chat.db` handle `createChatStoreFactory` also wraps.
+ * @complexity each method is one or two indexed statements, except `reconcileInterrupted`, which
+ *   is O(stuck rows).
  */
-export function createChatRunLedger(db: SqliteDatabase): ChatRunLedger {
-  // Prepared per call, not up front: the in-memory test root creates its tables lazily, and each of
-  // these runs at most a few times per turn, so a cached statement would buy nothing.
-  const sql = {
-    readStatus: `SELECT run_status AS runStatus FROM ai_chat_messages WHERE id = ? AND conversation_id = ? AND run_id = ?`,
-    settleRow: `UPDATE ai_chat_messages
-        SET content = @content, events_json = @eventsJson, run_status = @status, ended_at = @endedAt
-      WHERE id = @messageId AND conversation_id = @conversationId AND run_id = @runId
-        AND role = 'assistant' AND ${NOT_TERMINAL_SQL}`,
-    touchConversation: `UPDATE ai_chats SET updated_at = ? WHERE id = ?`,
-    stuckRows: `SELECT id, events_json AS eventsJson FROM ai_chat_messages
-      WHERE role = 'assistant' AND run_status IN ('queued','running')`,
-    failStuckRow: `UPDATE ai_chat_messages
-        SET run_status = 'failed', events_json = @eventsJson, ended_at = COALESCE(ended_at, @now)
-      WHERE id = @id AND run_status IN ('queued','running')`,
-  } as const;
+export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource): ChatRunLedger {
+  const kernel = chatKernel(store);
+
+  async function isSettled(run: RunRef): Promise<boolean> {
+    const row = await kernel.run((db) =>
+      db
+        .selectFrom("ai_chat_messages")
+        .select("run_status")
+        .where("id", "=", run.messageId)
+        .where("conversation_id", "=", run.conversationId)
+        .where("run_id", "=", run.runId)
+        .executeTakeFirst()
+    );
+    return isTerminal(row?.run_status);
+  }
 
   return {
-    isSettled(conversationId, messageId, runId) {
-      const row = db.prepare(sql.readStatus).get(messageId, conversationId, runId) as { runStatus: unknown } | undefined;
-      return isTerminal(row?.runStatus);
+    unlessSettled(run, write) {
+      return kernel.transaction(async () => {
+        await kernel.lockKey(runLockKey(run));
+        if (await isSettled(run)) return { written: false } as const;
+        return { written: true, value: await write() } as const;
+      });
     },
 
     settle(settlement) {
-      const changed = db.prepare(sql.settleRow).run({
-        messageId: settlement.messageId,
-        conversationId: settlement.conversationId,
-        runId: settlement.runId,
-        status: settlement.status,
-        content: settlement.content,
-        eventsJson: JSON.stringify(settlement.events),
-        endedAt: settlement.endedAt,
-      }).changes;
-      if (changed === 0) return false;
-      db.prepare(sql.touchConversation).run(settlement.endedAt, settlement.conversationId);
-      return true;
+      return kernel.transaction(async () => {
+        await kernel.lockKey(runLockKey(settlement));
+        const result = await kernel.run((db) =>
+          db
+            .updateTable("ai_chat_messages")
+            .set({
+              content: settlement.content,
+              events_json: JSON.stringify(settlement.events),
+              run_status: settlement.status,
+              ended_at: settlement.endedAt,
+            })
+            .where((eb) => eb.and([isRunRow(eb, settlement), notTerminal(eb)]))
+            .executeTakeFirst()
+        );
+        if (Number(result.numUpdatedRows) === 0) return false;
+        await kernel.run((db) =>
+          db
+            .updateTable("ai_chats")
+            .set({ updated_at: settlement.endedAt })
+            .where("id", "=", settlement.conversationId)
+            .execute()
+        );
+        return true;
+      });
+    },
+
+    async checkpoint(progress) {
+      const result = await kernel.run((db) =>
+        db
+          .updateTable("ai_chat_messages")
+          .set({ content: progress.content, events_json: JSON.stringify(progress.events) })
+          .where((eb) => eb.and([isRunRow(eb, progress), notTerminal(eb)]))
+          .executeTakeFirst()
+      );
+      return Number(result.numUpdatedRows) > 0;
     },
 
     reconcileInterrupted(now = Date.now()) {
-      const repair = db.transaction(() => {
+      return kernel.transaction(async () => {
+        const stuck = await kernel.run((db) =>
+          db
+            .selectFrom("ai_chat_messages")
+            .select(["id", "events_json"])
+            .where("role", "=", "assistant")
+            .where("run_status", "in", ["queued", "running"])
+            .execute()
+        );
         let count = 0;
-        const failStuckRow = db.prepare(sql.failStuckRow);
-        for (const row of db.prepare(sql.stuckRows).all() as { id: string; eventsJson: string | null }[]) {
-          count += failStuckRow.run({ id: row.id, now, eventsJson: JSON.stringify(eventsWithNotice(row.eventsJson)) }).changes;
+        for (const row of stuck) {
+          const result = await kernel.run((db) =>
+            db
+              .updateTable("ai_chat_messages")
+              .set((eb) => ({
+                run_status: "failed",
+                events_json: JSON.stringify(eventsWithNotice(row.events_json)),
+                ended_at: eb.fn.coalesce("ended_at", eb.val(now)),
+              }))
+              .where("id", "=", row.id)
+              .where("run_status", "in", ["queued", "running"])
+              .executeTakeFirst()
+          );
+          count += Number(result.numUpdatedRows);
         }
         return count;
       });
-      return repair();
     },
   };
 }

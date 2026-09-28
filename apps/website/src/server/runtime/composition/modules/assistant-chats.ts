@@ -88,10 +88,22 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
        * daemon is this process's child). Marked failed with the plain restart notice, content kept,
        * never deleted — otherwise the pane spins on it forever. See `run-ledger.ts`.
        */
-      const repaired = deps.chatRunLedger.reconcileInterrupted();
-      if (repaired > 0) console.log(`[assistant-chats] marked ${repaired} interrupted chat turn(s) failed`);
+      const reconciled = deps.chatRunLedger.reconcileInterrupted().then(
+        (repaired) => {
+          if (repaired > 0) console.log(`[assistant-chats] marked ${repaired} interrupted chat turn(s) failed`);
+        },
+        (error: unknown) => {
+          // A failed repair leaves rows `running` (the pane shows them spinning); it must not keep
+          // every chat route down with it.
+          console.error("[assistant-chats] boot-time repair of interrupted chat turns failed", error);
+        }
+      );
 
       app.use("/api/assistant/chats", requireAdminSession(deps));
+      // The repair is async now (storage kernel); no chat route answers until it has finished.
+      app.use("/api/assistant/chats", (_req, _res, next) => {
+        void reconciled.then(() => next());
+      });
 
       /** The store for whoever is making this request, and nobody else. */
       function storeFor(res: Response) {
