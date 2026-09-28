@@ -19,8 +19,10 @@ import { describe, expect, it } from "vitest";
  *    credential fields by design. Set/change-password and secret fields use `new-password`.
  * 3. The login form is the one real sign-in: `username` + `current-password`.
  *
- * Not covered: HTML-string builders, e.g. Jini `mcp-ui/surfaces/text-input.ts`, which renders a
- * `secret` field as `type="password" autocomplete="off"` (the database-transfer destination form).
+ * HTML-string builders are covered on the Jini side: `packages/ui/src/features/mcp-ui/__tests__/
+ * surfaces/form.test.ts` ("credential autofill guard") checks that every `type="password"` input a
+ * form surface emits carries `autocomplete="new-password"` (Jini 220ca42d; the database-transfer
+ * destination form's password field).
  *
  * Parsed with the TypeScript AST, not regex, so comment prose never counts and an arrow function's
  * `=>` inside an attribute cannot cut the element short.
