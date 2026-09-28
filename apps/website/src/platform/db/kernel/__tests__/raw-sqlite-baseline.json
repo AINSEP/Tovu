@@ -281,9 +281,6 @@
   "apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts": {
     "sync-terminal": 8
   },
-  "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts": {
-    "sync-terminal": 5
-  },
   "apps/website/src/platform/db/sqlite/publish-trust-revocations.sqlite.ts": {
     "sync-terminal": 4
   },

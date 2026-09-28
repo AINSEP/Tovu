@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { outboxFor } from "#src/platform/db/repos/outbox-repo";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus.js";
 import { MAX_OUTBOX_ATTEMPTS } from "../outbox-worker.js";
@@ -185,3 +187,8 @@ function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) =
 runContractSuite("memory", (options) => new InMemoryOutbox(options));
 
 runContractSuite("sqlite", (options) => new SqliteOutboxAdapter(openContentDb(":memory:"), options));
+
+// The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral factory, and PGlite.
+for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {
+  runContractSuite(`kysely/${each.name}`, (options) => outboxFor(each.make(), options));
+}
