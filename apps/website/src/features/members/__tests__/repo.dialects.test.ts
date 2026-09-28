@@ -3,8 +3,8 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { memberRepoFor, memberSessionRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
-import type { MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
+import { magicLinkTokenRepoFor, memberRepoFor, memberSessionRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
+import type { MagicLinkTokenRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
 
 /**
  * @file The members repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE
@@ -99,6 +99,20 @@ function session(id: string, overrides: Partial<MemberSessionRecord> = {}): Memb
   };
 }
 
+function token(id: string, overrides: Partial<MagicLinkTokenRecord> = {}): MagicLinkTokenRecord {
+  return {
+    id,
+    workspaceId: WS,
+    memberId: "m1",
+    tokenHash: `hash-${id}`,
+    purpose: "signin",
+    createdAt: T0,
+    expiresAt: "2026-09-28T01:00:00.000Z",
+    consumedAt: undefined,
+    ...overrides,
+  };
+}
+
 function repos(kernel: ContentKernel) {
   return {
     kernel,
@@ -106,6 +120,7 @@ function repos(kernel: ContentKernel) {
     tiers: memberTierRepoFor(kernel),
     subs: memberSubscriptionRepoFor(kernel),
     sessions: memberSessionRepoFor(kernel),
+    tokens: magicLinkTokenRepoFor(kernel),
   };
 }
 
@@ -388,6 +403,79 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
       );
       assert.equal((await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s1" }))?.revokedAt, undefined);
       assert.equal(await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s2" }), null);
+    });
+  });
+
+  describe("MagicLinkTokenRepo", () => {
+    const USED = "2026-09-28T00:30:00.000Z";
+
+    test("save then findByTokenHash round-trips; misses and other workspaces return null", async () => {
+      const { tokens } = makeRepos();
+      await tokens.save(token("k1"));
+      assert.deepEqual(await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }), token("k1"));
+      assert.equal(await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "nope" }), null);
+      assert.equal(await tokens.findByTokenHash({ workspaceId: OTHER, tokenHash: "hash-k1" }), null);
+    });
+
+    test("save upserts by id and the token-hash unique index rejects a second token with the same hash", async () => {
+      const { tokens } = makeRepos();
+      await tokens.save(token("k1"));
+      await tokens.save(token("k1", { expiresAt: "2026-09-29T00:00:00.000Z" }));
+      assert.equal((await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }))?.expiresAt, "2026-09-29T00:00:00.000Z");
+      await assert.rejects(tokens.save(token("k2", { tokenHash: "hash-k1" })));
+      await tokens.save(token("k3", { workspaceId: OTHER, tokenHash: "hash-k1" }));
+    });
+
+    test("consume stamps consumedAt once", async () => {
+      const { tokens } = makeRepos();
+      await tokens.save(token("k1"));
+      await tokens.consume({ workspaceId: WS, id: "k1", consumedAt: USED });
+      assert.equal((await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }))?.consumedAt, USED);
+    });
+
+    test("consume of an unknown id or another workspace's token throws not-found", async () => {
+      const { tokens } = makeRepos();
+      await tokens.save(token("k1"));
+      await assert.rejects(tokens.consume({ workspaceId: WS, id: "nope", consumedAt: USED }), /'nope' was not found/);
+      await assert.rejects(tokens.consume({ workspaceId: OTHER, id: "k1", consumedAt: USED }), /'k1' was not found/);
+      assert.equal((await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }))?.consumedAt, undefined);
+    });
+
+    test("a second consume fails and keeps the first stamp (single-use)", async () => {
+      const { tokens } = makeRepos();
+      await tokens.save(token("k1"));
+      await tokens.consume({ workspaceId: WS, id: "k1", consumedAt: USED });
+      await assert.rejects(tokens.consume({ workspaceId: WS, id: "k1", consumedAt: "2026-09-28T09:00:00.000Z" }), /'k1' was already consumed/);
+      assert.equal((await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }))?.consumedAt, USED);
+    });
+
+    test("two concurrent consumes: exactly one wins", async () => {
+      const { tokens } = makeRepos();
+      await tokens.save(token("k1"));
+      const results = await Promise.allSettled([
+        tokens.consume({ workspaceId: WS, id: "k1", consumedAt: USED }),
+        tokens.consume({ workspaceId: WS, id: "k1", consumedAt: "2026-09-28T09:00:00.000Z" }),
+      ]);
+      assert.deepEqual(results.map((r) => r.status).sort(), ["fulfilled", "rejected"]);
+      const winner = results.findIndex((r) => r.status === "fulfilled");
+      assert.equal(
+        (await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }))?.consumedAt,
+        winner === 0 ? USED : "2026-09-28T09:00:00.000Z"
+      );
+    });
+
+    test("a consume inside a rolled-back transaction leaves the token unused", async () => {
+      const { kernel, tokens } = makeRepos();
+      await tokens.save(token("k1"));
+      await assert.rejects(
+        kernel.transaction(async () => {
+          await tokens.consume({ workspaceId: WS, id: "k1", consumedAt: USED });
+          throw new Error("boom");
+        }),
+        /boom/
+      );
+      assert.equal((await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }))?.consumedAt, undefined);
+      await tokens.consume({ workspaceId: WS, id: "k1", consumedAt: USED });
     });
   });
 });

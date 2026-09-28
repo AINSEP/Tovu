@@ -1,11 +1,14 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
+  MagicLinkTokenRepoPort,
   MemberRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
 } from "./ports.js";
 import {
+  toMagicLinkTokenRecord,
+  toMagicLinkTokenRow,
   toMemberRecord,
   toMemberRow,
   toMemberSessionRecord,
@@ -15,7 +18,7 @@ import {
   toMemberTierRecord,
   toMemberTierRow,
 } from "./repo.rows.js";
-import type { MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "./types.js";
+import type { MagicLinkTokenRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "./types.js";
 
 /**
  * @file THE members repositories: one Kysely query body for every database the storage kernel drives
@@ -282,6 +285,70 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
   }
 }
 
+export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MagicLinkTokenRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_magic_tokens")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("token_hash", "=", required.tokenHash)
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toMagicLinkTokenRecord(row) : null;
+  }
+
+  async save(record: MagicLinkTokenRecord): Promise<void> {
+    const row = toMagicLinkTokenRow(record);
+    await this.kernel.run((db) =>
+      db
+        .insertInto("member_magic_tokens")
+        .values(row)
+        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
+        .execute()
+    );
+  }
+
+  /**
+   * Single-use: the check and the stamp run in one transaction holding the workspace's token lock, so
+   * of two concurrent consumes exactly one wins and the other throws "already consumed". The UPDATE
+   * also carries `consumed_at IS NULL`, so it can never overwrite an earlier stamp even if the lock
+   * were bypassed.
+   */
+  async consume(required: { workspaceId: string; id: string; consumedAt: string }): Promise<void> {
+    await this.kernel.transaction(async () => {
+      await this.kernel.lockKey(`members:magic-tokens:${required.workspaceId}`);
+      const existing = await this.kernel.run((db) =>
+        db
+          .selectFrom("member_magic_tokens")
+          .select("consumed_at")
+          .where("workspace_id", "=", required.workspaceId)
+          .where("id", "=", required.id)
+          .limit(1)
+          .executeTakeFirst()
+      );
+      if (!existing) {
+        throw new Error(`magic link token '${required.id}' was not found`);
+      }
+      if (existing.consumed_at) {
+        throw new Error(`magic link token '${required.id}' was already consumed`);
+      }
+      await this.kernel.run((db) =>
+        db
+          .updateTable("member_magic_tokens")
+          .set({ consumed_at: required.consumedAt })
+          .where("workspace_id", "=", required.workspaceId)
+          .where("id", "=", required.id)
+          .where("consumed_at", "is", null)
+          .execute()
+      );
+    });
+  }
+}
+
 /** The member repo for `kernel`. */
 export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
   return new SqlMemberRepo(kernel);
@@ -300,4 +367,9 @@ export function memberSubscriptionRepoFor(kernel: ContentKernel): SqlMemberSubsc
 /** The member-session repo for `kernel`. */
 export function memberSessionRepoFor(kernel: ContentKernel): SqlMemberSessionRepo {
   return new SqlMemberSessionRepo(kernel);
+}
+
+/** The magic-link token repo for `kernel`. */
+export function magicLinkTokenRepoFor(kernel: ContentKernel): SqlMagicLinkTokenRepo {
+  return new SqlMagicLinkTokenRepo(kernel);
 }

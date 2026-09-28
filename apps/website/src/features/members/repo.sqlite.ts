@@ -2,24 +2,21 @@ import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import { SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "./repo.js";
+import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "./repo.js";
 import {
   memberConsents,
-  memberMagicTokens,
   memberRevisions,
 } from "../../platform/db/schema.sqlite.js";
 import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
-  MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
 } from "./ports.js";
 import type {
   ConsentEvidence,
   ConsentPurpose,
   ConsentStatus,
-  MagicLinkTokenRecord,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
 } from "./types.js";
@@ -74,68 +71,11 @@ export class SqliteMemberSessionRepo extends SqlMemberSessionRepo {
   }
 }
 
-function toMagicLinkTokenRecord(row: typeof memberMagicTokens.$inferSelect): MagicLinkTokenRecord {
-  return {
-    id: row.id,
-    workspaceId: row.workspaceId,
-    memberId: row.memberId,
-    tokenHash: row.tokenHash,
-    purpose: row.purpose as MagicLinkTokenRecord["purpose"],
-    createdAt: row.createdAt,
-    expiresAt: row.expiresAt,
-    consumedAt: row.consumedAt ?? undefined,
-  };
-}
-
-export class SqliteMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MagicLinkTokenRecord | null> {
-    return findOneBy(
-      this.db,
-      memberMagicTokens,
-      [eq(memberMagicTokens.workspaceId, required.workspaceId), eq(memberMagicTokens.tokenHash, required.tokenHash)],
-      toMagicLinkTokenRecord
-    );
-  }
-
-  async save(record: MagicLinkTokenRecord): Promise<void> {
-    const row = {
-      id: record.id,
-      workspaceId: record.workspaceId,
-      memberId: record.memberId,
-      tokenHash: record.tokenHash,
-      purpose: record.purpose,
-      createdAt: record.createdAt,
-      expiresAt: record.expiresAt,
-      consumedAt: record.consumedAt ?? null,
-    };
-    this.db
-      .insert(memberMagicTokens)
-      .values(row)
-      .onConflictDoUpdate({ target: memberMagicTokens.id, set: row })
-      .run();
-  }
-
-  async consume(required: { workspaceId: string; id: string; consumedAt: string }): Promise<void> {
-    const rows = this.db
-      .select()
-      .from(memberMagicTokens)
-      .where(and(eq(memberMagicTokens.workspaceId, required.workspaceId), eq(memberMagicTokens.id, required.id)))
-      .all();
-    const existing = rows[0];
-    if (!existing) {
-      throw new Error(`magic link token '${required.id}' was not found`);
-    }
-    if (existing.consumedAt) {
-      throw new Error(`magic link token '${required.id}' was already consumed`);
-    }
-
-    this.db
-      .update(memberMagicTokens)
-      .set({ consumedAt: required.consumedAt })
-      .where(and(eq(memberMagicTokens.workspaceId, required.workspaceId), eq(memberMagicTokens.id, required.id)))
-      .run();
+/** The magic-link token repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
+export class SqliteMagicLinkTokenRepo extends SqlMagicLinkTokenRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 
