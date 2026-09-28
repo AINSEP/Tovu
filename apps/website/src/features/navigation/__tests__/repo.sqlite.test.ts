@@ -1,23 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import {
   InMemoryMenuRepo,
+  MenuConflictError,
   InMemoryNavLocationBindingRepo,
   type MenuRepoPort,
   type NavLocationBindingRepoPort,
   type NavMenuDoc,
   type NavMenuEntry,
 } from "@jini-ai/cms/navigation";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
+import { SqlMenuRepo, SqlNavLocationBindingRepo } from "../repo.js";
 
 /**
  * @file Shared contract-test suites for `MenuRepoPort` and
  * `NavLocationBindingRepoPort` (ADR-PIPE-012 D-5, C-008a/C-008b, T015/T016).
  *
  * Re-runs the exact behavioral suite against both adapters — in-memory
- * (`repo.memory.ts`) and the new SQLite adapter (`repo.sqlite.ts`) — mirroring
+ * (`repo.memory.ts`) and the one Kysely body (`repo.ts`) on SQLite and PGlite — mirroring
  * the `PostRepoPort`/`SettingsRepoPort` dual-adapter precedent
  * (`src/features/settings/__tests__/repo.contract.test.ts`). Plus one new
  * case for `NavLocationBindingRepoPort`: a DB-level unique-constraint proof
@@ -120,7 +121,34 @@ function runMenuRepoContractSuite(adapterName: string, makeRepo: () => MenuRepoP
 }
 
 runMenuRepoContractSuite("InMemoryMenuRepo", () => new InMemoryMenuRepo());
-runMenuRepoContractSuite("SqliteMenuRepo", () => new SqliteMenuRepo(openContentDb(":memory:")));
+const menuDialects = eachDialect({ tables: ["menus"], make: (kernel) => ({ kernel, repo: new SqlMenuRepo(kernel) }) });
+for (const each of menuDialects) {
+  runMenuRepoContractSuite(`SqlMenuRepo ${each.name}`, () => each.make().repo);
+}
+
+// ---------------------------------------------------------------------------
+// Trash semantics of the durable menu repo (a `status = 'trash'` row), on every dialect
+// ---------------------------------------------------------------------------
+
+for (const each of menuDialects) {
+  test(`[SqlMenuRepo ${each.name}] a trashed menu is hidden from live reads, not revived by save, and still holds its slug`, async () => {
+    const { kernel, repo } = each.make();
+    await repo.save(sampleMenu({ doc: { type: "menu", version: 1, items: [{ id: "i", label: "Home", target: { kind: "url", href: "/" } }] } }));
+    await kernel.run((db) => db.updateTable("menus").set({ status: "trash" }).where("id", "=", "menu-1").execute());
+
+    assert.equal(await repo.findById({ workspaceId: "ws-1", id: "menu-1" }), null);
+    assert.equal(await repo.findBySlug({ workspaceId: "ws-1", slug: "primary-nav" }), null);
+    assert.deepEqual(await repo.list({ workspaceId: "ws-1" }), []);
+    assert.equal((await repo.findByIdIncludingTrashed({ workspaceId: "ws-1", id: "menu-1" }))?.status, "trash");
+
+    await repo.save(sampleMenu({ title: "Stale save", status: "published" }));
+    const still = await repo.findByIdIncludingTrashed({ workspaceId: "ws-1", id: "menu-1" });
+    assert.equal(still?.status, "trash", "a stale save must not revive a trashed menu");
+    assert.equal(still?.title, "Primary Nav");
+
+    await assert.rejects(() => repo.save(sampleMenu({ id: "menu-2" })), MenuConflictError);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // NavLocationBindingRepoPort contract suite (C-008b, INV-02)
@@ -221,16 +249,19 @@ function runBindingRepoContractSuite(adapterName: string, makeRepo: () => NavLoc
 }
 
 runBindingRepoContractSuite("InMemoryNavLocationBindingRepo", () => new InMemoryNavLocationBindingRepo());
-runBindingRepoContractSuite("SqliteNavLocationBindingRepo", () => new SqliteNavLocationBindingRepo(openContentDb(":memory:")));
+const bindingDialects = eachDialect({ tables: ["nav_location_bindings"], make: (kernel) => new SqlNavLocationBindingRepo(kernel) });
+for (const each of bindingDialects) {
+  runBindingRepoContractSuite(`SqlNavLocationBindingRepo ${each.name}`, each.make);
+}
 
 // ---------------------------------------------------------------------------
-// T016 / INV-02: DB-level unique-constraint proof (SQLite adapter only — the
+// T016 / INV-02: DB-level unique-constraint proof (durable adapter only — the
 // in-memory adapter's guarantee rests on the single-threaded event loop,
 // which this test does not exercise).
 // ---------------------------------------------------------------------------
 
-test("SqliteNavLocationBindingRepo: two concurrent upsert calls for the same (workspaceId, locationKey) never leave two rows", async () => {
-  const repo = new SqliteNavLocationBindingRepo(openContentDb(":memory:"));
+for (const each of bindingDialects) test(`SqlNavLocationBindingRepo ${each.name}: two concurrent upsert calls for the same (workspaceId, locationKey) never leave two rows`, async () => {
+  const repo = each.make();
 
   await Promise.all([
     repo.upsert({ workspaceId: "ws-1", locationKey: "primary", menuId: "menu-a", boundAt: "2026-07-13T00:00:00.000Z" }),
