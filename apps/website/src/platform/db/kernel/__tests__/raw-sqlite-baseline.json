@@ -30,9 +30,6 @@
     "sqlite-catalog": 2,
     "sync-terminal": 7
   },
-  "apps/website/src/features/plugin-runtime/repo.sqlite.ts": {
-    "sync-terminal": 3
-  },
   "apps/website/src/features/plugins/lipay/lipay-plugin.ts": {
     "better-sqlite3-import": 1,
     "pragma": 2,

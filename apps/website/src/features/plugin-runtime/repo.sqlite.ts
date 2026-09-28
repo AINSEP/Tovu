@@ -1,85 +1,15 @@
-import { and, eq } from "drizzle-orm";
-
-import { pluginActivations } from "../../platform/db/schema.sqlite.js";
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
-import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
+import { SqlPluginActivationRepo } from "./repo.js";
 
 /**
- * @file Drizzle/SQLite `PluginActivationRepoPort` adapter — mirrors
- * `src/features/presentation/repo.sqlite.ts`'s shape. Depends on `pluginActivations` landing in
- * `src/platform/db/schema.sqlite.ts` (Track C, additive migration) — this is the only file besides
- * `schema.sqlite.ts`/`content-db.ts` allowed to import Drizzle for this feature (ADR-015 rule 2).
- *
- * Architectural role:
- * TDD-certified adapter (implementation outline C-013). Implements get/upsert/delete/list through
- * Drizzle and satisfies `__tests__/integration/repo.contract.test.ts`, the shared suite this
- * adapter and `repo.memory.ts` run identically.
+ * @file The plugin-activation repo on a site's SQLite `content.db`: {@link SqlPluginActivationRepo}
+ * (the one Kysely query body, `repo.ts`). Kept as a named class so existing call sites that construct
+ * it from the content db handle stay as they are; new code calls `pluginActivationRepoFor`.
  */
-type PluginActivationRow = typeof pluginActivations.$inferSelect;
-
-function toRecord(row: PluginActivationRow): PluginActivationRecord {
-  return {
-    pluginId: row.pluginId,
-    workspaceId: row.workspaceId,
-    version: row.version,
-    enabled: row.enabled,
-    updatedAt: row.updatedAt,
-    ...(row.quarantinedAt === null ? {} : { quarantinedAt: row.quarantinedAt }),
-    ...(row.quarantineReason === null ? {} : { quarantineReason: row.quarantineReason }),
-    ...(row.quarantineFailureCount === null ? {} : { quarantineFailureCount: row.quarantineFailureCount }),
-  };
-}
-
-export class SqlitePluginActivationRepo implements PluginActivationRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async getActivation(required: { workspaceId: string; pluginId: string }): Promise<PluginActivationRecord | null> {
-    return findOneBy(
-      this.db,
-      pluginActivations,
-      [eq(pluginActivations.workspaceId, required.workspaceId), eq(pluginActivations.pluginId, required.pluginId)],
-      toRecord
-    );
-  }
-
-  async save(record: PluginActivationRecord): Promise<void> {
-    const values = {
-      ...record,
-      quarantinedAt: record.quarantinedAt ?? null,
-      quarantineReason: record.quarantineReason ?? null,
-      quarantineFailureCount: record.quarantineFailureCount ?? null,
-    };
-    this.db
-      .insert(pluginActivations)
-      .values(values)
-      .onConflictDoUpdate({
-        target: [pluginActivations.workspaceId, pluginActivations.pluginId],
-        set: {
-          version: record.version,
-          enabled: record.enabled,
-          updatedAt: record.updatedAt,
-          quarantinedAt: values.quarantinedAt,
-          quarantineReason: values.quarantineReason,
-          quarantineFailureCount: values.quarantineFailureCount,
-        },
-      })
-      .run();
-  }
-
-  async deleteActivation(required: { workspaceId: string; pluginId: string }): Promise<void> {
-    this.db
-      .delete(pluginActivations)
-      .where(
-        and(
-          eq(pluginActivations.workspaceId, required.workspaceId),
-          eq(pluginActivations.pluginId, required.pluginId)
-        )
-      )
-      .run();
-  }
-
-  async listAll(): Promise<PluginActivationRecord[]> {
-    return this.db.select().from(pluginActivations).all().map(toRecord);
+export class SqlitePluginActivationRepo extends SqlPluginActivationRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
