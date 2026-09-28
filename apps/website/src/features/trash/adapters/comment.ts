@@ -2,23 +2,21 @@
  * @file `TrashAdapter` for comments. Marker: the plugin table's `status` column (`"pending" |
  * "approved" | "spam" | "trash"`).
  *
- * The comments table is NOT in `schema.sqlite.ts` — it is created by the ADR-023 dataModule engine as
+ * The comments table is NOT in the core schema — it is created by the ADR-023 dataModule engine as
  * `p_comments__comments`, so this adapter addresses it by the same derived name
- * `features/comments/repo.sqlite.ts` uses, over the same raw connection.
+ * `features/comments/repo.ts` uses, over the same content kernel.
  *
  * Restore goes back to `"pending"`, not to whatever the comment was before. Deliberate: the
  * original status is not recorded anywhere the no-parse rule allows this adapter to read, and of
  * the two guesses available, sending a restored comment back through moderation is the one that
  * cannot accidentally republish spam onto a public page.
  */
-import type Database from "better-sqlite3";
-
 // The domain's public barrel, not `comments/types.js`: `no-deep-imports:features/comments` makes a
 // deep import an error, and the plugin id is the ONE thing this adapter takes from that domain —
 // re-deriving the table name here instead would put the same string in two files.
 import { COMMENTS_PLUGIN_ID } from "#src/features/comments/index";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
-import { compareAndDelete, flipMarker } from "./marker-sql.js";
+import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const COMMENT_ENTITY_TYPE = "comment";
 
@@ -28,18 +26,17 @@ const COMMENT_HIDDEN_STATUS = "trash";
 const COMMENT_RESTORED_STATUS = "pending";
 
 /** @complexity O(1) to build. */
-export function createCommentTrashAdapter(client: Database.Database): TrashAdapter {
+export function createCommentTrashAdapter(store: MarkerStore): TrashAdapter {
+  const kernel = lazyKernel(store);
   return {
     entityType: COMMENT_ENTITY_TYPE,
 
     async hide(required): Promise<TrashMarkerResult> {
       return flipMarker({
-        client,
+        kernel: kernel(),
         table: COMMENTS_TABLE,
-        setSql: "status = ?, updated_at = ?",
-        setParams: [COMMENT_HIDDEN_STATUS, required.at],
-        fromPredicate: "status <> ?",
-        fromParams: [COMMENT_HIDDEN_STATUS],
+        set: { status: COMMENT_HIDDEN_STATUS, updated_at: required.at },
+        from: { column: "status", op: "<>", value: COMMENT_HIDDEN_STATUS },
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
@@ -48,12 +45,10 @@ export function createCommentTrashAdapter(client: Database.Database): TrashAdapt
 
     async unhide(required): Promise<TrashMarkerResult> {
       return flipMarker({
-        client,
+        kernel: kernel(),
         table: COMMENTS_TABLE,
-        setSql: "status = ?, updated_at = ?",
-        setParams: [COMMENT_RESTORED_STATUS, required.at],
-        fromPredicate: "status = ?",
-        fromParams: [COMMENT_HIDDEN_STATUS],
+        set: { status: COMMENT_RESTORED_STATUS, updated_at: required.at },
+        from: { column: "status", op: "=", value: COMMENT_HIDDEN_STATUS },
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
@@ -69,7 +64,7 @@ export function createCommentTrashAdapter(client: Database.Database): TrashAdapt
      */
     async purge(required): Promise<TrashPurgeOutcome> {
       return compareAndDelete({
-        client,
+        kernel: kernel(),
         table: COMMENTS_TABLE,
         workspaceId: required.workspaceId,
         entityId: required.entityId,

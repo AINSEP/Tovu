@@ -12,27 +12,57 @@
  * change a status.
  *
  * Every table and column name reaching the SQL below comes from a module constant in an adapter
- * file, never from a request. The only interpolation is those constants.
+ * file, never from a request; Kysely quotes each one as an identifier. One Kysely body over the
+ * content database's storage kernel, so the same statements run on SQLite, PGlite and Postgres.
  */
-import type Database from "better-sqlite3";
+import { type Kysely, sql } from "kysely";
 
+import type { ContentDatabase } from "../../../platform/db/content-database.generated.js";
+import { type ContentKernel, contentKernel } from "../../../platform/db/content-kernel.js";
+import type { SqliteConnectionSource } from "../../../platform/db/kernel/drivers/sqlite.js";
+import { loose } from "../entry-sql.js";
 import type { TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
 
+/** What a marker adapter is built over: the content kernel, or (while call sites still hold one)
+ *  its SQLite handle. */
+export type MarkerStore = ContentKernel | SqliteConnectionSource;
+
+/**
+ * The kernel behind `store`, resolved on first use rather than at adapter construction — a
+ * composition root may hand in a lazy handle whose database should not open until needed.
+ * @complexity O(1).
+ */
+export function lazyKernel(store: MarkerStore): () => ContentKernel {
+  let resolved: ContentKernel | undefined;
+  return () => (resolved ??= contentKernel(store));
+}
+
+/** The state a row must be in before a flip: `column <op> value` (`deleted_at is null`,
+ *  `status <> 'trash'`). */
+export interface MarkerPredicate {
+  column: string;
+  op: "is" | "is not" | "=" | "<>";
+  value: string | null;
+}
+
 export interface MarkerFlipSpec {
-  client: Database.Database;
+  kernel: ContentKernel;
   /** Physical table name — a module constant, never caller input. */
   table: string;
-  /** `SET` fragment for the marker and its timestamp, e.g. `deleted_at = ?, updated_at = ?`. */
-  setSql: string;
-  setParams: readonly unknown[];
-  /** The state the row MUST be in before this flip, e.g. `deleted_at IS NULL`. */
-  fromPredicate: string;
-  /** Bindings for any `?` inside {@link MarkerFlipSpec.fromPredicate}, in SQL order. */
-  fromParams?: readonly unknown[];
+  /** Column values for the marker and its timestamp, e.g. `{ deleted_at: at, updated_at: at }`. */
+  set: Record<string, string | null>;
+  /** The state the row MUST be in before this flip. */
+  from: MarkerPredicate;
   workspaceId: string;
   entityId: string;
   /** `null` skips the compare-and-set — used for domains with no version column. */
   expectedVersion: number | null;
+}
+
+/** The row's current version, or `undefined` when there is no such row. @complexity O(1). */
+async function readVersion(db: Kysely<ContentDatabase>, table: string, workspaceId: string, entityId: string): Promise<number | undefined> {
+  const row = await loose(db).selectFrom(table).select("version").where("workspace_id", "=", workspaceId).where("id", "=", entityId).executeTakeFirst();
+  return row ? Number(row.version) : undefined;
 }
 
 /**
@@ -46,47 +76,47 @@ export interface MarkerFlipSpec {
  *    already trashed must be a no-op rather than an error: media's own delete path is idempotent
  *    today and a sweeper retry must not turn a second attempt into a failure.
  *
+ * The UPDATE and the version read-back share one transaction (a nested one joins the caller's), so
+ * no other writer lands between them.
+ *
  * @complexity O(1) — at most two indexed statements.
  */
-export function flipMarker(spec: MarkerFlipSpec): TrashMarkerResult {
-  const casSql = spec.expectedVersion === null ? "" : " AND version = ?";
-  const casParams = spec.expectedVersion === null ? [] : [spec.expectedVersion];
+export async function flipMarker(spec: MarkerFlipSpec): Promise<TrashMarkerResult> {
+  return spec.kernel.transaction(async () => {
+    const updated = await spec.kernel.run((db) => {
+      let query = loose(db)
+        .updateTable(spec.table)
+        .set({ ...spec.set, version: sql`${sql.ref("version")} + 1` })
+        .where("workspace_id", "=", spec.workspaceId)
+        .where("id", "=", spec.entityId)
+        .where(spec.from.column, spec.from.op, spec.from.value);
+      if (spec.expectedVersion !== null) query = query.where("version", "=", spec.expectedVersion);
+      return query.executeTakeFirst();
+    });
+    const current = await spec.kernel.run((db) => readVersion(db, spec.table, spec.workspaceId, spec.entityId));
 
-  const updated = spec.client
-    .prepare(
-      `UPDATE "${spec.table}"
-          SET ${spec.setSql}, version = version + 1
-        WHERE workspace_id = ? AND id = ? AND ${spec.fromPredicate}${casSql}`
-    )
-    .run(...spec.setParams, spec.workspaceId, spec.entityId, ...(spec.fromParams ?? []), ...casParams);
-
-  const current = spec.client
-    .prepare(`SELECT version FROM "${spec.table}" WHERE workspace_id = ? AND id = ?`)
-    .get(spec.workspaceId, spec.entityId) as { version: number } | undefined;
-
-  if (updated.changes > 0) {
-    return { ok: true, version: current?.version ?? null };
-  }
-  if (!current) return { ok: false, reason: "not-found" };
-  if (spec.expectedVersion !== null && current.version !== spec.expectedVersion) {
-    return { ok: false, reason: "version-changed" };
-  }
-  // The row exists at the expected version, so the only thing the UPDATE can have failed on is
-  // `fromPredicate` — it is already in the target state.
-  return { ok: true, version: current.version };
+    if (Number(updated.numUpdatedRows) > 0) {
+      return { ok: true, version: current ?? null };
+    }
+    if (current === undefined) return { ok: false, reason: "not-found" };
+    if (spec.expectedVersion !== null && current !== spec.expectedVersion) {
+      return { ok: false, reason: "version-changed" };
+    }
+    return { ok: true, version: current };
+  });
 }
 
 export interface CompareAndDeleteSpec {
-  client: Database.Database;
+  kernel: ContentKernel;
   table: string;
   workspaceId: string;
   entityId: string;
   expectedVersion: number | null;
   /**
    * Rows in other tables keyed to this entity, removed only once the compare-and-delete has
-   * matched. Runs inside whatever transaction the caller opened.
+   * matched. Runs inside the same transaction.
    */
-  cascade?: (required: { workspaceId: string; entityId: string }) => void;
+  cascade?: (required: { workspaceId: string; entityId: string }) => Promise<void>;
 }
 
 /**
@@ -98,22 +128,20 @@ export interface CompareAndDeleteSpec {
  *
  * @complexity O(1) plus the cascade.
  */
-export function compareAndDelete(spec: CompareAndDeleteSpec): TrashPurgeOutcome {
-  const casSql = spec.expectedVersion === null ? "" : " AND version = ?";
-  const casParams = spec.expectedVersion === null ? [] : [spec.expectedVersion];
+export async function compareAndDelete(spec: CompareAndDeleteSpec): Promise<TrashPurgeOutcome> {
+  return spec.kernel.transaction(async () => {
+    const deleted = await spec.kernel.run((db) => {
+      let query = loose(db).deleteFrom(spec.table).where("workspace_id", "=", spec.workspaceId).where("id", "=", spec.entityId);
+      if (spec.expectedVersion !== null) query = query.where("version", "=", spec.expectedVersion);
+      return query.executeTakeFirst();
+    });
 
-  const deleted = spec.client
-    .prepare(`DELETE FROM "${spec.table}" WHERE workspace_id = ? AND id = ?${casSql}`)
-    .run(spec.workspaceId, spec.entityId, ...casParams);
+    if (Number(deleted.numDeletedRows) > 0) {
+      await spec.cascade?.({ workspaceId: spec.workspaceId, entityId: spec.entityId });
+      return "purged";
+    }
 
-  if (deleted.changes > 0) {
-    spec.cascade?.({ workspaceId: spec.workspaceId, entityId: spec.entityId });
-    return "purged";
-  }
-
-  const stillThere = spec.client
-    .prepare(`SELECT 1 AS present FROM "${spec.table}" WHERE workspace_id = ? AND id = ?`)
-    .get(spec.workspaceId, spec.entityId) as { present: number } | undefined;
-
-  return stillThere ? "version-changed" : "already-gone";
+    const stillThere = await spec.kernel.run((db) => readVersion(db, spec.table, spec.workspaceId, spec.entityId));
+    return stillThere !== undefined ? "version-changed" : "already-gone";
+  });
 }

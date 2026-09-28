@@ -29,25 +29,6 @@
     "prepare": 3,
     "sync-terminal": 1
   },
-  "apps/website/src/features/trash/adapters/comment.ts": {
-    "better-sqlite3-import": 1
-  },
-  "apps/website/src/features/trash/adapters/marker-sql.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 4
-  },
-  "apps/website/src/features/trash/adapters/media.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 1
-  },
-  "apps/website/src/features/trash/adapters/post.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 2
-  },
-  "apps/website/src/features/trash/adapters/redirect.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 2
-  },
   "apps/website/src/features/trash/adapters/user.ts": {
     "sync-terminal": 6
   },
@@ -102,6 +83,6 @@
     "sync-terminal": 1
   },
   "apps/website/src/server/runtime/composition/deps.ts": {
-    "$client": 6
+    "$client": 1
   }
 }

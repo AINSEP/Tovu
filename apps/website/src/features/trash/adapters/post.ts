@@ -4,10 +4,10 @@
  * Column-only, by contract — `posts.body_json` is never read here, so a post whose body JSON is
  * unparseable is still trashable and restorable.
  */
-import type Database from "better-sqlite3";
-
+import { tableExists } from "../../../platform/db/kernel/dialect.js";
+import { loose } from "../entry-sql.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
-import { compareAndDelete, flipMarker } from "./marker-sql.js";
+import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const POST_ENTITY_TYPE = "post";
 
@@ -19,21 +19,24 @@ const POST_SEARCH_DOCUMENT_TABLE = "post_search_document";
 /**
  * Builds the post adapter over the shared `content.db` connection.
  *
- * @param client the raw better-sqlite3 handle (`ContentDb`'s `$client`), so these statements join
- *        whatever transaction the caller opened.
+ * @param store the content kernel (or, while call sites still hold one, the `content.db` handle);
+ *        every statement joins whatever transaction the caller opened.
  * @complexity O(1) to build.
  */
-export function createPostTrashAdapter(client: Database.Database): TrashAdapter {
+export function createPostTrashAdapter(store: MarkerStore): TrashAdapter {
+  const kernel = lazyKernel(store);
+  // The search projection exists only where the database has a full-text index built on it (SQLite's
+  // FTS5); asked once, on the first purge.
+  let hasSearchDocument: Promise<boolean> | undefined;
   return {
     entityType: POST_ENTITY_TYPE,
 
     async hide(required): Promise<TrashMarkerResult> {
       return flipMarker({
-        client,
+        kernel: kernel(),
         table: POSTS_TABLE,
-        setSql: "deleted_at = ?, updated_at = ?",
-        setParams: [required.at, required.at],
-        fromPredicate: "deleted_at IS NULL",
+        set: { deleted_at: required.at, updated_at: required.at },
+        from: { column: "deleted_at", op: "is", value: null },
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
@@ -42,11 +45,10 @@ export function createPostTrashAdapter(client: Database.Database): TrashAdapter 
 
     async unhide(required): Promise<TrashMarkerResult> {
       return flipMarker({
-        client,
+        kernel: kernel(),
         table: POSTS_TABLE,
-        setSql: "deleted_at = NULL, updated_at = ?",
-        setParams: [required.at],
-        fromPredicate: "deleted_at IS NOT NULL",
+        set: { deleted_at: null, updated_at: required.at },
+        from: { column: "deleted_at", op: "is not", value: null },
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
@@ -66,16 +68,22 @@ export function createPostTrashAdapter(client: Database.Database): TrashAdapter 
      */
     async purge(required): Promise<TrashPurgeOutcome> {
       return compareAndDelete({
-        client,
+        kernel: kernel(),
         table: POSTS_TABLE,
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
-        cascade: ({ workspaceId, entityId }) => {
-          client
-            .prepare(`DELETE FROM "${POST_REVISIONS_TABLE}" WHERE workspace_id = ? AND post_id = ?`)
-            .run(workspaceId, entityId);
-          client.prepare(`DELETE FROM "${POST_SEARCH_DOCUMENT_TABLE}" WHERE post_id = ?`).run(entityId);
+        cascade: async ({ workspaceId, entityId }) => {
+          await kernel().run((db) =>
+            loose(db).deleteFrom(POST_REVISIONS_TABLE).where("workspace_id", "=", workspaceId).where("post_id", "=", entityId).execute()
+          );
+          hasSearchDocument ??= tableExists(kernel(), POST_SEARCH_DOCUMENT_TABLE).catch((error: unknown) => {
+            hasSearchDocument = undefined; // a failed probe is not an answer; ask again next time
+            throw error;
+          });
+          if (await hasSearchDocument) {
+            await kernel().run((db) => loose(db).deleteFrom(POST_SEARCH_DOCUMENT_TABLE).where("post_id", "=", entityId).execute());
+          }
         },
       });
     },

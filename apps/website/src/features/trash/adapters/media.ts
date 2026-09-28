@@ -11,10 +11,8 @@
  * so the composition root binds it in rather than this file reimplementing it in SQL and silently
  * orphaning bytes.
  */
-import type Database from "better-sqlite3";
-
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "../ports.js";
-import { flipMarker } from "./marker-sql.js";
+import { flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const MEDIA_ENTITY_TYPE = "media";
 
@@ -23,7 +21,8 @@ const MEDIA_HIDDEN_STATUS = "trashed";
 const MEDIA_LIVE_STATUS = "active";
 
 export interface MediaTrashAdapterDeps {
-  client: Database.Database;
+  /** The content kernel, or (while call sites still hold one) the `content.db` handle. */
+  db: MarkerStore;
   /**
    * Bound at the composition root to `@jini-ai/cms`'s `purgeMedia`. Resolves `"already-gone"` for
    * an asset that is no longer there rather than throwing, so a sweeper retry is free.
@@ -33,14 +32,14 @@ export interface MediaTrashAdapterDeps {
 
 /** @complexity O(1) to build. */
 export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapter {
-  const { client } = deps;
+  const kernel = lazyKernel(deps.db);
 
   /** Reads just the version column — never the asset. @complexity O(1). */
-  function currentVersion(workspaceId: string, entityId: string): number | null {
-    const row = client
-      .prepare(`SELECT version FROM "${MEDIA_TABLE}" WHERE workspace_id = ? AND id = ?`)
-      .get(workspaceId, entityId) as { version: number } | undefined;
-    return row ? row.version : null;
+  async function currentVersion(workspaceId: string, entityId: string): Promise<number | null> {
+    const row = await kernel().run((db) =>
+      db.selectFrom("media").select("version").where("workspace_id", "=", workspaceId).where("id", "=", entityId).executeTakeFirst()
+    );
+    return row ? Number(row.version) : null;
   }
 
   return {
@@ -48,12 +47,10 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
 
     async hide(required): Promise<TrashMarkerResult> {
       return flipMarker({
-        client,
+        kernel: kernel(),
         table: MEDIA_TABLE,
-        setSql: "status = ?, updated_at = ?",
-        setParams: [MEDIA_HIDDEN_STATUS, required.at],
-        fromPredicate: "status <> ?",
-        fromParams: [MEDIA_HIDDEN_STATUS],
+        set: { status: MEDIA_HIDDEN_STATUS, updated_at: required.at },
+        from: { column: "status", op: "<>", value: MEDIA_HIDDEN_STATUS },
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
@@ -62,12 +59,10 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
 
     async unhide(required): Promise<TrashMarkerResult> {
       return flipMarker({
-        client,
+        kernel: kernel(),
         table: MEDIA_TABLE,
-        setSql: "status = ?, updated_at = ?",
-        setParams: [MEDIA_LIVE_STATUS, required.at],
-        fromPredicate: "status <> ?",
-        fromParams: [MEDIA_LIVE_STATUS],
+        set: { status: MEDIA_LIVE_STATUS, updated_at: required.at },
+        from: { column: "status", op: "<>", value: MEDIA_LIVE_STATUS },
         workspaceId: required.workspaceId,
         entityId: required.entityId,
         expectedVersion: required.expectedVersion,
@@ -84,11 +79,11 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
      * @complexity O(1) plus `purgeAsset`.
      */
     async purge(required): Promise<TrashPurgeOutcome> {
-      const version = currentVersion(required.workspaceId, required.entityId);
+      const version = await currentVersion(required.workspaceId, required.entityId);
       if (version === null) return "already-gone";
       if (required.expectedVersion !== null && version !== required.expectedVersion) return "version-changed";
       await deps.purgeAsset({ workspaceId: required.workspaceId, entityId: required.entityId });
-      return currentVersion(required.workspaceId, required.entityId) === null ? "purged" : "version-changed";
+      return (await currentVersion(required.workspaceId, required.entityId)) === null ? "purged" : "version-changed";
     },
   };
 }

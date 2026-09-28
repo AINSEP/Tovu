@@ -839,12 +839,14 @@ export function createSqliteRouteDeps(
   const workspaceId = resolveWorkspaceIdOverride(db, overrides);
   // Posts written before migration 0022 existed — and the demo content `openContentDb` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
-  // `content_post_search` would not find them without an edit. Synchronous and unconditional (not
-  // one of this file's fire-and-forget `*Ready` promises): on a warm database it is a single
-  // indexed anti-join that writes nothing, and running it before the deps are handed out means no
-  // consumer can ever observe a half-indexed corpus. See `backfillPostSearchIndex`'s own doc for
-  // why it fills gaps rather than rebuilding.
-  backfillPostSearchIndex(db.$client);
+  // `content_post_search` would not find them without an edit. Unconditional, and awaited by every
+  // search (`postSearch` below takes it as `ready`), so no consumer can ever observe a
+  // half-indexed corpus; on a warm database it is a single indexed anti-join that writes nothing.
+  // A failure is logged and search carries on over what is indexed. See
+  // `backfillPostSearchIndex`'s own doc for why it fills gaps rather than rebuilding.
+  const postSearchBackfillReady = backfillPostSearchIndex(db).catch((err) => {
+    console.error(`backfillPostSearchIndex failed at boot: ${(err as Error).message}`);
+  });
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   const pluginActivationRepo = new SqlitePluginActivationRepo(db);
@@ -1169,9 +1171,9 @@ export function createSqliteRouteDeps(
   // restore time, long after it exists below. T5/T6 add their own entries here (menu/taxonomy
   // revision + event follow-ups) — this map stays the one per-type wiring point (plan §2 T1 item 6).
   // Hoisted above `trashFollowUpHooks` (needs `findByEntity` for the term/taxonomy purge
-  // follow-ups below) — the constructor takes only `db.$client`, no dependency on
+  // follow-ups below) — the constructor takes only `db`, no dependency on
   // `trashAdapters`/`trash` itself, so this is safe to build early (T6, step 3).
-  const trashRepo = new SqliteTrashRepo(db.$client);
+  const trashRepo = new SqliteTrashRepo(db);
   // Purge-only audit trail for `term`/`taxonomy` (plan §6 Q2): one `taxonomy_revisions` row plus a
   // domain event, matching `deleteTerm`/`deleteTaxonomy`'s own writes — see
   // `taxonomy-trash-follow-ups.ts`'s file header. A second, cheap `SqliteTermRepo`/
@@ -1219,14 +1221,14 @@ export function createSqliteRouteDeps(
     forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
   });
   const trashAdapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(db.$client)],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db.$client)],
-    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db.$client)],
+    [POST_ENTITY_TYPE, createPostTrashAdapter(db)],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(db)],
+    [COMMENT_ENTITY_TYPE, createCommentTrashAdapter(db)],
     [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
     [
       MEDIA_ENTITY_TYPE,
       createMediaTrashAdapter({
-        client: db.$client,
+        db,
         // Media's hard delete is not a row delete: rendition rows hang off it and the blob store
         // holds bytes. `purgeMedia` owns that ladder, so the adapter delegates rather than
         // reimplementing it in SQL and silently orphaning bytes.
@@ -1740,7 +1742,7 @@ export function createSqliteRouteDeps(
     registry: trashRegistry,
     db: sqliteTrashDb,
     postRepo,
-    postSearch: new SqlitePostSearchIndex(db),
+    postSearch: new SqlitePostSearchIndex(db, { ready: postSearchBackfillReady }),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
     // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
