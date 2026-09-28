@@ -143,8 +143,7 @@
     "sync-terminal": 1
   },
   "apps/website/src/server/runtime/composition/deps.ts": {
-    "$client": 10,
-    "better-sqlite3-import": 1
+    "$client": 7
   },
   "apps/website/src/server/runtime/lifecycle/boot-lifecycle.ts": {
     "prepare": 1

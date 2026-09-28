@@ -1001,18 +1001,17 @@ export function createSqliteRouteDeps(
   void menuBindingsReady;
 
   // SPEC-011 (Newsletter, ADR-PIPE-011 T011/W-010): boot-time `declareDataModule()` invocation for
-  // Newsletter's real 5-table manifest, against the SAME raw better-sqlite3 handle underneath the
-  // Drizzle `ContentDb` (mirrors `SqliteSettingsRepo.transaction`'s `$client` cast). Idempotent —
+  // Newsletter's real 5-table manifest, on the storage kernel of the SAME connection as the Drizzle
+  // `ContentDb` (`declareDataModule` bridges the handle to its one kernel). Idempotent —
   // `declareDataModule()`'s own skip-if-exists logic makes repeated boot calls safe (T010 proves the
   // failure/rollback path separately). Fire-and-forget, mirroring `menuBindingsReady`'s shape: logged
   // and swallowed rather than aborting boot on failure — a failed install leaves Newsletter's admin
   // routes 404/500ing against missing tables, but never bricks the rest of the server.
-  const newsletterClient = (db as unknown as { $client: import("better-sqlite3").Database }).$client;
   const newsletterListRepo = new SqliteNewsletterListRepo(db);
   // T030: seed the workspace's default "all subscribers" list right after the tables exist —
   // idempotent (`ensureDefaultList` is itself a find-or-create), matching `declareDataModule()`'s own
   // skip-if-exists convention.
-  const newsletterReady = installNewsletterDataModule({ db: newsletterClient, dbPath })
+  const newsletterReady = installNewsletterDataModule({ db, dbPath })
     .then(() => ensureDefaultList({ deps: { listRepo: newsletterListRepo, clock, ids: idGen }, input: { workspaceId: workspaceId } }))
     .then(() => undefined)
     .catch((err) => {
@@ -1022,7 +1021,7 @@ export function createSqliteRouteDeps(
 
   /**
    * ADR-031/ADR-023 (SPEC-033) — Comments' `declareDataModule()` call, against the SAME shared
-   * `db.$client` connection Newsletter's install just used. Chained AFTER `newsletterReady`
+   * connection Newsletter's install just used. Chained AFTER `newsletterReady`
    * resolves (NOT fired in parallel), for the exact same reason `seoReady` is chained after
    * `settingsReady` above: two independent fire-and-forget async chains racing SQLite calls
    * (including SPEC-032's exclusive-lock pragma toggling) against ONE shared connection produced
@@ -1031,7 +1030,7 @@ export function createSqliteRouteDeps(
    * own `seoReady` comment already documents; this fixes the same mistake made fresh here.
    */
   const commentsReady = newsletterReady
-    .then(() => installCommentsDataModule({ db: db.$client, dbPath }))
+    .then(() => installCommentsDataModule({ db, dbPath }))
     .catch((err) => {
       // eslint-disable-next-line no-console
       console.error(`installCommentsDataModule failed at boot: ${(err as Error).message}`);
