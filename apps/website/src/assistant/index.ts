@@ -249,6 +249,13 @@ export type {
   ExternalMcpStoreDeps,
 } from "./external-mcp-store.js";
 export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
+export {
+  InMemoryExternalMcpToolApprovalRepo,
+  createInMemoryConversationToolApprovalStore,
+  type ConversationToolApprovalStore,
+  type ExternalMcpToolApprovalRecord,
+  type ExternalMcpToolApprovalRepoPort,
+} from "./external-mcp-tool-approvals.js";
 
 // The OAuth half of the same surface — `authMode: "oauth"` connections. Exposed through this barrel
 // rather than deep-imported so the `no-deep-imports:assistant` boundary rule keeps holding for the

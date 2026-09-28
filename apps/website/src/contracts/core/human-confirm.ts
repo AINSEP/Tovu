@@ -19,7 +19,8 @@ import { ToolInputError, type ToolExecutionContext, type ToolHandler } from "@ji
 import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import {
-  resolveConfirmationDecision,
+  askOnce,
+  classifyConfirmationAnswer,
   SURFACE_EXCHANGE_ID_PARAM,
   type AssistantSurfaceDeps,
   type ConfirmationOutcome,
@@ -36,7 +37,32 @@ export interface HumanConfirmSpec {
   readonly warning?: string;
   readonly danger?: boolean;
   readonly confirmLabel: string;
+  /**
+   * Further affirmative buttons after confirm ("Allow for this chat", say). Each one confirms exactly
+   * as confirm does — same dwell, same one-call lock — and also posts its `choice`, which comes back
+   * as {@link HumanConfirmOutcome}'s `choice`. A `choice` that is not one of these is ignored, so a
+   * forged answer can never widen what the person was offered.
+   */
+  readonly alternatives?: readonly HumanConfirmAlternative[];
 }
+
+/** One extra affirmative button — see {@link HumanConfirmSpec.alternatives}. */
+export interface HumanConfirmAlternative {
+  /** The button's handle, a lowercase `[a-z0-9-]` id other than `confirm`/`cancel`. */
+  readonly id: string;
+  readonly label: string;
+  /** What this button answers, reported back as the outcome's `choice`. */
+  readonly choice: string;
+}
+
+/** The params key an alternative's `choice` rides under. */
+export const HUMAN_CONFIRM_CHOICE_PARAM = "choice";
+
+/**
+ * {@link ConfirmationOutcome}, plus which offered alternative the person clicked. `choice` is set
+ * only on a confirm made through an alternative that was actually on the card.
+ */
+export type HumanConfirmOutcome = { confirmed: true; choice?: string } | Extract<ConfirmationOutcome, { confirmed: false }>;
 
 /**
  * Shows the confirmation dialog and waits for the human's answer.
@@ -50,7 +76,7 @@ export async function requireHumanConfirm(
   ctx: ToolExecutionContext,
   surfaces: AssistantSurfaceDeps,
   spec: HumanConfirmSpec,
-): Promise<ConfirmationOutcome> {
+): Promise<HumanConfirmOutcome> {
   if (!ctx.emitSurface) {
     throw new ToolInputError(
       `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
@@ -61,10 +87,11 @@ export async function requireHumanConfirm(
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
   const { toolId } = spec;
   const exchange = surfaces.surfaceExchanges.open({ toolId, principalId: ctx.principal.id }, ctx.emitSurface);
-  const action = (decision: "confirm" | "cancel") => ({
+  const action = (decision: "confirm" | "cancel", choice?: string) => ({
     toolName: toolId,
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision },
+    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
   });
+  const alternatives = spec.alternatives ?? [];
   const resource = buildConfirmationSurface({
     uri: `ui://tovu/${toolId.replaceAll("_", "-")}/${exchange.id}` as UIResourceUri,
     title: spec.title,
@@ -73,6 +100,9 @@ export async function requireHumanConfirm(
     ...(spec.warning ? { warning: spec.warning } : {}),
     danger: spec.danger ?? false,
     confirm: { label: spec.confirmLabel, ...action("confirm") },
+    ...(alternatives.length > 0
+      ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action("confirm", alternative.choice) })) }
+      : {}),
     cancel: { label: "Cancel", ...action("cancel") },
     app: { appName: `tovu-${toolId.replaceAll("_", "-")}`, appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
@@ -81,7 +111,12 @@ export async function requireHumanConfirm(
   const closeOnAbort = () => exchange.close();
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
-    return await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource } });
+    const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource } });
+    const outcome = classifyConfirmationAnswer(answer);
+    if (!outcome.confirmed || answer.status !== "received") return outcome;
+    const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
+    const offered = alternatives.some((alternative) => alternative.choice === choice);
+    return offered && typeof choice === "string" ? { confirmed: true, choice } : { confirmed: true };
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
   }

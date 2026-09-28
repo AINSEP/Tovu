@@ -295,6 +295,13 @@ export interface FederatedCallConfirmationRequest {
   readonly arguments: Readonly<Record<string, unknown>>;
   /** The remote declared `destructiveHint: true` — the card carries the stronger, danger-styled warning. */
   readonly destructive: boolean;
+  /**
+   * The hints recorded when the tool was admitted, and where its connection came from — the tool
+   * identity a remembered approval ("Allow for this chat", "Always allow") is pinned to
+   * (`assistant/external-mcp-tool-approvals.ts`), so a changed server, name or hints asks again.
+   */
+  readonly declaredAnnotations: RemoteToolDescriptor["annotations"] | undefined;
+  readonly origin: FederatedConnectionOrigin | undefined;
 }
 
 /**

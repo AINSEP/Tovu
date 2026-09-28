@@ -1259,6 +1259,13 @@ async function start(): Promise<void> {
     // G3: a federated tool that is not marked read-only asks on a per-call Confirm/Cancel card, held
     // open on the SAME store `registerMcpUiToolCallsRoute` delivers clicks to.
     surfaceExchanges,
+    // G3 remembered approvals: "Always allow" beside the connection row, "Allow for this chat" with
+    // the conversation (chat.db), and the run -> conversation map this process keeps for live runs.
+    approvals: {
+      ...(routeDeps.externalMcpToolApprovalRepo ? { always: routeDeps.externalMcpToolApprovalRepo } : {}),
+      ...(routeDeps.conversationToolApprovals ? { chat: routeDeps.conversationToolApprovals } : {}),
+      conversationIdForRun: (runId) => liveRunTracker.conversationIdForRun(runId),
+    },
   });
 
   /**

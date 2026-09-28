@@ -2480,6 +2480,42 @@ export const externalMcpServers = sqliteTable(
 );
 
 /**
+ * "Always allow" approvals for external tools (G3 remembered approvals, owner rule 2026-09-27): one
+ * row per site + connection + remote tool that a person chose to stop being asked about. Sits beside
+ * the connection's own row (and its enabled-tool list), never in a plugin folder, and goes with it:
+ * deleting the connection deletes its approvals.
+ *
+ * `fingerprint` pins the approval to the tool as it was when approved: the connection, where and how
+ * it is reached (`externalMcpAdmissionRevision`), the remote tool name and its declared hints
+ * (`assistant/external-mcp-tool-approvals.ts`). A tool whose server, name or hints changed no longer
+ * matches, so it asks again. Destructive tools are never stored here: the card never offers
+ * "Always allow" for them and the confirmer refuses to save one.
+ *
+ * Never copied by a database transfer (`exclusions.ts`), like the connection rows it hangs off.
+ */
+export const externalMcpToolApprovals = sqliteTable(
+  "external_mcp_tool_approvals",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    serverId: text("server_id").notNull(),
+    /** The remote's own tool name (pre-namespacing), as the connection's allowlist names it. */
+    toolName: text("tool_name").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    grantedByPrincipalId: text("granted_by_principal_id").notNull(),
+    grantedAt: text("granted_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.serverId, table.toolName] }),
+    // Named: the generated name is 97 characters, past MySQL's 64-character identifier cap.
+    foreignKey({
+      name: "external_mcp_tool_approvals_server_fk",
+      columns: [table.workspaceId, table.serverId],
+      foreignColumns: [externalMcpServers.workspaceId, externalMcpServers.serverId],
+    }).onDelete("cascade"),
+  ]
+);
+
+/**
  * The in-flight `state` ledger for authorization-code + PKCE handshakes, shared by every process
  * that opens this `content.db` — the durable form of `src/platform/oauth/pending-authorizations.ts`'s
  * `PendingAuthorizationStore` port. See that file's header for the four security properties every

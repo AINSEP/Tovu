@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 91
+ * Tables: 92
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -522,6 +522,18 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     check("external_mcp_servers_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
     check("external_mcp_servers_oauth_sealed_shape", sql`(oauth_sealed_key_id IS NULL AND oauth_sealed_ciphertext IS NULL AND oauth_sealed_nonce IS NULL AND oauth_sealed_alg IS NULL) OR (oauth_sealed_key_id IS NOT NULL AND oauth_sealed_ciphertext IS NOT NULL AND oauth_sealed_nonce IS NOT NULL AND oauth_sealed_alg IS NOT NULL)`),
+  ]);
+
+export const externalMcpToolApprovals = pgTable("external_mcp_tool_approvals", {
+  workspaceId: text("workspace_id").notNull(),
+  serverId: text("server_id").notNull(),
+  toolName: text("tool_name").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  grantedByPrincipalId: text("granted_by_principal_id").notNull(),
+  grantedAt: text("granted_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.serverId, t.toolName] }),
+    foreignKey({ columns: [t.workspaceId, t.serverId], foreignColumns: [externalMcpServers.workspaceId, externalMcpServers.serverId] }).onDelete("cascade"),
   ]);
 
 export const formDefinitions = pgTable("form_definitions", {

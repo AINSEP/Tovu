@@ -45,6 +45,25 @@ CREATE TABLE IF NOT EXISTS assistant_agent_sessions (
 `;
 
 /**
+ * G3 "Allow for this chat" approvals (`assistant/persistence/conversation-tool-approval-store.ts`):
+ * kept with the conversation so they survive a daemon/API restart, and deleted with it. Keyed by the
+ * person as well as the conversation, so naming another person's conversation id reuses nothing.
+ * `fingerprint` ties the approval to the tool's server, name and hints at the time
+ * (`assistant/external-mcp-tool-approvals.ts`). Additive and `IF NOT EXISTS`, like the table above.
+ */
+const ASSISTANT_CONVERSATION_TOOL_APPROVALS_DDL = `
+CREATE TABLE IF NOT EXISTS assistant_conversation_tool_approvals (
+  conversation_id TEXT NOT NULL REFERENCES ai_chats(id) ON DELETE CASCADE,
+  principal_id    TEXT NOT NULL,
+  connection_id   TEXT NOT NULL,
+  tool_name       TEXT NOT NULL,
+  fingerprint     TEXT NOT NULL,
+  granted_at      TEXT NOT NULL,
+  PRIMARY KEY (conversation_id, principal_id, connection_id, tool_name)
+);
+`;
+
+/**
  * Opens (or creates) `chat.db`: sets the same pragmas `content-db.ts`'s `openContentDb` sets
  * (`journal_mode = WAL`, `foreign_keys = ON` — required for `ai_chat_messages`' and
  * `assistant_agent_sessions`' `ON DELETE CASCADE` to actually fire — and `busy_timeout = 5000`),
@@ -69,5 +88,6 @@ export function openChatDb(filePath: string): Database.Database {
   sqlite.pragma("busy_timeout = 5000");
   ensureChatHistoryTables(sqlite);
   sqlite.exec(ASSISTANT_AGENT_SESSIONS_DDL);
+  sqlite.exec(ASSISTANT_CONVERSATION_TOOL_APPROVALS_DDL);
   return sqlite;
 }

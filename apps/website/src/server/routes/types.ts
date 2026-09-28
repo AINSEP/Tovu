@@ -66,6 +66,7 @@ import type { SourceControlCredentialSetRepoPort } from "../../features/source-c
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
 import type { MediaProviderCredentialRepoPort } from "../../features/media/index.js";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
+import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../../assistant/external-mcp-tool-approvals.js";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
 import type { PendingAuthorizationStore } from "#src/platform/oauth/index";
 import type {
@@ -358,6 +359,18 @@ export interface CredentialsDeps {
    * table, usable as soon as migrations run.
    */
   externalMcpServerRepo: ExternalMcpServerRepoPort;
+  /**
+   * G3 "Always allow" approvals for external tools (`external_mcp_tool_approvals`, migration 0077):
+   * one row per site + connection + remote tool, beside the connection's row and deleted with it.
+   * Listed and revoked on the Integrations page. Optional: a composition without it never offers
+   * "Always allow".
+   */
+  externalMcpToolApprovalRepo?: ExternalMcpToolApprovalRepoPort;
+  /**
+   * G3 "Allow for this chat" approvals, kept with the conversation in `chat.db` so they survive a
+   * restart. Optional: a composition without it never offers "Allow for this chat".
+   */
+  conversationToolApprovals?: ConversationToolApprovalStore;
   /**
    * The OAuth subsystem for `authMode: "oauth"` external MCP connections
    * (`assistant/external-mcp-oauth.ts`), or absent.

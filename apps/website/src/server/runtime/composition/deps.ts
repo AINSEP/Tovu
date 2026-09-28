@@ -113,6 +113,8 @@ import { SqliteDatabaseDestinationRepo } from "#src/features/database-transfer/d
 import { SqliteAdminExecutionCredentialRepo } from "#src/platform/db/sqlite/execution-credential-repo.sqlite";
 import { SqliteMediaProviderCredentialRepo } from "#src/platform/db/sqlite/media-provider-credential-repo.sqlite";
 import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mcp-repo.sqlite";
+import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
+import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
 import {
   LocalFsBlobStore,
   purgeMedia,
@@ -1757,6 +1759,8 @@ export function createSqliteRouteDeps(
     // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
     agentSessions: createSqliteAgentSessionStore(chatDb),
+    // G3 "Allow for this chat": with the conversation, over the same sidecar handle.
+    conversationToolApprovals: createSqliteConversationToolApprovalStore(chatDb),
     presentationRepo,
     settingsRepo,
     getEffective,
@@ -1779,6 +1783,7 @@ export function createSqliteRouteDeps(
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(db),
     externalMcpServerRepo,
+    externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(db),
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
      * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its

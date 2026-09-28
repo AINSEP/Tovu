@@ -8,7 +8,7 @@
  *
  * FTS5 search objects are absent on purpose — see the generator's module doc.
  *
- * Tables: 91
+ * Tables: 92
  */
 import { sql } from "drizzle-orm";
 import {
@@ -533,6 +533,18 @@ export const externalMcpServers = mysqlTable("external_mcp_servers", {
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     check("external_mcp_servers_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
     check("external_mcp_servers_oauth_sealed_shape", sql`(oauth_sealed_key_id IS NULL AND oauth_sealed_ciphertext IS NULL AND oauth_sealed_nonce IS NULL AND oauth_sealed_alg IS NULL) OR (oauth_sealed_key_id IS NOT NULL AND oauth_sealed_ciphertext IS NOT NULL AND oauth_sealed_nonce IS NOT NULL AND oauth_sealed_alg IS NOT NULL)`),
+  ]);
+
+export const externalMcpToolApprovals = mysqlTable("external_mcp_tool_approvals", {
+  workspaceId: varchar("workspace_id", { length: 191 }).notNull(),
+  serverId: varchar("server_id", { length: 191 }).notNull(),
+  toolName: varchar("tool_name", { length: 191 }).notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  grantedByPrincipalId: text("granted_by_principal_id").notNull(),
+  grantedAt: text("granted_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.serverId, t.toolName] }),
+    foreignKey({ columns: [t.workspaceId, t.serverId], foreignColumns: [externalMcpServers.workspaceId, externalMcpServers.serverId] }).onDelete("cascade"),
   ]);
 
 export const formDefinitions = mysqlTable("form_definitions", {

@@ -300,6 +300,8 @@ async function askBeforeCall(
     connectionLabel: config.label,
     arguments: args,
     destructive: tool.confirmation === "confirm-destructive",
+    declaredAnnotations: tool.declaredAnnotations,
+    origin: config.origin,
   });
   if (outcome.confirmed) return null;
   return { federated: { connectionId: config.connectionId, tool: tool.remoteName }, ran: false, ...outcome.result };

@@ -4,7 +4,7 @@ import type { SecretSealerPort } from "../features/webhooks/index.js";
 
 import type { SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 
-import { createFederatedCallConfirmer } from "./external-mcp-call-confirmation.js";
+import { createFederatedCallConfirmer, type FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import { createExternalMcpConnectionGate, type ExternalMcpOAuthService } from "./external-mcp-oauth.js";
 import {
   readEnabledExternalMcpConfigs,
@@ -114,6 +114,12 @@ export function buildExternalMcpFederationDeps(inputs: {
    * refused at the call — fail closed, nothing is sent.
    */
   readonly surfaceExchanges?: SurfaceExchangeStore;
+  /**
+   * G3 remembered approvals: where "Allow for this chat" / "Always allow" are kept and how a run
+   * finds its conversation (`external-mcp-call-confirmation.ts`). Only read when `surfaceExchanges`
+   * is present. Absent parts are simply not offered on the card.
+   */
+  readonly approvals?: Omit<FederatedApprovalDeps, "workspaceId" | "authorize">;
 }): FederationDeps {
   const assertConnectionUsable = createExternalMcpConnectionGate({
     workspaceId: inputs.workspaceId,
@@ -128,6 +134,13 @@ export function buildExternalMcpFederationDeps(inputs: {
     ...(oauth
       ? { onAuthFailed: (connectionId: string, error: McpAuthFailedError) => oauth.reportAuthFailure(connectionId, error) }
       : {}),
-    ...(surfaceExchanges ? { confirmCall: createFederatedCallConfirmer({ surfaceExchanges }) } : {}),
+    ...(surfaceExchanges
+      ? {
+          confirmCall: createFederatedCallConfirmer(
+            { surfaceExchanges },
+            { ...inputs.approvals, workspaceId: inputs.workspaceId, authorize: inputs.authorize },
+          ),
+        }
+      : {}),
   };
 }

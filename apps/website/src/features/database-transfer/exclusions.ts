@@ -29,6 +29,8 @@ export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReas
   custom_credential_sets: "saved-key",
   database_transfer_destinations: "saved-key",
   external_mcp_servers: "saved-key",
+  // "Always allow" approvals hang off the connection rows above (foreign key), so they stay with them.
+  external_mcp_tool_approvals: "saved-key",
   media_provider_credentials: "saved-key",
   oauth_device_authorizations: "saved-key",
   oauth_pending_authorizations: "saved-key",

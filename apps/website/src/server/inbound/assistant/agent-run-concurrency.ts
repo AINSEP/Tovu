@@ -46,6 +46,11 @@ export interface LiveRunTracker {
   hasConcurrentLiveRun(conversationId: string, runId: string): boolean;
   /** The ids of every run OTHER than `runId` registered as live for `conversationId`. */
   concurrentLiveRunIds(conversationId: string, runId: string): string[];
+  /**
+   * The conversation a live run was registered under, or `undefined` once it ended (or when it never
+   * named one). G3 "Allow for this chat" reads it to know which chat a tool call belongs to.
+   */
+  conversationIdForRun(runId: string): string | undefined;
 }
 
 /**
@@ -56,9 +61,11 @@ export interface LiveRunTracker {
  */
 export function createLiveRunTracker(): LiveRunTracker {
   const liveRunIdsByConversationId = new Map<string, Set<string>>();
+  const conversationIdByRunId = new Map<string, string>();
 
   return {
     register(conversationId, runId) {
+      conversationIdByRunId.set(runId, conversationId);
       const existing = liveRunIdsByConversationId.get(conversationId);
       if (existing) {
         existing.add(runId);
@@ -68,6 +75,7 @@ export function createLiveRunTracker(): LiveRunTracker {
     },
 
     unregister(conversationId, runId) {
+      if (conversationIdByRunId.get(runId) === conversationId) conversationIdByRunId.delete(runId);
       const existing = liveRunIdsByConversationId.get(conversationId);
       if (!existing) return;
       existing.delete(runId);
@@ -76,6 +84,10 @@ export function createLiveRunTracker(): LiveRunTracker {
 
     concurrentLiveRunIds(conversationId, runId) {
       return [...(liveRunIdsByConversationId.get(conversationId) ?? [])].filter((liveRunId) => liveRunId !== runId);
+    },
+
+    conversationIdForRun(runId) {
+      return conversationIdByRunId.get(runId);
     },
 
     hasConcurrentLiveRun(conversationId, runId) {

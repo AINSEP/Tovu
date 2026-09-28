@@ -1,0 +1,464 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { openChatDb } from "../../platform/db/sqlite/chat-db.js";
+import { buildFederatedCallConfirmSpec, createFederatedCallConfirmer } from "../external-mcp-call-confirmation.js";
+import {
+  InMemoryExternalMcpToolApprovalRepo,
+  createInMemoryConversationToolApprovalStore,
+  federatedToolApprovalFingerprint,
+  type ConversationToolApprovalStore,
+  type ExternalMcpToolApprovalRepoPort,
+} from "../external-mcp-tool-approvals.js";
+import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
+import { createSqliteConversationToolApprovalStore } from "../persistence/conversation-tool-approval-store.js";
+
+/**
+ * @file G3 remembered approvals (owner rule 2026-09-27): the card's Allow / Allow for this chat /
+ * Always allow / Cancel, and what each remembers.
+ *
+ * - Allow runs this one call and remembers nothing.
+ * - Allow for this chat stops asking for this tool in this conversation only, and survives a restart
+ *   (kept in chat.db with the conversation).
+ * - Always allow stops asking for this tool on this connection for the whole site, is never offered
+ *   for a destructive tool, and can be revoked.
+ * - Any remembered approval stops applying when the tool's server, name or hints change.
+ */
+
+const WORKSPACE_ID = "ws-g3r";
+const PRINCIPAL_ID = "principal-g3r";
+const OTHER_PRINCIPAL_ID = "principal-other";
+const SCHEMA = { type: "object", properties: { query: { type: "string" }, name: { type: "string" } } } as const;
+
+const CONFIG: FederatedMcpConnectionConfig = {
+  connectionId: "supabase",
+  label: "Supabase",
+  allowedToolNames: ["execute_sql", "create_project"],
+  writeAllowedToolNames: [],
+  connectTimeoutMs: 1_000,
+  callTimeoutMs: 1_000,
+  maxResultBytes: 4_096,
+  maxTools: 16,
+  origin: { kind: "roster", admissionRevision: "rev-1" },
+};
+
+const TOOLS: RemoteToolDescriptor[] = [
+  { name: "execute_sql", description: "Runs SQL.", inputSchema: SCHEMA, annotations: { readOnlyHint: false, destructiveHint: true } },
+  { name: "create_project", description: "Creates a project.", inputSchema: SCHEMA, annotations: { readOnlyHint: false } },
+];
+
+interface Stores {
+  readonly always: ExternalMcpToolApprovalRepoPort;
+  readonly chat: ConversationToolApprovalStore;
+}
+
+interface Harness {
+  readonly store: SurfaceExchangeStore;
+  readonly sent: { name: string; args: Record<string, unknown> }[];
+  registration(name: string): ToolRegistration;
+}
+
+function harness(
+  stores: Stores,
+  options: { tools?: RemoteToolDescriptor[]; config?: FederatedMcpConnectionConfig; mayManage?: boolean } = {},
+): Harness {
+  const store = createSurfaceExchangeStore();
+  const sent: { name: string; args: Record<string, unknown> }[] = [];
+  const tools = options.tools ?? TOOLS;
+  const session = new InMemoryMcpSession({
+    tools,
+    onCall: (name, args) => {
+      sent.push({ name, args: JSON.parse(JSON.stringify(args)) as Record<string, unknown> });
+      return { content: [{ type: "text", text: `ran ${name}` }] };
+    },
+  });
+  // Calling a federated tool at all already takes `admin.integrations.manage` on the connection
+  // (entity "federated-mcp-connection"); "Always allow" re-checks it on the site's integrations
+  // (entity "integration"), the scope the setting it saves lives in. Denied only there, here.
+  const authorize: FederationDeps["authorize"] = async (request) =>
+    request.permission === "admin.integrations.manage" && request.entityType === "integration" && options.mayManage === false
+      ? { allowed: false, reason: "no-matching-grant" }
+      : { allowed: true, reason: "matched" };
+  const deps: FederationDeps = {
+    authorize,
+    workspaceId: WORKSPACE_ID,
+    confirmCall: createFederatedCallConfirmer(
+      { surfaceExchanges: store },
+      {
+        workspaceId: WORKSPACE_ID,
+        authorize,
+        always: stores.always,
+        chat: stores.chat,
+        // Run ids here are "<conversation>/<n>": the daemon maps a run to the conversation it started in.
+        conversationIdForRun: (runId) => (runId.startsWith("none/") ? undefined : runId.split("/")[0]),
+      },
+    ),
+  };
+  const { registrations } = buildFederatedMcpRegistrations({ tools, session, config: options.config ?? CONFIG, deps, nativeToolIds: new Set() });
+  return {
+    store,
+    sent,
+    registration(name) {
+      const found = registrations.find((entry) => entry.descriptor.id === `mcp__supabase__${name}`);
+      assert.ok(found, `expected a registration for ${name}`);
+      return found;
+    },
+  };
+}
+
+interface Card {
+  readonly exchangeId: string;
+  readonly html: string;
+  /** The buttons as the person sees them, in order: [action id, label]. */
+  readonly buttons: readonly (readonly [string, string])[];
+}
+
+function readCard(emission: unknown): Card {
+  const html = (emission as { payload: { resource: { resource: { text?: string } } } }).payload.resource.resource.text ?? "";
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the card must carry its exchange id");
+  const buttons = [...html.matchAll(/<button [^>]*data-mcpui-action="([^"]+)"[^>]*>([^<]*)<\/button>/g)].map(
+    (row) => [row[1] ?? "", row[2] ?? ""] as const,
+  );
+  return { exchangeId: match[1] ?? "", html, buttons };
+}
+
+let executions = 0;
+
+function call(
+  h: Harness,
+  name: string,
+  input: unknown,
+  options: { conversation?: string; principalId?: string } = {},
+): { pending: Promise<unknown>; cards: unknown[] } {
+  const cards: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (surface) => void cards.push(surface);
+  executions += 1;
+  const ctx = {
+    executionId: `exec-${executions}`,
+    principal: { id: options.principalId ?? PRINCIPAL_ID },
+    run: { id: `${options.conversation ?? "chat-a"}/${executions}` },
+    input,
+    signal: new AbortController().signal,
+    emitSurface,
+  } as ToolExecutionContext;
+  return { pending: h.registration(name).handler(ctx), cards };
+}
+
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+function answer(h: Harness, card: Card, name: string, params: Record<string, unknown>, principalId = PRINCIPAL_ID) {
+  return h.store.deliver({ exchangeId: card.exchangeId, params, principalId, toolId: `mcp__supabase__${name}` });
+}
+
+/** Calls `name`, waits for its card, answers it with `params`, and returns the card. */
+async function callAndAnswer(
+  h: Harness,
+  name: string,
+  params: Record<string, unknown>,
+  options: { conversation?: string; principalId?: string } = {},
+): Promise<Card> {
+  const { pending, cards } = call(h, name, { query: "select 1" }, options);
+  await tick();
+  assert.equal(cards.length, 1, `expected a card for ${name}`);
+  const card = readCard(cards[0]);
+  assert.deepEqual(answer(h, card, name, params, options.principalId), { ok: true });
+  await pending;
+  return card;
+}
+
+/** Calls `name` and reports whether it ran without asking. */
+async function runsWithoutCard(h: Harness, name: string, options: { conversation?: string; principalId?: string } = {}): Promise<boolean> {
+  const before = h.sent.length;
+  const { pending, cards } = call(h, name, { query: "select 2" }, options);
+  await tick();
+  if (cards.length > 0) {
+    answer(h, readCard(cards[0]), name, { decision: "cancel" }, options.principalId);
+    await pending;
+    return false;
+  }
+  await pending;
+  return h.sent.length === before + 1;
+}
+
+function memoryStores(): Stores {
+  return { always: new InMemoryExternalMcpToolApprovalRepo(), chat: createInMemoryConversationToolApprovalStore() };
+}
+
+// ---------------------------------------------------------------------------
+// The buttons
+// ---------------------------------------------------------------------------
+
+test("G3 remembered: a non-destructive card offers Allow / Allow for this chat / Always allow / Cancel", async () => {
+  const h = harness(memoryStores());
+  const card = await callAndAnswer(h, "create_project", { decision: "cancel" });
+  assert.deepEqual(card.buttons, [
+    ["confirm", "Allow"],
+    ["allow-chat", "Allow for this chat"],
+    ["allow-always", "Always allow"],
+    ["cancel", "Cancel"],
+  ]);
+});
+
+test("G3 remembered: a destructive card never offers Always allow", async () => {
+  const h = harness(memoryStores());
+  const card = await callAndAnswer(h, "execute_sql", { decision: "cancel" });
+  assert.deepEqual(card.buttons, [
+    ["confirm", "Allow"],
+    ["allow-chat", "Allow for this chat"],
+    ["cancel", "Cancel"],
+  ]);
+});
+
+test("G3 remembered: the spec builder never offers Always allow for a destructive tool, even when asked to", () => {
+  const request = { toolId: "mcp__supabase__execute_sql", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, destructive: true, declaredAnnotations: undefined, origin: undefined };
+  const spec = buildFederatedCallConfirmSpec(request, { offerChat: true, offerAlways: true });
+  assert.deepEqual(spec.confirmLabel, "Allow");
+  assert.deepEqual(spec.alternatives?.map((entry) => entry.label), ["Allow for this chat"]);
+});
+
+test("G3 remembered: with no conversation to remember in, the card offers no Allow for this chat", async () => {
+  const h = harness(memoryStores());
+  const { pending, cards } = call(h, "create_project", {}, { conversation: "none" });
+  await tick();
+  const card = readCard(cards[0]);
+  answer(h, card, "create_project", { decision: "cancel" });
+  await pending;
+  assert.deepEqual(card.buttons, [
+    ["confirm", "Allow"],
+    ["allow-always", "Always allow"],
+    ["cancel", "Cancel"],
+  ]);
+});
+
+test("G3 remembered: a person who may not manage integrations is not offered Always allow", async () => {
+  const h = harness(memoryStores(), { mayManage: false });
+  const card = await callAndAnswer(h, "create_project", { decision: "cancel" });
+  assert.deepEqual(card.buttons.map(([id]) => id), ["confirm", "allow-chat", "cancel"]);
+});
+
+test("G3 remembered: a connection with no saved row (a preset) is not offered Always allow", async () => {
+  const h = harness(memoryStores(), { config: { ...CONFIG, origin: { kind: "preset" } } });
+  const card = await callAndAnswer(h, "create_project", { decision: "cancel" });
+  assert.deepEqual(card.buttons.map(([id]) => id), ["confirm", "allow-chat", "cancel"]);
+});
+
+test("G3 remembered: long or multi-line arguments render as a scrolling code block; short ones stay inline", () => {
+  const request = {
+    toolId: "mcp__supabase__execute_sql",
+    remoteName: "execute_sql",
+    connectionId: "supabase",
+    connectionLabel: "Supabase",
+    arguments: { project_id: "ppnxclfntfaoocrvipht", query: "create table t (\n  id bigint primary key\n);", options: { dry: false } },
+    destructive: true,
+    declaredAnnotations: undefined,
+    origin: undefined,
+  };
+  const spec = buildFederatedCallConfirmSpec(request);
+  assert.deepEqual(spec.details.map((row) => [row.label, row.format ?? "text"]), [
+    ["Service", "text"],
+    ["Tool", "text"],
+    ["project_id", "text"],
+    ["query", "code"],
+    ["options", "code"],
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// Allow (once)
+// ---------------------------------------------------------------------------
+
+test("G3 remembered: Allow runs exactly this call and remembers nothing — the next call asks again", async () => {
+  const stores = memoryStores();
+  const h = harness(stores);
+  await callAndAnswer(h, "create_project", { decision: "confirm" });
+  assert.equal(h.sent.length, 1);
+  assert.equal(await runsWithoutCard(h, "create_project"), false);
+  assert.deepEqual(await stores.always.listByWorkspaceId(WORKSPACE_ID), []);
+});
+
+// ---------------------------------------------------------------------------
+// Allow for this chat
+// ---------------------------------------------------------------------------
+
+test("G3 remembered: Allow for this chat runs this call, then the same tool runs without a card in the same chat", async () => {
+  const h = harness(memoryStores());
+  await callAndAnswer(h, "execute_sql", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+  assert.equal(h.sent.length, 1);
+  assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-a" }), true);
+  assert.equal(h.sent.length, 2);
+});
+
+test("G3 remembered: a new conversation asks again after Allow for this chat", async () => {
+  const h = harness(memoryStores());
+  await callAndAnswer(h, "execute_sql", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+  assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-b" }), false);
+});
+
+test("G3 remembered: Allow for this chat covers only that tool, and only that person", async () => {
+  const h = harness(memoryStores());
+  await callAndAnswer(h, "execute_sql", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+  assert.equal(await runsWithoutCard(h, "create_project", { conversation: "chat-a" }), false);
+  assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-a", principalId: OTHER_PRINCIPAL_ID }), false);
+});
+
+test("G3 remembered: Allow for this chat survives a restart — it is kept in chat.db with the conversation", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "g3-chat-approvals-"));
+  try {
+    const path = join(dir, "chat.db");
+    const first = openChatDb(path);
+    first
+      .prepare(`INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES (?, ?, 'user', ?, 0, 0)`)
+      .run("chat-a", WORKSPACE_ID, PRINCIPAL_ID);
+    const always = new InMemoryExternalMcpToolApprovalRepo();
+    const before = harness({ always, chat: createSqliteConversationToolApprovalStore(first) });
+    await callAndAnswer(before, "execute_sql", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+    first.close();
+
+    // A fresh process: a new handle on the same file, new stores, a new registry.
+    const second = openChatDb(path);
+    const after = harness({ always, chat: createSqliteConversationToolApprovalStore(second) });
+    assert.equal(await runsWithoutCard(after, "execute_sql", { conversation: "chat-a" }), true);
+    assert.equal(await runsWithoutCard(after, "execute_sql", { conversation: "chat-b" }), false);
+
+    // Deleting the chat deletes what it remembered.
+    second.prepare(`DELETE FROM ai_chats WHERE id = ?`).run("chat-a");
+    const rows = second.prepare(`SELECT COUNT(*) AS n FROM assistant_conversation_tool_approvals`).get() as { n: number };
+    assert.equal(rows.n, 0);
+    second.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("G3 remembered: a chat the store cannot record in (not in ai_chats) still runs the approved call once, then asks again", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "g3-chat-approvals-"));
+  try {
+    const db = openChatDb(join(dir, "chat.db"));
+    const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat: createSqliteConversationToolApprovalStore(db) });
+    await callAndAnswer(h, "execute_sql", { decision: "confirm", choice: "chat" }, { conversation: "chat-missing" });
+    assert.equal(h.sent.length, 1);
+    assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-missing" }), false);
+    db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Always allow
+// ---------------------------------------------------------------------------
+
+test("G3 remembered: Always allow runs this call, is saved per site + connection + tool, and later calls in any chat run without a card", async () => {
+  const stores = memoryStores();
+  const h = harness(stores);
+  await callAndAnswer(h, "create_project", { decision: "confirm", choice: "always" }, { conversation: "chat-a" });
+  assert.equal(h.sent.length, 1);
+
+  const saved = await stores.always.listByWorkspaceId(WORKSPACE_ID);
+  assert.equal(saved.length, 1);
+  assert.deepEqual(
+    { ...saved[0], grantedAt: "(time)" },
+    {
+      workspaceId: WORKSPACE_ID,
+      serverId: "supabase",
+      toolName: "create_project",
+      fingerprint: federatedToolApprovalFingerprint({
+        connectionId: "supabase",
+        remoteName: "create_project",
+        declaredAnnotations: { readOnlyHint: false },
+        origin: { kind: "roster", admissionRevision: "rev-1" },
+      }),
+      grantedByPrincipalId: PRINCIPAL_ID,
+      grantedAt: "(time)",
+    },
+  );
+
+  assert.equal(await runsWithoutCard(h, "create_project", { conversation: "chat-b" }), true);
+  assert.equal(await runsWithoutCard(h, "create_project", { conversation: "none" }), true);
+  assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-b" }), false, "only that tool");
+});
+
+test("G3 remembered: a forged Always allow on a destructive card runs that one call and saves nothing", async () => {
+  const stores = memoryStores();
+  const h = harness(stores);
+  await callAndAnswer(h, "execute_sql", { decision: "confirm", choice: "always" });
+  assert.equal(h.sent.length, 1);
+  assert.deepEqual(await stores.always.listByWorkspaceId(WORKSPACE_ID), []);
+  assert.equal(await runsWithoutCard(h, "execute_sql", { conversation: "chat-a" }), false);
+});
+
+test("G3 remembered: a remember value on a Cancel runs nothing and saves nothing", async () => {
+  const stores = memoryStores();
+  const h = harness(stores);
+  await callAndAnswer(h, "create_project", { decision: "cancel", choice: "always" });
+  assert.deepEqual(h.sent, []);
+  assert.deepEqual(await stores.always.listByWorkspaceId(WORKSPACE_ID), []);
+});
+
+test("G3 remembered: revoking an Always allow makes the tool ask again", async () => {
+  const stores = memoryStores();
+  const h = harness(stores);
+  await callAndAnswer(h, "create_project", { decision: "confirm", choice: "always" });
+  assert.equal(await stores.always.delete({ workspaceId: WORKSPACE_ID, serverId: "supabase", toolName: "create_project" }), true);
+  assert.equal(await runsWithoutCard(h, "create_project", { conversation: "chat-b" }), false);
+});
+
+// ---------------------------------------------------------------------------
+// Tool identity: a changed server, name or hints voids a remembered approval
+// ---------------------------------------------------------------------------
+
+test("G3 remembered: a changed annotation voids an Always allow — the tool asks again, now as destructive, and the stale row is removed", async () => {
+  const stores = memoryStores();
+  await callAndAnswer(harness(stores), "create_project", { decision: "confirm", choice: "always" });
+
+  const nowDestructive = TOOLS.map((tool) => (tool.name === "create_project" ? { ...tool, annotations: { readOnlyHint: false, destructiveHint: true } } : tool));
+  const h = harness(stores, { tools: nowDestructive });
+  const { pending, cards } = call(h, "create_project", {}, { conversation: "chat-b" });
+  await tick();
+  assert.equal(cards.length, 1, "the changed tool asks again");
+  const card = readCard(cards[0]);
+  assert.deepEqual(card.buttons.map(([id]) => id), ["confirm", "allow-chat", "cancel"]);
+  answer(h, card, "create_project", { decision: "cancel" });
+  await pending;
+  assert.deepEqual(h.sent, []);
+  assert.deepEqual(await stores.always.listByWorkspaceId(WORKSPACE_ID), []);
+});
+
+test("G3 remembered: a changed annotation voids an Allow for this chat", async () => {
+  const stores = memoryStores();
+  await callAndAnswer(harness(stores), "create_project", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+  const changed = TOOLS.map((tool) => (tool.name === "create_project" ? { ...tool, annotations: { readOnlyHint: false, idempotentHint: true } } : tool));
+  assert.equal(await runsWithoutCard(harness(stores, { tools: changed }), "create_project", { conversation: "chat-a" }), false);
+});
+
+test("G3 remembered: a changed server (a new admission revision) voids an Always allow", async () => {
+  const stores = memoryStores();
+  await callAndAnswer(harness(stores), "create_project", { decision: "confirm", choice: "always" });
+  const moved = harness(stores, { config: { ...CONFIG, origin: { kind: "roster", admissionRevision: "rev-2" } } });
+  assert.equal(await runsWithoutCard(moved, "create_project", { conversation: "chat-b" }), false);
+});
+
+test("G3 remembered: the fingerprint ignores hint key order but not hint values", () => {
+  const base = { connectionId: "supabase", remoteName: "create_project", origin: { kind: "roster", admissionRevision: "rev-1" } } as const;
+  assert.equal(
+    federatedToolApprovalFingerprint({ ...base, declaredAnnotations: { readOnlyHint: false, idempotentHint: true } }),
+    federatedToolApprovalFingerprint({ ...base, declaredAnnotations: { idempotentHint: true, readOnlyHint: false } }),
+  );
+  assert.notEqual(
+    federatedToolApprovalFingerprint({ ...base, declaredAnnotations: { readOnlyHint: false } }),
+    federatedToolApprovalFingerprint({ ...base, declaredAnnotations: { readOnlyHint: false, destructiveHint: false } }),
+  );
+  assert.notEqual(
+    federatedToolApprovalFingerprint({ ...base, declaredAnnotations: undefined }),
+    federatedToolApprovalFingerprint({ ...base, remoteName: "create_projects", declaredAnnotations: undefined }),
+  );
+});

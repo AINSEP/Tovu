@@ -300,7 +300,7 @@ test("G3 card: one confirmation authorizes exactly one call — a second call ge
 });
 
 test("G3 card: destructive tools get the danger-styled card with the stronger warning; plain writes do not", async () => {
-  const base = { toolId: "mcp__supabase__x", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {} };
+  const base = { toolId: "mcp__supabase__x", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, declaredAnnotations: undefined, origin: undefined };
   const destructive = buildFederatedCallConfirmSpec({ ...base, destructive: true });
   const write = buildFederatedCallConfirmSpec({ ...base, remoteName: "create_project", destructive: false });
 

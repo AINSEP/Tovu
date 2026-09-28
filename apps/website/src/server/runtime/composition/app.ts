@@ -66,6 +66,8 @@ import {
   InMemorySiteAssistantCredentialRepo,
   InMemoryAdminExecutionCredentialRepo,
   InMemoryExternalMcpServerRepo,
+  InMemoryExternalMcpToolApprovalRepo,
+  createInMemoryConversationToolApprovalStore,
   ensurePublicAssistantSettingDefinitions,
   ensureExecutionSettingDefinitions,
   onExternalMcpRosterChanged,
@@ -973,6 +975,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // has no `ai_chats` foreign key or isolation predicate to get right, so a plain map (no `db`
     // at all) is the whole double — see `agent-session-store.ts`'s own doc.
     agentSessions: createInMemoryAgentSessionStore(),
+    conversationToolApprovals: createInMemoryConversationToolApprovalStore(),
     presentationRepo,
     settingsRepo,
     getEffective,
@@ -987,6 +990,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
     externalMcpServerRepo,
+    externalMcpToolApprovalRepo: new InMemoryExternalMcpToolApprovalRepo(),
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
      * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
