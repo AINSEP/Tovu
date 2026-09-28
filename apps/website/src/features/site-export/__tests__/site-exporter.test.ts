@@ -712,14 +712,19 @@ test("exportSite: a route whose render hangs past the fetch timeout is recorded 
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
-  // Speeds up ONLY `AbortSignal.timeout`'s own firing (20ms instead of the real production
-  // duration) so this test does not have to wait out a real 30-second deadline — `capturedMs`
-  // below proves the real production duration was not itself shortened.
+  // `AbortSignal.timeout` is replaced with a deadline the TEST fires, never the wall clock: each
+  // call records the requested duration and hands back a controller-owned signal that stays
+  // pending. Only the `/welcome` interceptor below fires its deadline (with the same
+  // `TimeoutError` a real `AbortSignal.timeout` raises), so every other route has no timer to
+  // race, however slow its render is under load. `capturedMs` proves the production duration.
   const originalAbortTimeout = AbortSignal.timeout;
+  const deadlines = new WeakMap<AbortSignal, AbortController>();
   let capturedMs: number | undefined;
   AbortSignal.timeout = ((ms: number) => {
     capturedMs = ms;
-    return originalAbortTimeout(20);
+    const controller = new AbortController();
+    deadlines.set(controller.signal, controller);
+    return controller.signal;
   }) as typeof AbortSignal.timeout;
 
   // Only the `/welcome` request is ever intercepted — every other fetch (including the crawl's own
@@ -737,6 +742,8 @@ test("exportSite: a route whose render hangs past the fetch timeout is recorded 
           return;
         }
         signal.addEventListener("abort", () => reject(signal.reason));
+        // The request hangs; its deadline expires. A signal the stub did not mint is never fired.
+        deadlines.get(signal)?.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
       });
     }
     return originalFetch(input, init);
@@ -754,7 +761,7 @@ test("exportSite: a route whose render hangs past the fetch timeout is recorded 
     assert.ok(report.routes.succeeded.some((r) => r.path === "/"), "home must still succeed");
     assert.ok(report.routes.succeeded.some((r) => r.path === "/about"), "an unrelated theme page must still succeed");
 
-    assert.equal(capturedMs, 30_000, "the export fetch timeout must be a real, generous production duration — only its own firing was sped up for this test");
+    assert.equal(capturedMs, 30_000, "the export fetch timeout must be a real, generous production duration — only its firing is driven by this test");
   } finally {
     globalThis.fetch = originalFetch;
     AbortSignal.timeout = originalAbortTimeout;
