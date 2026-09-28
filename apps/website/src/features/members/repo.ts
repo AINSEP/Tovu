@@ -28,6 +28,7 @@ import type {
   MagicLinkTokenRecord,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
+  MemberRecord,
   MemberSessionRecord,
   MemberSubscriptionRecord,
   MemberTierRecord,
