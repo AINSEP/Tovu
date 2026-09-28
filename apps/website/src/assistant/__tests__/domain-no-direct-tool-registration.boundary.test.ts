@@ -25,7 +25,7 @@
  * these files without this test ever going red). It maps each of the four files that value-import
  * from the same deliberately-kept seam (see `assistant/index.ts`'s own "E — External MCP
  * Federation" section) instead of calling `registerToolContributor`, to exactly the named symbols
- * that file imports today — as of 2026-09-20/21:
+ * that file imports today — as of 2026-09-20/21 (two agent-plugins connect files added 2026-09-27):
  * `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`,
  * `src/features/agent-plugins/federate-mcp.ts`,
  * `src/features/supabase-connect/tool-registrations.ts`, and
@@ -102,9 +102,27 @@ const EXEMPT_FILE_SYMBOLS = new Map<string, Set<string>>([
       "ExternalMcpSecretStoreUnconfiguredError",
       "ExternalMcpValidationError",
       "listExternalMcpServerViews",
+      // Added 2026-09-27: announces a saved row through the roster-change fan-out, which
+      // `assistant/index.ts`'s own "Roster-change fan-out" comment names this file as a caller of.
+      "notifyExternalMcpRosterChanged",
       "readEnabledExternalMcpConfigs",
       "saveExternalMcpServer",
     ]),
+  ],
+  [
+    // Added 2026-09-27 (1ec285153, S-G1): `agent_plugin_connect` reads a plugin row's OAuth status
+    // and maps the store's validation error — the same External MCP read surface
+    // `supabase-connect/tool-registrations.ts` uses above. Never calls `registerToolContributor`;
+    // it is contributed through `contributeAgentPluginConnectTools()`.
+    path.join(REPO_ROOT, "apps", "website", "src", "features", "agent-plugins", "connect-tool.ts"),
+    new Set(["ExternalMcpValidationError", "resolveExternalMcpOAuthStatus"]),
+  ],
+  [
+    // Added 2026-09-27 (caaf88d56, S-G2): the `onConnected` port that writes a plugin's declared
+    // default tools after first sign-in, then announces the roster change so live runtimes reload —
+    // the same fan-out `external-mcp/tool-registrations.ts` uses.
+    path.join(REPO_ROOT, "apps", "website", "src", "features", "agent-plugins", "apply-connect-defaults.ts"),
+    new Set(["notifyExternalMcpRosterChanged"]),
   ],
 ]);
 
