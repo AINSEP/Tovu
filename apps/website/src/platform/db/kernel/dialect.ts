@@ -43,6 +43,35 @@ export function jsonText(dialect: StorageDialect, column: Expression<unknown>, p
 }
 
 /**
+ * `column` at `path` equals the JSON scalar `value` (string, number or boolean), as a boolean
+ * expression. SQLite has no JSON boolean type — `json_extract` reads `true`/`false` as `1`/`0` — so
+ * a boolean is bound as `1`/`0` there; Postgres compares the two `jsonb` values, so `10` matches
+ * `10.0` and a string never matches a number.
+ */
+export function jsonScalarEquals(
+  dialect: StorageDialect,
+  column: Expression<unknown>,
+  path: readonly string[],
+  value: string | number | boolean
+): RawBuilder<boolean> {
+  if (dialect === "postgres") return sql<boolean>`((${column}::jsonb #> ${pgPath(path)}) = ${JSON.stringify(value)}::jsonb)`;
+  const bound = typeof value === "boolean" ? (value ? 1 : 0) : value;
+  return sql<boolean>`(json_extract(${column}, ${sqlitePath(path)}) = ${bound})`;
+}
+
+/**
+ * A sort key for the value at `path`: SQLite's typed `json_extract`, Postgres' `jsonb` value, so
+ * numbers sort as numbers (`9` before `10`) — unlike {@link jsonText}, whose text sorts `'10'` first.
+ * A missing key is SQL NULL on both; pair with `nullsFirst()` (asc) / `nullsLast()` (desc) so NULLs
+ * land where SQLite puts them by default.
+ */
+export function jsonSortKey(dialect: StorageDialect, column: Expression<unknown>, path: readonly string[]): RawBuilder<unknown> {
+  return dialect === "postgres"
+    ? sql`(${column}::jsonb #> ${pgPath(path)})`
+    : sql`json_extract(${column}, ${sqlitePath(path)})`;
+}
+
+/**
  * The column's JSON with `path` set to `value` (any JSON-serialisable value), creating the last key
  * if it is missing. A NULL column counts as `{}`. The parent object must already exist.
  */

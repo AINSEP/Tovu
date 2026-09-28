@@ -13,7 +13,9 @@ export { openPostgresKernel } from "./drivers/postgres.js";
 export {
   type ColumnInfo,
   isUniqueViolation,
+  jsonScalarEquals,
   jsonSet,
+  jsonSortKey,
   jsonText,
   listColumns,
   listTables,
