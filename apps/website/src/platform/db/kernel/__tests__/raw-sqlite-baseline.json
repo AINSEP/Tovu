@@ -230,9 +230,6 @@
   "apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.ts": {
     "sync-terminal": 7
   },
-  "apps/website/src/platform/db/sqlite/media-repo.sqlite.ts": {
-    "sync-terminal": 25
-  },
   "apps/website/src/platform/db/sqlite/publish-trust-revocations.sqlite.ts": {
     "sync-terminal": 1
   },

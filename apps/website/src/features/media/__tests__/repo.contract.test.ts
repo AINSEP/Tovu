@@ -4,6 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import {
+  SqlAssetBlobRepo,
+  SqlAssetRenditionRepo,
+  SqlMediaRepo,
+  SqlTransformDefinitionRepo,
+} from "#src/platform/db/repos/media-repo";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import {
   SqliteAssetBlobRepo,
@@ -33,8 +40,9 @@ import type { VersionedMediaRepoPort } from "#src/features/media/index";
 
 /**
  * @file ADR-046 Phase 1 — shared contract-test suite for the four route-consumed media repo
- * ports, run against BOTH `repo.memory.ts` and `db/sqlite/media-repo.sqlite.ts` (rule-of-two,
- * ADR-006). Same pattern as every other rule-of-two contract suite in this codebase.
+ * ports, run against BOTH `repo.memory.ts` and the one Kysely body `db/repos/media-repo.ts` on
+ * every dialect (SQLite + PGlite; rule-of-two, ADR-006). Same pattern as every other rule-of-two
+ * contract suite in this codebase. The restart test at the end stays SQLite-only (a real file).
  */
 
 const WORKSPACE_ID = "workspace-1";
@@ -114,7 +122,8 @@ function runMediaSuite(label: string, makeRepo: () => MediaRepoPort) {
 }
 
 runMediaSuite("memory", () => new InMemoryMediaRepo());
-runMediaSuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
+const mediaDialects = eachDialect({ tables: ["media", "media_slug_history"], make: (kernel) => new SqlMediaRepo(kernel) });
+for (const each of mediaDialects) runMediaSuite(each.name, each.make);
 // `InMemoryVersionedMediaRepo` implements the plain `MediaRepoPort` surface identically to Jini's
 // `InMemoryMediaRepo` (same `findById`/`findBySlug`/`list`/`save`/`remove` shape, see that class's
 // own doc) — running it through the SAME order-agnostic suite proves that parity directly, rather
@@ -203,7 +212,7 @@ function runVersionedMediaSuite(label: string, makeRepo: () => VersionedMediaRep
 }
 
 runVersionedMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
-runVersionedMediaSuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
+for (const each of mediaDialects) runVersionedMediaSuite(each.name, each.make);
 
 /**
  * Rename safety (readable-slugs plan, S2a, 2026-09-23) — `media_slug_history`. Run against both
@@ -317,17 +326,17 @@ function runSlugHistorySuite(label: string, makeRepo: () => VersionedMediaRepoPo
 }
 
 runSlugHistorySuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
-runSlugHistorySuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
+for (const each of mediaDialects) runSlugHistorySuite(each.name, each.make);
 
 /**
  * `idx_media_workspace_slug` is the REAL enforcement (2026-09-07) — `updateMediaMetadata`'s own
  * `findBySlug` check is only a friendly-error courtesy on top of it (see `MediaRecord.slug`'s doc
- * in `@jini-ai/cms`). Only `SqliteMediaRepo` has a real DB constraint to violate; `InMemoryMediaRepo`
+ * in `@jini-ai/cms`). Only the durable `SqlMediaRepo` has a real DB constraint to violate; `InMemoryMediaRepo`
  * has no such index, so this is deliberately not part of the shared `runMediaSuite` (that suite's
- * whole point is behavior both adapters must agree on — this one is SQLite-specific by construction).
+ * whole point is behavior both adapters must agree on — this one is durable-adapter-specific by construction).
  */
-test("[sqlite] save() with a slug already claimed by a DIFFERENT row in the same workspace throws MediaConflictError, translated from the raw UNIQUE constraint violation", async () => {
-  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+for (const each of mediaDialects) test(`[${each.name}] save() with a slug already claimed by a DIFFERENT row in the same workspace throws MediaConflictError, translated from the raw UNIQUE constraint violation`, async () => {
+  const repo = each.make();
   await repo.save(makeMedia({ id: "media-1", slug: "taken-slug" }));
 
   await assert.rejects(
@@ -349,10 +358,10 @@ test("[sqlite] save() with a slug already claimed by a DIFFERENT row in the same
  * unique-constraint violation, silently reporting `applied: false` for a slug collision instead of
  * throwing `MediaConflictError` like every other write on this repo. `InMemoryVersionedMediaRepo`
  * has no slug index (see this file's `runMediaSuite`/`runVersionedMediaSuite` doc), so this is
- * `[sqlite]`-only, matching this file's established pattern for adapter-specific behavior.
+ * durable-adapter-only, matching this file's established pattern for adapter-specific behavior.
  */
-test("[sqlite] insertIfAbsent() with a slug already claimed by a DIFFERENT row throws MediaConflictError, not a swallowed applied:false", async () => {
-  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+for (const each of mediaDialects) test(`[${each.name}] insertIfAbsent() with a slug already claimed by a DIFFERENT row throws MediaConflictError, not a swallowed applied:false`, async () => {
+  const repo = each.make();
   await repo.save(makeMedia({ id: "media-1", slug: "taken-slug" }));
 
   await assert.rejects(
@@ -367,8 +376,8 @@ test("[sqlite] insertIfAbsent() with a slug already claimed by a DIFFERENT row t
   assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-2" }), null);
 });
 
-test("[sqlite] saveIfVersion() with a slug already claimed by a DIFFERENT row throws MediaConflictError", async () => {
-  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+for (const each of mediaDialects) test(`[${each.name}] saveIfVersion() with a slug already claimed by a DIFFERENT row throws MediaConflictError`, async () => {
+  const repo = each.make();
   await repo.save(makeMedia({ id: "media-1", slug: "taken-slug" }));
   await repo.save(makeMedia({ id: "media-2", slug: "media-2-slug", version: 1 }));
 
@@ -386,8 +395,8 @@ test("[sqlite] saveIfVersion() with a slug already claimed by a DIFFERENT row th
   assert.equal(found?.version, 1);
 });
 
-test("[sqlite] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)", async () => {
-  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+for (const each of mediaDialects) test(`[${each.name}] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)`, async () => {
+  const repo = each.make();
   await repo.save(makeMedia({ id: "media-1", slug: "stable-slug" }));
   await repo.save(makeMedia({ id: "media-1", slug: "stable-slug", version: 2, title: "Updated" }));
 
@@ -398,16 +407,16 @@ test("[sqlite] save() lets a row keep re-claiming its OWN slug on every update (
 
 /**
  * Owner-directed (2026-09-11): "have a sort by to see our most recent images" — `list()` must
- * return newest-first. SQLite-only, matching this file's own established pattern for
+ * return newest-first. Durable-adapter-only, matching this file's own established pattern for
  * adapter-specific behavior (the two slug-conflict tests above) — `InMemoryMediaRepo` is out of
- * this fix's disclosed scope (see `SqliteMediaRepo.list()`'s own doc for why).
+ * this fix's disclosed scope (see `SqlMediaRepo.list()`'s own doc for why).
  *
  * Rows are saved in an order that DIFFERS from their `createdAt` order — "m-old" (the earliest
  * timestamp) is saved LAST — so this assertion cannot pass by accident on natural insertion/rowid
  * order; it only passes if `list()` actually sorts by `createdAt`.
  */
-test("[sqlite] list() returns newest-first by createdAt, regardless of insertion order", async () => {
-  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+for (const each of mediaDialects) test(`[${each.name}] list() returns newest-first by createdAt, regardless of insertion order`, async () => {
+  const repo = each.make();
   await repo.save(makeMedia({ id: "m-mid", slug: "photo-mid", createdAt: "2026-07-16T12:00:00.000Z", updatedAt: "2026-07-16T12:00:00.000Z" }));
   await repo.save(makeMedia({ id: "m-newest", slug: "photo-newest", createdAt: "2026-07-17T00:00:00.000Z", updatedAt: "2026-07-17T00:00:00.000Z" }));
   await repo.save(makeMedia({ id: "m-old", slug: "photo-old", createdAt: "2026-07-16T00:00:00.000Z", updatedAt: "2026-07-16T00:00:00.000Z" }));
@@ -418,11 +427,11 @@ test("[sqlite] list() returns newest-first by createdAt, regardless of insertion
 
 /**
  * Same-millisecond `createdAt` tie: `list()` must still return a deterministic order (the `id`
- * tiebreaker in `SqliteMediaRepo.list()`'s `orderBy`) rather than depending on SQLite's own
+ * tiebreaker in `SqlMediaRepo.list()`'s `orderBy`) rather than depending on the database's own
  * unordered-tie behavior, which is not guaranteed to stay stable across queries.
  */
-test("[sqlite] list() breaks a createdAt tie deterministically by id", async () => {
-  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+for (const each of mediaDialects) test(`[${each.name}] list() breaks a createdAt tie deterministically by id`, async () => {
+  const repo = each.make();
   const tiedAt = "2026-07-16T12:00:00.000Z";
   await repo.save(makeMedia({ id: "m-a", slug: "photo-a", createdAt: tiedAt, updatedAt: tiedAt }));
   await repo.save(makeMedia({ id: "m-b", slug: "photo-b", createdAt: tiedAt, updatedAt: tiedAt }));
@@ -486,7 +495,7 @@ function runAssetBlobSuite(label: string, makeRepo: () => AssetBlobRepoPort) {
 }
 
 runAssetBlobSuite("memory", () => new InMemoryAssetBlobRepo());
-runAssetBlobSuite("sqlite", () => new SqliteAssetBlobRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["asset_blobs"], make: (kernel) => new SqlAssetBlobRepo(kernel) })) runAssetBlobSuite(each.name, each.make);
 
 function makeRendition(overrides: Partial<AssetRenditionRecord> = {}): AssetRenditionRecord {
   return {
@@ -538,7 +547,7 @@ function runRenditionSuite(label: string, makeRepo: () => AssetRenditionRepoPort
 }
 
 runRenditionSuite("memory", () => new InMemoryAssetRenditionRepo());
-runRenditionSuite("sqlite", () => new SqliteAssetRenditionRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["asset_renditions"], make: (kernel) => new SqlAssetRenditionRepo(kernel) })) runRenditionSuite(each.name, each.make);
 
 function makeTransformDef(overrides: Partial<TransformDefinitionRecord> = {}): TransformDefinitionRecord {
   return {
@@ -577,20 +586,21 @@ function runTransformDefSuite(label: string, makeRepo: () => TransformDefinition
 }
 
 runTransformDefSuite("memory", () => new InMemoryTransformDefinitionRepo());
-runTransformDefSuite("sqlite", () => new SqliteTransformDefinitionRepo(openContentDb(":memory:")));
+const transformDialects = eachDialect({ tables: ["transform_registry"], make: (kernel) => new SqlTransformDefinitionRepo(kernel) });
+for (const each of transformDialects) runTransformDefSuite(each.name, each.make);
 
-test("SqliteTransformDefinitionRepo.insert() re-throws a non-unique-violation error raw, rather than wrapping it as the append-only error", async () => {
-  const repo = new SqliteTransformDefinitionRepo(openContentDb(":memory:"));
+for (const each of transformDialects) test(`SqlTransformDefinitionRepo [${each.name}] insert() re-throws a non-unique-violation error raw, rather than wrapping it as the append-only error`, async () => {
+  const repo = each.make();
 
-  // `name` is NOT NULL with no default -- omitting it produces a real SQLite constraint error whose
-  // message does NOT match /UNIQUE constraint failed/, so isUniqueConstraintViolation() must return
-  // false and the raw error must propagate, never mistaken for the append-only duplicate case.
+  // `name` is NOT NULL with no default -- omitting it produces a real NOT NULL constraint error
+  // (SQLite's or Postgres's wording) that is not a unique violation, so isUniqueViolation() must
+  // return false and the raw error must propagate, never mistaken for the append-only duplicate case.
   await assert.rejects(
     () => repo.insert(makeTransformDef({ name: undefined as unknown as string })),
     (err: unknown) => {
       assert.ok(err instanceof Error);
       assert.doesNotMatch((err as Error).message, /already exists — append-only violation/);
-      assert.match((err as Error).message, /NOT NULL constraint failed/);
+      assert.match((err as Error).message, /NOT NULL constraint failed|violates not-null constraint/);
       return true;
     }
   );
