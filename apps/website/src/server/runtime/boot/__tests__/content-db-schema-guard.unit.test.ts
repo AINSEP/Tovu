@@ -28,13 +28,13 @@ function mkTempDbPath(): string {
   return path.join(dir, "content.db");
 }
 
-test("checkContentDbSchema(): a path with no file at all returns 'no-file' (first boot — nothing to guard, openContentDb() will create it)", () => {
+test("checkContentDbSchema(): a path with no file at all returns 'no-file' (first boot — nothing to guard, openContentDb() will create it)", async () => {
   const dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-content-db-schema-guard-")), "does-not-exist.db");
-  const result = checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema(dbPath);
   assert.deepEqual(result, { status: "no-file" });
 });
 
-test("checkContentDbSchema(): an existing file with no __drizzle_migrations table at all returns 'unmigrated' (nothing applied yet — safe to proceed)", () => {
+test("checkContentDbSchema(): an existing file with no __drizzle_migrations table at all returns 'unmigrated' (nothing applied yet — safe to proceed)", async () => {
   const dbPath = mkTempDbPath();
   // A bare sqlite file with a real table but NOT `__drizzle_migrations` — never opened via
   // `openContentDb()`, so no migration has ever run against it.
@@ -42,30 +42,30 @@ test("checkContentDbSchema(): an existing file with no __drizzle_migrations tabl
   sqlite.exec("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)");
   sqlite.close();
 
-  const result = checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema(dbPath);
   assert.deepEqual(result, { status: "unmigrated" });
 });
 
-test("checkContentDbSchema(): a __drizzle_migrations table that exists but is EMPTY also returns 'unmigrated' — a distinct branch from 'table absent entirely' inside readAppliedMigrationIdentity", () => {
+test("checkContentDbSchema(): a __drizzle_migrations table that exists but is EMPTY also returns 'unmigrated' — a distinct branch from 'table absent entirely' inside readAppliedMigrationIdentity", async () => {
   const dbPath = mkTempDbPath();
   const sqlite = new Database(dbPath);
   sqlite.exec("CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash text NOT NULL, created_at numeric)");
   sqlite.close();
 
-  const result = checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema(dbPath);
   assert.deepEqual(result, { status: "unmigrated" });
 });
 
-test("checkContentDbSchema(): a db already migrated by THIS runtime returns 'ok' — the same db openContentDb() would happily reopen", () => {
+test("checkContentDbSchema(): a db already migrated by THIS runtime returns 'ok' — the same db openContentDb() would happily reopen", async () => {
   const dbPath = mkTempDbPath();
   const db = openContentDb(dbPath);
   db.$client.close();
 
-  const result = checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema(dbPath);
   assert.deepEqual(result, { status: "ok" });
 });
 
-test("checkContentDbSchema(): a db whose latest applied migration matches no entry in this runtime's bundled journal returns 'refuse' — REFUSE, not a silent migrate, on a divergent lineage this function cannot safely interpret", () => {
+test("checkContentDbSchema(): a db whose latest applied migration matches no entry in this runtime's bundled journal returns 'refuse' — REFUSE, not a silent migrate, on a divergent lineage this function cannot safely interpret", async () => {
   const dbPath = mkTempDbPath();
   const db = openContentDb(dbPath);
   // Fabricates the exact shape a db migrated forward by a DIFFERENT runtime (a newer checkout, or a
@@ -78,7 +78,7 @@ test("checkContentDbSchema(): a db whose latest applied migration matches no ent
   );
   db.$client.close();
 
-  const result = checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema(dbPath);
   assert.equal(result.status, "refuse");
   assert.ok(
     result.status === "refuse" && result.message.length > 0,
@@ -86,7 +86,7 @@ test("checkContentDbSchema(): a db whose latest applied migration matches no ent
   );
 });
 
-test("checkContentDbSchema(): never throws SiteNewerThanRuntimeError past its own boundary — a real throw from compareSchemaVersion is always converted to a 'refuse' result", () => {
+test("checkContentDbSchema(): never throws SiteNewerThanRuntimeError past its own boundary — a real throw from compareSchemaVersion is always converted to a 'refuse' result", async () => {
   // Same fixture as the divergent-lineage test above; asserted from a different angle: whatever
   // internal path produces the refusal, the exported function's contract is a returned result, not
   // a thrown error, so a caller (`index.ts`) can decide what "refuse" means without a try/catch of
@@ -99,6 +99,6 @@ test("checkContentDbSchema(): never throws SiteNewerThanRuntimeError past its ow
   db.$client.exec(`INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('another-fabricated-hash', 9999999999998)`);
   db.$client.close();
 
-  assert.doesNotThrow(() => checkContentDbSchema(dbPath));
-  assert.equal(checkContentDbSchema(dbPath).status, "refuse");
+  await assert.doesNotReject(() => checkContentDbSchema(dbPath));
+  assert.equal((await checkContentDbSchema(dbPath)).status, "refuse");
 });

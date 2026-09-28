@@ -54,12 +54,12 @@ function writeDivergedDb(dir: string): void {
   db.$client.close();
 }
 
-test("repairSite(): happy path — derives the schema stamp from the db's own migration history and writes markers identical in shape to initSite's", () => {
+test("repairSite(): happy path — derives the schema stamp from the db's own migration history and writes markers identical in shape to initSite's", async () => {
   const dir = mkTempDir();
   writeMigratedDb(dir);
   const runtime = runtimeSchemaVersion();
 
-  const result = repairSite({ dir });
+  const result = await repairSite({ dir });
 
   assert.equal(result.dir, dir);
   assert.match(result.siteId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
@@ -78,7 +78,7 @@ test("repairSite(): happy path — derives the schema stamp from the db's own mi
   assert.notEqual(meta.templateId, "starter", "a repaired site never went through readTemplate — its templateId must be honestly unknown, not guessed");
 });
 
-test("repairSite(): a repaired site is indistinguishable from a freshly-initSite'd one to listSites()", () => {
+test("repairSite(): a repaired site is indistinguishable from a freshly-initSite'd one to listSites()", async () => {
   const parent = mkTempDir();
   const sitesRoot = path.join(parent, "sites");
   fs.mkdirSync(sitesRoot);
@@ -86,7 +86,7 @@ test("repairSite(): a repaired site is indistinguishable from a freshly-initSite
   fs.mkdirSync(siteDir);
   writeMigratedDb(siteDir);
 
-  repairSite({ dir: siteDir, name: "My Repaired Site" });
+  await repairSite({ dir: siteDir, name: "My Repaired Site" });
 
   const sites = listSites({ cwd: parent, env: {} });
   assert.equal(sites.length, 1, "listSites must recognize the repaired directory as a real site");
@@ -95,13 +95,13 @@ test("repairSite(): a repaired site is indistinguishable from a freshly-initSite
   assert.equal(sites[0].displayName, "My Repaired Site");
 });
 
-test("repairSite(): refuses when a marker file already exists, and never overwrites it", () => {
+test("repairSite(): refuses when a marker file already exists, and never overwrites it", async () => {
   const dir = mkTempDir();
   writeMigratedDb(dir);
   const sentinelConfig = JSON.stringify({ name: "do-not-touch", domain: null, port: null });
   fs.writeFileSync(path.join(dir, "config.json"), sentinelConfig);
 
-  assert.throws(
+  await assert.rejects(
     () => repairSite({ dir }),
     (err: unknown) => {
       assert.ok(err instanceof SiteRepairRefusedError);
@@ -115,10 +115,10 @@ test("repairSite(): refuses when a marker file already exists, and never overwri
   assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false, "no .site-meta.json must be written when the repair is refused");
 });
 
-test("repairSite(): refuses when content.db is missing, and writes nothing", () => {
+test("repairSite(): refuses when content.db is missing, and writes nothing", async () => {
   const dir = mkTempDir();
 
-  assert.throws(
+  await assert.rejects(
     () => repairSite({ dir }),
     (err: unknown) => {
       assert.ok(err instanceof SiteRepairRefusedError);
@@ -130,11 +130,11 @@ test("repairSite(): refuses when content.db is missing, and writes nothing", () 
   assert.deepEqual(fs.readdirSync(dir), [], "an empty target directory must stay empty after a refused repair");
 });
 
-test("repairSite(): refuses when content.db has never been migrated, and writes nothing", () => {
+test("repairSite(): refuses when content.db has never been migrated, and writes nothing", async () => {
   const dir = mkTempDir();
   writeUnmigratedDb(dir);
 
-  assert.throws(
+  await assert.rejects(
     () => repairSite({ dir }),
     (err: unknown) => {
       assert.ok(err instanceof SiteRepairRefusedError);
@@ -147,11 +147,11 @@ test("repairSite(): refuses when content.db has never been migrated, and writes 
   assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false);
 });
 
-test("repairSite(): refuses a divergent schema lineage rather than guessing, and writes nothing — the load-bearing case this whole feature exists to get right", () => {
+test("repairSite(): refuses a divergent schema lineage rather than guessing, and writes nothing — the load-bearing case this whole feature exists to get right", async () => {
   const dir = mkTempDir();
   writeDivergedDb(dir);
 
-  assert.throws(
+  await assert.rejects(
     () => repairSite({ dir }),
     (err: unknown) => {
       assert.ok(err instanceof SiteRepairRefusedError);
@@ -165,11 +165,11 @@ test("repairSite(): refuses a divergent schema lineage rather than guessing, and
   assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false, "a divergent lineage must NEVER produce a .site-meta.json stamp — this is the exact failure mode this feature must not have");
 });
 
-test("repairSite(): refuses a target that is not an existing directory", () => {
+test("repairSite(): refuses a target that is not an existing directory", async () => {
   const parent = mkTempDir();
   const missing = path.join(parent, "does-not-exist");
 
-  assert.throws(
+  await assert.rejects(
     () => repairSite({ dir: missing }),
     (err: unknown) => {
       assert.ok(err instanceof SiteRepairRefusedError);
@@ -179,20 +179,20 @@ test("repairSite(): refuses a target that is not an existing directory", () => {
   );
 });
 
-test("repairSite(): an invalid --name is a ValidationError, checked before anything is written", () => {
+test("repairSite(): an invalid --name is a ValidationError, checked before anything is written", async () => {
   const dir = mkTempDir();
   writeMigratedDb(dir);
 
-  assert.throws(() => repairSite({ dir, name: "   " }), ValidationError);
+  await assert.rejects(() => repairSite({ dir, name: "   " }), ValidationError);
   assert.equal(fs.existsSync(path.join(dir, "config.json")), false, "an invalid name must not leave a partial write behind");
 });
 
-test("planRepairSite(): previews the exact plan repairSite() would write, without writing anything", () => {
+test("planRepairSite(): previews the exact plan repairSite() would write, without writing anything", async () => {
   const dir = mkTempDir();
   writeMigratedDb(dir);
   const runtime = runtimeSchemaVersion();
 
-  const plan = planRepairSite({ dir, name: "Preview Me" });
+  const plan = await planRepairSite({ dir, name: "Preview Me" });
 
   assert.equal(plan.dir, dir);
   assert.equal(plan.config.name, "Preview Me");

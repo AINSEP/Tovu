@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-import { readAppliedSchemaIdentity } from "../../../platform/site-dir/read-applied-schema-identity.js";
+import { readAppliedSchemaIdentityOfFile } from "../../../platform/site-dir/read-applied-schema-identity.js";
 import { compareSchemaVersion } from "../../../platform/site-dir/schema-guard.js";
 import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/errors.js";
 
@@ -23,12 +23,12 @@ import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/errors.js"
  *
  * This module reuses `compareSchemaVersion` itself — the exact same policy `tovu serve` enforces,
  * unchanged — sourcing its `{schemaVersion, schemaTag}` input from
- * `read-applied-schema-identity.ts`'s `readAppliedSchemaIdentity()` (the db's OWN
+ * `read-applied-schema-identity.ts`'s `readAppliedSchemaIdentityOfFile()` (the db's OWN
  * `__drizzle_migrations` table, matched back to the bundled `db/drizzle/meta/_journal.json`) instead
  * of a `.site-meta.json` stamp — the shared implementation of the identical match
  * `database-introspection-adapter.sqlite.ts`'s `readAppliedSnapshot()` independently performs for
- * the Database admin tools (that one stays independent: it reuses an already-open `ContentDb`
- * handle rather than opening its own read-only connection). A db that has never been migrated (the
+ * the Database admin tools (that one stays independent: it collapses "never migrated" and
+ * "diverged" into one answer). A db that has never been migrated (the
  * table is absent or empty) has nothing to compare and is left alone — `openContentDb()`'s own
  * first-boot create+migrate+seed path handles it exactly as before.
  *
@@ -67,10 +67,10 @@ export type ContentDbSchemaGuardResult =
  *   `sqlite_master` lookup, one bounded `__drizzle_migrations` query, one small JSON read; not a
  *   function of any caller-controlled collection.
  */
-export function checkContentDbSchema(dbPath: string): ContentDbSchemaGuardResult {
+export async function checkContentDbSchema(dbPath: string): Promise<ContentDbSchemaGuardResult> {
   if (!fs.existsSync(dbPath)) return { status: "no-file" };
 
-  const applied = readAppliedSchemaIdentity(dbPath);
+  const applied = await readAppliedSchemaIdentityOfFile(dbPath);
   if (applied === "none") return { status: "unmigrated" };
   if (applied === "diverged") {
     return {

@@ -223,8 +223,8 @@ startOwnParentWatchdog();
  * nothing. A no-op for `useMemory` boots (nothing on disk to guard) and for a brand-new/never-
  * migrated db (nothing to compare against yet — `openContentDb()`'s own first-boot path is correct).
  */
-function guardContentDbSchemaOrExit(dbPath: string): void {
-  const result = checkContentDbSchema(dbPath);
+async function guardContentDbSchemaOrExit(dbPath: string): Promise<void> {
+  const result = await checkContentDbSchema(dbPath);
   if (result.status !== "refuse") return;
 
   console.error(`[content-db-schema-guard] ${result.message}`);
@@ -270,7 +270,7 @@ async function main(): Promise<void> {
   // and carries on; never refuses, never throws.
   warnIfNoRootKeyAtBoot();
 
-  if (!useMemory) guardContentDbSchemaOrExit(defaultContentDbPath());
+  if (!useMemory) await guardContentDbSchemaOrExit(defaultContentDbPath());
   // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
   // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
   // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just

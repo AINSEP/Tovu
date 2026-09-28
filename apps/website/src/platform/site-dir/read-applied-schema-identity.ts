@@ -2,7 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { openContentDbReadOnly } from "../db/sqlite/content-db.js";
+import { tableExists } from "../db/kernel/dialect.js";
+import { openSqliteFileKernel } from "../db/kernel/drivers/sqlite.js";
+import type { StorageKernel } from "../db/kernel/port.js";
+import { CONTENT_MIGRATIONS } from "../db/migrations/index.js";
+import { LEDGER_TABLE } from "../db/migrations/runner.js";
 
 /**
  * @file Shared "what has this content.db actually had applied to it" reader — the ONE
@@ -13,8 +17,7 @@ import { openContentDbReadOnly } from "../db/sqlite/content-db.js";
  * `server/runtime/boot/content-db-schema-guard.ts` (the non-CLI boot path's schema guard, which
  * now imports {@link readAppliedSchemaIdentity} instead of keeping its own private copy) and
  * `database-introspection-adapter.sqlite.ts`'s `readAppliedSnapshot()` (a third, INDEPENDENT
- * implementation that stays as-is: it reuses an already-open `ContentDb` handle rather than opening
- * its own read-only connection, and collapses "never migrated" and "diverged" into one `null` —
+ * implementation that stays as-is: it collapses "never migrated" and "diverged" into one `null` —
  * a different contract this module's three-way {@link AppliedSchemaIdentity} deliberately does not
  * share). `repair-site.ts` is the third caller, and the reason this stopped being one guard's
  * private helper: it needs the identical match to derive a trustworthy `.site-meta.json` stamp for
@@ -50,39 +53,61 @@ function readJournal(): DrizzleJournal {
  * schema state to report at all. `"diverged"` — the table has an applied row whose `created_at`
  * matches no entry in this runtime's bundled journal at all: a divergent lineage no caller of this
  * function should guess at. Otherwise the matched `{idx, tag}` pair, the db's real applied identity.
+ *
+ * On a Postgres/PGlite kernel the ledger is `tovu_migrations` (ADR-066), not `__drizzle_migrations`:
+ * `{idx, tag}` is then the ledger head's position and id in `CONTENT_MIGRATIONS`, and `"diverged"`
+ * means the head is an id this runtime does not have.
  */
 export type AppliedSchemaIdentity = "none" | "diverged" | { idx: number; tag: string };
 
+interface SchemaLedgers {
+  __drizzle_migrations: { created_at: number };
+  tovu_migrations: { id: string };
+}
+
 /**
- * Read `dbPath`'s OWN actually-applied migration identity, straight from its `__drizzle_migrations`
- * table — never from a `.site-meta.json` stamp (which may be missing, stale, or simply never
- * written; see `repair-site.ts`) and never a guess.
+ * Read the kernel's database's OWN actually-applied migration identity, straight from its ledger —
+ * never from a `.site-meta.json` stamp (which may be missing, stale, or simply never written; see
+ * `repair-site.ts`) and never a guess. Reads only.
  *
- * @param dbPath - absolute path to an EXISTING content.db file.
  * @returns see {@link AppliedSchemaIdentity}.
- * @throws whatever `better-sqlite3` throws opening a malformed/locked file read-only, or if
- *   `dbPath` does not exist at all (`openContentDbReadOnly`'s own `fileMustExist: true` contract) —
- *   a caller that needs a distinct "no file" outcome checks `fs.existsSync(dbPath)` itself first.
- * @complexity O(m) in the bundled journal's entry count (currently under 60) — one bounded
- *   `sqlite_master` lookup, one bounded `__drizzle_migrations` query, one small JSON read; not a
- *   function of any caller-controlled collection.
- * @overallScore 100
+ * @complexity O(m) in the bundled journal's entry count (currently under 60) — one bounded table
+ *   lookup, one bounded ledger query, one small JSON read; not a function of any caller-controlled
+ *   collection.
  */
-export function readAppliedSchemaIdentity(dbPath: string): AppliedSchemaIdentity {
-  const sqlite = openContentDbReadOnly(dbPath).$client;
+export async function readAppliedSchemaIdentity(kernel: StorageKernel<unknown>): Promise<AppliedSchemaIdentity> {
+  const ledgers = kernel as StorageKernel<SchemaLedgers>;
+  if (kernel.dialect === "postgres") {
+    if (!(await tableExists(kernel, LEDGER_TABLE))) return "none";
+    const head = await ledgers.run((db) => db.selectFrom("tovu_migrations").select("id").orderBy("id", "desc").limit(1).executeTakeFirst());
+    if (head === undefined) return "none";
+    const idx = CONTENT_MIGRATIONS.findIndex((step) => step.id === head.id);
+    return idx === -1 ? "diverged" : { idx, tag: head.id };
+  }
+
+  if (!(await tableExists(kernel, "__drizzle_migrations"))) return "none";
+  const latest = await ledgers.run((db) =>
+    db.selectFrom("__drizzle_migrations").select("created_at").orderBy("created_at", "desc").limit(1).executeTakeFirst()
+  );
+  if (latest === undefined) return "none";
+
+  const matchingEntry = readJournal().entries.find((entry) => entry.when === Number(latest.created_at));
+  return matchingEntry ? { idx: matchingEntry.idx, tag: matchingEntry.tag } : "diverged";
+}
+
+/**
+ * {@link readAppliedSchemaIdentity} for the SQLite file at `dbPath`, on a read-only connection of
+ * its own that is closed before returning.
+ *
+ * @throws whatever `better-sqlite3` throws opening a malformed/locked file read-only, or if
+ *   `dbPath` does not exist at all — a caller that needs a distinct "no file" outcome checks
+ *   `fs.existsSync(dbPath)` itself first.
+ */
+export async function readAppliedSchemaIdentityOfFile(dbPath: string): Promise<AppliedSchemaIdentity> {
+  const kernel = openSqliteFileKernel(dbPath, { readOnly: true });
   try {
-    const tableExists =
-      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'").get() !== undefined;
-    if (!tableExists) return "none";
-
-    const latest = sqlite.prepare("SELECT created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1").get() as
-      | { created_at: number }
-      | undefined;
-    if (!latest) return "none";
-
-    const matchingEntry = readJournal().entries.find((entry) => entry.when === latest.created_at);
-    return matchingEntry ? { idx: matchingEntry.idx, tag: matchingEntry.tag } : "diverged";
+    return await readAppliedSchemaIdentity(kernel);
   } finally {
-    sqlite.close();
+    await kernel.close();
   }
 }

@@ -36,7 +36,7 @@ import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install
  * classifier.
  *
  * DERIVE, NEVER GUESS. Every value stamped into `.site-meta.json` that a guard later trusts is read
- * out of the database's own `__drizzle_migrations` history (`readAppliedSchemaIdentity`, via
+ * out of the database's own `__drizzle_migrations` history (`readAppliedSchemaIdentityOfFile`, via
  * `repair-site.ts`), matched back to this runtime's bundled journal. If it cannot be derived, this
  * command REFUSES: a wrong `schemaVersion` would make `serve` skip a migration the database still
  * needs, silently, so a bad adopt is strictly worse than no adopt. `templateId`/`templateVersion`
@@ -98,9 +98,9 @@ function describeDatabaseCandidates(target: string): string {
  * appending {@link describeDatabaseCandidates}'s list. The reason code is carried through unchanged
  * so `cli/errors.ts` still maps the exit code from the reason, never from the message text.
  */
-function asAdoptRefusal<T>(target: string, run: () => T): T {
+async function asAdoptRefusal<T>(target: string, run: () => Promise<T>): Promise<T> {
   try {
-    return run();
+    return await run();
   } catch (err) {
     if (!(err instanceof SiteRepairRefusedError)) throw err;
     const relabelled = err.message.replace(/^repairSite: /, "adopt: ");
@@ -155,11 +155,11 @@ export async function runAdoptCommand(input: RunAdoptCommandInput): Promise<void
   }
 
   if (input.dryRun === true) {
-    printDryRun(asAdoptRefusal(target, () => planRepairSite({ dir: target, name: input.name })));
+    printDryRun(await asAdoptRefusal(target, () => planRepairSite({ dir: target, name: input.name })));
     return;
   }
 
-  const result = asAdoptRefusal(target, () => repairSite({ dir: target, name: input.name }));
+  const result = await asAdoptRefusal(target, () => repairSite({ dir: target, name: input.name }));
   // Read the ACTUAL written config.json back rather than re-deriving the name here, so the printed
   // name can never drift from what was really written (same discipline `runInitCommand` uses).
   const { config } = readSiteDir({ dir: result.dir });

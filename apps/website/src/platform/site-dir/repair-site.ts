@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { InternalError } from "./errors.js";
 import { resolveSiteName } from "./init-site.js";
-import { readAppliedSchemaIdentity } from "./read-applied-schema-identity.js";
+import { readAppliedSchemaIdentityOfFile } from "./read-applied-schema-identity.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import type { ConfigJson, SiteMetaJson } from "./types.js";
@@ -19,7 +19,7 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * runtime's bundled migration identity BEFORE the database is ever opened
  * (`schema-guard.ts`'s `compareSchemaVersion`). Stamping the WRONG version is worse than no stamp at
  * all — a wrong "compatible" stamp would make `serve` skip a migration the database still needs,
- * silently. So this function never guesses: {@link readAppliedSchemaIdentity} derives the stamp from
+ * silently. So this function never guesses: {@link readAppliedSchemaIdentityOfFile} derives the stamp from
  * the database's OWN applied `__drizzle_migrations` history, matched back to this runtime's bundled
  * `db/drizzle/meta/_journal.json` — the exact technique `content-db-schema-guard.ts` (the non-CLI
  * boot path's schema guard) already uses for the identical reason, now shared rather than
@@ -54,7 +54,7 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * `site-dir` domain logic (INV-06) — no `express`/`cli` import. Every fs write below is derived from
  * `target` (`resolveInstallDirTarget`'s own return), never re-derived from the raw `dir` argument
  * (INV-01, mirrors `initSite`'s/`duplicateSite`'s identical discipline). Read-only with respect to
- * `content.db`: only ever reached via {@link readAppliedSchemaIdentity}, which opens it through
+ * `content.db`: only ever reached via {@link readAppliedSchemaIdentityOfFile}, which opens it through
  * `openContentDbReadOnly` — this file never imports `openContentDb` (the migrating one) at all.
  */
 
@@ -189,11 +189,11 @@ function existingMarkerFiles(target: string): string[] {
  *   in the order a caller would want to know about them: is this even a real directory, does it
  *   already carry a marker, does it have a database at all, has that database ever been migrated,
  *   and finally whether its applied lineage is one this runtime recognizes.
- * @complexity O(m) in the bundled journal's entry count (via `readAppliedSchemaIdentity`) — a small,
+ * @complexity O(m) in the bundled journal's entry count (via `readAppliedSchemaIdentityOfFile`) — a small,
  *   fixed number of `stat`/`existsSync` checks plus that one call; not a function of any
  *   caller-controlled collection.
  */
-function planSiteRepair(required: RepairSiteRequired): SiteRepairPlan {
+async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairPlan> {
   const { dir, name } = required;
   const target = resolveInstallDirTarget(dir);
   const resolvedName = resolveSiteName(target, name);
@@ -221,7 +221,7 @@ function planSiteRepair(required: RepairSiteRequired): SiteRepairPlan {
     );
   }
 
-  const identity = readAppliedSchemaIdentity(dbPath);
+  const identity = await readAppliedSchemaIdentityOfFile(dbPath);
   if (identity === "none") {
     throw new SiteRepairRefusedError(
       `repairSite: refusing — ${dbPath} has never had a migration applied (no __drizzle_migrations rows); there is no applied schema state to stamp`,
@@ -250,14 +250,14 @@ function planSiteRepair(required: RepairSiteRequired): SiteRepairPlan {
 /**
  * Preview what {@link repairSite} would write for `required`, without writing anything — read-only
  * end to end (the only I/O is `fs.stat`/`existsSync` checks plus one read-only db open inside
- * {@link readAppliedSchemaIdentity}). Exists so an operator-facing dry run can show the real derived
+ * {@link readAppliedSchemaIdentityOfFile}). Exists so an operator-facing dry run can show the real derived
  * `schemaVersion`/`schemaTag` before committing to `--apply`, computed by the exact same checks
  * `repairSite` itself runs — never a second, potentially-drifting implementation.
  *
  * @throws see {@link planSiteRepair}.
  * @complexity see {@link planSiteRepair}.
  */
-export function planRepairSite(required: RepairSiteRequired): SiteRepairPlan {
+export function planRepairSite(required: RepairSiteRequired): Promise<SiteRepairPlan> {
   return planSiteRepair(required);
 }
 
@@ -285,8 +285,8 @@ export function planRepairSite(required: RepairSiteRequired): SiteRepairPlan {
  * @complexity see {@link planSiteRepair}, plus two bounded atomic file writes.
  * @overallScore 100
  */
-export function repairSite(required: RepairSiteRequired): RepairSiteResult {
-  const plan = planSiteRepair(required);
+export async function repairSite(required: RepairSiteRequired): Promise<RepairSiteResult> {
+  const plan = await planSiteRepair(required);
   const configPath = path.join(plan.dir, CONFIG_FILE_NAME);
   const metaPath = path.join(plan.dir, SITE_META_FILE_NAME);
 
