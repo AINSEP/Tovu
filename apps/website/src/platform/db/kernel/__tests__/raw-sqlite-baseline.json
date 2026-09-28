@@ -219,9 +219,6 @@
   "apps/website/src/platform/db/sqlite/analytics-sink.sqlite.ts": {
     "sync-terminal": 3
   },
-  "apps/website/src/platform/db/sqlite/change-set-repo.sqlite.ts": {
-    "sync-terminal": 8
-  },
   "apps/website/src/platform/db/sqlite/chat-db.ts": {
     "better-sqlite3-import": 1,
     "pragma": 3
