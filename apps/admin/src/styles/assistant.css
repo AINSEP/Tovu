@@ -409,6 +409,17 @@
   min-width: 0;
 }
 
+/* A question card nobody can answer any more (answered, expired, or its run ended): Jini's
+   `McpUiSurfaceCard` swaps the live frame for one plain status line. Muted and compact so it reads
+   as a record, not as something waiting on the user. */
+.mcpui-surface-card-closed {
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
 /* Flattened from `--surface-2` to `--surface` (2026-08-31) now that the pane background is also
    `--surface` (see the header's "ChatPane background grey" note) -- `--surface-2` was the last grey
    left over from before that fix. With no colour difference from the pane left to lean on, the
