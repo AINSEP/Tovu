@@ -197,11 +197,21 @@ const SUPABASE_CONNECT_POLL_INTERVAL_MS = 3_000;
 const SUPABASE_CONNECT_POLL_DEADLINE_MS = 5 * 60 * 1000;
 
 /** `setTimeout`-based, `unref`'d like every other timer this call opens (the exchange store's own
- *  idle/lifetime timers do the same): an abandoned poll must never by itself keep the process alive. */
-function sleep(ms: number): Promise<void> {
+ *  idle/lifetime timers do the same): an abandoned poll must never by itself keep the process alive.
+ *  Resolves early when `signal` aborts, so a cancelled call stops waiting at once. */
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
     timer.unref?.();
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -215,13 +225,13 @@ function sleep(ms: number): Promise<void> {
  * @complexity O(n) polls, each one repo read, n bounded by `SUPABASE_CONNECT_POLL_DEADLINE_MS` /
  * `SUPABASE_CONNECT_POLL_INTERVAL_MS`.
  */
-async function pollUntilSupabaseConnected(routeDeps: SupabaseConnectToolDeps, deadlineAt: number): Promise<boolean> {
+async function pollUntilSupabaseConnected(routeDeps: SupabaseConnectToolDeps, deadlineAt: number, signal: AbortSignal): Promise<boolean> {
   for (;;) {
     const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: CONNECTION_ID });
     if (record !== null && resolveExternalMcpOAuthStatus(record) === "connected") return true;
     const remaining = deadlineAt - Date.now();
-    if (remaining <= 0) return false;
-    await sleep(Math.min(SUPABASE_CONNECT_POLL_INTERVAL_MS, remaining));
+    if (remaining <= 0 || signal.aborted) return false;
+    await sleep(Math.min(SUPABASE_CONNECT_POLL_INTERVAL_MS, remaining), signal);
   }
 }
 
@@ -523,7 +533,7 @@ async function runSupabaseGetDatabase(routeDeps: SupabaseConnectToolDeps, surfac
         }),
       },
     });
-    const connected = await pollUntilSupabaseConnected(routeDeps, Date.now() + SUPABASE_CONNECT_POLL_DEADLINE_MS);
+    const connected = await pollUntilSupabaseConnected(routeDeps, Date.now() + SUPABASE_CONNECT_POLL_DEADLINE_MS, ctx.signal);
     if (!connected) return { connected: false, reason: "waiting-for-sign-in" };
     try {
       await exchange.send({

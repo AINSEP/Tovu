@@ -88,14 +88,14 @@ async function setup(options: { withRow?: boolean } = {}) {
 
 type Env = Awaited<ReturnType<typeof setup>>;
 
-function call(registration: ToolRegistration | undefined, options: { input?: unknown; emitSurface?: SurfaceEmitter } = {}) {
+function call(registration: ToolRegistration | undefined, options: { input?: unknown; emitSurface?: SurfaceEmitter; signal?: AbortSignal } = {}) {
   assert.ok(registration, "tool must be wired");
   const ctx: ToolExecutionContext = {
     executionId: "exec-1",
     principal: { id: PRINCIPAL },
     run: { id: "run-1" },
     input: options.input ?? {},
-    signal: new AbortController().signal,
+    signal: options.signal ?? new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
   return registration.handler(ctx);
@@ -326,4 +326,32 @@ test("supabase_get_database: an already-connected row returns { connected: true 
   const result = await call(env.tools.get(GET_DATABASE), { emitSurface: async (surface) => void emitted.push(surface) });
   assert.deepEqual(result, { connected: true });
   assert.equal(emitted.length, 0, "an already-connected row must show no card");
+});
+
+test("supabase_get_database: aborting the call stops the sign-in wait promptly instead of polling out the full five minutes", async () => {
+  const env = await setup();
+  const tools = env.build({
+    externalMcpOAuth: {
+      tokenResolver: { resolveAccessToken: async () => "unused" },
+      beginConnect: async () => ({ kind: "redirect_required", authorizationUrl: "https://example.com/authorize", expiresAt: "2026-09-27T00:10:00.000Z" }),
+      completeAuthorizationCallback: async () => undefined,
+      pollDeviceAuthorization: async () => ({ status: "pending", retryAfterSeconds: 5 }),
+    } as unknown as SupabaseConnectToolDeps["externalMcpOAuth"],
+    derivedPublicOrigin: "http://127.0.0.1:4000",
+  });
+  const abort = new AbortController();
+  const pending = call(tools.get(GET_DATABASE), { emitSurface: async () => undefined, signal: abort.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  abort.abort();
+
+  const timedOut = Symbol("timed out");
+  const settled = await Promise.race([
+    pending.then(
+      (value) => value,
+      (err: unknown) => err,
+    ),
+    new Promise((resolve) => setTimeout(() => resolve(timedOut), 500).unref()),
+  ]);
+  assert.notEqual(settled, timedOut, "an aborted call must settle, not keep polling for sign-in");
+  assert.deepEqual(settled, { connected: false, reason: "waiting-for-sign-in" });
 });
