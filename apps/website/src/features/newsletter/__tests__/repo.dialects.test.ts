@@ -5,6 +5,7 @@ import { sql } from "kysely";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
 import { newsletterAudienceSnapshotRepoFor, newsletterCampaignRepoFor, newsletterConfirmationTokenRepoFor, newsletterListRepoFor, newsletterSendRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
 import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
 
@@ -12,9 +13,8 @@ import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, Confirmatio
  * @file The six newsletter repos on every dialect through the kernel's matrix (`describeEachDialect`
  * + ONE factory: one query body serves every dialect), one `describe` per class. Covers every
  * public method: hit, miss, other-workspace isolation and rollback. The campaign pair is in the
- * migrated core schema; the five `p_newsletter__*` dataModule tables are not, and the real install
- * (`data-module-manifest.ts`) runs SQLite-only DDL, so `make` creates the same columns with portable
- * DDL on each dialect (moving the install to the kernel is plan slice P1's job).
+ * migrated core schema; the five `p_newsletter__*` dataModule tables are not, so `make` runs the real
+ * install (`installNewsletterDataModule`, on the kernel) on each dialect.
  */
 
 const WS = "ws-dialects";
@@ -22,34 +22,17 @@ const OTHER = "ws-other";
 const T0 = "2026-09-28T00:00:00.000Z";
 const T1 = "2026-09-28T01:00:00.000Z";
 
-const CREATE_TABLES = [
-  sql`DROP TABLE IF EXISTS p_newsletter__lists`,
-  sql`CREATE TABLE p_newsletter__lists (
-    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
-    is_default INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-  sql`DROP TABLE IF EXISTS p_newsletter__subscriptions`,
-  sql`CREATE TABLE p_newsletter__subscriptions (
-    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, list_id TEXT NOT NULL, subscriber_id TEXT NOT NULL,
-    status TEXT NOT NULL, source TEXT NOT NULL, consent_revision_id_at_subscribe TEXT, subscribed_at TEXT,
-    unsubscribed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-  sql`DROP TABLE IF EXISTS p_newsletter__audience_snapshots`,
-  sql`CREATE TABLE p_newsletter__audience_snapshots (
-    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, campaign_id TEXT NOT NULL, list_id TEXT NOT NULL,
-    recipient_count INTEGER NOT NULL, created_at TEXT NOT NULL)`,
-  sql`DROP TABLE IF EXISTS p_newsletter__sends`,
-  sql`CREATE TABLE p_newsletter__sends (
-    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, campaign_id TEXT NOT NULL, audience_snapshot_id TEXT NOT NULL,
-    subscriber_id TEXT NOT NULL, recipient_email TEXT NOT NULL, status TEXT NOT NULL, attempts INTEGER NOT NULL,
-    idempotency_key TEXT NOT NULL, provider_message_id TEXT, last_error TEXT, next_attempt_at TEXT,
-    created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-  sql`DROP TABLE IF EXISTS p_newsletter__confirmation_tokens`,
-  sql`CREATE TABLE p_newsletter__confirmation_tokens (
-    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, subscription_id TEXT NOT NULL, token_hash TEXT NOT NULL,
-    purpose TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT)`,
-];
+/** Per `make`: drop the dataModule tables (PGlite is shared across the file), then the REAL install. */
+function installFresh(base: ContentKernel): Promise<void> {
+  const dropped = Object.values(NEWSLETTER_TABLE_NAMES).reduce(
+    (chain, table) => chain.then(() => base.execute(sql`DROP TABLE IF EXISTS ${sql.table(table)}`)),
+    Promise.resolve()
+  );
+  return dropped.then(() => installNewsletterDataModule({ db: base, dbPath: ":memory:" }));
+}
 
 function repos(base: ContentKernel) {
-  const pending = CREATE_TABLES.reduce((chain, statement) => chain.then(() => base.execute(statement)), Promise.resolve());
+  const pending = installFresh(base);
   pending.catch(() => {});
   const kernel = heldUntil(base, pending);
   return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel), snapshots: newsletterAudienceSnapshotRepoFor(kernel), sends: newsletterSendRepoFor(kernel), tokens: newsletterConfirmationTokenRepoFor(kernel) };

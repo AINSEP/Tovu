@@ -8,10 +8,17 @@
  * Any journal entry not in a terminal phase (`COMMITTED`/`ROLLED_BACK`) is a crash-interrupted
  * attempt — mandatory, blocking: restore from that entry's snapshot, clean its WAL/SHM sidecars
  * (T8, via `restore.ts`), then mark the entry `ROLLED_BACK`.
+ *
+ * SQLite files only, and synchronous, by necessity: the hook runs inside the synchronous
+ * `openContentDb`, before any connection (and so any storage kernel) exists, and a restore is a file
+ * copy. That makes this the one place in the plugin engine that reads SQLite directly. Postgres and
+ * PGlite never need it — `data-module.ts` journals only file-backed SQLite databases, since their DDL
+ * and journal commit as one crash-safe transaction. When boot becomes async (storage plan R1), this
+ * scan becomes `findIncompleteJournalEntries(kernel)` on a kernel opened for the file.
  */
 import Database from "better-sqlite3";
 
-import { ensureMigrationJournal, findIncompleteJournalEntries } from "./migration-journal.js";
+import { isIncompletePhase, type JournalEntry, journalEntryOf } from "./migration-journal.js";
 import { restoreFromSnapshot } from "./restore.js";
 
 export interface RecoveryResult {
@@ -28,15 +35,7 @@ export interface RecoveryResult {
  * `entries` list IS the audit record for this boot's recovery action; the caller must log it.
  */
 export function recoverIncompleteDataModuleMigrations(dbPath: string): RecoveryResult {
-  const scan = new Database(dbPath);
-  let incomplete: ReturnType<typeof findIncompleteJournalEntries>;
-  try {
-    ensureMigrationJournal(scan);
-    incomplete = findIncompleteJournalEntries(scan);
-  } finally {
-    scan.close();
-  }
-
+  const incomplete = readIncompleteEntries(dbPath);
   if (incomplete.length === 0) {
     return { recovered: 0, entries: [] };
   }
@@ -47,4 +46,23 @@ export function recoverIncompleteDataModuleMigrations(dbPath: string): RecoveryR
   }
 
   return { recovered: incomplete.length, entries: incomplete.map((e) => ({ pluginId: e.pluginId, snapshotPath: e.snapshotPath })) };
+}
+
+/**
+ * The non-terminal journal entries in the SQLite file at `dbPath`, read on a short-lived connection
+ * that is closed before returning. A database with no journal table yet has none.
+ */
+function readIncompleteEntries(dbPath: string): JournalEntry[] {
+  const scan = new Database(dbPath);
+  try {
+    const rows = scan
+      .prepare(`SELECT id, plugin_id, phase, snapshot_path, started_at, updated_at FROM _plugin_migration_journal ORDER BY id`)
+      .all() as Array<Parameters<typeof journalEntryOf>[0]>;
+    return rows.filter((row) => isIncompletePhase(row.phase)).map(journalEntryOf);
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("no such table")) return [];
+    throw err;
+  } finally {
+    scan.close();
+  }
 }

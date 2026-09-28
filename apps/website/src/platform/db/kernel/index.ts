@@ -18,13 +18,19 @@ export { StorageOpError, StorageOpNotSupportedError, type StorageOps, storageOps
 export { openPgliteKernel, type PgKernel } from "./drivers/pglite.js";
 export { openPostgresKernel } from "./drivers/postgres.js";
 export {
+  autoIdColumnSql,
+  checkpointWal,
+  type ColumnAffinity,
   type ColumnInfo,
+  columnTypeSql,
+  type IndexInfo,
   isUniqueViolation,
   jsonScalarEquals,
   jsonSet,
   jsonSortKey,
   jsonText,
   listColumns,
+  listIndexes,
   listTables,
   nowIso,
   tableExists,

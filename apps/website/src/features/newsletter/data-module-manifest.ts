@@ -18,9 +18,7 @@
  * `src/features/plugins/store/store-plugin.ts`'s `STORE_MANIFEST`/`activateStore` shape, which is
  * this repo's only other real caller of `declareDataModule()`.
  */
-import type Database from "better-sqlite3";
-
-import { declareDataModule, type DataModuleDecl } from "../plugins/index.js";
+import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "../plugins/index.js";
 
 export const NEWSLETTER_PLUGIN_ID = "newsletter";
 
@@ -133,7 +131,7 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
  * half-installed Newsletter; the caller (composition root) surfaces this as a startup failure.
  */
 export async function installNewsletterDataModule(
-  required: { db: Database.Database; dbPath: string },
+  required: { db: DataModuleStore; dbPath: string },
   _optional: Record<string, never> = {}
 ): Promise<void> {
   const { db, dbPath } = required;

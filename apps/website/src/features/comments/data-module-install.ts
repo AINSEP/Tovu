@@ -5,13 +5,11 @@
  * root, via the ADR-046 Phase 2 boot lifecycle) surfaces it as a startup failure rather than
  * silently continuing with missing tables.
  */
-import type Database from "better-sqlite3";
-
-import { declareDataModule } from "../plugins/index.js";
+import { declareDataModule, type DataModuleStore } from "../plugins/index.js";
 import { COMMENTS_DATA_MODULE } from "./types.js";
 
 export async function installCommentsDataModule(
-  required: { db: Database.Database; dbPath: string },
+  required: { db: DataModuleStore; dbPath: string },
   _optional: Record<string, never> = {}
 ): Promise<void> {
   const { db, dbPath } = required;

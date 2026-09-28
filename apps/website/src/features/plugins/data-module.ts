@@ -238,19 +238,37 @@
  * plugin," and Newsletter (`src/newsletter/data-module-manifest.ts`) is exactly that — a real
  * production consumer already calling this engine before this file's safety mechanics existed.
  *
+ * STORAGE KERNEL (2026-09-28, storage plan P1): the engine runs on the storage kernel, so the same
+ * declaration installs on SQLite, PGlite and Postgres. DDL text is unchanged on SQLite (column types
+ * via `columnTypeSql`; Postgres gets text/bigint/double precision/bytea); live state is read through
+ * the kernel's `listTables`/`listColumns`/`listIndexes` instead of `PRAGMA`s, with the same meaning.
+ * The snapshot, disk-headroom check and phase journal run only for a file-backed SQLite database
+ * (`recoverable` below): they exist for next-boot restore of a whole file. On Postgres/PGlite the DDL
+ * and its bookkeeping commit in one crash-safe transaction, so an interrupted attempt leaves nothing
+ * behind to restore — the same reasoning as the in-memory case above.
+ *
  * NOTE (§0 access-control caveat): a Tier-3 in-process plugin could bypass this by opening the db
  * file directly. The RECOVERABILITY guarantee here (who snapshots + who runs DDL = core) holds
  * unconditionally for core-mediated DDL; the access-control framing is advisory until ADR-024 §4
  * Rung 2 (capability sandbox) ships — see ADR-023 §0 for the full, precise wording.
  */
-import type Database from "better-sqlite3";
+import { sql } from "kysely";
 
+import {
+  autoIdColumnSql,
+  columnTypeSql,
+  type IndexInfo,
+  listColumns,
+  listIndexes,
+  listTables,
+} from "../../platform/db/kernel/dialect.js";
 import { checkDiskHeadroom } from "./disk-headroom.js";
 import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, stageJournalPhase } from "./migration-journal.js";
 import type { JournalPhase } from "./migration-journal.js";
 import { checkNamespaceAdoption } from "./plugin-identity.js";
 import type { PluginProvenance } from "./plugin-identity.js";
-import { discardCommittedSnapshot, snapshotDb } from "./snapshot.js";
+import { type PluginKernel, type PluginStore, pluginKernel } from "./plugin-store.js";
+import { discardCommittedSnapshot, isInMemoryDbPath, snapshotDb } from "./snapshot.js";
 
 export type ColumnType = "TEXT" | "INTEGER" | "REAL" | "BLOB";
 export type PluginTier = "tier-1" | "tier-2" | "tier-3";
@@ -424,11 +442,21 @@ function validate(decl: DataModuleDecl): void {
   for (const table of decl.tables) validateTable(decl.pluginId, table);
 }
 
-function columnSql(col: ColumnDecl): string {
-  let sql = `"${col.name}" ${col.type}`;
-  if (col.primaryKey) sql += " PRIMARY KEY";
-  if (col.notNull) sql += " NOT NULL";
-  return sql;
+/**
+ * One column's DDL. Identifiers are validated (`IDENT`) before any DDL is built, so quoting them
+ * into the text is safe; the type is the dialect's spelling of the declared affinity (unchanged on
+ * SQLite). The same text is what `_plugin_migrations.ddl` records.
+ */
+function columnSql(kernel: PluginKernel, col: ColumnDecl): string {
+  let ddl = `"${col.name}" ${columnTypeSql(kernel.dialect, col.type)}`;
+  if (col.primaryKey) ddl += " PRIMARY KEY";
+  if (col.notNull) ddl += " NOT NULL";
+  return ddl;
+}
+
+/** Runs one DDL statement this module built from validated identifiers. */
+async function executeDdl(kernel: PluginKernel, ddl: string): Promise<void> {
+  await kernel.execute(sql.raw(ddl));
 }
 
 function indexSql(fqTableName: string, idx: IndexDecl): { indexName: string; sql: string } {
@@ -439,28 +467,26 @@ function indexSql(fqTableName: string, idx: IndexDecl): { indexName: string; sql
 }
 
 /** Core's own migration timeline, extended to admit plugin entries later (ADR-023 §12). */
-function ensureJournal(db: Database.Database): void {
-  db.prepare(
-    `CREATE TABLE IF NOT EXISTS _plugin_migrations (
-       id INTEGER PRIMARY KEY AUTOINCREMENT,
-       plugin_id TEXT NOT NULL,
-       table_name TEXT NOT NULL,
-       ddl TEXT NOT NULL,
-       snapshot_path TEXT,
-       at INTEGER NOT NULL
-     )`
-  ).run();
+async function ensureJournal(kernel: PluginKernel): Promise<void> {
+  const text = sql.raw(columnTypeSql(kernel.dialect, "TEXT"));
+  await kernel.execute(sql`CREATE TABLE IF NOT EXISTS _plugin_migrations (
+       id ${sql.raw(autoIdColumnSql(kernel.dialect))},
+       plugin_id ${text} NOT NULL,
+       table_name ${text} NOT NULL,
+       ddl ${text} NOT NULL,
+       snapshot_path ${text},
+       at ${sql.raw(columnTypeSql(kernel.dialect, "INTEGER"))} NOT NULL
+     )`);
 }
 
-function existingTables(db: Database.Database, names: string[]): Set<string> {
+async function existingTables(kernel: PluginKernel, names: string[]): Promise<Set<string>> {
   if (names.length === 0) return new Set();
-  const rows = db
-    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${names.map(() => "?").join(", ")})`)
-    .all(...names) as { name: string }[];
-  return new Set(rows.map((r) => r.name));
+  const wanted = new Set(names);
+  return new Set((await listTables(kernel)).filter((name) => wanted.has(name)));
 }
 
 interface ExistingColumnInfo {
+  /** Lower-case, as `listColumns` reports it. */
   readonly type: string;
   readonly notNull: boolean;
   readonly primaryKey: boolean;
@@ -484,20 +510,12 @@ interface ReconciliationPlan {
 }
 
 /**
- * Reads `fqTableName`'s live column shape via `PRAGMA table_info`. `fqTableName` is always a
- * value this module itself computed via `fqName`/validated identifiers (never plugin-supplied
- * raw SQL), so interpolating it into the pragma string carries the same trust level as the
- * `CREATE TABLE "${name}"` calls elsewhere in this file — `PRAGMA` does not accept bound
- * parameters for its target, so this is the only way to scope it.
+ * Reads `fqTableName`'s live column shape through the kernel's `listColumns` (SQLite:
+ * `pragma_table_info`, whose ordinal `pk` it already reads as "is part of the primary key").
  */
-function getExistingColumns(db: Database.Database, fqTableName: string): Map<string, ExistingColumnInfo> {
-  const rows = db.prepare(`PRAGMA table_info("${fqTableName}")`).all() as Array<{
-    name: string;
-    type: string;
-    notnull: number;
-    pk: number;
-  }>;
-  return new Map(rows.map((r) => [r.name, { type: r.type, notNull: r.notnull !== 0, primaryKey: r.pk !== 0 }]));
+async function getExistingColumns(kernel: PluginKernel, fqTableName: string): Promise<Map<string, ExistingColumnInfo>> {
+  const columns = await listColumns(kernel, fqTableName);
+  return new Map(columns.map((c) => [c.name, { type: c.type, notNull: c.notNull, primaryKey: c.primaryKey }]));
 }
 
 /**
@@ -534,12 +552,13 @@ function planMissingColumn(tableName: string, col: ColumnDecl): ColumnDecl {
  * declared type. A type change (e.g. TEXT → INTEGER) needs a table rebuild, the same as the
  * missing-column PRIMARY KEY case above — this module never attempts one.
  */
-function assertColumnTypeMatches(tableName: string, col: ColumnDecl, existingCol: ExistingColumnInfo): void {
-  if (existingCol.type === col.type) return;
+function assertColumnTypeMatches(kernel: PluginKernel, tableName: string, col: ColumnDecl, existingCol: ExistingColumnInfo): void {
+  // Type names compare case-insensitively (SQLite's own rule): `listColumns` reports lower case.
+  if (existingCol.type === columnTypeSql(kernel.dialect, col.type).toLowerCase()) return;
   throw new DeclError(
     "COLUMN_TYPE_MISMATCH",
     `table ${tableName} column "${col.name}" is declared ${col.type} but the live column is ` +
-      `${existingCol.type}. Changing a column's type needs a table rebuild, which this engine ` +
+      `${existingCol.type.toUpperCase()}. Changing a column's type needs a table rebuild, which this engine ` +
       `does not perform.`
   );
 }
@@ -552,8 +571,9 @@ function assertColumnTypeMatches(tableName: string, col: ColumnDecl, existingCol
  * existing column either way without a table rebuild, the same reason `assertColumnTypeMatches`
  * fails closed on a type change.
  */
-function assertColumnNotNullMatches(tableName: string, col: ColumnDecl, existingCol: ExistingColumnInfo): void {
-  const declaredNotNull = col.notNull ?? false;
+function assertColumnNotNullMatches(kernel: PluginKernel, tableName: string, col: ColumnDecl, existingCol: ExistingColumnInfo): void {
+  // Postgres makes every PRIMARY KEY column NOT NULL; SQLite does not (a legacy quirk it keeps).
+  const declaredNotNull = (col.notNull ?? false) || (kernel.dialect === "postgres" && col.primaryKey === true);
   if (existingCol.notNull === declaredNotNull) return;
   throw new DeclError(
     "COLUMN_NOT_NULL_MISMATCH",
@@ -589,8 +609,8 @@ function assertColumnPrimaryKeyMatches(tableName: string, col: ColumnDecl, exist
  * deliberately not inspected here at all — see this file's header comment for why that drift is
  * left alone rather than dropped.
  */
-function planColumnReconciliation(db: Database.Database, table: TableDecl, fqTableName: string): ColumnDecl[] {
-  const existingColumns = getExistingColumns(db, fqTableName);
+async function planColumnReconciliation(kernel: PluginKernel, table: TableDecl, fqTableName: string): Promise<ColumnDecl[]> {
+  const existingColumns = await getExistingColumns(kernel, fqTableName);
   const columnsToAdd: ColumnDecl[] = [];
   for (const col of table.columns) {
     const existingCol = existingColumns.get(col.name);
@@ -598,44 +618,26 @@ function planColumnReconciliation(db: Database.Database, table: TableDecl, fqTab
       columnsToAdd.push(planMissingColumn(table.name, col));
       continue;
     }
-    assertColumnTypeMatches(table.name, col, existingCol);
-    assertColumnNotNullMatches(table.name, col, existingCol);
+    assertColumnTypeMatches(kernel, table.name, col, existingCol);
+    assertColumnNotNullMatches(kernel, table.name, col, existingCol);
     assertColumnPrimaryKeyMatches(table.name, col, existingCol);
   }
   return columnsToAdd;
 }
 
-interface ExistingIndexInfo {
-  readonly columns: readonly string[];
-  readonly unique: boolean;
-}
-
 /**
- * Reads `fqTableName`'s live, explicitly-authored indexes via `PRAGMA index_list` +
- * `PRAGMA index_info`, keyed by the index's live name. Only `origin: 'c'` rows are kept — SQLite
- * also auto-creates an implicit index per `UNIQUE` column constraint (`origin: 'u'`) and one for
- * most `PRIMARY KEY` shapes (`origin: 'pk'`, e.g. `sqlite_autoindex_*`); neither was ever declared
- * through `IndexDecl` or created by this module's own `indexSql` (see this file's header comment,
- * INDEX-LEVEL RECONCILIATION, for the full reasoning).
+ * Reads `fqTableName`'s live, explicitly-authored indexes through the kernel's `listIndexes`, keyed
+ * by the index's live name. Only `CREATE INDEX` indexes are listed — the implicit ones a `UNIQUE`
+ * column constraint or a `PRIMARY KEY` makes (SQLite origin `u`/`pk`, e.g. `sqlite_autoindex_*`;
+ * Postgres constraint-backed indexes) were never declared through `IndexDecl` or created by this
+ * module's own `indexSql` (see this file's header comment, INDEX-LEVEL RECONCILIATION).
  */
-function getExistingIndexes(db: Database.Database, fqTableName: string): Map<string, ExistingIndexInfo> {
-  const indexRows = db.prepare(`PRAGMA index_list("${fqTableName}")`).all() as Array<{
-    name: string;
-    unique: number;
-    origin: string;
-  }>;
-  const result = new Map<string, ExistingIndexInfo>();
-  for (const row of indexRows) {
-    if (row.origin !== "c") continue;
-    const columnRows = db.prepare(`PRAGMA index_info("${row.name}")`).all() as Array<{ seqno: number; name: string }>;
-    const columns = columnRows.sort((a, b) => a.seqno - b.seqno).map((c) => c.name);
-    result.set(row.name, { columns, unique: row.unique !== 0 });
-  }
-  return result;
+async function getExistingIndexes(kernel: PluginKernel, fqTableName: string): Promise<Map<string, IndexInfo>> {
+  return listIndexes(kernel, fqTableName);
 }
 
 /** True when a declared index's shape (column list, in order, and uniqueness) matches its live index. */
-function indexMatches(idx: IndexDecl, existing: ExistingIndexInfo): boolean {
+function indexMatches(idx: IndexDecl, existing: IndexInfo): boolean {
   const declaredUnique = idx.unique ?? false;
   if (existing.unique !== declaredUnique) return false;
   if (existing.columns.length !== idx.columns.length) return false;
@@ -652,8 +654,8 @@ interface IndexReconciliationPlan {
  * header comment, INDEX-LEVEL RECONCILIATION, for the full reasoning behind `indexesToAdd` vs.
  * `indexesToRecreate` vs. leaving an undeclared live index alone).
  */
-function planIndexReconciliation(db: Database.Database, table: TableDecl, fqTableName: string): IndexReconciliationPlan {
-  const existingIndexes = getExistingIndexes(db, fqTableName);
+async function planIndexReconciliation(kernel: PluginKernel, table: TableDecl, fqTableName: string): Promise<IndexReconciliationPlan> {
+  const existingIndexes = await getExistingIndexes(kernel, fqTableName);
   const indexesToAdd: IndexDecl[] = [];
   const indexesToRecreate: IndexDecl[] = [];
   for (const idx of table.indexes ?? []) {
@@ -675,11 +677,11 @@ function planIndexReconciliation(db: Database.Database, table: TableDecl, fqTabl
  * `DeclError` if any existing table's live column shape can't be reconciled by a plain
  * `ALTER TABLE ADD COLUMN` — index drift never throws here; see `planIndexReconciliation`.
  */
-function planReconciliation(
-  db: Database.Database,
+async function planReconciliation(
+  kernel: PluginKernel,
   decl: DataModuleDecl,
   existingTableNames: ReadonlySet<string>
-): ReconciliationPlan {
+): Promise<ReconciliationPlan> {
   const toCreate: TableDecl[] = [];
   const toAlter: TableAlterationPlan[] = [];
   for (const table of decl.tables) {
@@ -688,8 +690,8 @@ function planReconciliation(
       toCreate.push(table);
       continue;
     }
-    const columnsToAdd = planColumnReconciliation(db, table, fqTableName);
-    const { indexesToAdd, indexesToRecreate } = planIndexReconciliation(db, table, fqTableName);
+    const columnsToAdd = await planColumnReconciliation(kernel, table, fqTableName);
+    const { indexesToAdd, indexesToRecreate } = await planIndexReconciliation(kernel, table, fqTableName);
     if (columnsToAdd.length > 0 || indexesToAdd.length > 0 || indexesToRecreate.length > 0) {
       toAlter.push({ fqTableName, columnsToAdd, indexesToAdd, indexesToRecreate });
     }
@@ -698,17 +700,20 @@ function planReconciliation(
 }
 
 /** Records one applied DDL statement in the site-wide migration timeline (dedupes what was 3 inline call sites). */
-function recordMigration(
-  db: Database.Database,
+async function recordMigration(
+  kernel: PluginKernel,
   pluginId: string,
   objectName: string,
   ddl: string,
   snapshotPath: string | null,
   at: number
-): void {
-  db.prepare(
-    `INSERT INTO _plugin_migrations (plugin_id, table_name, ddl, snapshot_path, at) VALUES (?, ?, ?, ?, ?)`
-  ).run(pluginId, objectName, ddl, snapshotPath, at);
+): Promise<void> {
+  await kernel.run((db) =>
+    db
+      .insertInto("_plugin_migrations")
+      .values({ plugin_id: pluginId, table_name: objectName, ddl, snapshot_path: snapshotPath, at })
+      .execute()
+  );
 }
 
 /**
@@ -717,8 +722,8 @@ function recordMigration(
  * a brand-new table (`plan.toCreate`) are pre-existing, out-of-scope-for-this-fix behavior — this
  * only covers the alter path this fix adds, matching `missingColumns`'s scope one level up.
  */
-function verifyAlteredIndexes(db: Database.Database, alteration: TableAlterationPlan): string[] {
-  const nowExistingIndexes = getExistingIndexes(db, alteration.fqTableName);
+async function verifyAlteredIndexes(kernel: PluginKernel, alteration: TableAlterationPlan): Promise<string[]> {
+  const nowExistingIndexes = await getExistingIndexes(kernel, alteration.fqTableName);
   const declaredIndexes = [...alteration.indexesToAdd, ...alteration.indexesToRecreate];
   return declaredIndexes
     .map((idx) => indexSql(alteration.fqTableName, idx).indexName)
@@ -738,32 +743,36 @@ function verifyAlteredIndexes(db: Database.Database, alteration: TableAlteration
  * not merely assumed), so this check is exactly as sensitive to a real drift now as it was
  * post-commit.
  */
-function verifyPostDdl(db: Database.Database, decl: DataModuleDecl, plan: ReconciliationPlan): string[] {
-  const missingTables = plan.toCreate
-    .map((t) => fqName(decl.pluginId, t.name))
-    .filter((name) => !existingTables(db, [name]).has(name));
-  const missingColumns = plan.toAlter.flatMap((alteration) => {
-    const nowExisting = getExistingColumns(db, alteration.fqTableName);
-    return alteration.columnsToAdd
-      .filter((c) => !nowExisting.has(c.name))
-      .map((c) => `${alteration.fqTableName}.${c.name}`);
-  });
-  const missingIndexes = plan.toAlter.flatMap((alteration) => verifyAlteredIndexes(db, alteration));
+async function verifyPostDdl(kernel: PluginKernel, decl: DataModuleDecl, plan: ReconciliationPlan): Promise<string[]> {
+  const createdNames = plan.toCreate.map((t) => fqName(decl.pluginId, t.name));
+  const nowExistingTables = await existingTables(kernel, createdNames);
+  const missingTables = createdNames.filter((name) => !nowExistingTables.has(name));
+  const missingColumns: string[] = [];
+  const missingIndexes: string[] = [];
+  for (const alteration of plan.toAlter) {
+    const nowExisting = await getExistingColumns(kernel, alteration.fqTableName);
+    for (const c of alteration.columnsToAdd) {
+      if (!nowExisting.has(c.name)) missingColumns.push(`${alteration.fqTableName}.${c.name}`);
+    }
+    missingIndexes.push(...(await verifyAlteredIndexes(kernel, alteration)));
+  }
   return [...missingTables, ...missingColumns, ...missingIndexes];
 }
 
 /** Namespace-adoption (§5/§6/T5) and disk-headroom (§3/T4) preflight, both fail-closed, before any snapshot/lock/DDL. */
-function runPreflightChecks(
-  db: Database.Database,
+async function runPreflightChecks(
+  kernel: PluginKernel,
   dbPath: string,
-  decl: DataModuleDecl
-): { ok: true } | { ok: false; error: { code: string; message: string } } {
-  const adoption = checkNamespaceAdoption({ db, pluginId: decl.pluginId, provenance: decl.provenance });
+  decl: DataModuleDecl,
+  recoverable: boolean
+): Promise<{ ok: true } | { ok: false; error: { code: string; message: string } }> {
+  const adoption = await checkNamespaceAdoption({ db: kernel, pluginId: decl.pluginId, provenance: decl.provenance });
   if (!adoption.allowed) {
     return { ok: false, error: { code: "IDENTITY_ADOPTION_REQUIRES_CONSENT", message: adoption.reason } };
   }
-  // `checkDiskHeadroom` itself no-ops to `ok: true` for an in-memory `dbPath` (BUG FIX 2026-07-28)
-  // — no snapshot file will ever be written for one, so there is no headroom to require.
+  // Headroom is for the snapshot file, so only a recoverable (file-backed SQLite) database needs it.
+  // `checkDiskHeadroom` itself also no-ops to `ok: true` for an in-memory `dbPath` (BUG FIX 2026-07-28).
+  if (!recoverable) return { ok: true };
   const headroom = checkDiskHeadroom(dbPath);
   if (!headroom.ok) {
     return {
@@ -782,28 +791,28 @@ function runPreflightChecks(
  * in-memory db has no next boot to recover at (see this file's header comment), so `journalId`
  * stays null and every phase transition below becomes a no-op for that case.
  */
-function openJournalIfFileBacked(db: Database.Database, pluginId: string, snapshotPath: string | null): number | null {
+async function openJournalIfFileBacked(kernel: PluginKernel, pluginId: string, snapshotPath: string | null): Promise<number | null> {
   if (snapshotPath === null) return null;
-  ensureMigrationJournal(db);
-  return beginJournalEntry({ db, pluginId, snapshotPath });
+  await ensureMigrationJournal(kernel);
+  return beginJournalEntry({ db: kernel, pluginId, snapshotPath });
 }
 
 /** No-ops when there is no journal entry to advance (in-memory `dbPath` case). */
-function advancePhaseIfJournaled(db: Database.Database, journalId: number | null, phase: JournalPhase): void {
+async function advancePhaseIfJournaled(kernel: PluginKernel, journalId: number | null, phase: JournalPhase): Promise<void> {
   if (journalId === null) return;
-  advanceJournalPhase({ db, id: journalId, phase });
+  await advanceJournalPhase({ db: kernel, id: journalId, phase });
 }
 
 /**
  * No-ops when there is no journal entry to advance (in-memory `dbPath` case, matching
  * `advancePhaseIfJournaled`'s own guard) — but writes WITHOUT checkpointing, for use strictly
- * inside an already-open `db.transaction()` on the same connection (see `migration-journal.ts`'s
+ * inside an already-open kernel transaction on the same connection (see `migration-journal.ts`'s
  * `stageJournalPhase` and this file's header comment, POST-COMMIT DATA-LOSS WINDOW, for why a
  * checkpoint cannot run there).
  */
-function stagePhaseIfJournaled(db: Database.Database, journalId: number | null, phase: JournalPhase): void {
+async function stagePhaseIfJournaled(kernel: PluginKernel, journalId: number | null, phase: JournalPhase): Promise<void> {
   if (journalId === null) return;
-  stageJournalPhase({ db, id: journalId, phase });
+  await stageJournalPhase({ db: kernel, id: journalId, phase });
 }
 
 /** No-ops when no snapshot file was ever written (in-memory `dbPath` case) — nothing to discard. */
@@ -813,17 +822,17 @@ async function discardSnapshotIfFileBacked(snapshotPath: string | null): Promise
 }
 
 /** Runs one `CREATE INDEX` and records it. Shared by the create-table path and the add-index alter path. */
-function applyIndexAdd(
-  db: Database.Database,
+async function applyIndexAdd(
+  kernel: PluginKernel,
   pluginId: string,
   fqTableName: string,
   idx: IndexDecl,
   snapshotPath: string | null,
   at: number
-): void {
+): Promise<void> {
   const { indexName, sql: createDdl } = indexSql(fqTableName, idx);
-  db.prepare(createDdl).run();
-  recordMigration(db, pluginId, indexName, createDdl, snapshotPath, at);
+  await executeDdl(kernel, createDdl);
+  await recordMigration(kernel, pluginId, indexName, createDdl, snapshotPath, at);
 }
 
 /**
@@ -831,58 +840,71 @@ function applyIndexAdd(
  * header comment, INDEX-LEVEL RECONCILIATION) — two DDL statements, both recorded, both inside the
  * caller's single transaction so either one failing rolls both back together with everything else.
  */
-function applyIndexRecreate(
-  db: Database.Database,
+async function applyIndexRecreate(
+  kernel: PluginKernel,
   pluginId: string,
   fqTableName: string,
   idx: IndexDecl,
   snapshotPath: string | null,
   at: number
-): void {
+): Promise<void> {
   const { indexName } = indexSql(fqTableName, idx);
   const dropDdl = `DROP INDEX "${indexName}"`;
-  db.prepare(dropDdl).run();
-  recordMigration(db, pluginId, indexName, dropDdl, snapshotPath, at);
-  applyIndexAdd(db, pluginId, fqTableName, idx, snapshotPath, at);
+  await executeDdl(kernel, dropDdl);
+  await recordMigration(kernel, pluginId, indexName, dropDdl, snapshotPath, at);
+  await applyIndexAdd(kernel, pluginId, fqTableName, idx, snapshotPath, at);
 }
 
 /** Creates one brand-new table and its declared indexes, inside the caller's transaction. Returns the fully-qualified name created. */
-function applyTableCreate(db: Database.Database, pluginId: string, table: TableDecl, snapshotPath: string | null, at: number): string {
+async function applyTableCreate(kernel: PluginKernel, pluginId: string, table: TableDecl, snapshotPath: string | null, at: number): Promise<string> {
   const name = fqName(pluginId, table.name);
   // No IF NOT EXISTS: a within-call duplicate is a malformed manifest → fail → roll back.
-  const ddl = `CREATE TABLE "${name}" (${table.columns.map(columnSql).join(", ")})`;
-  db.prepare(ddl).run();
-  recordMigration(db, pluginId, name, ddl, snapshotPath, at);
-  for (const idx of table.indexes ?? []) applyIndexAdd(db, pluginId, name, idx, snapshotPath, at);
+  const ddl = `CREATE TABLE "${name}" (${table.columns.map((col) => columnSql(kernel, col)).join(", ")})`;
+  await executeDdl(kernel, ddl);
+  await recordMigration(kernel, pluginId, name, ddl, snapshotPath, at);
+  for (const idx of table.indexes ?? []) await applyIndexAdd(kernel, pluginId, name, idx, snapshotPath, at);
   return name;
 }
 
 /** Applies one already-existing table's queued column additions and index add/recreate, inside the caller's transaction. */
-function applyTableAlteration(db: Database.Database, pluginId: string, alteration: TableAlterationPlan, snapshotPath: string | null, at: number): void {
+async function applyTableAlteration(
+  kernel: PluginKernel,
+  pluginId: string,
+  alteration: TableAlterationPlan,
+  snapshotPath: string | null,
+  at: number
+): Promise<void> {
   for (const col of alteration.columnsToAdd) {
-    const ddl = `ALTER TABLE "${alteration.fqTableName}" ADD COLUMN ${columnSql(col)}`;
-    db.prepare(ddl).run();
-    recordMigration(db, pluginId, alteration.fqTableName, ddl, snapshotPath, at);
+    const ddl = `ALTER TABLE "${alteration.fqTableName}" ADD COLUMN ${columnSql(kernel, col)}`;
+    await executeDdl(kernel, ddl);
+    await recordMigration(kernel, pluginId, alteration.fqTableName, ddl, snapshotPath, at);
   }
-  for (const idx of alteration.indexesToRecreate) applyIndexRecreate(db, pluginId, alteration.fqTableName, idx, snapshotPath, at);
-  for (const idx of alteration.indexesToAdd) applyIndexAdd(db, pluginId, alteration.fqTableName, idx, snapshotPath, at);
+  for (const idx of alteration.indexesToRecreate) await applyIndexRecreate(kernel, pluginId, alteration.fqTableName, idx, snapshotPath, at);
+  for (const idx of alteration.indexesToAdd) await applyIndexAdd(kernel, pluginId, alteration.fqTableName, idx, snapshotPath, at);
 }
 
-/** Declare (reconcile) a plugin's tables. Core snapshots first, then runs the DDL transactionally. */
+/**
+ * Declare (reconcile) a plugin's tables. Core snapshots first, then runs the DDL transactionally.
+ *
+ * `db` is the storage kernel (or a SQLite connection, bridged to its kernel). `dbPath` names the
+ * SQLite file behind it, for the snapshot; it is ignored for a Postgres/PGlite kernel.
+ */
 export async function declareDataModule(
-  required: { db: Database.Database; dbPath: string; decl: DataModuleDecl },
+  required: { db: PluginStore; dbPath: string; decl: DataModuleDecl },
   _optional: Record<string, never> = {}
 ): Promise<DeclareResult> {
-  const { db, dbPath, decl } = required;
+  const { dbPath, decl } = required;
+  const kernel = pluginKernel(required.db);
   let plan: ReconciliationPlan;
   try {
     // Validate entirely before any I/O (§5 namespace + column shape + §3/T6 tier), then diff
     // declared-state against live-state (§2) — both table presence AND, for a table that already
-    // exists, its declared columns against `PRAGMA table_info` (this file's header comment).
+    // exists, its declared columns against its live columns (this file's header comment).
     validate(decl);
+    kernel.require("transactionalDdl");
     const fq = decl.tables.map((t) => fqName(decl.pluginId, t.name));
-    const existing = existingTables(db, fq);
-    plan = planReconciliation(db, decl, existing);
+    const existing = await existingTables(kernel, fq);
+    plan = await planReconciliation(kernel, decl, existing);
   } catch (err) {
     const e = err as DeclError;
     return { ok: false, created: [], altered: [], snapshotPath: null, error: { code: e.code, message: e.message } };
@@ -892,7 +914,10 @@ export async function declareDataModule(
     return { ok: true, created: [], altered: [], snapshotPath: null }; // idempotent no-op — nothing to snapshot
   }
 
-  const preflight = runPreflightChecks(db, dbPath, decl);
+  // Snapshot + journal exist for next-boot restore of a whole SQLite file (this file's header,
+  // STORAGE KERNEL): nothing to restore for an in-memory db or a Postgres/PGlite kernel.
+  const recoverable = kernel.dialect === "sqlite" && !isInMemoryDbPath(dbPath);
+  const preflight = await runPreflightChecks(kernel, dbPath, decl, recoverable);
   if (!preflight.ok) {
     return { ok: false, created: [], altered: [], snapshotPath: null, error: preflight.error };
   }
@@ -900,7 +925,7 @@ export async function declareDataModule(
   // §4 — snapshot the WHOLE db BEFORE any DDL. This is the never-brick anchor.
   // `snapshotDb` returns `null` for an in-memory `dbPath` (BUG FIX 2026-07-28, see `snapshot.ts`) —
   // no file was ever written, so there is nothing to journal a recovery pointer to.
-  const snapshotPath = await snapshotDb({ db, dbPath, label: decl.pluginId });
+  const snapshotPath = recoverable ? await snapshotDb({ db: kernel, dbPath, label: decl.pluginId }) : null;
 
   // The phase-journal (§2/T3) exists solely to let `migration-recovery.ts` restore a crash-
   // interrupted attempt at NEXT BOOT. An in-memory db has no next boot — the whole database
@@ -910,35 +935,35 @@ export async function declareDataModule(
   // transition below is then a no-op for this case; the transaction's own same-process rollback
   // (§9, the only failure mode a same-process in-memory db can ever hit) is unaffected and remains
   // the complete safety net.
-  const journalId = openJournalIfFileBacked(db, decl.pluginId, snapshotPath);
+  const journalId = await openJournalIfFileBacked(kernel, decl.pluginId, snapshotPath);
 
   const created: string[] = [];
   const altered: string[] = [];
   try {
-    advancePhaseIfJournaled(db, journalId, "DDL_IN_PROGRESS");
+    await advancePhaseIfJournaled(kernel, journalId, "DDL_IN_PROGRESS");
     // One transaction for ALL DDL — new tables, column additions, and index add/recreate on
     // existing tables — PLUS the post-DDL verification AND the journal's own COMMITTED write (this
     // file's header comment, POST-COMMIT DATA-LOSS WINDOW). Folding all four into one atomic unit
     // is what makes "the DDL committed" and "the journal says COMMITTED" the same fact: either this
     // whole callback returns and every one of those things is durably true together, or it throws
-    // and better-sqlite3 rolls every one of them back together (§9).
-    db.transaction(() => {
-      ensureJournal(db);
+    // and the kernel rolls every one of them back together (§9).
+    await kernel.transaction(async () => {
+      await ensureJournal(kernel);
       const at = Date.now();
-      for (const table of plan.toCreate) created.push(applyTableCreate(db, decl.pluginId, table, snapshotPath, at));
+      for (const table of plan.toCreate) created.push(await applyTableCreate(kernel, decl.pluginId, table, snapshotPath, at));
       for (const alteration of plan.toAlter) {
-        applyTableAlteration(db, decl.pluginId, alteration, snapshotPath, at);
+        await applyTableAlteration(kernel, decl.pluginId, alteration, snapshotPath, at);
         altered.push(alteration.fqTableName);
       }
-      const problems = verifyPostDdl(db, decl, plan);
+      const problems = await verifyPostDdl(kernel, decl, plan);
       if (problems.length > 0) {
         throw new Error(`post-DDL verification failed: ${problems.join(", ")} not found after DDL`);
       }
-      stagePhaseIfJournaled(db, journalId, "COMMITTED");
-    })();
+      await stagePhaseIfJournaled(kernel, journalId, "COMMITTED");
+    });
   } catch (err) {
-    // `db.transaction()` above threw — DDL, verification, and the in-transaction "COMMITTED" write
-    // are now one atomic unit, so better-sqlite3's own rollback really did undo ALL of them; the
+    // `kernel.transaction()` above threw — DDL, verification, and the in-transaction "COMMITTED" write
+    // are now one atomic unit, so the transaction's own rollback really did undo ALL of them; the
     // live db is unchanged and working (same-process, catchable-failure case — no restore needed,
     // restore only ever runs at next-boot recovery for a CRASH, see migration-recovery.ts).
     // `ROLLED_BACK` is therefore always truthful here now (this file's header comment, POST-COMMIT
@@ -947,7 +972,7 @@ export async function declareDataModule(
     // in-memory db, `snapshotPath`/`journalId` are both null (see above) — the same-process
     // rollback just performed IS the full recovery, no crash-recovery boot path can ever exist for
     // `:memory:` to need one.
-    advancePhaseIfJournaled(db, journalId, "ROLLED_BACK");
+    await advancePhaseIfJournaled(kernel, journalId, "ROLLED_BACK");
     const e = err as Error;
     return {
       ok: false,
@@ -970,7 +995,7 @@ export async function declareDataModule(
   // failure — matching `discardCommittedSnapshot`'s own "must not turn a successful migration into
   // a reported failure" contract.
   try {
-    advancePhaseIfJournaled(db, journalId, "COMMITTED");
+    await advancePhaseIfJournaled(kernel, journalId, "COMMITTED");
     await discardSnapshotIfFileBacked(snapshotPath);
   } catch {
     // Best-effort only — see the comment above. The migration itself already succeeded.

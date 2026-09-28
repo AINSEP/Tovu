@@ -7,3 +7,4 @@
  * implementations directly by design (ADR-009 §1) — this barrel does not re-export them.
  */
 export { declareDataModule, type ColumnDecl, type ColumnType, type DataModuleDecl } from "./data-module.js";
+export type { PluginStore as DataModuleStore } from "./plugin-store.js";

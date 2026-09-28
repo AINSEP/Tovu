@@ -20,7 +20,10 @@
  * ... track (b) is the load-bearing path" — this is the intended, honest degraded behavior, not
  * an unfinished shortcut).
  */
-import type Database from "better-sqlite3";
+import { sql } from "kysely";
+
+import { columnTypeSql } from "../../platform/db/kernel/dialect.js";
+import { type PluginKernel, type PluginStore, pluginKernel } from "./plugin-store.js";
 
 export interface PluginProvenance {
   sourceUrl: string;
@@ -38,42 +41,51 @@ export type NamespaceAdoptionDecision =
   | { allowed: true; track: "first-mint" | "unchanged" | "verified-signature" }
   | { allowed: false; track: "consent-required"; reason: string };
 
-export function ensurePluginIdentityTable(db: Database.Database): void {
-  db.prepare(
-    `CREATE TABLE IF NOT EXISTS _plugin_identity (
-       plugin_id TEXT PRIMARY KEY,
-       source_url TEXT NOT NULL,
-       publisher TEXT NOT NULL,
-       signature TEXT,
-       minted_at INTEGER NOT NULL
-     )`
-  ).run();
+export async function ensurePluginIdentityTable(store: PluginStore): Promise<void> {
+  const kernel = pluginKernel(store);
+  const text = sql.raw(columnTypeSql(kernel.dialect, "TEXT"));
+  await kernel.execute(sql`CREATE TABLE IF NOT EXISTS _plugin_identity (
+       plugin_id ${text} PRIMARY KEY,
+       source_url ${text} NOT NULL,
+       publisher ${text} NOT NULL,
+       signature ${text},
+       minted_at ${sql.raw(columnTypeSql(kernel.dialect, "INTEGER"))} NOT NULL
+     )`);
 }
 
-export function getPluginIdentity(
-  required: { db: Database.Database; pluginId: string },
+export async function getPluginIdentity(
+  required: { db: PluginStore; pluginId: string },
   _optional: Record<string, never> = {}
-): PluginIdentityRecord | null {
-  const { db, pluginId } = required;
-  const row = db.prepare(`SELECT plugin_id, source_url, publisher, signature, minted_at FROM _plugin_identity WHERE plugin_id = ?`).get(pluginId) as
-    | { plugin_id: string; source_url: string; publisher: string; signature: string | null; minted_at: number }
-    | undefined;
+): Promise<PluginIdentityRecord | null> {
+  const { pluginId } = required;
+  const row = await pluginKernel(required.db).run((db) =>
+    db
+      .selectFrom("_plugin_identity")
+      .select(["plugin_id", "source_url", "publisher", "signature", "minted_at"])
+      .where("plugin_id", "=", pluginId)
+      .executeTakeFirst()
+  );
   if (!row) return null;
   return {
     pluginId: row.plugin_id,
     provenance: { sourceUrl: row.source_url, publisher: row.publisher, ...(row.signature != null ? { signature: row.signature } : {}) },
-    mintedAt: row.minted_at,
+    mintedAt: Number(row.minted_at),
   };
 }
 
 /** First-write-wins. Never called again for a `pluginId` once minted (see `checkNamespaceAdoption`). */
-function mintPluginIdentity(db: Database.Database, pluginId: string, provenance: PluginProvenance): void {
-  db.prepare(`INSERT INTO _plugin_identity (plugin_id, source_url, publisher, signature, minted_at) VALUES (?, ?, ?, ?, ?)`).run(
-    pluginId,
-    provenance.sourceUrl,
-    provenance.publisher,
-    provenance.signature ?? null,
-    Date.now()
+async function mintPluginIdentity(kernel: PluginKernel, pluginId: string, provenance: PluginProvenance): Promise<void> {
+  await kernel.run((db) =>
+    db
+      .insertInto("_plugin_identity")
+      .values({
+        plugin_id: pluginId,
+        source_url: provenance.sourceUrl,
+        publisher: provenance.publisher,
+        signature: provenance.signature ?? null,
+        minted_at: Date.now(),
+      })
+      .execute()
   );
 }
 
@@ -86,17 +98,21 @@ function provenanceEqual(a: PluginProvenance, b: PluginProvenance): boolean {
  * applies the two-track rule. Does NOT mutate the identity record on anything but first mint —
  * a provenance mismatch never silently overwrites the record on record (permanent retirement).
  */
-export function checkNamespaceAdoption(
-  required: { db: Database.Database; pluginId: string; provenance: PluginProvenance },
+export async function checkNamespaceAdoption(
+  required: { db: PluginStore; pluginId: string; provenance: PluginProvenance },
   _optional: Record<string, never> = {}
-): NamespaceAdoptionDecision {
-  const { db, pluginId, provenance } = required;
-  ensurePluginIdentityTable(db);
-  const existing = getPluginIdentity({ db, pluginId });
-  if (!existing) {
-    mintPluginIdentity(db, pluginId, provenance);
-    return { allowed: true, track: "first-mint" };
-  }
+): Promise<NamespaceAdoptionDecision> {
+  const { pluginId, provenance } = required;
+  const kernel = pluginKernel(required.db);
+  await ensurePluginIdentityTable(kernel);
+  // Read-then-mint: the lock keeps two first declares of one plugin from both minting.
+  const existing = await kernel.transaction(async () => {
+    await kernel.lockKey(`plugin-identity:${pluginId}`);
+    const found = await getPluginIdentity({ db: kernel, pluginId });
+    if (!found) await mintPluginIdentity(kernel, pluginId, provenance);
+    return found;
+  });
+  if (!existing) return { allowed: true, track: "first-mint" };
   if (provenanceEqual(existing.provenance, provenance)) {
     return { allowed: true, track: "unchanged" };
   }

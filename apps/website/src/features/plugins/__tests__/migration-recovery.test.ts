@@ -10,6 +10,7 @@ import { declareDataModule } from "../data-module.js";
 import { beginJournalEntry, ensureMigrationJournal } from "../migration-journal.js";
 import { recoverIncompleteDataModuleMigrations } from "../migration-recovery.js";
 import { snapshotDb } from "../snapshot.js";
+import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
 
 /**
  * @file ADR-023 §2 — boot-time crash recovery. Simulates a process death mid-DDL (a journal entry
@@ -38,7 +39,7 @@ function makeDbWithCoreContent(): { dir: string; dbPath: string } {
   return { dir, dbPath };
 }
 
-test("no journal table yet (fresh db, never ran a dataModule declare) — recovery is a clean no-op", () => {
+test("no journal table yet (fresh db, never ran a dataModule declare) — recovery is a clean no-op", async () => {
   const { dir, dbPath } = makeDbWithCoreContent();
   const result = recoverIncompleteDataModuleMigrations(dbPath);
   assert.deepEqual(result, { recovered: 0, entries: [] });
@@ -53,10 +54,10 @@ test("an incomplete journal entry (simulated crash mid-DDL) is restored from its
   // Simulate exactly what declareDataModule does up through DDL_IN_PROGRESS, then "crash" —
   // no COMMITTED/ROLLED_BACK ever gets written.
   const snapshotPath = await snapshotDb({ db, dbPath, label: "crashed-plugin" });
-  ensureMigrationJournal(db);
+  await ensureMigrationJournal(db);
   // Non-null: `dbPath` here is a real tmpdir file, never `:memory:` — snapshotDb only returns null
   // for SQLite's in-memory/temp identifiers (see snapshot.ts).
-  beginJournalEntry({ db, pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
+  await beginJournalEntry({ db, pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
   // Now actually diverge the live db from the snapshot, exactly as a mid-DDL crash would leave it.
   db.prepare(`CREATE TABLE "p_crashed_plugin__half_created" (id TEXT PRIMARY KEY)`).run();
   db.close();
@@ -88,8 +89,8 @@ test("recovery clears the WAL/SHM sidecars left by the crashed attempt (T8)", as
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   const snapshotPath = await snapshotDb({ db, dbPath, label: "crashed-plugin" });
-  ensureMigrationJournal(db);
-  beginJournalEntry({ db, pluginId: "crashed-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null, see above
+  await ensureMigrationJournal(db);
+  await beginJournalEntry({ db, pluginId: "crashed-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null, see above
   db.prepare(`CREATE TABLE "p_crashed_plugin__x" (id TEXT PRIMARY KEY)`).run();
   // Check WAL existence WHILE the connection is still open — a clean close() triggers its own
   // checkpoint, which is not representative of the crash this test simulates (an abrupt process
@@ -111,11 +112,11 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   const snapshotPath = await snapshotDb({ db, dbPath, label: "done-plugin" });
-  ensureMigrationJournal(db);
-  const id = beginJournalEntry({ db, pluginId: "done-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null
+  await ensureMigrationJournal(db);
+  const id = await beginJournalEntry({ db, pluginId: "done-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null
   db.prepare(`CREATE TABLE "p_done_plugin__real" (id TEXT PRIMARY KEY)`).run();
   const { advanceJournalPhase } = await import("../migration-journal.js");
-  advanceJournalPhase({ db, id, phase: "COMMITTED" });
+  await advanceJournalPhase({ db, id, phase: "COMMITTED" });
   db.close();
 
   const result = recoverIncompleteDataModuleMigrations(dbPath);
@@ -150,24 +151,7 @@ test("POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): a declareDataModule ca
   // `PRAGMA table_info` call (planning, before the DDL transaction opens) through untouched, but
   // make the SECOND one (verifyPostDdl, now called from INSIDE that same transaction) report "sku"
   // as missing — see that file for the fuller comment.
-  let tableInfoCalls = 0;
-  const proxiedDb = new Proxy(db, {
-    get(target, prop, receiver) {
-      if (prop !== "prepare") {
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
-      }
-      return (sql: string) => {
-        if (sql.includes('PRAGMA table_info("p_committest2__widgets")')) {
-          tableInfoCalls += 1;
-          if (tableInfoCalls === 2) {
-            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
-          }
-        }
-        return target.prepare(sql);
-      };
-    },
-  });
+  const proxiedDb = staleColumnsOnSecondRead(db, "p_committest2__widgets");
 
   const declareResult = await declareDataModule({ db: proxiedDb, dbPath, decl: v2 });
   assert.equal(declareResult.ok, false, "the fault-injected verification failure is reported");

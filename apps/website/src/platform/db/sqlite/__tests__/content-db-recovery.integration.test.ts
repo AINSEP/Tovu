@@ -29,10 +29,10 @@ test("openContentDb's recover hook restores a crash-interrupted dataModule attem
   // Simulate a crash mid-DDL against that same file, exactly as migration-recovery.test.ts does.
   const raw = new Database(dbPath);
   const snapshotPath = await snapshotDb({ db: raw, dbPath, label: "crashed-plugin" });
-  ensureMigrationJournal(raw);
+  await ensureMigrationJournal(raw);
   // Non-null: `dbPath` here is a real tmpdir file, never `:memory:` — snapshotDb only returns null
   // for SQLite's in-memory/temp identifiers (see snapshot.ts).
-  beginJournalEntry({ db: raw, pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
+  await beginJournalEntry({ db: raw, pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
   raw.prepare(`CREATE TABLE "p_crashed_plugin__half_created" (id TEXT PRIMARY KEY)`).run();
   raw.close();
 
@@ -46,7 +46,7 @@ test("openContentDb's recover hook restores a crash-interrupted dataModule attem
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("openContentDb with no recover hook (every existing call site's prior signature) behaves exactly as before — no crash, no behavior change", () => {
+test("openContentDb with no recover hook (every existing call site's prior signature) behaves exactly as before — no crash, no behavior change", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-content-db-recovery-noop-"));
   const dbPath = path.join(dir, "content.db");
   const db = openContentDb(dbPath); // 2-arg call, unchanged from every pre-existing test call site

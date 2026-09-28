@@ -21,7 +21,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import type Database from "better-sqlite3";
+import { type PluginStore, pluginKernel } from "./plugin-store.js";
 
 /**
  * True when `dbPath` is one of SQLite's special non-file identifiers rather than a real path on
@@ -49,12 +49,14 @@ export function isInMemoryDbPath(dbPath: string): boolean {
 }
 
 /**
- * Snapshot `db` to a sibling file and return its path — or `null` for an in-memory `dbPath` (see
- * `isInMemoryDbPath` and this file's header), for which no snapshot is taken because no real file
- * backs the database at all. Async: mirrors the online-backup API.
+ * Snapshot `db` (the SQLite database file at `dbPath`) to a sibling file and return its path — or
+ * `null` for an in-memory `dbPath` (see `isInMemoryDbPath` and this file's header), for which no
+ * snapshot is taken because no real file backs the database at all. The copy is the kernel's
+ * `backupTo`: on SQLite, the online backup API, a consistent whole-file copy of a live WAL db.
+ * Call it outside a transaction.
  */
 export async function snapshotDb(
-  required: { db: Database.Database; dbPath: string; label: string },
+  required: { db: PluginStore; dbPath: string; label: string },
   _optional: Record<string, never> = {}
 ): Promise<string | null> {
   const { db, dbPath, label } = required;
@@ -63,7 +65,7 @@ export async function snapshotDb(
   const dir = path.dirname(dbPath);
   const base = path.basename(dbPath);
   const snapshotPath = path.join(dir, `${base}.snapshot-${label}-${Date.now()}`);
-  await db.backup(snapshotPath); // SQLite online backup — captures a consistent whole-file copy
+  await pluginKernel(db).backupTo(snapshotPath);
   return snapshotPath;
 }
 

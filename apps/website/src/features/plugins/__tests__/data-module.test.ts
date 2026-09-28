@@ -18,6 +18,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { declareDataModule } from "../data-module.js";
+import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-"));
@@ -213,24 +214,7 @@ test("dataModule: FAULT INJECTION — a verification failure now rolls back the 
   // can't confirm what was just applied" without needing an unreachable SQLite-level failure to
   // trigger it. Every other `prepare()` call, and every other db method (`.transaction`, `.pragma`,
   // etc.), goes straight through to the real connection.
-  let tableInfoCalls = 0;
-  const proxiedDb = new Proxy(db, {
-    get(target, prop, receiver) {
-      if (prop !== "prepare") {
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
-      }
-      return (sql: string) => {
-        if (sql.includes('PRAGMA table_info("p_committest__widgets")')) {
-          tableInfoCalls += 1;
-          if (tableInfoCalls === 2) {
-            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
-          }
-        }
-        return target.prepare(sql);
-      };
-    },
-  });
+  const proxiedDb = staleColumnsOnSecondRead(db, "p_committest__widgets");
 
   const result = await declareDataModule({ db: proxiedDb, dbPath, decl: v2 });
 
@@ -286,24 +270,7 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
 
   // Same fault-injection technique as the test above: the SECOND `PRAGMA table_info` call for this
   // table (verification) sees stale, pre-ALTER data.
-  let tableInfoCalls = 0;
-  const proxiedDb = new Proxy(db, {
-    get(target, prop, receiver) {
-      if (prop !== "prepare") {
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
-      }
-      return (sql: string) => {
-        if (sql.includes('PRAGMA table_info("p_dataloss__widgets")')) {
-          tableInfoCalls += 1;
-          if (tableInfoCalls === 2) {
-            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
-          }
-        }
-        return target.prepare(sql);
-      };
-    },
-  });
+  const proxiedDb = staleColumnsOnSecondRead(db, "p_dataloss__widgets");
 
   const declareResult = await declareDataModule({ db: proxiedDb, dbPath, decl: v2 });
   assert.equal(declareResult.ok, false, "the injected verification failure is reported");
@@ -442,24 +409,7 @@ test("dataModule: FAULT INJECTION, :memory: — a post-commit verification failu
 
   // Same fault-injection technique as the file-backed tests above: the SECOND `PRAGMA table_info`
   // call for this table (verification, now inside the DDL transaction) sees stale, pre-ALTER data.
-  let tableInfoCalls = 0;
-  const proxiedDb = new Proxy(db, {
-    get(target, prop, receiver) {
-      if (prop !== "prepare") {
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
-      }
-      return (sql: string) => {
-        if (sql.includes('PRAGMA table_info("p_memcommit__widgets")')) {
-          tableInfoCalls += 1;
-          if (tableInfoCalls === 2) {
-            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
-          }
-        }
-        return target.prepare(sql);
-      };
-    },
-  });
+  const proxiedDb = staleColumnsOnSecondRead(db, "p_memcommit__widgets");
 
   const result = await declareDataModule({ db: proxiedDb, dbPath: ":memory:", decl: v2 });
 

@@ -3,34 +3,31 @@ import { test } from "node:test";
 
 import { sql } from "kysely";
 
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { installCommentsDataModule } from "../data-module-install.js";
 import type { CommentRepoPort } from "../ports.js";
 import { commentRepoFor } from "../repo.js";
 import type { CommentRecord } from "../types.js";
 
 /**
  * @file The comments repo on every dialect through the kernel's matrix. The two `p_comments__*`
- * tables are dataModule tables, absent from the migrated schema, and the real install
- * (`data-module-install.ts`) runs SQLite-only DDL — so `make` creates the same columns with
- * portable DDL on each dialect. Moving the install to the kernel is plan slice P1's job.
+ * tables are dataModule tables, absent from the migrated schema, so `make` runs the real install
+ * (`installCommentsDataModule`, on the kernel) on each dialect.
  */
 
 const WS = "ws-dialects";
 
-const CREATE_TABLES = [
-  sql`DROP TABLE IF EXISTS p_comments__comments`,
-  sql`DROP TABLE IF EXISTS p_comments__moderation_log`,
-  sql`CREATE TABLE p_comments__comments (
-    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, entry_id TEXT NOT NULL, parent_id TEXT,
-    thread_root_id TEXT NOT NULL, depth INTEGER NOT NULL, status TEXT NOT NULL,
-    author_principal_id TEXT, author_name TEXT NOT NULL, author_email TEXT, author_url TEXT,
-    author_ip_hash TEXT, body_text TEXT NOT NULL, spam_score DOUBLE PRECISION, spam_provider TEXT,
-    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, version INTEGER NOT NULL)`,
-  sql`CREATE TABLE p_comments__moderation_log (
-    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, comment_id TEXT NOT NULL,
-    actor_principal_id TEXT NOT NULL, action TEXT NOT NULL, from_status TEXT, to_status TEXT NOT NULL,
-    at TEXT NOT NULL, note TEXT)`,
-];
+const PLUGIN_TABLES = ["p_comments__comments", "p_comments__moderation_log"];
+
+/** Per `make`: drop the dataModule tables (PGlite is shared across the file), then the REAL install. */
+function installFresh(kernel: ContentKernel): Promise<void> {
+  const dropped = PLUGIN_TABLES.reduce(
+    (chain, table) => chain.then(() => kernel.execute(sql`DROP TABLE IF EXISTS ${sql.table(table)}`)),
+    Promise.resolve()
+  );
+  return dropped.then(() => installCommentsDataModule({ db: kernel, dbPath: ":memory:" }));
+}
 
 function comment(id: string, overrides: Partial<CommentRecord> = {}): CommentRecord {
   return {
@@ -61,7 +58,7 @@ describeEachDialect<CommentRepoPort>(
   {
     tables: [],
     make: (kernel) => {
-      const pending = CREATE_TABLES.reduce((chain, statement) => chain.then(() => kernel.execute(statement)), Promise.resolve());
+      const pending = installFresh(kernel);
       pending.catch(() => {});
       return commentRepoFor(heldUntil(kernel, pending));
     },
