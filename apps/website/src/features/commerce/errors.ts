@@ -13,6 +13,16 @@ export class CommercePriceNotFoundError extends Error {}
 /** The referenced order does not exist in this workspace. */
 export class CommerceOrderNotFoundError extends Error {}
 
+/** Another product in the workspace already holds this slug (`commerce_products_workspace_slug_unique`). */
+export class CommerceProductSlugConflictError extends Error {
+  constructor(
+    message: string,
+    public readonly slug: string
+  ) {
+    super(message);
+  }
+}
+
 /** Checkout input failed validation before any row was written. */
 export class CommerceCheckoutValidationError extends Error {
   constructor(

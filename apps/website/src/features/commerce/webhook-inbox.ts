@@ -9,7 +9,7 @@ import type { CommerceOrderStatus } from "./types.js";
  *
  * Purpose:
  * `ingestProviderEvent` is the thin service boundary over `CommerceWebhookEventRepoPort
- * .applyProviderEvent` (`repo.sqlite.ts`), which owns the actual atomic guard: `(provider,
+ * .applyProviderEvent` (`repo.ts`), which owns the actual atomic guard: `(provider,
  * eventId)` UNIQUE stops replay; a single `UPDATE ... WHERE providerEventAt < ?` inside the same
  * transaction stops a chronologically-older event from overwriting a newer one that already
  * landed. Neither alone is sufficient — see the repo port's own doc.
