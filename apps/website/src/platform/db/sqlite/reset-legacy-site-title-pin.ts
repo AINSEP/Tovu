@@ -1,4 +1,6 @@
-import type Database from "better-sqlite3";
+import { type ContentKernel, contentKernel } from "../content-kernel.js";
+import { tableExists } from "../kernel/dialect.js";
+import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
 
 /**
  * @file SPEC-050 v0.3.0 (REQ-12, REQ-14, INV-07): the reset a wholesale copy of a `content.db` needs
@@ -21,6 +23,8 @@ import type Database from "better-sqlite3";
  * `server/**` and flags `db/sqlite` value-importing feature internals, and `seed-site.mjs` loads this
  * file through tsx as a build script, where a leaf module keeps `@jini-ai/cms` out of its import graph.
  * `__tests__/reset-legacy-site-title-pin.test.ts` fails if any literal drifts from its source.
+ *
+ * One Kysely body on the storage kernel (storage plan N2), run on SQLite and PGlite by that test.
  */
 
 /** Mirrors `SITE_TITLE_NAMESPACE`. */
@@ -30,9 +34,9 @@ export const SITE_TITLE_PIN_KEY = "title";
 /** Mirrors `SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID`, the actor the pin is attributed to. */
 export const SITE_TITLE_PIN_ACTOR = "system-settings-migration";
 
-const MARKER_TABLE = "site_title_preexisting_workspaces";
-const VALUES_TABLE = "setting_values_workspace";
-const DEFINITIONS_TABLE = "setting_definitions";
+const MARKER_TABLE = "site_title_preexisting_workspaces" as const;
+const VALUES_TABLE = "setting_values_workspace" as const;
+const DEFINITIONS_TABLE = "setting_definitions" as const;
 
 export interface ResetLegacySiteTitlePinResult {
   /** `site_title_preexisting_workspaces` rows deleted, pending or resolved. */
@@ -49,35 +53,38 @@ export interface ResetLegacySiteTitlePinResult {
  * Tolerates absent tables, so a copy taken before the marker migration existed resets what it has
  * instead of failing.
  *
- * @param required.db - an open, writable connection to the copy.
+ * @param required.db - the copy: its storage kernel, or an open writable SQLite connection to it (a
+ *   better-sqlite3 client or a Drizzle handle).
  * @returns how many rows of each kind were deleted.
- * @throws whatever better-sqlite3 throws for a failed statement. The transaction rolls back; neither
+ * @throws whatever the driver throws for a failed statement. The transaction rolls back; neither
  *   caller swallows the error.
  * @complexity O(m + v) for m marker rows and v workspace-layer value rows (`updated_by` is not
  *   indexed), once per copy.
  */
-export function resetLegacySiteTitlePin(required: { db: Database.Database }): ResetLegacySiteTitlePinResult {
-  const { db } = required;
-  const present = new Set(
-    (
-      db
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (?, ?, ?)")
-        .all(MARKER_TABLE, VALUES_TABLE, DEFINITIONS_TABLE) as Array<{ name: string }>
-    ).map((row) => row.name)
-  );
-
-  const reset = db.transaction(
-    (): ResetLegacySiteTitlePinResult => ({
-      markerRowsDeleted: present.has(MARKER_TABLE) ? db.prepare(`DELETE FROM ${MARKER_TABLE}`).run().changes : 0,
-      pinRowsDeleted:
-        present.has(VALUES_TABLE) && present.has(DEFINITIONS_TABLE)
-          ? db
-              .prepare(
-                `DELETE FROM ${VALUES_TABLE} WHERE updated_by = ? AND setting_id IN (SELECT setting_id FROM ${DEFINITIONS_TABLE} WHERE namespace = ? AND key = ?)`
-              )
-              .run(SITE_TITLE_PIN_ACTOR, SITE_TITLE_PIN_NAMESPACE, SITE_TITLE_PIN_KEY).changes
-          : 0,
-    })
-  );
-  return reset();
+export async function resetLegacySiteTitlePin(required: {
+  db: ContentKernel | SqliteConnectionSource;
+}): Promise<ResetLegacySiteTitlePinResult> {
+  const kernel = contentKernel(required.db);
+  return kernel.transaction(async () => {
+    const markerRowsDeleted = (await tableExists(kernel, MARKER_TABLE))
+      ? await kernel.run(async (db) => Number((await db.deleteFrom(MARKER_TABLE).executeTakeFirst()).numDeletedRows))
+      : 0;
+    const pinTablesPresent = (await tableExists(kernel, VALUES_TABLE)) && (await tableExists(kernel, DEFINITIONS_TABLE));
+    const pinRowsDeleted = pinTablesPresent
+      ? await kernel.run(async (db) => {
+          const titleSettingIds = db
+            .selectFrom(DEFINITIONS_TABLE)
+            .select("setting_id")
+            .where("namespace", "=", SITE_TITLE_PIN_NAMESPACE)
+            .where("key", "=", SITE_TITLE_PIN_KEY);
+          const result = await db
+            .deleteFrom(VALUES_TABLE)
+            .where("updated_by", "=", SITE_TITLE_PIN_ACTOR)
+            .where("setting_id", "in", titleSettingIds)
+            .executeTakeFirst();
+          return Number(result.numDeletedRows);
+        })
+      : 0;
+    return { markerRowsDeleted, pinRowsDeleted };
+  });
 }

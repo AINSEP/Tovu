@@ -173,7 +173,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
         }
 
         const targetDir = path.join(resolved.cwd, "sites", targetName);
-        const result = resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
+        const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
         return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
       });
     },

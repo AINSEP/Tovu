@@ -319,14 +319,18 @@ test("findMissingSeedBlobs: REGRESSION — a regular file with the WRONG bytes a
  * state `site-title-preservation.integration.test.ts`'s AC-23/AC-24 previously had to work around by
  * recreating the three tables empty with `openChatDb` before calling `seedSite`.
  */
-test("seedSite: succeeds against a live db that has never chatted, so openContentDb already dropped the empty legacy chat tables", () => {
-  withTempLiveDir((liveDir) => {
+test("seedSite: succeeds against a live db that has never chatted, so openContentDb already dropped the empty legacy chat tables", async () => {
+  const liveDir = mkdtempSync(join(tmpdir(), "tovu-seed-site-blob-check-"));
+  try {
+    runGit(liveDir, ["-c", "init.defaultBranch=main", "init", "-q"]);
     const liveDbPath = join(liveDir, "content.db");
     openContentDb(liveDbPath).$client.close();
 
     const seedDbPath = join(liveDir, "content.seed.db");
-    seedSite({ siteName: "prune-guard-test", liveDir, liveDbPath, seedDbPath });
+    await seedSite({ siteName: "prune-guard-test", liveDir, liveDbPath, seedDbPath });
 
     assert.ok(existsSync(seedDbPath), "seedSite must still publish content.seed.db");
-  });
+  } finally {
+    rmSync(liveDir, { recursive: true, force: true });
+  }
 });

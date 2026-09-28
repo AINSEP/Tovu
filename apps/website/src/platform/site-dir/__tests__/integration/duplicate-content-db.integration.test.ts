@@ -69,13 +69,13 @@ function buildSourceWithChatHistory(parent: string): string {
   return dbPath;
 }
 
-test("chat/session history rows do not survive the copy, even though the source really has them", () => {
+test("chat/session history rows do not survive the copy, even though the source really has them", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
-    duplicateContentDb({ sourceDbPath, targetDbPath });
+    await duplicateContentDb({ sourceDbPath, targetDbPath });
 
     const copy = new Database(targetDbPath, { readonly: true });
     try {
@@ -102,13 +102,13 @@ test("chat/session history rows do not survive the copy, even though the source 
   }
 });
 
-test("real content (posts, workspace, presentation) survives the copy intact", () => {
+test("real content (posts, workspace, presentation) survives the copy intact", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
-    duplicateContentDb({ sourceDbPath, targetDbPath });
+    await duplicateContentDb({ sourceDbPath, targetDbPath });
 
     const source = new Database(sourceDbPath, { readonly: true });
     const copy = new Database(targetDbPath, { readonly: true });
@@ -131,13 +131,13 @@ test("real content (posts, workspace, presentation) survives the copy intact", (
   }
 });
 
-test("the copy passes integrity_check and keeps the migrator's bookkeeping table intact", () => {
+test("the copy passes integrity_check and keeps the migrator's bookkeeping table intact", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
-    duplicateContentDb({ sourceDbPath, targetDbPath });
+    await duplicateContentDb({ sourceDbPath, targetDbPath });
 
     const copy = new Database(targetDbPath, { readonly: true });
     try {
@@ -157,13 +157,13 @@ test("the copy passes integrity_check and keeps the migrator's bookkeeping table
   }
 });
 
-test("no stray -wal/-shm sidecar is left next to the finished copy", () => {
+test("no stray -wal/-shm sidecar is left next to the finished copy", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
-    duplicateContentDb({ sourceDbPath, targetDbPath });
+    await duplicateContentDb({ sourceDbPath, targetDbPath });
 
     assert.equal(fs.existsSync(`${targetDbPath}-wal`), false, "no leftover -wal sidecar");
     assert.equal(fs.existsSync(`${targetDbPath}-shm`), false, "no leftover -shm sidecar");
@@ -239,14 +239,14 @@ function plantPluginData(dbPath: string): void {
  * This is the regression for a purge that kept only what `db/schema.sqlite.ts` declares: none of these
  * four tables is declared there, so all four were emptied.
  */
-test("plugin tables and their rows survive the copy — a duplicated store keeps its products", () => {
+test("plugin tables and their rows survive the copy — a duplicated store keeps its products", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = buildSourceWithChatHistory(parent);
     plantPluginData(sourceDbPath);
     const targetDbPath = path.join(parent, "target-content.db");
 
-    duplicateContentDb({ sourceDbPath, targetDbPath });
+    await duplicateContentDb({ sourceDbPath, targetDbPath });
 
     const copy = new Database(targetDbPath, { readonly: true });
     try {
@@ -280,7 +280,7 @@ test("plugin tables and their rows survive the copy — a duplicated store keeps
  * denylist was replaced rather than lengthened. The purge must name what it deletes; a table
  * nobody has classified is data, and data is kept.
  */
-test("a table nobody has classified survives the copy — the purge names what it deletes", () => {
+test("a table nobody has classified survives the copy — the purge names what it deletes", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = buildSourceWithChatHistory(parent);
@@ -294,7 +294,7 @@ test("a table nobody has classified survives the copy — the purge names what i
       raw.close();
     }
 
-    duplicateContentDb({ sourceDbPath, targetDbPath });
+    await duplicateContentDb({ sourceDbPath, targetDbPath });
 
     const copy = new Database(targetDbPath, { readonly: true });
     try {
@@ -317,7 +317,7 @@ test("a table nobody has classified survives the copy — the purge names what i
  * throw against a `content.db` that never had those tables (a future migration dropping them, or a
  * database built by something other than this repo's migrator).
  */
-test("a content.db with no chat tables at all duplicates without error", () => {
+test("a content.db with no chat tables at all duplicates without error", async () => {
   const parent = mkTempParent();
   try {
     const sourceDbPath = buildSourceWithChatHistory(parent);
@@ -330,7 +330,7 @@ test("a content.db with no chat tables at all duplicates without error", () => {
       raw.close();
     }
 
-    duplicateContentDb({ sourceDbPath, targetDbPath });
+    await duplicateContentDb({ sourceDbPath, targetDbPath });
 
     const copy = new Database(targetDbPath, { readonly: true });
     try {

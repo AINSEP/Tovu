@@ -1,5 +1,8 @@
 import type { ContentDatabase } from "./content-database.generated.js";
-import { type SqliteConnectionSource, sqliteKernel, type StorageKernel } from "./kernel/index.js";
+// The driver and port directly, not `kernel/index.js`: build scripts (`seed-site.mjs`) load
+// callers of this module through tsx and must not pull the Postgres drivers into their graph.
+import { type SqliteConnectionSource, sqliteKernel } from "./kernel/drivers/sqlite.js";
+import type { StorageKernel } from "./kernel/port.js";
 
 /**
  * @file The content database as a storage kernel: `StorageKernel<ContentDatabase>`, whichever

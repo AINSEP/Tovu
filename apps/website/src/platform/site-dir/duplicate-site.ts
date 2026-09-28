@@ -179,7 +179,7 @@ export interface DuplicateSiteResult {
  *   `initSite`'s `seedSiteThemes()` call.
  * @overallScore 100
  */
-export function duplicateSite(required: DuplicateSiteRequired): DuplicateSiteResult {
+export async function duplicateSite(required: DuplicateSiteRequired): Promise<DuplicateSiteResult> {
   const { sourceDir, targetDir, name } = required;
   const source = resolveInstallDirTarget(sourceDir);
   const target = resolveInstallDirTarget(targetDir);
@@ -228,7 +228,7 @@ export function duplicateSite(required: DuplicateSiteRequired): DuplicateSiteRes
     // the source's legacy site-title pin and marker reset (SPEC-050 REQ-12), so the duplicate renders
     // its own `config.json` name. Chat history's own file, `chat.db`, is left behind by the allowlist
     // copy above, not here.
-    duplicateContentDb({
+    await duplicateContentDb({
       sourceDbPath: path.join(source, CONTENT_DB_FILENAME),
       targetDbPath: path.join(target, CONTENT_DB_FILENAME),
     });

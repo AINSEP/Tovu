@@ -1,7 +1,11 @@
-import Database from "better-sqlite3";
+import { sql } from "kysely";
 
+import type { ContentKernel } from "../db/content-kernel.js";
+import type { ContentDatabase } from "../db/content-database.generated.js";
+import { tableExists } from "../db/kernel/dialect.js";
+import { openSqliteFileKernel } from "../db/kernel/drivers/sqlite.js";
+import { StorageOpError, storageOps } from "../db/kernel/ops.js";
 import { CHAT_TABLE_NAMES } from "../db/sqlite/chat-orphan-check.js";
-import { openContentDbReadOnly } from "../db/sqlite/content-db.js";
 import { resetLegacySiteTitlePin } from "../db/sqlite/reset-legacy-site-title-pin.js";
 import { InternalError } from "./errors.js";
 
@@ -86,15 +90,21 @@ import { InternalError } from "./errors.js";
  * Reversal is this file's `purgeStrandedChatTables` and the one `CHAT_TABLE_NAMES` export it reads;
  * nothing else in the module depends on either.
  *
- * Architectural role: `site-dir` domain logic (INV-06) — no `express`/`cli` import. Depends on
- * `db/sqlite/content-db.ts`, `db/sqlite/chat-orphan-check.ts` and
+ * WHERE THE SQLITE SPELLING LIVES (storage plan N2). The copy (`VACUUM INTO`) and the final
+ * compact/seal/verify are the storage kernel's ops port (`db/kernel/ops.ts`, `storageOps`); the
+ * purge and the pin reset are plain queries on the copy's kernel. This file opens `content.db`
+ * FILES, so it is SQLite by construction until a site can choose another store (plan R1), where
+ * the ops port already names the operations a Postgres duplicate needs.
+ *
+ * Architectural role: `site-dir` domain logic (INV-06) — no `express`/`cli` import. Depends on the
+ * storage kernel (`db/kernel`), `db/sqlite/chat-orphan-check.ts` and
  * `db/sqlite/reset-legacy-site-title-pin.ts` only, all already `site-dir`-reachable (siblings under
  * `platform/db/`, not `server`/`cli`).
  */
 
 /**
  * Empties the chat/session tables in `db` — and only those — leaving every other table's rows,
- * including tables this repository has never heard of, exactly as `VACUUM INTO` copied them.
+ * including tables this repository has never heard of, exactly as the copy carried them.
  *
  * Tolerates their absence: a `content.db` that never carried them, or a future one that drops them,
  * must produce a duplicate rather than a "no such table" failure (the same reason
@@ -111,23 +121,13 @@ import { InternalError } from "./errors.js";
  * @complexity O(k) SQL statements for k = {@link CHAT_TABLE_NAMES}'s length — a fixed three, never
  *   bounded by caller-controlled input.
  */
-function purgeStrandedChatTables(db: Database.Database): void {
-  const placeholders = CHAT_TABLE_NAMES.map(() => "?").join(", ");
-  const present = new Set(
-    (
-      db
-        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`)
-        .all(...CHAT_TABLE_NAMES) as Array<{ name: string }>
-    ).map((row) => row.name)
-  );
-
-  const purgeAll = db.transaction(() => {
+async function purgeStrandedChatTables(kernel: ContentKernel): Promise<void> {
+  await kernel.transaction(async () => {
     for (const name of CHAT_TABLE_NAMES) {
-      if (!present.has(name)) continue;
-      db.prepare(`DELETE FROM "${name}"`).run();
+      if (!(await tableExists(kernel, name))) continue;
+      await kernel.execute(sql`DELETE FROM ${sql.table(name)}`);
     }
   });
-  purgeAll();
 }
 
 export interface DuplicateContentDbRequired {
@@ -146,8 +146,9 @@ export interface DuplicateContentDbRequired {
  * file's own header for why the purge names what it deletes, and for why this says nothing about the
  * `chat.db` sibling next to `sourceDbPath`.
  *
- * @throws {InternalError} `VACUUM INTO` failing (e.g. `targetDbPath` already exists, or the parent
- *   directory is not writable), or the purged copy failing `integrity_check` — surfaced with the
+ * @throws {InternalError} the copy failing (e.g. `targetDbPath` already exists, or the parent
+ *   directory is not writable), or the purged copy failing its final checkpoint or `integrity_check`
+ *   (`StorageOpError`, rewrapped) — surfaced with the
  *   real driver message rather than a generic wrapper, so a caller can tell a full disk from a
  *   locked source. A failed purge or pin-reset statement throws the driver's own error, which
  *   `duplicateSite`'s `cleanupAndRethrow` wraps.
@@ -156,55 +157,34 @@ export interface DuplicateContentDbRequired {
  *   `VACUUM INTO`/final `VACUUM` calls are each one full pass over the source/copy's own byte size,
  *   fixed by how much content the site being duplicated actually holds, never by any
  *   caller-controlled input.
- * @overallScore 100
  */
-export function duplicateContentDb(required: DuplicateContentDbRequired): void {
+export async function duplicateContentDb(required: DuplicateContentDbRequired): Promise<void> {
   const { sourceDbPath, targetDbPath } = required;
 
-  const source = openContentDbReadOnly(sourceDbPath);
+  const source = openSqliteFileKernel<ContentDatabase>(sourceDbPath, { readOnly: true });
   try {
-    // Bound-parameter form: VACUUM INTO's filename is a general SQL expression (SQLite 3.27+), so
-    // this never string-interpolates a caller-influenced path into SQL text.
-    source.$client.prepare("VACUUM INTO ?").run(targetDbPath);
+    await storageOps(source).copyTo(targetDbPath);
   } catch (err) {
-    throw new InternalError(`duplicateContentDb: VACUUM INTO ${targetDbPath} failed: ${(err as Error).message}`);
+    throw new InternalError(`duplicateContentDb: copying to ${targetDbPath} failed: ${(err as Error).message}`);
   } finally {
-    source.$client.close();
+    await source.close();
   }
 
-  const target = new Database(targetDbPath);
+  const target = openSqliteFileKernel<ContentDatabase>(targetDbPath);
   try {
-    target.pragma("foreign_keys = ON");
-    purgeStrandedChatTables(target);
+    await purgeStrandedChatTables(target);
     // SPEC-050 REQ-12: the source's legacy site-title pin and marker describe the SOURCE's history,
     // not this copy's, and would render the source's pinned title in place of the duplicate's name.
-    resetLegacySiteTitlePin({ db: target });
-    target.exec("VACUUM"); // reclaims the purged rows' pages before this copy is handed back.
-
-    // Leaves the copy in the same WAL posture `openContentDb` establishes on every real open, and
-    // checkpoints immediately so a fresh site dir never carries a stray `-wal`/`-shm` sidecar before
-    // its first real boot (mirrors `seed-site.mjs`'s own `checkpointAndVerify` discipline).
-    //
-    // Order matters here (empirically, not just stylistically): running `integrity_check` on this
-    // same connection BEFORE this WAL switch reproducibly left the connection holding a lock that
-    // made the checkpoint below fail with SQLITE_LOCKED ("database table is locked") — a
-    // better-sqlite3/SQLite interaction with the just-VACUUMed, just-purged connection, not a real
-    // corruption signal (moving `integrity_check` after the checkpoint, or closing and reopening the
-    // connection in between, both independently avoid it). `integrity_check` runs LAST instead, as
-    // the final gate on the copy this function actually hands back.
-    target.pragma("journal_mode = WAL");
-    const [checkpoint] = target.pragma("wal_checkpoint(TRUNCATE)") as Array<{ busy: number }>;
-    if (checkpoint.busy !== 0) {
-      throw new InternalError(`duplicateContentDb: final WAL checkpoint on ${targetDbPath} reported busy=${checkpoint.busy}`);
-    }
-
-    const [integrity] = target.pragma("integrity_check") as Array<{ integrity_check: string }>;
-    if (integrity.integrity_check !== "ok") {
-      throw new InternalError(
-        `duplicateContentDb: ${targetDbPath} failed integrity_check after purge: ${JSON.stringify(integrity)}`
-      );
-    }
+    await resetLegacySiteTitlePin({ db: target });
+    // Reclaims the purged rows' pages, then leaves the copy in the same WAL posture `openContentDb`
+    // establishes on every real open, checkpointed so a fresh site dir never carries a stray
+    // `-wal`/`-shm` sidecar before its first real boot (mirrors `seed-site.mjs`'s own
+    // `checkpointAndVerify` discipline), and verified intact as the final gate.
+    await storageOps(target).compactAndVerify();
+  } catch (err) {
+    if (err instanceof StorageOpError) throw new InternalError(`duplicateContentDb: ${err.message}`);
+    throw err;
   } finally {
-    target.close();
+    await target.close();
   }
 }

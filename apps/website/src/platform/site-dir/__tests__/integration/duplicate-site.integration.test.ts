@@ -56,14 +56,14 @@ function seedSourceExtras(siteDir: string): void {
   fs.writeFileSync(path.join(siteDir, "uploads", "hello.txt"), "known upload bytes");
 }
 
-test("a duplicate carries content, uploads, and themes, but never chat history, and gets a fresh identity", () => {
+test("a duplicate carries content, uploads, and themes, but never chat history, and gets a fresh identity", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
     seedSourceExtras(source.dir);
 
     const targetDir = path.join(parent, "client-b");
-    const result = duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
+    const result = await duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
 
     // Fresh identity — the one field that must NEVER be copied.
     assert.notEqual(result.siteId, source.siteId, "duplicateSite must mint a NEW siteId");
@@ -140,7 +140,7 @@ function bareKeyEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
-test("site-key plan §A.4: duplicateSite carries the source's own siteKeyId over — falls back to source.siteId for a pre-A4 source with none", () => {
+test("site-key plan §A.4: duplicateSite carries the source's own siteKeyId over — falls back to source.siteId for a pre-A4 source with none", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source-key"), name: "Source" });
@@ -148,7 +148,7 @@ test("site-key plan §A.4: duplicateSite carries the source's own siteKeyId over
     // Case 1: a post-A4 source already has an explicit siteKeyId (initSite always writes one) — it
     // must be carried over verbatim, not re-derived from the copy's own fresh siteId.
     const target1 = path.join(parent, "copy-1");
-    duplicateSite({ sourceDir: source.dir, targetDir: target1, name: "Copy 1" });
+    await duplicateSite({ sourceDir: source.dir, targetDir: target1, name: "Copy 1" });
     const meta1 = JSON.parse(fs.readFileSync(path.join(target1, ".site-meta.json"), "utf8"));
     assert.equal(meta1.siteKeyId, source.siteId, "a post-A4 source's own siteKeyId must be carried over verbatim");
 
@@ -162,7 +162,7 @@ test("site-key plan §A.4: duplicateSite carries the source's own siteKeyId over
     fs.writeFileSync(legacyMetaPath, JSON.stringify(legacyMeta));
 
     const target2 = path.join(parent, "copy-2");
-    duplicateSite({ sourceDir: legacySource, targetDir: target2, name: "Copy 2" });
+    await duplicateSite({ sourceDir: legacySource, targetDir: target2, name: "Copy 2" });
     const meta2 = JSON.parse(fs.readFileSync(path.join(target2, ".site-meta.json"), "utf8"));
     assert.equal(meta2.siteKeyId, source.siteId, "a pre-A4 source with no siteKeyId field falls back to its own siteId");
   } finally {
@@ -212,7 +212,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
 
     // Duplicate the site — content.db, sealed row included, is physically copied.
     const targetDir = path.join(parent, "copy");
-    const result = duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
+    const result = await duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
 
     const targetMeta = JSON.parse(fs.readFileSync(path.join(targetDir, ".site-meta.json"), "utf8"));
     assert.equal(targetMeta.siteKeyId, source.siteId, "the duplicate must share the SOURCE's own siteKeyId, not its own fresh siteId");
@@ -253,7 +253,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
   }
 });
 
-test("the schema stamp is carried from the SOURCE verbatim, never re-derived from the runtime", () => {
+test("the schema stamp is carried from the SOURCE verbatim, never re-derived from the runtime", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Stale Client Site" });
@@ -269,7 +269,7 @@ test("the schema stamp is carried from the SOURCE verbatim, never re-derived fro
     fs.writeFileSync(metaPath, JSON.stringify(staleMeta, null, 2));
 
     const targetDir = path.join(parent, "target");
-    duplicateSite({ sourceDir: source.dir, targetDir });
+    await duplicateSite({ sourceDir: source.dir, targetDir });
 
     const targetMeta = JSON.parse(fs.readFileSync(path.join(targetDir, ".site-meta.json"), "utf8"));
     assert.equal(targetMeta.schemaVersion, 1, "the duplicate must carry the SOURCE's own schemaVersion, not the runtime's");
@@ -280,13 +280,13 @@ test("the schema stamp is carried from the SOURCE verbatim, never re-derived fro
   }
 });
 
-test("omitting name defaults the duplicate's display name to the target directory's basename", () => {
+test("omitting name defaults the duplicate's display name to the target directory's basename", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
     const targetDir = path.join(parent, "my-new-client-site");
 
-    duplicateSite({ sourceDir: source.dir, targetDir });
+    await duplicateSite({ sourceDir: source.dir, targetDir });
 
     const config = JSON.parse(fs.readFileSync(path.join(targetDir, "config.json"), "utf8"));
     assert.equal(config.name, "my-new-client-site");
@@ -295,7 +295,7 @@ test("omitting name defaults the duplicate's display name to the target director
   }
 });
 
-test("refuses a non-empty target directory, and creates nothing new there", () => {
+test("refuses a non-empty target directory, and creates nothing new there", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
@@ -303,7 +303,7 @@ test("refuses a non-empty target directory, and creates nothing new there", () =
     fs.mkdirSync(targetDir);
     fs.writeFileSync(path.join(targetDir, "pre-existing.txt"), "do not touch");
 
-    assert.throws(() => duplicateSite({ sourceDir: source.dir, targetDir }), InitDirNotEmptyError);
+    await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir }), InitDirNotEmptyError);
 
     // The pre-existing directory must be left exactly as it was — no partial write, no cleanup of
     // an operator-owned directory this call did not itself create.
@@ -313,14 +313,14 @@ test("refuses a non-empty target directory, and creates nothing new there", () =
   }
 });
 
-test("refuses a source that is not a valid site directory", () => {
+test("refuses a source that is not a valid site directory", async () => {
   const parent = mkTempParent();
   try {
     const notASite = path.join(parent, "not-a-site");
     fs.mkdirSync(notASite);
     fs.writeFileSync(path.join(notASite, "readme.txt"), "just a folder, not a site");
 
-    assert.throws(() => duplicateSite({ sourceDir: notASite, targetDir: path.join(parent, "target") }), SiteDirInvalidError);
+    await assert.rejects(duplicateSite({ sourceDir: notASite, targetDir: path.join(parent, "target") }), SiteDirInvalidError);
 
     // Nothing must be created for a refused source.
     assert.equal(fs.existsSync(path.join(parent, "target")), false);
@@ -329,26 +329,26 @@ test("refuses a source that is not a valid site directory", () => {
   }
 });
 
-test("refuses an invalid target display name without creating anything", () => {
+test("refuses an invalid target display name without creating anything", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
     const targetDir = path.join(parent, "target");
 
-    assert.throws(() => duplicateSite({ sourceDir: source.dir, targetDir, name: "  " }), ValidationError);
+    await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir, name: "  " }), ValidationError);
     assert.equal(fs.existsSync(targetDir), false, "an invalid name must create nothing at all");
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
 
-test("the duplicate is independently readable via readSiteDir (both marker files are valid)", () => {
+test("the duplicate is independently readable via readSiteDir (both marker files are valid)", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
     const targetDir = path.join(parent, "target");
 
-    duplicateSite({ sourceDir: source.dir, targetDir, name: "Target Site" });
+    await duplicateSite({ sourceDir: source.dir, targetDir, name: "Target Site" });
 
     const { config, meta } = readSiteDir({ dir: targetDir });
     assert.equal(config.name, "Target Site");
@@ -392,7 +392,7 @@ function plantNonPortableArtifacts(siteDir: string): void {
   }
 }
 
-test("a duplicate carries none of the source's sidecar databases, restore points, backups, or derived output", () => {
+test("a duplicate carries none of the source's sidecar databases, restore points, backups, or derived output", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
@@ -400,7 +400,7 @@ test("a duplicate carries none of the source's sidecar databases, restore points
     plantNonPortableArtifacts(source.dir);
 
     const targetDir = path.join(parent, "client-b");
-    duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
+    await duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
 
     for (const name of [...NON_PORTABLE_FIXTURE_FILES, ...NON_PORTABLE_FIXTURE_DIRS]) {
       assert.equal(
@@ -417,7 +417,7 @@ test("a duplicate carries none of the source's sidecar databases, restore points
   }
 });
 
-test("an unclassified new top-level artifact is excluded from a duplicate by default (fail safe)", () => {
+test("an unclassified new top-level artifact is excluded from a duplicate by default (fail safe)", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
@@ -431,7 +431,7 @@ test("an unclassified new top-level artifact is excluded from a duplicate by def
     fs.writeFileSync(path.join(source.dir, "future-cache", "blob"), "unclassified bytes");
 
     const targetDir = path.join(parent, "target");
-    duplicateSite({ sourceDir: source.dir, targetDir });
+    await duplicateSite({ sourceDir: source.dir, targetDir });
 
     assert.equal(fs.existsSync(path.join(targetDir, "some-future-sidecar.db")), false);
     assert.equal(fs.existsSync(path.join(targetDir, "future-cache")), false);
@@ -441,7 +441,7 @@ test("an unclassified new top-level artifact is excluded from a duplicate by def
   }
 });
 
-test("every directory the site layout calls portable is carried across, not just the ones initSite creates", () => {
+test("every directory the site layout calls portable is carried across, not just the ones initSite creates", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
@@ -455,7 +455,7 @@ test("every directory the site layout calls portable is carried across, not just
     }
 
     const targetDir = path.join(parent, "target");
-    duplicateSite({ sourceDir: source.dir, targetDir });
+    await duplicateSite({ sourceDir: source.dir, targetDir });
 
     for (const name of ["uploads", "themes", "plugins", "overrides", "skills", "agent-plugins"]) {
       assert.equal(fs.existsSync(path.join(targetDir, name)), true, `${name}/ is portable and must be copied`);
@@ -470,7 +470,7 @@ test("every directory the site layout calls portable is carried across, not just
   }
 });
 
-test("a mid-copy failure leaves no half-populated directory behind, even in a pre-existing empty target", () => {
+test("a mid-copy failure leaves no half-populated directory behind, even in a pre-existing empty target", async () => {
   const parent = mkTempParent();
   // Restored before the tree is torn down — `fs.rmSync` cannot remove what it cannot read either.
   const unreadable = path.join(parent, "source", "uploads", "locked.bin");
@@ -489,7 +489,7 @@ test("a mid-copy failure leaves no half-populated directory behind, even in a pr
     const targetDir = path.join(parent, "operator-made-this");
     fs.mkdirSync(targetDir);
 
-    assert.throws(() => duplicateSite({ sourceDir: source.dir, targetDir }), InternalError);
+    await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir }), InternalError);
     assert.equal(
       fs.existsSync(targetDir),
       false,
@@ -524,7 +524,7 @@ function stripPortableEntries(siteDir: string): void {
   }
 }
 
-test("a source with no portable entries: a content.db failure into a pre-existing empty target leaves nothing behind", () => {
+test("a source with no portable entries: a content.db failure into a pre-existing empty target leaves nothing behind", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
@@ -538,7 +538,7 @@ test("a source with no portable entries: a content.db failure into a pre-existin
     const targetDir = path.join(parent, "operator-made-this");
     fs.mkdirSync(targetDir);
 
-    assert.throws(() => duplicateSite({ sourceDir: source.dir, targetDir }));
+    await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir }));
     assert.equal(
       fs.existsSync(targetDir),
       false,
@@ -551,7 +551,7 @@ test("a source with no portable entries: a content.db failure into a pre-existin
   }
 });
 
-test("after such a failure the operator's retry is not refused as 'not an empty directory'", () => {
+test("after such a failure the operator's retry is not refused as 'not an empty directory'", async () => {
   // The symptom the operator actually meets. Asserting the directory is clean is not the same claim
   // as asserting the next attempt works: a leftover `config.json` turns a transient failure into a
   // permanent one whose message blames the operator for a directory they created empty.
@@ -565,12 +565,12 @@ test("after such a failure the operator's retry is not refused as 'not an empty 
 
     const targetDir = path.join(parent, "operator-made-this");
     fs.mkdirSync(targetDir);
-    assert.throws(() => duplicateSite({ sourceDir: source.dir, targetDir }));
+    await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir }));
 
     // The operator puts the database back and tries again.
     fs.writeFileSync(dbPath, savedDb);
     fs.mkdirSync(targetDir, { recursive: true });
-    const result = duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
+    const result = await duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
 
     // Both sides realpath'd: on macOS `/var` is a symlink to `/private/var`, and the two spellings
     // name the same directory. The claim is "the retry landed in the operator's target", not which
@@ -582,7 +582,7 @@ test("after such a failure the operator's retry is not refused as 'not an empty 
   }
 });
 
-test("a successful duplicate into a pre-existing empty target still succeeds — the flag fix must not make cleanup fire on the happy path", () => {
+test("a successful duplicate into a pre-existing empty target still succeeds — the flag fix must not make cleanup fire on the happy path", async () => {
   // The negative control. Setting `wroteAnything` unconditionally at the top of the try would also
   // make both tests above pass, and would be wrong: `cleanupAndRethrow` must still not run when
   // nothing failed, and a pre-existing target must still be usable.
@@ -594,7 +594,7 @@ test("a successful duplicate into a pre-existing empty target still succeeds —
     const targetDir = path.join(parent, "operator-made-this");
     fs.mkdirSync(targetDir);
 
-    const result = duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
+    const result = await duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
 
     assert.equal(readSiteDir({ dir: targetDir }).config.name, "Copy");
     assert.notEqual(result.siteId, readSiteDir({ dir: source.dir }).meta.siteId);
@@ -614,7 +614,7 @@ test("a successful duplicate into a pre-existing empty target still succeeds —
 // copy takes wholesale — so the history was withheld while its attachments were handed over.
 // ---------------------------------------------------------------------------
 
-test("a duplicate carries the site's media uploads but NOT the staged chat attachments under uploads/", () => {
+test("a duplicate carries the site's media uploads but NOT the staged chat attachments under uploads/", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
@@ -626,7 +626,7 @@ test("a duplicate carries the site's media uploads but NOT the staged chat attac
     fs.writeFileSync(path.join(attachments, "batch-1", "private-contract.pdf.json"), '{"owner":"user-1"}');
 
     const targetDir = path.join(parent, "client-b");
-    duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
+    await duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
 
     assert.equal(
       fs.readFileSync(path.join(targetDir, "uploads", "public-media.txt"), "utf8"),
@@ -643,7 +643,7 @@ test("a duplicate carries the site's media uploads but NOT the staged chat attac
   }
 });
 
-test("excluding chat-attachments is name-scoped to the uploads root — an unrelated nested directory of that name is still carried", () => {
+test("excluding chat-attachments is name-scoped to the uploads root — an unrelated nested directory of that name is still carried", async () => {
   const parent = mkTempParent();
   try {
     const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
@@ -652,7 +652,7 @@ test("excluding chat-attachments is name-scoped to the uploads root — an unrel
     fs.writeFileSync(path.join(nested, "screenshot.png"), "a real media asset in a folder named that");
 
     const targetDir = path.join(parent, "client-b");
-    duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
+    await duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
 
     assert.equal(
       fs.readFileSync(path.join(targetDir, "uploads", "media", "chat-attachments", "screenshot.png"), "utf8"),

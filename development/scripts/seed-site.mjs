@@ -385,10 +385,11 @@ function formatMb(bytes) {
  * {@link main} is the only caller that points it at the real `sites/<site>/`.
  *
  * @param {{ siteName: string, liveDir: string, liveDbPath: string, seedDbPath: string }} required
- * @throws if the live db is missing, a scratch-copy check fails, a blob is missing, or the live db
- *   changed during the run. Nothing is published unless every check before `publishSeed` passed.
+ * @returns {Promise<void>} rejects if the live db is missing, a scratch-copy check fails, a blob is
+ *   missing, or the live db changed during the run. Nothing is published unless every check before
+ *   `publishSeed` passed.
  */
-export function seedSite(required) {
+export async function seedSite(required) {
   const { siteName, liveDir, liveDbPath, seedDbPath } = required;
   const liveStatBefore = statLiveDb(liveDbPath);
 
@@ -406,7 +407,7 @@ export function seedSite(required) {
       // SPEC-050 REQ-14: the legacy site-title marker and pin record THIS machine's migration history.
       // A deploy that hydrates its content.db from the seed is a different database and renders its
       // own name, so both are reset here, before the VACUUM that reclaims their pages.
-      const siteTitleReset = resetLegacySiteTitlePin({ db });
+      const siteTitleReset = await resetLegacySiteTitlePin({ db });
       vacuumAndVerify(db);
 
       // Rows and bytes ship together or not at all — fail LOUD, before `publishSeed` ever runs, so
@@ -457,8 +458,8 @@ export function seedSite(required) {
   assertLiveDbUntouched(liveDbPath, liveStatBefore);
 }
 
-function main() {
-  seedSite(resolvePaths());
+async function main() {
+  await seedSite(resolvePaths());
 }
 
 // Only run when invoked directly, never as a side effect of import — mirrors
@@ -470,5 +471,5 @@ function main() {
 // `pathToFileURL(undefined)` throws — which would break every consumer that merely imports this
 // module, not just direct CLI invocation.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+  await main();
 }

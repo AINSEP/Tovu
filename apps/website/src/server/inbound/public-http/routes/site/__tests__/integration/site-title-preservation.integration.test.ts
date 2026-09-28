@@ -373,7 +373,7 @@ test("AC-20 (REQ-12, INV-07): a duplicate of a pinned pre-existing site carries 
   assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), PINNED_COPY_STATE, "precondition: the source is pinned and marked");
 
   const targetDir = path.join(path.dirname(sourceDir), "client-b");
-  duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
+  await duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
 
   assert.deepEqual(readSiteTitleCopyState(path.join(targetDir, "content.db"), workspaceId), { titleRows: [], markerRows: 0 });
   assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), PINNED_COPY_STATE, "duplicating must not reset the source itself");
@@ -403,7 +403,7 @@ test("AC-21 (REQ-12, INV-07, EC-09): an owner's own title travels into a duplica
   assert.equal(sourceState.markerRows, 1, "precondition: the source is still marked");
 
   const targetDir = path.join(path.dirname(sourceDir), "client-b");
-  duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
+  await duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
 
   assert.deepEqual(readSiteTitleCopyState(path.join(targetDir, "content.db"), workspaceId), {
     titleRows: sourceState.titleRows,
@@ -423,7 +423,7 @@ test("AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships n
   assert.deepEqual(readSiteTitleCopyState(liveDbPath, live.deps.workspaceId), PINNED_COPY_STATE, "precondition: the live site is pinned and marked");
 
   const seedDbPath = path.join(path.dirname(liveDir), "content.seed.db");
-  seedSite({ siteName: "site-title-seed", liveDir, liveDbPath, seedDbPath });
+  await seedSite({ siteName: "site-title-seed", liveDir, liveDbPath, seedDbPath });
 
   // AC-23 is about whole tables, not one workspace: a shipped seed carries no marker and no system pin.
   const seed = new Database(seedDbPath, { readonly: true });

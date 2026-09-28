@@ -45,7 +45,7 @@ export interface SitesToolDeps {
    *  `sites/` directory. */
   listSites?: (optional?: { cwd?: string }) => readonly SiteListEntry[];
   /** Defaults to the real `duplicateSite`. Injectable for the same reason as `listSites`. */
-  duplicateSite?: (required: { sourceDir: string; targetDir: string; name?: string }) => DuplicateSiteResult;
+  duplicateSite?: (required: { sourceDir: string; targetDir: string; name?: string }) => Promise<DuplicateSiteResult>;
   /** Filled in by `assistant/tool-registrations.ts`'s `enrichedRouteDeps` — see this file's own
    *  header. Falls back to `false` (disabled) if ever absent by the time the handler runs. */
   isSiteSwitcherEnabled?: () => boolean;
@@ -68,7 +68,7 @@ export interface SitesToolDeps {
  *  `assistant/tool-registrations.ts` instead. */
 export interface ResolvedSitesDeps {
   listSites: (optional?: { cwd?: string }) => readonly SiteListEntry[];
-  duplicateSite: (required: { sourceDir: string; targetDir: string; name?: string }) => DuplicateSiteResult;
+  duplicateSite: (required: { sourceDir: string; targetDir: string; name?: string }) => Promise<DuplicateSiteResult>;
   cwd: string;
   /**
    * `false` only for an install-dir boot (`tovu serve <dir>`, `SiteBinding.switcherCompatible`

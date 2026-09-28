@@ -69,7 +69,7 @@ function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
     authorize: async () => ({ allowed: options.allow ?? true, reason: options.allow === false ? "denied" : "matched" }),
     isSiteSwitcherEnabled: () => options.switcherEnabled ?? true,
     listSites: () => sites,
-    duplicateSite: (required) => {
+    duplicateSite: async (required) => {
       duplicateSiteCalls.push(required);
       return options.duplicateSiteResult ?? { siteId: "new-site-id-1234", dir: required.targetDir };
     },
