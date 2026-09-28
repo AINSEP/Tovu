@@ -4,12 +4,17 @@ import type Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryTrashRepo } from "../repo.memory.js";
+import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { SqlTrashRepo } from "../repo.js";
 import { SqliteTrashRepo } from "../repo.sqlite.js";
 import type { TrashItem, TrashRepoPort } from "../ports.js";
 
 /**
  * @file Shared contract suite for `TrashRepoPort`, run against BOTH adapters — mirrors
  * `contracts/core/entry-refs/__tests__/repo.contract.test.ts`'s shape.
+ *
+ * `SqlTrashRepo` (the one Kysely body) also runs on every dialect of the kernel's matrix.
  *
  * Running both matters more than usual here: the in-memory double is what the write-service tests
  * use, so a divergence between it and the real SQL (ordering, the lazy `purge_after` filter, the
@@ -167,3 +172,19 @@ runSuite("SqliteTrashRepo", () => {
   seedWorkspaces(client);
   return new SqliteTrashRepo(client);
 });
+
+/** `kernel` with the two workspaces seeded before its first call. */
+function withWorkspaces(kernel: ContentKernel): ContentKernel {
+  const seeded = kernel.run((db) =>
+    db
+      .insertInto("workspaces")
+      .values([WS, WS2].map((id) => ({ id, name: id, slug: id, created_at: "2026-01-01T00:00:00.000Z" })))
+      .onConflict((oc) => oc.doNothing())
+      .execute()
+  );
+  return heldUntil(kernel, seeded.then(() => undefined));
+}
+
+for (const each of eachDialect({ tables: ["workspaces", "trashed_items"], make: (kernel) => new SqlTrashRepo(withWorkspaces(kernel)) })) {
+  runSuite(`SqlTrashRepo ${each.name}`, each.make);
+}

@@ -80,6 +80,7 @@ export {
 } from "./sweeper.js";
 export type { TrashSweepDeps, TrashSweeper, TrashSweepOnce, TrashSweepReport } from "./sweeper.js";
 
+export { SqlTrashRepo } from "./repo.js";
 export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite.js";
 export { InMemoryTrashRepo } from "./repo.memory.js";
 export { decodeTrashCursor, encodeTrashCursor } from "./cursor.js";

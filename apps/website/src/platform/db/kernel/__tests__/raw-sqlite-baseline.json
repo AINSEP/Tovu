@@ -51,11 +51,6 @@
   "apps/website/src/features/trash/adapters/user.ts": {
     "sync-terminal": 6
   },
-  "apps/website/src/features/trash/repo.sqlite.ts": {
-    "better-sqlite3-import": 1,
-    "insert-or": 1,
-    "prepare": 9
-  },
   "apps/website/src/platform/db/migration/manifest.ts": {
     "autoincrement": 8,
     "fts5": 7
