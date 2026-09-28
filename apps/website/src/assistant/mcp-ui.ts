@@ -45,6 +45,9 @@
  * destructive tool needs exactly this and nothing domain-shaped.
  */
 
+/** Re-exported: callers escaping text for a confirmation dialog's HTML import it from here. */
+export { escapeHtml } from "#src/platform/html/escape";
+
 /** The `ui://` URI scheme MCP Apps fixes for UI resources. */
 export type UIResourceUri = `ui://${string}`;
 
@@ -184,16 +187,6 @@ export function buildUIToolResult(spec: {
     content: [{ type: "text", text: spec.modelText }, spec.ui],
     ...(spec.meta !== undefined ? { _meta: spec.meta } : {}),
   };
-}
-
-/** Escapes a value for safe interpolation into the confirmation dialog's HTML text nodes. */
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 /**

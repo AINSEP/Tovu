@@ -1,7 +1,8 @@
 import type { PostRecord } from "#src/features/post/index";
 import type { ResolveHtmlPageEmbedsResult } from "#src/features/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
-import { escapeHtml, renderDocNode, renderHtmlPageBody, type MediaAssetRenderMeta } from "./render.js";
+import { escapeHtml } from "#src/platform/html/escape";
+import { renderDocNode, renderHtmlPageBody, type MediaAssetRenderMeta } from "./render.js";
 
 /**
  * @file Bare-page document renderer (owner ruling 2026-09-23, `no-template-bare-plan-2026-09-23.md`

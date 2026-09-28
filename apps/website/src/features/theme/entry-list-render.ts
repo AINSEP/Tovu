@@ -1,4 +1,5 @@
-import { escapeHtml, safeHref } from "./static-render.js";
+import { escapeHtml } from "#src/platform/html/escape";
+import { safeHref } from "./static-render.js";
 
 /**
  * @file Pure entry-list renderer for the `{"type":"collection"}` static-tier marker (C3, plan lines

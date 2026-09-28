@@ -1,19 +1,11 @@
 import { buildSitemap } from "#src/features/seo/index";
+import { escapeXml } from "#src/platform/html/escape";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
  *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): this route
  *  reads no per-request state beyond `deps`, so the body is identical for every visitor. */
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-}
 
 /**
  * GET /sitemap.xml — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_SITEMAP`, REQ-08,

@@ -13,6 +13,8 @@
  * string a render path already produced.
  */
 
+import { escapeHtml } from "#src/platform/html/escape";
+
 /** Matches one `<a …>` OPENING tag (never `</a>`, never a self-contained element) — the only part of
  *  an anchor that carries `href`/`rel`/`target`. Non-greedy `[^>]*` stops at the tag's own `>`, so a
  *  `>` inside a later sibling element can never be swallowed into this match. */
@@ -81,19 +83,11 @@ function mergeRelTokens(existingRel: string | undefined, add: readonly string[])
   return tokens.join(" ");
 }
 
-/** Minimal escape for a value this module itself writes back into an HTML attribute — every value
- *  passed here is either a fixed literal (`"_blank"`) or `rel` tokens re-derived from
- *  whitespace-split, already-parsed text, so only the two characters that could ever break out of a
- *  double-quoted attribute are handled. @complexity O(value length). */
-function escapeAttrValue(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-}
-
 /** Replaces an existing attribute's value in `tag`, or appends `name="value"` before the tag's own
  *  closing `>` (or `/>` for a self-closed anchor, though real markup never writes one) when the
  *  attribute is absent. @complexity O(tag length). */
 function withAttr(tag: string, name: string, value: string, options: { replaceIfPresent: boolean }): string {
-  const escaped = escapeAttrValue(value);
+  const escaped = escapeHtml(value);
   if (options.replaceIfPresent && readAttrValue(tag, name) !== undefined) {
     return tag.replace(new RegExp(`([\\s"'])(${name})\\s*=\\s*("[^"]*"|'[^']*')`, "i"), `$1$2="${escaped}"`);
   }

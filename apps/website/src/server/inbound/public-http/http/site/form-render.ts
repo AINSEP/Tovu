@@ -22,6 +22,8 @@
  * duplicating this logic.
  */
 
+import { escapeHtml } from "#src/platform/html/escape";
+
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";
 const FORM_ERROR_CLASS = "tovu-form-error";
@@ -143,27 +145,14 @@ export function renderFormErrorSlot(options: FormSlotOptions): string {
 }
 
 // ---------------------------------------------------------------------------
-// escaping/object-shape helpers — deliberately duplicated, not imported, from render.ts
+// object-shape helper — deliberately duplicated, not imported, from render.ts
 //
 // `render.ts` imports FROM this module (`FORM_BASELINE_STYLE`, `injectFormSubmissionResultIntoHtml`,
-// ...); importing `escapeHtml`/an object-shape guard back FROM render.ts would make the two modules
-// circularly dependent on each other. Both helpers are tiny, stable, single-algorithm primitives
-// (render.ts's own copy has needed zero changes since it was written) — duplicating them here is a
-// smaller, more legible cost than a circular import between the two form-rendering modules.
+// ...); importing an object-shape guard back FROM render.ts would make the two modules circularly
+// dependent on each other. It is a tiny, stable primitive — duplicating it here is a smaller, more
+// legible cost than a circular import between the two form-rendering modules. (`escapeHtml` comes
+// from the import-free leaf `platform/html/escape.ts`, which has no such problem.)
 // ---------------------------------------------------------------------------
-
-// BUG FIX (2026-09-06, owner-approved): `'` was never escaped — every other entity here already was.
-// `&` MUST stay first: it is the escape character for every entity below it, so escaping any other
-// character before `&` would double-escape the `&` those replacements themselves introduce (e.g. an
-// unescaped `<` becoming `&lt;` and THEN having its own `&` re-escaped to `&amp;lt;`). `&#39;` (the
-// numeric form) is used rather than the named `&apos;`, which is undefined in the HTML4/XHTML1 entity
-// set some older parsers still rely on — `&#39;` is universally valid. Every call site in this file
-// interpolates the result into a DOUBLE-quoted attribute or bare text content (verified 2026-09-06,
-// no `='...'` sink anywhere in this module) — see this file's own escaping-helpers header comment —
-// so the missing apostrophe was defence-in-depth, not an exploitable attribute-injection gap here.
-function escapeHtml(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

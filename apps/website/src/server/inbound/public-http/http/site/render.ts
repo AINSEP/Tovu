@@ -35,6 +35,7 @@ import {
   type FormSubmissionRedirectResult,
   type FormFlashPayload,
 } from "./form-render.js";
+import { escapeHtml } from "#src/platform/html/escape";
 
 /**
  * Re-exported so every existing importer of this file (`render.test.ts`, `routes/site/pages.ts`,
@@ -242,24 +243,6 @@ export interface MediaAssetRenderMeta {
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Exported for `liquid-worker.ts`, which runs in an isolated worker thread and needs the same escaping used everywhere else in this renderer.
- *
- * BUG FIX (2026-09-06, owner-approved): `'` was never escaped, the same omission `form-render.ts`'s
- * own (deliberately duplicated) copy carried. `&` stays first — it is the escape character for every
- * entity below it, so escaping anything else first would double-escape the `&` those replacements
- * introduce. `&#39;` (numeric) rather than `&apos;`, which HTML4/XHTML1 parsers don't recognize.
- * Every one of this file's own call sites interpolates into a double-quoted attribute or bare text
- * (verified 2026-09-06 — no `='...'` sink anywhere in this module), so the gap was defence-in-depth
- * here, not an exploitable attribute-injection vector on its own. */
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 function shortDate(iso: string): string {

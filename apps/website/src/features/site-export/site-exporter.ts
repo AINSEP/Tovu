@@ -38,6 +38,7 @@ import { resolveThemeLayout } from "#src/features/theme/index";
 // the fields this file and `route-manifest.ts` actually read, never the god type itself.
 import { buildRouteManifest, type RouteManifestDeps } from "./route-manifest.js";
 import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip, RouteManifest } from "./ports.js";
+import { escapeHtml } from "#src/platform/html/escape";
 
 /**
  * @file The static-site exporter engine: boots the REAL `createApp(routeDeps)` Express app
@@ -302,17 +303,6 @@ function writeTextFile(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, "utf8");
 }
 
-// BUG FIX (2026-09-06, owner-approved): `'` was never escaped — the same omission
-// `server/inbound/public-http/http/site/render.ts`'s and `features/theme/static-render.ts`'s own
-// `escapeHtml` copies carried. `&` is replaced first for the same double-escaping reason those two
-// files' own fixes document; `&#39;` (numeric) over `&apos;` for HTML4/XHTML1-parser compatibility.
-// Both of this function's call sites (`renderRedirectStub`'s meta-refresh/canonical/link sinks)
-// interpolate into double-quoted attributes or bare text, never `='...'`, so this was
-// defence-in-depth, not an exploitable attribute-injection gap on its own.
-function escapeHtmlAttr(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "&#39;");
-}
-
 // Fixed placeholder origin `safeHref` (below) resolves a claimed same-origin-relative href
 // against, so "//evil.example" (protocol-relative) and "/\evil.example" (backslash-folded by a
 // real browser) both resolve OFF this origin and get refused, the same reasoning
@@ -436,8 +426,8 @@ function renderRedirectStub(location: string): string {
   // sinks (meta refresh, canonical, and the visible link's `href`) — the label text below is
   // separately escaped-only, matching this codebase's convention that display TEXT (never parsed
   // as a URL by the browser) doesn't need the scheme check a live `href`/`url=` attribute does.
-  const safeTarget = escapeHtmlAttr(safeHref(location));
-  const label = escapeHtmlAttr(location);
+  const safeTarget = escapeHtml(safeHref(location));
+  const label = escapeHtml(location);
   return (
     `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
     `<meta http-equiv="refresh" content="0; url=${safeTarget}">` +

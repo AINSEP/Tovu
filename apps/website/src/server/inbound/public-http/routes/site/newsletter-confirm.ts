@@ -2,6 +2,7 @@ import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";
 import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/index";
+import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 
 /**
@@ -37,7 +38,6 @@ export function registerPublicNewsletterConfirmRoute(app: Express, deps: Newslet
 }
 
 function renderPage(title: string, message: string): string {
-  const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>

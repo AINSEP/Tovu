@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 
 import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
 import { NewsletterUnsubscribeTokenInvalidError } from "#src/features/newsletter/index";
+import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 
 /**
@@ -42,7 +43,6 @@ export function registerPublicNewsletterUnsubscribeRoute(app: Express, deps: New
 }
 
 function renderPage(title: string, message: string): string {
-  const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>

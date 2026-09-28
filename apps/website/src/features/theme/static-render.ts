@@ -11,6 +11,7 @@ import {
   withInnerContentFinal,
   type EmbedMarker,
 } from "#src/contracts/core/embeds/marker";
+import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme.js";
@@ -111,23 +112,6 @@ export function injectCurrentEntityContentId(html: string, entityId: string): st
   });
 }
 
-/** Minimal HTML-attribute/text escaping, matching `server/http/site/render.ts`'s `escapeHtml`
- * byte-for-byte. Not imported from there: that module pulls in the full template-tree renderer
- * (widgets, Liquid/Handlebars sandboxes, forms), and `render.ts` already imports TYPES from this
- * theme module — importing a runtime value back would open the one runtime import cycle between
- * `features/theme` and `server/http/site` that does not exist today. A four-line pure function is
- * cheaper than that edge. */
-// BUG FIX (2026-09-06, owner-approved): `'` was never escaped here — this file's OWN `escapeHtml`
-// just below (line ~161+, used for menu items) already carries the apostrophe entity from a prior
-// fix; this sibling text-escaper had drifted out of sync with it. `&` stays first for the same
-// double-escaping reason documented on `render.ts`'s own `escapeHtml`; `&#39;` (numeric) over
-// `&apos;` for the same HTML4/XHTML1-compatibility reason. `injectPageTitle`'s only call site below
-// interpolates into a `<title>` element's TEXT content, never an attribute, so this was a
-// defence-in-depth gap, not an exploitable one.
-function escapeHtmlText(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-}
-
 /**
  * Substitutes a page-template's title placeholder with the rendered row's own real title —
  * {@link injectCurrentEntityContentId}'s sibling for the `<title>` tag, a string substitution rather
@@ -153,7 +137,7 @@ function escapeHtmlText(value: string): string {
  * @complexity O(n) over `html`'s length — one string search-and-replace.
  */
 export function injectPageTitle(html: string, title: string): string {
-  return html.replace(/<title>\{\{title\}\}<\/title>/, () => `<title>${escapeHtmlText(title)}</title>`);
+  return html.replace(/<title>\{\{title\}\}<\/title>/, () => `<title>${escapeHtml(title)}</title>`);
 }
 
 /**
@@ -185,15 +169,6 @@ export interface StaticMenuItem {
   readonly children: readonly StaticMenuItem[];
 }
 
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 /**
  * Fixed placeholder origin {@link safeHref} resolves a claimed same-origin-relative href against —
  * mirrors `server/inbound/public-http/http/site/render.ts`'s identically-named constant byte-for-byte.
@@ -215,9 +190,9 @@ const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
  * including its `/…` branch's 2026-08-20 protocol-relative-URL fix — see that function's own doc for
  * the full attack-shape writeup this mirrors).** `render.ts` sits in `server/inbound/`, a layer
  * `features/theme` must never reach into (`check:boundaries`' no-deep-import rule; a feature pulling
- * from an inbound-transport module is backwards) — this file's own header already makes the identical
- * call for `escapeHtml` just above, for the identical reason (avoiding a runtime import cycle back
- * into the file that pulls in widgets/Liquid/Handlebars). If this logic changes, the `render.ts` copy
+ * from an inbound-transport module is backwards), and importing it would open a runtime import cycle
+ * back into the file that pulls in widgets/Liquid/Handlebars. (`escapeHtml` had the same problem
+ * until it moved to the import-free leaf `platform/html/escape.ts`.) If this logic changes, the `render.ts` copy
  * must change too — that file does not yet cross-reference this one; flagged for whoever next edits
  * either copy to add the reciprocal comment there.
  *
@@ -229,7 +204,7 @@ const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
  * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
  *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
  *
- * Takes `string`, not `string | null` — matching {@link escapeHtml}'s own signature just above.
+ * Takes `string`, not `string | null` — matching `escapeHtml`'s own signature (`platform/html/escape.ts`).
  * `render.ts`'s `safeHref` accepts `JsonValue | undefined` because ITS callers hand it raw,
  * attacker-shaped widget-prop JSON; both of THIS function's callers already narrow `StaticMenuItem`'s
  * `href: string | null` to a real string before calling (the same `available && href !== null` gate

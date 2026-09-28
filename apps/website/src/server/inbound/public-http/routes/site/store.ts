@@ -11,6 +11,7 @@ import type { Express } from "express";
 
 import { siteRelativeTargetReason } from "#src/features/redirects/index";
 import type { RouteDeps } from "#src/server/routes/types";
+import { escapeHtml } from "#src/platform/html/escape";
 
 const STORE_PATH = "/store";
 
@@ -32,9 +33,6 @@ function resolveReturnTo(raw: unknown): string {
 }
 
 const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
-
-const escapeHtml = (s: string): string =>
-  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
   app.get("/store", (req, res) => {
