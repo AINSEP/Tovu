@@ -1,16 +1,15 @@
-import { and, desc, eq, gte, lte, or, lt, type SQL } from "drizzle-orm";
+import type { Updateable } from "kysely";
 
 import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "#src/features/database/boot/reconcile-interrupted-migration";
 import type { CreateRestorePointRepoPort } from "#src/features/recovery/restore-points";
-import * as schema from "./database-journal-schema.js";
+import { MIGRATION_RUN_TERMINAL_STATUSES } from "./database-journal-schema.js";
 import type { DatabaseJournalDb } from "./database-journal-db.js";
+import type { JournalDatabase } from "../journal-kernel.js";
 
 /**
- * @file ADR-041 §2/§4 — real SQLite adapters over the sidecar `ops/database-journal.db`, closing
- * the gap Session 2's `features/database` slice explicitly disclosed: the domain-logic layer
- * (`timeline.ts`, `boot/reconcile-interrupted-migration.ts`, ...) existed fakes-only, with no
- * adapter that actually persists into `database_ledger`/`migration_runs`/`restore_points`.
+ * @file ADR-041 §2/§4 — the adapters over the sidecar `ops/database-journal.db`: Kysely queries on
+ * the journal's own kernel (`../journal-kernel.ts`), every one through `kernel.run` and awaited.
  *
  * Purpose:
  * Every class here is a thin, siteId-scoped implementation of an ALREADY-DEFINED port from
@@ -20,14 +19,13 @@ import type { DatabaseJournalDb } from "./database-journal-db.js";
  * `database_ledger` table.
  *
  * How it relates to the project:
- * `server/deps.ts` constructs these against the sidecar db `database-journal-db.ts` opens
+ * `server/deps.ts` constructs these against the journal kernel `database-journal-db.ts` opens
  * alongside `content.db`; `server/app.ts`'s in-memory test composition uses simple in-process
  * fakes instead (mirrors every other feature's app.ts/deps.ts split in this codebase).
  *
  * Architectural role:
- * Infrastructure adapters. ADR-042 item 1 discipline: single-row workspace/site-scoped lookups
- * reuse `repo-helpers.ts`'s `findOneBy` rather than hand-rolling the `select().where().limit(1)`
- * shape.
+ * Infrastructure adapters. The journal is SQLite on every content dialect, so these keep their
+ * `Sqlite*` names.
  */
 
 function encodeCursor(row: { createdAt: string; id: string }): string {
@@ -62,44 +60,38 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
     cursor?: string | null;
     limit: number;
   }): Promise<{ items: LedgerRow[]; nextCursor: string | null }> {
-    const { db, siteId } = this.deps;
-
-    const conditions: SQL[] = [eq(schema.databaseLedger.siteId, siteId)];
-    if (filter.kind) conditions.push(eq(schema.databaseLedger.kind, filter.kind));
-    if (filter.outcome) conditions.push(eq(schema.databaseLedger.outcome, filter.outcome));
-    if (filter.fromDate) conditions.push(gte(schema.databaseLedger.createdAt, filter.fromDate));
-    if (filter.toDate) conditions.push(lte(schema.databaseLedger.createdAt, filter.toDate));
-
-    if (filter.cursor) {
-      const decoded = decodeCursor(filter.cursor);
+    const decoded = filter.cursor ? decodeCursor(filter.cursor) : null;
+    const rows = await this.deps.db.run((db) => {
+      let query = db
+        .selectFrom("database_ledger")
+        .select(["id", "kind", "created_at", "restore_point_id", "outcome"])
+        .where("site_id", "=", this.deps.siteId);
+      if (filter.kind) query = query.where("kind", "=", filter.kind);
+      if (filter.outcome) query = query.where("outcome", "=", filter.outcome);
+      if (filter.fromDate) query = query.where("created_at", ">=", filter.fromDate);
+      if (filter.toDate) query = query.where("created_at", "<=", filter.toDate);
       if (decoded) {
-        conditions.push(
-          or(
-            lt(schema.databaseLedger.createdAt, decoded.createdAt),
-            and(eq(schema.databaseLedger.createdAt, decoded.createdAt), lt(schema.databaseLedger.id, decoded.id))
-          ) as SQL
+        query = query.where((eb) =>
+          eb.or([
+            eb("created_at", "<", decoded.createdAt),
+            eb.and([eb("created_at", "=", decoded.createdAt), eb("id", "<", decoded.id)]),
+          ])
         );
       }
-    }
-
-    const rows = db
-      .select()
-      .from(schema.databaseLedger)
-      .where(and(...conditions))
-      .orderBy(desc(schema.databaseLedger.createdAt), desc(schema.databaseLedger.id))
-      .limit(filter.limit + 1)
-      .all();
+      return query.orderBy("created_at", "desc").orderBy("id", "desc").limit(filter.limit + 1).execute();
+    });
 
     const page = rows.slice(0, filter.limit);
     const items: LedgerRow[] = page.map((row) => ({
       id: row.id,
       kind: row.kind,
-      createdAt: row.createdAt,
-      restorePointId: row.restorePointId,
+      createdAt: row.created_at,
+      restorePointId: row.restore_point_id,
       outcome: row.outcome,
     }));
 
-    const nextCursor = rows.length > filter.limit ? encodeCursor(page[page.length - 1]) : null;
+    const last = page[page.length - 1];
+    const nextCursor = rows.length > filter.limit && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
     return { items, nextCursor };
   }
 
@@ -123,10 +115,30 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
     delegatedById?: string | null;
     createdAt: string;
   }): Promise<void> {
-    this.deps.db
-      .insert(schema.databaseLedger)
-      .values({ siteId: this.deps.siteId, ...row })
-      .run();
+    await this.deps.db.run((db) =>
+      db
+        .insertInto("database_ledger")
+        .values({
+          id: row.id,
+          site_id: this.deps.siteId,
+          kind: row.kind,
+          correlation_id: row.correlationId ?? null,
+          restore_point_id: row.restorePointId ?? null,
+          schema_before_version: row.schemaBeforeVersion ?? null,
+          schema_before_tag: row.schemaBeforeTag ?? null,
+          schema_after_version: row.schemaAfterVersion ?? null,
+          schema_after_tag: row.schemaAfterTag ?? null,
+          drift_status: row.driftStatus ?? null,
+          outcome: row.outcome,
+          detail_json: row.detailJson ?? null,
+          actor_workspace_id: row.actorWorkspaceId ?? null,
+          actor_id: row.actorId ?? null,
+          delegated_by_workspace_id: row.delegatedByWorkspaceId ?? null,
+          delegated_by_id: row.delegatedById ?? null,
+          created_at: row.createdAt,
+        })
+        .execute()
+    );
   }
 
   /** SPEC-017 C-106 — converts a non-terminal `migration_runs` row into a `migration.interrupted`
@@ -135,34 +147,36 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
    * Round-5 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, codex `R5-F1-BLOCKED-RECOVERY-
    * NOT-RESTART-SAFE` / Fable `R5-F1-INTERRUPTED-SECOND-BOOT-BRICK`, both independently confirmed
    * by direct code inspection and Fable's empirical double-boot reproduction): `database_ledger.id`
-   * is `text("id").primaryKey()`, and this method's id (`interrupted-${migrationRunId}`) is
+   * is the primary key, and this method's id (`interrupted-${migrationRunId}`) is
    * deterministic BY DESIGN so a second boot re-detecting the SAME still-unresolved migration
-   * targets the same row. Before this fix, the plain `.insert().run()` this called through
+   * targets the same row. Before this fix, the plain insert this called through
    * `append()` threw `UNIQUE constraint failed` on that second boot, which — because this is a
    * CRITICAL boot module — failed the whole boot and `process.exit(1)`'d before `app.listen()`,
-   * making Recovery itself unreachable. `onConflictDoNothing` makes the deterministic id do what
+   * making Recovery itself unreachable. `ON CONFLICT (id) DO NOTHING` makes the deterministic id do what
    * it was always meant to: every boot re-detects and re-blocks idempotently. */
   async appendInterruptedRow(params: { siteId: string; migrationRunId: string }): Promise<void> {
-    this.deps.db
-      .insert(schema.databaseLedger)
-      .values({
-        id: `interrupted-${params.migrationRunId}`,
-        siteId: this.deps.siteId,
-        kind: "migration.interrupted",
-        restorePointId: null,
-        outcome: "blocked_pending_recovery",
-        detailJson: JSON.stringify({ migrationRunId: params.migrationRunId }),
-        createdAt: new Date().toISOString(),
-      })
-      .onConflictDoNothing({ target: schema.databaseLedger.id })
-      .run();
+    await this.deps.db.run((db) =>
+      db
+        .insertInto("database_ledger")
+        .values({
+          id: `interrupted-${params.migrationRunId}`,
+          site_id: this.deps.siteId,
+          kind: "migration.interrupted",
+          restore_point_id: null,
+          outcome: "blocked_pending_recovery",
+          detail_json: JSON.stringify({ migrationRunId: params.migrationRunId }),
+          created_at: new Date().toISOString(),
+        })
+        .onConflict((oc) => oc.column("id").doNothing())
+        .execute()
+    );
   }
 }
 
 /** `migration_runs` adapter — implements the boot-sequence's `MigrationRunsRepoPort`, plus the
  * insert/status-update helpers the state machine's own persistence caller needs. */
 export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
-  private static readonly TERMINAL_STATUSES = new Set(schema.MIGRATION_RUN_TERMINAL_STATUSES as readonly string[]);
+  private static readonly TERMINAL_STATUSES = new Set(MIGRATION_RUN_TERMINAL_STATUSES as readonly string[]);
 
   constructor(private readonly deps: { db: DatabaseJournalDb; siteId: string }) {}
 
@@ -174,11 +188,9 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
    * @overallScore 100
    */
   async findNonTerminalForSite(siteId: string): Promise<{ id: string; status: string } | null> {
-    const rows = this.deps.db
-      .select({ id: schema.migrationRuns.id, status: schema.migrationRuns.status })
-      .from(schema.migrationRuns)
-      .where(eq(schema.migrationRuns.siteId, siteId))
-      .all();
+    const rows = await this.deps.db.run((db) =>
+      db.selectFrom("migration_runs").select(["id", "status"]).where("site_id", "=", siteId).execute()
+    );
 
     const nonTerminal = rows.find((row) => !SqliteMigrationRunsRepo.TERMINAL_STATUSES.has(row.status));
     return nonTerminal ?? null;
@@ -190,11 +202,13 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
    * own port method so callers outside this file (the restore ceremony) don't need `updateState`'s
    * full row shape. */
   async markResolved(params: { id: string }): Promise<void> {
-    this.deps.db
-      .update(schema.migrationRuns)
-      .set({ status: "RESTORED", updatedAt: new Date().toISOString() })
-      .where(eq(schema.migrationRuns.id, params.id))
-      .run();
+    await this.deps.db.run((db) =>
+      db
+        .updateTable("migration_runs")
+        .set({ status: "RESTORED", updated_at: new Date().toISOString() })
+        .where("id", "=", params.id)
+        .execute()
+    );
   }
 
   /** Inserts a new `migration_runs` row (state machine's initial `IDLE`/`PLANNED` write). */
@@ -206,13 +220,25 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
     createdAt: string;
     updatedAt: string;
   }): Promise<void> {
-    this.deps.db
-      .insert(schema.migrationRuns)
-      .values({ siteId: this.deps.siteId, blueTouched: 0, ...row })
-      .run();
+    await this.deps.db.run((db) =>
+      db
+        .insertInto("migration_runs")
+        .values({
+          id: row.id,
+          site_id: this.deps.siteId,
+          dialect: row.dialect,
+          status: row.status,
+          blue_touched: 0,
+          correlation_id: row.correlationId ?? null,
+          created_at: row.createdAt,
+          updated_at: row.updatedAt,
+        })
+        .execute()
+    );
   }
 
-  /** Persists a state-machine transition's resulting fields against an existing row. */
+  /** Persists a state-machine transition's resulting fields against an existing row. A field left
+   * `undefined` is not written (an explicit `null` clears it). */
   async updateState(row: {
     id: string;
     status: string;
@@ -222,18 +248,19 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
     restorePointId?: string | null;
     updatedAt: string;
   }): Promise<void> {
-    this.deps.db
-      .update(schema.migrationRuns)
-      .set({
-        status: row.status,
-        revisionSeqAtQuiesce: row.revisionSeqAtQuiesce,
-        quiesceIntegrity: row.quiesceIntegrity,
-        blueTouched: row.blueTouched === undefined ? undefined : row.blueTouched ? 1 : 0,
-        restorePointId: row.restorePointId,
-        updatedAt: row.updatedAt,
-      })
-      .where(and(eq(schema.migrationRuns.siteId, this.deps.siteId), eq(schema.migrationRuns.id, row.id)))
-      .run();
+    const set: Updateable<JournalDatabase["migration_runs"]> = { status: row.status, updated_at: row.updatedAt };
+    if (row.revisionSeqAtQuiesce !== undefined) set.revision_seq_at_quiesce = row.revisionSeqAtQuiesce;
+    if (row.quiesceIntegrity !== undefined) set.quiesce_integrity = row.quiesceIntegrity;
+    if (row.blueTouched !== undefined) set.blue_touched = row.blueTouched ? 1 : 0;
+    if (row.restorePointId !== undefined) set.restore_point_id = row.restorePointId;
+    await this.deps.db.run((db) =>
+      db
+        .updateTable("migration_runs")
+        .set(set)
+        .where("site_id", "=", this.deps.siteId)
+        .where("id", "=", row.id)
+        .execute()
+    );
   }
 }
 
@@ -257,44 +284,39 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
     capturedSchemaVersion?: number | null;
     capturedSchemaTag?: string | null;
   }): Promise<void> {
-    this.deps.db
-      .insert(schema.restorePoints)
-      .values({
-        id: row.restorePointId,
-        siteId: this.deps.siteId,
-        trigger: row.trigger,
-        costClass: row.costClass ?? "cheap",
-        kind: row.kind ?? "file-snapshot",
-        artifactRef: row.artifactRef ?? "",
-        watermarkAtCapture: row.watermarkAtCapture ?? null,
-        capturedSchemaVersion: row.capturedSchemaVersion ?? null,
-        capturedSchemaTag: row.capturedSchemaTag ?? null,
-        idempotencyKey: row.idempotencyKey,
-        actorId: row.createdBy,
-        createdAt: row.createdAt,
-      })
-      .run();
+    await this.deps.db.run((db) =>
+      db
+        .insertInto("restore_points")
+        .values({
+          id: row.restorePointId,
+          site_id: this.deps.siteId,
+          trigger: row.trigger,
+          cost_class: row.costClass ?? "cheap",
+          kind: row.kind ?? "file-snapshot",
+          artifact_ref: row.artifactRef ?? "",
+          watermark_at_capture: row.watermarkAtCapture ?? null,
+          captured_schema_version: row.capturedSchemaVersion ?? null,
+          captured_schema_tag: row.capturedSchemaTag ?? null,
+          idempotency_key: row.idempotencyKey,
+          actor_id: row.createdBy,
+          created_at: row.createdAt,
+        })
+        .execute()
+    );
   }
 
-  /**
-   * AC-11 (recovery) — `(site_id, idempotency_key)` single-row lookup. Deliberately NOT routed
-   * through `repo-helpers.ts`'s `findOneBy` (ADR-042 item 1's normal reuse target): that helper's
-   * `db` parameter is pinned to `ContentDb`'s specific schema-typed generic, and this adapter
-   * operates on a structurally different database (the sidecar journal, a separate physical
-   * SQLite file with its own schema type) — reusing it would require either an unsound cast or
-   * widening `findOneBy`'s signature for every one of its 11 existing `content.db` call sites,
-   * neither of which this single lookup justifies. This is the same `select().where().limit(1)`
-   * shape `findOneBy` wraps, disclosed as a one-off exception rather than silently duplicated.
-   */
+  /** AC-11 (recovery) — `(site_id, idempotency_key)` single-row lookup. */
   async findByIdempotencyKey(key: string): Promise<{ restorePointId: string; idempotencyKey: string } | null> {
-    const rows = this.deps.db
-      .select({ id: schema.restorePoints.id, idempotencyKey: schema.restorePoints.idempotencyKey })
-      .from(schema.restorePoints)
-      .where(and(eq(schema.restorePoints.siteId, this.deps.siteId), eq(schema.restorePoints.idempotencyKey, key)))
-      .limit(1)
-      .all();
-    const row = rows[0];
-    return row && row.idempotencyKey ? { restorePointId: row.id, idempotencyKey: row.idempotencyKey } : null;
+    const row = await this.deps.db.run((db) =>
+      db
+        .selectFrom("restore_points")
+        .select(["id", "idempotency_key"])
+        .where("site_id", "=", this.deps.siteId)
+        .where("idempotency_key", "=", key)
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row && row.idempotency_key ? { restorePointId: row.id, idempotencyKey: row.idempotency_key } : null;
   }
 
   /** Newest-first restore-point listing for the Recovery screen / Timeline. */
@@ -309,22 +331,25 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
       artifactRef: string;
     }>
   > {
-    return this.deps.db
-      .select({
-        id: schema.restorePoints.id,
-        trigger: schema.restorePoints.trigger,
-        costClass: schema.restorePoints.costClass,
-        kind: schema.restorePoints.kind,
-        watermarkAtCapture: schema.restorePoints.watermarkAtCapture,
-        createdAt: schema.restorePoints.createdAt,
-        // 2026-07-16: previously never selected — see this file's `save()` for the matching
-        // write side and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` for why the
-        // omission mattered (the restore ceremony had no way to know which file to restore from).
-        artifactRef: schema.restorePoints.artifactRef,
-      })
-      .from(schema.restorePoints)
-      .where(eq(schema.restorePoints.siteId, this.deps.siteId))
-      .orderBy(desc(schema.restorePoints.createdAt))
-      .all();
+    const rows = await this.deps.db.run((db) =>
+      db
+        .selectFrom("restore_points")
+        // `artifact_ref` was once never selected — see `save()` for the matching write side and
+        // `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` for why the omission mattered
+        // (the restore ceremony had no way to know which file to restore from).
+        .select(["id", "trigger", "cost_class", "kind", "watermark_at_capture", "created_at", "artifact_ref"])
+        .where("site_id", "=", this.deps.siteId)
+        .orderBy("created_at", "desc")
+        .execute()
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      trigger: row.trigger,
+      costClass: row.cost_class,
+      kind: row.kind,
+      watermarkAtCapture: row.watermark_at_capture,
+      createdAt: row.created_at,
+      artifactRef: row.artifact_ref,
+    }));
   }
 }

@@ -10,7 +10,7 @@ import Database from "better-sqlite3";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
-import { migrationRuns } from "#src/platform/db/sqlite/database-journal-schema";
+import { SqliteMigrationRunsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 
 const require = createRequire(import.meta.url);
 
@@ -60,30 +60,30 @@ function readWorkspaceId(dbPath: string): string {
 
 /** Plants a non-terminal `migration_runs` row for `siteId` directly in the sidecar
  *  `ops/database-journal.db` — the same fixture shape a real crash mid-migration leaves behind
- *  (ADR-041 §3). Built via the real schema/opener this feature ships (`openDatabaseJournalDb`,
- *  `migrationRuns`), not hand-rolled SQL, so a schema drift here fails this test's OWN setup rather
+ *  (ADR-041 §3). Built via the real opener and repo this feature ships (`openDatabaseJournalDb`,
+ *  `SqliteMigrationRunsRepo`), not hand-rolled SQL, so a schema drift here fails this test's OWN setup rather
  *  than silently proving nothing. */
-function plantInterruptedMigration(installDir: string, siteId: string): void {
+async function plantInterruptedMigration(installDir: string, siteId: string): Promise<void> {
   const journalPath = path.join(installDir, "ops", "database-journal.db");
   // `tovu init` never creates `ops/` (only the real composition root does, on first boot) — this
   // fixture plants the row BEFORE any boot has run, so it must create the directory itself.
   fs.mkdirSync(path.dirname(journalPath), { recursive: true });
   const journal = openDatabaseJournalDb(journalPath);
-  const now = new Date().toISOString();
-  journal
-    .insert(migrationRuns)
-    .values({
+  try {
+    const now = new Date().toISOString();
+    await new SqliteMigrationRunsRepo({ db: journal, siteId }).insert({
       id: "run-interrupted-1",
-      siteId,
       dialect: "sqlite",
       status: "APPLYING", // not in MIGRATION_RUN_TERMINAL_STATUSES — must be detected as non-terminal
       createdAt: now,
       updatedAt: now,
-    })
-    .run();
+    });
+  } finally {
+    await journal.close();
+  }
 }
 
-test("tovu export refuses (EXPORT_BLOCKED_PENDING_RECOVERY, exit 7) when a crash-interrupted migration is detected, and writes nothing at all", (t) => {
+test("tovu export refuses (EXPORT_BLOCKED_PENDING_RECOVERY, exit 7) when a crash-interrupted migration is detected, and writes nothing at all", async (t) => {
   const parent = mkTempParent();
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const installDir = path.join(parent, "site");
@@ -91,7 +91,7 @@ test("tovu export refuses (EXPORT_BLOCKED_PENDING_RECOVERY, exit 7) when a crash
 
   assert.equal(runCli(["init", installDir]).status, 0);
   const siteId = readWorkspaceId(path.join(installDir, "content.db"));
-  plantInterruptedMigration(installDir, siteId);
+  await plantInterruptedMigration(installDir, siteId);
 
   const result = runCli(["export", installDir, "--out", outDir]);
   assert.equal(result.status, 7, `stderr: ${result.stderr}`);

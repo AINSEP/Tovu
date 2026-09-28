@@ -1,116 +1,116 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "kysely";
+
+import type { JournalKernel } from "../journal-kernel.js";
 
 /**
- * @file Drizzle schema for the sidecar `ops/database-journal.db` (ADR-041 §2, code-first per
- * ADR-015/ADR-012).
+ * @file DDL for the sidecar `ops/database-journal.db` (ADR-041 §2). SQLite by design: the journal
+ * is a local SQLite file on every dialect (see `../journal-kernel.ts`, which types these tables).
  *
  * Purpose:
  * `database_ledger`, `migration_runs`, and `restore_points` — the three tables ADR-041 §2/§4
  * requires to live OUTSIDE `content.db`, in a physically separate SQLite file, so that restoring
  * `content.db` from a snapshot never erases the incident record that snapshot restore is supposed
  * to narrate, and boot recovery can append a `migration.interrupted` row even when `content.db`
- * itself won't open. This is a DIFFERENT physical database from `src/platform/db/schema.sqlite.ts`
- * (`content.db`'s schema) — generated via its own `drizzle.database-journal.config.ts` into
- * `src/platform/db/drizzle-database-journal/`, never merged into the `content.db` migration stream.
+ * itself won't open. Never merged into the `content.db` schema.
  *
- * Composite actor identity (`actorWorkspaceId`/`actorId`, `delegatedByWorkspaceId`/`delegatedById`)
- * is populated by the core-mediated write path at append time and is a soft, value-join reference
- * only — SQLite has no cross-database FK, so this is NOT a DB-enforced foreign key against
- * `content.db`'s `principals` table (ADR-041 §4, stated explicitly so this isn't mistaken for a
- * regression later).
+ * The statements are exactly what the journal's former Drizzle migrations
+ * (`../drizzle-database-journal/` 0000 + 0001) left on disk — same columns, defaults and index
+ * names (the ledger's indexes kept their `idx_storage_ledger_*` names through the 0001 rename) —
+ * made idempotent, so a file those migrations already built is left as it is. A file only 0000
+ * ever touched still has `storage_ledger`; {@link applyDatabaseJournalSchema} renames it first.
+ *
+ * Composite actor identity (`actor_workspace_id`/`actor_id`, `delegated_by_workspace_id`/
+ * `delegated_by_id`) is a soft, value-join reference only — SQLite has no cross-database FK, so this
+ * is NOT a DB-enforced foreign key against `content.db`'s `principals` table (ADR-041 §4).
  *
  * `SITE_SCOPE_EXEMPT_TABLES` (ADR-041 §4, extending ADR-007 Decision 2's workspace-less-events
- * escape hatch to these three tables): every row here carries `siteId` (never `workspaceId`) — a
+ * escape hatch to these three tables): every row here carries `site_id` (never `workspace_id`) — a
  * deliberate, disclosed extension, not a silent gap.
  */
-
-/**
- * The never-brick ledger (ADR-041 §1/§4). Append-only; `restorePointId` is `NULL` only for
- * `index.provision`/`index.drop` rows (the ADR-023 §4 carve-out, INV-03) — every other kind
- * anchors to a restore point at creation (INV-02).
- */
-export const databaseLedger = sqliteTable(
-  "database_ledger",
-  {
-    id: text("id").primaryKey(),
-    siteId: text("site_id").notNull(),
-    /** core.migration | plugin.ddl | index.provision | index.drop | template.upgrade |
-     * restore_point.created | restore.executed | migration.interrupted (ADR-041 §4). */
-    kind: text("kind").notNull(),
-    correlationId: text("correlation_id"),
-    restorePointId: text("restore_point_id"),
-    schemaBeforeVersion: integer("schema_before_version"),
-    schemaBeforeTag: text("schema_before_tag"),
-    schemaAfterVersion: integer("schema_after_version"),
-    schemaAfterTag: text("schema_after_tag"),
-    driftStatus: text("drift_status"),
-    outcome: text("outcome").notNull(),
-    detailJson: text("detail_json"),
-    actorWorkspaceId: text("actor_workspace_id"),
-    actorId: text("actor_id"),
-    delegatedByWorkspaceId: text("delegated_by_workspace_id"),
-    delegatedById: text("delegated_by_id"),
-    createdAt: text("created_at").notNull(),
-  },
-  (t) => [
-    index("idx_storage_ledger_site_created").on(t.siteId, t.createdAt),
-    index("idx_storage_ledger_site_kind").on(t.siteId, t.kind),
-  ]
-);
-
-/** One row per migrate-forward attempt (ADR-041 §3), driven by `features/storage`'s pure
- * `advance()` state machine. The only place a non-terminal row survives a `content.db` crash. */
-export const migrationRuns = sqliteTable(
-  "migration_runs",
-  {
-    id: text("id").primaryKey(),
-    siteId: text("site_id").notNull(),
-    dialect: text("dialect").notNull(),
-    status: text("status").notNull(),
-    revisionSeqAtQuiesce: integer("revision_seq_at_quiesce"),
-    /** 'chokepoint-only' whenever any Tier-3 in-process plugin was enabled at quiesce time (ADR-041 §9); NULL otherwise. */
-    quiesceIntegrity: text("quiesce_integrity"),
-    blueTouched: integer("blue_touched").notNull().default(0),
-    correlationId: text("correlation_id"),
-    restorePointId: text("restore_point_id"),
-    actorWorkspaceId: text("actor_workspace_id"),
-    actorId: text("actor_id"),
-    delegatedByWorkspaceId: text("delegated_by_workspace_id"),
-    delegatedById: text("delegated_by_id"),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (t) => [index("idx_migration_runs_site_status").on(t.siteId, t.status)]
-);
 
 /** Terminal `migration_runs.status` values a row is never found by `findNonTerminalForSite`
  * (kept in sync with `features/storage/migrate-forward/state-machine.ts`'s `MigrationRunStatus`). */
 export const MIGRATION_RUN_TERMINAL_STATUSES = ["DONE", "ABORTED_SAFE", "RESTORED", "RESTORE_FAILED", "ROLLBACK_TO_BLUE"] as const;
 
-/** One row per restore-point artifact (ADR-041 §2). `watermarkAtCapture` is required going
- * forward, but nullable at the column level (EC-02, ADR-045 §2/`disclosure.ts`'s "unknown, never
- * zero" rule) so a pre-column legacy row is representable without a fabricated value. */
-export const restorePoints = sqliteTable(
-  "restore_points",
-  {
-    id: text("id").primaryKey(),
-    siteId: text("site_id").notNull(),
-    /** manual | pre-migration-auto | template-upgrade (ADR-045 §3 restore-points-list row shape). */
-    trigger: text("trigger").notNull(),
-    costClass: text("cost_class").notNull(),
-    kind: text("kind").notNull(),
-    artifactRef: text("artifact_ref").notNull(),
-    watermarkAtCapture: integer("watermark_at_capture"),
-    capturedSchemaVersion: integer("captured_schema_version"),
-    capturedSchemaTag: text("captured_schema_tag"),
-    sizeBytes: integer("size_bytes"),
-    idempotencyKey: text("idempotency_key"),
-    actorWorkspaceId: text("actor_workspace_id"),
-    actorId: text("actor_id"),
-    createdAt: text("created_at").notNull(),
-  },
-  (t) => [
-    index("idx_restore_points_site_created").on(t.siteId, t.createdAt),
-    uniqueIndex("idx_restore_points_site_idempotency_key").on(t.siteId, t.idempotencyKey),
-  ]
-);
+/**
+ * `database_ledger` is the never-brick ledger (ADR-041 §1/§4): append-only; `restore_point_id` is
+ * NULL only for `index.provision`/`index.drop` rows (the ADR-023 §4 carve-out). `migration_runs` has
+ * one row per migrate-forward attempt (ADR-041 §3). `restore_points` has one row per restore-point
+ * artifact (ADR-041 §2); `watermark_at_capture` is nullable so a legacy row needs no fabricated value.
+ */
+const DATABASE_JOURNAL_DDL = [
+  sql`CREATE TABLE IF NOT EXISTS migration_runs (
+    id text PRIMARY KEY NOT NULL,
+    site_id text NOT NULL,
+    dialect text NOT NULL,
+    status text NOT NULL,
+    revision_seq_at_quiesce integer,
+    quiesce_integrity text,
+    blue_touched integer DEFAULT 0 NOT NULL,
+    correlation_id text,
+    restore_point_id text,
+    actor_workspace_id text,
+    actor_id text,
+    delegated_by_workspace_id text,
+    delegated_by_id text,
+    created_at text NOT NULL,
+    updated_at text NOT NULL
+  )`,
+  sql`CREATE INDEX IF NOT EXISTS idx_migration_runs_site_status ON migration_runs (site_id, status)`,
+  sql`CREATE TABLE IF NOT EXISTS restore_points (
+    id text PRIMARY KEY NOT NULL,
+    site_id text NOT NULL,
+    trigger text NOT NULL,
+    cost_class text NOT NULL,
+    kind text NOT NULL,
+    artifact_ref text NOT NULL,
+    watermark_at_capture integer,
+    captured_schema_version integer,
+    captured_schema_tag text,
+    size_bytes integer,
+    idempotency_key text,
+    actor_workspace_id text,
+    actor_id text,
+    created_at text NOT NULL
+  )`,
+  sql`CREATE INDEX IF NOT EXISTS idx_restore_points_site_created ON restore_points (site_id, created_at)`,
+  sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_restore_points_site_idempotency_key ON restore_points (site_id, idempotency_key)`,
+  sql`CREATE TABLE IF NOT EXISTS database_ledger (
+    id text PRIMARY KEY NOT NULL,
+    site_id text NOT NULL,
+    kind text NOT NULL,
+    correlation_id text,
+    restore_point_id text,
+    schema_before_version integer,
+    schema_before_tag text,
+    schema_after_version integer,
+    schema_after_tag text,
+    drift_status text,
+    outcome text NOT NULL,
+    detail_json text,
+    actor_workspace_id text,
+    actor_id text,
+    delegated_by_workspace_id text,
+    delegated_by_id text,
+    created_at text NOT NULL
+  )`,
+  sql`CREATE INDEX IF NOT EXISTS idx_storage_ledger_site_created ON database_ledger (site_id, created_at)`,
+  sql`CREATE INDEX IF NOT EXISTS idx_storage_ledger_site_kind ON database_ledger (site_id, kind)`,
+];
+
+/**
+ * Brings the journal file behind `kernel` to the current schema, in one transaction: renames a
+ * pre-0001 `storage_ledger` to `database_ledger`, then creates whatever is missing. Idempotent.
+ * Called on the kernel's own (ungated) connection before any repo query runs.
+ */
+export async function applyDatabaseJournalSchema(kernel: JournalKernel): Promise<void> {
+  await kernel.transaction(async () => {
+    const tables = new Set(
+      (await kernel.run((db) => db.introspection.getTables())).map((table) => table.name)
+    );
+    if (tables.has("storage_ledger") && !tables.has("database_ledger")) {
+      await kernel.execute(sql`ALTER TABLE storage_ledger RENAME TO database_ledger`);
+    }
+    for (const statement of DATABASE_JOURNAL_DDL) await kernel.execute(statement);
+  });
+}

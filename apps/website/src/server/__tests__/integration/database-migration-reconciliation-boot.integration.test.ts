@@ -52,7 +52,7 @@ test("a non-terminal migration_runs row (simulated crash mid-migration) is recon
       createdAt: "2026-07-16T00:00:00.000Z",
       updatedAt: "2026-07-16T00:00:00.000Z",
     });
-    (databaseJournalDb as unknown as { $client: { close(): void } }).$client.close();
+    await databaseJournalDb.close();
 
     // Now boot for real, through the exact path index.ts uses.
     const deps = createSqliteRouteDeps(dbPath);
@@ -87,7 +87,7 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
       createdAt: "2026-07-16T00:00:00.000Z",
       updatedAt: "2026-07-16T00:00:00.000Z",
     });
-    (databaseJournalDb as unknown as { $client: { close(): void } }).$client.close();
+    await databaseJournalDb.close();
 
     const deps = createSqliteRouteDeps(dbPath);
     await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
@@ -164,7 +164,7 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
       createdAt: "2026-07-16T00:00:00.000Z",
       updatedAt: "2026-07-16T00:00:00.000Z",
     });
-    (databaseJournalDb as unknown as { $client: { close(): void } }).$client.close();
+    await databaseJournalDb.close();
 
     // Boot #1 (simulates the operator's process starting after the crash).
     const deps1 = createSqliteRouteDeps(dbPath);
@@ -214,7 +214,7 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
       createdAt: "2026-07-16T00:00:00.000Z",
       updatedAt: "2026-07-16T00:00:00.000Z",
     });
-    (databaseJournalDb as unknown as { $client: { close(): void } }).$client.close();
+    await databaseJournalDb.close();
 
     // Boot #1: blocked, as before.
     const deps = createSqliteRouteDeps(dbPath);
