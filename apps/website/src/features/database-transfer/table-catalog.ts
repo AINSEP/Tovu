@@ -142,6 +142,21 @@ export function collectTransferTables(): TransferTable[] {
   });
 }
 
+/**
+ * EVERY table `schema.postgres.ts` declares, in the same foreign-key-safe order, nothing left out:
+ * the full schema a fresh Postgres database is created with (`platform/db/pglite/content-schema.ts`).
+ *
+ * @complexity O(tables + foreign keys).
+ */
+export function collectSchemaTables(): TransferTable[] {
+  const byExportName = pgSchema as unknown as Record<string, PgTable | undefined>;
+  return computeCoreTableCopyOrder().map((exportName) => {
+    const table = byExportName[exportName];
+    if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
+    return coreTable(table);
+  });
+}
+
 /** Every SQL table name `schema.postgres.ts` declares, copied or not. */
 function coreTableNames(): Set<string> {
   const names = new Set<string>();

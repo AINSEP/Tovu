@@ -1,6 +1,6 @@
 import type { PGlite, Transaction } from "@electric-sql/pglite";
 
-import { collectTransferTables } from "../../../features/database-transfer/table-catalog.js";
+import { collectSchemaTables } from "../../../features/database-transfer/table-catalog.js";
 import { constraintSql, createTableSql, indexSql } from "../../../features/database-transfer/postgres-ddl.js";
 
 /**
@@ -18,9 +18,10 @@ export async function hasPgContentSchema(client: PGlite | Transaction): Promise<
   return Boolean(found.rows[0]?.t);
 }
 
-/** The whole content schema as one DDL script (tables, then indexes, then constraints). */
+/** The whole content schema — every table, credential tables included — as one DDL script
+ *  (tables, then indexes, then constraints). */
 export function pgContentSchemaSql(): string {
-  const tables = collectTransferTables();
+  const tables = collectSchemaTables();
   return (
     tables.map((table) => createTableSql("public", table)).join("") +
     tables.map((table) => indexSql("public", table)).join("") +

@@ -15,6 +15,7 @@ export const BASELINE_PATH = path.join(import.meta.dirname, "raw-sqlite-baseline
 /** Where raw SQLite belongs, with the reason. Directory entries end in `/`. */
 const ALLOWED: ReadonlyMap<string, string> = new Map([
   ["apps/website/src/platform/db/kernel/", "the storage kernel: drivers and dialect helpers are the one place a dialect is spelled"],
+  ["apps/website/src/platform/db/kernel-next/", "the Kysely kernel while it is staged beside the live one (removed when it replaces kernel/)"],
 ]);
 
 const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
