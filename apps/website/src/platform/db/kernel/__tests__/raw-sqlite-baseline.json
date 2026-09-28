@@ -206,9 +206,6 @@
   "apps/website/src/features/widgets/repo.sqlite.ts": {
     "sync-terminal": 5
   },
-  "apps/website/src/features/workspace/repo.sqlite.ts": {
-    "sync-terminal": 4
-  },
   "apps/website/src/platform/db/migration/manifest.ts": {
     "autoincrement": 8,
     "fts5": 7

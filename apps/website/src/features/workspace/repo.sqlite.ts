@@ -1,54 +1,15 @@
-import { eq } from "drizzle-orm";
-
-import { workspaces } from "../../platform/db/schema.sqlite.js";
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
-import type { WorkspaceRecord, WorkspaceRepoPort } from "@jini-ai/cms/workspace";
+import { SqlWorkspaceRepo } from "./repo.js";
 
 /**
- * @file Drizzle/SQLite workspace repository adapter.
- *
- * Satisfies the same `WorkspaceRepoPort` as `repo.memory.ts`, so the
- * create-workspace slice is unchanged (ADR-006 ports/adapters).
+ * @file The workspace repo on a site's SQLite `content.db`: {@link SqlWorkspaceRepo} (the one
+ * Kysely query body, `repo.ts`), kept as a named class so the composition root that builds it from
+ * the content db handle stays as it is; new code calls `workspaceRepoFor`.
  */
-type WorkspaceRow = typeof workspaces.$inferSelect;
-
-function toRecord(row: WorkspaceRow): WorkspaceRecord {
-  return { id: row.id, name: row.name, slug: row.slug, createdAt: row.createdAt };
-}
-
-export class SqliteWorkspaceRepo implements WorkspaceRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async insert(record: WorkspaceRecord): Promise<void> {
-    this.db.insert(workspaces).values(record).run();
-  }
-
-  async findBySlug(slug: string): Promise<WorkspaceRecord | null> {
-    return findOneBy(this.db, workspaces, [eq(workspaces.slug, slug)], toRecord);
-  }
-
-  /** SPEC-044 REQ-08. */
-  async findById(id: string): Promise<WorkspaceRecord | null> {
-    return findOneBy(this.db, workspaces, [eq(workspaces.id, id)], toRecord);
-  }
-
-  /** SPEC-044 REQ-08. All workspace rows (v1 always has exactly one — see `delete.ts`'s header). */
-  async list(): Promise<WorkspaceRecord[]> {
-    return this.db.select().from(workspaces).all().map(toRecord);
-  }
-
-  /** SPEC-044 REQ-08. */
-  async update(record: WorkspaceRecord): Promise<void> {
-    this.db
-      .update(workspaces)
-      .set({ name: record.name, slug: record.slug })
-      .where(eq(workspaces.id, record.id))
-      .run();
-  }
-
-  /** SPEC-044 REQ-08. */
-  async delete(id: string): Promise<void> {
-    this.db.delete(workspaces).where(eq(workspaces.id, id)).run();
+export class SqliteWorkspaceRepo extends SqlWorkspaceRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }

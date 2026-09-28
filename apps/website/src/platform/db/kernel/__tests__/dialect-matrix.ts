@@ -86,7 +86,8 @@ function heldUntil<DB>(kernel: StorageKernel<DB>, pending: Promise<void>): Stora
 export function emptiedPgContentKernel(tables: readonly string[]): PgContentKernel {
   const base = sharedPgContentKernel();
   if (tables.length === 0) return base;
-  const pending = base.execute(sql`TRUNCATE ${sql.join(tables.map((table) => sql.table(table)))}`);
+  // CASCADE: a suite that writes a parent table (`workspaces`) also empties the rows that reference it.
+  const pending = base.execute(sql`TRUNCATE ${sql.join(tables.map((table) => sql.table(table)))} CASCADE`);
   pending.catch(() => {});
   return heldUntil(base, pending);
 }
