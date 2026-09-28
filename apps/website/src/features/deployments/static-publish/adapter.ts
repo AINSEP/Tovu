@@ -35,6 +35,7 @@ import type { ExportReport } from "#src/features/site-export/index";
  * nothing at runtime at all, so it cannot participate in a cycle regardless.
  */
 import { firstExportFailure, type ExportFailureSummary } from "#src/features/site-export/export-failure-summary";
+import { HEADERS_FILE_NAME, VERCEL_CONFIG_FILE_NAME, renderHeadersFile, renderVercelConfig } from "#src/features/site-export/static-security-headers";
 
 import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target.js";
 import type {
@@ -478,13 +479,23 @@ async function runExportForPublish(
   return { ok: true, report };
 }
 
+/** The host header-config file that carries the live security headers, for the targets whose host
+ *  applies one from an uploaded file (`static-security-headers.ts` says why the others get none). */
+const SECURITY_HEADER_FILES: Partial<Record<StaticPublishTargetId, () => DeployFile>> = {
+  netlify: () => ({ file: HEADERS_FILE_NAME, data: renderHeadersFile() }),
+  vercel: () => ({ file: VERCEL_CONFIG_FILE_NAME, data: renderVercelConfig() }),
+};
+
 /** Maps a successful export `report` to the `DeployFile[]` a Jini target's `publish()` takes,
- *  injecting `.nojekyll` for the github-pages target only — see this file's header for why. */
+ *  injecting `.nojekyll` for the github-pages target only — see this file's header for why — and
+ *  the target's security-header file where its host has one. */
 function buildDeployFilesForPublish(report: ExportReport, target: StaticPublishTargetId): DeployFile[] {
   const files: DeployFile[] = [...report.routes.succeeded.map(toDeployFile), ...report.assets.succeeded.map(toDeployFile)];
   if (target === "github-pages") {
     files.push(NOJEKYLL_FILE);
   }
+  const headerFile = SECURITY_HEADER_FILES[target];
+  if (headerFile) files.push(headerFile());
   return files;
 }
 

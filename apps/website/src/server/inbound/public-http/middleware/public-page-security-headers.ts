@@ -1,5 +1,7 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
+import { PUBLIC_PAGE_SECURITY_HEADERS, type SecurityHeaderSet } from "#src/contracts/core/public-page-security-headers";
+
 /**
  * @file Baseline security headers for every public response (build-vs-borrow-verified 2026-09-28
  * §5b). Two headers are safe to enforce now; the Content-Security-Policy ships REPORT-ONLY.
@@ -21,43 +23,34 @@ import type { Express, NextFunction, Request, Response } from "express";
  * - `helmet`: its default CSP is enforced and would break the pages above.
  * - Admin (`/admin`, `/api/admin`): a separate app with its own headers; left unchanged.
  *
- * Static exports are served by whatever host they are deployed to, so these headers do not travel
- * with them. They would need the deploy target's own header config (e.g. `vercel.json`) or a
- * `<meta http-equiv>`; not built yet.
+ * The values live in `contracts/core/public-page-security-headers.ts` so a static export carries the
+ * SAME set (`features/site-export/static-security-headers.ts`: a `_headers` file / `vercel.json` per
+ * host, or a `<meta name="referrer">` where the host has no header config).
  */
-
-export const PUBLIC_PAGE_CSP_REPORT_ONLY = [
-  "default-src 'self'",
-  "img-src 'self' data: https:",
-  "media-src 'self' https:",
-  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
-  "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
-  "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-].join("; ");
 
 function isAdminPath(path: string): boolean {
   return path === "/admin" || path.startsWith("/admin/") || path.startsWith("/api/admin");
 }
 
 /**
- * Sets the three headers above before any public route runs, so every outcome (page, 404, error)
+ * Sets the headers above before any public route runs, so every outcome (page, 404, error)
  * carries them. A later handler may still set its own enforced `Content-Security-Policy`
- * (theme assets do); report-only and enforced policies are independent headers.
+ * (theme assets do); report-only and enforced policies are independent headers. `headers` is a
+ * parameter only so a test can prove a changed set reaches the response; production uses the default.
  *
  * @complexity O(1).
  */
-export function publicPageSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
-  if (!isAdminPath(req.path)) {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Content-Security-Policy-Report-Only", PUBLIC_PAGE_CSP_REPORT_ONLY);
-  }
-  next();
+export function createPublicPageSecurityHeaders(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS) {
+  const entries = Object.entries(headers);
+  return function publicPageSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
+    if (!isAdminPath(req.path)) {
+      for (const [name, value] of entries) res.setHeader(name, value);
+    }
+    next();
+  };
 }
+
+export const publicPageSecurityHeaders = createPublicPageSecurityHeaders();
 
 export function applyPublicPageSecurityHeaders(app: Express): void {
   app.use(publicPageSecurityHeaders);

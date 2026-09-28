@@ -32,6 +32,8 @@ import {
   buildJiniTarget,
 } from "../adapter.js";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
+import { renderHeadersFile, renderVercelConfig } from "#src/features/site-export/static-security-headers";
+import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 
 /**
  * @file `static-publish/adapter.ts` unit tests — the brief's three required coverage points:
@@ -261,6 +263,45 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
   assert.equal(result.basePath, undefined);
   assert.ok(captured.value, "the fake deploy target must have been invoked");
   assert.ok(!captured.value!.some((f) => f.file === ".nojekyll"), ".nojekyll must never be published to vercel");
+});
+
+/** Publishes the hermetic fixture to `config`'s target through a fake deploy target and returns the file set it received. */
+async function publishedFilesFor(config: StaticPublishConfig): Promise<DeployFile[]> {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const deps = testRouteDeps();
+  const result = await publishStaticSite(
+    {
+      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => fakeDeployTarget(captured),
+    },
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo" }
+  );
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.ok(captured.value, "the fake deploy target must have been invoked");
+  return captured.value!;
+}
+
+/** Static publishes carry the live server's security headers (see `static-security-headers.ts`):
+ *  a `_headers` file for Netlify, `vercel.json` for Vercel, and a `<meta name="referrer">` in every
+ *  exported HTML page for every host. Cloudflare Pages gets no `_headers`: Jini's direct upload sends
+ *  every file as a plain asset, which Pages would serve publicly instead of applying. */
+test("publishStaticSite: each target gets the live security headers in the form its host applies", async () => {
+  const expectations: Array<{ config: StaticPublishConfig; file?: { name: string; data: string } }> = [
+    { config: { target: "netlify" }, file: { name: "_headers", data: renderHeadersFile() } },
+    { config: { target: "vercel" }, file: { name: "vercel.json", data: renderVercelConfig() } },
+    { config: { target: "cloudflare-pages" } },
+    { config: { target: "github-pages", owner: "octo", repo: "demo-repo" } },
+    { config: { target: "s3-compatible" } },
+  ];
+  for (const { config, file } of expectations) {
+    const files = await publishedFilesFor(config);
+    const headerFiles = files.filter((f) => f.file === "_headers" || f.file === "vercel.json");
+    assert.deepEqual(headerFiles.map((f) => ({ name: f.file, data: f.data })), file ? [file] : [], config.target);
+    for (const page of ["index.html", "404.html"]) {
+      const html = String(files.find((f) => f.file === page)?.data ?? "");
+      assert.ok(html.includes(`<meta name="referrer" content="${PUBLIC_PAGE_SECURITY_HEADERS["Referrer-Policy"]}">`), `${config.target} ${page}`);
+    }
+  }
 });
 
 /**

@@ -39,6 +39,7 @@ import { resolveThemeLayout } from "#src/features/theme/index";
 import { buildRouteManifest, type RouteManifestDeps } from "./route-manifest.js";
 import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip, RouteManifest } from "./ports.js";
 import { escapeHtml } from "#src/platform/html/escape";
+import { withSecurityMeta } from "./static-security-headers.js";
 
 /**
  * @file The static-site exporter engine: boots the REAL `createApp(routeDeps)` Express app
@@ -610,7 +611,10 @@ async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDi
   // request the asset FROM. Only the WRITTEN copy is rewritten; asset discovery and the on-disk
   // asset layout are entirely unaffected by `--base-path` (team-lead condition: rewriting is a pure
   // output-bytes transform, never a second render or a second fetch).
-  const writtenBody = rewriteRouteBodyForBasePath(route, rawBody, basePath);
+  const rewrittenBody = rewriteRouteBodyForBasePath(route, rawBody, basePath);
+  // The live server's security headers do not travel with a static file; the one an HTML page can
+  // carry itself goes into the page (`static-security-headers.ts`). Non-HTML routes stay verbatim.
+  const writtenBody = /^text\/html\b/i.test(contentType ?? "") ? withSecurityMeta(rewrittenBody) : rewrittenBody;
   writeTextFile(outFile, writtenBody);
   return {
     succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile), data: writtenBody, contentType },
@@ -656,7 +660,7 @@ async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputD
   // Prefixed BEFORE constructing the stub, not by rewriting the stub's own HTML afterward — the
   // same "one place decides the path" split `prefixRootRelativePath` documents, applied directly
   // since this page's only path reference is the one value already in hand.
-  const stub = renderRedirectStub(prefixRootRelativePath(decision.location, basePath));
+  const stub = withSecurityMeta(renderRedirectStub(prefixRootRelativePath(decision.location, basePath)));
   const outFile = contentRouteOutputFile(route.path, outputDir);
   writeTextFile(outFile, stub);
   // This page was authored locally (see renderRedirectStub's own doc), never fetched — there is no
@@ -688,7 +692,7 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
   // call site would be an uncoverable branch. The one caller that needs strictly `string | undefined`
   // (toDeployFile, in an unrelated file) does that squash itself, at its own already-tested branch.
   const contentType = res.headers.get("content-type");
-  const body = rewriteHtmlBasePath(rawBody, basePath);
+  const body = withSecurityMeta(rewriteHtmlBasePath(rawBody, basePath));
   const outFile = path.join(outputDir, "404.html");
   writeTextFile(outFile, body);
   return { succeeded: { path: route.path, kind: route.kind, outputFile: "404.html", data: body, contentType } };
