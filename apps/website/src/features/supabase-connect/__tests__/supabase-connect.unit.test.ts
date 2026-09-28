@@ -12,10 +12,9 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import { buildSupabaseConnectRegistrations, type SupabaseConnectToolDeps } from "../tool-registrations.js";
 
 /**
- * @file SPEC-052's three tools, driven end to end over the REAL External MCP store, sealer, and
- * surface-exchange store — only Supabase's Management API and (for `supabase_get_database`) the
- * OAuth service are faked. A form submission is simulated with `surfaceExchanges.deliver(...)`,
- * exactly as `mcp-ui-tool-calls-route.ts` delivers a human's click.
+ * @file SPEC-052's two form tools, driven end to end over the REAL External MCP store, sealer, and
+ * surface-exchange store — only Supabase's Management API is faked. A submission is simulated with
+ * `surfaceExchanges.deliver(...)`, exactly as `mcp-ui-tool-calls-route.ts` delivers a human's click.
  */
 
 const WORKSPACE = "ws-supabase-connect";
@@ -26,7 +25,6 @@ const BLOG_REF = "zyxwvutsrqponmlkjihg";
 const RAW_SUPABASE_BODY = "raw supabase error body";
 const SET_TOKEN = "supabase_set_access_token";
 const SET_SCOPE = "supabase_set_project_scope";
-const GET_DATABASE = "supabase_get_database";
 
 const projectsOk = (): HttpResponse => ({
   status: 200,
@@ -88,14 +86,14 @@ async function setup(options: { withRow?: boolean } = {}) {
 
 type Env = Awaited<ReturnType<typeof setup>>;
 
-function call(registration: ToolRegistration | undefined, options: { input?: unknown; emitSurface?: SurfaceEmitter; signal?: AbortSignal } = {}) {
+function call(registration: ToolRegistration | undefined, options: { input?: unknown; emitSurface?: SurfaceEmitter } = {}) {
   assert.ok(registration, "tool must be wired");
   const ctx: ToolExecutionContext = {
     executionId: "exec-1",
     principal: { id: PRINCIPAL },
     run: { id: "run-1" },
     input: options.input ?? {},
-    signal: options.signal ?? new AbortController().signal,
+    signal: new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
   return registration.handler(ctx);
@@ -250,106 +248,15 @@ test("project scope is refused as not connected before any credential exists, an
   const row = await env.readRow();
   assert.ok(row);
   await env.repo.upsert({ ...row, oauthStatus: "connected" });
-  const tools = env.build({
-    externalMcpOAuth: { tokenResolver: { resolveAccessToken: async () => "oauth-access-token" } } as unknown as SupabaseConnectToolDeps["externalMcpOAuth"],
-  });
+  const tools = env.build({ externalMcpOAuth: { tokenResolver: { resolveAccessToken: async () => "oauth-access-token" } } });
   const { result } = await submit(env, SET_SCOPE, { projectRef: SHOP_REF, readOnly: true }, tools);
   assert.equal(result.scoped, true);
   assert.equal(env.http.requests.at(-1)?.headers.authorization, "Bearer oauth-access-token");
 });
 
-test("AC-08: all three Supabase tool ids are redeemable; an unlisted Supabase tool id is not", () => {
+test("AC-08: both form tool ids are redeemable; an unlisted Supabase tool id is not", () => {
   assert.equal(isMcpUiToolCallAllowed(SET_TOKEN), true);
   assert.equal(isMcpUiToolCallAllowed(SET_SCOPE), true);
-  assert.equal(isMcpUiToolCallAllowed(GET_DATABASE), true);
   assert.equal(isMcpUiToolCallAllowed("supabase_execute_sql"), false);
   assert.equal(isMcpUiToolCallAllowed("mcp__supabase__execute_sql"), false);
-});
-
-test("supabase_get_database: on a fresh (provisioned-but-unconnected) row, connects and returns a surface containing exactly one https authorize link, with no token in the result", async () => {
-  // `setup()`'s default row (disabled, oauth, no write grants) is EXACTLY what `federate-mcp.ts`
-  // provisions when the bundled plugin is first enabled (`seed-bundled.ts` seeds it switched OFF) —
-  // the real "fresh" state `supabase_get_database` meets in production before any connect has ever
-  // happened. `ensureSupabasePluginEnabledAndProvisioned` still runs against this row (best-effort
-  // no-op here, since no Agent Plugin package is actually installed in this unit test's workspace).
-  //
-  // A second variant that installs a REAL Agent Plugin package through `setAgentPluginEnabled`'s own
-  // cross-process activation lock (mirroring `tool-registrations.plugins-set-enabled-families
-  // .test.ts`'s `withInstalledAgentPlugin` fixture) was tried here and removed: it reproduced
-  // `activation.ts`'s stale-lock contention path deterministically in this shared-tree environment
-  // (see the 2026-09-27 handoff doc). That real path already has its own coverage in the two suites
-  // named above; re-add it here only from a clean environment.
-  const AUTH_URL = "https://api.supabase.com/v1/oauth/authorize?client_id=abc&state=xyz";
-  const env = await setup();
-  const beginConnectCalls: Array<{ serverId: string; redirectUri?: string }> = [];
-  const tools = env.build({
-    externalMcpOAuth: {
-      tokenResolver: { resolveAccessToken: async () => "unused" },
-      beginConnect: async (input: { serverId: string; redirectUri?: string }) => {
-        beginConnectCalls.push(input);
-        return { kind: "redirect_required", authorizationUrl: AUTH_URL, expiresAt: "2026-09-27T00:10:00.000Z" };
-      },
-      completeAuthorizationCallback: async () => undefined,
-      pollDeviceAuthorization: async () => ({ status: "pending", retryAfterSeconds: 5 }),
-    } as unknown as SupabaseConnectToolDeps["externalMcpOAuth"],
-    derivedPublicOrigin: "http://127.0.0.1:4000",
-  });
-
-  // Not `raise()`: that helper asserts on `SURFACE_EXCHANGE_ID_PARAM`, which only a FORM surface
-  // embeds so its submission can be routed back. This card has no callback — its one action is an
-  // outbound `openLink` — so it carries no such param; the emitted resource is captured directly.
-  const emitted: unknown[] = [];
-  const pending = call(tools.get(GET_DATABASE), { emitSurface: async (surface) => void emitted.push(surface) });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(emitted.length, 1, "the connect card must be emitted before the call parks waiting for sign-in");
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
-
-  const links = html.match(/https:\/\/[^"'<\s]+/g) ?? [];
-  assert.equal(links.length, 1, `expected exactly one https link in the card, got: ${JSON.stringify(links)}`);
-  assert.equal(links[0], AUTH_URL);
-  assert.match(html, /free and takes about two minutes/i, "the plain-language sign-in copy must be on the card");
-  assert.equal(beginConnectCalls.length, 1);
-  assert.equal(beginConnectCalls[0]?.serverId, "supabase");
-
-  void pending; // left parked (polling for sign-in); its own timers are unref'd, so this is safe to leave.
-});
-
-test("supabase_get_database: an already-connected row returns { connected: true } immediately, with no card", async () => {
-  const env = await setup();
-  const row = await env.readRow();
-  assert.ok(row);
-  await env.repo.upsert({ ...row, oauthStatus: "connected" });
-
-  const emitted: unknown[] = [];
-  const result = await call(env.tools.get(GET_DATABASE), { emitSurface: async (surface) => void emitted.push(surface) });
-  assert.deepEqual(result, { connected: true });
-  assert.equal(emitted.length, 0, "an already-connected row must show no card");
-});
-
-test("supabase_get_database: aborting the call stops the sign-in wait promptly instead of polling out the full five minutes", async () => {
-  const env = await setup();
-  const tools = env.build({
-    externalMcpOAuth: {
-      tokenResolver: { resolveAccessToken: async () => "unused" },
-      beginConnect: async () => ({ kind: "redirect_required", authorizationUrl: "https://example.com/authorize", expiresAt: "2026-09-27T00:10:00.000Z" }),
-      completeAuthorizationCallback: async () => undefined,
-      pollDeviceAuthorization: async () => ({ status: "pending", retryAfterSeconds: 5 }),
-    } as unknown as SupabaseConnectToolDeps["externalMcpOAuth"],
-    derivedPublicOrigin: "http://127.0.0.1:4000",
-  });
-  const abort = new AbortController();
-  const pending = call(tools.get(GET_DATABASE), { emitSurface: async () => undefined, signal: abort.signal });
-  await new Promise((resolve) => setImmediate(resolve));
-  abort.abort();
-
-  const timedOut = Symbol("timed out");
-  const settled = await Promise.race([
-    pending.then(
-      (value) => value,
-      (err: unknown) => err,
-    ),
-    new Promise((resolve) => setTimeout(() => resolve(timedOut), 500).unref()),
-  ]);
-  assert.notEqual(settled, timedOut, "an aborted call must settle, not keep polling for sign-in");
-  assert.deepEqual(settled, { connected: false, reason: "waiting-for-sign-in" });
 });

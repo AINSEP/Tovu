@@ -27,26 +27,16 @@ import {
   resolveExternalMcpOAuthStatus,
   saveExternalMcpServer,
   SUPABASE_MCP_URL,
-  type ExternalMcpOAuthService,
+  type ExternalMcpOAuthTokenResolverPort,
   type ExternalMcpServerRecord,
   type ExternalMcpServerRepoPort,
   type ToolContributor,
 } from "#src/assistant/index";
-// The SAME `setAgentPluginEnabled` + `resolveAgentPluginMcpServers` + `provisionAgentPluginMcpServers`
-// composition `server/inbound/admin-http/routes/agent-plugins/set-enabled.ts` and
-// `features/plugin-runtime/tool-registrations.ts`'s `plugins_set_enabled` each already call on an
-// Agent Plugin enable. Mirrored here rather than shared, for the identical reason those two give one
-// another: this is a `features/**` domain, so it may import another `features/**` module directly —
-// what it may not do is import a server route.
-import { resolveAgentPluginMcpServers, provisionAgentPluginMcpServers } from "../agent-plugins/federate-mcp.js";
-import { setAgentPluginEnabled } from "../agent-plugins/set-enabled.js";
 import { supabaseConnectAgentToolCatalog, SUPABASE_CONNECT_PERMISSION } from "./agent-tools.js";
 import {
   buildAccessTokenFormResource,
-  buildConnectCardResource,
   buildProjectScopeFormResource,
   buildSupabaseOutcomeResource,
-  SUPABASE_GET_DATABASE_TOOL_ID,
   SUPABASE_SET_ACCESS_TOKEN_TOOL_ID,
   SUPABASE_SET_PROJECT_SCOPE_TOOL_ID,
   type SupabaseSurfaceKind,
@@ -87,22 +77,8 @@ export interface SupabaseConnectToolDeps {
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
-  /**
-   * The FULL OAuth service, not just a token resolver: `supabase_get_database` also calls
-   * `beginConnect` to start sign-in, where the other two tools here only ever resolve an existing
-   * token. Optional for the same reason the sibling `external-mcp` domain's `ExternalMcpToolDeps`
-   * leaves it optional — a context without it degrades per-handler (project scope reports "not
-   * connected"; `supabase_get_database` refuses with a plain message) rather than failing to build.
-   */
-  readonly externalMcpOAuth?: ExternalMcpOAuthService;
-  /**
-   * This process's own best-effort public origin, absent an operator-set `TOVU_PUBLIC_URL` — mirrors
-   * `ExternalMcpToolDeps.derivedPublicOrigin` field-for-field (see that file's doc for the full
-   * derivation), which is deliberate: the composed `AssistantToolRegistryDeps` god type
-   * (`assistant/tool-registrations.ts`) already carries this exact field via the `external-mcp`
-   * domain, so this domain reaches production with no composition-root wiring change at all.
-   */
-  readonly derivedPublicOrigin?: string;
+  /** Optional: only an OAuth-connected row needs it, and a context without it reports "not connected". */
+  readonly externalMcpOAuth?: { readonly tokenResolver: ExternalMcpOAuthTokenResolverPort };
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
 }
@@ -125,9 +101,6 @@ const MESSAGES = {
   noProjectSelected: "Pick a Supabase project to continue.",
   projectNotInAccount: "That project isn't available to this Supabase account.",
   noProjects: "This Supabase account has no projects yet. Create one in Supabase, then try again.",
-  signInUnavailable:
-    "Supabase sign-in can't be started from here right now. Tell the user Tovu can't reach a working sign-in link yet, " +
-    "and ask the operator to connect Supabase from Settings → External MCP instead.",
 } as const;
 
 const NEXT_AFTER_TOKEN = "Call supabase_set_project_scope so the human can pick the one project to connect.";
@@ -142,132 +115,13 @@ type SetProjectScopeResult =
   | { scoped: true; projectRef: string; readOnly: boolean; next: string }
   | { scoped: false; reason: UnansweredReason | "no-project-selected" | "project-not-in-account" | "no-projects" | "error"; message?: string };
 type AnswerOutcome<T> = { result: T; outcome?: SurfaceEmission };
-type SupabaseGetDatabaseResult = { connected: true } | { connected: false; reason: "waiting-for-sign-in" };
 
 export const supabaseConnectDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> listSupabaseProjects (one outbound GET) then saveExternalMcpServer: a sealed write, via the human's form.
   ["supabase_set_access_token", "mutates-durable-state"],
   // -> listSupabaseProjects then repo.upsert of the row's url, via the human's form.
   ["supabase_set_project_scope", "mutates-durable-state"],
-  // -> ensureSupabasePluginEnabledAndProvisioned() (an activation write plus an external-MCP row
-  //    upsert, both idempotent) then externalMcpOAuth.beginConnect() (writes oauthStatus 'pending').
-  //    Durable, same band as `external_mcp_oauth_connect`.
-  ["supabase_get_database", "mutates-durable-state"],
 ]);
-
-/** Mirrors `features/external-mcp/tool-registrations.ts`'s own `EXTERNAL_MCP_OAUTH_CALLBACK_PATH` —
- *  restated, not imported, matching this repo's "duplicate the tiny helper across features"
- *  convention (that file's own header cites the precedent). Both must keep naming the SAME path: the
- *  public callback route (`server/inbound/public-http/routes/external-mcp/oauth-callback.ts`) is the
- *  only thing listening on it, for every external-MCP OAuth connection, not only Supabase's. */
-const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback";
-
-/** Mirrors that same file's `resolveConfiguredPublicOrigin` — see its doc for why an invalid value
- *  degrades to `undefined` here rather than throwing. @complexity O(1). */
-function resolveConfiguredPublicOrigin(): string | undefined {
-  const configured = process.env.TOVU_PUBLIC_URL?.trim();
-  if (!configured) return undefined;
-  try {
-    const url = new URL(configured);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * The redirect URI `externalMcpOAuth.beginConnect` needs for the 'supabase' row's
- * `authorization_code` grant, or `undefined` when neither an operator-set `TOVU_PUBLIC_URL` nor this
- * process's own derived origin is available — the same precedence
- * `resolveExternalMcpOAuthRedirectUri` (`features/external-mcp/tool-registrations.ts`) uses.
- * @complexity O(1).
- */
-function resolveSupabaseOAuthRedirectUri(derivedPublicOrigin: string | undefined): string | undefined {
-  const origin = resolveConfiguredPublicOrigin() ?? (derivedPublicOrigin || undefined);
-  return origin === undefined ? undefined : `${origin}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${encodeURIComponent(CONNECTION_ID)}`;
-}
-
-const SUPABASE_CONNECT_POLL_INTERVAL_MS = 3_000;
-
-/** ~5 minutes: matches the "still waiting" wording planned for a later slice's failure table, and
- *  stays safely inside the surface exchange's own 5.5-minute hard lifetime
- *  (`DEFAULT_SURFACE_MAX_LIFETIME_MS`), so this loop always gives up before the exchange itself would
- *  time out from under it. */
-const SUPABASE_CONNECT_POLL_DEADLINE_MS = 5 * 60 * 1000;
-
-/** `setTimeout`-based, `unref`'d like every other timer this call opens (the exchange store's own
- *  idle/lifetime timers do the same): an abandoned poll must never by itself keep the process alive.
- *  Resolves early when `signal` aborts, so a cancelled call stops waiting at once. */
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return Promise.resolve();
-  return new Promise((resolve) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    const timer = setTimeout(() => {
-      signal.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    timer.unref?.();
-    signal.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
-/**
- * Polls the 'supabase' row until its OAuth status is `'connected'` or `deadlineAt` (a `Date.now()`
- * timestamp) passes.
- *
- * Real wall-clock time, deliberately not `routeDeps.clock`: this is waiting on a human to finish a
- * sign-in in a browser tab, not computing a business date.
- *
- * @complexity O(n) polls, each one repo read, n bounded by `SUPABASE_CONNECT_POLL_DEADLINE_MS` /
- * `SUPABASE_CONNECT_POLL_INTERVAL_MS`.
- */
-async function pollUntilSupabaseConnected(routeDeps: SupabaseConnectToolDeps, deadlineAt: number, signal: AbortSignal): Promise<boolean> {
-  for (;;) {
-    const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: CONNECTION_ID });
-    if (record !== null && resolveExternalMcpOAuthStatus(record) === "connected") return true;
-    const remaining = deadlineAt - Date.now();
-    if (remaining <= 0 || signal.aborted) return false;
-    await sleep(Math.min(SUPABASE_CONNECT_POLL_INTERVAL_MS, remaining), signal);
-  }
-}
-
-/**
- * Best-effort "the user asking is the consent": enables the 'supabase' Agent Plugin if it is
- * installed but off, and provisions its auto-admitted MCP server row if none exists yet. Calls the
- * SAME `setAgentPluginEnabled` + `resolveAgentPluginMcpServers` + `provisionAgentPluginMcpServers`
- * trio the admin toggle's route and `plugins_set_enabled` both call on enable (see this file's import
- * block), so this in-chat path and the other two have identical side effects.
- *
- * Never throws: a plugin genuinely not installed in this workspace is reported afterward by
- * {@link requireSupabaseConnection}'s own friendly message, not by this function — the same fail-open
- * posture those two other callers take for the provisioning half.
- *
- * @complexity O(d) in installed-digest count, plus one small file rewrite and one MCP-row upsert.
- */
-async function ensureSupabasePluginEnabledAndProvisioned(routeDeps: SupabaseConnectToolDeps, principalId: string): Promise<void> {
-  try {
-    const activation = await setAgentPluginEnabled({ workspaceId: routeDeps.workspaceId, pluginId: CONNECTION_ID, enabled: true, actor: principalId });
-    if (!activation.enabled) return;
-    const servers = await resolveAgentPluginMcpServers({ workspaceId: routeDeps.workspaceId, pluginId: CONNECTION_ID });
-    const provisioned = await provisionAgentPluginMcpServers(
-      {
-        repo: routeDeps.externalMcpServerRepo,
-        sealer: routeDeps.siteAssistantSecretSealer,
-        keyring: routeDeps.siteAssistantSecretKeyring,
-        clock: routeDeps.clock,
-      },
-      { workspaceId: routeDeps.workspaceId, pluginId: CONNECTION_ID, servers, principalId },
-    );
-    for (const failure of provisioned.failed) {
-      console.warn(`[supabase-connect] MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}`);
-    }
-  } catch (err) {
-    console.warn(`[supabase-connect] could not enable the 'supabase' plugin — ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
 
 function outcome(kind: SupabaseSurfaceKind, exchange: SurfaceExchange, state: "success" | "failure", title: string, message: string): SurfaceEmission {
   return { channel: "mcp-ui", payload: { resource: buildSupabaseOutcomeResource({ kind, exchangeId: exchange.id, state, title, message }) } };
@@ -468,96 +322,8 @@ async function handleProjectScopeAnswer(
   };
 }
 
-/**
- * Starts Supabase sign-in (`beginConnect`) and returns the redirect it authorized, or throws the
- * plain-language refusal the model should relay. Split out of {@link runSupabaseGetDatabase} purely
- * to keep that function's own cyclomatic complexity under this repo's per-function ceiling.
- *
- * @throws {ToolInputError} No redirect URI is available, no OAuth service is wired, or Supabase
- * itself refused the request (an `ExternalMcpValidationError` is re-thrown in that shape).
- * @throws {Error} `beginConnect` answered with a grant this tool does not support (`device_code`) —
- * unreachable for Supabase's own `mcp.json` declaration (`authorization_code` only), kept as a fail-
- * loud guard rather than a silent mismatch if that ever changes.
- */
-async function beginSupabaseSignIn(routeDeps: SupabaseConnectToolDeps, record: ExternalMcpServerRecord): Promise<string> {
-  const redirectUri = resolveSupabaseOAuthRedirectUri(routeDeps.derivedPublicOrigin);
-  if (redirectUri === undefined) throw new ToolInputError(MESSAGES.signInUnavailable);
-  if (!routeDeps.externalMcpOAuth) {
-    throw new Error(`${SUPABASE_GET_DATABASE_TOOL_ID}: this execution context has no OAuth service wired, so sign-in cannot be started here.`);
-  }
-  let started;
-  try {
-    started = await routeDeps.externalMcpOAuth.beginConnect({ serverId: record.serverId, redirectUri });
-  } catch (err) {
-    throw err instanceof ExternalMcpValidationError ? new ToolInputError(err.message) : err;
-  }
-  if (started.kind !== "redirect_required") {
-    throw new Error(`${SUPABASE_GET_DATABASE_TOOL_ID}: unexpected '${started.kind}' authorization grant for Supabase.`);
-  }
-  return started.authorizationUrl;
-}
-
-/**
- * `supabase_get_database`'s whole flow (C2 of the 2026-09-27 plan, Slice 1's prototype): ensure the
- * plugin and its row exist, start sign-in, show one card, and hold the call open while the human
- * finishes in a new tab.
- *
- * Returns immediately, with no card and no wait, when the row is ALREADY connected — a repeat call
- * (the agent asking again in a later turn) must not restart a working sign-in.
- *
- * @complexity O(1) plus {@link ensureSupabasePluginEnabledAndProvisioned}'s and
- * {@link pollUntilSupabaseConnected}'s own costs.
- */
-async function runSupabaseGetDatabase(routeDeps: SupabaseConnectToolDeps, surfaces: AssistantSurfaceDeps, ctx: ToolExecutionContext): Promise<SupabaseGetDatabaseResult> {
-  const already = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: CONNECTION_ID });
-  if (already !== null && resolveExternalMcpOAuthStatus(already) === "connected") return { connected: true };
-
-  await ensureSupabasePluginEnabledAndProvisioned(routeDeps, ctx.principal.id);
-  const record = await requireSupabaseConnection(routeDeps);
-  const authorizationUrl = await beginSupabaseSignIn(routeDeps, record);
-  const emitSurface = requireEmitSurface(ctx, SUPABASE_GET_DATABASE_TOOL_ID);
-
-  const exchange = surfaces.surfaceExchanges.open({ toolId: SUPABASE_GET_DATABASE_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const closeOnAbort = () => exchange.close();
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    await exchange.send({
-      channel: "mcp-ui",
-      payload: {
-        resource: buildConnectCardResource({
-          exchangeId: exchange.id,
-          state: "partial",
-          message: "It's free and takes about two minutes. You'll sign in to Supabase (the database service Tovu uses).",
-          authorizeUrl: authorizationUrl,
-        }),
-      },
-    });
-    const connected = await pollUntilSupabaseConnected(routeDeps, Date.now() + SUPABASE_CONNECT_POLL_DEADLINE_MS, ctx.signal);
-    if (!connected) return { connected: false, reason: "waiting-for-sign-in" };
-    try {
-      await exchange.send({
-        channel: "mcp-ui",
-        payload: { resource: buildConnectCardResource({ exchangeId: exchange.id, state: "success", message: "Supabase is connected." }) },
-      });
-    } catch {
-      // Same posture `askThenReport` takes (see its own doc, "the one invariant"): a human-visible
-      // frame update failing must never turn a genuine success into a model-visible tool failure.
-    }
-    return { connected: true };
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-    exchange.close();
-  }
-}
-
 export function buildSupabaseConnectRegistrations(routeDeps: SupabaseConnectToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    supabase_get_database: async (ctx): Promise<SupabaseGetDatabaseResult> => {
-      requireNoInput(ctx.input);
-      await requirePermission(routeDeps, ctx.principal.id);
-      return runSupabaseGetDatabase(routeDeps, surfaces, ctx);
-    },
-
     supabase_set_access_token: async (ctx): Promise<SetAccessTokenResult> => {
       requireNoInput(ctx.input);
       await requirePermission(routeDeps, ctx.principal.id);

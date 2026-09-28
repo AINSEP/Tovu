@@ -151,8 +151,6 @@ const EXPECTED_ALLOWLIST = [
   "database_transfer_run",
   "database_transfer_set_destination",
   "source_control_execute_commit",
-  // 2026-09-27 (Supabase Slice 1, a679de93d) — `supabase_get_database`'s prototype card.
-  "supabase_get_database",
   "supabase_set_access_token",
   "supabase_set_project_scope",
   "taxonomy_execute_merge_term",

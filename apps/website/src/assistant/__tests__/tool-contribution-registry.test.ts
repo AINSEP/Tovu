@@ -347,6 +347,29 @@ test("installing the contributor afterward makes the same id wirable — proving
 //    same way the two real composition roots make them, must agree exactly
 // ---------------------------------------------------------------------------
 
+// 2026-09-27 — vendor logic lives in `content/agent-plugins/<id>/`, not core. The Supabase-only
+// `supabase_get_database` prototype (a679de93d) out-competed the generic
+// `agent_plugin_connect { pluginId: "supabase" }` in a live test because its wording was more
+// attractive to the model; it was deleted. The only `supabase_*` tools core may still register are
+// the two named below, which leave with the rest of `features/supabase-connect/` (plan v2, slice R2,
+// after the token form moves into the generic Connect card). This list only ever shrinks.
+const SUPABASE_TOOLS_STILL_IN_CORE: readonly string[] = ["supabase_set_access_token", "supabase_set_project_scope"];
+
+test("core registers no Supabase-specific connect tool — the generic agent_plugin_connect is the only way in", async () => {
+  installFirstPartyToolContributors();
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
+
+  assert.ok(ids.includes("agent_plugin_connect"), "the generic Agent Plugin Connect tool must stay registered");
+  assert.ok(!ids.includes("supabase_get_database"), "supabase_get_database must not be registered");
+  assert.deepEqual(
+    ids.filter((id) => id.startsWith("supabase_")).sort(),
+    [...SUPABASE_TOOLS_STILL_IN_CORE].sort().filter((id) => ids.includes(id)),
+    "a supabase_* tool outside the shrinking allow list is registered in core",
+  );
+});
+
 test("two independent buildAssistantToolRegistrations calls after one installFirstPartyToolContributors() see the identical tool-id set — daemon and BYOK must never drift apart", async () => {
   installFirstPartyToolContributors();
 
