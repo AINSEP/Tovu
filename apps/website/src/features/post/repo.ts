@@ -11,7 +11,7 @@ import type {
 } from "./post.js";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument, type PostSearchDocument } from "./search.js";
-import { sqlitePostSearchProjection } from "./search-index.sqlite.js";
+import { postSearchFor } from "./search-index.js";
 
 /**
  * @file THE post repository: one Kysely query body for every database the storage kernel drives
@@ -27,7 +27,7 @@ import { sqlitePostSearchProjection } from "./search-index.sqlite.js";
  * That is the whole sync obligation, because `title`/`slug`/`bodyJson` are the only indexed values
  * and this is their only writer. `softDelete()` deliberately does NOT touch it; a trashed post is
  * excluded by the search query's own `deleted_at IS NULL` filter against the live row, which is also
- * what makes a later restore searchable again with no extra step. See `search-index.sqlite.ts`.
+ * what makes a later restore searchable again with no extra step. See `search-index.ts`.
  */
 
 /** Where a dialect keeps post search text. Written in the same transaction as the post. */
@@ -35,12 +35,6 @@ export interface PostSearchProjection {
   upsert(kernel: ContentKernel, document: PostSearchDocument): Promise<void>;
   remove(kernel: ContentKernel, postId: string): Promise<void>;
 }
-
-/** Postgres has no post search projection until plan slice F1 (`tsvector`); saves skip it. */
-export const noPostSearchProjection: PostSearchProjection = {
-  upsert: async () => {},
-  remove: async () => {},
-};
 
 export class SqlPostRepo implements PostRepoPort {
   constructor(
@@ -305,5 +299,5 @@ export class SqlPostRepo implements PostRepoPort {
 
 /** The post repo for `kernel`, with its dialect's search projection. */
 export function postRepoFor(kernel: ContentKernel): SqlPostRepo {
-  return new SqlPostRepo(kernel, kernel.dialect === "sqlite" ? sqlitePostSearchProjection : noPostSearchProjection);
+  return new SqlPostRepo(kernel, postSearchFor(kernel));
 }

@@ -17,17 +17,8 @@
     "prepare": 1,
     "sync-terminal": 1
   },
-  "apps/website/src/features/post/search-index.memory.ts": {
-    "$client": 2,
-    "prepare": 3,
-    "sync-terminal": 2
-  },
   "apps/website/src/features/post/search-index.sqlite.ts": {
-    "$client": 1,
-    "better-sqlite3-import": 1,
-    "fts5": 1,
-    "prepare": 3,
-    "sync-terminal": 1
+    "fts5": 1
   },
   "apps/website/src/features/trash/adapters/user.ts": {
     "sync-terminal": 6
@@ -81,8 +72,5 @@
   },
   "apps/website/src/platform/site-dir/resolve-workspace.ts": {
     "sync-terminal": 1
-  },
-  "apps/website/src/server/runtime/composition/deps.ts": {
-    "$client": 1
   }
 }

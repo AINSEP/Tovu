@@ -1,7 +1,10 @@
-import { openContentDb, type ContentDb } from "../../platform/db/sqlite/content-db.js";
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import { openContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { PostRecord, PostRepoPort } from "./post.js";
+import { toRow } from "./repo.rows.js";
 import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search.js";
-import { indexPostSearchDocument, searchPostIndex } from "./search-index.sqlite.js";
+import type { SearchProjectionTables } from "./search-index.js";
+import { sqlitePostSearch } from "./search-index.sqlite.js";
 
 /**
  * @file The rule-of-two partner to `search-index.sqlite.ts`: the `PostSearchPort` the hermetic
@@ -16,8 +19,8 @@ import { indexPostSearchDocument, searchPostIndex } from "./search-index.sqlite.
  * every ranking test in this domain prove something about only one of the two adapters. So this
  * adapter is backed by a REAL SQLite database that merely lives in memory: `openContentDb(":memory:")`
  * runs the same migration stream a file-backed `content.db` gets, including 0022's FTS5 index and
- * its triggers, and the query itself is `searchPostIndex` — the same function, byte for byte, that
- * the durable adapter calls. Only the storage is different.
+ * its triggers, and the query itself is `sqlitePostSearch` — the same code, byte for byte, that the
+ * durable SQLite adapter runs. Only the storage is different.
  *
  * Sync model, and the deliberate contrast with the durable adapter: this one MIRRORS on every
  * search rather than maintaining an index incrementally. `InMemoryPostRepo` is a plain array with no
@@ -34,16 +37,9 @@ import { indexPostSearchDocument, searchPostIndex } from "./search-index.sqlite.
  * every one of them to serve the handful that do would be a real cost for no benefit.
  */
 
-/** Every NOT NULL column of `posts` this adapter has to supply when mirroring a record; `ext` is
- * serialized the same way `SqlitePostRepo.save` serializes it, and the two nullable sidecars
- * (`seo_ext_json`, `deleted_at`) are passed through because `deleted_at` is a search FILTER. */
-const MIRROR_POST_SQL = `INSERT INTO posts
-  (id, workspace_id, title, slug, body_json, status, kind, updated_at, version, seo_ext_json, ext, deleted_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
 export class InMemoryPostSearchIndex implements PostSearchPort {
   private readonly repo: PostRepoPort;
-  private db: ContentDb | null = null;
+  private kernel: ContentKernel | null = null;
 
   /**
    * @param repo - The post store to mirror. Read on every search, so a record saved through it is
@@ -63,16 +59,20 @@ export class InMemoryPostSearchIndex implements PostSearchPort {
    * @overallScore 100
    */
   async search(required: PostSearchQuery): Promise<PostSearchHit[]> {
-    if (!this.db) this.db = openContentDb(":memory:");
-    const db = this.db;
+    this.kernel ??= contentKernel(openContentDb(":memory:"));
+    const kernel = this.kernel;
     const posts = await this.repo.list({ workspaceId: required.workspaceId });
-    mirrorPosts(db, posts);
-    return searchPostIndex(db.$client, required);
+    // One transaction for mirror + query: a concurrent search for another workspace cannot swap the
+    // mirrored rows out from under this one.
+    return kernel.transaction(async () => {
+      await mirrorPosts(kernel, posts);
+      return sqlitePostSearch.search(kernel, required);
+    });
   }
 }
 
 /**
- * Replaces the scratch database's contents with `posts`, in one transaction.
+ * Replaces the scratch database's contents with `posts` (inside the caller's transaction).
  *
  * Deleting `post_search_document` first is what keeps the FTS index correct: the 0022 delete trigger
  * removes each row's index entry, so a post that has since been removed from the repo (or renamed)
@@ -81,29 +81,11 @@ export class InMemoryPostSearchIndex implements PostSearchPort {
  * @complexity O(n) in `posts`.
  * @overallScore 100
  */
-function mirrorPosts(db: ContentDb, posts: readonly PostRecord[]): void {
-  const sqlite = db.$client;
-  const replace = sqlite.transaction((rows: readonly PostRecord[]) => {
-    sqlite.prepare("DELETE FROM post_search_document").run();
-    sqlite.prepare("DELETE FROM posts").run();
-    const insert = sqlite.prepare(MIRROR_POST_SQL);
-    for (const post of rows) {
-      insert.run(
-        post.id,
-        post.workspaceId,
-        post.title,
-        post.slug,
-        JSON.stringify(post.bodyJson),
-        post.status,
-        post.kind,
-        post.updatedAt,
-        post.version,
-        post.seoExtJson ?? null,
-        JSON.stringify(post.ext ?? {}),
-        post.deletedAt ?? null
-      );
-      indexPostSearchDocument(sqlite, toPostSearchDocument(post));
-    }
-  });
-  replace(posts);
+async function mirrorPosts(kernel: ContentKernel, posts: readonly PostRecord[]): Promise<void> {
+  await kernel.run((db) => db.withTables<SearchProjectionTables>().deleteFrom("post_search_document").execute());
+  await kernel.run((db) => db.deleteFrom("posts").execute());
+  for (const post of posts) {
+    await kernel.run((db) => db.insertInto("posts").values(toRow(post)).execute());
+    await sqlitePostSearch.upsert(kernel, toPostSearchDocument(post));
+  }
 }

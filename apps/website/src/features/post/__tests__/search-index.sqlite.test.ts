@@ -6,7 +6,8 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { createPost, deletePost, updatePost, type PostRecord } from "../post.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { searchAdminPosts, type PostSearchHit } from "../search.js";
-import { backfillPostSearchIndex, SqlitePostSearchIndex } from "../search-index.sqlite.js";
+import { backfillPostSearchIndex } from "../search-index.js";
+import { SqlitePostSearchIndex } from "../search-index.sqlite.js";
 import { removeVia } from "./remove-post-double.js";
 
 /**
@@ -297,7 +298,7 @@ test("backfill indexes posts written without going through the repo", async () =
 
   assert.deepEqual(await h.find("pricing"), [], "precondition: the row exists but is unindexed");
 
-  assert.equal(backfillPostSearchIndex(h.db.$client), 1);
+  assert.equal(await backfillPostSearchIndex(h.db), 1);
   assert.deepEqual(ids(await h.find("pricing")), ["legacy"]);
   assert.deepEqual(ids(await h.find("dollars")), ["legacy"], "the body text must be indexed too, not just the title");
 });
@@ -307,9 +308,9 @@ test("backfill is a no-op on a warm database and is safe to run repeatedly", asy
   await h.add({ id: "p1", title: "Pricing", text: "Ten dollars." });
   insertUnindexedPost(h.db, { id: "legacy", title: "Sponsorship", slug: "sponsorship", bodyJson: body("Bronze.") });
 
-  assert.equal(backfillPostSearchIndex(h.db.$client), 1, "only the missing row is written");
-  assert.equal(backfillPostSearchIndex(h.db.$client), 0, "a second run writes nothing");
-  assert.equal(backfillPostSearchIndex(h.db.$client), 0);
+  assert.equal(await backfillPostSearchIndex(h.db), 1, "only the missing row is written");
+  assert.equal(await backfillPostSearchIndex(h.db), 0, "a second run writes nothing");
+  assert.equal(await backfillPostSearchIndex(h.db), 0);
 
   assert.deepEqual(ids(await h.find("pricing")), ["p1"], "the already-indexed row is untouched and still findable");
   assert.deepEqual(ids(await h.find("sponsorship")), ["legacy"]);
@@ -324,7 +325,7 @@ test("backfill survives an unparseable legacy body — title and slug are still 
     )
     .run(WS, clock.nowIso());
 
-  assert.doesNotThrow(() => backfillPostSearchIndex(h.db.$client), "one bad row must not stop the server booting");
+  await assert.doesNotReject(backfillPostSearchIndex(h.db), "one bad row must not stop the server booting");
   assert.deepEqual(ids(await h.find("pricing")), ["corrupt"]);
 });
 
@@ -334,6 +335,6 @@ test("backfill indexes a whole legacy corpus in one pass", async () => {
     insertUnindexedPost(h.db, { id: `legacy-${i}`, title: `Legacy entry ${i}`, slug: `legacy-${i}`, bodyJson: body(`Body of entry ${i}.`) });
   }
 
-  assert.equal(backfillPostSearchIndex(h.db.$client), 25);
+  assert.equal(await backfillPostSearchIndex(h.db), 25);
   assert.equal((await h.find("legacy", { limit: 50 })).length, 25);
 });
