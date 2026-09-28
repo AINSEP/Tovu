@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { activeRunStub, HttpError, persistableMessages, type AssistantConversation } from "../lib/assistant-chats";
+import { activeRunStub, HttpError, messageWriteKey, persistableMessages, type AssistantConversation } from "../lib/assistant-chats";
 import { defaultAssistantChatsPort } from "./assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
 
@@ -193,7 +193,7 @@ async function saveWithRetry(
 
 /**
  * Decides what a settled batch of message-save outcomes means for `flush`'s bookkeeping: which
- * message ids should be released back to `written` for a future delta to retry, and whether a
+ * write keys (`messageWriteKey`) should be released back to `written` for a future delta to retry, and whether a
  * fresh conversation-list read is warranted. Pulled out of `flush`'s `Promise.all(...).then(...)`
  * continuation (2026-08-06, complexity pass) so this decision is directly assertable with a plain
  * array of outcomes — no port, no timers, no React state.
@@ -213,7 +213,7 @@ export function summarizeFlushOutcomes(
 ): { idsToRelease: string[]; shouldRefresh: boolean } {
   const idsToRelease = results
     .filter((result) => result.outcome === "exhausted" || result.outcome === "missing")
-    .map((result) => result.message.id);
+    .map((result) => messageWriteKey(result.message));
   const shouldRefresh =
     results.some((result) => result.outcome === "saved") ||
     (isConversationStillActive && results.some((result) => result.outcome === "missing"));
@@ -338,7 +338,7 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
   const [paneKey, setPaneKey] = useState("new");
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   /**
-   * Message ids already written, keyed by conversation.
+   * Write keys (message id plus run id, see `messageWriteKey`) already written, keyed by conversation.
    *
    * Without this, every `onMessagesChange` would re-`PUT` the entire settled transcript — the
    * callback fires on each delta, and the settled prefix only grows. Keyed by conversation so
@@ -346,7 +346,7 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
    */
   const writtenRef = useRef<Map<string, Set<string>>>(new Map());
   /**
-   * Message ids whose active-run stub has already been written, keyed by conversation — see
+   * Write keys (message id plus run id) whose active-run stub has already been written, keyed by conversation — see
    * {@link persistRunStub}'s own doc.
    *
    * Deliberately a SEPARATE map from {@link writtenRef}, not a shared one. `writtenRef` means "this
@@ -566,7 +566,7 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
       const commit = (messages: ChatMessage[]) => {
         // A slower load for a conversation the user has since navigated away from must not land.
         if (switchSeqRef.current !== seq) return;
-        writtenRef.current.set(id, new Set(messages.map((m) => m.id)));
+        writtenRef.current.set(id, new Set(messages.map(messageWriteKey)));
         setInitialMessages(messages);
         commitActiveId(id);
         // A user-initiated switch is exactly when remounting the pane IS the intent.
@@ -712,12 +712,13 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
       const written = writtenRef.current.get(conversationId) ?? new Set<string>();
       writtenRef.current.set(conversationId, written);
 
-      const pending = persistableMessages(messages).filter((m) => !written.has(m.id));
+      // Keyed by message id AND run id (see `messageWriteKey`), so a retry's new run is saved too.
+      const pending = persistableMessages(messages).filter((m) => !written.has(messageWriteKey(m)));
       if (pending.length === 0) return;
 
       // Marked before the request resolves so a second `onMessagesChange` arriving mid-flight —
       // which it will, since deltas keep coming — does not queue the same message twice.
-      for (const message of pending) written.add(message.id);
+      for (const message of pending) written.add(messageWriteKey(message));
 
       void Promise.all(
         pending.map(async (message) => ({
@@ -782,14 +783,15 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
   const persistUserTurn = useCallback(async (conversationId: string, message: ChatMessage): Promise<void> => {
     const written = writtenRef.current.get(conversationId) ?? new Set<string>();
     writtenRef.current.set(conversationId, written);
-    if (written.has(message.id)) return;
-    written.add(message.id);
+    const key = messageWriteKey(message);
+    if (written.has(key)) return;
+    written.add(key);
 
     const outcome = await saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current);
     // Same rule `summarizeFlushOutcomes` applies to a settled batch, for the same reason: only an
     // outcome that could plausibly succeed later is worth handing back to `flush`. Re-queueing a
     // permanent failure would make every later delta re-send a doomed request.
-    if (outcome !== "saved") written.delete(message.id);
+    if (outcome !== "saved") written.delete(key);
   }, []);
 
   /**
@@ -815,10 +817,15 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
   const persistRunStub = useCallback((conversationId: string, message: ChatMessage): void => {
     const written = runStubWrittenRef.current.get(conversationId) ?? new Set<string>();
     runStubWrittenRef.current.set(conversationId, written);
-    if (written.has(message.id)) return;
-    written.add(message.id);
+    // Per run, not per message id: a retry reuses the id with a new run (see `messageWriteKey`).
+    const key = messageWriteKey(message);
+    if (written.has(key)) return;
+    // This run's final result is already saved. A retry resets the message to `queued` while it still
+    // carries the OLD run id; writing that would put a stale stub over the saved answer.
+    if (writtenRef.current.get(conversationId)?.has(key)) return;
+    written.add(key);
     void portRef.current.saveMessage(conversationId, message).catch(() => {
-      written.delete(message.id);
+      written.delete(key);
     });
   }, []);
 

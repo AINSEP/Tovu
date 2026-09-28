@@ -149,6 +149,19 @@ export function persistableMessages(messages: ChatMessage[]): ChatMessage[] {
 }
 
 /**
+ * The key the admin's chat writers use to remember "this message is already saved": the message id,
+ * plus the run id when there is one.
+ *
+ * The run id is part of the key because `@jini-ai/chat`'s `retry` keeps the assistant message id and
+ * starts a NEW run under it. Keyed by id alone, the first run had already marked the id saved, so the
+ * retry's in-flight stub was never written (and the API finalizer never followed it) and its final
+ * answer was never saved either. A message with no run id (a user turn, an old row) keys by id alone.
+ */
+export function messageWriteKey(message: Pick<ChatMessage, "id" | "runId">): string {
+  return message.runId === undefined ? message.id : `${message.id}:${message.runId}`;
+}
+
+/**
  * The one message worth a durable "this run is in flight" stub write — the newest message, if it is
  * a non-terminal assistant turn that has acquired a `runId`. `null` when there is nothing to record.
  *

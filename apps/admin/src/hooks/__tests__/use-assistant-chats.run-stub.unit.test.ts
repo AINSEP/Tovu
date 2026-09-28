@@ -178,4 +178,73 @@ describe("useAssistantChats — active-run stub write", () => {
 
     await waitFor(() => expect(port.saved.get("fake-seed")?.some((m) => m.id === "a1")).toBe(true));
   });
+
+  it("saves a retry's new run: its in-flight stub and its final result, under the same message id", async () => {
+    // `@jini-ai/chat`'s `retry` reuses the assistant message id and only the run id changes. Keyed by
+    // message id alone, both writers had already marked "a1" done during the first run, so the retry's
+    // stub never went out (the server finalizer never watched it) and its answer was never saved.
+    const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
+    const { result } = await mountWith(port);
+    await act(async () => {
+      result.current.select("fake-seed");
+    });
+    const turn = (message: ChatMessage) => [userTurn("u1", "hello"), message];
+
+    await act(async () => {
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "running" }));
+    });
+    await act(async () => {
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "failed" }));
+    });
+    await waitFor(() => expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")?.runStatus).toBe("failed"));
+
+    // The retry: reset to queued (still carrying the old run id), then the new run id arrives.
+    await act(async () => {
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "queued" }));
+    });
+    await act(async () => {
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-2", runStatus: "running" }));
+    });
+    await waitFor(() =>
+      expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({ runId: "run-2", runStatus: "running" }),
+    );
+
+    await act(async () => {
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "second try", runId: "run-2", runStatus: "succeeded" }));
+    });
+    await waitFor(() =>
+      expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({
+        runId: "run-2",
+        runStatus: "succeeded",
+        content: "second try",
+      }),
+    );
+    expect(port.saved.get("fake-seed")?.filter((m) => m.id === "a1")).toHaveLength(1);
+  });
+
+  it("does not re-save a retry's old run id while the retry is still queued", async () => {
+    // Reload after the first run settled, then retry: the reset message still carries run-1. That run
+    // is already saved, so the only write before run-2 exists would be a stale stub that overwrites it.
+    const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
+    const { result } = await mountWith(port);
+    await act(async () => {
+      result.current.select("fake-seed");
+    });
+    await act(async () => {
+      result.current.onMessagesChange([
+        userTurn("u1", "hello"),
+        { id: "a1", role: "assistant", content: "first", runId: "run-1", runStatus: "succeeded" },
+      ]);
+    });
+    await waitFor(() => expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")?.runStatus).toBe("succeeded"));
+    const attemptsBefore = port.attemptedIds().filter((id) => id === "a1").length;
+
+    await act(async () => {
+      result.current.onMessagesChange([
+        userTurn("u1", "hello"),
+        { id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "queued" },
+      ]);
+    });
+    expect(port.attemptedIds().filter((id) => id === "a1").length).toBe(attemptsBefore);
+  });
 });
