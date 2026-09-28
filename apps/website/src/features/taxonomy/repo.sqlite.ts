@@ -1,6 +1,6 @@
-import type Database from "better-sqlite3";
 import { and, eq, ne, sql, type SQL } from "drizzle-orm";
 
+import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import { stampWatermarkTx, type ContentDbTransaction } from "../../platform/db/sqlite/watermark.js";
 import { entryTerms, taxonomies, taxonomyRevisions, terms } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -208,18 +208,9 @@ export class SqliteTaxonomyRepo implements TaxonomyRepoPort, TaxonomyListPort, I
    * @overallScore 100
    */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // `$client` — see `SqliteSettingsRepo.transaction`'s identical comment for why this cast is
-    // necessary and safe (a known drizzle-orm typing gap, not an unsound cast).
-    const client = (this.deps.db as unknown as { $client: Database.Database }).$client;
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+    // The connection's storage kernel: nested calls join, other requests wait their turn instead of
+    // landing inside this transaction (plan: ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md).
+    return sqliteKernel(this.deps.db).transaction(fn);
   }
 }
 

@@ -1,4 +1,3 @@
-import type Database from "better-sqlite3";
 import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 
 import type { JsonValue } from "@jini-ai/cms/core";
@@ -9,6 +8,7 @@ import {
   settingValuesUser,
   settingValuesWorkspace,
 } from "../../platform/db/schema.sqlite.js";
+import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
@@ -508,20 +508,8 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
    * a concurrent stranger.
    */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // `$client` (the raw better-sqlite3 handle) exists at runtime on every
-    // `drizzle()`-constructed instance but isn't part of the exported
-    // `BetterSQLite3Database` class type `ContentDb` aliases — a known
-    // drizzle-orm typing gap (the property lives on the factory's return
-    // type, not the class). Cast narrowly, scoped to this one call site.
-    const client = (this.db as unknown as { $client: Database.Database }).$client;
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+    // The connection's storage kernel: nested calls join, other requests wait their turn instead of
+    // landing inside this transaction (plan: ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md).
+    return sqliteKernel(this.db).transaction(fn);
   }
 }

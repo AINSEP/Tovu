@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/post";
-import { PglitePostRepo } from "#src/features/post/repo.pglite";
+import { PgPostRepo } from "#src/features/post/repo.pg";
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { openPgliteContentStore } from "../content-store.js";
@@ -38,7 +38,7 @@ function post(id: string, overrides: Partial<PostRecord> = {}): PostRecord {
 test("a repo call inside transaction() joins it instead of waiting on PGlite's lock, and a throw rolls both writes back", async () => {
   const store = openPgliteContentStore({});
   try {
-    const repo = new PglitePostRepo(store);
+    const repo = new PgPostRepo(store);
     await repo.transaction(async () => {
       await repo.save(post("kept"));
       await repo.appendRevision({ postId: "kept", workspaceId: WS, seq: 1, op: "create", stateJson: post("kept"), actorId: "a", recordedAt: "2026-09-28T00:00:00.000Z" });
@@ -66,13 +66,13 @@ test("first boot imports content.db's posts; edits land only in PGlite and survi
     const dataDir = path.join(tmp, "pglite", "content");
 
     const first = openPgliteContentStore({ dataDir, importFrom: sqlite });
-    const firstRepo = new PglitePostRepo(first);
+    const firstRepo = new PgPostRepo(first);
     assert.equal((await firstRepo.findById({ workspaceId: WS, id: "from-sqlite" }))?.title, "Imported");
     await firstRepo.save(post("made-on-pglite"));
     await first.close();
 
     const second = openPgliteContentStore({ dataDir, importFrom: sqlite });
-    const ids = (await new PglitePostRepo(second).list({ workspaceId: WS })).map((p) => p.id).sort();
+    const ids = (await new PgPostRepo(second).list({ workspaceId: WS })).map((p) => p.id).sort();
     await second.close();
 
     assert.deepEqual(ids, ["from-sqlite", "made-on-pglite"], "reopened data dir keeps both rows, imported once");

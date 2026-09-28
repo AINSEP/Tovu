@@ -1,7 +1,7 @@
-import type Database from "better-sqlite3";
 import { and, asc, desc, eq, isNull, notInArray, sql } from "drizzle-orm";
 import type { AnyColumn, SQL } from "drizzle-orm";
 
+import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import { entries, entryRevisions } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
@@ -266,17 +266,9 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort, EntryDispl
    *  Joins a transaction already open on this connection (the widget adoption runs an entry update
    *  and its Trash move as one). */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    const client = (this.db as unknown as { $client: Database.Database }).$client;
-    if (client.inTransaction) return fn();
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+    // The connection's storage kernel: nested calls join, other requests wait their turn instead of
+    // landing inside this transaction (plan: ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md).
+    return sqliteKernel(this.db).transaction(fn);
   }
 
   /**

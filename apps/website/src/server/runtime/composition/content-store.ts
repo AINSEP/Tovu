@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 
 import { SqlitePostRepo } from "#src/features/post/index";
 import type { PostRepoPort } from "#src/features/post/post";
-import { PglitePostRepo } from "#src/features/post/repo.pglite";
+import { PgPostRepo } from "#src/features/post/repo.pg";
 import { openPgliteContentStore, type PgliteContentStore } from "#src/platform/db/pglite/content-store";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 
@@ -69,5 +69,5 @@ export function selectPostRepo(required: {
     // eslint-disable-next-line no-console
     console.log(`[content-store] posts on PGlite at ${dataDir}`);
   }
-  return new PglitePostRepo(store);
+  return new PgPostRepo(store);
 }

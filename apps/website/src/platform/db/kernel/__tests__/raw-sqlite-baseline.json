@@ -42,9 +42,6 @@
     "sync-transaction": 1
   },
   "apps/website/src/features/content-types/repo.sqlite.ts": {
-    "$client": 2,
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
     "sync-terminal": 3
   },
   "apps/website/src/features/database-transfer/destination-repo.sqlite.ts": {
@@ -61,10 +58,6 @@
     "sync-terminal": 4
   },
   "apps/website/src/features/entries/repo.sqlite.ts": {
-    "$client": 2,
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
-    "in-transaction": 1,
     "sqlite-json": 2,
     "sync-terminal": 5
   },
@@ -79,9 +72,6 @@
     "sync-transaction": 1
   },
   "apps/website/src/features/members/repo.sqlite.ts": {
-    "$client": 2,
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
     "sync-terminal": 17
   },
   "apps/website/src/features/navigation/repo.sqlite.ts": {
@@ -92,7 +82,6 @@
   },
   "apps/website/src/features/newsletter/repo.sqlite.ts": {
     "$client": 2,
-    "begin-transaction": 1,
     "better-sqlite3-import": 1,
     "prepare": 27,
     "sqlite-json": 2,
@@ -151,13 +140,6 @@
     "sync-terminal": 2,
     "sync-transaction": 2
   },
-  "apps/website/src/features/post/repo.sqlite.ts": {
-    "$client": 5,
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
-    "prepare": 1,
-    "sync-terminal": 13
-  },
   "apps/website/src/features/post/search-index.memory.ts": {
     "$client": 2,
     "prepare": 3,
@@ -174,24 +156,15 @@
     "sync-terminal": 2
   },
   "apps/website/src/features/redirects/repo.sqlite.ts": {
-    "$client": 2,
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
     "sync-terminal": 4
   },
   "apps/website/src/features/settings/repo.sqlite.ts": {
-    "$client": 2,
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
     "sync-terminal": 16
   },
   "apps/website/src/features/settings/site-title-preservation.sqlite.ts": {
     "sync-terminal": 3
   },
   "apps/website/src/features/taxonomy/repo.sqlite.ts": {
-    "$client": 2,
-    "begin-transaction": 1,
-    "better-sqlite3-import": 1,
     "sync-terminal": 21
   },
   "apps/website/src/features/tool-audit/repo.sqlite.ts": {
@@ -245,10 +218,6 @@
   "apps/website/src/platform/db/migration/manifest.ts": {
     "autoincrement": 8,
     "fts5": 7
-  },
-  "apps/website/src/platform/db/pglite/content-store.ts": {
-    "sync-terminal": 1,
-    "sync-transaction": 1
   },
   "apps/website/src/platform/db/schema.mysql.ts": {
     "autoincrement": 12

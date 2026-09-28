@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import type Database from "better-sqlite3";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
+import { type SqliteKernel, sqliteKernel } from "../../platform/db/kernel/index.js";
+import type * as schema from "../../platform/db/schema.sqlite.js";
 import { postRevisions, posts } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import {
   DEFAULT_BODY_JSON,
   type PostAutosaveSnapshot,
@@ -21,7 +21,7 @@ import {
   type PostStatus,
 } from "./post.js";
 import { toPostSearchDocument } from "./search.js";
-import { indexPostSearchDocument } from "./search-index.sqlite.js";
+import { postSearchDocumentDelete, postSearchDocumentUpsert } from "./search-index.sqlite.js";
 
 /**
  * @file Drizzle/SQLite post repository adapter.
@@ -179,29 +179,89 @@ export function updatableColumns(row: ReturnType<typeof toRow>) {
   };
 }
 
+/** One `post_revisions` row as a {@link PostRevisionRecord}; shared with `repo.pg.ts`. */
+export function toRevisionRecord(row: typeof postRevisions.$inferSelect): PostRevisionRecord {
+  return {
+    id: row.id,
+    postId: row.postId,
+    workspaceId: row.workspaceId,
+    seq: row.seq,
+    op: row.op as PostRevisionOp,
+    stateJson: JSON.parse(row.stateJson) as PostRecord,
+    contentHash: row.contentHash,
+    actorId: row.actorId,
+    delegatedByWorkspaceId: row.delegatedByWorkspaceId,
+    delegatedById: row.delegatedById,
+    restoredFrom: row.restoredFrom,
+    recordedAt: row.recordedAt,
+  };
+}
+
+/** The revision row `appendRevision` writes: `contentHash` is over the exact text stored, computed
+ *  here so no caller can hand in a hash that drifts from the bytes. Shared with `repo.pg.ts`. */
+export function toRevisionRow(input: PostRevisionInput, id: string): typeof postRevisions.$inferInsert {
+  const stateJsonText = JSON.stringify(input.stateJson);
+  return {
+    id,
+    postId: input.postId,
+    workspaceId: input.workspaceId,
+    seq: input.seq,
+    op: input.op,
+    stateJson: stateJsonText,
+    contentHash: createHash("sha256").update(stateJsonText).digest("hex"),
+    actorId: input.actorId,
+    delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
+    delegatedById: input.delegatedById ?? null,
+    restoredFrom: input.restoredFrom ?? null,
+    recordedAt: input.recordedAt,
+  };
+}
+
+/**
+ * The SQLite post repo, on the storage kernel (the reference conversion every later repo copies:
+ * `ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md` §4).
+ *
+ * Every statement goes through `kernel.run` and is awaited; a method that writes more than one
+ * statement (or reads then writes) runs in `kernel.transaction`, which joins the caller's own
+ * transaction when there is one. Takes the kernel; the ~60 call sites that pass the content db
+ * handle are unchanged, because `sqliteKernel` returns that connection's one kernel.
+ */
 export class SqlitePostRepo implements PostRepoPort {
-  constructor(private readonly db: ContentDb) {}
+  private readonly kernel: SqliteKernel<typeof schema>;
+
+  /** The connection's kernel, or the content db handle it is derived from (the call sites that
+   *  still pass one). */
+  constructor(store: SqliteKernel<typeof schema> | ContentDb) {
+    // `inTransaction`, not `dialect`: a Drizzle handle has a `dialect` property of its own.
+    this.kernel = "inTransaction" in store ? store : sqliteKernel(store);
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<PostRecord | null> {
-    return findOneBy(
-      this.db,
-      posts,
-      [eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)],
-      toRecord
+    const rows = await this.kernel.run((db) =>
+      db
+        .select()
+        .from(posts)
+        .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+        .limit(1)
     );
+    return rows[0] ? toRecord(rows[0]) : null;
   }
 
   async findBySlug(required: { workspaceId: string; slug: string }): Promise<PostRecord | null> {
-    return findOneBy(
-      this.db,
-      posts,
-      [eq(posts.workspaceId, required.workspaceId), eq(posts.slug, required.slug)],
-      toRecord
+    const rows = await this.kernel.run((db) =>
+      db
+        .select()
+        .from(posts)
+        .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.slug, required.slug)))
+        .limit(1)
     );
+    return rows[0] ? toRecord(rows[0]) : null;
   }
 
   async list(required: { workspaceId: string }): Promise<PostRecord[]> {
-    const rows = this.db.select().from(posts).where(eq(posts.workspaceId, required.workspaceId)).all();
+    const rows = await this.kernel.run((db) =>
+      db.select().from(posts).where(eq(posts.workspaceId, required.workspaceId))
+    );
     return rows.map(toRecord);
   }
 
@@ -209,75 +269,60 @@ export class SqlitePostRepo implements PostRepoPort {
    *  (workspace, `status`, `kind`, non-trashed) and the `LIMIT` are pushed into the ONE query — no
    *  in-JS filter or slice after the fact, the discipline that method's doc requires. */
   async listPublishedPreviews(required: { workspaceId: string; limit: number }): Promise<PostRecord[]> {
-    const rows = this.db
-      .select()
-      .from(posts)
-      .where(
-        and(
-          eq(posts.workspaceId, required.workspaceId),
-          eq(posts.status, "published"),
-          eq(posts.kind, "post"),
-          isNull(posts.deletedAt)
+    const rows = await this.kernel.run((db) =>
+      db
+        .select()
+        .from(posts)
+        .where(
+          and(
+            eq(posts.workspaceId, required.workspaceId),
+            eq(posts.status, "published"),
+            eq(posts.kind, "post"),
+            isNull(posts.deletedAt)
+          )
         )
-      )
-      .orderBy(desc(posts.updatedAt))
-      .limit(required.limit)
-      .all();
+        .orderBy(desc(posts.updatedAt))
+        .limit(required.limit)
+    );
     return rows.map(toRecord);
   }
 
+  /** Upsert plus the search projection, in one transaction. The projection is refreshed here rather
+   *  than by a trigger on `posts`, because the indexed body is plain text walked out of a nested
+   *  TipTap document — an extraction SQL has no business attempting (see this file's header). */
   async save(record: PostRecord): Promise<void> {
     const row = toRow(record);
-    this.db
-      .insert(posts)
-      .values(row)
-      .onConflictDoUpdate({
-        target: posts.id,
-        set: updatableColumns(row),
-      })
-      .run();
-
-    // Refreshed here rather than by a trigger on `posts`, because the indexed body is plain text
-    // walked out of a nested TipTap document — an extraction SQL has no business attempting. This
-    // is the only writer of the three indexed columns, so this is the only place the obligation
-    // exists (see this file's header).
-    indexPostSearchDocument(this.db.$client, toPostSearchDocument(record));
+    await this.kernel.transaction(async () => {
+      await this.kernel.run((db) =>
+        db.insert(posts).values(row).onConflictDoUpdate({ target: posts.id, set: updatableColumns(row) })
+      );
+      await this.kernel.execute(postSearchDocumentUpsert(toPostSearchDocument(record)));
+    });
   }
 
   /**
    * See `PostRepoPort.saveIfVersion`'s own doc for the contract. An `UPDATE … WHERE id = ? AND
    * workspace_id = ? AND version = ?` — never the upsert `save()` above uses, because an absent row
-   * must report `applied: false` rather than be inserted.
-   *
-   * The predicate and the write are ONE statement, which is the entire point: a compare done in
-   * JavaScript and a write issued afterwards is exactly the gap `updatePost` had (fable bugs audit
-   * C01). Same mechanism `writeAutosave` below already uses for its own column.
-   *
-   * The search index is refreshed only on a write that actually landed — a rejected call must leave
-   * the index describing the row that is really there.
+   * must report `applied: false` rather than be inserted. The predicate and the write are ONE
+   * statement (fable bugs audit C01); `RETURNING` reports whether it landed, the same on every
+   * driver. The search index is refreshed only on a write that actually landed.
    *
    * @complexity O(1) — one statement against the `posts` primary key.
    */
-  async saveIfVersion(required: {
-    record: PostRecord;
-    ifVersion: number;
-  }): Promise<{ applied: boolean }> {
+  async saveIfVersion(required: { record: PostRecord; ifVersion: number }): Promise<{ applied: boolean }> {
     const row = toRow(required.record);
-    const result = this.db
-      .update(posts)
-      .set(updatableColumns(row))
-      .where(
-        and(
-          eq(posts.id, row.id),
-          eq(posts.workspaceId, row.workspaceId),
-          eq(posts.version, required.ifVersion)
-        )
-      )
-      .run();
-    if (result.changes === 0) return { applied: false };
-
-    indexPostSearchDocument(this.db.$client, toPostSearchDocument(required.record));
-    return { applied: true };
+    return this.kernel.transaction(async () => {
+      const updated = await this.kernel.run((db) =>
+        db
+          .update(posts)
+          .set(updatableColumns(row))
+          .where(and(eq(posts.id, row.id), eq(posts.workspaceId, row.workspaceId), eq(posts.version, required.ifVersion)))
+          .returning({ id: posts.id })
+      );
+      if (updated.length === 0) return { applied: false };
+      await this.kernel.execute(postSearchDocumentUpsert(toPostSearchDocument(required.record)));
+      return { applied: true };
+    });
   }
 
   /**
@@ -292,11 +337,12 @@ export class SqlitePostRepo implements PostRepoPort {
     updatedAt: string;
     version: number;
   }): Promise<void> {
-    this.db
-      .update(posts)
-      .set({ deletedAt: required.deletedAt, updatedAt: required.updatedAt, version: required.version })
-      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
-      .run();
+    await this.kernel.run((db) =>
+      db
+        .update(posts)
+        .set({ deletedAt: required.deletedAt, updatedAt: required.updatedAt, version: required.version })
+        .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+    );
   }
 
   /**
@@ -304,168 +350,117 @@ export class SqlitePostRepo implements PostRepoPort {
    * purge already performs on this table (`features/trash/adapters/post.ts`): `post_revisions`
    * holds a full copy of every version of the post, and `post_search_document` is the projection
    * behind the FTS index, so leaving either behind would keep the content findable after the row
-   * it belongs to is gone. The parked autosave needs no cascade here — `autosave_json` is a column
-   * ON the row, so it travels with it (the in-memory adapter keeps it in a side map and must drop
-   * it explicitly; the contract test asserts the same observable outcome on both).
-   *
-   * No `changes` check and no throw for a miss: an unknown id or another workspace's row simply
-   * matches nothing, which is the documented no-op.
+   * it belongs to is gone. An unknown id or another workspace's row matches nothing: a no-op.
    *
    * @complexity O(r) for r revisions of the one post, plus one indexed row delete on each table.
    */
   async hardDelete(required: { workspaceId: string; id: string }): Promise<void> {
-    this.db
-      .delete(postRevisions)
-      .where(and(eq(postRevisions.workspaceId, required.workspaceId), eq(postRevisions.postId, required.id)))
-      .run();
-    const removed = this.db
-      .delete(posts)
-      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
-      .run();
-    // Keyed on `post_id` alone (no workspace column on the projection), so it is dropped only when
-    // the scoped delete above actually removed the row it projects.
-    if (removed.changes > 0) {
-      this.db.$client.prepare(`DELETE FROM post_search_document WHERE post_id = ?`).run(required.id);
-    }
+    await this.kernel.transaction(async () => {
+      await this.kernel.run((db) =>
+        db
+          .delete(postRevisions)
+          .where(and(eq(postRevisions.workspaceId, required.workspaceId), eq(postRevisions.postId, required.id)))
+      );
+      const removed = await this.kernel.run((db) =>
+        db
+          .delete(posts)
+          .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+          .returning({ id: posts.id })
+      );
+      // Keyed on `post_id` alone (no workspace column on the projection), so it is dropped only when
+      // the scoped delete above actually removed the row it projects.
+      if (removed.length > 0) await this.kernel.execute(postSearchDocumentDelete(required.id));
+    });
   }
 
   /** See `PostRepoPort.readAutosave`'s own doc. `autosave_json` is the only column read — never
    *  routed through {@link toRecord}, which has no field for it. */
   async readAutosave(required: { workspaceId: string; id: string }): Promise<PostAutosaveSnapshot | null> {
-    const rows = this.db
-      .select({ autosaveJson: posts.autosaveJson })
-      .from(posts)
-      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
-      .all();
+    const rows = await this.kernel.run((db) =>
+      db
+        .select({ autosaveJson: posts.autosaveJson })
+        .from(posts)
+        .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+    );
     const raw = rows[0]?.autosaveJson;
     return raw ? (JSON.parse(raw) as PostAutosaveSnapshot) : null;
   }
 
   /**
    * See `PostRepoPort.writeAutosave`'s own doc for the staleness contract. The `eq(posts.version,
-   * snapshot.baseVersion)` clause IS the whole guard — a version mismatch (row not found, or a real
-   * save has since bumped it) makes the `WHERE` match zero rows, `run().changes` reports that, and
-   * this method reports `applied: false` rather than throwing or silently no-op-ing without telling
-   * the caller. One `UPDATE`, no separate read-then-compare (avoids a TOCTOU gap between the two).
+   * snapshot.baseVersion)` clause IS the whole guard: a mismatch matches zero rows and this reports
+   * `applied: false`. One `UPDATE`, no separate read-then-compare.
    */
   async writeAutosave(required: {
     workspaceId: string;
     id: string;
     snapshot: PostAutosaveSnapshot;
   }): Promise<{ applied: boolean }> {
-    const result = this.db
-      .update(posts)
-      .set({ autosaveJson: JSON.stringify(required.snapshot) })
-      .where(
-        and(
-          eq(posts.workspaceId, required.workspaceId),
-          eq(posts.id, required.id),
-          eq(posts.version, required.snapshot.baseVersion)
+    const updated = await this.kernel.run((db) =>
+      db
+        .update(posts)
+        .set({ autosaveJson: JSON.stringify(required.snapshot) })
+        .where(
+          and(
+            eq(posts.workspaceId, required.workspaceId),
+            eq(posts.id, required.id),
+            eq(posts.version, required.snapshot.baseVersion)
+          )
         )
-      )
-      .run();
-    return { applied: result.changes > 0 };
+        .returning({ id: posts.id })
+    );
+    return { applied: updated.length > 0 };
   }
 
   /** See `PostRepoPort.clearAutosave`'s own doc — unconditional, no version guard. */
   async clearAutosave(required: { workspaceId: string; id: string }): Promise<void> {
-    this.db
-      .update(posts)
-      .set({ autosaveJson: null })
-      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
-      .run();
+    await this.kernel.run((db) =>
+      db
+        .update(posts)
+        .set({ autosaveJson: null })
+        .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+    );
   }
 
   /**
    * See `PostRepoPort.appendRevision`'s own doc for the append-only contract. `previousId` is
    * looked up BEFORE the insert (the latest existing row for this `(workspaceId, postId)`, by
-   * `seq DESC`) — looking it up after would just find the row this call is about to write.
-   * `contentHash` is computed here, not carried on `PostRevisionInput`, so every caller gets an
-   * identical hashing rule with no chance of a hand-computed hash drifting from the bytes actually
-   * stored.
+   * `seq DESC`), in the same transaction as the insert so no other append lands in between.
    *
    * @complexity O(1) — one indexed lookup plus one insert.
    */
   async appendRevision(input: PostRevisionInput): Promise<PostRevisionAppendResult> {
-    const priorRows = this.db
-      .select({ id: postRevisions.id })
-      .from(postRevisions)
-      .where(and(eq(postRevisions.workspaceId, input.workspaceId), eq(postRevisions.postId, input.postId)))
-      .orderBy(desc(postRevisions.seq))
-      .limit(1)
-      .all();
-    const previousId = priorRows[0]?.id ?? null;
-
-    const id = randomUUID();
-    const stateJsonText = JSON.stringify(input.stateJson);
-    const contentHash = createHash("sha256").update(stateJsonText).digest("hex");
-
-    this.db
-      .insert(postRevisions)
-      .values({
-        id,
-        postId: input.postId,
-        workspaceId: input.workspaceId,
-        seq: input.seq,
-        op: input.op,
-        stateJson: stateJsonText,
-        contentHash,
-        actorId: input.actorId,
-        delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-        delegatedById: input.delegatedById ?? null,
-        restoredFrom: input.restoredFrom ?? null,
-        recordedAt: input.recordedAt,
-      })
-      .run();
-
-    return { id, previousId };
+    return this.kernel.transaction(async () => {
+      const prior = await this.kernel.run((db) =>
+        db
+          .select({ id: postRevisions.id })
+          .from(postRevisions)
+          .where(and(eq(postRevisions.workspaceId, input.workspaceId), eq(postRevisions.postId, input.postId)))
+          .orderBy(desc(postRevisions.seq))
+          .limit(1)
+      );
+      const id = randomUUID();
+      await this.kernel.run((db) => db.insert(postRevisions).values(toRevisionRow(input, id)));
+      return { id, previousId: prior[0]?.id ?? null };
+    });
   }
 
   /** See `PostRepoPort.listRevisions`'s own doc — the only read surface over `appendRevision`'s
    *  writes. Ascending `seq` (oldest first), matching a ledger's natural read order. */
   async listRevisions(required: { workspaceId: string; postId: string }): Promise<PostRevisionRecord[]> {
-    const rows = this.db
-      .select()
-      .from(postRevisions)
-      .where(and(eq(postRevisions.workspaceId, required.workspaceId), eq(postRevisions.postId, required.postId)))
-      .orderBy(asc(postRevisions.seq))
-      .all();
-    return rows.map((row) => ({
-      id: row.id,
-      postId: row.postId,
-      workspaceId: row.workspaceId,
-      seq: row.seq,
-      op: row.op as PostRevisionOp,
-      stateJson: JSON.parse(row.stateJson) as PostRecord,
-      contentHash: row.contentHash,
-      actorId: row.actorId,
-      delegatedByWorkspaceId: row.delegatedByWorkspaceId,
-      delegatedById: row.delegatedById,
-      restoredFrom: row.restoredFrom,
-      recordedAt: row.recordedAt,
-    }));
+    const rows = await this.kernel.run((db) =>
+      db
+        .select()
+        .from(postRevisions)
+        .where(and(eq(postRevisions.workspaceId, required.workspaceId), eq(postRevisions.postId, required.postId)))
+        .orderBy(asc(postRevisions.seq))
+    );
+    return rows.map(toRevisionRecord);
   }
 
-  /**
-   * See `PostRepoPort.transaction`'s own doc for why this exists (two repo calls — the post write,
-   * then `appendRevision` — must land as one unit). Manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK`
-   * rather than Drizzle's own `db.transaction()` wrapper, mirroring `SqliteSettingsRepo.transaction`
-   * exactly: that wrapper requires a synchronous callback, and `fn` here awaits other async repo
-   * calls. `$client` (the raw better-sqlite3 handle) exists at runtime on every `drizzle()`-
-   * constructed instance but isn't part of the exported `BetterSQLite3Database` class type
-   * `ContentDb` aliases — a known drizzle-orm typing gap — so the cast below is narrowly scoped to
-   * this one call site, same as every other adapter in this codebase that needs it.
-   */
+  /** See `PostRepoPort.transaction`'s own doc: repo calls made inside `fn` join ONE transaction
+   *  (the post write, then `appendRevision`). Nested calls join the outer one. */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    const client = (this.db as unknown as { $client: Database.Database }).$client;
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+    return this.kernel.transaction(fn);
   }
 }

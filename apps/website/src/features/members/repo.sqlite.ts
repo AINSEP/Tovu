@@ -1,4 +1,3 @@
-import type Database from "better-sqlite3";
 import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
@@ -11,6 +10,7 @@ import {
   memberSubscriptions,
   memberTiers,
 } from "../../platform/db/schema.sqlite.js";
+import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
@@ -551,17 +551,8 @@ export class SqliteMemberConsentRepo implements MemberConsentRepoPort {
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // Same reasoning as `SqliteSettingsRepo.transaction`'s doc: better-sqlite3
-    // has no real async I/O, so manual BEGIN/COMMIT is safe across `await`s.
-    const client = (this.db as unknown as { $client: Database.Database }).$client;
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+    // The connection's storage kernel: nested calls join, other requests wait their turn instead of
+    // landing inside this transaction (plan: ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md).
+    return sqliteKernel(this.db).transaction(fn);
   }
 }

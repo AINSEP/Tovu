@@ -1,6 +1,6 @@
-import type Database from "better-sqlite3";
 import { desc, eq } from "drizzle-orm";
 
+import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import { redirectRevisions, redirects as redirectsTable } from "../../platform/db/schema.sqlite.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
@@ -260,15 +260,8 @@ export class SqliteRedirectRepo implements RedirectRepoPort, RedirectDbHandle {
    * assumes an ambient transaction it did not open).
    */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    const client = (this.db as unknown as { $client: Database.Database }).$client;
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+    // The connection's storage kernel: nested calls join, other requests wait their turn instead of
+    // landing inside this transaction (plan: ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md).
+    return sqliteKernel(this.db).transaction(fn);
   }
 }

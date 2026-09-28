@@ -83,7 +83,8 @@ function heldUntil<TDb>(kernel: StorageKernel<TDb>, pending: Promise<void>): Sto
   };
 }
 
-function emptiedPgKernel(tables: readonly string[]): PgContentKernel {
+/** The shared PGlite content kernel with `tables` emptied before its first call. */
+export function emptiedPgContentKernel(tables: readonly string[]): PgContentKernel {
   const base = sharedPgContentKernel();
   if (tables.length === 0) return base;
   const list = sql.join(
@@ -98,7 +99,7 @@ function emptiedPgKernel(tables: readonly string[]): PgContentKernel {
 export function eachDialect<R>(options: DialectOptions<R>): DialectCase<R>[] {
   return [
     { name: "sqlite", dialect: "sqlite", make: () => options.sqlite(freshSqliteContentKernel()) },
-    { name: "pglite", dialect: "postgres", make: () => options.postgres(emptiedPgKernel(options.tables)) },
+    { name: "pglite", dialect: "postgres", make: () => options.postgres(emptiedPgContentKernel(options.tables)) },
   ];
 }
 

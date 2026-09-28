@@ -1,4 +1,5 @@
 import type { Database as SqliteDatabase } from "better-sqlite3";
+import { type SQL, sql } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -90,6 +91,21 @@ interface PostSearchRow {
   updated_at: string;
   snippet: string;
   rank: number;
+}
+
+/**
+ * The same upsert as {@link indexPostSearchDocument}, as a statement for the storage kernel
+ * (`kernel.execute`), so a kernel-based repo writes the projection in its own transaction.
+ */
+export function postSearchDocumentUpsert(document: PostSearchDocument): SQL {
+  return sql`INSERT INTO post_search_document (post_id, title, slug, body_text)
+    VALUES (${document.postId}, ${document.title}, ${document.slug}, ${document.bodyText})
+    ON CONFLICT(post_id) DO UPDATE SET title = excluded.title, slug = excluded.slug, body_text = excluded.body_text`;
+}
+
+/** Drops one post's projection (the FTS triggers drop its index entry). */
+export function postSearchDocumentDelete(postId: string): SQL {
+  return sql`DELETE FROM post_search_document WHERE post_id = ${postId}`;
 }
 
 /**

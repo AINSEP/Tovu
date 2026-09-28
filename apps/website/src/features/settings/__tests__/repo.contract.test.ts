@@ -250,7 +250,9 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
       })
       .catch(() => "rolled-back");
 
-    const second = await repo
+    // On one SQLite connection the storage kernel makes the second WAIT its turn (it cannot run
+    // inside the first), so it is started, the first released, and only then awaited.
+    const secondRun = repo
       .transaction(async () => {
         await repo.saveDefinition({ ...def, settingId: "setting-independent", version: 1 });
         return "committed";
@@ -262,6 +264,7 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
 
     releaseFirst?.();
     assert.equal(await first, "rolled-back");
+    const second = await secondRun;
 
     if (second === "committed") {
       // If it reported success it must actually have survived the other's rollback.
