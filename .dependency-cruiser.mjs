@@ -228,7 +228,7 @@ const HAND_WRITTEN_RULES = [
       // still fenced. This is a legitimacy fix, not a loosening: it stops this rule from double-
       // counting known-legitimate integration tests so its remaining signal is real, which is also a
       // precondition for ever promoting it past `warn`.
-      from: { path: "^apps/website/src/features", pathNot: ["^apps/website/src/features/.*/(repo|search-index|html-document-store)\\.(sqlite|memory)\\.ts$", ".*/__tests__/.*"] },
+      from: { path: "^apps/website/src/features", pathNot: ["^apps/website/src/features/.*/((repo|search-index|html-document-store)\\.(sqlite|memory)|repo|repo\\.rows)\\.ts$", ".*/__tests__/.*"] },
       to: { path: "^apps/website/src/platform/db", dependencyTypesNot: ["type-only"] },
     },
     {
