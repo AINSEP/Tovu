@@ -30,8 +30,6 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
-  readdirSync,
-  readFileSync,
   readlinkSync,
   rmSync,
   symlinkSync,
@@ -40,36 +38,12 @@ import {
 } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "..", "..");
+import { jiniConsumers, repoRoot, stateFile } from "./jini-links.mjs";
+
 const jiniPackagesDir =
   process.env.JINI_PACKAGES_DIR || path.join(os.homedir(), "Programming", "Jini", "packages");
-const stateFile = path.join(repoRoot, "development", ".jini-link-state.json");
 const dryRun = process.argv.includes("--dry-run");
-
-const CONSUMER_DIRS = [
-  repoRoot,
-  path.join(repoRoot, "apps", "admin"),
-  path.join(repoRoot, "apps", "site-chat"),
-];
-
-function jiniDepsOf(consumerDir) {
-  const pkg = JSON.parse(readFileSync(path.join(consumerDir, "package.json"), "utf8"));
-  const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
-  return Object.keys(allDeps)
-    .filter((name) => name.startsWith("@jini-ai/"))
-    .map((name) => name.slice("@jini-ai/".length));
-}
-
-function installedJiniPackagesIn(scopeDir) {
-  try {
-    return readdirSync(scopeDir).filter((name) => !name.startsWith("."));
-  } catch {
-    return [];
-  }
-}
 
 /** One of "ok" | "missing" | "wrong-link" | "installed-copy" for the entry at `linkPath`. */
 function linkStatus(linkPath, target) {
@@ -84,12 +58,7 @@ function linkStatus(linkPath, target) {
   return resolved === target ? "ok" : "wrong-link";
 }
 
-const consumers = CONSUMER_DIRS.map((dir) => {
-  const scopeDir = path.join(dir, "node_modules", "@jini-ai");
-  const direct = jiniDepsOf(dir);
-  const names = [...new Set([...direct, ...installedJiniPackagesIn(scopeDir)])].sort();
-  return { dir, scopeDir, direct, names };
-}).filter((consumer) => consumer.direct.length > 0);
+const consumers = jiniConsumers();
 
 const missingDirect = [...new Set(consumers.flatMap((consumer) => consumer.direct))].filter(
   (name) => !existsSync(path.join(jiniPackagesDir, name)),
