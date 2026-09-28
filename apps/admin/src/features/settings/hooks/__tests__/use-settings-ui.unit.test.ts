@@ -8,7 +8,7 @@ import { useSettingsUi } from "../use-settings-ui.hooks";
  * bootstrap. Only exercised through `SettingsUiProps.useSettingsUiHook`'s fake in
  * `SettingsUi.unit.test.tsx` today, never directly — this file drives the real hook itself.
  *
- * Every one of the six mounted `useSettingsSlice` instances (and `useWiredComposioConfig`) calls
+ * Every one of the six mounted `useSettingsSlice` instances calls
  * `lib/api` for real here, with no mock — same "a failed fetch in a test environment degrades to a
  * loadError, never a crash" contract `useAdminExecutionCredential`'s/`useAdminLocale`'s own docs
  * establish, and `use-settings-slice.hooks.ts`'s own `loadError` surfacing confirms. This file's own
@@ -69,17 +69,17 @@ describe("useSettingsUi — save state merge", () => {
 });
 
 // The "composed sub-controllers are present" case that lived here MOVED, unchanged in what it
-// asserts, to `features/providers/hooks/__tests__/use-providers.unit.test.ts` — `composio` and
-// `externalMcp` are `useProviders`'s controllers now, not this hook's (2026-09-10, see
+// asserts, to `features/providers/hooks/__tests__/use-providers.unit.test.ts` — `externalMcp` is
+// `useProviders`'s controller now, not this hook's (2026-09-10, see
 // `SettingsUi.tsx`'s header). It was moved rather than re-authored so the guarantee it encodes
 // (real controllers, not stubs) survives the restructure intact.
 
 describe("useSettingsUi — the moved tabs' controllers are gone from this hook", () => {
   it("no longer exposes composio, externalMcp or mediaProvidersPort", () => {
     // A negative assertion, deliberately: the four tabs those fields fed left this screen, and a
-    // stray re-add here would silently re-mount a second live Composio/External MCP controller
-    // alongside the Providers page's own — two independent controllers writing the same sealed
-    // `composio_config` row and the same `external_mcp_servers` table.
+    // stray re-add here would silently re-mount a second live External MCP controller alongside the
+    // Providers page's own — two independent controllers writing the same `external_mcp_servers`
+    // table. (`composio` was removed outright on 2026-09-27; its guard stays so it cannot return.)
     const { result } = renderHook(() => useSettingsUi());
     expect(result.current).not.toHaveProperty("composio");
     expect(result.current).not.toHaveProperty("externalMcp");

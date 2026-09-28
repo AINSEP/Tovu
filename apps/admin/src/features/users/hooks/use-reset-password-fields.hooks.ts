@@ -5,11 +5,10 @@ import type { AdminIdentityUser } from "@/lib/api";
 /**
  * @file The reset-password dialog's own confirm-field and reveal-toggle state — client-side only,
  * never sent to the server (`use-users.hooks.ts`'s `resetPasswordMutation` still posts only
- * `principalId`/`password`). Split out of `Users.tsx` the same way `use-composio-key-field.hooks.ts`
- * splits its draft-input state out of `ComposioKeyField.tsx`: this is one dialog's own ephemeral UI
+ * `principalId`/`password`). Split out of `Users.tsx` because this is one dialog's own ephemeral UI
  * concern, not part of the screen-wide `UsersController` `use-users.hooks.ts` already owns, so it
  * gets its own small hook rather than growing that one further. No `-port.hooks.ts`/
- * `-dependencies.hooks.ts` pair — like `useComposioKeyField`, this hook does no I/O of its own.
+ * `-dependencies.hooks.ts` pair — this hook does no I/O of its own.
  */
 
 export interface ResetPasswordFieldsInput {

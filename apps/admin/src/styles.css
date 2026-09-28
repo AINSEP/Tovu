@@ -1148,8 +1148,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 
 /* Button hierarchy — the global bare `button` rule below is the filled primary CTA (correct for
    one action per screen, e.g. "New Post"/"Upload"). These variants give secondary/destructive
-   actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has (Composio's
-   "Save"/"Clear" key-field buttons, `ComposioKeyField.tsx`), instead of every button on the page
+   actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
 .btn-secondary { background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong); }
@@ -3719,28 +3718,6 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
     transition: none;
   }
 }
-/* Connectors tab: Tovu's own Composio API key field above `ConnectorsBrowser`, which ships no key
- * input of its own (see `ComposioKeyField.tsx`). Sized to sit as chrome above the grid rather than
- * compete with it. */
-.composio-key-field { margin: 0 0 16px; }
-.composio-key-label {
-  display: block; margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--jini-text);
-}
-.composio-key-help {
-  margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--jini-text-muted);
-}
-.composio-key-help code {
-  padding: 1px 4px; font-size: 11px;
-  background: var(--jini-bg-subtle); border-radius: var(--jini-radius-sm);
-}
-.composio-key-row { display: flex; gap: 8px; align-items: center; }
-.composio-key-input {
-  flex: 1 1 auto; min-width: 0; font: inherit; font-size: 13px; padding: 6px 10px;
-  color: var(--jini-text); background: var(--jini-bg-panel);
-  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-sm);
-}
-.composio-key-input:focus-visible { outline: 2px solid var(--jini-accent); outline-offset: 1px; }
-.composio-key-input:disabled { opacity: 0.6; }
 /* OD's Local CLI / BYOK toggle shows only the mode name, no second line —
  * confirmed against `od-settings-execution.png`. `ExecutionTab` renders that
  * description unconditionally (`.jini-seg-meta`, no prop to suppress it), so

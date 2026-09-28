@@ -6,8 +6,7 @@ import { useResetPasswordFields, type ResetPasswordFieldsInput } from "../hooks/
 
 /**
  * @file `useResetPasswordFields` — the confirm-field + reveal-toggle state extracted out of
- * `Users.tsx`'s `UserResetPasswordDialog`. Follows `use-composio-key-field.hooks.unit.test.ts`'s
- * exact harness for the same shape of hook: a hand-built input object, no `fetch`/`FetchQueryProvider`
+ * `Users.tsx`'s `UserResetPasswordDialog`. Harness: a hand-built input object, no `fetch`/`FetchQueryProvider`
  * needed since this hook does no I/O.
  */
 

@@ -615,8 +615,8 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // `integrations` COLLAPSE into one row — `providers` keeps its route id (`/admin/providers`
   // stays a working URL) but its label becomes "Integrations", and its screen
   // (`features/providers/Providers.tsx`) absorbs `integrations`' two tabs (MCP Server, Webhooks)
-  // alongside its own two (External MCP, Composio) — four tabs, ordered External MCP, Composio, MCP
-  // Server, Webhooks (owner's explicit tab-order call). The `integrations` panel's OWN nav row is
+  // alongside its own (External MCP, and a Composio tab removed 2026-09-27 when Composio became an
+  // agent plugin) — ordered External MCP, MCP Server, Webhooks (owner's explicit tab-order call). The `integrations` panel's OWN nav row is
   // retired — see that panel's own entry below for what happens to its bare `/admin/integrations`
   // URL and why the id/route still exist.
   //
@@ -676,8 +676,8 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     id: "providers",
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs —
     // same `?tab=` deep-linking convention as `deployment`'s and `settings`'s own entries elsewhere
-    // in this file (ADR-063), guarded by `resolveProvidersTabId` inside the screen. Four tabs as of
-    // the second pass (External MCP, Composio, MCP Server, Webhooks — owner's explicit order); see
+    // in this file (ADR-063), guarded by `resolveProvidersTabId` inside the screen. Three tabs
+    // (External MCP, MCP Server, Webhooks — owner's explicit order); see
     // `Providers.tsx`'s own header for the absorption of the retired `integrations` panel's two
     // tabs.
     render: (ctx) => <Providers tabId={ctx.query.get("tab")} />,

@@ -62,7 +62,7 @@ export interface ThemePagesController {
   /** `pages`' own length, or `0` while still loading (`pages === null`) — `Pages.tsx`'s TabBar
    *  count for this tab. Derived here (2026-09-04, complexity-ceiling pass) rather than as a
    *  `themePages?.length ?? 0` expression in `Pages.tsx` itself, the same "derive it beside the
-   *  state it reads" move `configured`/`busy` already use in `use-composio-key-field.hooks.ts`. */
+   *  state it reads" move. */
   pageCount: number;
   /**
    * The id of the theme `pages` came from — `null` until the same load settles.

@@ -639,14 +639,12 @@ interface UserResetPasswordDialogProps {
   passwordSaving: boolean;
   confirmResetPassword: () => Promise<void>;
   t: (key: string) => string;
-  /** Injectable seam for the confirm-field + reveal-toggle state — same convention
-   *  `ComposioKeyField.tsx`'s `useKeyField` prop uses. Defaults to the real
+  /** Injectable seam for the confirm-field + reveal-toggle state. Defaults to the real
    *  {@link useResetPasswordFields}. */
   useFields?: typeof useResetPasswordFields;
 }
 
-/** Resolves `useFields` to the real hook when no override is passed — same pattern
- *  `ComposioKeyField.tsx`'s `resolveKeyFieldHook` uses, and for the same reason: ESLint's
+/** Resolves `useFields` to the real hook when no override is passed, because ESLint's
  *  cyclomatic-complexity rule counts a default parameter value evaluated inside a function's OWN
  *  body as one of that function's own branches; a call out to a separately-scoped resolver does
  *  not. */

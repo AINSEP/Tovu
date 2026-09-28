@@ -10,8 +10,8 @@
  * its two tabs (MCP Server, Webhooks) moved into `features/providers/Providers.tsx`, now labelled
  * "Integrations". That file imports `Integrations` (the webhooks list) and `integrations-i18n.tsx`'s
  * `t` directly from their own files rather than through this barrel — a cross-feature import outside
- * this indirection, same precedent `Providers.tsx` already set importing `../settings/
- * ComposioKeyField` and `../settings/ExternalMcpSettingsPanel` directly. See `panels.tsx`'s own
+ * this indirection, same precedent `Providers.tsx` already set importing
+ * `../settings/ExternalMcpSettingsPanel` directly. See `panels.tsx`'s own
  * comment on the `integrations` panel for what its bare `/admin/integrations` URL does now that its
  * row has no nav entry.
  */

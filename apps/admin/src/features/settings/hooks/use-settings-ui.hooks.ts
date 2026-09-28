@@ -60,11 +60,11 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  * `useWiredWorkspace()` (`features/workspace/hooks/use-workspace.hooks.ts`) owns its fetch/save/
  * error state independently of `s`, so this controller has nothing to expose for it at all.
  *
- * The Composio and External MCP controllers this hook used to expose left on 2026-09-10 with their
- * tabs — see `SettingsUi.tsx`'s header. They are composed by
+ * The External MCP controller (and a since-removed Composio one) this hook used to expose left on
+ * 2026-09-10 with their tabs — see `SettingsUi.tsx`'s header. External MCP is composed by
  * `features/providers/hooks/use-providers.hooks.ts` now, which deliberately does NOT reuse this
- * hook: neither controller was ever settings-ledger-backed, and mounting six unrelated slices to
- * reach them would have put the Providers page behind five loads it never displays.
+ * hook: it was never settings-ledger-backed, and mounting six unrelated slices to
+ * reach it would have put the Providers page behind five loads it never displays.
  */
 
 export interface SettingsUiController {

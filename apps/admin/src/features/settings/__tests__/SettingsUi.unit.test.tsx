@@ -82,19 +82,6 @@ function baseController(overrides: Partial<SettingsUiController> = {}): Settings
       restartRequired: false,
     },
 
-    // Unconfigured, which is what the Connectors tab shows on a fresh install: the grid renders
-    // gated behind `ConnectorGate`. Not a `makeSlice` — this one is not ledger-backed.
-    composio: {
-      config: { configured: false, apiKeyTail: "" },
-      unlocked: false,
-      loadError: null,
-      saveState: "idle",
-      saveError: null,
-      catalogRefreshKey: 0,
-      save: vi.fn(async () => {}),
-      clear: vi.fn(async () => {}),
-    },
-
     execution: makeSlice(DEFAULT_EXECUTION_CONFIG),
     instructions: makeSlice(DEFAULT_INSTRUCTIONS),
     notifications: makeSlice(DEFAULT_NOTIFICATIONS),

@@ -343,7 +343,7 @@ async function runVisitorTestConnection(deps: {
 }
 
 export interface VisitorCredentialFormDependencies {
-  /** Follows `useAiAssistant`/`useComposioConfig`'s `{ port }` dependencies shape — required here
+  /** Follows `useAiAssistant`'s `{ port }` dependencies shape — required here
    *  (not defaulted internally), so the real client is supplied exactly once, by
    *  {@link useWiredVisitorCredentialForm} below, rather than by every caller re-stating the
    *  fallback. */

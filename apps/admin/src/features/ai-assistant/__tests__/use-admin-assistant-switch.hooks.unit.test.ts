@@ -62,9 +62,8 @@ describe("useAdminAssistantSwitch", () => {
   it("the getServerSnapshot argument (React's SSR fallback) returns false — real in an app with no SSR path, so unreachable through normal client rendering, but still the right server-side answer if that ever changes", () => {
     // A plain client render never calls `useSyncExternalStore`'s third argument (React only invokes
     // it during server rendering/hydration), and this app is a client-only SPA — so the ONLY way to
-    // exercise this one-line callback at all is to capture it directly off the real call, the same
-    // "prove the exact behavior without standing up ReactDOMServer" trade `use-composio-config`'s own
-    // unmount-race tests make for a different unreachable-in-jsdom path.
+    // exercise this one-line callback at all is to capture it directly off the real call — proving
+    // the exact behavior without standing up ReactDOMServer.
     renderHook(() => useAdminAssistantSwitch());
     const getServerSnapshot = useSyncExternalStoreSpy.mock.calls[0]?.[2];
     expect(getServerSnapshot).toBeInstanceOf(Function);

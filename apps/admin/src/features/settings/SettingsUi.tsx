@@ -36,8 +36,7 @@
  * - MCP server  -> `features/providers/Providers.tsx`, "MCP Server" tab (moved there from its own
  *                  short-lived `features/integrations/DeveloperApi.tsx` page, now deleted — see
  *                  `panels.tsx`'s comment on the `providers`/`integrations` panels for why).
- * - Connectors  -> `features/providers/Providers.tsx`, "Composio" tab (relabelled to the vendor's
- *                  own name; "Connectors" told an operator nothing about what they were setting up).
+ * - Connectors  -> removed 2026-09-27; Composio is now the `composio` agent plugin.
  * - External MCP -> `features/providers/Providers.tsx`, "External MCP" tab.
  * - Media providers -> DELETED outright from here, not moved. It was an `inert` mount over
  *   `createFakeMediaProvidersPort()` under a note reading "Tovu doesn't have a media-provider
@@ -54,8 +53,7 @@
  * collided once the row absorbed the retired `integrations` panel's tabs — see `panels.tsx`'s own
  * group comment for the full rename history).
  *
- * `ExternalMcpSettingsPanel.tsx`, `ComposioKeyField.tsx`, `connectors-port.ts` and their
- * rules/i18n/hook files still physically live in THIS folder — see
+ * `ExternalMcpSettingsPanel.tsx` and its rules/i18n/hook files still physically live in THIS folder — see
  * `features/providers/hooks/use-providers.hooks.ts` for why moving that file set is a deliberate
  * follow-up rather than part of the restructure.
  *
