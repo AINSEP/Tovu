@@ -22,7 +22,7 @@
  * `ReadableStream`/`TextDecoder` in {@link readSseFrames} are globals in both runtimes. Keep it that
  * way — the admin bundle imports it.
  */
-import { assistantContentFromEvents } from "@jini-ai/chat/core";
+import { assistantContentFromEvents, mergeAdjacentTextEvents } from "@jini-ai/chat/core";
 import type { AgentEvent, ChatRunStatus, ToolResultMediaBlock } from "@jini-ai/chat/core";
 
 export interface RunAgentPayload {
@@ -418,6 +418,16 @@ export function runContentFromEvents(events: readonly AgentEvent[]): string {
   return assistantContentFromEvents(events);
 }
 
+/**
+ * The events to SAVE for a turn: streamed `text`/`thinking` deltas joined into one event per run
+ * (`@jini-ai/chat`'s `mergeAdjacentTextEvents`). Live, one event per few tokens is what streams words
+ * onto the screen; saved, it only repeats the event wrapper per token. Used by every saver (the server
+ * finalizer and the chat PUT route the browser saves through), so both write the same shape.
+ */
+export function runEventsForSave(events: readonly AgentEvent[]): AgentEvent[] {
+  return mergeAdjacentTextEvents(events);
+}
+
 /** What one daemon stream frame means for the turn: events to append, a failure, and whether it ended. */
 export interface RunFrameOutcome {
   readonly events: AgentEvent[];
@@ -478,9 +488,18 @@ function heartbeatStatus(line: Record<string, unknown>): AgentEvent | null {
 }
 
 /**
+ * Lines the daemon has already parsed into typed events, so keeping them as `raw` only stores them
+ * twice: `stream_event` (the token-by-token echo `--include-partial-messages` adds → `text`), and the
+ * whole `assistant`/`user` messages (→ `text`/`thinking`/`tool_use`/`tool_result`). The `user` echo
+ * repeats every tool result: one "summarize my posts" turn saved 129 KB of them. Matched on the
+ * line's start, not a parse, because a long line arrives split over several stdout chunks and its
+ * first piece is not valid JSON on its own. Claude Code writes `type` first on every line.
+ */
+const ECHO_LINE = /^\{"type":"(?:stream_event|assistant|user)"/;
+
+/**
  * One CLI stdout/stderr chunk → events. Every JSON line that is a heartbeat also yields a typed
- * `status` event; `stream_event` lines (the token-by-token echo `--include-partial-messages` adds,
- * already parsed into `text` events by the daemon) are dropped; everything else stays in ONE `raw`
+ * `status` event; echo lines ({@link ECHO_LINE}) are dropped; everything else stays in ONE `raw`
  * event, verbatim. A chunk with no JSON lines at all (a plain-format CLI) is one `raw` event, as before.
  */
 function chunkEvent(raw: string | undefined): AgentEvent[] {
@@ -491,11 +510,11 @@ function chunkEvent(raw: string | undefined): AgentEvent[] {
   let kept = "";
   let droppedAny = false;
   for (const piece of chunk.split(/(?<=\n)/)) {
-    const line = parseJsonLine(piece.trim());
-    if (line?.type === "stream_event") {
+    if (ECHO_LINE.test(piece.trimStart())) {
       droppedAny = true;
       continue;
     }
+    const line = parseJsonLine(piece.trim());
     const status = line ? heartbeatStatus(line) : null;
     if (status) statuses.push(status);
     kept += piece;

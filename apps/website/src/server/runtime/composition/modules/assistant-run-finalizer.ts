@@ -38,6 +38,7 @@ import {
   isDaemonRunId,
   readSseFrames,
   runContentFromEvents,
+  runEventsForSave,
   runInterruptedNotice,
   translateRunFrame,
 } from "#src/contracts/core/assistant-run-events";
@@ -133,7 +134,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       runId: watch.runId,
       status,
       content: runContentFromEvents(events),
-      events,
+      events: runEventsForSave(events),
       endedAt: now(),
     });
   }

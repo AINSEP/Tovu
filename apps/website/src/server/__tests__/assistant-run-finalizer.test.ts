@@ -160,6 +160,51 @@ test("a run that ends with no browser attached is saved with its full answer and
   ]);
 });
 
+test("streamed text deltas are saved as one text event per run, by the server finalizer and by a browser save", async (t) => {
+  const daemon = fakeDaemon({
+    events: () =>
+      streamOf(
+        frame("start", { agentId: "claude" }),
+        text("Here"),
+        text(" are your"),
+        text(" posts."),
+        frame("end", { code: 0, status: "succeeded" }),
+      ),
+  });
+  const { app, finalizer } = harness(daemon);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const conversationId = await startConversation(baseUrl, cookie);
+
+  await putStub(baseUrl, cookie, conversationId);
+  await finalizer.idle();
+  const serverRow = await assistantRow(baseUrl, cookie, conversationId);
+  assert.equal(serverRow.content, "Here are your posts.");
+  assert.deepEqual(serverRow.events, [{ kind: "text", text: "Here are your posts." }]);
+
+  // The browser's own save of a finished turn goes through the same PUT route.
+  const browserSave = await api(baseUrl, cookie, `/${conversationId}/messages/a2`, {
+    method: "PUT",
+    body: JSON.stringify({
+      role: "assistant",
+      content: "One two",
+      events: [
+        { kind: "thinking", text: "Hm" },
+        { kind: "thinking", text: "m." },
+        { kind: "text", text: "One" },
+        { kind: "text", text: " two" },
+      ],
+      runId: "run-2",
+      runStatus: "succeeded",
+    }),
+  });
+  assert.equal(browserSave.status, 200);
+  const { messages } = (await (await api(baseUrl, cookie, `/${conversationId}/messages`)).json()) as { messages: SavedMessage[] };
+  assert.deepEqual(messages.find((m) => m.id === "a2")?.events, [
+    { kind: "thinking", text: "Hmm." },
+    { kind: "text", text: "One two" },
+  ]);
+});
+
 test("a run the daemon forgot (it restarted) is saved failed, keeping what it produced, with the plain restart message", async (t) => {
   const daemon = fakeDaemon({
     // The daemon dies mid-answer: the stream just stops, and the respawned daemon has never heard of the run.

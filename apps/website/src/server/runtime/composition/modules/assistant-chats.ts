@@ -26,6 +26,7 @@ import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { runEventsForSave } from "#src/contracts/core/assistant-run-events";
 import type { ServerModuleHandle } from "./types.js";
 import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
 
@@ -169,9 +170,12 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           res.status(400).json({ error: "'role' must be 'user' or 'assistant'", code: "VALIDATION_ERROR" });
           return;
         }
-        const message = {
-          ...(body as unknown as ChatMessage),
+        const sent = body as unknown as ChatMessage;
+        const message: ChatMessage = {
+          ...sent,
           id: req.params.messageId!,
+          // Streamed text deltas saved as one event per run, the same shape the server finalizer writes.
+          ...(Array.isArray(sent.events) ? { events: runEventsForSave(sent.events) } : {}),
         };
         const id = req.params.id!;
         const store = storeFor(res);

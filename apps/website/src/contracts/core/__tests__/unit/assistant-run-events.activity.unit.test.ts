@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runContentFromEvents, translateRunAgentPayload, translateRunFrame } from "../../assistant-run-events.js";
+import { runContentFromEvents, runEventsForSave, translateRunAgentPayload, translateRunFrame } from "../../assistant-run-events.js";
 
 /**
  * @file The run stream → chat event translation, for what the live activity line needs and what the
@@ -62,4 +62,37 @@ test("runContentFromEvents: a working note before a tool call is not glued onto 
     { kind: "text", text: "`test_table` now exists." },
   ]);
   assert.equal(content, "Need project id. Find list_projects.\n\n`test_table` now exists.");
+});
+
+test("translateRunFrame: assistant/user message echo lines are dropped from raw, even the head of a line split across chunks", () => {
+  // The daemon already turns these into `text`/`thinking`/`tool_use`/`tool_result` events. Kept as raw
+  // they stored every tool result twice (a 65 KB post body once as a tool_result, once as raw).
+  const assistant = { type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "Hi" }] }, session_id: "s" };
+  const user = { type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t", content: "big" }] } };
+  const init = { type: "system", subtype: "init", session_id: "s" };
+  assert.deepEqual(translateRunFrame("stdout", stdoutFrame([assistant, init, user])).events, [{ kind: "raw", line: `${JSON.stringify(init)}\n` }]);
+  // A 65 KB line arrives over several stdout chunks; its first piece is not valid JSON on its own.
+  const head = JSON.stringify({ runId: "r1", kind: "stdout", payload: { chunk: '{"type":"user","message":{"role":"user","content":[{"tool_use_id":"t","type":"tool_result","content":"<persisted' } });
+  assert.deepEqual(translateRunFrame("stdout", head).events, []);
+});
+
+test("runEventsForSave: streamed text deltas are saved as one text event, content unchanged", () => {
+  const events = [
+    { kind: "text", text: "Checking." },
+    { kind: "tool_use", id: "t1", name: "search_tools", input: {} },
+    { kind: "tool_result", toolUseId: "t1", content: "ok", isError: false },
+    { kind: "text", text: "Here" },
+    { kind: "text", text: " are your" },
+    { kind: "text", text: " 6 posts." },
+    { kind: "usage", outputTokens: 9 },
+  ] as const;
+  const saved = runEventsForSave(events);
+  assert.deepEqual(saved, [
+    { kind: "text", text: "Checking." },
+    { kind: "tool_use", id: "t1", name: "search_tools", input: {} },
+    { kind: "tool_result", toolUseId: "t1", content: "ok", isError: false },
+    { kind: "text", text: "Here are your 6 posts." },
+    { kind: "usage", outputTokens: 9 },
+  ]);
+  assert.equal(runContentFromEvents(saved), runContentFromEvents(events));
 });
