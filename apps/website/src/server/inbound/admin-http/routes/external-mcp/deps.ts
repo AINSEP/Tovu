@@ -16,7 +16,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type ExternalMcpRouteDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
+  "workspaceId" | "authorize" | "clock" | "externalMcpServerRepo" | "externalMcpToolApprovalRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
 >;
 
 export type ExternalMcpRouteRegistrar = (app: Express, deps: ExternalMcpRouteDeps) => void;

@@ -15,6 +15,7 @@ import {
 } from "#src/server/inbound/admin-http/routes/external-mcp/oauth";
 import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "#src/server/inbound/admin-http/routes/external-mcp/probe";
 import { registerAdminExternalMcpPutRoute } from "#src/server/inbound/admin-http/routes/external-mcp/put";
+import { registerAdminExternalMcpToolApprovalsRoutes } from "#src/server/inbound/admin-http/routes/external-mcp/tool-approvals";
 import { registerExternalMcpOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/external-mcp/oauth-callback";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -25,7 +26,7 @@ import type { ServerModuleHandle } from "./types.js";
  * This module configures external MCP servers that Tovu's agent daemon connects to and whose tools
  * the assistant may then call; `mcp-federation/trust.ts` is the separate trust tier for them.
  *
- * Nine routes now, not three. Eight are behind `requireAdminSession` under `/api/admin`, and ONE is
+ * Eleven routes now, not three. Ten are behind `requireAdminSession` under `/api/admin`, and ONE is
  * PUBLIC — the OAuth callback, mounted outside that prefix because a `SameSite=Strict` cookie
  * cannot survive the cross-site redirect that reaches it. That is the same shape
  * `modules/connectors.ts` already has, and the same argument; see
@@ -59,6 +60,9 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
       registerAdminExternalMcpDeleteRoute(app, deps);
       registerAdminExternalMcpAdmissionsRoute(app, deps);
       registerAdminExternalMcpProbeRoute(app, deps, probeLimiter);
+      // `GET /tool-approvals` is registered before nothing it could be mistaken for: there is no
+      // `GET /:serverId`, and the revoke path has four segments past `mcp-servers`.
+      registerAdminExternalMcpToolApprovalsRoutes(app, deps);
 
       if (!oauthDeps) return;
       registerAdminExternalMcpOAuthConnectRoute(app, oauthDeps, oauthLimiter);

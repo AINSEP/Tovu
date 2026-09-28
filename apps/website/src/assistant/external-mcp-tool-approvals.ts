@@ -9,8 +9,9 @@
  *   conversation id reuses nothing.
  * - **Always** — `ExternalMcpToolApprovalRepoPort`, one `external_mcp_tool_approvals` row per site +
  *   connection + remote tool in `content.db`, beside the connection's own row and deleted with it.
- *   Listed and revoked from the Integrations page (`GET/DELETE /api/admin/v1/external-mcp/:serverId/
- *   tool-approvals`). Never stored for a destructive tool.
+ *   Listed and revoked from the Integrations page's "Always allow" tab (`GET .../mcp-servers/
+ *   tool-approvals`, `DELETE .../mcp-servers/:serverId/tool-approvals/:toolName`, in
+ *   `routes/external-mcp/tool-approvals.ts`). Never stored for a destructive tool.
  *
  * One general mechanism for every federated tool (external MCP servers, agent plugins,
  * integrations): nothing here names a plugin or reads plugin config.
