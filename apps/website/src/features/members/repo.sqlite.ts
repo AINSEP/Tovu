@@ -2,12 +2,11 @@ import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import { SqlMemberRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "./repo.js";
+import { SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "./repo.js";
 import {
   memberConsents,
   memberMagicTokens,
   memberRevisions,
-  memberSessions,
 } from "../../platform/db/schema.sqlite.js";
 import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
@@ -15,7 +14,6 @@ import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
-  MemberSessionRepoPort,
 } from "./ports.js";
 import type {
   ConsentEvidence,
@@ -24,7 +22,6 @@ import type {
   MagicLinkTokenRecord,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
-  MemberSessionRecord,
 } from "./types.js";
 
 /**
@@ -69,78 +66,11 @@ export class SqliteMemberSubscriptionRepo extends SqlMemberSubscriptionRepo {
   }
 }
 
-function toMemberSessionRecord(row: typeof memberSessions.$inferSelect): MemberSessionRecord {
-  return {
-    id: row.id,
-    workspaceId: row.workspaceId,
-    memberId: row.memberId,
-    tokenHash: row.tokenHash,
-    createdAt: row.createdAt,
-    expiresAt: row.expiresAt,
-    revokedAt: row.revokedAt ?? undefined,
-    lastSeenAt: row.lastSeenAt ?? undefined,
-    userAgent: row.userAgent ?? undefined,
-    ip: row.ip ?? undefined,
-  };
-}
-
-export class SqliteMemberSessionRepo implements MemberSessionRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MemberSessionRecord | null> {
-    return findOneBy(
-      this.db,
-      memberSessions,
-      [eq(memberSessions.workspaceId, required.workspaceId), eq(memberSessions.tokenHash, required.tokenHash)],
-      toMemberSessionRecord
-    );
-  }
-
-  async listByMember(required: { workspaceId: string; memberId: string }): Promise<MemberSessionRecord[]> {
-    const rows = this.db
-      .select()
-      .from(memberSessions)
-      .where(and(eq(memberSessions.workspaceId, required.workspaceId), eq(memberSessions.memberId, required.memberId)))
-      .all();
-    return rows.map(toMemberSessionRecord);
-  }
-
-  async save(record: MemberSessionRecord): Promise<void> {
-    const row = {
-      id: record.id,
-      workspaceId: record.workspaceId,
-      memberId: record.memberId,
-      tokenHash: record.tokenHash,
-      createdAt: record.createdAt,
-      expiresAt: record.expiresAt,
-      revokedAt: record.revokedAt ?? null,
-      lastSeenAt: record.lastSeenAt ?? null,
-      userAgent: record.userAgent ?? null,
-      ip: record.ip ?? null,
-    };
-    this.db
-      .insert(memberSessions)
-      .values(row)
-      .onConflictDoUpdate({ target: memberSessions.id, set: row })
-      .run();
-  }
-
-  async revoke(required: { workspaceId: string; id: string; revokedAt: string }): Promise<void> {
-    this.db
-      .update(memberSessions)
-      .set({ revokedAt: required.revokedAt })
-      .where(and(eq(memberSessions.workspaceId, required.workspaceId), eq(memberSessions.id, required.id)))
-      .run();
-  }
-
-  async revokeAllForMember(required: { workspaceId: string; memberId: string; revokedAt: string }): Promise<void> {
-    this.db
-      .update(memberSessions)
-      .set({ revokedAt: required.revokedAt })
-      .where(
-        and(eq(memberSessions.workspaceId, required.workspaceId), eq(memberSessions.memberId, required.memberId))
-      )
-      .run();
+/** The member-session repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
+export class SqliteMemberSessionRepo extends SqlMemberSessionRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 

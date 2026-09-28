@@ -3,8 +3,8 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { memberRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
-import type { MemberRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
+import { memberRepoFor, memberSessionRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
+import type { MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
 
 /**
  * @file The members repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE
@@ -83,8 +83,30 @@ function subscription(id: string, overrides: Partial<MemberSubscriptionRecord> =
   };
 }
 
+function session(id: string, overrides: Partial<MemberSessionRecord> = {}): MemberSessionRecord {
+  return {
+    id,
+    workspaceId: WS,
+    memberId: "m1",
+    tokenHash: `hash-${id}`,
+    createdAt: T0,
+    expiresAt: "2026-10-28T00:00:00.000Z",
+    revokedAt: undefined,
+    lastSeenAt: T0,
+    userAgent: "UA/1.0",
+    ip: "203.0.113.9",
+    ...overrides,
+  };
+}
+
 function repos(kernel: ContentKernel) {
-  return { kernel, members: memberRepoFor(kernel), tiers: memberTierRepoFor(kernel), subs: memberSubscriptionRepoFor(kernel) };
+  return {
+    kernel,
+    members: memberRepoFor(kernel),
+    tiers: memberTierRepoFor(kernel),
+    subs: memberSubscriptionRepoFor(kernel),
+    sessions: memberSessionRepoFor(kernel),
+  };
 }
 
 describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos) => {
@@ -293,6 +315,79 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
         /boom/
       );
       assert.equal(await subs.findById({ workspaceId: WS, id: "s1" }), null);
+    });
+  });
+
+  describe("MemberSessionRepo", () => {
+    const REVOKED = "2026-09-29T00:00:00.000Z";
+
+    test("save then findByTokenHash / listByMember round-trip; optional columns come back undefined", async () => {
+      const { sessions } = makeRepos();
+      await sessions.save(session("s1"));
+      const bare = session("s2", { lastSeenAt: undefined, userAgent: undefined, ip: undefined });
+      await sessions.save(bare);
+      assert.deepEqual(await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s1" }), session("s1"));
+      assert.deepEqual(await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s2" }), bare);
+      assert.deepEqual((await sessions.listByMember({ workspaceId: WS, memberId: "m1" })).map((s) => s.id).sort(), ["s1", "s2"]);
+    });
+
+    test("reads miss unknown hashes/members and never cross workspaces", async () => {
+      const { sessions } = makeRepos();
+      await sessions.save(session("s1"));
+      assert.equal(await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "nope" }), null);
+      assert.equal(await sessions.findByTokenHash({ workspaceId: OTHER, tokenHash: "hash-s1" }), null);
+      assert.deepEqual(await sessions.listByMember({ workspaceId: WS, memberId: "nobody" }), []);
+      assert.deepEqual(await sessions.listByMember({ workspaceId: OTHER, memberId: "m1" }), []);
+    });
+
+    test("save upserts by id and the token-hash unique index rejects a second session with the same hash", async () => {
+      const { sessions } = makeRepos();
+      await sessions.save(session("s1"));
+      await sessions.save(session("s1", { userAgent: "UA/2.0" }));
+      assert.equal((await sessions.listByMember({ workspaceId: WS, memberId: "m1" })).length, 1);
+      assert.equal((await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s1" }))?.userAgent, "UA/2.0");
+      await assert.rejects(sessions.save(session("s2", { tokenHash: "hash-s1" })));
+      await sessions.save(session("s3", { workspaceId: OTHER, tokenHash: "hash-s1" }));
+    });
+
+    test("revoke stamps only the named session in its workspace", async () => {
+      const { sessions } = makeRepos();
+      await sessions.save(session("s1"));
+      await sessions.save(session("s2"));
+      await sessions.save(session("s3", { workspaceId: OTHER, tokenHash: "hash-s1" }));
+      await sessions.revoke({ workspaceId: WS, id: "s1", revokedAt: REVOKED });
+      await sessions.revoke({ workspaceId: WS, id: "nope", revokedAt: REVOKED });
+      assert.equal((await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s1" }))?.revokedAt, REVOKED);
+      assert.equal((await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s2" }))?.revokedAt, undefined);
+      assert.equal((await sessions.findByTokenHash({ workspaceId: OTHER, tokenHash: "hash-s1" }))?.revokedAt, undefined);
+    });
+
+    test("revokeAllForMember stamps every session of that member only", async () => {
+      const { sessions } = makeRepos();
+      await sessions.save(session("s1"));
+      await sessions.save(session("s2"));
+      await sessions.save(session("s3", { memberId: "m2" }));
+      await sessions.save(session("s4", { workspaceId: OTHER, tokenHash: "hash-s4" }));
+      await sessions.revokeAllForMember({ workspaceId: WS, memberId: "m1", revokedAt: REVOKED });
+      const mine = await sessions.listByMember({ workspaceId: WS, memberId: "m1" });
+      assert.deepEqual(mine.map((s) => s.revokedAt), [REVOKED, REVOKED]);
+      assert.equal((await sessions.listByMember({ workspaceId: WS, memberId: "m2" }))[0]?.revokedAt, undefined);
+      assert.equal((await sessions.listByMember({ workspaceId: OTHER, memberId: "m1" }))[0]?.revokedAt, undefined);
+    });
+
+    test("a revoke inside a rolled-back transaction does not stick", async () => {
+      const { kernel, sessions } = makeRepos();
+      await sessions.save(session("s1"));
+      await assert.rejects(
+        kernel.transaction(async () => {
+          await sessions.revokeAllForMember({ workspaceId: WS, memberId: "m1", revokedAt: REVOKED });
+          await sessions.save(session("s2"));
+          throw new Error("boom");
+        }),
+        /boom/
+      );
+      assert.equal((await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s1" }))?.revokedAt, undefined);
+      assert.equal(await sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-s2" }), null);
     });
   });
 });

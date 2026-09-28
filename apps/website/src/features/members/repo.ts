@@ -1,14 +1,21 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { MemberRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "./ports.js";
+import type {
+  MemberRepoPort,
+  MemberSessionRepoPort,
+  MemberSubscriptionRepoPort,
+  MemberTierRepoPort,
+} from "./ports.js";
 import {
   toMemberRecord,
   toMemberRow,
+  toMemberSessionRecord,
+  toMemberSessionRow,
   toMemberSubscriptionRecord,
   toMemberSubscriptionRow,
   toMemberTierRecord,
   toMemberTierRow,
 } from "./repo.rows.js";
-import type { MemberRecord, MemberSubscriptionRecord, MemberTierRecord } from "./types.js";
+import type { MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "./types.js";
 
 /**
  * @file THE members repositories: one Kysely query body for every database the storage kernel drives
@@ -209,6 +216,72 @@ export class SqlMemberSubscriptionRepo implements MemberSubscriptionRepoPort {
   }
 }
 
+/**
+ * Sessions. `revoke` / `revokeAllForMember` are single UPDATE statements — atomic on their own, so
+ * they need no lock; a session revoked twice keeps the latest `revokedAt`, as before.
+ */
+export class SqlMemberSessionRepo implements MemberSessionRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MemberSessionRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_sessions")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("token_hash", "=", required.tokenHash)
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toMemberSessionRecord(row) : null;
+  }
+
+  async listByMember(required: { workspaceId: string; memberId: string }): Promise<MemberSessionRecord[]> {
+    const rows = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_sessions")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("member_id", "=", required.memberId)
+        .execute()
+    );
+    return rows.map(toMemberSessionRecord);
+  }
+
+  async save(record: MemberSessionRecord): Promise<void> {
+    const row = toMemberSessionRow(record);
+    await this.kernel.run((db) =>
+      db
+        .insertInto("member_sessions")
+        .values(row)
+        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
+        .execute()
+    );
+  }
+
+  async revoke(required: { workspaceId: string; id: string; revokedAt: string }): Promise<void> {
+    await this.kernel.run((db) =>
+      db
+        .updateTable("member_sessions")
+        .set({ revoked_at: required.revokedAt })
+        .where("workspace_id", "=", required.workspaceId)
+        .where("id", "=", required.id)
+        .execute()
+    );
+  }
+
+  async revokeAllForMember(required: { workspaceId: string; memberId: string; revokedAt: string }): Promise<void> {
+    await this.kernel.run((db) =>
+      db
+        .updateTable("member_sessions")
+        .set({ revoked_at: required.revokedAt })
+        .where("workspace_id", "=", required.workspaceId)
+        .where("member_id", "=", required.memberId)
+        .execute()
+    );
+  }
+}
+
 /** The member repo for `kernel`. */
 export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
   return new SqlMemberRepo(kernel);
@@ -222,4 +295,9 @@ export function memberTierRepoFor(kernel: ContentKernel): SqlMemberTierRepo {
 /** The member-subscription repo for `kernel`. */
 export function memberSubscriptionRepoFor(kernel: ContentKernel): SqlMemberSubscriptionRepo {
   return new SqlMemberSubscriptionRepo(kernel);
+}
+
+/** The member-session repo for `kernel`. */
+export function memberSessionRepoFor(kernel: ContentKernel): SqlMemberSessionRepo {
+  return new SqlMemberSessionRepo(kernel);
 }
