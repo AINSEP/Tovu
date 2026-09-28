@@ -297,19 +297,18 @@ test("a <style> block at top level needs no handle — the tagging rule is about
 });
 
 /**
- * BUG (found by adversarial testing, 2026-09-09): a region's own tool description promises "A handle
- * that... two elements both carry, is REJECTED rather than guessed at" — but that check only runs
- * against the HANDLE the caller is targeting. Nothing validates the FRAGMENT being written in: if it
- * happens to contain `data-agent-element="<some other handle already in the document>"`, the write
- * succeeds and the document now carries that handle twice — silently breaking the addressability of a
- * region the model never touched and, on a 42KB page it cannot see, has no way to notice.
+ * Found by adversarial testing, 2026-09-09 (fixed 2026-09-28): a region's own tool description
+ * promises "A handle that... two elements both carry, is REJECTED rather than guessed at" — but that
+ * check used to run only against the HANDLE the caller is targeting. Nothing validated the FRAGMENT
+ * being written in: if it happened to contain `data-agent-element="<some other handle already in the
+ * document>"`, the write succeeded and the document then carried that handle twice — silently
+ * breaking the addressability of a region the model never touched and, on a 42KB page it cannot see,
+ * had no way to notice. `handlesMadeAmbiguous` now refuses such a write before it reaches the store.
  *
- * Not introduced by `pages_write_region` specifically — `pages_write_html`'s full-rewrite path has the
- * identical gap (see the sibling probe that reproduced it against a hand-written duplicate-handle
- * document). Filed here because a small region fragment is the more likely place for it to happen by
- * accident: the model is looking at a few lines of new markup, not the rest of the page.
+ * `pages_write_html`'s full-rewrite path has the identical gap (see the sibling probe that reproduced
+ * it against a hand-written duplicate-handle document) and is not covered by this fix.
  */
-test("BUG: writing a region fragment that reuses an UNRELATED handle already in the document silently makes that handle ambiguous", async () => {
+test("writing a region fragment that reuses an UNRELATED handle already in the document is refused, naming that handle", async () => {
   const { repo, call } = harness();
   await seedPage(repo, "page-1");
   await call("pages_write_html", {
@@ -324,12 +323,13 @@ test("BUG: writing a region fragment that reuses an UNRELATED handle already in 
     id: "page-1",
     handle: "hero",
     html: `<div data-agent-element="cta">accidentally reuses an unrelated handle</div>`,
-  })) as { written: boolean };
+  })) as { written: boolean; reason?: string };
 
-  // What SHOULD happen: refused, exactly like locateRegion refuses a target handle that already
+  // Refused, exactly like locateRegion refuses a target handle that already
   // resolves ambiguously — the tool's own description makes no distinction between "the handle you
   // asked for is ambiguous" and "your write just MADE some other handle ambiguous."
   assert.equal(result.written, false, "a write that introduces a duplicate handle elsewhere in the document must be refused, not silently accepted");
+  assert.match(result.reason ?? "", /data-agent-element="cta"/, `the refusal must name the reused handle; got: ${result.reason}`);
 
   const saved = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.doesNotMatch(
@@ -337,4 +337,26 @@ test("BUG: writing a region fragment that reuses an UNRELATED handle already in 
     /data-agent-element="cta"[\s\S]*data-agent-element="cta"/,
     "the stored document must never end up with a handle carried by two elements as a side effect of an unrelated region write"
   );
+});
+
+test("a page that already carries a duplicate handle stays editable in its other regions — only a write that ADDS ambiguity is refused", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1");
+  // Hand-written markup the full-rewrite path accepts today: "card" is already on two elements.
+  await call("pages_write_html", {
+    id: "page-1",
+    html:
+      `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` +
+      `<section data-agent-element="cards" data-agent-role="region"><div data-agent-element="card">a</div><div data-agent-element="card">b</div></section>`,
+  });
+
+  const unrelated = (await call("pages_write_region", { id: "page-1", handle: "hero", html: "<h1>Hello</h1>" })) as { written: boolean };
+  assert.equal(unrelated.written, true, "an edit that introduces no new ambiguity must not be blocked by a pre-existing one");
+
+  const worse = (await call("pages_write_region", {
+    id: "page-1",
+    handle: "hero",
+    html: `<div data-agent-element="card">c</div>`,
+  })) as { written: boolean; reason?: string };
+  assert.equal(worse.written, false, "adding a third carrier of an already-ambiguous handle makes it worse and must be refused");
 });

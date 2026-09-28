@@ -25,7 +25,14 @@ import {
   type PagesHtmlDocumentStorePort,
 } from "./html-document-store.sqlite.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
-import { locateRegion, regionHandlesIn, replaceRegionInner, untaggedTopLevelSections, type RegionLookupProblem } from "./regions.js";
+import {
+  handlesMadeAmbiguous,
+  locateRegion,
+  regionHandlesIn,
+  replaceRegionInner,
+  untaggedTopLevelSections,
+  type RegionLookupProblem,
+} from "./regions.js";
 
 /**
  * @file Maps the Pages catalog onto `PagesHtmlDocumentStore`, as `ToolRegistration`s.
@@ -216,6 +223,20 @@ function describeRegionProblem(id: string, handle: string, problem: RegionLookup
     `Nothing was written: page '${id}' has no region with data-agent-element="${handle}" — ${list}. ` +
     "Call pages_read_html to see the current handles, and target one of those; if the section you want does not exist " +
     "yet, add it with pages_write_html."
+  );
+}
+
+/**
+ * The refusal for a region fragment that would leave some handle on more than one element.
+ *
+ * @complexity O(k) in the offending handle count.
+ */
+function describeHandleCollision(id: string, handle: string, collisions: readonly string[]): string {
+  const quoted = collisions.map((collision) => `"${collision}"`).join(", ");
+  return (
+    `Nothing was written: the html for region "${handle}" carries data-agent-element=${quoted}, which ` +
+    `page '${id}' already uses, so that handle would stop addressing a single region. Remove or rename ` +
+    "that attribute in the fragment (each handle must be unique across the whole page), then write the region again."
   );
 }
 
@@ -412,6 +433,12 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       if ("problem" in lookup) throw new ToolInputError(describeRegionProblem(id, handle, lookup.problem));
 
       const next = replaceRegionInner(current, lookup.region, fragment);
+      const madeAmbiguous = handlesMadeAmbiguous(current, next);
+      if (madeAmbiguous.length > 0) {
+        // Returned, not thrown, like the other refusals the model fixes by changing its own input:
+        // here it only has to drop or rename the reused handle in its fragment.
+        return { written: false, reason: describeHandleCollision(id, handle, madeAmbiguous) };
+      }
       try {
         await store.write(next);
       } catch (err) {

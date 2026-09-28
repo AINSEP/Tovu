@@ -432,6 +432,38 @@ export function untaggedTopLevelSections(html: string): readonly UntaggedSection
   return offenders;
 }
 
+/** How many region elements carry each handle in `html`. */
+function countHandles(html: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const { handle } of scanPageMarkup(html).regions) counts.set(handle, (counts.get(handle) ?? 0) + 1);
+  return counts;
+}
+
+/**
+ * Every handle that `after` carries on more elements than `before` did, where that leaves it on more
+ * than one — i.e. the handles a splice would newly make ambiguous.
+ *
+ * {@link locateRegion} only checks the handle being TARGETED; this checks everything a region write
+ * brings in with its fragment. A fragment that reuses some other region's handle (or the target's
+ * own, nested inside itself) would otherwise leave that handle an address {@link locateRegion}
+ * refuses from then on, breaking a region the model never meant to touch. Comparing against `before`
+ * rather than refusing any duplicate keeps a page that already carried one (hand-written markup)
+ * editable everywhere else: only a write that makes the ambiguity worse is refused.
+ *
+ * @param before - The stored document.
+ * @param after - The document the pending write would store.
+ * @returns The offending handles, in `after`'s document order, each once. Empty means the write is safe.
+ * @complexity O(n) in the two documents' combined length (one scan each).
+ */
+export function handlesMadeAmbiguous(before: string, after: string): string[] {
+  const was = countHandles(before);
+  const offenders: string[] = [];
+  for (const [handle, count] of countHandles(after)) {
+    if (count > 1 && count > (was.get(handle) ?? 0)) offenders.push(handle);
+  }
+  return offenders;
+}
+
 /** Every region handle present in `html`, in document order — the list a read hands back to the model. */
 export function regionHandlesIn(html: string): string[] {
   return scanPageMarkup(html).regions.map((region) => region.handle);
