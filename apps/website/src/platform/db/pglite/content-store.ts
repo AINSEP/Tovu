@@ -4,11 +4,10 @@ import { mkdirSync } from "node:fs";
 import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 
-import { collectTransferTables } from "../../../features/database-transfer/table-catalog.js";
-import { constraintSql, createTableSql, indexSql } from "../../../features/database-transfer/postgres-ddl.js";
 import * as pgSchema from "../schema.postgres.js";
 import * as sqliteSchema from "../schema.sqlite.js";
 import type { ContentDb } from "../sqlite/content-db.js";
+import { hasPgContentSchema, pgContentSchemaSql } from "./content-schema.js";
 
 /**
  * @file The PGlite content store: one in-process Postgres (WASM) per data directory, the storage
@@ -63,15 +62,9 @@ async function importRows(tx: Transaction, from: ContentDb): Promise<void> {
 }
 
 async function bootstrap(client: PGlite, importFrom: ContentDb | undefined): Promise<void> {
-  const found = await client.query<{ t: string | null }>(`SELECT to_regclass('public.posts')::text AS t`);
-  if (found.rows[0]?.t) return;
-  const tables = collectTransferTables();
-  const ddl =
-    tables.map((table) => createTableSql("public", table)).join("") +
-    tables.map((table) => indexSql("public", table)).join("") +
-    constraintSql("public", tables);
+  if (await hasPgContentSchema(client)) return;
   await client.transaction(async (tx) => {
-    await tx.exec(ddl);
+    await tx.exec(pgContentSchemaSql());
     if (importFrom !== undefined) await importRows(tx, importFrom);
   });
 }
