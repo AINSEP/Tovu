@@ -241,8 +241,26 @@ function describeHandleCollision(id: string, handle: string, collisions: readonl
 }
 
 /**
- * Open a page for a full-body write and return the version the pending write will be conditioned on,
- * or `null` when this call is the page's FIRST html write.
+ * The refusal for a full-page write that would leave some handle on more than one element.
+ *
+ * @complexity O(k) in the offending handle count.
+ */
+function describeFullWriteHandleCollision(id: string, collisions: readonly string[]): string {
+  const quoted = collisions.map((collision) => `"${collision}"`).join(", ");
+  return (
+    `Nothing was written: the html for page '${id}' puts data-agent-element=${quoted} on more than one element, ` +
+    "so that handle would stop addressing a single region. Give each section its own handle (each handle must be " +
+    "unique across the whole page), then write the page again."
+  );
+}
+
+/** What {@link openForFullWrite} resolved: the write's version basis, or the handles that refuse it. */
+type FullWriteOpening = { readonly basis: number | null } | { readonly madeAmbiguous: readonly string[] };
+
+/**
+ * Open a page for a full-body write and return the version the pending write will be conditioned on
+ * (`null` when this call is the page's FIRST html write), or the handles `seedHtml` would newly put
+ * on more than one element — in which case nothing was converted and nothing may be written.
  *
  * The read comes BEFORE the format conversion on purpose. `ensureHtmlFormat` on a `doc`-format row
  * is itself a version-bumping write, so a version captured after it can never equal the basis a
@@ -250,6 +268,12 @@ function describeHandleCollision(id: string, handle: string, collisions: readonl
  * nothing extra. Reading first separates the two cases cleanly: an existing html page yields the
  * live version (and the guard applies), and a page with no body yet yields `null` (and there was
  * never a basis to state).
+ *
+ * The duplicate-handle check also runs here, between the read and the conversion, because that is
+ * the only point that has the current body in hand AND has not yet converted anything: `html` is
+ * compared against the stored body, or against an empty document when there is none (a first
+ * write, whose every duplicate is therefore new). Same rule as `pages_write_region`: only a write
+ * that ADDS ambiguity is refused, so a legacy page carrying a duplicate can still be rewritten.
  *
  * S2 (fix plan 2026-09-24, rows 13 + 18-pages) — a caller CAN state a basis for that first-write
  * case now, when it is converting an existing `doc`-format row rather than birthing a genuinely
@@ -271,17 +295,21 @@ async function openForFullWrite(
   store: PagesHtmlDocumentStorePort,
   seedHtml: string,
   guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number | undefined }
-): Promise<number | null> {
+): Promise<FullWriteOpening> {
+  let current: string | null = null;
   try {
-    await store.read();
-    return requireCapturedVersion(store);
+    current = await store.read();
   } catch (err) {
     if (!(err instanceof PageNotFoundError)) throw err;
   }
+  const madeAmbiguous = handlesMadeAmbiguous(current ?? "", seedHtml);
+  if (madeAmbiguous.length > 0) return { madeAmbiguous };
+  if (current !== null) return { basis: requireCapturedVersion(store) };
+
   const row = await guard.postRepo.findById({ workspaceId: guard.workspaceId, id: guard.id });
   if (row) assertExpectedVersion({ id: guard.id, expectedVersion: guard.expectedVersion, basis: row.version });
   await store.ensureHtmlFormat(seedHtml);
-  return null;
+  return { basis: null };
 }
 
 export interface PagesToolDeps {
@@ -365,8 +393,10 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       try {
-        const basis = await openForFullWrite(store, html, { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion });
-        if (basis !== null) assertExpectedVersion({ id, expectedVersion, basis });
+        const opening = await openForFullWrite(store, html, { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion });
+        // Returned, not thrown, like the region writer's collision refusal: the fix is in the model's own input.
+        if ("madeAmbiguous" in opening) return { written: false, reason: describeFullWriteHandleCollision(id, opening.madeAmbiguous) };
+        if (opening.basis !== null) assertExpectedVersion({ id, expectedVersion, basis: opening.basis });
         await store.write(html);
       } catch (err) {
         if (err instanceof PageKindMismatchError) {

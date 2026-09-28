@@ -128,13 +128,13 @@ test("a handle that is not in the document is refused, and the refusal names the
 
 test("a handle carried by two elements is refused rather than guessed — an address that resolves to two places is not an address", async () => {
   const { repo, call } = harness();
-  await seedPage(repo, "page-1");
-  await call("pages_write_html", {
-    id: "page-1",
-    html:
-      `<section data-agent-element="dup" data-agent-role="region"><p>first</p></section>` +
-      `<section data-agent-element="dup" data-agent-role="region"><p>second</p></section>`,
-  });
+  // Seeded around the tools: pages_write_html itself now refuses to create this document.
+  await seedHtmlBypassingTools(
+    repo,
+    "page-1",
+    `<section data-agent-element="dup" data-agent-role="region"><p>first</p></section>` +
+      `<section data-agent-element="dup" data-agent-role="region"><p>second</p></section>`
+  );
 
   await assert.rejects(
     () => call("pages_write_region", { id: "page-1", handle: "dup", html: "<p>x</p>" }),
@@ -305,8 +305,8 @@ test("a <style> block at top level needs no handle — the tagging rule is about
  * breaking the addressability of a region the model never touched and, on a 42KB page it cannot see,
  * had no way to notice. `handlesMadeAmbiguous` now refuses such a write before it reaches the store.
  *
- * `pages_write_html`'s full-rewrite path has the identical gap (see the sibling probe that reproduced
- * it against a hand-written duplicate-handle document) and is not covered by this fix.
+ * `pages_write_html`'s full-rewrite path had the identical gap; it applies the same rule (see the
+ * full-write tests below).
  */
 test("writing a region fragment that reuses an UNRELATED handle already in the document is refused, naming that handle", async () => {
   const { repo, call } = harness();
@@ -339,16 +339,23 @@ test("writing a region fragment that reuses an UNRELATED handle already in the d
   );
 });
 
+/** Markup where "card" is already on two elements — legacy hand-written HTML that no tool may create any more. */
+const LEGACY_DUPLICATE =
+  `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` +
+  `<section data-agent-element="cards" data-agent-role="region"><div data-agent-element="card">a</div><div data-agent-element="card">b</div></section>`;
+
+/** Creates page `id` holding `html` straight through the store, bypassing the tools' duplicate-handle check. */
+async function seedHtmlBypassingTools(repo: InMemoryPostRepo, id: string, html: string) {
+  await seedPage(repo, id);
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: id, actorId: "seed" }, { repo, clock });
+  await store.ensureHtmlFormat(html);
+  await store.read();
+  await store.write(html);
+}
+
 test("a page that already carries a duplicate handle stays editable in its other regions — only a write that ADDS ambiguity is refused", async () => {
   const { repo, call } = harness();
-  await seedPage(repo, "page-1");
-  // Hand-written markup the full-rewrite path accepts today: "card" is already on two elements.
-  await call("pages_write_html", {
-    id: "page-1",
-    html:
-      `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` +
-      `<section data-agent-element="cards" data-agent-role="region"><div data-agent-element="card">a</div><div data-agent-element="card">b</div></section>`,
-  });
+  await seedHtmlBypassingTools(repo, "page-1", LEGACY_DUPLICATE);
 
   const unrelated = (await call("pages_write_region", { id: "page-1", handle: "hero", html: "<h1>Hello</h1>" })) as { written: boolean };
   assert.equal(unrelated.written, true, "an edit that introduces no new ambiguity must not be blocked by a pre-existing one");
@@ -359,4 +366,46 @@ test("a page that already carries a duplicate handle stays editable in its other
     html: `<div data-agent-element="card">c</div>`,
   })) as { written: boolean; reason?: string };
   assert.equal(worse.written, false, "adding a third carrier of an already-ambiguous handle makes it worse and must be refused");
+});
+
+test("pages_write_html refuses a full rewrite that puts one handle on two elements, and leaves the stored page untouched", async () => {
+  const { repo, call } = harness();
+  await seedThreeRegionPage(call, repo, "page-1");
+  const before = (await repo.findById({ workspaceId: WS, id: "page-1" }))?.bodyHtml;
+
+  const result = (await call("pages_write_html", {
+    id: "page-1",
+    html:
+      `<section data-agent-element="page-hero" data-agent-role="region"><h1>New</h1></section>` +
+      `<section data-agent-element="page-hero" data-agent-role="region"><p>Oops, same handle</p></section>`,
+  })) as { written: boolean; reason?: string };
+
+  assert.equal(result.written, false, "a full rewrite that creates a duplicate handle must be refused");
+  assert.match(result.reason ?? "", /data-agent-element="page-hero"/, `the refusal must name the duplicated handle; got: ${result.reason}`);
+  assert.equal((await repo.findById({ workspaceId: WS, id: "page-1" }))?.bodyHtml, before, "nothing may be written");
+});
+
+test("pages_write_html refuses a FIRST write with duplicate handles before converting the row, so the page stays a doc", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1");
+
+  const result = (await call("pages_write_html", {
+    id: "page-1",
+    html:
+      `<section data-agent-element="hero" data-agent-role="region"><h1>A</h1></section>` +
+      `<section data-agent-element="hero" data-agent-role="region"><h1>B</h1></section>`,
+  })) as { written: boolean; reason?: string };
+
+  assert.equal(result.written, false, "a brand-new page is compared against an empty document, so any duplicate is new");
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.equal(row?.bodyFormat, "doc", "the refusal must come before ensureHtmlFormat's one-way conversion");
+  assert.equal(row?.bodyHtml ?? null, null, "no markup may have been persisted");
+});
+
+test("pages_write_html still rewrites a legacy page whose existing duplicate it does not make worse", async () => {
+  const { repo, call } = harness();
+  await seedHtmlBypassingTools(repo, "page-1", LEGACY_DUPLICATE);
+
+  const kept = (await call("pages_write_html", { id: "page-1", html: LEGACY_DUPLICATE.replace("<h1>Hi</h1>", "<h1>Hello</h1>") })) as { written: boolean };
+  assert.equal(kept.written, true, "an unchanged pre-existing duplicate must not lock the page against full rewrites");
 });
