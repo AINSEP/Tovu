@@ -8,6 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { PostRecord, PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
+import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 
 /**
  * @file Standing-draft autosave (2026-09-06 dispatch) — `PostRepoPort.readAutosave`/
@@ -208,4 +209,10 @@ runAutosaveContract("SqlitePostRepo", async () => {
   const { repo, cleanup } = openTempSqliteRepo();
   await repo.save(baseRecord());
   return { repo, teardown: cleanup };
+});
+
+runAutosaveContract("PglitePostRepo", async () => {
+  const { repo, teardown } = makePglitePostRepo();
+  await repo.save(baseRecord());
+  return { repo, teardown };
 });

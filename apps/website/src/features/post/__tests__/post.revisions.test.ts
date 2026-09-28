@@ -13,6 +13,7 @@ import {
 } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
+import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 import { removeVia } from "./remove-post-double.js";
 
 /**
@@ -57,6 +58,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
 const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
   { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo() },
   { name: "SqlitePostRepo", make: () => new SqlitePostRepo(openContentDb(":memory:")) },
+  { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 
 // ---------------------------------------------------------------------------

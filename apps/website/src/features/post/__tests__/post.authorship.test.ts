@@ -8,6 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost, updatePost, type PostRecord, type PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
+import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 
 /**
  * @file Authorship attribution (2026-09-18) — `posts.created_by_principal_id`/`created_at`
@@ -125,4 +126,9 @@ runAuthorshipContract("InMemoryPostRepo", async () => ({
 runAuthorshipContract("SqlitePostRepo", async () => {
   const { repo, cleanup } = openTempSqliteRepo();
   return { repo, teardown: cleanup };
+});
+
+runAuthorshipContract("PglitePostRepo", async () => {
+  const { repo, teardown } = makePglitePostRepo();
+  return { repo, teardown };
 });

@@ -8,6 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { PostAutosaveSnapshot, PostRecord, PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
+import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 
 /**
  * @file `PostRepoPort.saveIfVersion` — the conditional half of `updatePost`'s compare-and-set
@@ -171,4 +172,10 @@ runSaveIfVersionContract("SqlitePostRepo", async () => {
   const { repo, cleanup } = openTempSqliteRepo();
   await repo.save(baseRecord());
   return { repo, teardown: cleanup };
+});
+
+runSaveIfVersionContract("PglitePostRepo", async () => {
+  const { repo, teardown } = makePglitePostRepo();
+  await repo.save(baseRecord());
+  return { repo, teardown };
 });

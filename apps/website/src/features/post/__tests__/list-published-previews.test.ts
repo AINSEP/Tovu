@@ -5,6 +5,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { listPublishedPostPreviews, type PostRecord, type PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
+import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 
 /**
  * @file Certifies `PostRepoPort.listPublishedPreviews` on BOTH adapters (the rule-of-two contract
@@ -42,6 +43,7 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
 const ADAPTERS: { name: string; make: () => PostRepoPort }[] = [
   { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo() },
   { name: "SqlitePostRepo", make: () => new SqlitePostRepo(openContentDb(":memory:")) },
+  { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 
 for (const adapter of ADAPTERS) {
