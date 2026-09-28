@@ -3,6 +3,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import type { UUID } from "@jini-ai/cms/core";
 import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort, PublishProviderId } from "#src/features/deployments/publish-credentials/types";
 import { publishCredentialSets } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -16,16 +17,11 @@ import type { ContentDb } from "./content-db.js";
  * their contents (that is `AesGcmSecretSealer`'s and `publish-credentials/store.ts`'s job).
  *
  * `insert`/`update`/`delete` wrap their group-invariant side effect (Contract v2 Correction B — see
- * `PublishCredentialSetRepoPort`'s own header) in one `db.transaction()` each, mirroring
+ * `PublishCredentialSetRepoPort`'s own header) in one storage-kernel transaction each, mirroring
  * `media-provider-credential-repo.sqlite.ts`'s `replaceWorkspace` — the same "read/plan/write must
  * never hand this connection back to the event loop mid-sequence" reasoning applies here: two
  * defaults for one `(workspace_id, provider_id)` must never be observable, even transiently.
  */
-
-/** Same derivation `media-provider-credential-repo.sqlite.ts`'s own `ContentDbTx` uses — the Drizzle
- *  transaction callback argument's type, extracted structurally since Drizzle does not export it
- *  directly. */
-type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
 
 type Row = typeof publishCredentialSets.$inferSelect;
 
@@ -64,25 +60,25 @@ export class SqlitePublishCredentialSetRepo implements PublishCredentialSetRepoP
   constructor(private readonly db: ContentDb) {}
 
   async insert(record: PublishCredentialSetRecord): Promise<void> {
-    this.db.transaction((tx) => {
+    await contentKernel(this.db).transaction(async () => {
       // A plain `.insert()`, NOT `.onConflictDoUpdate()` — unlike `SqliteSiteAssistantCredentialRepo`'s
       // single-row-per-workspace upsert, this table's rows are caller-created with a fresh `id`
       // (`store.ts`'s `createPublishCredential` mints it via `idGen.newId()`), so a conflict here can
       // only mean the UNIQUE `(workspace_id, provider_id, label)` index rejected a duplicate label —
       // exactly the error `store.ts`'s `isUniqueLabelViolation` is written to catch and translate.
       // Letting it propagate raw (rather than swallowing it into a silent upsert) is deliberate.
-      tx.insert(publishCredentialSets).values(toValues(record)).run();
-      if (record.isDefault) clearOtherDefaults(tx, record.workspaceId, record.providerId, record.id);
+      this.db.insert(publishCredentialSets).values(toValues(record)).run();
+      if (record.isDefault) clearOtherDefaults(this.db, record.workspaceId, record.providerId, record.id);
     });
   }
 
   async update(record: PublishCredentialSetRecord): Promise<void> {
-    this.db.transaction((tx) => {
-      tx.update(publishCredentialSets)
+    await contentKernel(this.db).transaction(async () => {
+      this.db.update(publishCredentialSets)
         .set(toValues(record))
         .where(and(eq(publishCredentialSets.workspaceId, record.workspaceId), eq(publishCredentialSets.id, record.id)))
         .run();
-      if (record.isDefault) clearOtherDefaults(tx, record.workspaceId, record.providerId, record.id);
+      if (record.isDefault) clearOtherDefaults(this.db, record.workspaceId, record.providerId, record.id);
     });
   }
 
@@ -124,8 +120,8 @@ export class SqlitePublishCredentialSetRepo implements PublishCredentialSetRepoP
   }
 
   async delete(input: { workspaceId: UUID; id: UUID }): Promise<void> {
-    this.db.transaction((tx) => {
-      const removed = tx
+    await contentKernel(this.db).transaction(async () => {
+      const removed = this.db
         .select()
         .from(publishCredentialSets)
         .where(and(eq(publishCredentialSets.workspaceId, input.workspaceId), eq(publishCredentialSets.id, input.id)))
@@ -133,7 +129,7 @@ export class SqlitePublishCredentialSetRepo implements PublishCredentialSetRepoP
 
       // No-op (not an error) on a zero-row DELETE — same idempotent-delete posture
       // `SqliteSiteAssistantCredentialRepo.clearKey`'s own doc comment documents for its UPDATE.
-      tx.delete(publishCredentialSets)
+      this.db.delete(publishCredentialSets)
         .where(and(eq(publishCredentialSets.workspaceId, input.workspaceId), eq(publishCredentialSets.id, input.id)))
         .run();
 
@@ -141,7 +137,7 @@ export class SqlitePublishCredentialSetRepo implements PublishCredentialSetRepoP
 
       // Promote the group's most-recently-updated remaining row — see `PublishCredentialSetRepoPort`'s
       // own header for why "most recently updated" is the tie-break rule.
-      const promoted = tx
+      const promoted = this.db
         .select()
         .from(publishCredentialSets)
         .where(and(eq(publishCredentialSets.workspaceId, removed.workspaceId), eq(publishCredentialSets.providerId, removed.providerId)))
@@ -150,7 +146,7 @@ export class SqlitePublishCredentialSetRepo implements PublishCredentialSetRepoP
         .all()[0];
       if (!promoted) return;
 
-      tx.update(publishCredentialSets)
+      this.db.update(publishCredentialSets)
         .set({ isDefault: true })
         .where(and(eq(publishCredentialSets.workspaceId, promoted.workspaceId), eq(publishCredentialSets.id, promoted.id)))
         .run();
@@ -171,10 +167,10 @@ export class SqlitePublishCredentialSetRepo implements PublishCredentialSetRepoP
 }
 
 /** Clears `isDefault` on every OTHER row sharing `(workspaceId, providerId)` — the group-invariant
- *  half of `insert`/`update`'s contract. `tx` rather than `this.db` so this always runs inside the
- *  caller's own transaction, never as a second, separately-committed statement. */
-function clearOtherDefaults(tx: ContentDbTx, workspaceId: UUID, providerId: PublishProviderId, keepId: UUID): void {
-  tx.update(publishCredentialSets)
+ *  half of `insert`/`update`'s contract. Called only inside the
+ *  caller's own kernel transaction, never as a second, separately-committed statement. */
+function clearOtherDefaults(db: ContentDb, workspaceId: UUID, providerId: PublishProviderId, keepId: UUID): void {
+  db.update(publishCredentialSets)
     .set({ isDefault: false })
     .where(
       and(

@@ -3,6 +3,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import type { UUID } from "@jini-ai/cms/core";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorId } from "#src/features/vendor-credentials/types";
 import { vendorCredentialSets } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -11,10 +12,8 @@ import type { ContentDb } from "./content-db.js";
  * first. Mirrors `publish-credential-repo.sqlite.ts`/`source-control-credential-repo.sqlite.ts`
  * byte-for-byte, `providerId` swapped for `vendorId` and `tokenTail` added to the plain column
  * group both `toRecord`/`toValues` already move opaquely — see either sibling file's own header for
- * the full "why one `db.transaction()` per group-invariant write" reasoning this file shares.
+ * the full "why one kernel transaction per group-invariant write" reasoning this file shares.
  */
-
-type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
 
 type Row = typeof vendorCredentialSets.$inferSelect;
 
@@ -55,22 +54,22 @@ export class SqliteVendorCredentialSetRepo implements VendorCredentialSetRepoPor
   constructor(private readonly db: ContentDb) {}
 
   async insert(record: VendorCredentialSetRecord): Promise<void> {
-    this.db.transaction((tx) => {
+    await contentKernel(this.db).transaction(async () => {
       // A plain `.insert()`, NOT `.onConflictDoUpdate()` — same reasoning both sibling adapters'
       // own `insert()` document: a conflict here can only mean the UNIQUE
       // `(workspace_id, vendor_id, label)` index rejected a duplicate label.
-      tx.insert(vendorCredentialSets).values(toValues(record)).run();
-      if (record.isDefault) clearOtherDefaults(tx, record.workspaceId, record.vendorId, record.id);
+      this.db.insert(vendorCredentialSets).values(toValues(record)).run();
+      if (record.isDefault) clearOtherDefaults(this.db, record.workspaceId, record.vendorId, record.id);
     });
   }
 
   async update(record: VendorCredentialSetRecord): Promise<void> {
-    this.db.transaction((tx) => {
-      tx.update(vendorCredentialSets)
+    await contentKernel(this.db).transaction(async () => {
+      this.db.update(vendorCredentialSets)
         .set(toValues(record))
         .where(and(eq(vendorCredentialSets.workspaceId, record.workspaceId), eq(vendorCredentialSets.id, record.id)))
         .run();
-      if (record.isDefault) clearOtherDefaults(tx, record.workspaceId, record.vendorId, record.id);
+      if (record.isDefault) clearOtherDefaults(this.db, record.workspaceId, record.vendorId, record.id);
     });
   }
 
@@ -112,20 +111,20 @@ export class SqliteVendorCredentialSetRepo implements VendorCredentialSetRepoPor
   }
 
   async delete(input: { workspaceId: UUID; id: UUID }): Promise<void> {
-    this.db.transaction((tx) => {
-      const removed = tx
+    await contentKernel(this.db).transaction(async () => {
+      const removed = this.db
         .select()
         .from(vendorCredentialSets)
         .where(and(eq(vendorCredentialSets.workspaceId, input.workspaceId), eq(vendorCredentialSets.id, input.id)))
         .all()[0];
 
-      tx.delete(vendorCredentialSets)
+      this.db.delete(vendorCredentialSets)
         .where(and(eq(vendorCredentialSets.workspaceId, input.workspaceId), eq(vendorCredentialSets.id, input.id)))
         .run();
 
       if (!removed?.isDefault) return;
 
-      const promoted = tx
+      const promoted = this.db
         .select()
         .from(vendorCredentialSets)
         .where(and(eq(vendorCredentialSets.workspaceId, removed.workspaceId), eq(vendorCredentialSets.vendorId, removed.vendorId)))
@@ -134,7 +133,7 @@ export class SqliteVendorCredentialSetRepo implements VendorCredentialSetRepoPor
         .all()[0];
       if (!promoted) return;
 
-      tx.update(vendorCredentialSets)
+      this.db.update(vendorCredentialSets)
         .set({ isDefault: true })
         .where(and(eq(vendorCredentialSets.workspaceId, promoted.workspaceId), eq(vendorCredentialSets.id, promoted.id)))
         .run();
@@ -154,8 +153,8 @@ export class SqliteVendorCredentialSetRepo implements VendorCredentialSetRepoPor
 
 /** Clears `isDefault` on every OTHER row sharing `(workspaceId, vendorId)` — the group-invariant
  *  half of `insert`/`update`'s contract. */
-function clearOtherDefaults(tx: ContentDbTx, workspaceId: UUID, vendorId: VendorId, keepId: UUID): void {
-  tx.update(vendorCredentialSets)
+function clearOtherDefaults(db: ContentDb, workspaceId: UUID, vendorId: VendorId, keepId: UUID): void {
+  db.update(vendorCredentialSets)
     .set({ isDefault: false })
     .where(
       and(

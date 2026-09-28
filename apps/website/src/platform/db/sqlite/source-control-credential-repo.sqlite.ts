@@ -3,6 +3,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import type { UUID } from "@jini-ai/cms/core";
 import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "#src/features/source-control/types";
 import { sourceControlCredentialSets } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -16,16 +17,11 @@ import type { ContentDb } from "./content-db.js";
  * validates their contents (that is `AesGcmSecretSealer`'s and `source-control/store.ts`'s job).
  *
  * `insert`/`update`/`delete` wrap their group-invariant side effect (the `isDefault` invariant — see
- * `SourceControlCredentialSetRepoPort`'s own header) in one `db.transaction()` each, same "read/
+ * `SourceControlCredentialSetRepoPort`'s own header) in one storage-kernel transaction each, same "read/
  * plan/write must never hand this connection back to the event loop mid-sequence" reasoning
  * `publish-credential-repo.sqlite.ts` documents: two defaults for one `(workspace_id, provider_id)`
  * must never be observable, even transiently.
  */
-
-/** Same derivation `publish-credential-repo.sqlite.ts`'s own `ContentDbTx` uses — the Drizzle
- *  transaction callback argument's type, extracted structurally since Drizzle does not export it
- *  directly. */
-type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
 
 type Row = typeof sourceControlCredentialSets.$inferSelect;
 
@@ -64,24 +60,24 @@ export class SqliteSourceControlCredentialSetRepo implements SourceControlCreden
   constructor(private readonly db: ContentDb) {}
 
   async insert(record: SourceControlCredentialSetRecord): Promise<void> {
-    this.db.transaction((tx) => {
+    await contentKernel(this.db).transaction(async () => {
       // A plain `.insert()`, NOT `.onConflictDoUpdate()` — this table's rows are caller-created with
       // a fresh `id` (`store.ts`'s `createSourceControlCredential` mints it via `idGen.newId()`), so
       // a conflict here can only mean the UNIQUE `(workspace_id, provider_id, label)` index rejected
       // a duplicate label — exactly the error `store.ts`'s `isUniqueLabelViolation` is written to
       // catch and translate. Letting it propagate raw is deliberate.
-      tx.insert(sourceControlCredentialSets).values(toValues(record)).run();
-      if (record.isDefault) clearOtherDefaults(tx, record.workspaceId, record.providerId, record.id);
+      this.db.insert(sourceControlCredentialSets).values(toValues(record)).run();
+      if (record.isDefault) clearOtherDefaults(this.db, record.workspaceId, record.providerId, record.id);
     });
   }
 
   async update(record: SourceControlCredentialSetRecord): Promise<void> {
-    this.db.transaction((tx) => {
-      tx.update(sourceControlCredentialSets)
+    await contentKernel(this.db).transaction(async () => {
+      this.db.update(sourceControlCredentialSets)
         .set(toValues(record))
         .where(and(eq(sourceControlCredentialSets.workspaceId, record.workspaceId), eq(sourceControlCredentialSets.id, record.id)))
         .run();
-      if (record.isDefault) clearOtherDefaults(tx, record.workspaceId, record.providerId, record.id);
+      if (record.isDefault) clearOtherDefaults(this.db, record.workspaceId, record.providerId, record.id);
     });
   }
 
@@ -123,8 +119,8 @@ export class SqliteSourceControlCredentialSetRepo implements SourceControlCreden
   }
 
   async delete(input: { workspaceId: UUID; id: UUID }): Promise<void> {
-    this.db.transaction((tx) => {
-      const removed = tx
+    await contentKernel(this.db).transaction(async () => {
+      const removed = this.db
         .select()
         .from(sourceControlCredentialSets)
         .where(and(eq(sourceControlCredentialSets.workspaceId, input.workspaceId), eq(sourceControlCredentialSets.id, input.id)))
@@ -132,14 +128,14 @@ export class SqliteSourceControlCredentialSetRepo implements SourceControlCreden
 
       // No-op (not an error) on a zero-row DELETE — same idempotent-delete posture the sibling
       // publish-credential adapter documents.
-      tx.delete(sourceControlCredentialSets)
+      this.db.delete(sourceControlCredentialSets)
         .where(and(eq(sourceControlCredentialSets.workspaceId, input.workspaceId), eq(sourceControlCredentialSets.id, input.id)))
         .run();
 
       if (!removed?.isDefault) return;
 
       // Promote the group's most-recently-updated remaining row.
-      const promoted = tx
+      const promoted = this.db
         .select()
         .from(sourceControlCredentialSets)
         .where(and(eq(sourceControlCredentialSets.workspaceId, removed.workspaceId), eq(sourceControlCredentialSets.providerId, removed.providerId)))
@@ -148,7 +144,7 @@ export class SqliteSourceControlCredentialSetRepo implements SourceControlCreden
         .all()[0];
       if (!promoted) return;
 
-      tx.update(sourceControlCredentialSets)
+      this.db.update(sourceControlCredentialSets)
         .set({ isDefault: true })
         .where(and(eq(sourceControlCredentialSets.workspaceId, promoted.workspaceId), eq(sourceControlCredentialSets.id, promoted.id)))
         .run();
@@ -157,10 +153,10 @@ export class SqliteSourceControlCredentialSetRepo implements SourceControlCreden
 }
 
 /** Clears `isDefault` on every OTHER row sharing `(workspaceId, providerId)` — the group-invariant
- *  half of `insert`/`update`'s contract. `tx` rather than `this.db` so this always runs inside the
- *  caller's own transaction, never as a second, separately-committed statement. */
-function clearOtherDefaults(tx: ContentDbTx, workspaceId: UUID, providerId: SourceControlProviderId, keepId: UUID): void {
-  tx.update(sourceControlCredentialSets)
+ *  half of `insert`/`update`'s contract. Called only inside the
+ *  caller's own kernel transaction, never as a second, separately-committed statement. */
+function clearOtherDefaults(db: ContentDb, workspaceId: UUID, providerId: SourceControlProviderId, keepId: UUID): void {
+  db.update(sourceControlCredentialSets)
     .set({ isDefault: false })
     .where(
       and(
