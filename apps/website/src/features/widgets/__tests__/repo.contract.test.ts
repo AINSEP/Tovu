@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemoryWidgetRegionBindingRepo } from "../repo.memory.js";
-import { SqliteWidgetRegionBindingRepo } from "../repo.sqlite.js";
+import { SqlWidgetRegionBindingRepo } from "../repo.js";
 import type { WidgetRegionBindingRepoPort } from "../ports.js";
 
 /**
  * @file Shared contract-test suite for `WidgetRegionBindingRepoPort`, run against both
- * `repo.memory.ts` and `repo.sqlite.ts` — mirrors `src/identity/__tests__/repo.contract.test.ts`'s
+ * `repo.memory.ts` and the one Kysely body `repo.ts` on every dialect (SQLite + PGlite) — mirrors `src/identity/__tests__/repo.contract.test.ts`'s
  * shape (that file's own header cites the convention this file follows).
  *
  * Fable adversarial-review fix (2026-07-21, Finding C/P10a): this port previously had zero SQLite
@@ -85,4 +85,6 @@ function runSuite(adapterName: string, makeRepo: () => WidgetRegionBindingRepoPo
 }
 
 runSuite("InMemoryWidgetRegionBindingRepo", () => new InMemoryWidgetRegionBindingRepo());
-runSuite("SqliteWidgetRegionBindingRepo", () => new SqliteWidgetRegionBindingRepo(openContentDb(":memory:")));
+for (const each of eachDialect({ tables: ["widget_region_bindings"], make: (kernel) => new SqlWidgetRegionBindingRepo(kernel) })) {
+  runSuite(`SqlWidgetRegionBindingRepo ${each.name}`, each.make);
+}

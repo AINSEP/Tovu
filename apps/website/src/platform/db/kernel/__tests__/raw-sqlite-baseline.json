@@ -185,9 +185,6 @@
     "sqlite-catalog": 2,
     "sync-terminal": 4
   },
-  "apps/website/src/features/widgets/repo.sqlite.ts": {
-    "sync-terminal": 5
-  },
   "apps/website/src/platform/db/migration/manifest.ts": {
     "autoincrement": 8,
     "fts5": 7
