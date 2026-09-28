@@ -12,6 +12,7 @@ export { openPgliteKernel, type PgKernel } from "./drivers/pglite.js";
 export { openPostgresKernel } from "./drivers/postgres.js";
 export {
   type ColumnInfo,
+  isUniqueViolation,
   jsonSet,
   jsonText,
   listColumns,

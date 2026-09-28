@@ -1,5 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
+import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { buildCustomCredentialAad } from "./aad.js";
 import {
@@ -286,12 +287,10 @@ async function sealConnection(
   }
 }
 
-/** True iff `err` is the underlying SQLite driver's "UNIQUE constraint failed" error — same
- *  detection shape every sibling credential store's own `isUniqueLabelViolation` uses. */
+/** True iff `err` is the label's UNIQUE `(workspace_id, …, label)` index rejecting a duplicate, on
+ *  any database (`isUniqueViolation`, storage kernel). */
 export function isUniqueLabelViolation(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const code = (err as { code?: string }).code;
-  return code === "SQLITE_CONSTRAINT_UNIQUE" || err.message.includes("UNIQUE constraint failed");
+  return isUniqueViolation(err);
 }
 
 export interface CreateCustomCredentialInput {

@@ -66,6 +66,17 @@ export function toBool(value: boolean | number | null | undefined): boolean | nu
   return value === true || value === 1;
 }
 
+/**
+ * True iff `err` is a UNIQUE violation, from any driver: SQLite's `SQLITE_CONSTRAINT_UNIQUE` /
+ * "UNIQUE constraint failed", Postgres SQLSTATE `23505` (node-postgres and PGlite both set `code`).
+ * The message check also covers the in-memory test doubles, which throw SQLite's wording.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const code = (err as { code?: unknown }).code;
+  return code === "SQLITE_CONSTRAINT_UNIQUE" || code === "23505" || err.message.includes("UNIQUE constraint failed");
+}
+
 /** A blob/bytea value as bytes, whichever shape the driver returned (Buffer, Uint8Array). */
 export function toBytes(value: unknown): Uint8Array {
   if (value instanceof Uint8Array) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);

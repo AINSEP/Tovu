@@ -240,9 +240,6 @@
     "sync-terminal": 4,
     "sync-transaction": 1
   },
-  "apps/website/src/platform/db/sqlite/custom-credential-repo.sqlite.ts": {
-    "sync-terminal": 5
-  },
   "apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts": {
     "$client": 6,
     "prepare": 5,
@@ -269,9 +266,6 @@
   "apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.ts": {
     "sync-terminal": 7
   },
-  "apps/website/src/platform/db/sqlite/execution-credential-repo.sqlite.ts": {
-    "sync-terminal": 3
-  },
   "apps/website/src/platform/db/sqlite/external-mcp-repo.sqlite.ts": {
     "sync-terminal": 6
   },
@@ -280,9 +274,6 @@
   },
   "apps/website/src/platform/db/sqlite/gated-mutation-token-repo.sqlite.ts": {
     "sync-terminal": 5
-  },
-  "apps/website/src/platform/db/sqlite/media-provider-credential-repo.sqlite.ts": {
-    "sync-terminal": 3
   },
   "apps/website/src/platform/db/sqlite/media-repo.sqlite.ts": {
     "sync-terminal": 25
@@ -331,9 +322,6 @@
     "pragma": 1,
     "prepare": 1,
     "sqlite-catalog": 1
-  },
-  "apps/website/src/platform/db/sqlite/site-credential-repo.sqlite.ts": {
-    "sync-terminal": 3
   },
   "apps/website/src/platform/db/sqlite/source-control-credential-repo.sqlite.ts": {
     "sync-terminal": 11
