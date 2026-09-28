@@ -167,7 +167,9 @@ test("SKILL.md (G3): small database changes go through execute_sql, the SQL is s
   assert.match(skill, /## Changing data or tables/);
   assert.match(skill, /mcp__supabase__execute_sql/);
   assert.match(skill, /show the SQL/i);
-  assert.match(skill, /Confirm/);
+  assert.match(skill, /\*\*Allow\*\* \/ \*\*Allow for this chat\*\* \/ \*\*Cancel\*\*/);
+  assert.match(skill, /Do NOT ask first with `assistant_ask_choice`/);
+  assert.doesNotMatch(skill, /ask first before any change/i);
   assert.match(skill, /cancel/i);
   assert.doesNotMatch(skill, /not available yet/i);
   const failureModes = await readFailureModes();
