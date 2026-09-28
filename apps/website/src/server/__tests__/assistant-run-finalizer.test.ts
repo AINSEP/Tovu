@@ -149,7 +149,9 @@ test("a run that ends with no browser attached is saved with its full answer and
 
   const row = await assistantRow(baseUrl, cookie, conversationId);
   assert.equal(row.runStatus, "succeeded");
-  assert.equal(row.content, "Autumn wind rattles the gate");
+  // A paragraph break where the tool call sat: text from before and after a step is never glued
+  // together (`@jini-ai/chat`'s `assistantContentFromEvents`, the rule the browser uses too).
+  assert.equal(row.content, "Autumn wind \n\nrattles the gate");
   assert.deepEqual(row.events, [
     { kind: "text", text: "Autumn wind " },
     { kind: "tool_use", id: "t1", name: "search_posts", input: { q: "autumn" } },

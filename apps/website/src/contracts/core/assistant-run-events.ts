@@ -17,9 +17,12 @@
  * `tsconfig.json` — all three are required).
  *
  * Architectural role:
- * PURE. No I/O, no DOM, no Node built-ins; only type imports. `ReadableStream`/`TextDecoder` in
- * {@link readSseFrames} are globals in both runtimes. Keep it that way — the admin bundle imports it.
+ * PURE. No I/O, no DOM, no Node built-ins. The one value import is `@jini-ai/chat/core`'s content
+ * rule, itself pure and React-free, so the saved `content` and the browser's can never differ.
+ * `ReadableStream`/`TextDecoder` in {@link readSseFrames} are globals in both runtimes. Keep it that
+ * way — the admin bundle imports it.
  */
+import { assistantContentFromEvents } from "@jini-ai/chat/core";
 import type { AgentEvent, ChatRunStatus, ToolResultMediaBlock } from "@jini-ai/chat/core";
 
 export interface RunAgentPayload {
@@ -141,6 +144,11 @@ export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent |
     // chat-core variant. Routed through the `ext` escape hatch rather than dropped, so a future
     // renderer can opt in without a transport change.
     case "thinking_start":
+      return null;
+    // Streamed tool input (with `--include-partial-messages`): the finished `tool_use` carries the
+    // same input whole, and nothing renders the fragments. Kept, they became one no-op `ext` event
+    // per chunk in the saved row.
+    case "tool_input_delta":
       return null;
     default:
       return { kind: "ext", name: payload.type, data: payload };
@@ -401,16 +409,13 @@ export function runInterruptedNotice(): AgentEvent {
 }
 
 /**
- * A chat message's `content` for a list of events: its text deltas, concatenated. The exact rule
- * `@jini-ai/chat`'s `useConversation` (`assistantContentFromEvents`) applies to a live turn, so a
- * row the server finalizes reads the same as one the browser saved.
+ * A chat message's `content` for a list of events: `@jini-ai/chat`'s own rule
+ * (`assistantContentFromEvents`, also what `useConversation` uses for a live turn), so a row the
+ * server finalizes reads the same as one the browser saved. That rule puts a paragraph break where a
+ * tool call or card sat between two text runs, so a working note is never glued onto the answer.
  */
 export function runContentFromEvents(events: readonly AgentEvent[]): string {
-  let out = "";
-  for (const event of events) {
-    if (event.kind === "text") out += event.text;
-  }
-  return out;
+  return assistantContentFromEvents(events);
 }
 
 /** What one daemon stream frame means for the turn: events to append, a failure, and whether it ended. */
@@ -432,10 +437,71 @@ function parseWire(raw: string | undefined): RunProtocolEventWire | null {
   }
 }
 
+function parseJsonLine(line: string): Record<string, unknown> | null {
+  if (!line.startsWith("{")) return null;
+  try {
+    const value: unknown = JSON.parse(line);
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function numberOf(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** `{attempt, maxAttempts}` from an `api_retry` line, keeping only the fields it actually carries. */
+function retryData(line: Record<string, unknown>): Record<string, string | number> {
+  const attempt = numberOf(line.attempt);
+  const maxAttempts = numberOf(line.max_retries);
+  // `api_retry` is Claude Code's own line shape, so the service it names is Claude.
+  return { ...(attempt !== undefined ? { attempt } : {}), ...(maxAttempts !== undefined ? { maxAttempts } : {}), service: "Claude" };
+}
+
+/**
+ * Claude Code's stdout heartbeats → typed `status` events for the live activity line
+ * (`@jini-ai/chat`'s `run-activity.ts` reads `code`/`data`). `null` for any other line.
+ */
+function heartbeatStatus(line: Record<string, unknown>): AgentEvent | null {
+  if (line.type === "tool_progress") {
+    const elapsedSeconds = numberOf(line.elapsed_time_seconds);
+    return { kind: "status", code: "tool_progress", label: "tool_progress", ...(elapsedSeconds !== undefined ? { data: { elapsedSeconds } } : {}) };
+  }
+  if (line.type !== "system") return null;
+  if (line.subtype === "api_retry") {
+    const detail = [numberOf(line.error_status), typeof line.error === "string" ? line.error : undefined].filter((p) => p !== undefined).join(" ");
+    return { kind: "status", code: "api_retry", label: "api_retry", ...(detail ? { detail } : {}), data: retryData(line) };
+  }
+  if (line.subtype === "thinking_tokens") return { kind: "status", code: "thinking", label: "thinking" };
+  return null;
+}
+
+/**
+ * One CLI stdout/stderr chunk → events. Every JSON line that is a heartbeat also yields a typed
+ * `status` event; `stream_event` lines (the token-by-token echo `--include-partial-messages` adds,
+ * already parsed into `text` events by the daemon) are dropped; everything else stays in ONE `raw`
+ * event, verbatim. A chunk with no JSON lines at all (a plain-format CLI) is one `raw` event, as before.
+ */
 function chunkEvent(raw: string | undefined): AgentEvent[] {
   const frame = parseWire(raw);
   if (!frame) return [];
-  return [{ kind: "raw", line: asString((frame.payload as { chunk?: unknown } | null)?.chunk) }];
+  const chunk = asString((frame.payload as { chunk?: unknown } | null)?.chunk);
+  const statuses: AgentEvent[] = [];
+  let kept = "";
+  let droppedAny = false;
+  for (const piece of chunk.split(/(?<=\n)/)) {
+    const line = parseJsonLine(piece.trim());
+    if (line?.type === "stream_event") {
+      droppedAny = true;
+      continue;
+    }
+    const status = line ? heartbeatStatus(line) : null;
+    if (status) statuses.push(status);
+    kept += piece;
+  }
+  if (!droppedAny) kept = chunk;
+  return kept.length > 0 ? [{ kind: "raw", line: kept }, ...statuses] : statuses;
 }
 
 function endOutcome(raw: string | undefined): RunFrameOutcome {
