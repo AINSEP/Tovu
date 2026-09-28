@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OAuthError, type OAuthErrorCode } from "../errors.js";
 import type { OAuthClient, OAuthClock, OAuthFetch, OAuthProviderDescriptor } from "../ports.js";
@@ -134,6 +134,8 @@ export interface RecordedServerRequest {
   readonly method: string;
   readonly url: string;
   readonly body: string;
+  /** Node's lower-cased request headers, for asserting how a client authenticated. */
+  readonly headers: IncomingHttpHeaders;
 }
 
 export interface LoopbackServer {
@@ -157,6 +159,7 @@ export async function startLoopbackServer(
         method: req.method ?? "GET",
         url: req.url ?? "/",
         body: Buffer.concat(chunks).toString("utf8"),
+        headers: req.headers,
       };
       requests.push(recorded);
       handler(req, res, recorded);
@@ -192,6 +195,11 @@ export interface DiscoveryFixtureOptions {
   readonly metadata?: Readonly<Record<string, unknown>>;
   /** What `/oauth2/register` answers. */
   readonly registration?: { readonly status?: number; readonly json?: unknown };
+  /** What successive `/oauth2/register` calls answer, in order (the last repeats). Overrides
+   *  `registration.json` — for tests that need a re-registration to mint a DIFFERENT client. */
+  readonly registrations?: readonly unknown[];
+  /** What `/oauth2/token` answers. Absent: 404, as before. */
+  readonly token?: { readonly status?: number; readonly json: unknown };
   /** Serve 404 for both protected-resource well-known paths. */
   readonly withoutProtectedResourceMetadata?: boolean;
   /** Scopes the protected resource advertises. */
@@ -243,6 +251,7 @@ export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {
   const resourcePath = options.resourcePath ?? "/mcp";
   const resourceScopes = options.resourceScopes ?? ["openid", "email", "offline_access"];
   let origin = "";
+  let registrationCount = 0;
 
   const isProtectedResourcePath = (path: string): boolean =>
     path === `/.well-known/oauth-protected-resource${resourcePath}` || path === "/.well-known/oauth-protected-resource";
@@ -268,7 +277,15 @@ export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {
     }
 
     if (path === "/oauth2/register") {
-      sendJson(res, options.registration?.status ?? 201, options.registration?.json ?? { client_id: "minted-client-id" });
+      const sequence = options.registrations;
+      const scripted = sequence === undefined ? undefined : sequence[Math.min(registrationCount, sequence.length - 1)];
+      registrationCount += 1;
+      sendJson(res, options.registration?.status ?? 201, scripted ?? options.registration?.json ?? { client_id: "minted-client-id" });
+      return;
+    }
+
+    if (path === "/oauth2/token" && options.token !== undefined) {
+      sendJson(res, options.token.status ?? 200, options.token.json);
       return;
     }
 

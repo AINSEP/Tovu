@@ -581,3 +581,221 @@ test("a connection whose MCP server publishes nothing at all reports that it mus
     await bare.close();
   }
 });
+
+// ---------------------------------------------------------------------------
+// A self-registered client that went stale
+//
+// A dynamically registered client is Tovu's own, and it can die out from under the row: the vendor
+// drops it, or it was pinned to a callback URL that no longer exists (the desktop app's port changes
+// on every restart). Reusing it forever leaves the row permanently unconnectable, so a reconnect must
+// be able to mint a fresh one — while a client id an OPERATOR typed is never touched.
+// ---------------------------------------------------------------------------
+
+/** Begins a redirect connect and completes its callback against the fixture's token endpoint. */
+async function connectThroughCallback(service: ReturnType<typeof makeService>, redirectUri = REDIRECT_URI): Promise<void> {
+  const started = await service.beginConnect({ serverId: SERVER, redirectUri });
+  assert.ok(started.kind === "redirect_required");
+  const state = new URL(started.authorizationUrl).searchParams.get("state") ?? "";
+  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state, code: "auth-code" } });
+}
+
+const TOKEN_RESPONSE = { access_token: "access-1", token_type: "Bearer", expires_in: 3600, refresh_token: "refresh-1" };
+
+async function authorizeClientId(service: ReturnType<typeof makeService>, redirectUri = REDIRECT_URI): Promise<string | null> {
+  const started = await service.beginConnect({ serverId: SERVER, redirectUri });
+  assert.ok(started.kind === "redirect_required");
+  return new URL(started.authorizationUrl).searchParams.get("client_id");
+}
+
+test("disconnect forgets a SELF-REGISTERED client, so the next connect registers a fresh one", async () => {
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "stale-client" }, { client_id: "fresh-client" }] });
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    const service = makeService(store);
+    assert.equal(await authorizeClientId(service), "stale-client");
+
+    await service.disconnect({ serverId: SERVER });
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.equal(record?.oauthClientId, null);
+
+    assert.equal(await authorizeClientId(service), "fresh-client");
+    assert.equal(registrationCalls(fixture), 2);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("disconnect also drops the self-registered client's sealed secret", async () => {
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "stale-client", client_secret: "stale-secret" }] });
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    const service = makeService(store);
+    await authorizeClientId(service);
+    await service.disconnect({ serverId: SERVER });
+
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(record);
+    assert.equal((await openExternalMcpOAuthPayload(store.sealer, record)).clientSecret, undefined);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a connect whose callback URL differs from the one the client was registered with re-registers", async () => {
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "old-port-client" }, { client_id: "new-port-client" }] });
+  const store = makeStore();
+  const movedRedirect = "http://127.0.0.1:51234/api/mcp-servers/oauth/callback/remote-1";
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    const service = makeService(store);
+    assert.equal(await authorizeClientId(service), "old-port-client");
+    assert.equal(await authorizeClientId(service), "old-port-client", "the same callback URL must keep the client");
+
+    assert.equal(await authorizeClientId(service, movedRedirect), "new-port-client");
+    assert.equal(registrationCalls(fixture), 2);
+    const last = fixture.requests.filter((request) => request.url.split("?")[0] === "/oauth2/register").at(-1);
+    assert.deepEqual((JSON.parse(last?.body ?? "{}") as Record<string, unknown>).redirect_uris, [movedRedirect]);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a self-registered row written before the client was tracked re-registers once (the stuck-row self-heal)", async () => {
+  const fixture = await startDiscoveryFixture({
+    registrations: [
+      { client_id: "legacy-client", client_secret: "legacy-secret" },
+      { client_id: "fresh-client", client_secret: "fresh-secret" },
+    ],
+  });
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    const service = makeService(store);
+    await authorizeClientId(service);
+    // What an older build left behind: the discovered endpoints and the `clientAuth` only DCR ever
+    // writes, and nothing recording which client was self-registered or for which callback.
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(record);
+    const endpoints = JSON.parse(record.oauthEndpointsJson ?? "{}") as Record<string, string>;
+    await store.repo.upsert({
+      ...record,
+      oauthEndpointsJson: JSON.stringify({
+        tokenEndpoint: endpoints.tokenEndpoint,
+        authorizationEndpoint: endpoints.authorizationEndpoint,
+        clientAuth: "none",
+      }),
+    });
+
+    assert.equal(await authorizeClientId(service), "fresh-client");
+    assert.equal(await authorizeClientId(service), "fresh-client", "healed once, then stable");
+    assert.equal(registrationCalls(fixture), 2);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a token endpoint that rejects the client as invalid_client makes the next connect re-register", async () => {
+  const fixture = await startDiscoveryFixture({
+    registrations: [{ client_id: "revoked-client" }, { client_id: "fresh-client" }],
+    token: { status: 401, json: { error: "invalid_client" } },
+  });
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    const service = makeService(store);
+    await assert.rejects(() => connectThroughCallback(service));
+
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.equal(record?.oauthClientId, null);
+    assert.equal(await authorizeClientId(service), "fresh-client");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("disconnect and a moved callback URL never touch a client id the OPERATOR typed", async () => {
+  const fixture = await startDiscoveryFixture();
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl, oauth: { clientId: "operator-typed-client", clientSecret: "operator-secret" } });
+    const service = makeService(store);
+    await authorizeClientId(service);
+    await service.disconnect({ serverId: SERVER });
+    assert.equal(await authorizeClientId(service, "http://127.0.0.1:51234/cb"), "operator-typed-client");
+
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(record);
+    assert.equal(record.oauthClientId, "operator-typed-client");
+    assert.equal((await openExternalMcpOAuthPayload(store.sealer, record)).clientSecret, "operator-secret");
+    assert.equal(registrationCalls(fixture), 0);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("an operator who types a client id over a self-registered one keeps it through disconnect", async () => {
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "minted-first", client_secret: "minted-secret" }] });
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    const service = makeService(store);
+    await authorizeClientId(service);
+    await save(store, { url: fixture.resourceUrl, oauth: { clientId: "operator-typed-client" } });
+    await service.disconnect({ serverId: SERVER });
+
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.equal(record?.oauthClientId, "operator-typed-client");
+  } finally {
+    await fixture.close();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// A volunteered secret with no echoed auth method
+//
+// Measured at Supabase: asked for a public client (`none`), it issues a `client_secret` anyway,
+// does not echo `token_endpoint_auth_method`, and advertises only the two secret-bearing methods.
+// Authenticating as `none` then fails every token request with "Required parameter: client_secret".
+// ---------------------------------------------------------------------------
+
+test("a secret issued with no echoed method authenticates with client_secret_basic when the server advertises it", async () => {
+  const fixture = await startDiscoveryFixture({
+    metadata: { token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"] },
+    registrations: [{ client_id: "confidential-client", client_secret: "issued-secret" }],
+    token: { json: TOKEN_RESPONSE },
+  });
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    await connectThroughCallback(makeService(store));
+
+    const tokenRequest = fixture.requests.find((request) => request.url.split("?")[0] === "/oauth2/token");
+    assert.ok(tokenRequest, "expected a token request");
+    assert.equal(tokenRequest.headers.authorization, `Basic ${Buffer.from("confidential-client:issued-secret").toString("base64")}`);
+    assert.equal(new URLSearchParams(tokenRequest.body).get("client_secret"), null);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a secret issued with no echoed method is POSTed when client_secret_post is the only secret method advertised", async () => {
+  const fixture = await startDiscoveryFixture({
+    metadata: { token_endpoint_auth_methods_supported: ["client_secret_post"] },
+    registrations: [{ client_id: "confidential-client", client_secret: "issued-secret" }],
+    token: { json: TOKEN_RESPONSE },
+  });
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    await connectThroughCallback(makeService(store));
+
+    const tokenRequest = fixture.requests.find((request) => request.url.split("?")[0] === "/oauth2/token");
+    assert.ok(tokenRequest, "expected a token request");
+    assert.equal(new URLSearchParams(tokenRequest.body).get("client_secret"), "issued-secret");
+    assert.equal(tokenRequest.headers.authorization, undefined);
+  } finally {
+    await fixture.close();
+  }
+});

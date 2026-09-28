@@ -1381,9 +1381,10 @@ function assertOAuthClientId(clientId: string, selfConfigurable: boolean): strin
  * touch made an untouched save look like an identity change on every edit — see
  * `use-external-mcp.hooks.ts`'s header for the caller-side half of this fix.
  *
- * `clientAuth` is exempted from re-derivation regardless of branch: it is server-owned, minted only
- * by dynamic client registration (`external-mcp-oauth.ts`), and no operator input can express it, so
- * even a save that legitimately edits the other endpoints must not drop it.
+ * The dynamic-registration members (`clientAuth`, `dynamicClientId`, `registeredRedirectUri`) are
+ * exempted from re-derivation regardless of branch: they are server-owned, written only by dynamic
+ * client registration (`external-mcp-oauth.ts`), and no operator input can express them, so even a
+ * save that legitimately edits the other endpoints must not drop them.
  *
  * @throws {ExternalMcpValidationError} When neither a provider id nor a token endpoint is present,
  * or the provider id is malformed.
@@ -1397,8 +1398,14 @@ function resolveOAuthEndpoints(
   const touchedIdentity = (oauth.providerId ?? "").trim() !== "" || (oauth.tokenEndpoint ?? "").trim() !== "";
   if (!touchedIdentity) return stored;
   const rebuilt = buildOAuthEndpoints(oauth);
-  return stored.clientAuth === undefined ? rebuilt : { ...rebuilt, clientAuth: stored.clientAuth };
+  for (const key of DYNAMIC_REGISTRATION_ENDPOINT_KEYS) {
+    if (stored[key] !== undefined) rebuilt[key] = stored[key];
+  }
+  return rebuilt;
 }
+
+/** The endpoints-blob members only dynamic client registration writes. */
+const DYNAMIC_REGISTRATION_ENDPOINT_KEYS = ["clientAuth", "dynamicClientId", "registeredRedirectUri"] as const;
 
 /**
  * @param selfConfigurable - Whether this row can discover its own endpoints — see

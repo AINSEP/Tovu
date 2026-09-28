@@ -72,6 +72,10 @@ export interface DynamicClientRegistrationInput {
   readonly responseTypes?: readonly string[];
   /** Defaults to `none` — a self-hosted install is a public client and PKCE replaces the secret. */
   readonly tokenEndpointAuthMethod?: OAuthClientAuthMethod;
+  /** The authorization server's RFC 8414 `token_endpoint_auth_methods_supported`, as discovered.
+   *  Read only when the server issues a secret without saying how to present it — see
+   *  {@link resolveAuthMethod}. Empty or absent means the server did not advertise the member. */
+  readonly authMethodsSupported?: readonly string[];
   /** RFC 7591 §3 open registration needs none; supplied when a server gates registration. */
   readonly initialAccessToken?: string;
   readonly timeoutMs?: number;
@@ -121,15 +125,35 @@ function readOptionalNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-/** The server's echoed auth method when Tovu can perform it, otherwise the requested one.
+/** The server's echoed auth method when Tovu can perform it, otherwise one that fits what it issued.
  *
  *  The echo WINS when it is supported, and that matters: a server that issued a secret and expects
  *  `client_secret_post` will answer `invalid_client` to every token request from a client that keeps
  *  authenticating as `none`, which surfaces long after registration as an unexplained connect
- *  failure. @complexity O(1). */
-function resolveAuthMethod(document: Record<string, unknown>, requested: OAuthClientAuthMethod): OAuthClientAuthMethod {
+ *  failure.
+ *
+ *  With no usable echo, a secret the server issued despite being asked for a public client means the
+ *  server wants it presented — measured at Supabase, which answers `none` with 422 "Required
+ *  parameter: client_secret". The method then comes from what the server advertises, via
+ *  {@link pickSecretAuthMethod}. The requested method stands only when no secret came back, or when
+ *  the server advertises no secret-bearing method Tovu can perform. @complexity O(n) in `supported`. */
+function resolveAuthMethod(
+  document: Record<string, unknown>,
+  requested: OAuthClientAuthMethod,
+  supported: readonly string[],
+): OAuthClientAuthMethod {
   const echoed = readOptionalString(document.token_endpoint_auth_method);
-  return SUPPORTED_AUTH_METHODS.includes(echoed as OAuthClientAuthMethod) ? (echoed as OAuthClientAuthMethod) : requested;
+  if (SUPPORTED_AUTH_METHODS.includes(echoed as OAuthClientAuthMethod)) return echoed as OAuthClientAuthMethod;
+  if (requested !== "none" || readOptionalString(document.client_secret) === null) return requested;
+  return pickSecretAuthMethod(supported) ?? requested;
+}
+
+/** `client_secret_basic`, then `client_secret_post`, from the advertised list. An empty list means
+ *  the member was omitted, and RFC 8414 §2 defines that as `client_secret_basic`.
+ *  @complexity O(n). */
+function pickSecretAuthMethod(supported: readonly string[]): OAuthClientAuthMethod | null {
+  if (supported.length === 0 || supported.includes("client_secret_basic")) return "client_secret_basic";
+  return supported.includes("client_secret_post") ? "client_secret_post" : null;
 }
 
 /**
@@ -211,7 +235,7 @@ export async function registerOAuthClientDynamically(
   return {
     clientId,
     clientSecret: readOptionalString(document.client_secret),
-    tokenEndpointAuthMethod: resolveAuthMethod(document, requestedAuthMethod),
+    tokenEndpointAuthMethod: resolveAuthMethod(document, requestedAuthMethod, input.authMethodsSupported ?? []),
     registrationClientUri: readOptionalString(document.registration_client_uri),
     clientIdIssuedAt: readOptionalNumber(document.client_id_issued_at),
     clientSecretExpiresAt: readOptionalNumber(document.client_secret_expires_at),

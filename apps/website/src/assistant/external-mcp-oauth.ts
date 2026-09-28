@@ -392,6 +392,16 @@ interface StoredOAuthEndpoints {
    * `invalid_client` on every token request.
    */
   clientAuth?: string;
+  /**
+   * The client id dynamic registration minted for this row. It marks the row's client as Tovu's own,
+   * which Tovu may replace; a client id an operator typed never matches it and is never replaced.
+   * Compared against the row's live `oauthClientId` rather than trusted as a flag, so an operator
+   * who later types a client id over a minted one keeps theirs.
+   */
+  dynamicClientId?: string;
+  /** The callback URL {@link dynamicClientId} was registered with. A server that pins redirect URIs
+   *  rejects any other, and the desktop app's port changes on every restart. */
+  registeredRedirectUri?: string;
 }
 
 /** Reads the stored endpoints column, tolerating a null or corrupt value as "none typed". */
@@ -628,6 +638,8 @@ async function mintClientForConnection(
       redirectUris: input.redirectUri === undefined ? [] : [input.redirectUri],
       scopes: input.scopes,
       grantTypes: registrationGrantTypes(input.grant),
+      // Read only if the server issues a secret without saying how to present it.
+      authMethodsSupported: discovered.server.tokenEndpointAuthMethodsSupported,
       timeoutMs: CONNECT_TIMEOUT_MS,
     },
   );
@@ -646,11 +658,13 @@ async function persistSelfConfiguration(
     readonly scopes: readonly string[];
     readonly grant: ExternalMcpOAuthGrant;
     readonly clientId: string;
-    readonly clientSecret: string | undefined;
+    /** `undefined` keeps the sealed secret; `null` removes it (a freshly minted public client must
+     *  not inherit the secret of the client it replaced). */
+    readonly clientSecret: string | null | undefined;
   },
 ): Promise<ExternalMcpServerRecord> {
   const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
-  const clientSecret = identity.clientSecret ?? existing.clientSecret;
+  const clientSecret = identity.clientSecret === undefined ? existing.clientSecret : (identity.clientSecret ?? undefined);
   const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, record, {
     ...(clientSecret === undefined ? {} : { clientSecret }),
     ...(existing.tokens === undefined ? {} : { tokens: existing.tokens }),
@@ -697,7 +711,8 @@ async function selfConfigureConnection(
   const stored = readStoredEndpoints(record);
   const mustDiscover = needsEndpointDiscovery(record, stored);
   const mustResolveGrant = record.oauthGrant === null;
-  if (!mustDiscover && !mustResolveGrant && record.oauthClientId !== null) return record;
+  const keepClient = record.oauthClientId !== null && !isStaleSelfRegisteredClient(record, stored, redirectUri);
+  if (!mustDiscover && !mustResolveGrant && keepClient) return record;
 
   const discovered = await discoverConnectionAuthorizationServer(deps, record);
   const endpoints: StoredOAuthEndpoints = mustDiscover ? toStoredEndpoints(discovered) : { ...stored };
@@ -717,20 +732,64 @@ async function selfConfigureConnection(
 
   // Narrowed on the field rather than on `mustRegister`, so there is no fallback that could write an
   // empty client id if the two ever disagreed.
-  if (record.oauthClientId !== null) {
+  if (keepClient && record.oauthClientId !== null) {
     return persistSelfConfiguration(deps, record, { endpoints, scopes, grant, clientId: record.oauthClientId, clientSecret: undefined });
   }
 
   const minted = await mintClientForConnection(deps, record, discovered, { redirectUri, scopes, grant });
-  if (minted.clientSecret !== null) endpoints.clientAuth = minted.tokenEndpointAuthMethod;
+  const registered: StoredOAuthEndpoints = {
+    ...withoutSelfRegisteredClient(endpoints),
+    ...(minted.clientSecret === null ? {} : { clientAuth: minted.tokenEndpointAuthMethod }),
+    dynamicClientId: minted.clientId,
+    ...(redirectUri === undefined ? {} : { registeredRedirectUri: redirectUri }),
+  };
   return persistSelfConfiguration(deps, record, {
-    endpoints,
+    endpoints: registered,
     scopes,
     grant,
     clientId: minted.clientId,
-    clientSecret: minted.clientSecret ?? undefined,
+    clientSecret: minted.clientSecret,
   });
 }
+
+/**
+ * Whether the row's client is one Tovu minted by dynamic registration, and so Tovu's to replace.
+ *
+ * A row written before {@link StoredOAuthEndpoints.dynamicClientId} existed carries no such mark.
+ * For those, a stored `clientAuth` stands in for it: that member is only ever written by dynamic
+ * registration. A pre-mark self-registered PUBLIC client (no secret, so no `clientAuth`) is not
+ * recognized, and keeps the old reuse-forever behavior until an operator clears it.
+ * @complexity O(1).
+ */
+function isSelfRegisteredClient(record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints): boolean {
+  if (record.oauthClientId === null) return false;
+  if (endpoints.dynamicClientId !== undefined) return endpoints.dynamicClientId === record.oauthClientId;
+  return endpoints.clientAuth !== undefined;
+}
+
+/**
+ * Whether a self-registered client must be replaced before this connect: it was registered for a
+ * different callback URL than this redirect-based connect will send (or, on a pre-mark row, for an
+ * unknown one). A device-grant connect sends no callback, so it never makes a client stale.
+ * @complexity O(1).
+ */
+function isStaleSelfRegisteredClient(record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints, redirectUri: string | undefined): boolean {
+  if (redirectUri === undefined || record.oauthGrant === "device_code") return false;
+  return isSelfRegisteredClient(record, endpoints) && endpoints.registeredRedirectUri !== redirectUri;
+}
+
+/** The endpoints blob minus everything that describes a self-registered client. @complexity O(1). */
+function withoutSelfRegisteredClient(endpoints: StoredOAuthEndpoints): StoredOAuthEndpoints {
+  const next = { ...endpoints };
+  delete next.clientAuth;
+  delete next.dynamicClientId;
+  delete next.registeredRedirectUri;
+  return next;
+}
+
+/** Provider `error` codes that mean the client itself is refused (RFC 6749 §4.1.2.1 and §5.2), as
+ *  opposed to the grant or the request. */
+const CLIENT_REJECTED_PROVIDER_CODES: readonly string[] = ["invalid_client", "unauthorized_client"];
 
 /** The binding key an authorization `state` is issued against. Workspace-scoped so a state minted in
  *  one workspace cannot be redeemed in another, and server-scoped so it cannot be redeemed against a
@@ -777,6 +836,14 @@ async function persistTokens(
  *  when clearing a token. Empty when `clearToken` was not requested. */
 type ClearedTokenPatch = Partial<Pick<ExternalMcpServerRecord, "sealedOAuth" | "oauthExpiresAt" | "oauthAadVersion">>;
 
+/** {@link setOAuthStatus}'s options. `forgetSelfRegisteredClient` also drops a client Tovu minted by
+ *  dynamic registration — its id and its sealed secret — so the next connect registers afresh. It
+ *  leaves an operator-typed client alone (see {@link isSelfRegisteredClient}). */
+interface SetOAuthStatusOptions {
+  readonly clearToken?: boolean;
+  readonly forgetSelfRegisteredClient?: boolean;
+}
+
 /**
  * Resolves {@link setOAuthStatus}'s token-clear patch. Split out purely to keep that function's
  * complexity under the shop ceiling — behavior is unchanged.
@@ -819,14 +886,15 @@ type ClearedTokenPatch = Partial<Pick<ExternalMcpServerRecord, "sealedOAuth" | "
 async function resolveClearedTokenPatch(
   deps: ExternalMcpOAuthDeps,
   record: ExternalMcpServerRecord,
-  options: { readonly clearToken?: boolean },
+  options: { readonly clearToken?: boolean; readonly dropClientSecret: boolean },
 ): Promise<ClearedTokenPatch> {
   if (options.clearToken !== true) return {};
 
   const opened = await openExistingOAuthPayloadForClear(deps, record);
   if ("wholesale" in opened) return { sealedOAuth: null, oauthExpiresAt: null };
 
-  const clientSecret = opened.existing.clientSecret === undefined ? {} : { clientSecret: opened.existing.clientSecret };
+  const kept = options.dropClientSecret ? undefined : opened.existing.clientSecret;
+  const clientSecret = kept === undefined ? {} : { clientSecret: kept };
   return resealClearedOAuthToken(deps, record, clientSecret);
 }
 
@@ -873,17 +941,21 @@ async function setOAuthStatus(
   deps: ExternalMcpOAuthDeps,
   serverId: string,
   status: ExternalMcpOAuthStatus,
-  options: { readonly clearToken?: boolean } = {},
+  options: SetOAuthStatusOptions = {},
 ): Promise<void> {
   const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
   if (!record) return;
 
-  const clearedTokenPatch = await resolveClearedTokenPatch(deps, record, options);
+  const endpoints = readStoredEndpoints(record);
+  const forgetClient = options.forgetSelfRegisteredClient === true && isSelfRegisteredClient(record, endpoints);
+  // The secret is only ever dropped together with the token (`clearToken`), never on its own.
+  const clearedTokenPatch = await resolveClearedTokenPatch(deps, record, { ...options, dropClientSecret: forgetClient });
 
   await deps.repo.upsert({
     ...record,
     oauthStatus: status,
     ...clearedTokenPatch,
+    ...(forgetClient ? { oauthClientId: null, oauthEndpointsJson: JSON.stringify(withoutSelfRegisteredClient(endpoints)) } : {}),
     oauthRefreshLeaseUntil: null,
     updatedAt: deps.clock.nowIso(),
   });
@@ -1026,15 +1098,26 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       const provider = resolveProviderDescriptor(deps, record);
       const client = await resolveClient(deps, record, provider);
 
-      const tokens = await completeAuthorizationCode(
-        { provider, pending: deps.pending, clock: deps.clock, ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
-        {
-          ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
-          client,
-          params: input.params,
-          timeoutMs: CONNECT_TIMEOUT_MS,
-        },
-      );
+      let tokens: OAuthTokenSet;
+      try {
+        tokens = await completeAuthorizationCode(
+          { provider, pending: deps.pending, clock: deps.clock, ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
+          {
+            ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
+            client,
+            params: input.params,
+            timeoutMs: CONNECT_TIMEOUT_MS,
+          },
+        );
+      } catch (error) {
+        // A provider that refuses the CLIENT (revoked, or never known) will refuse it on every retry,
+        // so a self-registered one is dropped and the next connect mints a fresh one. The provider's
+        // error still reaches the caller.
+        if (isOAuthError(error) && CLIENT_REJECTED_PROVIDER_CODES.includes(error.providerErrorCode ?? "")) {
+          await setOAuthStatus(deps, record.serverId, "disconnected", { clearToken: true, forgetSelfRegisteredClient: true });
+        }
+        throw error;
+      }
       // Re-read rather than reusing `record`: `beginConnect` wrote `pending` to it, and persisting a
       // stale copy would resurrect the pre-connect row wholesale.
       await persistTokens(deps, await requireOAuthRecord(deps, input.serverId), tokens);
@@ -1078,7 +1161,9 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
 
     async disconnect(input) {
       await deps.devices.delete(input.serverId);
-      await setOAuthStatus(deps, input.serverId, "disconnected", { clearToken: true });
+      // A self-registered client goes too, so a reconnect is a clean one: a client the vendor has
+      // since dropped would otherwise be reused forever. An operator-typed client is kept.
+      await setOAuthStatus(deps, input.serverId, "disconnected", { clearToken: true, forgetSelfRegisteredClient: true });
     },
 
     async reportAuthFailure(serverId, error) {
