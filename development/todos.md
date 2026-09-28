@@ -2361,3 +2361,25 @@ Idea: ship PGlite (Postgres compiled to WebAssembly, no outside service) in the 
   - Does Tovu's existing Postgres dialect (schema.postgres.ts) run on it unchanged?
 - Alternative to compare: bundled real Postgres (`embedded-postgres`, ~50–100 MB per platform, a separate server process to manage).
 - Related: the SQLite→Postgres copy tool (features/database-transfer, commits 681fc0c21…fc3f9de3a) already moves data to Supabase without this.
+
+## MEDIUM-HIGH — Close the gaps where EmDash is ahead (owner, 2026-09-28)
+Source: `ADS-memory/reports/2026-09-28-emdash-vs-tovu.md` (§3, §4 ranked borrows with EmDash file paths). EmDash is MIT (© 2026 Cloudflare): copied code needs the MIT header + NOTICE entry.
+1. **Sandboxed site plugins.** Tovu site plugins run in-process with full Node access (`apps/website/src/features/plugin-runtime/loader.ts`). EmDash: V8 isolate / workerd sidecar, env allowlist, capability-checked bridge, CPU/memory/subrequest/wall limits.
+2. **Signed plugin installs.** Signed publisher records, checksum + provenance, minimum release age, consent hash that re-asks when a plugin's permissions grow (for agent plugins: when `mcp.json` grants grow, reuse the Confirm card).
+3. **Multi-dialect storage, one migration set,** every suite run on each dialect (in progress: PGlite work).
+4. **Portable plugin data:** one JSON document table + expression indexes instead of per-plugin `p_<id>__*` DDL (behaviour change; needs owner call on details).
+5. **Outside-agent access:** public MCP endpoint + OAuth server + scoped tokens, per-plugin MCP scopes (needs security ruling).
+6. **Logical site export/import** that works on any database, with a write fence during transfer.
+
+## LATER — Integrate workerd (Cloudflare's open-source isolate runtime) (owner, 2026-09-28)
+One sandbox runtime that runs anywhere (Node, desktop, any server); Cloudflare's hosted "Dynamic Workers" are the same idea but Cloudflare-only. Cost: a native `workerd` binary in the desktop bundle. EmDash runs it as a sidecar on Node (`/Users/la/Programming/OSS-Repos/emdash/packages/workerd/src/sandbox/`). Uses, most valuable first:
+1. **Site server functions** — small owner/assistant-written functions (form handler, webhook, chat proxy) run next to the site. Fixes the dead chat widget on static exports.
+2. **Sandboxed site plugins** — see "Close the gaps where EmDash is ahead" #1.
+3. **Assistant "code mode"** — the model writes one script that calls several tools, run in a sandbox: fewer round trips (see `@cloudflare/codemode`).
+4. **Untrusted theme/embed code** — render custom template code or raw HTML/embeds server-side safely.
+5. **Cloudflare deploy target** — local preview identical to production if Tovu adds deploy-to-Cloudflare.
+6. **Multi-site hosting** — many sites as isolates in one process if Tovu is ever hosted for customers.
+7. **Agent plugins with code** — sandbox them if agent plugins ever ship executable code.
+
+## LATER — Public site search bar (owner, 2026-09-28; parked)
+Plain keyword search for visitors (not AI). Verified choice: `minisearch` (no dependencies, runs in the browser, works on static exports). Rejected: `pagefind` (~115 MB native binaries in the desktop app). Open: where the box goes (header, /search page, or both). Details: `ADS-memory/reports/2026-09-28-build-vs-borrow-verified.md`.
