@@ -1429,7 +1429,7 @@ export function createSqliteRouteDeps(
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
-    commentRepo: new SqliteCommentRepo(db.$client),
+    commentRepo: new SqliteCommentRepo(db),
     entryRepo,
     outbox,
     clock,
