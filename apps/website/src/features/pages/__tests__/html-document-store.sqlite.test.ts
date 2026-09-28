@@ -1,17 +1,20 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "node:test";
+
+import type { Insertable, Updateable } from "kysely";
 
 import type { ClockPort } from "@jini-ai/cms/core";
-import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
+import type { PostsTable } from "#src/platform/db/content-database.generated";
+import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
-import { PageConcurrentEditError, PageNotFoundError, PagesHtmlDocumentStore } from "../html-document-store.sqlite.js";
+import { PageConcurrentEditError, PageNotFoundError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 
 /**
- * @file SPEC-047/ADR-056 REQ-4 — certification of `PagesHtmlDocumentStore`, including CIC-1's
+ * @file SPEC-047/ADR-056 REQ-4 — certification of the Pages html document store, including CIC-1's
  * compare-and-set write.
  *
- * Real `content.db` (`:memory:`, full migration stream) throughout, per Constitution Article V and
- * matching `search-index.sqlite.test.ts`'s own precedent for this exact table.
+ * The one Kysely body (`html-document-store.ts`) on every dialect (SQLite + PGlite, storage plan §4):
+ * a real migrated content database throughout, per Constitution Article V.
  */
 
 const WS = "ws-pages";
@@ -19,355 +22,360 @@ const OTHER_WS = "ws-other";
 
 const clock: ClockPort = { nowIso: () => "2026-08-04T00:00:00.000Z" };
 
-function harness(): { db: ContentDb } {
-  return { db: openContentDb(":memory:") };
-}
-
-/** Inserts a `"html"`-format Page row directly — `createPost`/`updatePost` can never produce this
- * shape (CIC-3), so every test here seeds through raw SQL, matching how `PagesHtmlDocumentStore`
- * itself is the only writer of this shape in production. */
-function insertHtmlPage(db: ContentDb, spec: { id: string; workspaceId?: string; html: string; version?: number }): void {
-  db.$client
-    .prepare(
-      `INSERT INTO posts (id, workspace_id, title, slug, body_json, body_format, body_html, status, kind, updated_at, version, ext)
-       VALUES (?, ?, 'About', 'about', NULL, 'html', ?, 'draft', 'page', '2026-08-01T00:00:00.000Z', ?, '{}')`
-    )
-    .run(spec.id, spec.workspaceId ?? WS, spec.html, spec.version ?? 1);
-}
-
-function readRow(db: ContentDb, id: string): { bodyHtml: string | null; version: number; bodyFormat: string } {
-  return db.$client.prepare("SELECT body_html AS bodyHtml, version, body_format AS bodyFormat FROM posts WHERE id = ?").get(id) as {
-    bodyHtml: string | null;
-    version: number;
-    bodyFormat: string;
-  };
-}
-
-// ---------------------------------------------------------------------------
-// read()
-// ---------------------------------------------------------------------------
-
-test("read() returns the current body_html of an existing html-format page", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<section data-agent-element=\"hero\">Hi</section>" });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-
-  const html = await store.read();
-  assert.equal(html, "<section data-agent-element=\"hero\">Hi</section>");
-});
-
-test("read() throws PageNotFoundError for an id that does not exist", async () => {
-  const { db } = harness();
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "missing" }, { db, clock });
-
-  await assert.rejects(() => store.read(), PageNotFoundError);
-});
-
-test("read() throws PageNotFoundError for a 'doc'-format row with the same id — indistinguishable from not-found", async () => {
-  const { db } = harness();
-  db.$client
-    .prepare(
-      `INSERT INTO posts (id, workspace_id, title, slug, body_json, body_format, body_html, status, kind, updated_at, version, ext)
-       VALUES ('post-1', ?, 'Hello', 'hello', '{"type":"doc","content":[]}', 'doc', NULL, 'draft', 'post', '2026-08-01T00:00:00.000Z', 1, '{}')`
-    )
-    .run(WS);
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "post-1" }, { db, clock });
-
-  await assert.rejects(() => store.read(), PageNotFoundError);
-});
-
-test("read() is workspace-scoped — a page in another workspace is not found", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", workspaceId: OTHER_WS, html: "<p>x</p>" });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-
-  await assert.rejects(() => store.read(), PageNotFoundError);
-});
-
-// ---------------------------------------------------------------------------
-// write()
-// ---------------------------------------------------------------------------
-
-test("write() after read() updates body_html and increments version", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>old</p>", version: 5 });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-
-  await store.read();
-  await store.write("<p>new</p>");
-
-  const row = readRow(db, "page-1");
-  assert.equal(row.bodyHtml, "<p>new</p>");
-  assert.equal(row.version, 6);
-});
-
-test("write() before any read() throws — there is no version to condition the write on", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>old</p>" });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-
-  await assert.rejects(() => store.write("<p>new</p>"), /before read\(\)/);
-});
-
-test("write() lets a single instance write repeatedly with no intervening read() — mirrors createHtmlRegionTarget's restore() calling write() several times in one pass", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>v1</p>", version: 1 });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-
-  await store.read();
-  await store.write("<p>v2</p>");
-  await store.write("<p>v3</p>");
-
-  const row = readRow(db, "page-1");
-  assert.equal(row.bodyHtml, "<p>v3</p>");
-  assert.equal(row.version, 3, "each write must condition on the version the PREVIOUS write in this instance just produced");
-});
-
-// ---------------------------------------------------------------------------
-// CIC-1 — compare-and-set, the mandatory interleaving test.
-//
-// Two separate EditTarget-style callers (two separate PagesHtmlDocumentStore instances, exactly
-// what two concurrent admin sessions or a retried tool call racing an in-flight one would be) both
-// read() the same row, then write() in sequence: read, read, write, write. The second write must be
-// REJECTED, not silently applied on top of content it never saw.
-// ---------------------------------------------------------------------------
-
-test("CIC-1: two readers, then two writers (read, read, write, write) — the second, stale writer is rejected, never silently applied", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-
-  // Two independent instances, exactly as two concurrent EditTarget callers would be.
-  const writerA = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-  const writerB = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-
-  // Both read the SAME base version (1) — interleaved before either has written.
-  const seenByA = await writerA.read();
-  const seenByB = await writerB.read();
-  assert.equal(seenByA, "<p>base</p>");
-  assert.equal(seenByB, "<p>base</p>");
-
-  // A writes first and succeeds.
-  await writerA.write("<p>A's edit</p>");
-  const afterA = readRow(db, "page-1");
-  assert.equal(afterA.bodyHtml, "<p>A's edit</p>");
-  assert.equal(afterA.version, 2);
-
-  // B writes next, still conditioned on the version it read (1) — the row is now at version 2, so
-  // this MUST be rejected, never silently overwrite A's committed edit.
-  await assert.rejects(
-    () => writerB.write("<p>B's edit, computed against a document A already changed</p>"),
-    PageConcurrentEditError
+/** Inserts a `posts` row directly — `createPost`/`updatePost` can never produce an html row
+ * (CIC-3), so every test here seeds through the kernel, matching how the store itself is the only
+ * writer of this shape in production. */
+async function insertPost(db: ContentKernel, row: Partial<Insertable<PostsTable>> & { id: string }): Promise<void> {
+  await db.run((q) =>
+    q
+      .insertInto("posts")
+      .values({
+        workspace_id: WS,
+        title: "New page",
+        slug: `slug-${row.id}`,
+        body_json: '{"type":"doc","content":[]}',
+        body_format: "doc",
+        body_html: null,
+        status: "draft",
+        kind: "page",
+        updated_at: "2026-08-01T00:00:00.000Z",
+        version: 1,
+        ext: "{}",
+        ...row,
+      })
+      .execute()
   );
+}
 
-  // A's edit must survive untouched — this is the actual data-loss/corruption CIC-1 exists to
-  // prevent, not just "an error was thrown somewhere."
-  const finalRow = readRow(db, "page-1");
-  assert.equal(finalRow.bodyHtml, "<p>A's edit</p>", "B's rejected write must not have landed, even partially");
-  assert.equal(finalRow.version, 2, "a rejected write must not bump the version either");
-});
+async function insertHtmlPage(db: ContentKernel, spec: { id: string; workspaceId?: string; html: string; version?: number }): Promise<void> {
+  await insertPost(db, {
+    id: spec.id,
+    workspace_id: spec.workspaceId ?? WS,
+    title: "About",
+    slug: "about",
+    body_json: null,
+    body_format: "html",
+    body_html: spec.html,
+    version: spec.version ?? 1,
+  });
+}
 
-test("CIC-1: after a rejection, re-read() gives the writer a fresh version it can then successfully write with", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+async function setRow(db: ContentKernel, id: string, set: Updateable<PostsTable>): Promise<void> {
+  await db.run((q) => q.updateTable("posts").set(set).where("id", "=", id).execute());
+}
 
-  const writerA = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-  const writerB = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+async function readRow(db: ContentKernel, id: string): Promise<{ bodyHtml: string | null; version: number; bodyFormat: string }> {
+  const row = await db.run((q) => q.selectFrom("posts").select(["body_html", "version", "body_format"]).where("id", "=", id).executeTakeFirstOrThrow());
+  return { bodyHtml: row.body_html, version: row.version, bodyFormat: row.body_format };
+}
 
-  await writerA.read();
-  await writerB.read();
-  await writerA.write("<p>A's edit</p>");
-  await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
+describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts"], make: (kernel) => kernel }, (makeKernel) => {
+  // ---------------------------------------------------------------------------
+  // read()
+  // ---------------------------------------------------------------------------
 
-  // The documented recovery path: re-read, then retry.
-  const freshRead = await writerB.read();
-  assert.equal(freshRead, "<p>A's edit</p>", "the retry must see A's committed edit, not the stale base");
+  test("read() returns the current body_html of an existing html-format page", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<section data-agent-element=\"hero\">Hi</section>" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-  await writerB.write("<p>B's edit, now based on A's content</p>");
-  const finalRow = readRow(db, "page-1");
-  assert.equal(finalRow.bodyHtml, "<p>B's edit, now based on A's content</p>");
-  assert.equal(finalRow.version, 3);
-});
+    const html = await store.read();
+    assert.equal(html, "<section data-agent-element=\"hero\">Hi</section>");
+  });
 
-test("write()'s WHERE clause is bodyFormat-scoped in its own right, not just version-scoped: a row converted to 'doc' out-of-band after read() rejects the write even though the version still matches", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+  test("read() throws PageNotFoundError for an id that does not exist", async () => {
+    const db = makeKernel();
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "missing" }, { kernel: db, clock });
 
-  await store.read();
+    await assert.rejects(() => store.read(), PageNotFoundError);
+  });
 
-  // Simulate some other process changing this row's format without touching version — the point is
-  // that write()'s own WHERE clause defends against writing html into a non-html row independently
-  // of the version check, not merely as a side effect of it.
-  db.$client.prepare("UPDATE posts SET body_format = 'doc', body_html = NULL, body_json = '{}' WHERE id = 'page-1'").run();
+  test("read() throws PageNotFoundError for a 'doc'-format row with the same id — indistinguishable from not-found", async () => {
+    const db = makeKernel();
+    await insertPost(db, { id: "post-1", title: "Hello", slug: "hello", kind: "post" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "post-1" }, { kernel: db, clock });
 
-  await assert.rejects(() => store.write("<p>should never land</p>"), PageConcurrentEditError);
+    await assert.rejects(() => store.read(), PageNotFoundError);
+  });
 
-  const row = readRow(db, "page-1");
-  assert.equal(row.bodyFormat, "doc", "the row must stay doc-format — the html write must not have landed");
-});
+  test("read() is workspace-scoped — a page in another workspace is not found", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", workspaceId: OTHER_WS, html: "<p>x</p>" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-// ---------------------------------------------------------------------------
-// SPEC-047 Slice 3 — entry_refs reindexing (optional `entryRefsRepo` dependency).
-// ---------------------------------------------------------------------------
+    await assert.rejects(() => store.read(), PageNotFoundError);
+  });
 
-test("write() with entryRefsRepo supplied replaces this page's entry_refs to match the newly-written html's embeds", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>no embeds yet</p>", version: 1 });
-  const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock, entryRefsRepo });
+  // ---------------------------------------------------------------------------
+  // write()
+  // ---------------------------------------------------------------------------
 
-  await store.read();
-  await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
+  test("write() after read() updates body_html and increments version", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>old</p>", version: 5 });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-  const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
-  assert.equal(refs.length, 1);
-  assert.equal(refs[0]?.sourceKind, "page-html-embed");
-  assert.equal(refs[0]?.targetId, "widget-1");
-});
+    await store.read();
+    await store.write("<p>new</p>");
 
-test("write() with entryRefsRepo supplied REPLACES the prior ref set, not appends — an embed removed in a later write no longer appears", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-  const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock, entryRefsRepo });
+    const row = (await readRow(db, "page-1"));
+    assert.equal(row.bodyHtml, "<p>new</p>");
+    assert.equal(row.version, 6);
+  });
 
-  await store.read();
-  await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
-  await store.write("<p>the embed was removed in this edit</p>");
+  test("write() before any read() throws — there is no version to condition the write on", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>old</p>" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-  const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
-  assert.deepEqual(refs, []);
-});
+    await assert.rejects(() => store.write("<p>new</p>"), /before read\(\)/);
+  });
 
-test("write() with NO entryRefsRepo supplied still succeeds — the dependency is optional, not required", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+  test("write() lets a single instance write repeatedly with no intervening read() — mirrors createHtmlRegionTarget's restore() calling write() several times in one pass", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>v1</p>", version: 1 });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-  await store.read();
-  await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
+    await store.read();
+    await store.write("<p>v2</p>");
+    await store.write("<p>v3</p>");
 
-  const row = readRow(db, "page-1");
-  assert.equal(row.bodyHtml, `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
-});
+    const row = (await readRow(db, "page-1"));
+    assert.equal(row.bodyHtml, "<p>v3</p>");
+    assert.equal(row.version, 3, "each write must condition on the version the PREVIOUS write in this instance just produced");
+  });
 
-// The admin's Interactive canvas (GrapesJS) serializes `data-embed-config='{"type":…}'` as
-// `data-embed-config="{&quot;type&quot;:…}"`. This store is the chokepoint every Page HTML write
-// passes through, so it stores the readable single-quoted form whichever path the HTML came from.
-const CANVAS_SERIALIZED_MARKER = `<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`;
-const READABLE_MARKER = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
+  // ---------------------------------------------------------------------------
+  // CIC-1 — compare-and-set, the mandatory interleaving test.
+  //
+  // Two separate EditTarget-style callers (two separate PagesHtmlDocumentStore instances, exactly
+  // what two concurrent admin sessions or a retried tool call racing an in-flight one would be) both
+  // read() the same row, then write() in sequence: read, read, write, write. The second write must be
+  // REJECTED, not silently applied on top of content it never saw.
+  // ---------------------------------------------------------------------------
 
-test("write() stores a canvas-serialized (double-quoted, &quot;-encoded) embed marker in the readable single-quoted form", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+  test("CIC-1: two readers, then two writers (read, read, write, write) — the second, stale writer is rejected, never silently applied", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
 
-  await store.read();
-  await store.write(`<p>That marker, live:</p>${CANVAS_SERIALIZED_MARKER}`);
+    // Two independent instances, exactly as two concurrent EditTarget callers would be.
+    const writerA = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+    const writerB = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-  assert.equal(readRow(db, "page-1").bodyHtml, `<p>That marker, live:</p>${READABLE_MARKER}`);
-});
+    // Both read the SAME base version (1) — interleaved before either has written.
+    const seenByA = await writerA.read();
+    const seenByB = await writerB.read();
+    assert.equal(seenByA, "<p>base</p>");
+    assert.equal(seenByB, "<p>base</p>");
 
-test("ensureHtmlFormat() seeds a canvas-serialized embed marker in the readable single-quoted form", async () => {
-  const { db } = harness();
-  db.$client
-    .prepare(
-      `INSERT INTO posts (id, workspace_id, title, slug, body_json, body_format, body_html, status, kind, updated_at, version, ext)
-       VALUES ('page-3', ?, 'New page', 'new-page-3', '{"type":"doc","content":[]}', 'doc', NULL, 'draft', 'page', '2026-08-01T00:00:00.000Z', 1, '{}')`
-    )
-    .run(WS);
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-3" }, { db, clock });
+    // A writes first and succeeds.
+    await writerA.write("<p>A's edit</p>");
+    const afterA = (await readRow(db, "page-1"));
+    assert.equal(afterA.bodyHtml, "<p>A's edit</p>");
+    assert.equal(afterA.version, 2);
 
-  await store.ensureHtmlFormat(CANVAS_SERIALIZED_MARKER);
+    // B writes next, still conditioned on the version it read (1) — the row is now at version 2, so
+    // this MUST be rejected, never silently overwrite A's committed edit.
+    await assert.rejects(
+      () => writerB.write("<p>B's edit, computed against a document A already changed</p>"),
+      PageConcurrentEditError
+    );
 
-  assert.equal(readRow(db, "page-3").bodyHtml, READABLE_MARKER);
-});
+    // A's edit must survive untouched — this is the actual data-loss/corruption CIC-1 exists to
+    // prevent, not just "an error was thrown somewhere."
+    const finalRow = (await readRow(db, "page-1"));
+    assert.equal(finalRow.bodyHtml, "<p>A's edit</p>", "B's rejected write must not have landed, even partially");
+    assert.equal(finalRow.version, 2, "a rejected write must not bump the version either");
+  });
 
-test("write() indexes a ref for an embed pointing at an id with no corresponding widget/form row — entry_refs must see the dangling reference, not silently skip it (this store has no widget/form repo to check against, so it cannot filter on resolution status even if it wanted to)", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-  const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock, entryRefsRepo });
+  test("CIC-1: after a rejection, re-read() gives the writer a fresh version it can then successfully write with", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
 
-  await store.read();
-  await store.write(`<div data-embed-config='{"type":"widget","id":"widget-does-not-exist-anywhere"}'></div>`);
+    const writerA = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+    const writerB = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-  const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
-  assert.equal(refs.length, 1);
-  assert.equal(refs[0]?.targetId, "widget-does-not-exist-anywhere");
-});
+    await writerA.read();
+    await writerB.read();
+    await writerA.write("<p>A's edit</p>");
+    await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
 
-test("ensureHtmlFormat() reindexes entry_refs on the seeding conversion (doc -> html), using the seed html's own embeds", async () => {
-  const { db } = harness();
-  db.$client
-    .prepare(
-      `INSERT INTO posts (id, workspace_id, title, slug, body_json, body_format, body_html, status, kind, updated_at, version, ext)
-       VALUES ('page-2', ?, 'New page', 'new-page', '{"type":"doc","content":[]}', 'doc', NULL, 'draft', 'page', '2026-08-01T00:00:00.000Z', 1, '{}')`
-    )
-    .run(WS);
-  const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-2" }, { db, clock, entryRefsRepo });
+    // The documented recovery path: re-read, then retry.
+    const freshRead = await writerB.read();
+    assert.equal(freshRead, "<p>A's edit</p>", "the retry must see A's committed edit, not the stale base");
 
-  await store.ensureHtmlFormat(`<div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>`);
+    await writerB.write("<p>B's edit, now based on A's content</p>");
+    const finalRow = (await readRow(db, "page-1"));
+    assert.equal(finalRow.bodyHtml, "<p>B's edit, now based on A's content</p>");
+    assert.equal(finalRow.version, 3);
+  });
 
-  const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-2" });
-  assert.equal(refs.length, 1);
-  assert.equal(refs[0]?.targetId, "cf-widget-1");
-});
+  test("write()'s WHERE clause is bodyFormat-scoped in its own right, not just version-scoped: a row converted to 'doc' out-of-band after read() rejects the write even though the version still matches", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-// ---------------------------------------------------------------------------
-// S5 (web-high fix plan, 2026-09-24) — the entity-liveness guard (row 5): none of read()/
-// ensureHtmlFormat()/write() checked `deleted_at`, so a trashed page's bespoke-HTML body was still
-// readable and writable through this store.
-// ---------------------------------------------------------------------------
+    await store.read();
 
-const TRASH_MESSAGE = "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it.";
+    // Simulate some other process changing this row's format without touching version — the point is
+    // that write()'s own WHERE clause defends against writing html into a non-html row independently
+    // of the version check, not merely as a side effect of it.
+    await setRow(db, "page-1", { body_format: "doc", body_html: null, body_json: "{}" });
 
-test("read() rejects a trashed html-format page with the entity-liveness message", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>trashed</p>" });
-  db.$client.prepare("UPDATE posts SET deleted_at = '2026-09-24T00:00:00.000Z' WHERE id = 'page-1'").run();
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+    await assert.rejects(() => store.write("<p>should never land</p>"), PageConcurrentEditError);
 
-  await assert.rejects(() => store.read(), { message: TRASH_MESSAGE });
-});
+    const row = (await readRow(db, "page-1"));
+    assert.equal(row.bodyFormat, "doc", "the row must stay doc-format — the html write must not have landed");
+  });
 
-test("ensureHtmlFormat() rejects a trashed page before the bodyFormat conversion — a trashed doc-format page also reports Trash, not not-found", async () => {
-  const { db } = harness();
-  db.$client
-    .prepare(
-      `INSERT INTO posts (id, workspace_id, title, slug, body_json, body_format, body_html, status, kind, updated_at, version, ext, deleted_at)
-       VALUES ('page-1', ?, 'New page', 'new-page', '{"type":"doc","content":[]}', 'doc', NULL, 'draft', 'page', '2026-08-01T00:00:00.000Z', 1, '{}', '2026-09-24T00:00:00.000Z')`
-    )
-    .run(WS);
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+  // ---------------------------------------------------------------------------
+  // SPEC-047 Slice 3 — entry_refs reindexing (optional `entryRefsRepo` dependency).
+  // ---------------------------------------------------------------------------
 
-  await assert.rejects(() => store.ensureHtmlFormat("<p>seed</p>"), { message: TRASH_MESSAGE });
-});
+  test("write() with entryRefsRepo supplied replaces this page's entry_refs to match the newly-written html's embeds", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>no embeds yet</p>", version: 1 });
+    const entryRefsRepo = new InMemoryEntryRefsRepo();
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock, entryRefsRepo });
 
-test("write() rejects when the row was trashed between this instance's read() and write() — the row's body_html stays unchanged", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-  const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+    await store.read();
+    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
 
-  await store.read();
-  db.$client.prepare("UPDATE posts SET deleted_at = '2026-09-24T00:00:00.000Z' WHERE id = 'page-1'").run();
+    const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
+    assert.equal(refs.length, 1);
+    assert.equal(refs[0]?.sourceKind, "page-html-embed");
+    assert.equal(refs[0]?.targetId, "widget-1");
+  });
 
-  await assert.rejects(() => store.write("<p>should never land</p>"), { message: TRASH_MESSAGE });
+  test("write() with entryRefsRepo supplied REPLACES the prior ref set, not appends — an embed removed in a later write no longer appears", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+    const entryRefsRepo = new InMemoryEntryRefsRepo();
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock, entryRefsRepo });
 
-  const row = readRow(db, "page-1");
-  assert.equal(row.bodyHtml, "<p>base</p>", "the trashed row's body_html must be untouched");
-});
+    await store.read();
+    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
+    await store.write("<p>the embed was removed in this edit</p>");
 
-test("write() still throws PageConcurrentEditError (not the Trash message) for an ordinary stale write on a LIVE row", async () => {
-  const { db } = harness();
-  insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
-  const writerA = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
-  const writerB = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
+    const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
+    assert.deepEqual(refs, []);
+  });
 
-  await writerA.read();
-  await writerB.read();
-  await writerA.write("<p>A's edit</p>");
+  test("write() with NO entryRefsRepo supplied still succeeds — the dependency is optional, not required", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-  await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
+    await store.read();
+    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
+
+    const row = (await readRow(db, "page-1"));
+    assert.equal(row.bodyHtml, `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
+  });
+
+  // The admin's Interactive canvas (GrapesJS) serializes `data-embed-config='{"type":…}'` as
+  // `data-embed-config="{&quot;type&quot;:…}"`. This store is the chokepoint every Page HTML write
+  // passes through, so it stores the readable single-quoted form whichever path the HTML came from.
+  const CANVAS_SERIALIZED_MARKER = `<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`;
+  const READABLE_MARKER = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
+
+  test("write() stores a canvas-serialized (double-quoted, &quot;-encoded) embed marker in the readable single-quoted form", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+
+    await store.read();
+    await store.write(`<p>That marker, live:</p>${CANVAS_SERIALIZED_MARKER}`);
+
+    assert.equal((await readRow(db, "page-1")).bodyHtml, `<p>That marker, live:</p>${READABLE_MARKER}`);
+  });
+
+  test("ensureHtmlFormat() seeds a canvas-serialized embed marker in the readable single-quoted form", async () => {
+    const db = makeKernel();
+    await insertPost(db, { id: "page-3", title: "New page", slug: "new-page-3", kind: "page" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-3" }, { kernel: db, clock });
+
+    await store.ensureHtmlFormat(CANVAS_SERIALIZED_MARKER);
+
+    assert.equal((await readRow(db, "page-3")).bodyHtml, READABLE_MARKER);
+  });
+
+  test("write() indexes a ref for an embed pointing at an id with no corresponding widget/form row — entry_refs must see the dangling reference, not silently skip it (this store has no widget/form repo to check against, so it cannot filter on resolution status even if it wanted to)", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+    const entryRefsRepo = new InMemoryEntryRefsRepo();
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock, entryRefsRepo });
+
+    await store.read();
+    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-does-not-exist-anywhere"}'></div>`);
+
+    const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
+    assert.equal(refs.length, 1);
+    assert.equal(refs[0]?.targetId, "widget-does-not-exist-anywhere");
+  });
+
+  test("ensureHtmlFormat() reindexes entry_refs on the seeding conversion (doc -> html), using the seed html's own embeds", async () => {
+    const db = makeKernel();
+    await insertPost(db, { id: "page-2", title: "New page", slug: "new-page", kind: "page" });
+    const entryRefsRepo = new InMemoryEntryRefsRepo();
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-2" }, { kernel: db, clock, entryRefsRepo });
+
+    await store.ensureHtmlFormat(`<div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>`);
+
+    const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-2" });
+    assert.equal(refs.length, 1);
+    assert.equal(refs[0]?.targetId, "cf-widget-1");
+  });
+
+  // ---------------------------------------------------------------------------
+  // S5 (web-high fix plan, 2026-09-24) — the entity-liveness guard (row 5): none of read()/
+  // ensureHtmlFormat()/write() checked `deleted_at`, so a trashed page's bespoke-HTML body was still
+  // readable and writable through this store.
+  // ---------------------------------------------------------------------------
+
+  const TRASH_MESSAGE = "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it.";
+
+  test("read() rejects a trashed html-format page with the entity-liveness message", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>trashed</p>" });
+    await setRow(db, "page-1", { deleted_at: "2026-09-24T00:00:00.000Z" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+
+    await assert.rejects(() => store.read(), { message: TRASH_MESSAGE });
+  });
+
+  test("ensureHtmlFormat() rejects a trashed page before the bodyFormat conversion — a trashed doc-format page also reports Trash, not not-found", async () => {
+    const db = makeKernel();
+    await insertPost(db, { id: "page-1", title: "New page", slug: "new-page", kind: "page", deleted_at: "2026-09-24T00:00:00.000Z" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+
+    await assert.rejects(() => store.ensureHtmlFormat("<p>seed</p>"), { message: TRASH_MESSAGE });
+  });
+
+  test("write() rejects when the row was trashed between this instance's read() and write() — the row's body_html stays unchanged", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+
+    await store.read();
+    await setRow(db, "page-1", { deleted_at: "2026-09-24T00:00:00.000Z" });
+
+    await assert.rejects(() => store.write("<p>should never land</p>"), { message: TRASH_MESSAGE });
+
+    const row = (await readRow(db, "page-1"));
+    assert.equal(row.bodyHtml, "<p>base</p>", "the trashed row's body_html must be untouched");
+  });
+
+  test("write() still throws PageConcurrentEditError (not the Trash message) for an ordinary stale write on a LIVE row", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "page-1", html: "<p>base</p>", version: 1 });
+    const writerA = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+    const writerB = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
+
+    await writerA.read();
+    await writerB.read();
+    await writerA.write("<p>A's edit</p>");
+
+    await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
+  });
 });
