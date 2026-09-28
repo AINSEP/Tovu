@@ -1,27 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqliteSiteTitlePreservationStore } from "../site-title-preservation.sqlite.js";
+import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { SqlSiteTitlePreservationStore } from "../site-title-preservation.js";
 import { InMemorySiteTitlePreservationStore, type SiteTitlePreservationStorePort } from "../site-title.js";
 
 /**
- * @file SPEC-050 (NC-3 = A): both `SiteTitlePreservationStorePort` adapters honour one contract. The
- * SQLite fixture inserts its recorded workspaces the raw way the marker migration does; the in-memory
- * store takes them as constructor input.
+ * @file SPEC-050 (NC-3 = A): both `SiteTitlePreservationStorePort` adapters honour one contract, the
+ * SQL one on SQLite and PGlite. The SQL fixture inserts its recorded workspaces the raw way the
+ * marker migration does; the in-memory store takes them as constructor input.
  */
 
 const adapters: Array<[string, (recorded: string[]) => SiteTitlePreservationStorePort]> = [
   ["in-memory", (recorded) => new InMemorySiteTitlePreservationStore(recorded)],
-  [
-    "sqlite",
-    (recorded) => {
-      const db = openContentDb(":memory:");
-      const insert = db.$client.prepare("INSERT INTO site_title_preexisting_workspaces (workspace_id, preserved_at) VALUES (?, NULL)");
-      for (const workspaceId of recorded) insert.run(workspaceId);
-      return new SqliteSiteTitlePreservationStore(db);
-    },
-  ],
+  // The one Kysely body on every dialect (storage plan §4), seeded the raw way the marker migration does.
+  ...eachDialect({
+    tables: ["site_title_preexisting_workspaces"],
+    make: (kernel) => (recorded: string[]) =>
+      new SqlSiteTitlePreservationStore(
+        heldUntil(
+          kernel,
+          (async () => {
+            for (const workspaceId of recorded) {
+              await kernel.run((db) =>
+                db.insertInto("site_title_preexisting_workspaces").values({ workspace_id: workspaceId, preserved_at: null }).execute()
+              );
+            }
+          })()
+        )
+      ),
+  }).map((each): [string, (recorded: string[]) => SiteTitlePreservationStorePort] => [each.name, (recorded) => each.make()(recorded)]),
 ];
 
 for (const [name, makeStore] of adapters) {

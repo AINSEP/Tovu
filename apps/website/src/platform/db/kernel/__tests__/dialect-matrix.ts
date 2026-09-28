@@ -71,7 +71,7 @@ export function freshSqliteContentKernel(): SqliteContentKernel {
 }
 
 /** `kernel` with every call held until `pending` settles (the per-test table reset). */
-function heldUntil<DB>(kernel: StorageKernel<DB>, pending: Promise<void>): StorageKernel<DB> {
+export function heldUntil<DB>(kernel: StorageKernel<DB>, pending: Promise<void>): StorageKernel<DB> {
   return {
     ...kernel,
     ready: pending,

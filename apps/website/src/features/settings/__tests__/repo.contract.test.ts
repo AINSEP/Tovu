@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { workspaces } from "#src/platform/db/schema.sqlite";
+import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
+import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemorySettingsRepo } from "@jini-ai/cms/settings";
-import { SqliteSettingsRepo } from "../repo.sqlite.js";
+import { SqlSettingsRepo } from "../repo.js";
 import type { SettingsRepoPort, SettingDefinitionRecord, SettingValueRecord } from "@jini-ai/cms/settings";
 
 /** Every workspace id any contract-suite test below references — seeded up front so the SQLite adapter's real FK doesn't reject them. */
@@ -356,13 +356,10 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
 
 runContractSuite("InMemorySettingsRepo", () => new InMemorySettingsRepo());
 
-runContractSuite("SqliteSettingsRepo", () => {
-  const db = openContentDb(":memory:");
-  for (const id of CONTRACT_TEST_WORKSPACE_IDS) {
-    db.insert(workspaces)
-      .values({ id, name: id, slug: id, createdAt: "2026-07-11T00:00:00.000Z" })
-      .onConflictDoNothing()
-      .run();
-  }
-  return new SqliteSettingsRepo(db);
-});
+// The one Kysely body on every dialect (storage plan §4): SQLite, then PGlite.
+for (const each of eachDialect({
+  tables: ["setting_definitions", "setting_revisions", "setting_values_global", "setting_values_workspace", "setting_values_user", "workspaces"],
+  make: (kernel) => new SqlSettingsRepo(heldUntil(kernel, seedWorkspaces(kernel, CONTRACT_TEST_WORKSPACE_IDS))),
+})) {
+  runContractSuite(`SqlSettingsRepo [${each.name}]`, each.make);
+}
