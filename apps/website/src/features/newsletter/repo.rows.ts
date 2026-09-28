@@ -197,3 +197,48 @@ export function updatableListColumns(row: Insertable<ListTableRow>) {
   const { id: _id, workspace_id: _workspace, created_at: _created, ...updatable } = row;
   return updatable;
 }
+
+/** One `p_newsletter__subscriptions` row as a {@link SubscriptionRow}. */
+export function toSubscriptionRecord(row: Selectable<SubscriptionTableRow>): SubscriptionRow {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    listId: row.list_id,
+    subscriberId: row.subscriber_id,
+    status: row.status as SubscriptionRow["status"],
+    source: row.source as SubscriptionRow["source"],
+    consentRevisionIdAtSubscribe: row.consent_revision_id_at_subscribe,
+    subscribedAt: row.subscribed_at,
+    unsubscribedAt: row.unsubscribed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** The `p_newsletter__subscriptions` row an INSERT writes. */
+export function toSubscriptionRow(row: SubscriptionRow): Insertable<SubscriptionTableRow> {
+  return {
+    id: row.id,
+    workspace_id: row.workspaceId,
+    list_id: row.listId,
+    subscriber_id: row.subscriberId,
+    status: row.status,
+    source: row.source,
+    consent_revision_id_at_subscribe: row.consentRevisionIdAtSubscribe,
+    subscribed_at: row.subscribedAt,
+    unsubscribed_at: row.unsubscribedAt,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
+
+/** The columns a re-save of a subscription overwrites: its lifecycle, not its identity (list, subscriber, source, creation). */
+export function updatableSubscriptionColumns(row: Insertable<SubscriptionTableRow>) {
+  return {
+    status: row.status,
+    consent_revision_id_at_subscribe: row.consent_revision_id_at_subscribe,
+    subscribed_at: row.subscribed_at,
+    unsubscribed_at: row.unsubscribed_at,
+    updated_at: row.updated_at,
+  };
+}

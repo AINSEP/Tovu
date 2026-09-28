@@ -5,8 +5,8 @@ import { sql } from "kysely";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { newsletterCampaignRepoFor, newsletterListRepoFor } from "../repo.js";
-import type { CampaignRecord, CampaignRevision, NewsletterListRow } from "../types.js";
+import { newsletterCampaignRepoFor, newsletterListRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
+import type { CampaignRecord, CampaignRevision, NewsletterListRow, SubscriptionRow } from "../types.js";
 
 /**
  * @file The six newsletter repos on every dialect through the kernel's matrix (`describeEachDialect`
@@ -27,13 +27,18 @@ const CREATE_TABLES = [
   sql`CREATE TABLE p_newsletter__lists (
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
     is_default INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+  sql`DROP TABLE IF EXISTS p_newsletter__subscriptions`,
+  sql`CREATE TABLE p_newsletter__subscriptions (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, list_id TEXT NOT NULL, subscriber_id TEXT NOT NULL,
+    status TEXT NOT NULL, source TEXT NOT NULL, consent_revision_id_at_subscribe TEXT, subscribed_at TEXT,
+    unsubscribed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 ];
 
 function repos(base: ContentKernel) {
   const pending = CREATE_TABLES.reduce((chain, statement) => chain.then(() => base.execute(statement)), Promise.resolve());
   pending.catch(() => {});
   const kernel = heldUntil(base, pending);
-  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel) };
+  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel) };
 }
 
 function list(id: string, overrides: Partial<NewsletterListRow> = {}): NewsletterListRow {
@@ -65,6 +70,23 @@ function campaign(id: string, overrides: Partial<CampaignRecord> = {}): Campaign
 
 function revision(c: CampaignRecord, actorId = "p1"): CampaignRevision {
   return { campaignId: c.id, workspaceId: c.workspaceId, seq: 0, state: c, actorId, recordedAt: T0 };
+}
+
+function subscription(id: string, overrides: Partial<SubscriptionRow> = {}): SubscriptionRow {
+  return {
+    id,
+    workspaceId: WS,
+    listId: "list-1",
+    subscriberId: `sub-${id}`,
+    status: "subscribed",
+    source: "signup_form",
+    consentRevisionIdAtSubscribe: "rev-1",
+    subscribedAt: T0,
+    unsubscribedAt: null,
+    createdAt: T0,
+    updatedAt: T0,
+    ...overrides,
+  };
 }
 
 describeEachDialect(
@@ -218,6 +240,87 @@ describeEachDialect(
           /boom/
         );
         assert.equal(await lists.findById({ workspaceId: WS, id: "l1" }), null);
+      });
+    });
+
+    describe("subscription repo", () => {
+      test("save then findById round-trips (with nulls); misses and other workspaces are null", async () => {
+        const { subscriptions } = makeRepos();
+        const pending = subscription("s1", { status: "pending", consentRevisionIdAtSubscribe: null, subscribedAt: null });
+        await subscriptions.save(pending);
+        assert.deepEqual(await subscriptions.findById({ workspaceId: WS, id: "s1" }), pending);
+        assert.equal(await subscriptions.findById({ workspaceId: WS, id: "nope" }), null);
+        assert.equal(await subscriptions.findById({ workspaceId: OTHER, id: "s1" }), null);
+      });
+
+      test("findBySubscriberAndList hits on all three keys and misses on any other", async () => {
+        const { subscriptions } = makeRepos();
+        await subscriptions.save(subscription("s1", { listId: "l1", subscriberId: "who" }));
+        assert.equal((await subscriptions.findBySubscriberAndList({ workspaceId: WS, listId: "l1", subscriberId: "who" }))?.id, "s1");
+        assert.equal(await subscriptions.findBySubscriberAndList({ workspaceId: WS, listId: "l2", subscriberId: "who" }), null);
+        assert.equal(await subscriptions.findBySubscriberAndList({ workspaceId: WS, listId: "l1", subscriberId: "else" }), null);
+        assert.equal(await subscriptions.findBySubscriberAndList({ workspaceId: OTHER, listId: "l1", subscriberId: "who" }), null);
+      });
+
+      test("list is scoped to workspace and list, ordered by id, keyset-paginated with a limit", async () => {
+        const { subscriptions } = makeRepos();
+        for (const id of ["s3", "s1", "s2"]) await subscriptions.save(subscription(id));
+        await subscriptions.save(subscription("s9", { listId: "list-2" }));
+        await subscriptions.save(subscription("sx", { workspaceId: OTHER }));
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" })).map((s) => s.id), ["s1", "s2", "s3"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1", limit: 2 })).map((s) => s.id), ["s1", "s2"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1", afterId: "s1", limit: 1 })).map((s) => s.id), ["s2"]);
+        assert.deepEqual(await subscriptions.list({ workspaceId: OTHER, listId: "list-2" }), []);
+      });
+
+      test("listSubscribed returns only subscribed rows of that workspace and list", async () => {
+        const { subscriptions } = makeRepos();
+        await subscriptions.save(subscription("s1"));
+        await subscriptions.save(subscription("s2", { status: "pending" }));
+        await subscriptions.save(subscription("s3", { status: "unsubscribed", unsubscribedAt: T1 }));
+        await subscriptions.save(subscription("s4", { listId: "list-2" }));
+        await subscriptions.save(subscription("s5", { workspaceId: OTHER }));
+        assert.deepEqual((await subscriptions.listSubscribed({ workspaceId: WS, listId: "list-1" })).map((s) => s.id), ["s1"]);
+        assert.deepEqual(await subscriptions.listSubscribed({ workspaceId: "empty", listId: "list-1" }), []);
+      });
+
+      test("re-saving updates the lifecycle fields only, never the identity fields", async () => {
+        const { subscriptions } = makeRepos();
+        await subscriptions.save(subscription("s1", { status: "pending", subscribedAt: null }));
+        await subscriptions.save(
+          subscription("s1", { status: "unsubscribed", subscribedAt: T1, unsubscribedAt: T1, updatedAt: T1, consentRevisionIdAtSubscribe: "rev-2", listId: "hijack", source: "import", createdAt: T1 })
+        );
+        assert.deepEqual(
+          await subscriptions.findById({ workspaceId: WS, id: "s1" }),
+          subscription("s1", { status: "unsubscribed", subscribedAt: T1, unsubscribedAt: T1, updatedAt: T1, consentRevisionIdAtSubscribe: "rev-2" })
+        );
+      });
+
+      test("remove deletes one row of its workspace and is a no-op on a miss or another workspace", async () => {
+        const { subscriptions } = makeRepos();
+        await subscriptions.save(subscription("s1"));
+        await subscriptions.save(subscription("s2"));
+        await subscriptions.remove({ workspaceId: OTHER, id: "s1" });
+        await subscriptions.remove({ workspaceId: WS, id: "nope" });
+        assert.ok(await subscriptions.findById({ workspaceId: WS, id: "s1" }));
+        await subscriptions.remove({ workspaceId: WS, id: "s1" });
+        assert.equal(await subscriptions.findById({ workspaceId: WS, id: "s1" }), null);
+        assert.ok(await subscriptions.findById({ workspaceId: WS, id: "s2" }));
+      });
+
+      test("a save and a remove inside a rolled-back transaction leave the table as it was", async () => {
+        const { kernel, subscriptions } = makeRepos();
+        await subscriptions.save(subscription("s1"));
+        await assert.rejects(
+          kernel.transaction(async () => {
+            await subscriptions.save(subscription("s2"));
+            await subscriptions.remove({ workspaceId: WS, id: "s1" });
+            throw new Error("boom");
+          }),
+          /boom/
+        );
+        assert.equal(await subscriptions.findById({ workspaceId: WS, id: "s2" }), null);
+        assert.ok(await subscriptions.findById({ workspaceId: WS, id: "s1" }));
       });
     });
   }

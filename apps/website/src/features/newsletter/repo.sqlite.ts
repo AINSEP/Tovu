@@ -20,7 +20,7 @@ import type Database from "better-sqlite3";
 
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { SqlNewsletterCampaignRepo, SqlNewsletterListRepo } from "./repo.js";
+import { SqlNewsletterCampaignRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "./repo.js";
 import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest.js";
 import type {
   NewsletterAudienceSnapshotRepoPort,
@@ -62,116 +62,10 @@ export class SqliteNewsletterListRepo extends SqlNewsletterListRepo {
   }
 }
 
-interface SubscriptionDbRow {
-  id: string;
-  workspace_id: string;
-  list_id: string;
-  subscriber_id: string;
-  status: string;
-  source: string;
-  consent_revision_id_at_subscribe: string | null;
-  subscribed_at: string | null;
-  unsubscribed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-const toSubscriptionRow = (r: SubscriptionDbRow): SubscriptionRow => ({
-  id: r.id,
-  workspaceId: r.workspace_id,
-  listId: r.list_id,
-  subscriberId: r.subscriber_id,
-  status: r.status as SubscriptionRow["status"],
-  source: r.source as SubscriptionRow["source"],
-  consentRevisionIdAtSubscribe: r.consent_revision_id_at_subscribe,
-  subscribedAt: r.subscribed_at,
-  unsubscribedAt: r.unsubscribed_at,
-  createdAt: r.created_at,
-  updatedAt: r.updated_at,
-});
-
-export class SqliteNewsletterSubscriptionRepo implements NewsletterSubscriptionRepoPort {
-  private readonly table = NEWSLETTER_TABLE_NAMES.subscriptions;
-  constructor(private readonly db: ContentDb) {}
-  private get client(): Database.Database {
-    return rawClient(this.db);
-  }
-
-  async findById(required: { workspaceId: string; id: string }): Promise<SubscriptionRow | null> {
-    const row = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND id = ?`)
-      .get(required.workspaceId, required.id) as SubscriptionDbRow | undefined;
-    return row ? toSubscriptionRow(row) : null;
-  }
-
-  async findBySubscriberAndList(required: {
-    workspaceId: string;
-    listId: string;
-    subscriberId: string;
-  }): Promise<SubscriptionRow | null> {
-    const row = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND list_id = ? AND subscriber_id = ?`)
-      .get(required.workspaceId, required.listId, required.subscriberId) as SubscriptionDbRow | undefined;
-    return row ? toSubscriptionRow(row) : null;
-  }
-
-  async list(required: {
-    workspaceId: string;
-    listId: string;
-    afterId?: string;
-    limit?: number;
-  }): Promise<SubscriptionRow[]> {
-    const limit = required.limit ?? DEFAULT_LIST_LIMIT;
-    const rows = required.afterId
-      ? (this.client
-          .prepare(
-            `SELECT * FROM "${this.table}" WHERE workspace_id = ? AND list_id = ? AND id > ? ORDER BY id LIMIT ?`
-          )
-          .all(required.workspaceId, required.listId, required.afterId, limit) as SubscriptionDbRow[])
-      : (this.client
-          .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND list_id = ? ORDER BY id LIMIT ?`)
-          .all(required.workspaceId, required.listId, limit) as SubscriptionDbRow[]);
-    return rows.map(toSubscriptionRow);
-  }
-
-  async listSubscribed(required: { workspaceId: string; listId: string }): Promise<SubscriptionRow[]> {
-    const rows = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND list_id = ? AND status = 'subscribed'`)
-      .all(required.workspaceId, required.listId) as SubscriptionDbRow[];
-    return rows.map(toSubscriptionRow);
-  }
-
-  async save(row: SubscriptionRow): Promise<void> {
-    this.client
-      .prepare(
-        `INSERT INTO "${this.table}"
-           (id, workspace_id, list_id, subscriber_id, status, source, consent_revision_id_at_subscribe,
-            subscribed_at, unsubscribed_at, created_at, updated_at)
-         VALUES (@id, @workspaceId, @listId, @subscriberId, @status, @source, @consentRevisionIdAtSubscribe,
-                 @subscribedAt, @unsubscribedAt, @createdAt, @updatedAt)
-         ON CONFLICT(id) DO UPDATE SET
-           status = excluded.status, consent_revision_id_at_subscribe = excluded.consent_revision_id_at_subscribe,
-           subscribed_at = excluded.subscribed_at, unsubscribed_at = excluded.unsubscribed_at,
-           updated_at = excluded.updated_at`
-      )
-      .run({
-        id: row.id,
-        workspaceId: row.workspaceId,
-        listId: row.listId,
-        subscriberId: row.subscriberId,
-        status: row.status,
-        source: row.source,
-        consentRevisionIdAtSubscribe: row.consentRevisionIdAtSubscribe,
-        subscribedAt: row.subscribedAt,
-        unsubscribedAt: row.unsubscribedAt,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      });
-  }
-
-  async remove(required: { workspaceId: string; id: string }): Promise<void> {
-    this.client
-      .prepare(`DELETE FROM "${this.table}" WHERE workspace_id = ? AND id = ?`)
-      .run(required.workspaceId, required.id);
+export class SqliteNewsletterSubscriptionRepo extends SqlNewsletterSubscriptionRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 
