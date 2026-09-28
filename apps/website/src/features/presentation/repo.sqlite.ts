@@ -1,50 +1,15 @@
-import { eq } from "drizzle-orm";
-
-import { presentationSettings } from "../../platform/db/schema.sqlite.js";
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
-import type {
-  PresentationSettingsRecord,
-  PresentationSettingsRepoPort,
-  ThemeId,
-} from "@jini-ai/cms/presentation";
+import { SqlPresentationSettingsRepo } from "./repo.js";
 
 /**
- * @file Drizzle/SQLite presentation-settings repository adapter.
- *
- * Satisfies the same `PresentationSettingsRepoPort` as `repo.memory.ts`. One row per
- * workspace; `save` upserts on `workspace_id`.
+ * @file The presentation-settings repo on a site's SQLite `content.db`: {@link SqlPresentationSettingsRepo}
+ * (the one Kysely query body, `repo.ts`). Kept as a named class so existing call sites that construct
+ * it from the content db handle stay as they are; new code calls `presentationSettingsRepoFor`.
  */
-type PresentationRow = typeof presentationSettings.$inferSelect;
-
-function toRecord(row: PresentationRow): PresentationSettingsRecord {
-  return {
-    workspaceId: row.workspaceId,
-    activeThemeId: row.activeThemeId as ThemeId,
-    updatedAt: row.updatedAt,
-  };
-}
-
-export class SqlitePresentationSettingsRepo implements PresentationSettingsRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findByWorkspaceId(workspaceId: string): Promise<PresentationSettingsRecord | null> {
-    return findOneBy(this.db, presentationSettings, [eq(presentationSettings.workspaceId, workspaceId)], toRecord);
-  }
-
-  async save(record: PresentationSettingsRecord): Promise<void> {
-    this.db
-      .insert(presentationSettings)
-      .values(record)
-      .onConflictDoUpdate({
-        target: presentationSettings.workspaceId,
-        set: { activeThemeId: record.activeThemeId, updatedAt: record.updatedAt },
-      })
-      .run();
-  }
-
-  async listAll(): Promise<PresentationSettingsRecord[]> {
-    const rows = this.db.select().from(presentationSettings).all();
-    return rows.map(toRecord);
+export class SqlitePresentationSettingsRepo extends SqlPresentationSettingsRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
