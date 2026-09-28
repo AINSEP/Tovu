@@ -1,10 +1,9 @@
 import { resolveActiveThemeId } from "#src/features/presentation/index";
-import { isPublicAssistantEnabled } from "#src/assistant/index";
 import { toSiteProducts } from "#src/features/commerce/index";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
-import { resolveSiteTitleForRender } from "./pages.js";
+import { resolveSiteTitleForRender, resolveSiteAssistantEnabledForRequest } from "./pages.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
 /**
@@ -79,7 +78,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       const products = await resolveStorefrontProducts(deps);
       const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
         resolveActiveThemeId(deps),
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        resolveSiteAssistantEnabledForRequest(req, deps),
         resolveSiteTitleForRender(deps),
       ]);
       const resolved = resolveActiveTheme(deps, activeThemeId);
@@ -111,7 +110,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       }
       const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
         resolveActiveThemeId(deps),
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        resolveSiteAssistantEnabledForRequest(req, deps),
         resolveSiteTitleForRender(deps),
       ]);
       const resolved = resolveActiveTheme(deps, activeThemeId);

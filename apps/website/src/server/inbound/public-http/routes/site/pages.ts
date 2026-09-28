@@ -209,6 +209,36 @@ export function resolveSiteTitleForRender(deps: RouteDeps): Promise<string> {
 }
 
 /**
+ * Set by `features/site-export/site-exporter.ts`'s `exportFetch` on every request its crawl makes
+ * (static export AND static-publish, which runs the identical `exportSite` engine — see that
+ * file's own doc). Kept as a literal string here rather than a shared import for the same reason
+ * `render.ts`'s `SITE_ASSISTANT_MOUNT_ID` is duplicated across the render.ts/site-chat boundary:
+ * `site-export` must never import from `server/inbound/**` (this file's sibling module-cycle
+ * history), so there is no single module both sides could import this from without recreating that
+ * exact cycle.
+ */
+const STATIC_EXPORT_REQUEST_HEADER = "x-tovu-static-export";
+
+/**
+ * ADR-054's visitor-chat switch, resolved for ONE incoming request rather than for a workspace in
+ * the abstract. Every one of this file's and `products.ts`'s four render handlers used to call
+ * `isPublicAssistantEnabled` directly; collapsed here (2026-09-27) so the static-export carve-out
+ * below has exactly one place to live instead of four.
+ *
+ * Owner decision: a static export/static-publish ships no `/api/site-assistant/chat` endpoint for
+ * the bubble to call, so it must never ship the bubble's markup either — a broken FAB on a static
+ * host is worse than no FAB. `exportSite`'s own crawl (`site-exporter.ts`'s `exportFetch`) marks
+ * every request it makes with {@link STATIC_EXPORT_REQUEST_HEADER}; seeing that header here
+ * short-circuits straight to `false`, BEFORE the real `site.assistant.public_enabled` setting is
+ * even read, so the live site (which never sends this header) is completely unaffected and keeps
+ * showing the widget exactly as the workspace setting says.
+ */
+export function resolveSiteAssistantEnabledForRequest(req: Pick<Request, "header">, deps: RouteDeps): Promise<boolean> {
+  if (req.header(STATIC_EXPORT_REQUEST_HEADER)) return Promise.resolve(false);
+  return isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId });
+}
+
+/**
  * Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2). Applied to every
  * success response this file sends — home, the static-theme-page short-circuit, the template
  * branch, and the generic dynamic post render — because all four share the SAME cacheability
@@ -2245,9 +2275,11 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         resolveActiveThemeId(deps),
         // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
-        // route that calls `renderSite` resolves this the same way (see `pages.ts`'s other handler
-        // and `products.ts`'s two handlers).
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        // route that calls `renderSite` resolves this the same way, through the shared
+        // `resolveSiteAssistantEnabledForRequest` (see `pages.ts`'s other handler and
+        // `products.ts`'s two handlers), which also carves out static exports (see that
+        // function's own doc).
+        resolveSiteAssistantEnabledForRequest(req, deps),
         resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);
 
@@ -2357,7 +2389,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
         resolveActiveThemeId(deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        resolveSiteAssistantEnabledForRequest(req, deps),
         resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);
 

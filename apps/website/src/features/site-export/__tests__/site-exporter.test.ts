@@ -11,6 +11,8 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
 import type { RedirectRecord } from "#src/features/redirects/index";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
+import { setPublicAssistantSettings } from "#src/assistant/index";
+import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
 import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 
@@ -87,6 +89,60 @@ test("exportSite: --base-path unset leaves every written byte identical to a pla
 
   const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
   assert.match(robots, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
+});
+
+const alwaysAllowAssistantSettingsWrite = async () => ({ allowed: true, reason: "test" });
+
+/** Turns the ADR-054 visitor-chat switch ON for `deps`'s seeded workspace — same recipe
+ *  `server/__tests__/site-assistant-routes.test.ts` uses, including awaiting `siteTitleReady`
+ *  first (`InMemorySettingsRepo.transaction` is not reentrant, and `createRouteDeps()`'s own
+ *  boot-time settings registrations are still in flight until then). */
+async function enablePublicAssistant(deps: ReturnType<typeof createRouteDeps>): Promise<void> {
+  await deps.siteTitleReady;
+  await setPublicAssistantSettings(
+    {
+      settingsRepo: deps.settingsRepo,
+      getEffective: deps.getEffective,
+      set: deps.set,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: alwaysAllowAssistantSettingsWrite,
+      principals: deps.principalRepo,
+    },
+    { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" }
+  );
+}
+
+/**
+ * Static-export chat-widget gap (2026-09-27, owner decision): a static export/static-publish
+ * ships no `/api/site-assistant/chat` endpoint for the visitor-chat bubble to call, so an exported
+ * page must never carry the bubble's markup at all, regardless of the workspace's own
+ * `site.assistant.public_enabled` setting. The LIVE server (same `deps`, same setting) is
+ * asserted in the SAME test to still ship the widget — proving the omission is scoped to the
+ * export path (`site-exporter.ts`'s `exportFetch` header, resolved by `routes/site/pages.ts`'s
+ * `resolveSiteAssistantEnabledForRequest`) and is not a regression of the ADR-054 switch itself.
+ */
+test("exportSite: the site-assistant widget is OFF in a static export even when the workspace setting is enabled", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+
+  const app = createApp(deps);
+  const baseUrl = await startTestServer(app, t);
+  const liveHome = await (await fetch(`${baseUrl}/`)).text();
+  assert.match(liveHome, /\/site-chat\/site-assistant\.js/, "the live server must still ship the widget when the setting is on");
+
+  const report = await exportSite({ routeDeps: deps, outputDir });
+  assert.equal(report.routes.failed.length, 0, "every route must still export successfully with the setting on");
+
+  const exportedHome = readFileSync(path.join(outputDir, "index.html"), "utf8");
+  assert.doesNotMatch(
+    exportedHome,
+    /site-assistant/,
+    "a static export must ship NO site-assistant markup at all — there is no /api/site-assistant/chat endpoint on a static host for the bubble to talk to"
+  );
 });
 
 /**

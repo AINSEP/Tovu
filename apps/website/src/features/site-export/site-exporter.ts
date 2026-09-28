@@ -543,15 +543,39 @@ function rewriteRouteBodyForBasePath(route: ManifestRoute, body: string, basePat
  *  one. Not overridable per call — no caller threads options through these fetches today. */
 const EXPORT_FETCH_TIMEOUT_MS = 30_000;
 
-/** The one place every fetch below goes through — adds the timeout and turns a thrown network or
- *  timeout failure into the same typed, non-throwing outcome `writeContentRoute` /
- *  `writeRedirectRoute` / `writeNotFoundRoute` / `fetchOneAsset` already return for an unexpected
- *  status code, so `exportSite`'s documented "never throws for an individual route or asset
- *  failure" contract (this file's own header) holds for a hung/refused fetch too, not only for a
+/**
+ * Owner decision (2026-09-27, static-export chat-widget gap): a static export/publish carries no
+ * `/api/site-assistant/chat` endpoint for the visitor-chat bubble to talk to, so the bubble must
+ * never ship in exported HTML at all — regardless of the workspace's own `site.assistant
+ * .public_enabled` setting, which stays untouched for the LIVE site. Sent as a plain request header
+ * on every crawl request below rather than a `RouteDeps`/`routeDeps` field: this exporter's ephemeral
+ * server and the main process's own live server can share the exact same `routeDeps` object (see
+ * `exportSite`'s own doc, "including inside the agent daemon" vs. a concurrent live boot) — a
+ * per-request header stays scoped to THIS crawl's own requests with no shared mutable state to race
+ * a concurrent live request reading the same `routeDeps`. `routes/site/pages.ts`'s
+ * `resolveSiteAssistantEnabledForRequest` is the other half of this switch: it short-circuits to
+ * `false` the moment it sees this header, before ever consulting the real setting. Kept as a literal
+ * string in both files rather than a shared import — `site-export` intentionally never imports from
+ * `server/inbound/**` (this file's own header explains the module-cycle history that rule prevents) —
+ * same "literal string kept in both files" tradeoff `render.ts`'s `SITE_ASSISTANT_MOUNT_ID` already
+ * uses across the render.ts/site-chat module boundary.
+ */
+const STATIC_EXPORT_REQUEST_HEADER = "x-tovu-static-export";
+
+/** The one place every fetch below goes through — adds the timeout, the {@link
+ *  STATIC_EXPORT_REQUEST_HEADER} marker, and turns a thrown network or timeout failure into the
+ *  same typed, non-throwing outcome `writeContentRoute` / `writeRedirectRoute` /
+ *  `writeNotFoundRoute` / `fetchOneAsset` already return for an unexpected status code, so
+ *  `exportSite`'s documented "never throws for an individual route or asset failure" contract
+ *  (this file's own header) holds for a hung/refused fetch too, not only for a
  *  received-but-wrong-status response. */
 async function exportFetch(url: string, init?: RequestInit): Promise<{ ok: true; response: Response } | { ok: false; reason: string }> {
   try {
-    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(EXPORT_FETCH_TIMEOUT_MS) });
+    const response = await fetch(url, {
+      ...init,
+      headers: { ...init?.headers, [STATIC_EXPORT_REQUEST_HEADER]: "1" },
+      signal: AbortSignal.timeout(EXPORT_FETCH_TIMEOUT_MS),
+    });
     return { ok: true, response };
   } catch (err) {
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
