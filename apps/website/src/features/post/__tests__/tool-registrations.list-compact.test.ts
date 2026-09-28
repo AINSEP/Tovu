@@ -170,8 +170,9 @@ test("content_post_list's default page of rich posts stays well under Claude Cod
 
   const compact = await call(listTool(deps), { kind: "post" });
   const full = await call(listTool(deps), { kind: "post", includeBody: true });
-  // The MCP bridge pretty-prints results, so measure that form. ~4 chars per token: 60k chars is
-  // ~15k tokens, leaving headroom under the CLI's 25k-token cap.
+  // The MCP bridge sends compact JSON (Jini okResult); the pretty form measured here is a
+  // conservative upper bound. ~4 chars per token: 60k chars is ~15k tokens, leaving headroom under
+  // the CLI's 25k-token cap.
   const compactChars = JSON.stringify(compact, null, 2).length;
   const fullChars = JSON.stringify(full, null, 2).length;
   assert.ok(compactChars < 60_000, `default listing is ${compactChars} chars`);
