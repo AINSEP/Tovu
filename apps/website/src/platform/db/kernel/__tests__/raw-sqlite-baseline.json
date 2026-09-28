@@ -38,8 +38,7 @@
     "sync-transaction": 3
   },
   "apps/website/src/features/commerce/repo.sqlite.ts": {
-    "sync-terminal": 12,
-    "sync-transaction": 1
+    "sync-terminal": 12
   },
   "apps/website/src/features/content-types/repo.sqlite.ts": {
     "sync-terminal": 3
@@ -68,8 +67,7 @@
     "sync-terminal": 28
   },
   "apps/website/src/features/identity/user-purge.sqlite.ts": {
-    "sync-terminal": 9,
-    "sync-transaction": 1
+    "sync-terminal": 9
   },
   "apps/website/src/features/members/repo.sqlite.ts": {
     "sync-terminal": 17

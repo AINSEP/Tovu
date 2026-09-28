@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { contentKernel } from "../../content-kernel.js";
 import { workspaces } from "../../schema.sqlite.js";
 import { mintToken } from "#src/contracts/core/gated-mutations/token";
+import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 
 import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
 import { openContentDb } from "../content-db.js";
@@ -12,6 +12,7 @@ import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-
 import { SqliteMediaRepo } from "../media-repo.sqlite.js";
 import { SqliteOutboxAdapter } from "../outbox-repo.sqlite.js";
 import { SqlitePublishCredentialSetRepo } from "../publish-credential-repo.sqlite.js";
+import { writeDuringOthersRollback } from "./concurrent-rollback.js";
 
 /**
  * @file Repo writes that group several statements run in the content db's storage-kernel
@@ -28,24 +29,6 @@ function openSeededDb() {
   const db = openContentDb(":memory:");
   db.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
   return db;
-}
-
-const tick = () => new Promise((resolve) => setImmediate(resolve));
-
-/** Runs `write` while another caller's transaction is open, then rolls that one back. */
-async function writeDuringOthersRollback(db: ReturnType<typeof openContentDb>, write: () => Promise<unknown>) {
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => (release = resolve));
-  const other = contentKernel(db).transaction(async () => {
-    await gate;
-    throw new Error("the other caller rolls back");
-  });
-  await tick();
-  const mine = write();
-  await tick();
-  release();
-  await assert.rejects(other, /the other caller rolls back/);
-  await mine;
 }
 
 test("publish credentials: insert survives another caller's rollback", async () => {
@@ -144,4 +127,17 @@ test("media: save and remove survive another caller's rollback", async () => {
   assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "media-1" }))?.slug, "a-photo");
   await writeDuringOthersRollback(db, () => repo.remove({ workspaceId: WORKSPACE, id: "media-1" }));
   assert.equal(await repo.findById({ workspaceId: WORKSPACE, id: "media-1" }), null);
+});
+
+test("user purge: the deletes and the audit event survive another caller's rollback", async () => {
+  const db = openSeededDb();
+  const purge = new SqliteUserPurge(db);
+  await writeDuringOthersRollback(db, () =>
+    purge.purgeUser({
+      workspaceId: WORKSPACE,
+      principalId: "principal-1",
+      buildEvent: (removed) => ({ id: "evt-purge", name: "identity.user.purged", occurredAt: NOW, workspaceId: WORKSPACE, payload: { removed } }),
+    })
+  );
+  assert.deepEqual((await new SqliteOutboxAdapter(db).claimPending(10, NOW)).map((record) => record.id), ["evt-purge"]);
 });

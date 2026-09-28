@@ -12,6 +12,7 @@ import {
   settingValuesUser,
 } from "../../platform/db/schema.sqlite.js";
 import { outboxRowFor } from "../../platform/db/sqlite/outbox-repo.sqlite.js";
+import { contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { DomainEvent, UUID } from "@jini-ai/cms/core";
 import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "./user-purge-types.js";
@@ -22,9 +23,9 @@ import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "./user-purge-t
  */
 
 /**
- * Hard-deletes a principal's identity rows and appends its audit event in one synchronous SQLite
- * transaction (`ContentDb.transaction()`'s callback runs synchronously against `better-sqlite3` —
- * no `await` is ever yielded between the first delete and the final outbox insert, so a concurrent
+ * Hard-deletes a principal's identity rows and appends its audit event in one storage-kernel
+ * transaction whose body is synchronous — no `await` is ever yielded between the first delete and
+ * the final outbox insert, so a concurrent
  * reader can never observe the principal half-purged, mirroring `SqliteCommerceOrderRepo.
  * placeOrder()`'s identical "header + line items in one transaction" reasoning). Any statement
  * throwing (including the outbox insert, e.g. a duplicate event id) rolls back every delete this
@@ -54,28 +55,28 @@ export class SqliteUserPurge implements UserPurgePort {
   }): Promise<PurgeCounts> {
     const { workspaceId, principalId, buildEvent, reason } = required;
 
-    return this.db.transaction((tx) => {
-      const roles = tx
+    return contentKernel(this.db).transaction(async () => {
+      const roles = this.db
         .delete(principalRoles)
         .where(and(eq(principalRoles.workspaceId, workspaceId), eq(principalRoles.principalId, principalId)))
         .run().changes;
-      const policies = tx
+      const policies = this.db
         .delete(principalPolicies)
         .where(and(eq(principalPolicies.workspaceId, workspaceId), eq(principalPolicies.principalId, principalId)))
         .run().changes;
-      const sessionCount = tx
+      const sessionCount = this.db
         .delete(sessions)
         .where(and(eq(sessions.workspaceId, workspaceId), eq(sessions.principalId, principalId)))
         .run().changes;
-      const apiKeyCount = tx
+      const apiKeyCount = this.db
         .delete(apiKeys)
         .where(and(eq(apiKeys.workspaceId, workspaceId), eq(apiKeys.principalId, principalId)))
         .run().changes;
-      const userSettings = tx
+      const userSettings = this.db
         .delete(settingValuesUser)
         .where(and(eq(settingValuesUser.workspaceId, workspaceId), eq(settingValuesUser.principalId, principalId)))
         .run().changes;
-      tx.delete(adminExecutionCredentials)
+      this.db.delete(adminExecutionCredentials)
         .where(
           and(
             eq(adminExecutionCredentials.workspaceId, workspaceId),
@@ -83,13 +84,13 @@ export class SqliteUserPurge implements UserPurgePort {
           )
         )
         .run();
-      tx.delete(identityUsers)
+      this.db.delete(identityUsers)
         .where(and(eq(identityUsers.workspaceId, workspaceId), eq(identityUsers.principalId, principalId)))
         .run();
-      tx.delete(principals).where(and(eq(principals.workspaceId, workspaceId), eq(principals.id, principalId))).run();
+      this.db.delete(principals).where(and(eq(principals.workspaceId, workspaceId), eq(principals.id, principalId))).run();
 
       const removed: PurgeCounts = { roles, policies, sessions: sessionCount, apiKeys: apiKeyCount, userSettings };
-      tx.insert(outboxEvents).values(outboxRowFor(buildEvent(removed, reason))).run();
+      this.db.insert(outboxEvents).values(outboxRowFor(buildEvent(removed, reason))).run();
 
       return removed;
     });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
+import { writeDuringOthersRollback } from "#src/platform/db/sqlite/__tests__/concurrent-rollback";
 import { media, members, memberTiers, workspaces } from "#src/platform/db/schema.sqlite";
 import {
   SqliteCommerceOrderRepo,
@@ -373,6 +374,19 @@ test("SqliteCommerceOrderRepo.placeOrder: a line item FK failure rolls back the 
 
   const order = await repo.findById({ workspaceId: "ws-1", id: "order-1" });
   assert.equal(order, null, "the order header must not survive when its line item fails to insert");
+});
+
+test("SqliteCommerceOrderRepo.placeOrder: survives another caller's rollback (its own transaction, not theirs)", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  seedMember(db, "ws-1", "member-1");
+  await new SqliteCommerceProductRepo(db).save(sampleProduct());
+  await new SqliteCommercePriceRepo(db).save(samplePrice());
+  const repo = new SqliteCommerceOrderRepo(db);
+
+  await writeDuringOthersRollback(db, () => repo.placeOrder({ order: sampleOrder(), items: [sampleOrderItem()] }));
+
+  assert.ok(await repo.findById({ workspaceId: "ws-1", id: "order-1" }));
 });
 
 test("commerce_orders: an unknown member_id is rejected by the FK", async () => {

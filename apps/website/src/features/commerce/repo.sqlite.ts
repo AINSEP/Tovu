@@ -8,6 +8,7 @@ import {
   commerceProducts,
   commerceWebhookEvents,
 } from "../../platform/db/schema.sqlite.js";
+import { contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
@@ -36,10 +37,9 @@ import type {
  * @file Drizzle/SQLite adapter for the Commerce first vertical slice (2026-08-12 swarm-consensus
  * debate, section 5). Mirrors `src/members/repo.sqlite.ts`'s exact shape: typed row -> domain-
  * record mapping, `findOneBy` for workspace-scoped single-row lookups, and — for
- * `applyProviderEvent` — the same synchronous `db.transaction((tx) => ...)` pattern
- * `src/platform/db/sqlite/outbox-repo.sqlite.ts`'s `claimPending` uses (better-sqlite3 has no real async
- * I/O, so a synchronous callback is both required by Drizzle and safe: no other statement can
- * interleave on this connection between two `.run()`/`.all()` calls inside it).
+ * `applyProviderEvent` — one storage-kernel transaction with a synchronous body, the pattern
+ * `src/platform/db/sqlite/outbox-repo.sqlite.ts`'s `claimPending` uses (no `await` between its
+ * statements, so nothing else can interleave on this connection inside it).
  *
  * NOT wired into `server/app.ts`'s boot path this pass, matching `SqliteMemberRepo`'s own
  * precedent — no feature in this codebase has flipped that switch yet for a brand-new adapter.
@@ -280,14 +280,14 @@ export class SqliteCommerceOrderRepo implements CommerceOrderRepoPort {
     return rows.map(toCommerceOrderItemRecord);
   }
 
-  /** Header + line items in one synchronous transaction — see file header. */
+  /** Header + line items in one kernel transaction — see file header. */
   async placeOrder(required: {
     order: CommerceOrderRecord;
     items: readonly CommerceOrderItemRecord[];
   }): Promise<void> {
     const { order, items } = required;
-    this.db.transaction((tx) => {
-      tx.insert(commerceOrders)
+    await contentKernel(this.db).transaction(async () => {
+      this.db.insert(commerceOrders)
         .values({
           id: order.id,
           workspaceId: order.workspaceId,
@@ -307,7 +307,7 @@ export class SqliteCommerceOrderRepo implements CommerceOrderRepoPort {
         .run();
 
       if (items.length > 0) {
-        tx.insert(commerceOrderItems)
+        this.db.insert(commerceOrderItems)
           .values(
             items.map((item) => ({
               id: item.id,
@@ -354,10 +354,10 @@ export class SqliteCommerceWebhookEventRepo implements CommerceWebhookEventRepoP
   }): Promise<ApplyProviderEventResult> {
     const { event, orderId, projection, processedAt } = required;
 
-    return this.db.transaction((tx): ApplyProviderEventResult => {
+    return contentKernel(this.db).transaction(async (): Promise<ApplyProviderEventResult> => {
       // Statement 1 — idempotency guard. A conflict on UNIQUE(provider, eventId) means this
       // exact event was already recorded; nothing is applied a second time.
-      const inserted = tx
+      const inserted = this.db
         .insert(commerceWebhookEvents)
         .values({
           id: event.id,
@@ -382,7 +382,7 @@ export class SqliteCommerceWebhookEventRepo implements CommerceWebhookEventRepoP
       // Statement 2 — ordering guard, one atomic UPDATE. The WHERE comparison (not a prior
       // SELECT) is what makes "is this event newer than what's applied" and "apply it" a single
       // indivisible operation — see db/schema.sqlite.ts's commerceWebhookEvents doc.
-      const applied = tx
+      const applied = this.db
         .update(commerceOrders)
         .set({
           status: projection.status,
@@ -401,7 +401,7 @@ export class SqliteCommerceWebhookEventRepo implements CommerceWebhookEventRepoP
         .all();
 
       const outcome: ApplyProviderEventResult = applied.length === 0 ? "stale" : "applied";
-      tx.update(commerceWebhookEvents)
+      this.db.update(commerceWebhookEvents)
         .set({ status: outcome === "stale" ? "ignored" : "applied", processedAt })
         .where(eq(commerceWebhookEvents.id, inboxId))
         .run();
