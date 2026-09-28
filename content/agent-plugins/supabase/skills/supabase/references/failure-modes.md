@@ -1,18 +1,82 @@
-# Supabase failure modes
+# Supabase: when something goes wrong
 
-Every message below is what the tool or the connection actually returns, followed by what it means
-and what to do. Never relay Supabase's raw error body; say the plain-language line instead.
+Each case: what you notice, what to tell the person (plain words, at most one link), and what to
+do. Never paste Supabase's raw error text. Never retry more than once on your own.
 
-| Message you see | What it means | What to do |
-|---|---|---|
-| `external_mcp_oauth_connect` refuses and names `TOVU_PUBLIC_URL` | No public callback URL is configured, so the sign-in cannot start | Use the fallback: the tokens link plus `supabase_set_access_token` |
-| `external_mcp_oauth_connect` fails discovery or client registration | Supabase's sign-in could not be set up automatically | Say "We couldn't start Supabase login automatically. Use a personal access token instead." Then the fallback |
-| `no external MCP server is configured as 'supabase'` / `supabase_set_*` says the connection does not exist | The `supabase` plugin is not enabled yet | Step A: Agent Plugins, enable `supabase`, restart the assistant |
-| `supabase_set_access_token` returns `reason: 'invalid'` | Supabase rejected the token | Say "That access token didn't work. Create a new one and try again." Nothing was stored |
-| `supabase_set_project_scope` returns `reason: 'project-not-in-account'` | The chosen project is not visible to this credential | Say "That project isn't available to this Supabase account." |
-| `supabase_set_project_scope` says it is not connected yet | No credential is stored | Step B (or Step C) first |
-| `no Supabase project has been selected yet` | A credential exists but no project was picked, so no tool is offered | Call `supabase_set_project_scope` |
-| `is disconnected: its authorization expired or was revoked` or a 401 | The token expired or was revoked at Supabase | Call `external_mcp_reauth_prompt`; say "Your Supabase connection was revoked. Reconnect to keep using it." Retry once after they reconnect |
-| `not-in-operator-allowlist` | The operator has not ticked this tool | Ask the operator to tick it in Settings → External MCP |
-| `remote-declares-not-read-only` | A write tool without the "may write" grant | Say "This action needs write access. Ask an admin to allow it in Integrations." |
-| A timeout or connection error | Supabase is unavailable or slow | Say "Supabase is unavailable right now. Try again shortly." Do not loop |
+## Sign-in not finished
+
+`agent_plugin_connect` returned `{ status: "waiting-for-sign-in" }` (nobody finished within a few
+minutes, which is normal during a new sign-up).
+
+> Still waiting for you to sign in to Supabase. Use the sign-in button above, then say "done".
+
+On "done" (or "I'm back"), call `agent_plugin_connect { pluginId: "supabase" }` once more. Never call
+it again on your own.
+
+## They said no at Supabase
+
+The person says they declined, cancelled, or closed the Supabase page.
+
+> Supabase wasn't connected. You can try again whenever you like.
+
+Stop. Start again at Step 1 only if they ask.
+
+## At the free limit
+
+`mcp__supabase__create_project` fails with an error containing
+"maximum limits for the number of active free plan projects", or two databases are already active
+on a free account. Use the skill's
+**At the free limit** section: offer to use one, pause one, or get a paid database.
+
+## The database is asleep
+
+A database they picked has status `INACTIVE` (Supabase puts free databases to sleep after a week
+without use).
+
+> That database is asleep. Waking it up now, about a minute.
+
+Call `mcp__supabase__restore_project`, then check with `mcp__supabase__get_project` (at most 10
+times) until it is `ACTIVE_HEALTHY`.
+
+## Creating failed
+
+`mcp__supabase__get_project` shows `INIT_FAILED`.
+
+> Supabase couldn't finish creating the database. Want me to try again?
+
+On yes, go back to the skill's Step 4 once. Never remove or pause anything to fix this.
+
+## They want to change data or make tables
+
+Making tables or changing or deleting data from chat is not available yet.
+
+> I can't make tables or change data in your database from chat yet. You can do it in Supabase's
+> table editor for now. [Open it in Supabase →](https://supabase.com/dashboard/project/<id>/editor)
+
+## Connection stopped working
+
+A Supabase call says the connection "is disconnected", "expired" or "was revoked", or fails with
+401.
+
+Call `external_mcp_reauth_prompt` for `supabase`, and say:
+
+> Your Supabase connection stopped working. Sign in again to keep going.
+
+After they sign in, retry the step once.
+
+## Supabase is down or busy
+
+A timeout, a connection error, a 5xx, or 429 (too many requests).
+
+> Supabase isn't responding right now. Try again in a few minutes.
+
+At most one retry later in the same conversation, never in a loop.
+
+## A Supabase step is refused by Tovu
+
+A call is refused as not allowed (for example `not-in-operator-allowlist`). This means the
+connection's permissions were changed by someone on this site.
+
+> That step isn't turned on for this site. An admin can turn it on in Tovu's settings.
+
+Do not retry it.

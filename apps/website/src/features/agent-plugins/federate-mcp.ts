@@ -68,6 +68,15 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  *    file. Closing it fully needs a new repo primitive, deliberately not added here as disproportionate
  *    to this feature's scope.
  *
+ * 1b. **EXCEPT A STALE ROW THIS SAME PLUGIN PROVISIONED AND NOBODY USED.** When a plugin update
+ *    changes a server's url or auth mode, a row the plugin provisioned earlier is re-provisioned from
+ *    the new declaration (deleted, then saved fresh) — but only while it is still exactly what
+ *    provisioning left behind: never enabled, both tool lists empty. Otherwise the new url could
+ *    never reach an existing site, and `apply-connect-defaults.ts` (which grants defaults only when
+ *    the row's url equals the declared one) would never fire there. Any sign-in state on such a row
+ *    was minted for the old endpoint and is dropped with it. A row that is enabled or has any tool
+ *    granted is the operator's, and stays byte-identical as above.
+ *
  * 2. **SEED DISABLED, LIKE BUNDLED PLUGINS ALREADY DO.** Mirrors `activation.ts`'s
  *    `recordBundledAgentPluginIfAbsent`: idempotent, create-if-absent, and — because rule 1 already
  *    means an existing row is never revisited — a row this file created is never re-enabled by a
@@ -337,6 +346,29 @@ function buildProvisioningSaveInput(
   };
 }
 
+/** Whether a row this same plugin provisioned still sits at an endpoint or auth mode the plugin no
+ *  longer declares AND nobody has used it yet (never enabled, both tool lists empty). Such a row
+ *  holds nothing an operator chose, only provisioning's own defaults plus, at most, sign-in state
+ *  (an OAuth client, tokens) minted for the OLD endpoint, which must not carry over to the new one.
+ *  It is re-provisioned from the current declaration (rule 1b in this file's header).
+ *  @complexity O(1) plus two short JSON parses. */
+function isStaleUntouchedProvisioning(existing: ExternalMcpServerRecord, planned: PlannedAgentPluginMcpUpsert): boolean {
+  const declarationChanged = existing.url !== planned.url || existing.authMode !== planned.authMode;
+  return declarationChanged && !existing.enabled && isEmptyJsonList(existing.allowedToolNames) && isEmptyJsonList(existing.writeAllowedToolNames);
+}
+
+/** A stored JSON tool list that is null, blank, `[]`, or unreadable (the store reads those as `[]`).
+ *  Shared with `apply-connect-defaults.ts`. */
+export function isEmptyJsonList(raw: string | null): boolean {
+  if (!raw) return true;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return !Array.isArray(parsed) || parsed.length === 0;
+  } catch {
+    return true;
+  }
+}
+
 /** One outcome of handling a planned server for which rule 1's existence check found a row already
  *  present. `alreadyProvisioned` and `adopted` leave every field but `provisionedByPluginId`
  *  untouched (see this file's header); `failed` reports either a refused collision (a DIFFERENT
@@ -352,11 +384,12 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
   pluginId: string,
 ): Promise<
   | { readonly kind: "alreadyProvisioned" }
+  | { readonly kind: "stale" }
   | { readonly kind: "adopted" }
   | { readonly kind: "failed"; readonly reason: string }
 > {
   if (existing.provisionedByPluginId === pluginId) {
-    return { kind: "alreadyProvisioned" };
+    return { kind: isStaleUntouchedProvisioning(existing, planned) ? "stale" : "alreadyProvisioned" };
   }
   // The connection id is unnamespaced and normalized, so a row already owned by a DIFFERENT plugin
   // may belong to a different server whose key merely sanitized to the same id. Adopting it would
@@ -425,10 +458,14 @@ export async function provisionAgentPluginMcpServers(
       const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
       if (existing) {
         const outcome = await adoptOrRecognizeExistingAgentPluginMcpServer(deps, existing, planned, input.pluginId);
-        if (outcome.kind === "alreadyProvisioned") alreadyProvisioned.push(planned.connectionId);
-        else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
-        else failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
-        continue;
+        if (outcome.kind !== "stale") {
+          if (outcome.kind === "alreadyProvisioned") alreadyProvisioned.push(planned.connectionId);
+          else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
+          else failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
+          continue;
+        }
+        // Rule 1b: replaced by a fresh row, exactly as a first enable would write it.
+        await deps.repo.deleteByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
       }
 
       await saveExternalMcpServer(deps, buildProvisioningSaveInput(planned, input));

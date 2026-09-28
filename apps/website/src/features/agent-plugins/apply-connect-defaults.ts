@@ -26,7 +26,7 @@ import {
   type ExternalMcpStoreDeps,
 } from "#src/assistant/index";
 
-import { deriveAgentPluginConnectionId, resolveAgentPluginMcpServers } from "./federate-mcp.js";
+import { deriveAgentPluginConnectionId, isEmptyJsonList, resolveAgentPluginMcpServers } from "./federate-mcp.js";
 import type { AgentPluginDefaultTools, McpServerConfig } from "./manifest.js";
 import { setAgentPluginEnabled } from "./set-enabled.js";
 
@@ -42,18 +42,6 @@ export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "re
   readonly enablePlugin?: (input: { workspaceId: string; pluginId: string; actor: string }) => Promise<unknown>;
   /** Injected for tests. Defaults to `notifyExternalMcpRosterChanged`. */
   readonly notifyRosterChanged?: () => Promise<void>;
-}
-
-/** Whether a stored JSON tool list is empty (null, blank, `[]`, or unreadable — the store's own
- *  reading of an unreadable list is also `[]`). */
-function isEmptyToolList(raw: string | null): boolean {
-  if (!raw) return true;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return !Array.isArray(parsed) || parsed.length === 0;
-  } catch {
-    return true;
-  }
 }
 
 /** The declared defaults for this row, or `null` when the plugin no longer declares a remote server
@@ -87,7 +75,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (ser
     const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
     const pluginId = row?.provisionedByPluginId;
     if (!row || !pluginId) return;
-    if (!isEmptyToolList(row.allowedToolNames) || !isEmptyToolList(row.writeAllowedToolNames)) return;
+    if (!isEmptyJsonList(row.allowedToolNames) || !isEmptyJsonList(row.writeAllowedToolNames)) return;
 
     const defaults = findDeclaredDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
     if (!defaults) return;

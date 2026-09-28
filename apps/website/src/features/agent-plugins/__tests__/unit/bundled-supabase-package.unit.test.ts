@@ -8,13 +8,13 @@ import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manif
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
 /**
- * @file The `supabase` bundled Agent Plugin's package is VALID, INSTALLABLE, and still says the
- * specific things SPEC-052 requires it to say (AC-01, plus the agent-guidance half of AC-02/03/09).
+ * @file The `supabase` bundled Agent Plugin's package is VALID, INSTALLABLE, and says what plan v2's
+ * happy path needs (`ADS-memory/reports/2026-09-27-supabase-agent-plugin-plan-v2.md`, slice C1).
  *
  * Mirrors `bundled-higgsfield-media-package.unit.test.ts` deliberately — same three kinds of
- * assertion (validator, packer, content). The content assertions lock the ORDER and the SAFETY of the
- * connect flow, because those are what an agent reading the file acts on: OAuth before the token
- * fallback, never a token in chat, read-only by default, and the separate write grant.
+ * assertion (validator, packer, content). The content assertions lock what an agent reading the
+ * files acts on: `agent_plugin_connect` before any Supabase tool, plain words to the user, every
+ * failure mode covered, the free-limit handling, and no SQL write granted yet.
  */
 
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/supabase");
@@ -35,7 +35,18 @@ test("AC-01: plugin.json parses under the Agent Plugins v1.0.0 validator with no
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
-test("AC-01: mcp.json declares exactly one streamable-http OAuth server at Supabase's hosted endpoint, auto-admitted", async () => {
+const FEATURES_URL = "https://mcp.supabase.com/mcp?features=account,database,development,docs,debugging";
+
+/** Lines the user reads: every markdown blockquote line in the skill and its references. */
+function userFacingLines(markdown: string): string[] {
+  return markdown.split("\n").filter((line) => /^\s*> /.test(line)).map((line) => line.replace(/^\s*> /, ""));
+}
+
+async function readFailureModes(): Promise<string> {
+  return readFile(path.join(SKILL_DIR, "references", "failure-modes.md"), "utf8");
+}
+
+test("mcp.json declares exactly one streamable-http OAuth server at Supabase's account-wide endpoint, auto-admitted", async () => {
   const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
@@ -46,13 +57,16 @@ test("AC-01: mcp.json declares exactly one streamable-http OAuth server at Supab
   if (!server || server.type === "stdio") return;
   assert.deepEqual(
     { type: server.type, url: server.url, tovuAuthMode: server.tovuAuthMode },
-    { type: "streamable-http", url: "https://mcp.supabase.com/mcp", tovuAuthMode: "oauth" },
+    { type: "streamable-http", url: FEATURES_URL, tovuAuthMode: "oauth" },
   );
   // Granted on the first sign-in (`apply-connect-defaults.ts`). SQL writes stay out of `write` until
   // the confirm-before-destructive-SQL step (plan S-G3) exists.
   const defaults = server.tovuDefaultTools;
   assert.ok(defaults);
   assert.ok(defaults.write.every((name) => defaults.allow.includes(name)));
+  for (const needed of ["list_organizations", "list_projects", "get_project", "get_cost", "confirm_cost", "create_project", "pause_project", "restore_project"]) {
+    assert.ok(defaults.allow.includes(needed), `the happy path needs '${needed}'`);
+  }
   assert.equal(defaults.write.includes("execute_sql"), false);
   assert.equal(defaults.write.includes("apply_migration"), false);
   // Remote + oauth carries no secret and no local execution, so `federate-mcp.ts` auto-provisions the
@@ -60,12 +74,18 @@ test("AC-01: mcp.json declares exactly one streamable-http OAuth server at Supab
   assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
 });
 
-test("plugin.json's keywords reach an operator who says 'database', 'postgres', or 'connect'", async () => {
+test("plugin.json's keywords reach someone who just says they need a database", async () => {
   const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
-  for (const expected of ["supabase", "database", "postgres", "sql", "connect", "login", "external-mcp"]) {
+  for (const expected of ["supabase", "database", "store-data", "signups", "forms", "backend", "postgres"]) {
     assert.ok(keywords.has(expected), `plugin.json keywords must include '${expected}'`);
   }
+});
+
+test("plugin.json's description tells the model to start with agent_plugin_connect", async () => {
+  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  assert.ok(parsed.ok);
+  assert.match(parsed.manifest.description ?? "", /agent_plugin_connect/);
 });
 
 test("the package packs through the real installer's packer, the eponymous skill and its reference included", async () => {
@@ -83,39 +103,74 @@ test("SKILL.md points at every reference file that exists", async () => {
   for (const reference of references) assert.ok(skill.includes(`references/${reference}`));
 });
 
-test("SKILL.md forbids a token in chat, EARLY", async () => {
+test("SKILL.md calls agent_plugin_connect before any Supabase tool", async () => {
   const skill = await readSkill();
-  const position = skill.search(/Never ask for a Supabase token in chat/);
-  assert.ok(position >= 0 && position < skill.length / 4, "the no-token-in-chat rule must appear in the first quarter");
+  const connect = skill.indexOf('agent_plugin_connect { pluginId: "supabase" }');
+  const firstSupabaseTool = skill.search(/mcp__supabase__/);
+  assert.ok(connect >= 0, "SKILL.md must name the agent_plugin_connect call");
+  assert.ok(firstSupabaseTool > connect, "no Supabase tool may come before agent_plugin_connect");
 });
 
-test("AC-02/03/09: SKILL.md orders the connect flow — enable the plugin, OAuth link first, token form only as the fallback, then the project", async () => {
+test("SKILL.md drops the old setup: no Settings trip, no restart, no pasted token, no project scoping", async () => {
   const skill = await readSkill();
-  const enable = skill.indexOf("Agent Plugins");
-  const oauth = skill.indexOf("external_mcp_oauth_connect { id: \"supabase\" }");
-  const fallback = skill.indexOf("Call `supabase_set_access_token`");
-  const project = skill.indexOf("Call `supabase_set_project_scope`");
-  for (const [name, index] of Object.entries({ enable, oauth, fallback, project })) {
-    assert.ok(index >= 0, `SKILL.md must contain the '${name}' step`);
+  const failureModes = await readFailureModes();
+  for (const text of [skill, failureModes]) {
+    for (const stale of [/Settings\s*→\s*External MCP/i, /restart/i, /personal access token/i, /supabase_set_access_token/, /supabase_set_project_scope/, /external_mcp_oauth_connect/]) {
+      assert.doesNotMatch(text, stale);
+    }
   }
-  assert.ok(enable < oauth && oauth < fallback && fallback < project, "steps must appear in enable -> OAuth -> fallback -> project order");
-  assert.match(skill, /https:\/\/supabase\.com\/dashboard\/account\/tokens/);
-  assert.match(skill, /Do not retry Step B in a loop/);
 });
 
-test("SKILL.md states read-only is the default and that turning it off grants nothing without writeAllowedToolNames", async () => {
-  const skill = await readSkill();
-  assert.match(skill, /Read-only is on by\s+default/);
-  assert.match(skill, /grants \*\*nothing\*\* by itself/);
-  assert.match(skill, /writeAllowedToolNames/);
-  assert.match(skill, /remote-declares-not-read-only/);
+test("nothing the user reads mentions tokens, OAuth, MCP or other setup words, and every link is https", async () => {
+  const lines = [...userFacingLines(await readSkill()), ...userFacingLines(await readFailureModes())];
+  assert.ok(lines.length >= 10, "user-facing lines are written as blockquotes");
+  const banned = /\b(token|oauth|mcp|plugin|allowlist|scope|read-only|region|org|organization id|project ref|api key|service_role)\b/i;
+  for (const line of lines) {
+    assert.doesNotMatch(line.replace(/\]\([^)]*\)/g, "]"), banned, `user-facing line uses a setup word: ${line}`);
+    for (const [, url] of line.matchAll(/\]\(([^)]+)\)/g)) assert.match(url ?? "", /^https:\/\//, `link must be https: ${line}`);
+  }
+  assert.match(await readSkill(), /Never say/);
 });
 
-test("SKILL.md routes an expired credential to external_mcp_reauth_prompt and forbids relaying the raw error", async () => {
+test("the free limit: count active databases first, treat Supabase's limit error as the limit, offer reuse, pause and paid", async () => {
   const skill = await readSkill();
-  assert.match(skill, /external_mcp_reauth_prompt/);
-  assert.match(skill, /Never retry silently/);
-  assert.match(skill, /Never paste Supabase's raw error body/);
+  const listProjects = skill.indexOf("mcp__supabase__list_projects");
+  const create = skill.indexOf("mcp__supabase__create_project");
+  assert.ok(listProjects >= 0 && listProjects < create, "active databases are counted before create_project");
+  assert.match(skill, /maximum limits for the number of active free plan projects/);
+  assert.match(skill, /get_cost.*(can't|cannot)\s+see\s+the\s+free\s+limit/is);
+  for (const option of [/Use "<name>"/, /Pause "<name>"/, /paid/i]) assert.match(skill, option);
+  assert.match(skill, /mcp__supabase__pause_project/);
+  assert.match(skill, /Create it \(\$<amount>/);
+  assert.match(skill, /mcp__supabase__confirm_cost/);
+});
+
+test("failure-modes.md covers every failure the plan lists", async () => {
+  const failureModes = await readFailureModes();
+  for (const marker of [
+    /waiting-for-sign-in/,
+    /said no|declined|cancel/i,
+    /maximum limits for the number of active free plan projects/,
+    /asleep/i,
+    /mcp__supabase__restore_project/,
+    /INIT_FAILED/,
+    /external_mcp_reauth_prompt/,
+    /429/,
+    /change|delete.*data/i,
+  ]) {
+    assert.match(failureModes, marker);
+  }
+});
+
+test("SKILL.md grants no database changes yet: execute_sql and apply_migration are never called", async () => {
+  const skill = await readSkill();
+  assert.doesNotMatch(skill, /mcp__supabase__(execute_sql|apply_migration)/);
+});
+
+test("the user signs up for their own account, and a sign-up link opens in a new tab", async () => {
+  const skill = await readSkill();
+  assert.match(skill, /Sign up/);
+  assert.match(skill, /new\s+tab/i);
 });
 
 test("no file in the package carries credential material", async () => {

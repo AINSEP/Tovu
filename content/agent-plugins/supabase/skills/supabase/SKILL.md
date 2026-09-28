@@ -1,116 +1,138 @@
 ---
 name: supabase
-description: Connect Supabase from nothing and use it safely. Covers the cold start (enable the plugin, then an OAuth sign-in link via external_mcp_oauth_connect; only if that cannot start, a personal access token typed into a masked form via supabase_set_access_token), picking exactly one project with supabase_set_project_scope (read-only by default, and no Supabase tool is offered before a project is picked), the per-tool write grant a write tool like execute_sql or apply_migration needs, disconnecting, and what to say when the token expires or Supabase is down.
+description: Set up a hosted database (Supabase) for this site from chat. Start with agent_plugin_connect, then find or create the database, handle Supabase's free limit of two active databases (reuse, pause, or paid), and say everything in plain words. Database changes from chat (tables, SQL) are not available yet.
 ---
 
-# Supabase
+# Supabase database
 
-## The one thing to say before anything else
+The person wants somewhere to keep data (sign-ups, form entries, app data). Get them a working
+database with as few words and choices as possible. They should never need to learn a new idea.
 
-**Never ask for a Supabase token in chat, and never accept one pasted there.** A token typed
-into chat text lands in the transcript, in your context, and in the provider's logs. Tovu has
-two ways to get a credential that never pass through you: an OAuth sign-in link, and a masked
-form. Use those. If someone pastes a token anyway, tell them to revoke it at
-https://supabase.com/dashboard/account/tokens and connect again through the form.
+## Rules for everything you say
 
----
+Write every message in plain, short sentences. Lines quoted below as `> ...` are what the person
+reads; say them in your own words if needed, but keep them this simple.
 
-## Before you start: is this connection actually usable?
+**Never say** any of these words or ideas to the person: token, access token, OAuth, MCP, plugin,
+scope, allowlist, read-only, region, org or organization id, project ref, API key, service role,
+tool names. Never show a key or password. Call the Supabase project "your database".
 
-Supabase is **not** a Tovu-native capability. It is an **external MCP server**
-(`https://mcp.supabase.com/mcp`), federated in under the connection id `supabase`. All of these
-must be true, and each one fails differently:
+Links: always markdown links to `https://` pages, one per message at most. Tovu opens them in a
+new tab, so the chat stays open.
 
-| What | Where it is set | How it fails if missing |
-|---|---|---|
-| The `supabase` plugin is enabled | `plugins_set_enabled` (family `agent-plugin`, operator confirms) or the Agent Plugins admin screen | No `supabase` connection row exists at all |
-| A credential is stored | `external_mcp_oauth_connect`, or `supabase_set_access_token` as the fallback | The connection reports it has not been authorized yet |
-| Exactly one project is selected | `supabase_set_project_scope` | The connection reports that no Supabase project has been selected yet, and no `mcp__supabase__*` tool exists |
-| The connection is enabled and the tool is allowlisted | Settings → External MCP | Tool is refused `not-in-operator-allowlist`; you never see it |
-| A write tool is *also* granted **"may write"** | The second tick on the same row (`writeAllowedToolNames`) | Tool is refused `remote-declares-not-read-only`; you never see it |
+Never loop. If a step fails twice, stop and use `references/failure-modes.md`.
 
-Check `external_mcp_list` first and read what actually exists before you start any step.
+## Step 1. Connect (always first)
 
----
+Call `agent_plugin_connect { pluginId: "supabase" }` before any Supabase tool, every time, even if
+you think it is already connected (it returns at once when it is).
 
-## Connecting from zero
+It shows the person a card with a sign-in button. Before or with it, say:
 
-**Step A — the plugin must be enabled, and only the operator can approve it.** If `supabase` is
-not enabled, explain what it does and offer to turn it on. Once the operator agrees, call
-`plugins_set_enabled { family: "agent-plugin", pluginId: "supabase", enabled: true }` — it opens a
-confirmation dialog they must approve — or they can turn `supabase` on from the **Agent Plugins**
-admin screen. If it is not installed at all, that call is refused; ask the operator to install it
-first. Either way, ask them to **restart the assistant** afterwards. Do not call any Supabase tool
-before that — the `supabase` connection row does not exist until the plugin is enabled.
+> Let's set up your database. It's free and takes about two minutes. You'll sign in to Supabase,
+> the database service Tovu uses. No account yet? Choose **Sign up** there (GitHub or email). If it
+> asks which team to use, pick any.
 
-**Step B — OAuth first, always.** Call `external_mcp_oauth_connect { id: "supabase" }`. Tovu
-discovers Supabase's endpoints and registers its own client (RFC 9728 / 8414 discovery, RFC 7591
-dynamic client registration), so nobody types a client id or secret. Hand the human the one link
-it returns. You cannot finish the sign-in yourself. Detect completion by calling
-`external_mcp_list` again and reading `oauth.status` — there is no "wait for it" tool.
+The person signs up for their own Supabase account; you never make one for them and never ask for
+their email or password.
 
-**Step C — the fallback, only if Step B could not start.** Use it only when
-`external_mcp_oauth_connect` is refused (discovery or client registration failed, or no public
-callback URL is configured — the refusal names `TOVU_PUBLIC_URL`). Do not retry Step B in a loop.
-Instead:
+- Result `{ status: "connected" }`: go to Step 2.
+- Result `{ status: "waiting-for-sign-in" }`: see `references/failure-modes.md`.
 
-1. Send the human this link to create a personal access token:
-   https://supabase.com/dashboard/account/tokens
-2. Call `supabase_set_access_token` (it takes no arguments). It shows a masked form. The human
-   types the token there; Tovu checks it against Supabase, seals it, and sends it to Supabase as an
-   `Authorization: Bearer` header. You only ever see whether it was saved.
+## Step 2. Find their account and databases
 
-A token saved this way replaces any unfinished OAuth attempt on the same connection. There is
-only ever one Supabase connection.
+1. Call `mcp__supabase__list_organizations`. Normally there is one; use it. If there are several,
+   ask with `assistant_ask_choice` using their names.
+2. Call `mcp__supabase__list_projects`. Keep the ones in that organization.
+3. If they already have databases, ask with `assistant_ask_choice`:
+   - **Make a new database** (first option, recommended)
+   - **Use "<name>"** for each existing one
 
-**Step D — pick the project.** Call `supabase_set_project_scope` (no arguments). It lists the
-projects the credential can see and asks the human to pick exactly one. **Read-only is on by
-default.** Until this step is done, no Supabase tool is offered, even if everything else is set.
+   If they pick an existing one, go to Step 5 (if its status is `INACTIVE` it is asleep: see
+   `references/failure-modes.md`).
 
-**Step E — enable and allowlist.** The connection still starts disabled with empty tool lists.
-Ask the operator to enable `supabase` in **Settings → External MCP**, tick the tools it may use,
-and **restart the assistant** so the saved change is read.
+## Step 3. Check the free limit and the price
 
----
+Supabase's free plan allows **two active databases** per account. `mcp__supabase__get_cost` can't
+see the free limit (it says $0 even when the account is full), so count first:
 
-## Read-only and the write grant
+- From Step 2's list, count databases whose status is not `INACTIVE` (active or starting).
+- If the count is 2 or more and the cost below is $0, the account is at the free limit: skip
+  creating and go straight to **At the free limit** below.
 
-- Read-only on (the default) means Supabase's own server refuses writes for this connection.
-- Turning read-only off in the project form grants **nothing** by itself. A write tool such as
-  `execute_sql`, `apply_migration`, `deploy_edge_function`, `create_branch` or `delete_branch`
-  still needs the operator to tick it in **both** lists on the row: the allowlist and
-  `writeAllowedToolNames` ("may write"). Without both, it is refused
-  `remote-declares-not-read-only`.
-- Do not invent a reason for an absent or refused tool. Read the refusal and report it as-is.
+Call `mcp__supabase__get_cost { type: "project", organization_id }`.
 
----
+- $0: say nothing about money.
+- More than $0 (a paid account): ask with `assistant_ask_choice`:
+  - **Create it ($<amount>/<recurrence>)**, using the exact numbers returned
+  - **Cancel**
 
-## When things fail
+  Only on **Create it**, call `mcp__supabase__confirm_cost` with the same `type`, `recurrence` and
+  `amount`, and keep the returned id for Step 4.
 
-See [failure modes](references/failure-modes.md) for every message and what to do.
+## Step 4. Create the database
 
-- **Expired or revoked credential** ("is disconnected: its authorization expired or was revoked",
-  or a 401): call `external_mcp_reauth_prompt`, tell the human in plain words that Supabase needs
-  to be reconnected, and retry the original call once after they confirm. Never retry silently.
-- **Supabase unavailable or slow:** say "Supabase is unavailable right now. Try again shortly."
-  Do not loop.
-- Never paste Supabase's raw error body back as your answer.
+Call `mcp__supabase__create_project` with:
+- `name`: short and lowercase, from the site's name or what they are building (never ask);
+- `organization_id` from Step 2;
+- `region`: nearest to the person, from the table below (default `us-east-1`);
+- `confirm_cost_id` from Step 3 when there was one.
 
----
+| Person is in | region |
+|---|---|
+| US East, Canada East, or unknown | `us-east-1` |
+| US West | `us-west-1` |
+| Canada | `ca-central-1` |
+| South America | `sa-east-1` |
+| UK, Ireland | `eu-west-2` |
+| Western / Central Europe | `eu-central-1` |
+| Nordics | `eu-north-1` |
+| India | `ap-south-1` |
+| Southeast Asia | `ap-southeast-1` |
+| Japan | `ap-northeast-1` |
+| Korea | `ap-northeast-2` |
+| Australia, New Zealand | `ap-southeast-2` |
 
-## Disconnecting
+If it fails with an error containing
+"maximum limits for the number of active free plan projects", the account is at the free limit: go
+to **At the free limit**.
 
-Deleting the `supabase` connection in **Settings → External MCP** deletes the stored credential,
-and later Supabase calls fail as not connected. Tovu does not revoke the token at Supabase's end:
-tell the human to also revoke it at https://supabase.com/dashboard/account/tokens (a personal
-access token) or under their Supabase account's authorized apps (an OAuth sign-in).
+Then say:
 
----
+> Creating your database... this usually takes 1-2 minutes.
 
-## Do not
+Call `mcp__supabase__get_project` to check its status, at most 10 times in one reply. Ready when the
+status is `ACTIVE_HEALTHY`. Still not ready after that:
 
-- Do not ask for, accept, repeat, or store a Supabase token in chat text or a tool argument.
-- Do not offer the access-token form before trying the OAuth link, unless the OAuth link was refused.
-- Do not call a Supabase tool when the plugin is not enabled or no project is selected.
-- Do not tell the operator that turning read-only off lets you write.
-- Do not work around a write refusal by using a different tool.
+> Your database is still being made. Say "check" in a minute and I'll look again.
+
+## Step 5. Ready
+
+> Your database is ready ✓ [Open it in Supabase →](https://supabase.com/dashboard/project/<id>)
+
+(`<id>` is the project's `id` from Supabase; it goes only in the link, never in the text.)
+
+Then offer one useful next step, for example showing them where their data will appear. Making
+tables or changing data from chat is not available yet: if they ask, use the "change data" row in
+`references/failure-modes.md`.
+
+## At the free limit
+
+Ask with `assistant_ask_choice` (one option per active database for the first two):
+
+- **Use "<name>"**: continue at Step 5 with that database.
+- **Pause "<name>" to free a space**: call `mcp__supabase__pause_project` on it, say
+  > "<name>" is paused. Its data is kept, and you can wake it up later.
+  then go back to Step 4.
+- **Get a paid database**: say
+  > Supabase's free plan allows two active databases. To add another, upgrade your Supabase plan
+  > here, then say "done". [See plans and prices →](https://supabase.com/dashboard/org/<organization id>/billing)
+
+  On "done", go back to Step 3: `get_cost` now shows the price, so the person sees
+  **Create it ($<amount>/<recurrence>)** before anything is charged.
+
+Tovu never takes payment itself; upgrading happens on Supabase's own page.
+
+## When something goes wrong
+
+Use `references/failure-modes.md`: one plain sentence for each case, and what to do next.

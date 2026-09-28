@@ -212,6 +212,49 @@ test("provisionAgentPluginMcpServers: the SAME plugin enabling twice reports alr
   assert.equal(views.length, 1, "still exactly one row");
 });
 
+test("provisionAgentPluginMcpServers: the SAME plugin's untouched row is re-provisioned at the plugin's NEW url, dropping its old sign-in state", async () => {
+  const deps = makeDeps();
+  const oldServer: McpServerConfig = { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" };
+  const newServer: McpServerConfig = { ...oldServer, url: "https://mcp.higgsfield.ai/mcp?features=a,b" };
+  const input = { workspaceId: "ws-1", pluginId: "some-plugin", principalId: "principal-1" };
+  await provisionAgentPluginMcpServers(deps, { ...input, servers: { remote: oldServer } });
+  const stale = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" });
+  assert.ok(stale);
+  // A client registered against the old endpoint, never granted any tool.
+  await deps.repo.upsert({ ...stale, oauthClientId: "stale-client", oauthStatus: "connected" });
+
+  const result = await provisionAgentPluginMcpServers(deps, { ...input, servers: { remote: newServer } });
+
+  assert.deepEqual(result.provisioned, ["remote"]);
+  assert.deepEqual(result.alreadyProvisioned, []);
+  const row = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" });
+  assert.equal(row?.url, "https://mcp.higgsfield.ai/mcp?features=a,b");
+  assert.equal(row?.oauthClientId ?? null, null, "a client minted for the old endpoint must not be reused");
+  assert.notEqual(row?.oauthStatus, "connected");
+  assert.equal(row?.provisionedByPluginId, "some-plugin");
+  assert.equal(row?.enabled, false);
+});
+
+test("provisionAgentPluginMcpServers: the SAME plugin's row at an old url is left alone once it is enabled or has tools granted", async () => {
+  for (const edit of [{ enabled: true }, { allowedToolNames: JSON.stringify(["search"]) }]) {
+    const deps = makeDeps();
+    const input = { workspaceId: "ws-1", pluginId: "some-plugin", principalId: "principal-1" };
+    await provisionAgentPluginMcpServers(deps, { ...input, servers: { remote: REMOTE_SERVER } });
+    const row = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" });
+    assert.ok(row);
+    await deps.repo.upsert({ ...row, ...edit });
+    const before = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" });
+
+    const result = await provisionAgentPluginMcpServers(deps, {
+      ...input,
+      servers: { remote: { ...REMOTE_SERVER, url: "https://mcp.example.com/mcp?v=2" } },
+    });
+
+    assert.deepEqual(result.alreadyProvisioned, ["remote"]);
+    assert.deepEqual(await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" }), before);
+  }
+});
+
 test("provisionAgentPluginMcpServers: an operator's pre-existing row with a live allowlist, write grants and OAuth tokens survives enabling completely untouched — only provisionedByPluginId changes", async () => {
   const deps = makeDeps();
 

@@ -3,7 +3,7 @@
   "mcpServers": {
     "supabase": {
       "type": "streamable-http",
-      "url": "https://mcp.supabase.com/mcp",
+      "url": "https://mcp.supabase.com/mcp?features=account,database,development,docs,debugging",
       "tovuAuthMode": "oauth",
       "tovuDefaultTools": {
         "allow": ["list_organizations", "get_organization", "list_projects", "get_project", "get_cost", "confirm_cost",
