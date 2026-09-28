@@ -10,7 +10,7 @@ import type { DomainEvent, UUID } from "@jini-ai/cms/core";
  * repo. `UserPurgePort` is the eleventh: one method, `purgeUser`, that hard-deletes every identity
  * row a principal owns (`principal_roles`, `principal_policies`, `sessions`, `api_keys`,
  * `setting_values_user`, `admin_execution_credentials`, `identity_users`, `principals`) and appends
- * an audit event, all as one atomic unit — see `user-purge.sqlite.ts`'s class doc for why that
+ * an audit event, all as one atomic unit — see `user-purge.ts`'s class doc for why that
  * atomicity requires a real SQL transaction the in-memory store cannot offer.
  *
  * `purgeUser` takes a `buildEvent` callback rather than an already-built `DomainEvent` (adjusted
@@ -30,8 +30,8 @@ import type { DomainEvent, UUID } from "@jini-ai/cms/core";
  *
  * Architectural role:
  * Interfaces and types only — no logic, mirroring `api-key-types.ts`'s own split. The two adapters
- * are `InMemoryUserPurge` (below — refuses outright, see its own doc) and `SqliteUserPurge`
- * (`user-purge.sqlite.ts`) — an ADR-006 rule-of-two, not a single-adapter port.
+ * are `InMemoryUserPurge` (below — refuses outright, see its own doc) and `SqlUserPurge`
+ * (`user-purge.ts`; `SqliteUserPurge` is its content-db subclass) — an ADR-006 rule-of-two, not a single-adapter port.
  */
 
 /** Exact row counts `purgeUser` removed, one field per purged table (decision 2's list, minus
