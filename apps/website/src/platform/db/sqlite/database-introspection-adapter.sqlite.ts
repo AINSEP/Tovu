@@ -2,7 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { sql } from "kysely";
+
+import { type ContentKernel, contentKernel } from "../content-kernel.js";
 import { getDriftStatus } from "../drift.js";
+import { tableExists } from "../kernel/dialect.js";
 import type {
   DatabaseHealthSummary,
   DatabaseIntrospectionPort,
@@ -11,6 +15,8 @@ import type {
 } from "#src/features/database/adapter.sqlite";
 import type { ContentDb } from "./content-db.js";
 import type { SchemaSnapshot } from "../drift.js";
+
+const MIGRATIONS_TABLE = "__drizzle_migrations";
 
 /**
  * @file SPEC-017 C-102/C-110 / REQ-20–REQ-23 — the real backing adapter for
@@ -75,18 +81,19 @@ interface DrizzleJournal {
 const DEFAULT_JOURNAL_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle/meta/_journal.json");
 
 /**
- * Real SQLite-backed `DatabaseIntrospectionPort`. Reuses the caller's already-open `ContentDb`
- * connection (the same one `openContentDb`/`bootSiteDir` already migrated) rather than opening a
- * second handle to the same file — mirrors `SqliteDbOpsAdapter`'s `{ db, filePath }` constructor
- * shape exactly.
+ * Real `DatabaseIntrospectionPort` over the site's content store. Reuses the caller's already-open
+ * connection (the same one `openContentDb`/`bootSiteDir` already migrated) through its kernel rather
+ * than opening a second handle to the same file — mirrors `SqliteDbOpsAdapter`'s `{ db, filePath }`
+ * constructor shape. A store with no `__drizzle_migrations` table reports it unreadable and its
+ * schema state `unknown`, never a guess.
  */
 export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospectionPort {
-  private readonly db: ContentDb;
+  private readonly kernel: ContentKernel;
   private readonly dbPath: string;
   private readonly journalPath: string;
 
-  constructor(deps: { db: ContentDb; dbPath: string; journalPath?: string }) {
-    this.db = deps.db;
+  constructor(deps: { db: ContentKernel | ContentDb; dbPath: string; journalPath?: string }) {
+    this.kernel = contentKernel(deps.db);
     this.dbPath = deps.dbPath;
     // Overridable only for this adapter's own tests (a fixture journal with genuinely pending
     // entries) — every real composition root uses the default bundled path.
@@ -98,8 +105,8 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    * @overallScore 100
    */
   async getHealth(): Promise<DatabaseHealthSummary> {
-    const canOpenDb = this.canOpenDb();
-    const migrationsTableReadable = canOpenDb && this.canReadMigrationsTable();
+    const canOpenDb = await this.canOpenDb();
+    const migrationsTableReadable = canOpenDb && (await this.canReadMigrationsTable());
     const schemaState = canOpenDb ? await this.getSchemaState() : { status: "unknown" as const };
 
     return { canOpenDb, migrationsTableReadable, driftStatus: schemaState.status };
@@ -111,7 +118,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    */
   async getSchemaState(): Promise<SchemaStateSummary> {
     const siteMeta = this.readSiteMetaSnapshot();
-    const runtime = this.readAppliedSnapshot();
+    const runtime = await this.readAppliedSnapshot();
 
     if (!siteMeta || !runtime) {
       // AC-03/drift.ts's own CIC U-002-B1: never guess a status from a partial pair.
@@ -129,7 +136,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
     const journal = this.readJournal();
     if (!journal) return { items: [] };
 
-    const appliedTimestamps = this.readAppliedTimestamps();
+    const appliedTimestamps = await this.readAppliedTimestamps();
     const pending = journal.entries
       .filter((entry) => !appliedTimestamps.has(entry.when))
       .map((entry) => ({ index: entry.idx, tag: entry.tag }));
@@ -137,31 +144,28 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
     return { items: pending };
   }
 
-  private canOpenDb(): boolean {
-    if (!this.db.$client.open) return false;
+  /** A closed or unreachable connection throws on the first statement. */
+  private async canOpenDb(): Promise<boolean> {
     try {
-      this.db.$client.prepare("SELECT 1").get();
+      await this.kernel.query(sql`SELECT 1`);
       return true;
     } catch {
       return false;
     }
   }
 
-  private migrationsTableExists(): boolean {
+  private async migrationsTableExists(): Promise<boolean> {
     try {
-      const row = this.db.$client
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'")
-        .get();
-      return row !== undefined;
+      return await tableExists(this.kernel, MIGRATIONS_TABLE);
     } catch {
       return false;
     }
   }
 
-  private canReadMigrationsTable(): boolean {
-    if (!this.migrationsTableExists()) return false;
+  private async canReadMigrationsTable(): Promise<boolean> {
+    if (!(await this.migrationsTableExists())) return false;
     try {
-      this.db.$client.prepare("SELECT COUNT(*) FROM __drizzle_migrations").get();
+      await this.kernel.query(sql`SELECT COUNT(*) AS n FROM ${sql.table(MIGRATIONS_TABLE)}`);
       return true;
     } catch {
       return false;
@@ -188,31 +192,33 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    * Returns `null` when the table is unreadable, empty, or its latest row's `created_at` matches no
    * entry in the bundled journal (a divergent-lineage case this adapter refuses to guess at, rather
    * than fabricating a snapshot). */
-  private readAppliedSnapshot(): SchemaSnapshot | null {
-    if (!this.migrationsTableExists()) return null;
+  private async readAppliedSnapshot(): Promise<SchemaSnapshot | null> {
+    if (!(await this.migrationsTableExists())) return null;
 
-    let latest: { hash: string; created_at: number } | undefined;
+    let latest: { hash: string; created_at: number | string } | undefined;
     try {
-      latest = this.db.$client
-        .prepare("SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1")
-        .get() as { hash: string; created_at: number } | undefined;
+      [latest] = await this.kernel.query<{ hash: string; created_at: number | string }>(
+        sql`SELECT hash, created_at FROM ${sql.table(MIGRATIONS_TABLE)} ORDER BY created_at DESC LIMIT 1`
+      );
     } catch {
       return null;
     }
     if (!latest) return null;
 
+    // Postgres returns a bigint column as a string.
+    const createdAt = Number(latest.created_at);
     const journal = this.readJournal();
-    const matchingEntry = journal?.entries.find((entry) => entry.when === latest.created_at);
+    const matchingEntry = journal?.entries.find((entry) => entry.when === createdAt);
     return matchingEntry ? { version: matchingEntry.idx, tag: matchingEntry.tag } : null;
   }
 
-  private readAppliedTimestamps(): Set<number> {
-    if (!this.migrationsTableExists()) return new Set();
+  private async readAppliedTimestamps(): Promise<Set<number>> {
+    if (!(await this.migrationsTableExists())) return new Set();
     try {
-      const rows = this.db.$client.prepare("SELECT created_at FROM __drizzle_migrations").all() as Array<{
-        created_at: number;
-      }>;
-      return new Set(rows.map((row) => row.created_at));
+      const rows = await this.kernel.query<{ created_at: number | string }>(
+        sql`SELECT created_at FROM ${sql.table(MIGRATIONS_TABLE)}`
+      );
+      return new Set(rows.map((row) => Number(row.created_at)));
     } catch {
       return new Set();
     }

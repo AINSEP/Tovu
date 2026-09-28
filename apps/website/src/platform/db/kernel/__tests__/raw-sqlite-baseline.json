@@ -81,12 +81,6 @@
     "sync-terminal": 4,
     "sync-transaction": 1
   },
-  "apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts": {
-    "$client": 6,
-    "prepare": 5,
-    "sqlite-catalog": 1,
-    "sync-terminal": 5
-  },
   "apps/website/src/platform/db/sqlite/database-journal-db.ts": {
     "pragma": 1
   },
