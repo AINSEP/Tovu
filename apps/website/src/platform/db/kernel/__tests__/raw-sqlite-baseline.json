@@ -266,12 +266,6 @@
   "apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.ts": {
     "sync-terminal": 7
   },
-  "apps/website/src/platform/db/sqlite/external-mcp-repo.sqlite.ts": {
-    "sync-terminal": 6
-  },
-  "apps/website/src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite.ts": {
-    "sync-terminal": 4
-  },
   "apps/website/src/platform/db/sqlite/media-repo.sqlite.ts": {
     "sync-terminal": 25
   },
