@@ -28,11 +28,11 @@ import * as schema from "../../schema.sqlite.js";
  */
 
 const REAL_MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../../drizzle");
-// Fixture assumption, current as of migration 0072 (`0072_entries_submissions_trashed_items_trash`,
-// which added `entries.deleted_at` among other columns) — update both constants whenever a new
+// Fixture assumption, current as of migration 0077 (`0077_external_mcp_tool_approvals`, which
+// creates the `external_mcp_tool_approvals` table) — update both constants whenever a new
 // migration lands, per the assertion in `buildMigrationsDirMissingNewest` below.
-const NEWEST_MIGRATION_TAG = "0072_entries_submissions_trashed_items_trash";
-const NEWEST_MIGRATION_ADDS = { table: "entries", column: "deleted_at" };
+const NEWEST_MIGRATION_TAG = "0077_external_mcp_tool_approvals";
+const NEWEST_MIGRATION_ADDS = { table: "external_mcp_tool_approvals", column: "workspace_id" };
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
