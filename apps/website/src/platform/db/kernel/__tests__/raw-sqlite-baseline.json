@@ -41,13 +41,6 @@
     "prepare": 1,
     "sync-terminal": 1
   },
-  "apps/website/src/features/plugins/store/store-plugin.ts": {
-    "better-sqlite3-import": 1,
-    "pragma": 2,
-    "prepare": 6,
-    "sync-terminal": 2,
-    "sync-transaction": 2
-  },
   "apps/website/src/features/post/search-index.memory.ts": {
     "$client": 2,
     "prepare": 3,

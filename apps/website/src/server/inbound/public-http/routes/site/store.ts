@@ -35,7 +35,7 @@ function resolveReturnTo(raw: unknown): string {
 const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
 export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
-  app.get("/store", (req, res) => {
+  app.get("/store", async (req, res) => {
     const store = deps.store;
     if (!store) {
       res
@@ -46,8 +46,14 @@ export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
     }
 
     const flash = typeof req.query.msg === "string" ? `<p><em>${escapeHtml(req.query.msg)}</em></p>` : "";
-    const items = store
-      .listProducts()
+    let products: Awaited<ReturnType<typeof store.listProducts>>;
+    try {
+      products = await store.listProducts();
+    } catch {
+      res.status(500).type("html").send("<h1>Store error</h1>");
+      return;
+    }
+    const items = products
       .map((p) => {
         const buy =
           p.stock > 0
@@ -69,7 +75,7 @@ export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
     );
   });
 
-  app.get("/store/buy", (req, res) => {
+  app.get("/store/buy", async (req, res) => {
     const store = deps.store;
     const returnTo = resolveReturnTo(req.query.returnTo);
     if (!store) {
@@ -77,7 +83,13 @@ export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
       return;
     }
     const productId = String(req.query.productId ?? "");
-    const result = store.checkout(productId, 1);
+    let result: Awaited<ReturnType<typeof store.checkout>>;
+    try {
+      result = await store.checkout(productId, 1);
+    } catch {
+      res.status(500).type("html").send("<h1>Store error</h1>");
+      return;
+    }
     const msg = result.ok
       ? `Purchased — order ${result.orderId}, ${result.remainingStock} left.`
       : `Could not buy: ${result.reason}.`;

@@ -31,7 +31,7 @@ test("store: activation declares p_store__products (via the never-brick seam) an
     .get();
   assert.ok(tableExists, "the plugin-owned table was created by core");
 
-  const products = store.listProducts();
+  const products = await store.listProducts();
   assert.equal(products.length, SEED_PRODUCTS.length);
   assert.deepEqual(
     products.map((p) => p.title),
@@ -65,7 +65,7 @@ test("store: activation is idempotent — a second boot does not double-seed", a
   const { db, dbPath, dir } = tempDb();
   await activateStore({ db, dbPath });
   const store2 = await activateStore({ db, dbPath }); // simulate a restart
-  assert.equal(store2.listProducts().length, SEED_PRODUCTS.length, "still one set of products");
+  assert.equal((await store2.listProducts()).length, SEED_PRODUCTS.length, "still one set of products");
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -75,15 +75,15 @@ test("store: checkout decrements stock (OCC) and records an order", async () => 
   const { db, dbPath, dir } = tempDb();
   const store = await activateStore({ db, dbPath });
 
-  const before = store.listProducts().find((p) => p.id === "prod-candle")!;
-  const result = store.checkout("prod-candle", 2);
+  const before = (await store.listProducts()).find((p) => p.id === "prod-candle")!;
+  const result = await store.checkout("prod-candle", 2);
 
   assert.equal(result.ok, true);
   if (result.ok) {
     assert.equal(result.remainingStock, before.stock - 2);
     assert.ok(result.orderId.startsWith("ord-"));
   }
-  const after = store.listProducts().find((p) => p.id === "prod-candle")!;
+  const after = (await store.listProducts()).find((p) => p.id === "prod-candle")!;
   assert.equal(after.stock, before.stock - 2, "stock decremented");
   assert.equal(after.version, before.version + 1, "OCC version bumped");
   assert.equal(
@@ -100,10 +100,10 @@ test("store: checkout refuses out-of-stock and unknown products (no order, no de
   const { db, dbPath, dir } = tempDb();
   const store = await activateStore({ db, dbPath });
 
-  const tooMany = store.checkout("prod-candle", 999);
+  const tooMany = await store.checkout("prod-candle", 999);
   assert.deepEqual(tooMany, { ok: false, reason: "out-of-stock", retries: 0 });
 
-  const missing = store.checkout("nope", 1);
+  const missing = await store.checkout("nope", 1);
   assert.deepEqual(missing, { ok: false, reason: "not-found", retries: 0 });
 
   assert.equal(

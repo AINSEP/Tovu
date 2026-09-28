@@ -71,7 +71,7 @@ export async function resolveStorefrontProducts(deps: RouteDeps): Promise<SitePr
     const mapped = toSiteProducts(withPrices);
     if (mapped.length > 0) return mapped;
   }
-  return deps.store?.listProducts() ?? [];
+  return (await deps.store?.listProducts()) ?? [];
 }
 
 /**

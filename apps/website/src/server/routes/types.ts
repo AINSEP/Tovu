@@ -1285,13 +1285,14 @@ export interface CommerceCatalogDeps {
    * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
   store?: {
     /** `slug` (readable-slugs S7): the product-detail link key — the plugin's `Product.slug`. */
-    listProducts(): { id: string; slug: string; title: string; price: number; stock: number; version: number }[];
+    listProducts(): Promise<{ id: string; slug: string; title: string; price: number; stock: number; version: number }[]>;
     checkout(
       productId: string,
       qty: number
-    ):
+    ): Promise<
       | { ok: true; orderId: string; remainingStock: number; retries: number }
-      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
+      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number }
+    >;
   };
   /**
    * Commerce catalog read ports (2026-08-12: wiring products into template render data).

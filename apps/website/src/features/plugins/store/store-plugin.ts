@@ -7,12 +7,13 @@
  * full access, honestly labeled, never in the public marketplace. Exploratory spike beyond
  * ADR-023 §12's v1 disposition.
  *
- * §7/§8 note: reads here are raw `SELECT` scoped to the plugin namespace (ADR-023 §8); writes go
- * direct for the spike (a real build routes writes through the typed core repository, §7).
+ * §7/§8 note: reads here are `SELECT`s scoped to the plugin namespace (ADR-023 §8); writes go
+ * direct for the spike (a real build routes writes through the typed core repository, §7). Every
+ * statement runs on the storage kernel (`kernel.run`), so the same code serves SQLite and Postgres.
  */
-import Database from "better-sqlite3";
-
+import { openSqliteFileKernel } from "../../../platform/db/kernel/drivers/sqlite.js";
 import { declareDataModule, type DataModuleDecl } from "../data-module.js";
+import { type PluginStore, pluginKernel } from "../plugin-store.js";
 
 export interface Product {
   id: string;
@@ -32,14 +33,20 @@ export type CheckoutResult =
   | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
 
 export interface StoreApi {
-  listProducts(): Product[];
+  listProducts(): Promise<Product[]>;
   /** Buy `qty` of a product: an OCC-guarded stock decrement plus an order row. */
-  checkout(productId: string, qty: number): CheckoutResult;
+  checkout(productId: string, qty: number): Promise<CheckoutResult>;
 }
 
 export const STORE_PLUGIN_ID = "store";
-const PRODUCTS = `p_${STORE_PLUGIN_ID}__products`;
-const ORDERS = `p_${STORE_PLUGIN_ID}__orders`;
+const PRODUCTS = `p_${STORE_PLUGIN_ID}__products` as const;
+const ORDERS = `p_${STORE_PLUGIN_ID}__orders` as const;
+
+/** The store's two tables, as Kysely sees them. A type alias: `withTables` needs its index signature. */
+type StoreTables = {
+  [PRODUCTS]: { id: string; title: string; price: number; stock: number; version: number };
+  [ORDERS]: { id: string; product_id: string; qty: number; total: number; at: number };
+};
 
 export const STORE_MANIFEST: DataModuleDecl = {
   pluginId: STORE_PLUGIN_ID,
@@ -75,69 +82,87 @@ export const SEED_PRODUCTS: Product[] = [
   { id: "prod-candle", slug: "prod-candle", title: "Beeswax Candle", price: 1200, stock: 5, version: 0 },
 ];
 
-/** Declare the store's tables through core (snapshot→DDL), seed once, and return the store API. */
+/**
+ * Declare the store's tables through core (snapshot→DDL), seed once, and return the store API.
+ *
+ * `db` is the site's storage kernel (or a SQLite connection, bridged to its kernel); `dbPath` names
+ * the SQLite file behind it, for the declaration's snapshot.
+ */
 export async function activateStore(
-  required: { db: Database.Database; dbPath: string },
+  required: { db: PluginStore; dbPath: string },
   _optional: Record<string, never> = {}
 ): Promise<StoreApi> {
-  const { db, dbPath } = required;
-  const result = await declareDataModule({ db, dbPath, decl: STORE_MANIFEST });
+  const { dbPath } = required;
+  const kernel = pluginKernel(required.db);
+  const result = await declareDataModule({ db: kernel, dbPath, decl: STORE_MANIFEST });
   if (!result.ok) {
     throw new Error(`store dataModule declaration failed: ${result.error?.code} — ${result.error?.message}`);
   }
 
-  const count = (db.prepare(`SELECT COUNT(*) AS n FROM "${PRODUCTS}"`).get() as { n: number }).n;
-  if (count === 0) {
-    const insert = db.prepare(`INSERT INTO "${PRODUCTS}" (id, title, price, stock, version) VALUES (?, ?, ?, ?, ?)`);
-    db.transaction(() => {
-      for (const p of SEED_PRODUCTS) insert.run(p.id, p.title, p.price, p.stock, p.version);
-    })();
-  }
+  // Seed once: the count and the inserts share one transaction under a lock, so two boots racing
+  // on Postgres cannot both see an empty table.
+  await kernel.transaction(async () => {
+    await kernel.lockKey(`${PRODUCTS}:seed`);
+    const { n } = await kernel.run((k) =>
+      k.withTables<StoreTables>().selectFrom(PRODUCTS).select((eb) => eb.fn.countAll<number>().as("n")).executeTakeFirstOrThrow()
+    );
+    if (Number(n) > 0) return;
+    const rows = SEED_PRODUCTS.map(({ id, title, price, stock, version }) => ({ id, title, price, stock, version }));
+    await kernel.run((k) => k.withTables<StoreTables>().insertInto(PRODUCTS).values(rows).execute());
+  });
 
-  function checkout(productId: string, qty: number): CheckoutResult {
-    const maxAttempts = 5;
-    let retries = 0;
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const product = db
-        .prepare(`SELECT price, stock, version FROM "${PRODUCTS}" WHERE id = ?`)
-        .get(productId) as { price: number; stock: number; version: number } | undefined;
-      if (!product) return { ok: false, reason: "not-found", retries };
-      if (product.stock < qty) return { ok: false, reason: "out-of-stock", retries };
+  type Attempt = { done: true; result: CheckoutResult } | { done: false };
 
-      const orderId = `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  /** One checkout attempt: read, then the OCC-guarded decrement and the order row, as ONE transaction. */
+  function attemptCheckout(productId: string, qty: number, retries: number): Promise<Attempt> {
+    return kernel.transaction(async (): Promise<Attempt> => {
+      await kernel.lockKey(`${PRODUCTS}:${productId}`);
+      const product = await kernel.run((k) =>
+        k.withTables<StoreTables>().selectFrom(PRODUCTS).select(["price", "stock", "version"]).where("id", "=", productId).executeTakeFirst()
+      );
+      if (!product) return { done: true, result: { ok: false, reason: "not-found", retries } };
+      if (product.stock < qty) return { done: true, result: { ok: false, reason: "out-of-stock", retries } };
+
       // The stock decrement and the order insert are TWO writes. They are atomic here ONLY because
-      // this spike store holds a direct DB handle. A real Tier-3 plugin behind the frozen async ABI
+      // this spike store holds the kernel directly. A real Tier-3 plugin behind the frozen async ABI
       // (ADR-024 §3) CANNOT hold a transaction across the seam — which is exactly why core must own
       // an atomic multi-write primitive (see the cowork ABI finding → ADR-026).
-      const committed = db.transaction(() => {
-        const dec = db
-          .prepare(`UPDATE "${PRODUCTS}" SET stock = stock - ?, version = version + 1 WHERE id = ? AND version = ?`)
-          .run(qty, productId, product.version);
-        if (dec.changes === 0) return false; // OCC conflict — the row moved under us; retry
-        db.prepare(`INSERT INTO "${ORDERS}" (id, product_id, qty, total, at) VALUES (?, ?, ?, ?, ?)`).run(
-          orderId,
-          productId,
-          qty,
-          product.price * qty,
-          Date.now()
-        );
-        return true;
-      })();
+      const dec = await kernel.run((k) =>
+        k
+          .withTables<StoreTables>()
+          .updateTable(PRODUCTS)
+          .set((eb) => ({ stock: eb("stock", "-", qty), version: eb("version", "+", 1) }))
+          .where("id", "=", productId)
+          .where("version", "=", product.version)
+          .executeTakeFirst()
+      );
+      if (Number(dec.numUpdatedRows) === 0) return { done: false }; // OCC conflict — the row moved under us; retry
+      const orderId = `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      await kernel.run((k) =>
+        k
+          .withTables<StoreTables>()
+          .insertInto(ORDERS)
+          .values({ id: orderId, product_id: productId, qty, total: product.price * qty, at: Date.now() })
+          .execute()
+      );
+      return { done: true, result: { ok: true, orderId, remainingStock: product.stock - qty, retries } };
+    });
+  }
 
-      if (!committed) {
-        retries += 1;
-        continue;
-      }
-      return { ok: true, orderId, remainingStock: product.stock - qty, retries };
+  async function checkout(productId: string, qty: number): Promise<CheckoutResult> {
+    const maxAttempts = 5;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const outcome = await attemptCheckout(productId, qty, attempt);
+      if (outcome.done) return outcome.result;
     }
-    return { ok: false, reason: "conflict", retries };
+    return { ok: false, reason: "conflict", retries: maxAttempts };
   }
 
   return {
-    listProducts(): Product[] {
-      const rows = db
-        .prepare(`SELECT id, title, price, stock, version FROM "${PRODUCTS}" ORDER BY title`)
-        .all() as Omit<Product, "slug">[];
+    async listProducts(): Promise<Product[]> {
+      const rows = await kernel.run((k) =>
+        k.withTables<StoreTables>().selectFrom(PRODUCTS).select(["id", "title", "price", "stock", "version"]).orderBy("title").execute()
+      );
       // No DB column for `slug` — see the `Product` interface's own doc for why `id` stands in.
       return rows.map((row) => ({ ...row, slug: row.id }));
     },
@@ -146,21 +171,17 @@ export async function activateStore(
 }
 
 /**
- * Boot helper: open a dedicated connection to the site db and activate the store on it.
+ * Boot helper: activate the store on its own kernel over the site's SQLite file.
  *
- * `busy_timeout` (SPEC-033 fix): this dedicated connection is a SEPARATE handle to the same
- * `content.db` file the main composition-root connection also writes to (Newsletter's and
- * Comments' dataModule declares, settings/SEO seeding, `menuBindingsReady`'s unsequenced write —
- * none of which this connection waits for). Without a busy timeout, any transient lock held by
- * one of those writers at the exact moment this connection opens throws `SQLITE_BUSY`
- * ("database is locked") immediately instead of retrying — caught via a live multi-boot smoke
- * test after ADR-046 Phase 2's boot-lifecycle reordering pushed this connection's open later in
- * the boot sequence, making the collision reproduce deterministically. 5s comfortably covers any
- * of those writers' actual duration.
+ * A dedicated connection (`openSqliteFileKernel`) rather than the composition root's: the boot
+ * module that calls this only has the file path (handing it the site's kernel is the async-boot
+ * slice's job). That makes it a SEPARATE handle to the same `content.db` file the main connection
+ * also writes to (Newsletter's and Comments' dataModule declares, settings/SEO seeding, …), so it
+ * relies on the file kernel's `busy_timeout` (SPEC-033): without one, a transient lock held by one of
+ * those writers throws `SQLITE_BUSY` ("database is locked") at once instead of retrying — caught via
+ * a live multi-boot smoke test after ADR-046 Phase 2's boot-lifecycle reordering. WAL is already set
+ * on the file by the main connection (`openContentDb`), and it is persistent.
  */
 export async function bootstrapStore(dbPath: string): Promise<StoreApi> {
-  const db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
-  return activateStore({ db, dbPath });
+  return activateStore({ db: openSqliteFileKernel(dbPath), dbPath });
 }

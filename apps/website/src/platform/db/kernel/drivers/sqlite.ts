@@ -123,7 +123,8 @@ export function openMemorySqliteKernel<DB>(): SqliteKernel<DB> {
 
 /**
  * A kernel over its OWN connection to the SQLite file at `filePath`, opened as-is: no migration, no
- * WAL switch, foreign keys on (as `openContentDb` sets them). `close()` closes the connection.
+ * WAL switch, foreign keys on (as `openContentDb` sets them), a 5 s busy timeout. `close()` closes
+ * the connection.
  *
  * For ops on a database file that is not the running site's (a duplicate being prepared, a site dir
  * being inspected). `readOnly` opens with better-sqlite3's own `readonly` mode, so SQLite itself
@@ -135,8 +136,10 @@ export function openMemorySqliteKernel<DB>(): SqliteKernel<DB> {
 export function openSqliteFileKernel<DB>(filePath: string, optional: { readOnly?: boolean } = {}): SqliteKernel<DB> {
   const readOnly = optional.readOnly === true;
   const client = new Database(filePath, readOnly ? { readonly: true, fileMustExist: true } : {});
-  if (readOnly) client.pragma("busy_timeout = 5000");
-  else client.pragma("foreign_keys = ON");
+  // A second connection to a file another may be writing (SPEC-033): wait out a transient lock
+  // rather than throwing SQLITE_BUSY at once.
+  client.pragma("busy_timeout = 5000");
+  if (!readOnly) client.pragma("foreign_keys = ON");
   const kernel = sqliteKernel<DB>(client);
   const owned: SqliteKernel<DB> = {
     ...kernel,
