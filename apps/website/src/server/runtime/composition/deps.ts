@@ -1127,10 +1127,12 @@ export function createSqliteRouteDeps(
   const REPO_ROOT = resolveCheckoutRoot();
   const devCapabilityScheme = deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT)).active);
   const originBoot = planOriginBoot({ now: clock.nowIso() });
+  // The boot write is async (storage kernel); the origin repo's reads wait for it (`after`).
+  let originReady: Promise<unknown> = Promise.resolve();
   if (originBoot.kind === "configured") {
-    registerConfiguredOrigin({ db, workspaceId: workspaceId, origin: originBoot.origin });
+    originReady = registerConfiguredOrigin({ db, workspaceId: workspaceId, origin: originBoot.origin });
   } else if (originBoot.kind === "dev-seed") {
-    seedDevCapabilityOrigin({
+    originReady = seedDevCapabilityOrigin({
       db,
       seed: {
         workspaceId: workspaceId,
@@ -1148,7 +1150,7 @@ export function createSqliteRouteDeps(
       },
     });
   }
-  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) });
+  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db, { after: originReady }) });
   const redirectRepo = new SqliteRedirectRepo(db);
   const redirectHitSink = new RedirectHitSinkImpl();
   // ---------------------------------------------------------------------------

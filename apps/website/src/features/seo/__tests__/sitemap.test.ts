@@ -149,7 +149,7 @@ async function sitemapFromRegisteredOrigin(configuredUrl: string | undefined) {
     { now: "2026-09-18T00:00:00.000Z" },
     { env: configuredUrl === undefined ? {} : { TOVU_PUBLIC_URL: configuredUrl }, warn: () => {} }
   );
-  if (configured) registerConfiguredOrigin({ db, workspaceId: WORKSPACE, origin: configured });
+  if (configured) await registerConfiguredOrigin({ db, workspaceId: WORKSPACE, origin: configured });
 
   const deps = {
     ...(await makeDeps([post({ id: "a", slug: "published-visible", status: "published" })])),

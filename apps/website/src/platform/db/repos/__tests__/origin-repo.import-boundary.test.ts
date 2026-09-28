@@ -4,13 +4,14 @@ import path from "node:path";
 import test from "node:test";
 
 /**
- * @file Boundary regression guard for `origin-repo.sqlite.ts`'s import of `createVerifiedOrigin`.
+ * @file Boundary regression guard for `origin-repo.ts`'s import (the one query body; the file was
+ * `sqlite/origin-repo.sqlite.ts` when this guard was written) of `createVerifiedOrigin`.
  *
  * `origin/index.ts` is the `origin` module's public door — every real VALUE consumer of
  * `createVerifiedOrigin` elsewhere in this codebase (`server/deps.ts`, `server/app.ts`) imports it
  * through that barrel (as `"../features/origin/index.js"` — this project's `nodenext` module
  * resolution requires the explicit `.js` extension on every relative specifier), not by reaching
- * into the internal `origin/types.ts` file it happens to be defined in. `origin-repo.sqlite.ts`
+ * into the internal `origin/types.ts` file it happens to be defined in. The SQLite adapter
  * previously did the latter — a "wrong door" import that bypasses the module's declared public
  * surface (the same class of violation `development/scripts/check-architecture.ts`'s "API
  * surface" metric tracks repo-wide).
@@ -24,7 +25,7 @@ import test from "node:test";
  */
 
 const ORIGIN_REPO_SOURCE = fs.readFileSync(
-  path.join(import.meta.dirname, "..", "origin-repo.sqlite.ts"),
+  path.join(import.meta.dirname, "..", "origin-repo.ts"),
   "utf8"
 );
 
@@ -41,9 +42,9 @@ function findImportSpecifierFor(source: string, binding: string): string | undef
   return undefined;
 }
 
-test("origin-repo.sqlite.ts imports the createVerifiedOrigin VALUE through origin's public door (index.ts), not the internal types.ts module directly", () => {
+test("origin-repo.ts imports the createVerifiedOrigin VALUE through origin's public door (index.ts), not the internal types.ts module directly", () => {
   const specifier = findImportSpecifierFor(ORIGIN_REPO_SOURCE, "createVerifiedOrigin");
-  assert.ok(specifier, "expected to find an import of createVerifiedOrigin in origin-repo.sqlite.ts");
+  assert.ok(specifier, "expected to find an import of createVerifiedOrigin in origin-repo.ts");
   assert.notEqual(
     specifier,
     "../../../features/origin/types",

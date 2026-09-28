@@ -269,9 +269,6 @@
   "apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts": {
     "sync-terminal": 10
   },
-  "apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts": {
-    "sync-terminal": 8
-  },
   "apps/website/src/platform/db/sqlite/publish-trust-revocations.sqlite.ts": {
     "sync-terminal": 4
   },

@@ -4,20 +4,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { registerConfiguredOriginOn, seedDevCapabilityOriginOn, SqlOriginSettingRepo } from "#src/platform/db/repos/origin-repo";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { registerConfiguredOrigin, seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
+import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { InMemoryOriginSettingRepo } from "../repo.memory.js";
 import { createVerifiedOrigin } from "../types.js";
 import type { OriginSettingRepoPort } from "../ports.js";
 
 /**
  * @file ADR-046 Phase 1 — shared `OriginSettingRepoPort` read-contract suite, run against BOTH
- * `repo.memory.ts` and `db/sqlite/origin-repo.sqlite.ts` (rule-of-two, ADR-006).
+ * `repo.memory.ts` and `db/repos/origin-repo.ts` (rule-of-two, ADR-006), the latter on every
+ * dialect (SQLite + PGlite, storage plan §4).
  *
  * Unlike every other rule-of-two suite in this codebase, the two adapters' WRITE paths are not
  * symmetric — `OriginSettingRepoPort` itself declares no write method (no admin route or
- * verification flow exists yet, see `origin-repo.sqlite.ts`'s file header); the in-memory adapter
- * seeds via its constructor, the SQLite adapter via the standalone `seedDevCapabilityOrigin`
+ * verification flow exists yet, see `origin-repo.ts`'s file header); the in-memory adapter
+ * seeds via its constructor, the SQL adapter via the standalone `seedDevCapabilityOriginOn`
  * function. `runContractSuite` therefore takes an ALREADY-SEEDED repo factory rather than seeding
  * internally, so the shared assertions stay identical while each adapter is seeded its own way.
  */
@@ -65,32 +68,6 @@ runContractSuite(
   () => new InMemoryOriginSettingRepo([])
 );
 
-runContractSuite(
-  "sqlite",
-  () => {
-    const db = openContentDb(":memory:");
-    seedDevCapabilityOrigin({ db, seed: { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["Allowed.example"], egressAllowlist: ["api.example.com"] } });
-    return new SqliteOriginSettingRepo(db);
-  },
-  () => new SqliteOriginSettingRepo(openContentDb(":memory:"))
-);
-
-test("[sqlite] seedDevCapabilityOrigin is idempotent — a second call never overwrites an existing row", async () => {
-  const db = openContentDb(":memory:");
-  seedDevCapabilityOrigin({ db, seed: { workspaceId: WORKSPACE_ID, origin: seedOrigin() } });
-
-  // A different candidate origin — must NOT clobber the first seed (protects a future real
-  // verification flow's write from being silently overwritten by a re-run of this boot seed).
-  seedDevCapabilityOrigin({ db, seed: {
-    workspaceId: WORKSPACE_ID,
-    origin: createVerifiedOrigin({ scheme: "http", host: "some-other-host", verifiedAt: "2099-01-01T00:00:00.000Z", source: "dev-capability" }),
-  } });
-
-  const repo = new SqliteOriginSettingRepo(db);
-  const found = await repo.findByWorkspaceId(WORKSPACE_ID);
-  assert.equal(found?.host, "example.com", "the original seed must survive a second seed call");
-});
-
 /**
  * `registerConfiguredOrigin` — the SECOND writer (2026-09-18; design note:
  * `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`). Deliberately a separate
@@ -117,72 +94,105 @@ function configuredOrigin(host = "tovu.fly.dev") {
   });
 }
 
-test("[sqlite] registerConfiguredOrigin inserts when no origin is registered yet", async () => {
-  const db = openContentDb(":memory:");
-  assert.equal(registerConfiguredOrigin({ db, workspaceId: WORKSPACE_ID, origin: configuredOrigin() }), "inserted");
-  assert.deepEqual(await new SqliteOriginSettingRepo(db).findByWorkspaceId(WORKSPACE_ID), configuredOrigin());
-});
+describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"], make: (kernel) => kernel }, (makeKernel) => {
+  runContractSuite(
+    "sql",
+    () => {
+      const kernel = makeKernel();
+      const seeded = seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["Allowed.example"], egressAllowlist: ["api.example.com"] });
+      return new SqlOriginSettingRepo(kernel, { after: seeded });
+    },
+    () => new SqlOriginSettingRepo(makeKernel())
+  );
 
-// THE production bug this whole change exists to fix: Fly's first boot durably persisted
-// `http://localhost:3000` (dev-capability) into prod's content.db, and `seedDevCapabilityOrigin`'s
-// find-or-create contract means that row can never self-correct. Configuring the real public origin
-// must correct it in place on the next deploy, with no migration.
-test("[sqlite] registerConfiguredOrigin corrects a poisoned dev-capability localhost row in place", async () => {
-  const db = openContentDb(":memory:");
-  seedDevCapabilityOrigin({ db, seed: { workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW } });
+  test("seedDevCapabilityOrigin is idempotent — a second call never overwrites an existing row", async () => {
+    const kernel = makeKernel();
+    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin() });
 
-  assert.equal(registerConfiguredOrigin({ db, workspaceId: WORKSPACE_ID, origin: configuredOrigin() }), "updated");
+    // A different candidate origin — must NOT clobber the first seed (protects a future real
+    // verification flow's write from being silently overwritten by a re-run of this boot seed).
+    await seedDevCapabilityOriginOn(kernel, {
+      workspaceId: WORKSPACE_ID,
+      origin: createVerifiedOrigin({ scheme: "http", host: "some-other-host", verifiedAt: "2099-01-01T00:00:00.000Z", source: "dev-capability" }),
+    });
 
-  const found = await new SqliteOriginSettingRepo(db).findByWorkspaceId(WORKSPACE_ID);
-  assert.deepEqual(found, configuredOrigin(), "the configured public origin must replace the dev-capability row");
-  assert.equal(found?.port, undefined, "the dev seed's port 3000 must not survive onto a portless https origin");
-});
+    const repo = new SqlOriginSettingRepo(kernel);
+    const found = await repo.findByWorkspaceId(WORKSPACE_ID);
+    assert.equal(found?.host, "example.com", "the original seed must survive a second seed call");
+  });
 
-// The update writes the ORIGIN columns only. A blind full-row overwrite would silently empty both
-// allowlists — in production that fail-closes every integration egress check, a behavior change
-// with no relationship to the origin bug. This is the assertion that pins the narrow UPDATE.
-test("[sqlite] registerConfiguredOrigin preserves both allowlists when it corrects an existing row", async () => {
-  const db = openContentDb(":memory:");
-  seedDevCapabilityOrigin({
-    db,
-    seed: {
+  test("reads wait for the boot write they are given, and fail when it failed", async () => {
+    const kernel = makeKernel();
+    const seeded = seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin() });
+    assert.equal((await new SqlOriginSettingRepo(kernel, { after: seeded }).findByWorkspaceId(WORKSPACE_ID))?.host, "example.com");
+    const failed = Promise.reject(new Error("boot write failed"));
+    await assert.rejects(new SqlOriginSettingRepo(kernel, { after: failed }).findEgressAllowlist(WORKSPACE_ID), /boot write failed/);
+  });
+
+  test("registerConfiguredOrigin inserts when no origin is registered yet", async () => {
+    const kernel = makeKernel();
+    assert.equal(await registerConfiguredOriginOn(kernel, WORKSPACE_ID, configuredOrigin()), "inserted");
+    assert.deepEqual(await new SqlOriginSettingRepo(kernel).findByWorkspaceId(WORKSPACE_ID), configuredOrigin());
+  });
+
+  // THE production bug this whole change exists to fix: Fly's first boot durably persisted
+  // `http://localhost:3000` (dev-capability) into prod's content.db, and `seedDevCapabilityOrigin`'s
+  // find-or-create contract means that row can never self-correct. Configuring the real public origin
+  // must correct it in place on the next deploy, with no migration.
+  test("registerConfiguredOrigin corrects a poisoned dev-capability localhost row in place", async () => {
+    const kernel = makeKernel();
+    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW });
+
+    assert.equal(await registerConfiguredOriginOn(kernel, WORKSPACE_ID, configuredOrigin()), "updated");
+
+    const found = await new SqlOriginSettingRepo(kernel).findByWorkspaceId(WORKSPACE_ID);
+    assert.deepEqual(found, configuredOrigin(), "the configured public origin must replace the dev-capability row");
+    assert.equal(found?.port, undefined, "the dev seed's port 3000 must not survive onto a portless https origin");
+  });
+
+  // The update writes the ORIGIN columns only. A blind full-row overwrite would silently empty both
+  // allowlists — in production that fail-closes every integration egress check, a behavior change
+  // with no relationship to the origin bug. This is the assertion that pins the narrow UPDATE.
+  test("registerConfiguredOrigin preserves both allowlists when it corrects an existing row", async () => {
+    const kernel = makeKernel();
+    await seedDevCapabilityOriginOn(kernel, {
       workspaceId: WORKSPACE_ID,
       origin: DEV_CAPABILITY_ROW,
       redirectAllowlist: ["Allowed.example"],
       egressAllowlist: ["api.example.com"],
-    },
+    });
+
+    await registerConfiguredOriginOn(kernel, WORKSPACE_ID, configuredOrigin());
+
+    const repo = new SqlOriginSettingRepo(kernel);
+    assert.deepEqual(await repo.findRedirectAllowlist(WORKSPACE_ID), ["allowed.example"]);
+    assert.deepEqual(await repo.findEgressAllowlist(WORKSPACE_ID), ["api.example.com"]);
   });
 
-  registerConfiguredOrigin({ db, workspaceId: WORKSPACE_ID, origin: configuredOrigin() });
+  // A steady-state boot must not churn `verified_at` on every restart.
+  test("registerConfiguredOrigin is a no-op when the stored origin already matches", async () => {
+    const kernel = makeKernel();
+    await registerConfiguredOriginOn(kernel, WORKSPACE_ID, configuredOrigin());
 
-  const repo = new SqliteOriginSettingRepo(db);
-  assert.deepEqual(await repo.findRedirectAllowlist(WORKSPACE_ID), ["allowed.example"]);
-  assert.deepEqual(await repo.findEgressAllowlist(WORKSPACE_ID), ["api.example.com"]);
-});
+    const restamped = createVerifiedOrigin({ ...configuredOrigin(), verifiedAt: "2099-01-01T00:00:00.000Z" });
+    assert.equal(await registerConfiguredOriginOn(kernel, WORKSPACE_ID, restamped), "unchanged");
 
-// A steady-state boot must not churn `verified_at` on every restart.
-test("[sqlite] registerConfiguredOrigin is a no-op when the stored origin already matches", async () => {
-  const db = openContentDb(":memory:");
-  registerConfiguredOrigin({ db, workspaceId: WORKSPACE_ID, origin: configuredOrigin() });
+    const found = await new SqlOriginSettingRepo(kernel).findByWorkspaceId(WORKSPACE_ID);
+    assert.equal(found?.verifiedAt, "2026-09-18T00:00:00.000Z", "an unchanged origin must not restamp verifiedAt");
+  });
 
-  const restamped = createVerifiedOrigin({ ...configuredOrigin(), verifiedAt: "2099-01-01T00:00:00.000Z" });
-  assert.equal(registerConfiguredOrigin({ db, workspaceId: WORKSPACE_ID, origin: restamped }), "unchanged");
-
-  const found = await new SqliteOriginSettingRepo(db).findByWorkspaceId(WORKSPACE_ID);
-  assert.equal(found?.verifiedAt, "2026-09-18T00:00:00.000Z", "an unchanged origin must not restamp verifiedAt");
-});
-
-// Config is authoritative over a previously configured value: environment access (fly secrets /
-// fly.toml) is a higher privilege than an admin-UI login, and an operator who moves the site to a
-// new domain must be able to say so. Recorded as a decision, not an accident.
-test("[sqlite] registerConfiguredOrigin updates an existing workspace-setting row when the configured origin changes", async () => {
-  const db = openContentDb(":memory:");
-  registerConfiguredOrigin({ db, workspaceId: WORKSPACE_ID, origin: configuredOrigin("old.example") });
-  assert.equal(
-    registerConfiguredOrigin({ db, workspaceId: WORKSPACE_ID, origin: configuredOrigin("new.example") }),
-    "updated"
-  );
-  assert.equal((await new SqliteOriginSettingRepo(db).findByWorkspaceId(WORKSPACE_ID))?.host, "new.example");
+  // Config is authoritative over a previously configured value: environment access (fly secrets /
+  // fly.toml) is a higher privilege than an admin-UI login, and an operator who moves the site to a
+  // new domain must be able to say so. Recorded as a decision, not an accident.
+  test("registerConfiguredOrigin updates an existing workspace-setting row when the configured origin changes", async () => {
+    const kernel = makeKernel();
+    await registerConfiguredOriginOn(kernel, WORKSPACE_ID, configuredOrigin("old.example"));
+    assert.equal(
+      await registerConfiguredOriginOn(kernel, WORKSPACE_ID, configuredOrigin("new.example")),
+      "updated"
+    );
+    assert.equal((await new SqlOriginSettingRepo(kernel).findByWorkspaceId(WORKSPACE_ID))?.host, "new.example");
+  });
 });
 
 test("ADR-046 Phase 1: SqliteOriginSettingRepo persists across a simulated process restart (real on-disk file, fresh repo instance)", async () => {
@@ -190,7 +200,7 @@ test("ADR-046 Phase 1: SqliteOriginSettingRepo persists across a simulated proce
   const dbPath = join(dir, "content.db");
   try {
     const db1 = openContentDb(dbPath);
-    seedDevCapabilityOrigin({ db: db1, seed: { workspaceId: WORKSPACE_ID, origin: seedOrigin(), egressAllowlist: ["api.example.com"] } });
+    await seedDevCapabilityOrigin({ db: db1, seed: { workspaceId: WORKSPACE_ID, origin: seedOrigin(), egressAllowlist: ["api.example.com"] } });
 
     // "Restart": a brand-new content.db handle + a brand-new repo instance against the SAME
     // on-disk file — the in-memory adapter this replaces would have re-seeded from scratch
