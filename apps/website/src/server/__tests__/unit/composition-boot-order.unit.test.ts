@@ -56,15 +56,24 @@ test("index.ts main(): the content.db schema guard and site key run before the c
   assert.ok(siteKey < compose, "the site key must be resolved before createSiteRouteDeps reads it");
 });
 
-test("createSiteRouteDeps: hydration runs before the open, and the open carries the migration crash-recovery hook", () => {
+test("createSiteRouteDeps: hydration runs before the open, and the open is the recovering site opener", () => {
   const deps = readCode("server/runtime/composition/deps.ts");
   const body = functionBody(deps, "export async function createSiteRouteDeps(");
   const hydrate = indexOfAnchor(body, "hydrateContentDbIfNeeded(dbPath, overrides)");
   const open = indexOfAnchor(body, "resolveOrOpenContentDb(dbPath, overrides)");
   assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
 
-  const opener = functionBody(deps, "function resolveOrOpenContentDb(");
-  assert.match(opener, /openContentDb\([\s\S]*recoverIncompleteDataModuleMigrations\s*\)/);
+  const opener = functionBody(deps, "async function resolveOrOpenContentDb(");
+  assert.match(opener, /await openSiteContentDb\(dbPath\)/);
+});
+
+test("openSiteContentDb: crash recovery runs on the fresh connection before the migrations, and the store is prepared after them", () => {
+  const body = functionBody(readCode("server/runtime/composition/open-site-content-db.ts"), "export async function openSiteContentDb(");
+  const open = indexOfAnchor(body, "openSqliteContentConnection(dbPath)");
+  const recover = indexOfAnchor(body, "await recoverIncompleteDataModuleMigrations(");
+  const migrate = indexOfAnchor(body, "migrateSqliteContentFile(db)");
+  const prepare = indexOfAnchor(body, "await prepareContentStore(");
+  assert.ok(open < recover && recover < migrate && migrate < prepare, "open → recover → migrate → prepare");
 });
 
 test("createSiteRouteDeps prelude: open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise", () => {

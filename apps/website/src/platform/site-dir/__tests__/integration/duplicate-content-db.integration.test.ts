@@ -32,8 +32,8 @@ function mkTempParent(): string {
  *  `RAW_SQL_MANAGED_TABLES` registry documents (that constant lives there, in the drift guard, and
  *  nowhere else; `db/migration/manifest.ts` has never declared it).
  *  Returns the site's `content.db` path. */
-function buildSourceWithChatHistory(parent: string): string {
-  const { dir } = initSite({ dir: path.join(parent, "source"), name: "Source Site" });
+async function buildSourceWithChatHistory(parent: string): Promise<string> {
+  const { dir } = await initSite({ dir: path.join(parent, "source"), name: "Source Site" });
   const dbPath = path.join(dir, "content.db");
 
   // `initSite` opens content.db through `openContentDb`, which now drops these three tables the
@@ -72,7 +72,7 @@ function buildSourceWithChatHistory(parent: string): string {
 test("chat/session history rows do not survive the copy, even though the source really has them", async () => {
   const parent = mkTempParent();
   try {
-    const sourceDbPath = buildSourceWithChatHistory(parent);
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
     await duplicateContentDb({ sourceDbPath, targetDbPath });
@@ -105,7 +105,7 @@ test("chat/session history rows do not survive the copy, even though the source 
 test("real content (posts, workspace, presentation) survives the copy intact", async () => {
   const parent = mkTempParent();
   try {
-    const sourceDbPath = buildSourceWithChatHistory(parent);
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
     await duplicateContentDb({ sourceDbPath, targetDbPath });
@@ -134,7 +134,7 @@ test("real content (posts, workspace, presentation) survives the copy intact", a
 test("the copy passes integrity_check and keeps the migrator's bookkeeping table intact", async () => {
   const parent = mkTempParent();
   try {
-    const sourceDbPath = buildSourceWithChatHistory(parent);
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
     await duplicateContentDb({ sourceDbPath, targetDbPath });
@@ -160,7 +160,7 @@ test("the copy passes integrity_check and keeps the migrator's bookkeeping table
 test("no stray -wal/-shm sidecar is left next to the finished copy", async () => {
   const parent = mkTempParent();
   try {
-    const sourceDbPath = buildSourceWithChatHistory(parent);
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
     await duplicateContentDb({ sourceDbPath, targetDbPath });
@@ -242,7 +242,7 @@ function plantPluginData(dbPath: string): void {
 test("plugin tables and their rows survive the copy — a duplicated store keeps its products", async () => {
   const parent = mkTempParent();
   try {
-    const sourceDbPath = buildSourceWithChatHistory(parent);
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
     plantPluginData(sourceDbPath);
     const targetDbPath = path.join(parent, "target-content.db");
 
@@ -283,7 +283,7 @@ test("plugin tables and their rows survive the copy — a duplicated store keeps
 test("a table nobody has classified survives the copy — the purge names what it deletes", async () => {
   const parent = mkTempParent();
   try {
-    const sourceDbPath = buildSourceWithChatHistory(parent);
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
     const raw = new Database(sourceDbPath);
@@ -320,7 +320,7 @@ test("a table nobody has classified survives the copy — the purge names what i
 test("a content.db with no chat tables at all duplicates without error", async () => {
   const parent = mkTempParent();
   try {
-    const sourceDbPath = buildSourceWithChatHistory(parent);
+    const sourceDbPath = await buildSourceWithChatHistory(parent);
     const targetDbPath = path.join(parent, "target-content.db");
 
     const raw = new Database(sourceDbPath);

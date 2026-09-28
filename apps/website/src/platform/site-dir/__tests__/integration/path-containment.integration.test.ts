@@ -37,7 +37,7 @@ function mkTempRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-path-containment-"));
 }
 
-test("U-004-B1 (embedded '..' segments): initSite writes exclusively under the RESOLVED target, never under the unresolved literal path", () => {
+test("U-004-B1 (embedded '..' segments): initSite writes exclusively under the RESOLVED target, never under the unresolved literal path", async () => {
   const root = mkTempRoot();
   const decoyDir = path.join(root, "decoy-should-stay-empty");
   fs.mkdirSync(decoyDir);
@@ -47,7 +47,7 @@ test("U-004-B1 (embedded '..' segments): initSite writes exclusively under the R
   assert.equal(path.resolve(dirArgWithDotDot), realTarget, "sanity: the constructed argument really does resolve to realTarget");
 
   try {
-    const result = initSite({ dir: dirArgWithDotDot, name: "Dotdot Target" });
+    const result = await initSite({ dir: dirArgWithDotDot, name: "Dotdot Target" });
     assert.equal(path.resolve(result.dir), realTarget);
 
     assert.ok(fs.existsSync(path.join(realTarget, ".site-meta.json")), "every file must land under the RESOLVED target");
@@ -57,7 +57,7 @@ test("U-004-B1 (embedded '..' segments): initSite writes exclusively under the R
   }
 });
 
-test("U-004-B1 (symlink at the target): every file initSite creates lands inside the symlink's REAL destination, and nothing spills next to the symlink itself", () => {
+test("U-004-B1 (symlink at the target): every file initSite creates lands inside the symlink's REAL destination, and nothing spills next to the symlink itself", async () => {
   const root = mkTempRoot();
   const realDestinationParent = mkTempRoot(); // a wholly separate temp root, standing in for "somewhere else on disk"
   const realDestination = path.join(realDestinationParent, "real-site-location");
@@ -65,7 +65,7 @@ test("U-004-B1 (symlink at the target): every file initSite creates lands inside
   fs.symlinkSync(realDestination, symlinkPath, "dir");
 
   try {
-    const result = initSite({ dir: symlinkPath, name: "Symlinked Site" });
+    const result = await initSite({ dir: symlinkPath, name: "Symlinked Site" });
 
     // Every artifact must be reachable at the symlink's REAL destination.
     const realMetaPath = path.join(realDestination, ".site-meta.json");

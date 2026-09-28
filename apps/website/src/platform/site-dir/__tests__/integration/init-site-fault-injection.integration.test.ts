@@ -80,14 +80,14 @@ function workerEnv(parent: string): NodeJS.ProcessEnv {
   return childProcessCoverageEnv(path.join(parent, "worker-v8-coverage"));
 }
 
-test("U-003-B1/B2/ORD1 (step-4 class, top-level mkdir denied): a read-only PARENT blocks target creation entirely -> InitSite throws, target never exists, no commit marker anywhere", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, () => {
+test("U-003-B1/B2/ORD1 (step-4 class, top-level mkdir denied): a read-only PARENT blocks target creation entirely -> InitSite throws, target never exists, no commit marker anywhere", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, async () => {
   const parent = mkTempParent();
   const restrictedGrandparent = path.join(parent, "restricted");
   fs.mkdirSync(restrictedGrandparent);
   const target = path.join(restrictedGrandparent, "demo");
   fs.chmodSync(restrictedGrandparent, 0o555);
   try {
-    assert.throws(() => initSite({ dir: target, name: "Demo" }));
+    await assert.rejects(() => initSite({ dir: target, name: "Demo" }));
     assert.equal(fs.existsSync(target), false, "AC-03: the target path must not exist at all — full cleanup (trivial here: nothing was ever created)");
   } finally {
     fs.chmodSync(restrictedGrandparent, 0o755);
@@ -95,13 +95,13 @@ test("U-003-B1/B2/ORD1 (step-4 class, top-level mkdir denied): a read-only PAREN
   }
 });
 
-test("U-003-B1/B2 (step-4 class, subdirectory creation denied): a pre-existing EMPTY but read-only target blocks subdirectory creation -> InitSite throws, target left exactly as it was (empty, no marker)", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, () => {
+test("U-003-B1/B2 (step-4 class, subdirectory creation denied): a pre-existing EMPTY but read-only target blocks subdirectory creation -> InitSite throws, target left exactly as it was (empty, no marker)", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "pre-existing-locked");
   fs.mkdirSync(target);
   fs.chmodSync(target, 0o555);
   try {
-    assert.throws(() => initSite({ dir: target, name: "Demo" }));
+    await assert.rejects(() => initSite({ dir: target, name: "Demo" }));
     fs.chmodSync(target, 0o755); // restore before inspecting, in case the impl left it restricted
     assert.deepEqual(fs.readdirSync(target), [], "INV-02: no partial content was created inside the (pre-existing, EC-01-allowed) target");
   } finally {
@@ -110,7 +110,7 @@ test("U-003-B1/B2 (step-4 class, subdirectory creation denied): a pre-existing E
   }
 });
 
-test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited child process fails partway through db creation/seeding (after config.json genuinely succeeded) -> full cleanup, no commit marker, nonzero-signaling failure", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, () => {
+test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited child process fails partway through db creation/seeding (after config.json genuinely succeeded) -> full cleanup, no commit marker, nonzero-signaling failure", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "deep-failure");
   const workerPath = path.join(parent, "worker.ts");
@@ -120,12 +120,14 @@ test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited 
     [
       `const { initSite } = require(${JSON.stringify(initSitePath)});`,
       `const dir = process.argv[2];`,
+      `(async () => {`,
       `try {`,
-      `  const result = initSite({ dir, name: "Deep Failure" });`,
+      `  const result = await initSite({ dir, name: "Deep Failure" });`,
       `  process.stdout.write(JSON.stringify({ ok: true, result }));`,
       `} catch (err) {`,
       `  process.stdout.write(JSON.stringify({ ok: false, name: err && err.name, message: err && err.message }));`,
       `}`,
+      `})();`,
     ].join("\n")
   );
 
@@ -142,7 +144,7 @@ test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited 
   }
 });
 
-test("EC-10/RT-003/U-003-B3: when cleanup's own removal step hits a real EACCES (read-only grandparent blocks the final directory-node removal), the surfaced error names the partial directory's path rather than swallowing the cleanup failure silently", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, () => {
+test("EC-10/RT-003/U-003-B3: when cleanup's own removal step hits a real EACCES (read-only grandparent blocks the final directory-node removal), the surfaced error names the partial directory's path rather than swallowing the cleanup failure silently", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, async () => {
   const parent = mkTempParent();
   const grandparent = path.join(parent, "grandparent");
   fs.mkdirSync(grandparent);
@@ -155,12 +157,14 @@ test("EC-10/RT-003/U-003-B3: when cleanup's own removal step hits a real EACCES 
     [
       `const { initSite } = require(${JSON.stringify(initSitePath)});`,
       `const dir = process.argv[2];`,
+      `(async () => {`,
       `try {`,
-      `  const result = initSite({ dir, name: "Cleanup Failure" });`,
+      `  const result = await initSite({ dir, name: "Cleanup Failure" });`,
       `  process.stdout.write(JSON.stringify({ ok: true, result }));`,
       `} catch (err) {`,
       `  process.stdout.write(JSON.stringify({ ok: false, name: err && err.name, message: err && err.message }));`,
       `}`,
+      `})();`,
     ].join("\n")
   );
 

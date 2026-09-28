@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { reconcileMirror, stampWatermarkTx } from "../watermark.js";
+import { openPreparedContentDb } from "./helpers/open-prepared-content-db.js";
 
 /**
  * @file SPEC-016 U-004 / REQ-03–REQ-05 / EC-05 — boot-time mirror reconciliation direction.
@@ -41,7 +42,7 @@ function fakeMirror(initial: { value: number; staleness: "fresh" | "unrefreshabl
 }
 
 test("U-004-B1 / REQ-04: reconcileMirror unconditionally overwrites the mirror from the authoritative value, discarding its prior value entirely", async () => {
-  const db = openContentDb(":memory:");
+  const db = await openPreparedContentDb(":memory:");
   db.transaction((tx) => {
     stampWatermarkTx({ tx });
     stampWatermarkTx({ tx });
@@ -73,7 +74,7 @@ test("AC-06 / REQ-05: mirror.staleness === 'unrefreshable' is the signal disclos
 });
 
 test("EC (§7): mirror never initialized — reconcileMirror still succeeds from a fresh (initial-value) mirror state", async () => {
-  const db = openContentDb(":memory:");
+  const db = await openPreparedContentDb(":memory:");
   const mirror = fakeMirror({ value: 0, staleness: "fresh" });
 
   await reconcileMirror({ db, mirror });

@@ -25,7 +25,7 @@ export interface RunInitCommandInput {
  * @overallScore 100
  */
 export async function runInitCommand(input: RunInitCommandInput): Promise<void> {
-  const result = initSite({ dir: input.dir, name: input.name });
+  const result = await initSite({ dir: input.dir, name: input.name });
   // Read the ACTUAL written config.json back (rather than re-deriving the name here) so the
   // printed name can never drift from what `initSite` really wrote to disk.
   const { config } = readSiteDir({ dir: result.dir });

@@ -5,6 +5,8 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import { readTemplate } from "#src/platform/site-dir/read-template";
+import { contentKernel } from "../content-kernel.js";
+import { prepareContentStore } from "../prepare-content-store.js";
 import { openContentDb, type ContentDb } from "../sqlite/content-db.js";
 import { migrateToBeforeSiteTitleMarker, readRealJournal, siteTitleMarkerEntry } from "./helpers/pre-site-title-marker-db.js";
 
@@ -38,9 +40,9 @@ function insertWorkspace(db: ContentDb, id: string): void {
     .run(id, `Name of ${id}`, id, "2026-04-06T00:00:00.000Z");
 }
 
-test("NC-3 (REQ-06, EC-02): every workspace row present when the migration runs is recorded as pending", (t) => {
+test("NC-3 (REQ-06, EC-02): every workspace row present when the migration runs is recorded as pending", async (t) => {
   const dbPath = tempDbPath(t);
-  migrateToBeforeSiteTitleMarker(dbPath, (db) => {
+  await migrateToBeforeSiteTitleMarker(dbPath, (db) => {
     insertWorkspace(db, "workspace-local");
     insertWorkspace(db, "workspace-second");
   });
@@ -56,9 +58,9 @@ test("NC-3 (REQ-06, EC-02): every workspace row present when the migration runs 
   }
 });
 
-test("NC-3 (REQ-06): the marker applies once per database, so a workspace created after it is never recorded", (t) => {
+test("NC-3 (REQ-06): the marker applies once per database, so a workspace created after it is never recorded", async (t) => {
   const dbPath = tempDbPath(t);
-  migrateToBeforeSiteTitleMarker(dbPath, (db) => insertWorkspace(db, "workspace-local"));
+  await migrateToBeforeSiteTitleMarker(dbPath, (db) => insertWorkspace(db, "workspace-local"));
 
   const first = openContentDb(dbPath);
   insertWorkspace(first, "workspace-created-later");
@@ -72,12 +74,13 @@ test("NC-3 (REQ-06): the marker applies once per database, so a workspace create
   }
 });
 
-test("NC-3 (REQ-05): a fresh database, migrated then seeded the way tovu init does it, records no workspace", (t) => {
+test("NC-3 (REQ-05): a fresh database, migrated then seeded the way tovu init does it, records no workspace", async (t) => {
   const dbPath = tempDbPath(t);
   const { seed } = readTemplate({ templateId: "starter" });
 
-  const db = openContentDb(dbPath, seed);
+  const db = openContentDb(dbPath);
   try {
+    await prepareContentStore(contentKernel(db), { seed });
     const { n } = db.$client.prepare("SELECT count(*) AS n FROM workspaces").get() as { n: number };
     assert.equal(n, 1, "the starter seed inserts its workspace");
     assert.deepEqual(markerRows(db), [], "the seed runs after migrate(), so a new site is never pre-existing");

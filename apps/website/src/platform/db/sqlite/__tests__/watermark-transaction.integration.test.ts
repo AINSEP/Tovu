@@ -6,8 +6,9 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../watermark.js";
+import { openPreparedContentDb } from "./helpers/open-prepared-content-db.js";
 
 /**
  * @file SPEC-016 C-004 / U-002 / INV-01 / EC-01 / AC-01 / AC-03 — same-transaction watermark
@@ -42,8 +43,8 @@ import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../water
  * SPEC-017 sign-off).
  */
 
-test("AC-01 / U-002-B1: stampWatermarkTx inside a real transaction advances database_write_watermark by exactly 1 atomically with a sibling write", () => {
-  const db = openContentDb(":memory:");
+test("AC-01 / U-002-B1: stampWatermarkTx inside a real transaction advances database_write_watermark by exactly 1 atomically with a sibling write", async () => {
+  const db = await openPreparedContentDb(":memory:");
   const before = getCurrentWatermark({ db });
 
   db.transaction((tx) => {
@@ -57,8 +58,8 @@ test("AC-01 / U-002-B1: stampWatermarkTx inside a real transaction advances data
   assert.equal(after.value, before.value + 1);
 });
 
-test("INV-01 (sequential correctness): N transactions each incrementing once leaves the final value at initial + N, no lost updates", () => {
-  const db = openContentDb(":memory:");
+test("INV-01 (sequential correctness): N transactions each incrementing once leaves the final value at initial + N, no lost updates", async () => {
+  const db = await openPreparedContentDb(":memory:");
   const before = getCurrentWatermark({ db });
   const N = 25;
 
@@ -72,8 +73,8 @@ test("INV-01 (sequential correctness): N transactions each incrementing once lea
   assert.equal(after.value, before.value + N);
 });
 
-test("INV-01: database_write_watermark's value is never observed to decrease across any sequence of stamps", () => {
-  const db = openContentDb(":memory:");
+test("INV-01: database_write_watermark's value is never observed to decrease across any sequence of stamps", async () => {
+  const db = await openPreparedContentDb(":memory:");
   const observed: number[] = [getCurrentWatermark({ db }).value];
 
   for (let i = 0; i < 10; i += 1) {
@@ -88,11 +89,11 @@ test("INV-01: database_write_watermark's value is never observed to decrease acr
   }
 });
 
-test("EC-01 (SQLite mechanism): a second connection's write transaction is blocked/serialized while the first connection holds an open write transaction on the same file", () => {
+test("EC-01 (SQLite mechanism): a second connection's write transaction is blocked/serialized while the first connection holds an open write transaction on the same file", async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gated-mutations-watermark-"));
   const filePath = path.join(tmpDir, "content.db");
   try {
-    const dbA = openContentDb(filePath);
+    const dbA = await openPreparedContentDb(filePath);
 
     const connB = new Database(filePath);
     connB.pragma("journal_mode = WAL");
@@ -128,7 +129,7 @@ test("EC-01 (SQLite mechanism): a second connection's write transaction is block
 });
 
 test("U-004 / REQ-04: reconcileMirror sets the mirror to content.db's authoritative value on successful open, never derived from database_ledger", async () => {
-  const db = openContentDb(":memory:");
+  const db = await openPreparedContentDb(":memory:");
   db.transaction((tx) => {
     stampWatermarkTx({ tx });
     stampWatermarkTx({ tx });

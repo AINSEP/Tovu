@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
+import { prepareContentStore } from "../db/prepare-content-store.js";
 import { openContentDb } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { seedSiteThemes } from "./seed-site-themes.js";
@@ -175,7 +177,7 @@ export function validateInitTarget(target: string): void {
  *   caller-independent size (see that function's own `@complexity`).
  * @overallScore 100
  */
-export function initSite(required: InitSiteRequired): InitSiteResult {
+export async function initSite(required: InitSiteRequired): Promise<InitSiteResult> {
   const { dir, name } = required;
   const target = resolveInstallDirTarget(dir);
 
@@ -208,12 +210,16 @@ export function initSite(required: InitSiteRequired): InitSiteResult {
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
     writeJsonFileAtomic(path.join(target, "config.json"), config);
 
-    // Steps 6-7: content.db create + migrate + seed insertion (one call — `openContentDb`
-    // migrates then seeds when given seed data; see read-template.ts's Known-Gap disclosure on
-    // why these two BR-01 steps are not independently fault-isolable at the fs level).
+    // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
+    // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
+    // fault-isolable at the fs level).
     const dbPath = path.join(target, "content.db");
-    const db = openContentDb(dbPath, seed);
-    closeSqliteConnection(db);
+    const db = openContentDb(dbPath);
+    try {
+      await prepareContentStore(contentKernel(db), { seed });
+    } finally {
+      closeSqliteConnection(db);
+    }
 
     // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
     // success (CIC U-003-ORD1), gated on every prior step having already succeeded.

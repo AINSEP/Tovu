@@ -9,11 +9,12 @@ import { type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration }
 import type { UIResource } from "#src/assistant/index";
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { connectionFor, dropDatabase, recreateDatabase, sql } from "./pg-test-db.js";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
+import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /**
  * @file `database_transfer_plan` / `database_transfer_run` driven through the real registrations,
@@ -43,7 +44,7 @@ class FakeDbOps implements DbOpsPort {
   async captureRestorePoint(): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
     this.captures += 1;
     const artifactRef = path.join(this.dir, `restore-point-${this.captures}.db`);
-    const db = openContentDb(artifactRef);
+    const db = await openPreparedContentDb(artifactRef);
     db.$client.prepare("INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES ('m1', 'ws', 'main', 'Main', 'published', '{}', '[]', '2026-09-27T00:00:00.000Z', 1)").run();
     db.$client.prepare("INSERT INTO identity_users (principal_id, workspace_id, username, password_hash) VALUES ('p1', 'ws', 'owner', 'hash')").run();
     db.$client.close();

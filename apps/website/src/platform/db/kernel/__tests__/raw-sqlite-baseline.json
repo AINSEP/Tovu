@@ -12,11 +12,6 @@
     "sqlite-catalog": 2,
     "sync-terminal": 7
   },
-  "apps/website/src/features/plugins/migration-recovery.ts": {
-    "better-sqlite3-import": 1,
-    "prepare": 1,
-    "sync-terminal": 1
-  },
   "apps/website/src/features/post/search-index.sqlite.ts": {
     "fts5": 1
   },
@@ -37,10 +32,7 @@
   "apps/website/src/platform/db/sqlite/content-db.ts": {
     "$client": 1,
     "better-sqlite3-import": 3,
-    "insert-or": 1,
-    "pragma": 4,
-    "sync-terminal": 4,
-    "sync-transaction": 1
+    "pragma": 4
   },
   "apps/website/src/platform/db/sqlite/database-journal-db.ts": {
     "pragma": 1

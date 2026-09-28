@@ -57,14 +57,14 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
-import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb } from "#src/platform/db/sqlite/content-db";
+import { openSiteContentDb } from "./open-site-content-db.js";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
 import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
 import { resolveSiteRoot, resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
-import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
@@ -86,9 +86,6 @@ import {
 } from "#src/features/newsletter/repo.sqlite";
 import { MembersSubscriberDirectory } from "#src/features/members/index";
 import {
-  seededPosts,
-  seededPresentation,
-  seededWorkspace,
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
@@ -694,26 +691,14 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
 }
 
 /**
- * 2026-09-03 (complexity pass) — `overrides.db ?? openContentDb(...)`, hoisted for the same reason
+ * 2026-09-03 (complexity pass) — `overrides.db ?? openSiteContentDb(...)`, hoisted for the same reason
  * {@link assertOverridesPairedOrAbsent} is. When `overrides.db` is supplied (the install-dir
  * `serve` path), reuse that SAME handle rather than opening/migrating a second db — `bootSiteDir`
  * has already validated, migrated, and stamped this db before calling here (BR-05/BR-06).
  */
-function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): ContentDb {
-  return (
-    overrides?.db ??
-    openContentDb(
-      dbPath,
-      {
-        workspace: seededWorkspace,
-        posts: seededPosts,
-        presentation: seededPresentation,
-      },
-      // ADR-023 §2 — mandatory, blocking boot-time recovery for any crash-interrupted dataModule
-      // DDL attempt, before the site opens to end users.
-      recoverIncompleteDataModuleMigrations
-    )
-  );
+async function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<ContentDb> {
+  // `openSiteContentDb`: open → ADR-023 §2 crash recovery → migrate → watermark + demo seed.
+  return overrides?.db ?? (await openSiteContentDb(dbPath));
 }
 
 /**
@@ -833,7 +818,7 @@ export async function createSiteRouteDeps(
 
   hydrateContentDbIfNeeded(dbPath, overrides);
 
-  const db = resolveOrOpenContentDb(dbPath, overrides);
+  const db = await resolveOrOpenContentDb(dbPath, overrides);
   // The one content kernel over `db` (the SQLite driver keeps one per connection), read by the
   // prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = contentKernel(db);
@@ -853,7 +838,7 @@ export async function createSiteRouteDeps(
   // ADS-memory/reports/2026-09-05-db-split-scoping.md §6 — chat data lives in its own file,
   // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
   // erase) chat history" reason `databaseJournalDb` below is separate. No `mkdirSync` needed:
-  // `chat.db`'s directory is `dirname(dbPath)`, which `openContentDb` already required to exist.
+  // `chat.db`'s directory is `dirname(dbPath)`, which `openSiteContentDb` already required to exist.
   // Opened here, in the prelude, so the orphaned-chat check below runs after it.
   const chatDbPath = defaultChatDbPath(dbPath);
   const chatDb = openChatDb(chatDbPath);
@@ -869,7 +854,7 @@ export async function createSiteRouteDeps(
     // eslint-disable-next-line no-console
     console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
   });
-  // Posts written before migration 0022 existed — and the demo content `openContentDb` seeds
+  // Posts written before migration 0022 existed — and the demo content `prepareContentStore` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
   // `content_post_search` would not find them without an edit. Unconditional, and awaited by every
   // search (`postSearch` below takes it as `ready`), so no consumer can ever observe a
@@ -2202,11 +2187,7 @@ export async function createSiteRouteDepsForWorkspace(
 ): Promise<NewsletterRouteDeps> {
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { contentStoreRole });
 
-  const db = openContentDb(
-    dbPath,
-    { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
-    recoverIncompleteDataModuleMigrations
-  );
+  const db = await openSiteContentDb(dbPath);
   const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
   return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, contentStoreRole });
 }

@@ -25,11 +25,11 @@ function mkTempParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-init-site-"));
 }
 
-test("AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with correct config/meta values", () => {
+test("AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with correct config/meta values", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "demo");
   try {
-    const result = initSite({ dir: target, name: "Demo" });
+    const result = await initSite({ dir: target, name: "Demo" });
 
     assert.equal(result.dir, target);
     assert.match(result.siteId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "siteId is a generated UUID (state.spec.md §2)");
@@ -71,11 +71,11 @@ test("AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with
   }
 });
 
-test("site-key plan §A.4: a freshly initialized site gets its own siteKeyId, equal to its siteId", () => {
+test("site-key plan §A.4: a freshly initialized site gets its own siteKeyId, equal to its siteId", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "demo-site-key");
   try {
-    const result = initSite({ dir: target, name: "Demo Site Key" });
+    const result = await initSite({ dir: target, name: "Demo Site Key" });
 
     const meta = JSON.parse(fs.readFileSync(path.join(target, ".site-meta.json"), "utf8"));
     assert.equal(meta.siteKeyId, result.siteId, "a brand-new site's siteKeyId must be stamped explicitly, equal to its own siteId");
@@ -85,11 +85,11 @@ test("site-key plan §A.4: a freshly initialized site gets its own siteKeyId, eq
   }
 });
 
-test("BR-03: omitting --name defaults the site name to the directory basename", () => {
+test("BR-03: omitting --name defaults the site name to the directory basename", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "my-cool-site");
   try {
-    initSite({ dir: target });
+    await initSite({ dir: target });
     const config = JSON.parse(fs.readFileSync(path.join(target, "config.json"), "utf8"));
     assert.equal(config.name, "my-cool-site");
   } finally {
@@ -97,12 +97,12 @@ test("BR-03: omitting --name defaults the site name to the directory basename", 
   }
 });
 
-test("EC-01 (allowed case): an existing EMPTY directory is a valid init target and init proceeds using it", () => {
+test("EC-01 (allowed case): an existing EMPTY directory is a valid init target and init proceeds using it", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "pre-existing-empty");
   fs.mkdirSync(target);
   try {
-    const result = initSite({ dir: target, name: "Pre-existing" });
+    const result = await initSite({ dir: target, name: "Pre-existing" });
     assert.equal(result.dir, target);
     assert.ok(fs.existsSync(path.join(target, ".site-meta.json")));
   } finally {
@@ -110,13 +110,13 @@ test("EC-01 (allowed case): an existing EMPTY directory is a valid init target a
   }
 });
 
-test("AC-04/EC-01: an existing NON-EMPTY directory -> InitDirNotEmptyError, directory unmodified", () => {
+test("AC-04/EC-01: an existing NON-EMPTY directory -> InitDirNotEmptyError, directory unmodified", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "occupied");
   fs.mkdirSync(target);
   fs.writeFileSync(path.join(target, "pre-existing-file.txt"), "leave me alone");
   try {
-    assert.throws(
+    await assert.rejects(
       () => initSite({ dir: target, name: "Should Fail" }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -130,12 +130,12 @@ test("AC-04/EC-01: an existing NON-EMPTY directory -> InitDirNotEmptyError, dire
   }
 });
 
-test("EC-02: the init target exists as a regular file -> InitDirNotEmptyError (same class), nothing written", () => {
+test("EC-02: the init target exists as a regular file -> InitDirNotEmptyError (same class), nothing written", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "a-file-not-a-dir");
   fs.writeFileSync(target, "i am a file");
   try {
-    assert.throws(
+    await assert.rejects(
       () => initSite({ dir: target, name: "Should Fail" }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -149,11 +149,11 @@ test("EC-02: the init target exists as a regular file -> InitDirNotEmptyError (s
   }
 });
 
-test("EC-06: an empty/whitespace-only --name is rejected as VALIDATION, nothing created", () => {
+test("EC-06: an empty/whitespace-only --name is rejected as VALIDATION, nothing created", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "should-not-exist");
   try {
-    assert.throws(
+    await assert.rejects(
       () => initSite({ dir: target, name: "   " }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -167,11 +167,11 @@ test("EC-06: an empty/whitespace-only --name is rejected as VALIDATION, nothing 
   }
 });
 
-test("behavior.spec.md §4: a --name longer than 200 chars (after trim) is rejected as VALIDATION", () => {
+test("behavior.spec.md §4: a --name longer than 200 chars (after trim) is rejected as VALIDATION", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "too-long-name");
   try {
-    assert.throws(
+    await assert.rejects(
       () => initSite({ dir: target, name: "x".repeat(201) }),
       (err: unknown) => {
         assert.ok(err instanceof Error);
@@ -185,14 +185,14 @@ test("behavior.spec.md §4: a --name longer than 200 chars (after trim) is rejec
   }
 });
 
-test("INV-03: init never mutates templates/starter/ (read-only at runtime) — content unchanged after a real init run", () => {
+test("INV-03: init never mutates templates/starter/ (read-only at runtime) — content unchanged after a real init run", async () => {
   const before = fs.readFileSync(TEMPLATE_JSON_PATH, "utf8");
   const beforeMtime = fs.statSync(TEMPLATE_JSON_PATH).mtimeMs;
 
   const parent = mkTempParent();
   const target = path.join(parent, "inv-03-check");
   try {
-    initSite({ dir: target, name: "INV03" });
+    await initSite({ dir: target, name: "INV03" });
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
@@ -203,11 +203,11 @@ test("INV-03: init never mutates templates/starter/ (read-only at runtime) — c
   assert.equal(afterMtime, beforeMtime, "INV-03: template.json must not have been written to (mtime unchanged)");
 });
 
-test("regression: a fresh tovu init site can immediately serve its themes — themes/ is never left an empty placeholder that a later boot's seed step reads as already-seeded", () => {
+test("regression: a fresh tovu init site can immediately serve its themes — themes/ is never left an empty placeholder that a later boot's seed step reads as already-seeded", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "themes-regression");
   try {
-    initSite({ dir: target, name: "Themes Regression" });
+    await initSite({ dir: target, name: "Themes Regression" });
 
     const themesDir = path.join(target, "themes");
     const entries = fs.readdirSync(themesDir);

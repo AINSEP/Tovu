@@ -32,7 +32,7 @@ test("AC-10/REQ-08: an initialized, served install dir behaves identically after
   const parentA = mkTempParent();
   const originalDir = path.join(parentA, "site-original-location");
 
-  const initResult = initSite({ dir: originalDir, name: "Movable Site" });
+  const initResult = await initSite({ dir: originalDir, name: "Movable Site" });
   const firstBoot = await bootSiteDir({ dir: originalDir });
   assert.equal(firstBoot.config.name, "Movable Site");
   firstBoot.db.$client.close();

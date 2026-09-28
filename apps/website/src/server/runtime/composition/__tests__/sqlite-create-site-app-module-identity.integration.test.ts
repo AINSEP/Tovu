@@ -84,7 +84,7 @@ async function drainBootReadiness(deps: NewsletterRouteDeps): Promise<void> {
 async function bootSqliteSite(t: TestContext): Promise<NewsletterRouteDeps> {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "app-module-identity-"));
   const dir = path.join(parent, "site");
-  initSite({ dir, name: "Module Identity Site" });
+  await initSite({ dir, name: "Module Identity Site" });
 
   const boot = await bootSiteDir({ dir });
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {

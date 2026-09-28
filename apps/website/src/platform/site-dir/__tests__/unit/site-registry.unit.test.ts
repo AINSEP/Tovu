@@ -28,7 +28,7 @@ function mkSitesRoot(): { cwd: string; sitesDir: string } {
   return { cwd, sitesDir };
 }
 
-test("listSites: returns [] when sites/ does not exist at all (fresh checkout, before any tovu init)", () => {
+test("listSites: returns [] when sites/ does not exist at all (fresh checkout, before any tovu init)", async () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-nodir-"));
   try {
     assert.deepEqual(listSites({ cwd }), []);
@@ -37,7 +37,7 @@ test("listSites: returns [] when sites/ does not exist at all (fresh checkout, b
   }
 });
 
-test("listSites: skips a non-directory entry and a directory missing .site-meta.json, without throwing", () => {
+test("listSites: skips a non-directory entry and a directory missing .site-meta.json, without throwing", async () => {
   const { cwd, sitesDir } = mkSitesRoot();
   try {
     fs.writeFileSync(path.join(sitesDir, ".DS_Store"), "not a site");
@@ -52,17 +52,17 @@ test("listSites: skips a non-directory entry and a directory missing .site-meta.
   }
 });
 
-test("createSite: rejects an invalid folder name before writing anything to disk", () => {
+test("createSite: rejects an invalid folder name before writing anything to disk", async () => {
   const { cwd, sitesDir } = mkSitesRoot();
   try {
-    assert.throws(() => createSite({ name: "Not Valid!" }, { cwd }), ValidationError);
+    await assert.rejects(() => createSite({ name: "Not Valid!" }, { cwd }), ValidationError);
     assert.deepEqual(fs.readdirSync(sitesDir), [], "nothing may be written for a rejected name");
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
   }
 });
 
-test("SITE_NAME_PATTERN: accepts lowercase/digits/dashes only, rejecting anything that could escape sitesRoot", () => {
+test("SITE_NAME_PATTERN: accepts lowercase/digits/dashes only, rejecting anything that could escape sitesRoot", async () => {
   assert.equal(SITE_NAME_PATTERN.test("my-second-site"), true);
   assert.equal(SITE_NAME_PATTERN.test("Has-Upper"), false);
   assert.equal(SITE_NAME_PATTERN.test("has space"), false);
@@ -71,10 +71,10 @@ test("SITE_NAME_PATTERN: accepts lowercase/digits/dashes only, rejecting anythin
   assert.equal(SITE_NAME_PATTERN.test(""), false);
 });
 
-test("createSite + listSites: a created site is listed with the right name/dir/displayName, and is NOT marked active under an unrelated cwd/env", () => {
+test("createSite + listSites: a created site is listed with the right name/dir/displayName, and is NOT marked active under an unrelated cwd/env", async () => {
   const { cwd } = mkSitesRoot();
   try {
-    const result = createSite({ name: "my-second-site" }, { cwd });
+    const result = await createSite({ name: "my-second-site" }, { cwd });
     assert.equal(result.name, "my-second-site");
     assert.equal(result.dir, path.join(cwd, "sites", "my-second-site"));
     assert.match(result.siteId, /^[0-9a-f-]{36}$/i);
@@ -93,11 +93,11 @@ test("createSite + listSites: a created site is listed with the right name/dir/d
   }
 });
 
-test("listSites: marks the site matching TOVU_SITE as active, and every sibling as not", () => {
+test("listSites: marks the site matching TOVU_SITE as active, and every sibling as not", async () => {
   const { cwd } = mkSitesRoot();
   try {
-    createSite({ name: "site-a" }, { cwd });
-    createSite({ name: "site-b" }, { cwd });
+    await createSite({ name: "site-a" }, { cwd });
+    await createSite({ name: "site-b" }, { cwd });
 
     const sites = listSites({ cwd, env: { TOVU_SITE: "site-b" } });
     const byName = Object.fromEntries(sites.map((s) => [s.name, s.active]));
@@ -107,10 +107,10 @@ test("listSites: marks the site matching TOVU_SITE as active, and every sibling 
   }
 });
 
-test("createSite: the resulting content.db has a published kind:'page' row at slug '/' (the seeded homepage, matching tovu init byte for byte)", () => {
+test("createSite: the resulting content.db has a published kind:'page' row at slug '/' (the seeded homepage, matching tovu init byte for byte)", async () => {
   const { cwd } = mkSitesRoot();
   try {
-    const result = createSite({ name: "root-page-check" }, { cwd });
+    const result = await createSite({ name: "root-page-check" }, { cwd });
     const db = openContentDbReadOnly(path.join(result.dir, "content.db"));
     try {
       const rows = db.select().from(postsTable).all();
@@ -126,35 +126,35 @@ test("createSite: the resulting content.db has a published kind:'page' row at sl
   }
 });
 
-test("describeSiteBinding: falls back to the default site name when neither override is set", () => {
+test("describeSiteBinding: falls back to the default site name when neither override is set", async () => {
   const binding = describeSiteBinding({ cwd: "/repo", env: {} });
   assert.equal(binding.dir, path.join("/repo", "sites", "tovu-dev"));
   assert.equal(binding.name, "tovu-dev");
   assert.equal(binding.dirOverridden, false);
 });
 
-test("describeSiteBinding: TOVU_SITE names a folder under sites/, and is NOT reported as an override", () => {
+test("describeSiteBinding: TOVU_SITE names a folder under sites/, and is NOT reported as an override", async () => {
   const binding = describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE: "second-site" } });
   assert.equal(binding.dir, path.join("/repo", "sites", "second-site"));
   assert.equal(binding.name, "second-site");
   assert.equal(binding.dirOverridden, false, "TOVU_SITE is the vocabulary activate writes — it is not what defeats an activate");
 });
 
-test("describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it OUTRANKS the TOVU_SITE line activate writes", () => {
+test("describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it OUTRANKS the TOVU_SITE line activate writes", async () => {
   const binding = describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE_DIR: "/elsewhere/my-site", TOVU_SITE: "queued-site" } });
   assert.equal(binding.dir, path.resolve("/elsewhere/my-site"));
   assert.equal(binding.name, "my-site");
   assert.equal(binding.dirOverridden, true);
 });
 
-test("describeSiteBinding: switcherCompatible stays true for every binding that really is <cwd>/sites-relative", () => {
+test("describeSiteBinding: switcherCompatible stays true for every binding that really is <cwd>/sites-relative", async () => {
   // The two precedence branches whose result is, by construction, the same `<cwd>/sites/<name>` the
   // switcher's own write paths resolve.
   assert.equal(describeSiteBinding({ cwd: "/repo", env: {} }).switcherCompatible, true);
   assert.equal(describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE: "second-site" } }).switcherCompatible, true);
 });
 
-test("describeSiteBinding: a TOVU_SITE_DIR pointing OUTSIDE <cwd>/sites is not switcher-compatible (2026-09-07)", () => {
+test("describeSiteBinding: a TOVU_SITE_DIR pointing OUTSIDE <cwd>/sites is not switcher-compatible (2026-09-07)", async () => {
   // This assertion was `true` until 2026-09-07, on the reasoning that every binding this function
   // produces is `{cwd, env}`-resolved like the switcher's own root. `resolveSiteRoot` honors
   // `TOVU_SITE_DIR` outright, so that never held for an override naming a path elsewhere on disk:
@@ -172,7 +172,7 @@ test("describeSiteBinding: a TOVU_SITE_DIR pointing OUTSIDE <cwd>/sites is not s
   );
 });
 
-test("describeSiteBinding: an install-dir-pinned boot marks its binding non-switchable for every process that inherits its env", () => {
+test("describeSiteBinding: an install-dir-pinned boot marks its binding non-switchable for every process that inherits its env", async () => {
   // The channel `tovu serve <dir>` uses to tell the agent daemon — a SEPARATE process that rebuilds
   // its own RouteDeps, and the process where `sites_duplicate_site` actually runs — what the API
   // already knows. Needed even when `<dir>` sits under `<cwd>/sites`, which no path check can
@@ -181,11 +181,11 @@ test("describeSiteBinding: an install-dir-pinned boot marks its binding non-swit
   assert.equal(describeSiteBinding({ cwd: "/repo", env }).switcherCompatible, false);
 });
 
-test("describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site", () => {
+test("describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site", async () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-binding-"));
   try {
     fs.mkdirSync(path.join(cwd, "sites"));
-    createSite({ name: "bound-site" }, { cwd });
+    await createSite({ name: "bound-site" }, { cwd });
     const env = { TOVU_SITE: "bound-site" };
     const binding = describeSiteBinding({ cwd, env });
     const listed = listSites({ cwd, env });
@@ -217,7 +217,7 @@ function mkUnregisteredServingDir(): { cwd: string; dir: string } {
   return { cwd, dir };
 }
 
-test("includeServingSite: appends the served directory as `unregistered` when it carries no init markers", () => {
+test("includeServingSite: appends the served directory as `unregistered` when it carries no init markers", async () => {
   const { cwd, dir } = mkUnregisteredServingDir();
   try {
     const binding = describeSiteBinding({ cwd, env: {} });
@@ -237,10 +237,10 @@ test("includeServingSite: appends the served directory as `unregistered` when it
   }
 });
 
-test("includeServingSite: marks a real initialized site `registered` and appends nothing", () => {
+test("includeServingSite: marks a real initialized site `registered` and appends nothing", async () => {
   const { cwd } = mkSitesRoot();
   try {
-    createSite({ name: "bound-site" }, { cwd });
+    await createSite({ name: "bound-site" }, { cwd });
     const env = { TOVU_SITE: "bound-site" };
     const binding = describeSiteBinding({ cwd, env });
 
@@ -255,7 +255,7 @@ test("includeServingSite: marks a real initialized site `registered` and appends
   }
 });
 
-test("includeServingSite: appends nothing when the served directory does not exist on disk", () => {
+test("includeServingSite: appends nothing when the served directory does not exist on disk", async () => {
   const { cwd } = mkSitesRoot();
   try {
     const binding = describeSiteBinding({ cwd, env: { TOVU_SITE: "never-created" } });
@@ -267,7 +267,7 @@ test("includeServingSite: appends nothing when the served directory does not exi
   }
 });
 
-test("includeServingSite: appends nothing when the served path is a FILE rather than a directory", () => {
+test("includeServingSite: appends nothing when the served path is a FILE rather than a directory", async () => {
   const { cwd, sitesDir } = mkSitesRoot();
   try {
     fs.writeFileSync(path.join(sitesDir, "a-file"), "not a directory");
@@ -279,11 +279,11 @@ test("includeServingSite: appends nothing when the served path is a FILE rather 
   }
 });
 
-test("includeServingSite: keeps every registered sibling, and the appended entry is the ONLY active one", () => {
+test("includeServingSite: keeps every registered sibling, and the appended entry is the ONLY active one", async () => {
   const { cwd } = mkUnregisteredServingDir();
   try {
-    createSite({ name: "site-a" }, { cwd });
-    createSite({ name: "site-b" }, { cwd });
+    await createSite({ name: "site-a" }, { cwd });
+    await createSite({ name: "site-b" }, { cwd });
     const binding = describeSiteBinding({ cwd, env: {} });
 
     const composed = includeServingSite({ sites: listSites({ cwd, env: {} }), binding });
@@ -308,7 +308,7 @@ test("includeServingSite: keeps every registered sibling, and the appended entry
   }
 });
 
-test("includeServingSite: does NOT loosen readSiteDir — a half-written site is still absent from both the strict and the composed listing", () => {
+test("includeServingSite: does NOT loosen readSiteDir — a half-written site is still absent from both the strict and the composed listing", async () => {
   const { cwd, sitesDir } = mkSitesRoot();
   try {
     // A `config.json` but no `.site-meta.json` commit marker: an interrupted `initSite` (INV-02).

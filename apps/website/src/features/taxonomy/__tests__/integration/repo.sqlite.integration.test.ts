@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo, sqliteStampWatermark } from "../../repo.sqlite.js";
 import {
   createTaxonomy,
@@ -16,6 +16,7 @@ import {
   createPostBackedContentLookup,
   InMemoryContentLookup,
 } from "../../index.js";
+import { openPreparedContentDb } from "../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /**
  * @file Real SQLite persistence for `features/taxonomy` (this dispatch). Mirrors
@@ -29,14 +30,14 @@ function alwaysAllow() {
   return async () => ({ allowed: true, reason: "ok" });
 }
 
-function openTempContentDb() {
+async function openTempContentDb() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "taxonomy-sqlite-"));
   const filePath = path.join(tmpDir, "content.db");
-  const db = openContentDb(filePath);
+  const db = await openPreparedContentDb(filePath);
   return { db, filePath, tmpDir };
 }
 
-function buildDeps(db: ReturnType<typeof openContentDb>, workspaceId: string, idPrefix = "id") {
+function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
   let counter = 0;
   const taxonomies = new SqliteTaxonomyRepo({ db, workspaceId });
   return {
@@ -61,13 +62,13 @@ function buildDeps(db: ReturnType<typeof openContentDb>, workspaceId: string, id
 }
 
 test("create -> restart-simulated (fresh repo instance against the same file) -> data still there", async () => {
-  const { db, filePath, tmpDir } = openTempContentDb();
+  const { db, filePath, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: true });
     await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Recipes" });
 
-    const dbAfterRestart = openContentDb(filePath);
+    const dbAfterRestart = await openPreparedContentDb(filePath);
     const taxonomyRepoAfterRestart = new SqliteTaxonomyRepo({ db: dbAfterRestart, workspaceId: "ws-1" });
     const termRepoAfterRestart = new SqliteTermRepo({ db: dbAfterRestart, workspaceId: "ws-1" });
 
@@ -84,7 +85,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
 });
 
 test("workspace-scoping boundary: a taxonomy created for ws-1 is invisible to ws-2's adapter instance", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const ws1Deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps: ws1Deps, principalId: "user-1", name: "Category", hierarchical: true });
@@ -103,14 +104,14 @@ test("workspace-scoping boundary: a taxonomy created for ws-1 is invisible to ws
 });
 
 test("revision/audit trail actually persists: create + create-term + rename each append a real taxonomy_revisions row", async () => {
-  const { db, filePath, tmpDir } = openTempContentDb();
+  const { db, filePath, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: true });
     const term = await createTerm({ deps, principalId: "user-1", taxonomyId: taxonomy.id, name: "Recipes" });
     await renameTerm({ deps, principalId: "user-1", termId: term.id, newName: "Cooking" });
 
-    const dbAfterRestart = openContentDb(filePath);
+    const dbAfterRestart = await openPreparedContentDb(filePath);
     const rows = dbAfterRestart.$client.prepare("SELECT op, workspace_id, taxonomy_id FROM taxonomy_revisions ORDER BY seq ASC").all() as Array<{
       op: string;
       workspace_id: string;
@@ -143,7 +144,7 @@ test("revision/audit trail actually persists: create + create-term + rename each
 // ---------------------------------------------------------------------------
 
 test("guard queries are workspace-scoped: countByTerm/countChildren/delete on a wrong-workspace-scoped adapter cannot see or touch another workspace's rows", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const ws1Deps = buildDeps(db, "ws-1");
     const ws2Deps = buildDeps(db, "ws-2", "ws2");
@@ -196,7 +197,7 @@ test("guard queries are workspace-scoped: countByTerm/countChildren/delete on a 
 });
 
 test("deleteTerm/deleteTaxonomy against real SQLite: the guarded refusal paths hold end to end (assignment + children), backed by a real transaction", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: true });
@@ -228,7 +229,7 @@ test("deleteTerm/deleteTaxonomy against real SQLite: the guarded refusal paths h
 // ---------------------------------------------------------------------------
 
 test("a trashed taxonomy drops out of findById and list, a live sibling does not", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const trashed = await createTaxonomy({ deps, principalId: "user-1", name: "Trashed", hierarchical: false });
@@ -245,7 +246,7 @@ test("a trashed taxonomy drops out of findById and list, a live sibling does not
 });
 
 test("a trashed term drops out of findById/listByTaxonomy/findForTrash, a live sibling does not", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
@@ -271,7 +272,7 @@ test("a trashed term drops out of findById/listByTaxonomy/findForTrash, a live s
 });
 
 test("hiddenWithParent: a LIVE term whose taxonomy is trashed reads as gone too, and comes back the instant the taxonomy does", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
@@ -290,7 +291,7 @@ test("hiddenWithParent: a LIVE term whose taxonomy is trashed reads as gone too,
 });
 
 test("listForContent excludes a trashed term's assignment and a live term's assignment under a trashed taxonomy, keeps the assignment row itself", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Tags", hierarchical: false });
@@ -324,7 +325,7 @@ test("listForContent excludes a trashed term's assignment and a live term's assi
 });
 
 test("findForPurgeAudit/listIdsForPurgeAudit read regardless of trash status — the shape a purge follow-up needs after the row is already hidden", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
@@ -355,7 +356,7 @@ test("findForPurgeAudit/listIdsForPurgeAudit read regardless of trash status —
 });
 
 test("SqliteTermRepo.update's setWhere guard: a write against an already-trashed term is a no-op, the row stays exactly as it was", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: false });
@@ -380,7 +381,7 @@ test("SqliteTermRepo.update's setWhere guard: a write against an already-trashed
 });
 
 test("atomicity: a mid-cascade failure in deleteTaxonomy is genuinely undone by a real SQLite ROLLBACK, not just an aborted function call", async () => {
-  const { db, tmpDir } = openTempContentDb();
+  const { db, tmpDir } = await openTempContentDb();
   try {
     const deps = buildDeps(db, "ws-1");
     const taxonomy = await createTaxonomy({ deps, principalId: "user-1", name: "Category", hierarchical: true });

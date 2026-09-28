@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { login, AuthInvalidCredentialsError, type AuthServiceDeps, type IdentityRepos } from "@jini-ai/cms/identity";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { identityUsers } from "#src/platform/db/schema.sqlite";
 import { createSqliteIdentityRouteDeps } from "../wiring.js";
@@ -14,6 +14,7 @@ import {
   resetAdminPasswordSelfVerified,
   AdminPasswordResetVerificationFailedError,
 } from "../reset-admin-password-self-verified.js";
+import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /**
  * @file The mandatory proof for `reset-admin-password-self-verified.ts` — the module written after
@@ -41,7 +42,7 @@ function tmpDbPath(prefix: string): { dir: string; dbPath: string } {
 test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-verifies, and the new password (not the old) logs in through the real hasher", async () => {
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-happy-");
   try {
-    const db = openContentDb(dbPath);
+    const db = await openPreparedContentDb(dbPath);
     const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
@@ -86,7 +87,7 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
 test("resetAdminPasswordSelfVerified: a write that does not verify is caught before reporting success, and content.db is restored to its pre-reset state", async () => {
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-corrupt-");
   try {
-    const db = openContentDb(dbPath);
+    const db = await openPreparedContentDb(dbPath);
     const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
@@ -130,7 +131,7 @@ test("resetAdminPasswordSelfVerified: a write that does not verify is caught bef
     // file descriptor to the now-unlinked pre-restore inode (SqliteDbOpsAdapter's own doc), so
     // proving the restore actually happened requires a FRESH connection to the same path.
     db.$client.close();
-    const reopened = openContentDb(dbPath);
+    const reopened = await openPreparedContentDb(dbPath);
     const ownerAfter = reopened.select().from(identityUsers).all();
     const restoredRow = ownerAfter.find((row) => row.principalId === ownerBefore!.principalId);
     assert.ok(restoredRow, "the owner row must still exist after restore");

@@ -53,7 +53,8 @@ function turnLockFor(client: Database.Database): TurnLock | undefined {
   return lock;
 }
 
-function clientOf(source: SqliteConnectionSource): Database.Database {
+/** The better-sqlite3 client under `source` (a Drizzle handle's `$client`, or the client itself). */
+export function sqliteClientOf(source: SqliteConnectionSource): Database.Database {
   return "$client" in source ? source.$client : source;
 }
 
@@ -77,7 +78,7 @@ function bindingShim(client: Database.Database): SqliteDatabase {
 }
 
 export function sqliteKernel<DB>(source: SqliteConnectionSource): SqliteKernel<DB> {
-  const client = clientOf(source);
+  const client = sqliteClientOf(source);
   const known = kernels.get(client);
   if (known !== undefined) return known as SqliteKernel<DB>;
   const base = new Kysely<DB>({ dialect: new SqliteDialect({ database: bindingShim(client) }) });
@@ -155,7 +156,7 @@ export function openSqliteFileKernel<DB>(filePath: string, optional: { readOnly?
  * release it; the kernel's own `close()` never closes a connection it did not open.
  */
 export function closeSqliteConnection(source: SqliteConnectionSource): void {
-  const client = clientOf(source);
+  const client = sqliteClientOf(source);
   kernels.delete(client);
   client.close();
 }

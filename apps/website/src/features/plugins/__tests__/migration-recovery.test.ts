@@ -8,7 +8,10 @@ import Database from "better-sqlite3";
 
 import { declareDataModule } from "../data-module.js";
 import { beginJournalEntry, ensureMigrationJournal } from "../migration-journal.js";
-import { recoverIncompleteDataModuleMigrations } from "../migration-recovery.js";
+import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
+import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { findIncompleteJournalEntries } from "../migration-journal.js";
+import { recoverIncompleteDataModuleMigrations, type RecoveryResult, restoreSqliteSnapshots } from "../migration-recovery.js";
 import { snapshotDb } from "../snapshot.js";
 import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
 
@@ -28,6 +31,24 @@ import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
  * genuine crash-recovery pass would mistake for its own.
  */
 
+/** What the site opener does: recover on a fresh connection, closed for (or after) the restore. */
+async function recoverAtBoot(dbPath: string): Promise<RecoveryResult> {
+  const scan = new Database(dbPath);
+  let closed = false;
+  try {
+    return await recoverIncompleteDataModuleMigrations({
+      store: scan,
+      restoreSnapshots: (entries) => {
+        closeSqliteConnection(scan);
+        closed = true;
+        restoreSqliteSnapshots(dbPath, entries);
+      },
+    });
+  } finally {
+    if (!closed) closeSqliteConnection(scan);
+  }
+}
+
 function makeDbWithCoreContent(): { dir: string; dbPath: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-recovery-"));
   const dbPath = path.join(dir, "content.db");
@@ -41,7 +62,7 @@ function makeDbWithCoreContent(): { dir: string; dbPath: string } {
 
 test("no journal table yet (fresh db, never ran a dataModule declare) — recovery is a clean no-op", async () => {
   const { dir, dbPath } = makeDbWithCoreContent();
-  const result = recoverIncompleteDataModuleMigrations(dbPath);
+  const result = await recoverAtBoot(dbPath);
   assert.deepEqual(result, { recovered: 0, entries: [] });
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -67,7 +88,7 @@ test("an incomplete journal entry (simulated crash mid-DDL) is restored from its
     "sanity check: the half-created table exists before recovery runs"
   );
 
-  const result = recoverIncompleteDataModuleMigrations(dbPath);
+  const result = await recoverAtBoot(dbPath);
 
   assert.equal(result.recovered, 1);
   assert.equal(result.entries[0].pluginId, "crashed-plugin");
@@ -99,7 +120,7 @@ test("recovery clears the WAL/SHM sidecars left by the crashed attempt (T8)", as
   assert.ok(fs.existsSync(`${dbPath}-wal`), "sanity check: WAL sidecar exists before recovery (WAL mode)");
   db.close();
 
-  recoverIncompleteDataModuleMigrations(dbPath);
+  await recoverAtBoot(dbPath);
 
   assert.equal(fs.existsSync(`${dbPath}-wal`), false, "the crashed attempt's WAL sidecar must be cleared");
   assert.equal(fs.existsSync(`${dbPath}-shm`), false, "the crashed attempt's SHM sidecar must be cleared");
@@ -119,7 +140,7 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   await advanceJournalPhase({ db, id, phase: "COMMITTED" });
   db.close();
 
-  const result = recoverIncompleteDataModuleMigrations(dbPath);
+  const result = await recoverAtBoot(dbPath);
   assert.deepEqual(result, { recovered: 0, entries: [] });
 
   const stillThere = new Database(dbPath);
@@ -165,7 +186,7 @@ test("POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): a declareDataModule ca
   // connection exists).
   db.close();
 
-  const recovery = recoverIncompleteDataModuleMigrations(dbPath);
+  const recovery = await recoverAtBoot(dbPath);
 
   // The load-bearing assertion: recovery must find NOTHING to do. Before the fix, this same
   // fault-injected failure left a non-terminal `VERIFYING` entry behind, which this exact call used
@@ -181,4 +202,20 @@ test("POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): a declareDataModule ca
   restored.close();
 
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("postgres/PGlite: an incomplete entry is a rolled-back transaction — marked ROLLED_BACK, nothing restored", async () => {
+  const kernel = openPgliteKernel<unknown>();
+  try {
+    await ensureMigrationJournal(kernel);
+    await beginJournalEntry({ db: kernel, pluginId: "pg-plugin", snapshotPath: "/nowhere" });
+    const result = await recoverIncompleteDataModuleMigrations({
+      store: kernel,
+      restoreSnapshots: () => assert.fail("a Postgres database has no snapshot to restore"),
+    });
+    assert.deepEqual(result, { recovered: 1, entries: [{ pluginId: "pg-plugin", snapshotPath: "/nowhere" }] });
+    assert.deepEqual(await findIncompleteJournalEntries(kernel), []);
+  } finally {
+    await kernel.close();
+  }
 });

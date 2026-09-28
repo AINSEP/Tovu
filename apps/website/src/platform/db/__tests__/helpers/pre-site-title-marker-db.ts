@@ -58,14 +58,14 @@ export function siteTitleMarkerEntry(journal: Journal = readRealJournal()): Jour
  *
  * @complexity O(R·C) for R copied rows of C columns.
  */
-export function copyRowsIntoOlderSchema(required: {
+export async function copyRowsIntoOlderSchema(required: {
   target: ContentDb;
   tables: readonly string[];
-  populate: (current: ContentDb) => void;
-}): void {
+  populate: (current: ContentDb) => void | Promise<void>;
+}): Promise<void> {
   const current = openContentDb(":memory:");
   try {
-    required.populate(current);
+    await required.populate(current);
     for (const table of required.tables) {
       const targetColumns = new Set(
         (required.target.$client.pragma(`table_info("${table}")`) as { name: string }[]).map((column) => column.name)
@@ -91,7 +91,10 @@ export function copyRowsIntoOlderSchema(required: {
  *
  * @returns The last applied journal entry, for a matching `.site-meta.json` stamp.
  */
-export function migrateToBeforeSiteTitleMarker(dbPath: string, populate?: (db: ContentDb) => void): JournalEntry {
+export async function migrateToBeforeSiteTitleMarker(
+  dbPath: string,
+  populate?: (db: ContentDb) => void | Promise<void>
+): Promise<JournalEntry> {
   const journal = readRealJournal();
   const marker = siteTitleMarkerEntry(journal);
   const preEntries = journal.entries.filter((entry) => entry.idx < marker.idx);
@@ -111,7 +114,7 @@ export function migrateToBeforeSiteTitleMarker(dbPath: string, populate?: (db: C
       sqlite.pragma("journal_mode = WAL");
       const db = drizzle(sqlite, { schema }) as ContentDb;
       migrate(db, { migrationsFolder: scratch });
-      populate?.(db);
+      await populate?.(db);
     } finally {
       sqlite.close();
     }

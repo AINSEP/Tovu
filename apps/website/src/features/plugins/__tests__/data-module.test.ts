@@ -281,10 +281,18 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
   db.close();
 
   // Some time later, a NON-crash restart happens (a deploy, a routine restart — not a crash). Real
-  // boot calls `recoverIncompleteDataModuleMigrations(dbPath)` before opening its own long-lived
-  // connection, exactly like this.
-  const { recoverIncompleteDataModuleMigrations } = await import("../migration-recovery.js");
-  recoverIncompleteDataModuleMigrations(dbPath);
+  // boot runs `recoverIncompleteDataModuleMigrations` on a fresh connection before migrating,
+  // exactly like this (`openSiteContentDb`).
+  const { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } = await import("../migration-recovery.js");
+  const scan = new Database(dbPath);
+  await recoverIncompleteDataModuleMigrations({
+    store: scan,
+    restoreSnapshots: (entries) => {
+      scan.close();
+      restoreSqliteSnapshots(dbPath, entries);
+    },
+  });
+  if (scan.open) scan.close();
 
   // Re-open the (possibly just-restored) file and check whether the write made after the failed
   // declare survived. Pre-fix, it does not: the journal was left at `VERIFYING` (non-terminal), so

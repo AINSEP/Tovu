@@ -3,16 +3,21 @@ import test from "node:test";
 
 import { eq } from "drizzle-orm";
 
-import { openContentDb, seedContentDb, type ContentDbSeedData } from "../content-db.js";
+import { contentKernel } from "../../content-kernel.js";
+import { seedContentStore } from "../../prepare-content-store.js";
+import { openContentDb, type ContentDb, type ContentDbSeedData } from "../content-db.js";
 import * as schema from "../../schema.sqlite.js";
 
 /**
- * @file Direct unit coverage of `content-db.ts`'s `seedContentDb` — previously exercised only
- * indirectly, and only through `src/platform/site-dir`'s `init-site.ts` (out of this repo area), never
- * called directly by any test here. `content-db-recovery.integration.test.ts` opens content dbs
- * but never passes seed data. Covers the guard that makes seeding safe to call on every boot
+ * @file Direct unit coverage of `prepare-content-store.ts`'s `seedContentStore` on a SQLite
+ * content db (`prepare-content-store.dialects.test.ts` compares it with PGlite). Covers the guard that makes seeding safe to call on every boot
  * (never overwrites an operator-edited db) and the `ext` default.
  */
+
+/** The seed on `db`'s kernel. */
+function seedContentDb(required: { db: ContentDb; seed: ContentDbSeedData }): Promise<void> {
+  return seedContentStore(contentKernel(required.db), required.seed);
+}
 
 function seedData(overrides: Partial<ContentDbSeedData> = {}): ContentDbSeedData {
   return {
@@ -34,10 +39,10 @@ function seedData(overrides: Partial<ContentDbSeedData> = {}): ContentDbSeedData
   };
 }
 
-test("seeds the workspace, every post, and the presentation row on an empty db", () => {
+test("seeds the workspace, every post, and the presentation row on an empty db", async () => {
   const db = openContentDb(":memory:");
 
-  seedContentDb({ db, seed: seedData() });
+  await seedContentDb({ db, seed: seedData() });
 
   const workspaces = db.select().from(schema.workspaces).all();
   assert.equal(workspaces.length, 1);
@@ -53,19 +58,19 @@ test("seeds the workspace, every post, and the presentation row on an empty db",
   assert.equal(presentation[0].activeThemeId, "default");
 });
 
-test("a post's ext defaults to '{}' when the seed data omits it", () => {
+test("a post's ext defaults to '{}' when the seed data omits it", async () => {
   const db = openContentDb(":memory:");
 
-  seedContentDb({ db, seed: seedData() });
+  await seedContentDb({ db, seed: seedData() });
 
   const [post] = db.select().from(schema.posts).where(eq(schema.posts.id, "post-1")).all();
   assert.equal(post.ext, "{}");
 });
 
-test("a post's ext is serialized verbatim when the seed data supplies one", () => {
+test("a post's ext is serialized verbatim when the seed data supplies one", async () => {
   const db = openContentDb(":memory:");
 
-  seedContentDb({
+  await seedContentDb({
     db,
     seed: seedData({
       posts: [
@@ -88,13 +93,13 @@ test("a post's ext is serialized verbatim when the seed data supplies one", () =
   assert.deepEqual(JSON.parse(post.ext), { "plugin-x": { flag: true } });
 });
 
-test("never re-seeds (or overwrites) once a workspace with the same slug already exists", () => {
+test("never re-seeds (or overwrites) once a workspace with the same slug already exists", async () => {
   const db = openContentDb(":memory:");
 
-  seedContentDb({ db, seed: seedData() });
+  await seedContentDb({ db, seed: seedData() });
   // A second call with the SAME slug but different content -- must be a no-op, so an operator's
   // own edits (or a restart) never get clobbered.
-  seedContentDb({
+  await seedContentDb({
     db,
     seed: seedData({
       workspace: { id: "ws-2", name: "Different Workspace", slug: "test-workspace", createdAt: "2026-08-21T01:00:00.000Z" },
@@ -124,10 +129,10 @@ test("never re-seeds (or overwrites) once a workspace with the same slug already
   assert.equal(posts[0].id, "post-1");
 });
 
-test("seeds multiple posts in the order given", () => {
+test("seeds multiple posts in the order given", async () => {
   const db = openContentDb(":memory:");
 
-  seedContentDb({
+  await seedContentDb({
     db,
     seed: seedData({
       posts: [

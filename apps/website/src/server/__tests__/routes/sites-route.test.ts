@@ -278,7 +278,7 @@ test("sites: Create — flag ON, seeded owner, 201 with the created site's name/
   const deps: RouteDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
-    createSite: (required: { name: string }) => ({ name: required.name, dir: `/repo/sites/${required.name}`, siteId: "generated-id" }),
+    createSite: async (required: { name: string }) => ({ name: required.name, dir: `/repo/sites/${required.name}`, siteId: "generated-id" }),
   };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

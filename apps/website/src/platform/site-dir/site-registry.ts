@@ -135,11 +135,11 @@ export interface CreateSiteResult extends InitSiteResult {
  * @complexity Bounded by `initSite`'s own cost (see that function's doc) plus one name-format
  *   check — never a function of caller-controlled input size.
  */
-export function createSite(required: CreateSiteRequired, optional: ListSitesOptional = {}): CreateSiteResult {
+export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional = {}): Promise<CreateSiteResult> {
   const name = validateSiteName(required.name);
   const cwd = optional.cwd ?? process.cwd();
   const dir = path.join(cwd, "sites", name);
-  const result = initSite({ dir, name });
+  const result = await initSite({ dir, name });
   return { ...result, name };
 }
 

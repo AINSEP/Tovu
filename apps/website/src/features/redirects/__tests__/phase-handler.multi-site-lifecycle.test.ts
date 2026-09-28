@@ -99,7 +99,7 @@ async function bootSite(t: TestContext, name: string): Promise<BootedSite> {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "redirects-multi-site-"));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const dir = path.join(parent, "site");
-  initSite({ dir, name });
+  await initSite({ dir, name });
 
   const boot = await bootSiteDir({ dir });
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {

@@ -219,7 +219,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         return;
       }
 
-      const result = createSite({ name: parsed.name });
+      const result = await createSite({ name: parsed.name });
       res.status(201).json({ site: { name: result.name, dir: result.dir, siteId: result.siteId } });
     } catch (err) {
       const classified = classifyCreateSiteError(err);

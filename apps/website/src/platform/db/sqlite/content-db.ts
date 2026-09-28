@@ -2,10 +2,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
-import { eq, sql } from "drizzle-orm";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
+import { sqliteClientOf } from "../kernel/drivers/sqlite.js";
 import * as schema from "../schema.sqlite.js";
 import { dropEmptyLegacyChatTables } from "./drop-empty-legacy-chat-tables.js";
 
@@ -13,14 +13,13 @@ import { dropEmptyLegacyChatTables } from "./drop-empty-legacy-chat-tables.js";
  * @file Per-site content.db bootstrap (Drizzle over better-sqlite3).
  *
  * Purpose:
- * Opens the SQLite file that backs one site's content, applies pragmas, runs the
- * generated Drizzle migrations, and (if the caller supplies seed data) seeds
- * first-run demo content.
+ * Opens the SQLite file that backs one site's content, applies pragmas and runs the
+ * generated Drizzle migrations. Seeding and the watermark row are kernel work
+ * (`../prepare-content-store.ts`).
  *
  * How it relates to the project:
- * - The composition root (`server/deps.ts`) opens the db here, passing in its own
- *   `server/seed.ts` demo data, and injects the typed Drizzle handle into the
- *   per-feature `repo.sqlite.ts` adapters.
+ * - The composition root opens the db here and injects the typed Drizzle handle into
+ *   the per-feature `repo.sqlite.ts` adapters.
  * - Schema is code-first (`db/schema.sqlite.ts`) → `db/drizzle/` migrations, so
  *   same schema maps cleanly to a future Postgres adapter (ADR-006 rule-of-two,
  *   Payload's shared-schema shape).
@@ -46,7 +45,7 @@ export type ContentDb = BetterSQLite3Database<typeof schema> & { $client: Databa
 /** Generated migrations live at `src/platform/db/drizzle/` (resolved from this file). */
 const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
 
-/** First-run demo content a caller may supply to `openContentDb`/`seedContentDb`. */
+/** First-run demo content a caller may supply to `prepareContentStore` (`../prepare-content-store.ts`). */
 export interface ContentDbSeedData {
   workspace: typeof schema.workspaces.$inferInsert;
   /**
@@ -61,19 +60,11 @@ export interface ContentDbSeedData {
 }
 
 /**
- * ADR-023 §2 — a caller-injected pre-open recovery hook, run against `filePath` BEFORE this
- * function opens its own connection (dependency inversion, same pattern `seed` already uses —
- * ADR-042 item 3's fix for exactly this "infra reaching up" shape: this file stays decoupled from
- * `features/plugins/*`; the composition root wires the concrete
- * `recoverIncompleteDataModuleMigrations` implementation). Optional and a no-op when omitted —
- * correct for `:memory:` connections (nothing to recover) and every hermetic test call site.
+ * Open (or create) the content.db file with its pragmas — no migration, no write. The site opener
+ * uses this on its own so crash recovery (ADR-023 §2) can read the plugin migration journal before
+ * {@link migrateSqliteContentFile} touches the schema.
  */
-export type ContentDbRecoveryHook = (filePath: string) => void;
-
-/** Open (or create) the content.db, apply pragmas, migrate, and seed if empty and `seed` is given. */
-export function openContentDb(filePath: string, seed?: ContentDbSeedData, recover?: ContentDbRecoveryHook): ContentDb {
-  if (recover) recover(filePath);
-
+export function openSqliteContentConnection(filePath: string): ContentDb {
   const sqlite = new Database(filePath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
@@ -81,16 +72,26 @@ export function openContentDb(filePath: string, seed?: ContentDbSeedData, recove
   // itself be the "second" connection relative to a separate one (e.g. the store plugin's own
   // dedicated handle) transiently holding a lock. Retry internally rather than throwing immediately.
   sqlite.pragma("busy_timeout = 5000");
+  return drizzle(sqlite, { schema }) as ContentDb;
+}
 
-  const db = drizzle(sqlite, { schema }) as ContentDb;
+/** Apply the bundled Drizzle migrations to an open content.db, then drop the empty legacy chat tables. */
+export function migrateSqliteContentFile(db: ContentDb): void {
   migrate(db, { migrationsFolder: MIGRATIONS_DIR });
   // Two-db split (`0fb84ae0`) forward migration, §"why this can't be a plain .sql migration" in
   // drop-empty-legacy-chat-tables.ts: drops the three vestigial chat tables migrations 0023/0051
   // still create, but only the ones with no rows, so a pre-split install's real history is never
   // touched (chat-orphan-check.ts keeps flagging those for a human).
-  dropEmptyLegacyChatTables(sqlite);
-  ensureWatermarkRow(db);
-  if (seed) seedContentDb({ db, seed });
+  dropEmptyLegacyChatTables(sqliteClientOf(db));
+}
+
+/**
+ * Open (or create) the content.db, apply pragmas and migrate. The rows a store needs on top (the
+ * watermark singleton, first-run seed) come from `prepareContentStore` on the kernel.
+ */
+export function openContentDb(filePath: string): ContentDb {
+  const db = openSqliteContentConnection(filePath);
+  migrateSqliteContentFile(db);
   return db;
 }
 
@@ -117,47 +118,4 @@ export function openContentDbReadOnly(filePath: string): ContentDb {
   const sqlite = new Database(filePath, { readonly: true, fileMustExist: true });
   sqlite.pragma("busy_timeout = 5000");
   return drizzle(sqlite, { schema }) as ContentDb;
-}
-
-/**
- * SPEC-016 (`core/gated-mutations/watermark.ts`) — guarantees the `database_write_watermark`
- * singleton row (`id=1`) exists, independent of any demo-seed data. `INSERT OR IGNORE` keeps this
- * idempotent across restarts on a persisted db, matching `seedContentDb`'s own "never re-seed an
- * operator-edited db" guard, but for a bootstrap invariant rather than optional demo content.
- */
-function ensureWatermarkRow(db: ContentDb): void {
-  db.run(sql`INSERT OR IGNORE INTO ${schema.databaseWriteWatermark} (id, value, last_stamped_at) VALUES (1, 0, NULL)`);
-}
-
-/**
- * Seed the demo workspace/posts/presentation exactly once.
- *
- * Guarded by workspace slug so a persisted db (with the operator's own edits) is
- * never re-seeded or overwritten on restart.
- */
-export function seedContentDb(
-  required: { db: ContentDb; seed: ContentDbSeedData },
-  _optional: Record<string, never> = {}
-): void {
-  const { db, seed } = required;
-  const existing = db
-    .select({ id: schema.workspaces.id })
-    .from(schema.workspaces)
-    .where(eq(schema.workspaces.slug, seed.workspace.slug))
-    .all();
-  if (existing.length > 0) return;
-
-  db.transaction((tx) => {
-    tx.insert(schema.workspaces).values(seed.workspace).run();
-    for (const post of seed.posts) {
-      tx.insert(schema.posts)
-        .values({
-          ...post,
-          bodyJson: JSON.stringify(post.bodyJson),
-          ext: JSON.stringify(post.ext ?? {}),
-        })
-        .run();
-    }
-    tx.insert(schema.presentationSettings).values(seed.presentation).run();
-  });
 }

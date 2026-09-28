@@ -75,8 +75,8 @@ interface SchemaLedgers {
  *   lookup, one bounded ledger query, one small JSON read; not a function of any caller-controlled
  *   collection.
  */
-export async function readAppliedSchemaIdentity(kernel: StorageKernel<unknown>): Promise<AppliedSchemaIdentity> {
-  const ledgers = kernel as StorageKernel<SchemaLedgers>;
+export async function readAppliedSchemaIdentity<DB>(kernel: StorageKernel<DB>): Promise<AppliedSchemaIdentity> {
+  const ledgers = kernel as unknown as StorageKernel<SchemaLedgers>;
   if (kernel.dialect === "postgres") {
     if (!(await tableExists(kernel, LEDGER_TABLE))) return "none";
     const head = await ledgers.run((db) => db.selectFrom("tovu_migrations").select("id").orderBy("id", "desc").limit(1).executeTakeFirst());

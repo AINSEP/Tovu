@@ -8,7 +8,8 @@ import Database from "better-sqlite3";
 import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/cms/settings";
 
 import { copyRowsIntoOlderSchema, migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
-import { seedContentDb } from "#src/platform/db/sqlite/content-db";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { seedContentStore } from "#src/platform/db/prepare-content-store";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
 import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
@@ -53,9 +54,9 @@ function tempSiteDir(t: TestContext): string {
 }
 
 /** A site created with `tovu init --name "My Site"` after this feature shipped (REQ-05). */
-function createNewSite(t: TestContext): string {
+async function createNewSite(t: TestContext): Promise<string> {
   const dir = tempSiteDir(t);
-  initSite({ dir, name: SITE_NAME });
+  await initSite({ dir, name: SITE_NAME });
   return dir;
 }
 
@@ -64,8 +65,8 @@ function createNewSite(t: TestContext): string {
  * just before the marker migration, then seeded, with a matching `.site-meta.json` stamp. Its first
  * boot runs the marker migration against an existing workspace row, as tovu-com's will.
  */
-function createPreExistingSite(t: TestContext): string {
-  const dir = createNewSite(t);
+async function createPreExistingSite(t: TestContext): Promise<string> {
+  const dir = await createNewSite(t);
   const dbPath = path.join(dir, "content.db");
   for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${dbPath}${suffix}`, { force: true });
 
@@ -74,11 +75,11 @@ function createPreExistingSite(t: TestContext): string {
   // 2026-09-27, which has no `/pricing` page — the S2 surface below).
   const seed = { ...starterSeed, presentation: { ...starterSeed.presentation, activeThemeId: "tovu-theme" } };
   // The seed goes in through today's schema, restricted to the columns the pre-feature schema has.
-  const lastPreFeatureMigration = migrateToBeforeSiteTitleMarker(dbPath, (db) =>
+  const lastPreFeatureMigration = await migrateToBeforeSiteTitleMarker(dbPath, (db) =>
     copyRowsIntoOlderSchema({
       target: db,
       tables: ["workspaces", "posts", "presentation_settings"],
-      populate: (current) => seedContentDb({ db: current, seed }),
+      populate: (current) => seedContentStore(contentKernel(current), seed),
     })
   );
 
@@ -199,7 +200,7 @@ async function systemPinRevisions(deps: RouteDeps): Promise<SettingRevisionRecor
 }
 
 test("AC-10, AC-01, AC-02, AC-07 (T-W1): a database seeded before this feature boots through the real SQLite root pinned to Tovu Demo Site on every surface", async (t) => {
-  const site = await bootSite(t, createPreExistingSite(t));
+  const site = await bootSite(t, await createPreExistingSite(t));
   await site.deps.siteTitleReady;
 
   // INV-06: entry routes keep the entry's own title on a pre-existing site too.
@@ -218,7 +219,7 @@ test("AC-10, AC-01, AC-02, AC-07 (T-W1): a database seeded before this feature b
 });
 
 test("AC-06 (REQ-05): a site created with tovu init --name \"My Site\" renders its display name and is never pinned", async (t) => {
-  const site = await bootSite(t, createNewSite(t));
+  const site = await bootSite(t, await createNewSite(t));
   await site.deps.siteTitleReady;
 
   const products = await getHtml(site.baseUrl, "/products");
@@ -238,7 +239,7 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
   });
 
   try {
-    const site = await bootSite(t, createPreExistingSite(t), (deps) => {
+    const site = await bootSite(t, await createPreExistingSite(t), (deps) => {
       const store = deps.siteTitlePreservationStore;
       const listPendingWorkspaceIds = store.listPendingWorkspaceIds.bind(store);
       store.listPendingWorkspaceIds = async () => {
@@ -266,7 +267,7 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
 });
 
 test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check fails, so AC-10 does not pass by coincidence", async (t) => {
-  const site = await bootSite(t, createPreExistingSite(t), (deps) => {
+  const site = await bootSite(t, await createPreExistingSite(t), (deps) => {
     const store = deps.siteTitlePreservationStore;
     store.listPendingWorkspaceIds = async () => [];
     store.isPending = async () => false;
@@ -300,7 +301,7 @@ test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check f
 });
 
 test("AC-08 (REQ-06): after the owner resets the pinned title, two restarts append no system pin and the site renders its display name", async (t) => {
-  const dir = createPreExistingSite(t);
+  const dir = await createPreExistingSite(t);
   const first = await bootSite(t, dir);
   await first.deps.siteTitleReady;
   assert.equal((await systemPinRevisions(first.deps)).length, 1);
@@ -353,7 +354,7 @@ function readSiteTitleCopyState(dbPath: string, workspaceId: string): SiteTitleC
 
 /** A pre-existing site, booted until its pin has landed and every boot write has settled. */
 async function bootPinnedPreExistingSite(t: TestContext): Promise<{ dir: string; site: BootedSite }> {
-  const dir = createPreExistingSite(t);
+  const dir = await createPreExistingSite(t);
   const site = await bootSite(t, dir);
   await site.deps.siteTitleReady;
   await drainBootReadiness(site.deps);
@@ -442,7 +443,7 @@ test("AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships n
 
   // AC-24: a clean container deploy hydrates its content.db from that seed and boots under its own name.
   const deployDir = path.join(path.dirname(liveDir), "deploy");
-  initSite({ dir: deployDir, name: DEPLOY_NAME });
+  await initSite({ dir: deployDir, name: DEPLOY_NAME });
   const deployDbPath = path.join(deployDir, "content.db");
   for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${deployDbPath}${suffix}`, { force: true });
   assert.equal(hydrateContentDbFromSeed({ seedDbPath, dbPath: deployDbPath }).status, "seeded");
@@ -464,7 +465,7 @@ function renameSiteConfig(dir: string, name: string): void {
 }
 
 test("AC-22 (REQ-13, EC-01): a config.json rename on a running new site renders on the next request with no restart, and an owner title still wins over a later one", async (t) => {
-  const dir = createNewSite(t);
+  const dir = await createNewSite(t);
   const site = await bootSite(t, dir);
   await site.deps.siteTitleReady;
   assertSingleTitle(await getHtml(site.baseUrl, "/products"), SITE_NAME, "S3 GET /products before the rename");
@@ -497,7 +498,7 @@ test("AC-22 (REQ-13, INV-01): a config.json rename never moves a pinned pre-exis
 });
 
 test("AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWorkspace) resolves a config.json rename too", async (t) => {
-  const dir = createNewSite(t);
+  const dir = await createNewSite(t);
   // Every `siteDir()`-derived path (themes, uploads, the site binding) then points into the temp
   // site, as `tovu serve`'s `pinServedSiteDirIntoEnv` arranges for the real daemon.
   const previousSiteDir = process.env.TOVU_SITE_DIR;

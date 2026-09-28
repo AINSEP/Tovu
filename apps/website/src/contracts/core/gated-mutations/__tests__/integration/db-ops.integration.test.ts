@@ -6,10 +6,11 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { evaluatePostgresRestoreCapability } from "#src/platform/db/postgres/db-ops";
 import { stampWatermarkTx } from "#src/platform/db/sqlite/watermark";
+import { openPreparedContentDb } from "../../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — the dialect-neutral `db-ops` restore-point capability
@@ -48,7 +49,7 @@ import { stampWatermarkTx } from "#src/platform/db/sqlite/watermark";
  */
 
 test("AC-28: a SQLite-backed site's getCapabilities() reports costClass='cheap', kind='file-snapshot'", async () => {
-  const db = openContentDb(":memory:");
+  const db = await openPreparedContentDb(":memory:");
   const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:" });
 
   const caps = await adapter.getCapabilities();
@@ -61,7 +62,7 @@ test("AC-30: capturing a restore point for a SQLite-backed site produces a whole
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gated-mutations-db-ops-"));
   const filePath = path.join(tmpDir, "content.db");
   try {
-    const db = openContentDb(filePath);
+    const db = await openPreparedContentDb(filePath);
     db.transaction((tx) => {
       stampWatermarkTx({ tx });
       stampWatermarkTx({ tx });
@@ -83,7 +84,7 @@ test("AC-30: capturing a restore point for a SQLite-backed site produces a whole
   }
 });
 
-test("AC-29: a Postgres-backed site with no dump/blue-green tooling configured at all reports costClass='unavailable'", () => {
+test("AC-29: a Postgres-backed site with no dump/blue-green tooling configured at all reports costClass='unavailable'", async () => {
   const caps = evaluatePostgresRestoreCapability({
     pgDumpBinaryPath: null,
     credentialsPresent: false,
@@ -94,7 +95,7 @@ test("AC-29: a Postgres-backed site with no dump/blue-green tooling configured a
   assert.equal(caps.costClass, "unavailable");
 });
 
-test("AC-33: a Postgres-backed site with pg_dump/blue-green tooling configured and structurally valid reports costClass='expensive', kind='logical-dump'", () => {
+test("AC-33: a Postgres-backed site with pg_dump/blue-green tooling configured and structurally valid reports costClass='expensive', kind='logical-dump'", async () => {
   const caps = evaluatePostgresRestoreCapability({
     pgDumpBinaryPath: "/usr/bin/pg_dump",
     credentialsPresent: true,
@@ -106,7 +107,7 @@ test("AC-33: a Postgres-backed site with pg_dump/blue-green tooling configured a
   assert.equal(caps.kind, "logical-dump");
 });
 
-test("AC-36: a Postgres-backed site with tooling present but non-functional (unresolvable binary path) reports costClass='unavailable', identical to the never-configured case", () => {
+test("AC-36: a Postgres-backed site with tooling present but non-functional (unresolvable binary path) reports costClass='unavailable', identical to the never-configured case", async () => {
   const brokenPath = evaluatePostgresRestoreCapability({
     pgDumpBinaryPath: "/nonexistent/pg_dump",
     credentialsPresent: true,
@@ -124,7 +125,7 @@ test("AC-36: a Postgres-backed site with tooling present but non-functional (unr
   assert.equal(brokenPath.costClass, neverConfigured.costClass);
 });
 
-test("AC-37: a site whose only configured restore mechanism is an externally-managed PITR/backup system reports kind='external', costClass='unavailable'", () => {
+test("AC-37: a site whose only configured restore mechanism is an externally-managed PITR/backup system reports kind='external', costClass='unavailable'", async () => {
   const caps = evaluatePostgresRestoreCapability({
     pgDumpBinaryPath: null,
     credentialsPresent: false,
@@ -137,7 +138,7 @@ test("AC-37: a site whose only configured restore mechanism is an externally-man
 });
 
 test("REQ-19: getCapabilities() is a pure, side-effect-free static check — calling it twice never mutates observable state", async () => {
-  const db = openContentDb(":memory:");
+  const db = await openPreparedContentDb(":memory:");
   const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:" });
 
   const first = await adapter.getCapabilities();
@@ -157,7 +158,7 @@ test("restoreFromArtifact: swaps content.db's real content to match the captured
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gated-mutations-db-ops-restore-"));
   const filePath = path.join(tmpDir, "content.db");
   try {
-    const db = openContentDb(filePath);
+    const db = await openPreparedContentDb(filePath);
     db.transaction((tx) => {
       stampWatermarkTx({ tx });
       stampWatermarkTx({ tx }); // watermark = 2 at capture time
@@ -202,7 +203,7 @@ test("restoreFromArtifact: removes stale -wal/-shm sidecars so a fresh boot neve
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gated-mutations-db-ops-restore-wal-"));
   const filePath = path.join(tmpDir, "content.db");
   try {
-    const db = openContentDb(filePath); // journal_mode=WAL — produces -wal/-shm sidecars
+    const db = await openPreparedContentDb(filePath); // journal_mode=WAL — produces -wal/-shm sidecars
     db.transaction((tx) => stampWatermarkTx({ tx }));
 
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
@@ -223,7 +224,7 @@ test("restoreFromArtifact: removes stale -wal/-shm sidecars so a fresh boot neve
 });
 
 test("restoreFromArtifact: :memory: mode is a no-op, reports restartRequired=false", async () => {
-  const db = openContentDb(":memory:");
+  const db = await openPreparedContentDb(":memory:");
   const adapter = new SqliteDbOpsAdapter({ db, filePath: ":memory:" });
 
   const result = await adapter.restoreFromArtifact({ artifactRef: "/nonexistent/does-not-matter.db" });
@@ -235,7 +236,7 @@ test("restoreFromArtifact: a missing artifact file throws rather than silently s
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gated-mutations-db-ops-restore-missing-"));
   const filePath = path.join(tmpDir, "content.db");
   try {
-    const db = openContentDb(filePath);
+    const db = await openPreparedContentDb(filePath);
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
 
     await assert.rejects(() => adapter.restoreFromArtifact({ artifactRef: path.join(tmpDir, "does-not-exist.db") }));
@@ -251,7 +252,7 @@ test("restoreFromArtifact: never leaves a stray temp file behind on success", as
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gated-mutations-db-ops-restore-tmp-"));
   const filePath = path.join(tmpDir, "content.db");
   try {
-    const db = openContentDb(filePath);
+    const db = await openPreparedContentDb(filePath);
     db.transaction((tx) => stampWatermarkTx({ tx }));
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
     const captured = await adapter.captureRestorePoint({ scopeId: "workspace-1" });

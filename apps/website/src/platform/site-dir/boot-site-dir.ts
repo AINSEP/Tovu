@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
+import { prepareContentStore } from "../db/prepare-content-store.js";
 import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
@@ -91,6 +92,9 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   }
 
   try {
+    // The watermark singleton row every content store carries (was part of `openContentDb`).
+    await prepareContentStore(contentKernel(db));
+
     // BR-05 step 5 / BR-06 / CIC U-002-B2/ORD1: the stamp rewrite happens ONLY when a migration
     // was actually needed, both fields together, in one atomic operation, and only AFTER
     // `migrate()` (already run inside `openContentDb` above) has returned successfully.

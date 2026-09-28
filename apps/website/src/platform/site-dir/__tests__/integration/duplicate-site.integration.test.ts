@@ -60,7 +60,7 @@ function seedSourceExtras(siteDir: string): void {
 test("a duplicate carries content, uploads, and themes, but never chat history, and gets a fresh identity", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
     seedSourceExtras(source.dir);
 
     const targetDir = path.join(parent, "client-b");
@@ -144,7 +144,7 @@ function bareKeyEnv(): NodeJS.ProcessEnv {
 test("site-key plan §A.4: duplicateSite carries the source's own siteKeyId over — falls back to source.siteId for a pre-A4 source with none", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source-key"), name: "Source" });
+    const source = await initSite({ dir: path.join(parent, "source-key"), name: "Source" });
 
     // Case 1: a post-A4 source already has an explicit siteKeyId (initSite always writes one) — it
     // must be carried over verbatim, not re-derived from the copy's own fresh siteId.
@@ -175,7 +175,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
   const parent = mkTempParent();
   const home = mkTempHome();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Source" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Source" });
     const env = bareKeyEnv();
 
     // Establish the source's own per-site key file — the exact call `cli/commands/serve.ts`/
@@ -257,7 +257,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
 test("the schema stamp is carried from the SOURCE verbatim, never re-derived from the runtime", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Stale Client Site" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Stale Client Site" });
 
     // Simulate a site that has not been migrated to the current runtime — an arbitrary, plainly
     // different stamp from whatever `runtimeSchemaVersion()` reports right now. duplicateSite
@@ -284,7 +284,7 @@ test("the schema stamp is carried from the SOURCE verbatim, never re-derived fro
 test("omitting name defaults the duplicate's display name to the target directory's basename", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     const targetDir = path.join(parent, "my-new-client-site");
 
     await duplicateSite({ sourceDir: source.dir, targetDir });
@@ -299,7 +299,7 @@ test("omitting name defaults the duplicate's display name to the target director
 test("refuses a non-empty target directory, and creates nothing new there", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     const targetDir = path.join(parent, "occupied");
     fs.mkdirSync(targetDir);
     fs.writeFileSync(path.join(targetDir, "pre-existing.txt"), "do not touch");
@@ -333,7 +333,7 @@ test("refuses a source that is not a valid site directory", async () => {
 test("refuses an invalid target display name without creating anything", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     const targetDir = path.join(parent, "target");
 
     await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir, name: "  " }), ValidationError);
@@ -346,7 +346,7 @@ test("refuses an invalid target display name without creating anything", async (
 test("the duplicate is independently readable via readSiteDir (both marker files are valid)", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     const targetDir = path.join(parent, "target");
 
     await duplicateSite({ sourceDir: source.dir, targetDir, name: "Target Site" });
@@ -396,7 +396,7 @@ function plantNonPortableArtifacts(siteDir: string): void {
 test("a duplicate carries none of the source's sidecar databases, restore points, backups, or derived output", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
     seedSourceExtras(source.dir);
     plantNonPortableArtifacts(source.dir);
 
@@ -421,7 +421,7 @@ test("a duplicate carries none of the source's sidecar databases, restore points
 test("an unclassified new top-level artifact is excluded from a duplicate by default (fail safe)", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     seedSourceExtras(source.dir);
 
     // Nothing in this repo has ever heard of these two names. That is exactly the point: the
@@ -445,7 +445,7 @@ test("an unclassified new top-level artifact is excluded from a duplicate by def
 test("every directory the site layout calls portable is carried across, not just the ones initSite creates", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
 
     // `skills/` and `agent-plugins/` are part of the site-folder model (`site-root.ts`'s own doc)
     // but are created lazily by their own features, never by `initSite` — so only a source that
@@ -476,7 +476,7 @@ test("a mid-copy failure leaves no half-populated directory behind, even in a pr
   // Restored before the tree is torn down — `fs.rmSync` cannot remove what it cannot read either.
   const unreadable = path.join(parent, "source", "uploads", "locked.bin");
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     fs.writeFileSync(path.join(source.dir, "uploads", "hello.txt"), "known upload bytes");
 
     // One portable entry that cannot be copied: `fs.cpSync` raises EACCES on this file, so the
@@ -528,7 +528,7 @@ function stripPortableEntries(siteDir: string): void {
 test("a source with no portable entries: a content.db failure into a pre-existing empty target leaves nothing behind", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     stripPortableEntries(source.dir);
     // Still a valid site by `readSiteDir`'s contract — both marker files are intact — so the write
     // phase is entered and the failure lands where the finding says it does.
@@ -558,7 +558,7 @@ test("after such a failure the operator's retry is not refused as 'not an empty 
   // permanent one whose message blames the operator for a directory they created empty.
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     stripPortableEntries(source.dir);
     const dbPath = path.join(source.dir, "content.db");
     const savedDb = fs.readFileSync(dbPath);
@@ -589,7 +589,7 @@ test("a successful duplicate into a pre-existing empty target still succeeds —
   // nothing failed, and a pre-existing target must still be usable.
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     fs.writeFileSync(path.join(source.dir, "uploads", "hello.txt"), "known upload bytes");
 
     const targetDir = path.join(parent, "operator-made-this");
@@ -618,7 +618,7 @@ test("a successful duplicate into a pre-existing empty target still succeeds —
 test("a duplicate carries the site's media uploads but NOT the staged chat attachments under uploads/", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
 
     fs.writeFileSync(path.join(source.dir, "uploads", "public-media.txt"), "media library bytes");
     const attachments = path.join(source.dir, "uploads", "chat-attachments");
@@ -647,7 +647,7 @@ test("a duplicate carries the site's media uploads but NOT the staged chat attac
 test("excluding chat-attachments is name-scoped to the uploads root — an unrelated nested directory of that name is still carried", async () => {
   const parent = mkTempParent();
   try {
-    const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
     const nested = path.join(source.dir, "uploads", "media", "chat-attachments");
     fs.mkdirSync(nested, { recursive: true });
     fs.writeFileSync(path.join(nested, "screenshot.png"), "a real media asset in a folder named that");
