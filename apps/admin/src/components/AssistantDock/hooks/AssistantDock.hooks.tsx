@@ -891,10 +891,6 @@ export function getResumeCapableAgentIds(): ReadonlySet<string> {
   return resumeCapableAgentIds;
 }
 
-/** A non-2xx `/api/agents` answer. Thrown (not resolved as `[]`) so the query cache never stores
- *  it; {@link useRuntimeAccess}'s `listAgents` turns it back into `[]` for `ChatPane`. */
-class AgentsResponseNotOkError extends Error {}
-
 /** Records one fresh inventory everywhere that reads it: the resume-capable set the transport
  *  consults, and the localStorage placeholder for the next cold load. Called on what the cache
  *  settles on, not inside {@link fetchAgents}: a GET that was in flight across a rescan answers
@@ -905,19 +901,30 @@ function recordAgents<T extends readonly AgentWithMemoryFlag[]>(agents: T): T {
   return agents;
 }
 
+/**
+ * Reads one `/api/agents` (or rescan) response as an inventory, or throws when it is not one.
+ *
+ * Throws, never resolves `[]`, for both a non-2xx status and an empty list: `ChatPane` reads a
+ * RESOLVED list as a finished detection and shows "No usable CLI is selected" when nothing in it is
+ * usable, while a REJECTION tells it there is no answer yet, so it shows "Connecting to the
+ * assistant…" and retries. The empty case matters because the server lists every CLI it knows
+ * (`apps/website/src/assistant/agents.ts`, available or not), so `[]` only ever comes from a daemon
+ * that is mid-restart — resolving it once cached it (`staleTime: Infinity`) until a hard reload.
+ * Throwing also keeps it out of the query cache and the localStorage snapshot.
+ */
+async function readAgentsResponse(response: Response, label: string): Promise<AgentWithMemoryFlag[]> {
+  if (!response.ok) throw new Error(`${label} answered ${response.status}`);
+  const { agents } = (await response.json()) as { agents?: AgentWithMemoryFlag[] };
+  if (!Array.isArray(agents) || agents.length === 0) throw new Error(`${label} answered with no agents`);
+  return agents;
+}
+
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
   const response = await fetch(AGENTS_URL, {
     credentials: "same-origin",
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
   });
-  if (!response.ok) throw new AgentsResponseNotOkError(`GET ${AGENTS_URL} answered ${response.status}`);
-  const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
-  return agents;
-}
-
-function emptyOnNotOk(error: unknown): ChatPaneAgent[] {
-  if (error instanceof AgentsResponseNotOkError) return [];
-  throw error;
+  return readAgentsResponse(response, `GET ${AGENTS_URL}`);
 }
 
 /**
@@ -928,16 +935,24 @@ function emptyOnNotOk(error: unknown): ChatPaneAgent[] {
  */
 const AGENTS_QUERY_KEY = ["assistant", "agents"] as const;
 
-/** A cache-bypassing GET whose success replaces the cached list; a non-2xx answer resolves `[]`
- *  without touching the cache, so a failed read never overwrites a good inventory. */
-async function refetchAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<ChatPaneAgent[]> {
-  try {
-    const agents = recordAgents(await fetchAgents());
-    loader.replace(agents);
-    return agents;
-  } catch (error) {
-    return emptyOnNotOk(error);
-  }
+/** Writes a fresh inventory into the cache and everything that reads it. */
+function replaceAgents(loader: CachedLoader<ChatPaneAgent[]>, agents: ChatPaneAgent[]): ChatPaneAgent[] {
+  recordAgents(agents);
+  loader.replace(agents);
+  return agents;
+}
+
+/** A rescan: the POST's answer replaces the cached list; when the POST gives no usable answer, a
+ *  cache-bypassing GET does instead. When both fail it rejects without touching the cache, so a
+ *  failed rescan never overwrites a good inventory (`ChatPane` keeps showing the last good list). */
+async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<ChatPaneAgent[]> {
+  const response = await fetch(`${AGENTS_URL}/rescan`, {
+    method: "POST",
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
+  });
+  const rescanned = await readAgentsResponse(response, `POST ${AGENTS_URL}/rescan`).catch(() => null);
+  return replaceAgents(loader, rescanned ?? (await fetchAgents()));
 }
 
 function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
@@ -984,13 +999,13 @@ async function daemonOnline(): Promise<boolean> {
  * `AssistantDockProps`.
  *
  * `listAgents` reads through the shared query cache ({@link useAgentsLoader}), so a remounted pane,
- * a conversation switch, or a second screen gets the inventory without another request; a non-2xx
- * answer still resolves `[]` but is never cached, so the next mount retries.
+ * a conversation switch, or a second screen gets the inventory without another request. A non-2xx
+ * or empty answer REJECTS and is never cached (see {@link readAgentsResponse}): `ChatPane` then
+ * shows "Connecting to the assistant…" and retries until the daemon answers.
  *
  * `rescanAgents` writes its answer into that cache. It falls back to a plain re-fetch of the same
- * `/api/agents` GET whenever the rescan POST itself does not report success, rather than surfacing
- * an error into the picker — a rescan that could not confirm anything new still leaves the picker
- * with whatever agents are currently known, instead of going blank.
+ * `/api/agents` GET whenever the rescan POST itself gives no usable answer; when that fails too it
+ * rejects, and `ChatPane` keeps whatever agents are currently known instead of going blank.
  *
  * @returns The memoized `{ listAgents, rescanAgents, daemonOnline }` object `ChatPane` reads.
  * @example
@@ -1000,19 +1015,8 @@ export function useRuntimeAccess(): ChatPaneRuntimeAccess {
   const loader = useAgentsLoader();
   return useMemo(
     () => ({
-      listAgents: () => loader.load().then(recordAgents, emptyOnNotOk),
-      rescanAgents: async () => {
-        const response = await fetch(`${AGENTS_URL}/rescan`, {
-          method: "POST",
-          credentials: "same-origin",
-          signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
-        });
-        if (!response.ok) return refetchAgentsInto(loader);
-        const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
-        recordAgents(agents);
-        loader.replace(agents);
-        return agents;
-      },
+      listAgents: () => loader.load().then(recordAgents),
+      rescanAgents: () => rescanAgentsInto(loader),
       daemonOnline,
     }),
     [loader],

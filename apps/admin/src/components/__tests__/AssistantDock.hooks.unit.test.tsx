@@ -1196,12 +1196,25 @@ describe("useRuntimeAccess", () => {
     expect(fetchSpy).toHaveBeenCalledWith("/api/agents", expect.objectContaining({ credentials: "same-origin" }));
   });
 
-  it("listAgents returns an empty array, without throwing, when the GET is not ok", async () => {
+  /**
+   * 2026-09-28: a non-ok GET used to resolve `[]`, which `ChatPane` read as a SUCCESSFUL answer
+   * listing nothing — the "No usable CLI is selected" banner, stuck until a hard reload, every time
+   * the daemon restarted under an open dock. Rejecting tells the pane "no answer yet", so it retries.
+   */
+  it("listAgents rejects when the GET is not ok, so the pane retries instead of reading 'no CLIs'", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
 
     const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
 
-    await expect(result.current.listAgents()).resolves.toEqual([]);
+    await expect(result.current.listAgents()).rejects.toThrow("GET /api/agents answered 503");
+  });
+
+  it("listAgents rejects an empty agents list — the server always lists every known CLI, so empty is not an answer", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ agents: [] }), { status: 200 })));
+
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+
+    await expect(result.current.listAgents()).rejects.toThrow("GET /api/agents answered with no agents");
   });
 
   it("rescanAgents returns the freshly rescanned agents when the POST succeeds", async () => {
@@ -1304,8 +1317,34 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const { result } = renderAgents();
 
-    await expect(result.current.access.listAgents()).resolves.toEqual([]);
+    await expect(result.current.access.listAgents()).rejects.toThrow("GET /api/agents answered 503");
     await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "codex", name: "Codex" }]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache an empty list — the next listAgents() asks the server again", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockImplementationOnce(() => okAgents([]))
+      .mockImplementationOnce(() => okAgents([{ id: "claude", name: "Claude Code" }]));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderAgents();
+
+    await expect(result.current.access.listAgents()).rejects.toThrow("GET /api/agents answered with no agents");
+    expect(result.current.placeholder).toBeUndefined();
+    await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("a rescan answering an empty list falls back to the GET instead of caching nothing", async () => {
+    const fetchSpy = vi.fn((url: string) =>
+      url === "/api/agents/rescan" ? okAgents([]) : okAgents([{ id: "claude", name: "Claude Code" }]),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderAgents();
+
+    await expect(result.current.access.rescanAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
+    await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
@@ -1332,7 +1371,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
     const { result } = renderAgents();
 
     await result.current.access.listAgents();
-    await expect(result.current.access.rescanAgents()).resolves.toEqual([]);
+    await expect(result.current.access.rescanAgents()).rejects.toThrow("GET /api/agents answered 500");
 
     await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
   });
