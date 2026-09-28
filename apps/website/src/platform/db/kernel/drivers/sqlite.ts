@@ -1,8 +1,11 @@
+import path from "node:path";
+
 import Database from "better-sqlite3";
 import { Kysely, type SqliteDatabase, SqliteDialect } from "kysely";
 
 import { buildKernel } from "../kernel-core.js";
 import type { StorageKernel } from "../port.js";
+import { TurnLock } from "../turn-lock.js";
 
 /**
  * @file The better-sqlite3 driver: a kernel over an ALREADY OPEN SQLite connection (the site's
@@ -11,7 +14,9 @@ import type { StorageKernel } from "../port.js";
  *
  * Accepts the Drizzle handle the call sites hold (`ContentDb`) and reads its client; the Drizzle
  * handle itself is not used. ONE kernel per connection ({@link sqliteKernel} memoizes on the
- * client): the turn lock and the transaction scope only protect callers that share them.
+ * client): the transaction scope only protects callers that share it. The turn lock is per FILE:
+ * every connection to one database file in this process takes turns on the same lock (see
+ * `KernelDriver.turnLock`).
  *
  * Queries go through Kysely's own SQLite dialect over a thin binding shim: SQLite cannot bind a
  * boolean, so `true`/`false` are written as `1`/`0` (what Drizzle's boolean columns stored). Reads
@@ -30,6 +35,20 @@ export type SqliteKernel<DB> = StorageKernel<DB>;
 export type SqliteConnectionSource = Database.Database | { readonly $client: Database.Database };
 
 const kernels = new WeakMap<Database.Database, SqliteKernel<unknown>>();
+
+/** One turn lock per database FILE, shared by every connection to it in this process. */
+const fileTurnLocks = new Map<string, TurnLock>();
+
+function turnLockFor(client: Database.Database): TurnLock | undefined {
+  if (client.memory) return undefined;
+  const file = path.resolve(client.name);
+  let lock = fileTurnLocks.get(file);
+  if (lock === undefined) {
+    lock = new TurnLock();
+    fileTurnLocks.set(file, lock);
+  }
+  return lock;
+}
 
 function clientOf(source: SqliteConnectionSource): Database.Database {
   return "$client" in source ? source.$client : source;
@@ -66,6 +85,7 @@ export function sqliteKernel<DB>(source: SqliteConnectionSource): SqliteKernel<D
     ready: Promise.resolve(),
     base,
     oneConnection: true,
+    turnLock: turnLockFor(client),
     async begin(body) {
       client.exec("BEGIN IMMEDIATE");
       try {

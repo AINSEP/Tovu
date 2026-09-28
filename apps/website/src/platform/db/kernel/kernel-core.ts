@@ -34,6 +34,13 @@ export interface KernelDriver<DB> {
   /** Share one connection between all callers: take turns (see `turn-lock.ts`). */
   oneConnection: boolean;
   /**
+   * The turn lock to take turns on, when several connections in this process open the SAME
+   * database (two better-sqlite3 handles on one file): they must take turns as one, or one
+   * connection's `BEGIN IMMEDIATE` busy-waits, thread blocked, on a transaction that can then never
+   * commit. Omitted: a lock of this kernel's own.
+   */
+  turnLock?: TurnLock;
+  /**
    * A transaction on the connection that this kernel did not open (a legacy `BEGIN IMMEDIATE` site
    * not converted yet). While one is open, kernel calls join it — the same pass-through the legacy
    * runners use — instead of failing on a nested `BEGIN`. Removed once no legacy site remains.
@@ -46,9 +53,32 @@ export interface KernelDriver<DB> {
 
 type Scope<DB> = { kind: "run" | "transaction"; db: Kysely<DB> };
 
+/** The turn locks the caller's async context holds, across every kernel in the process. */
+const heldLocks = new AsyncLocalStorage<ReadonlySet<TurnLock>>();
+
+/**
+ * Takes `lock` for `body`, unless this call chain already holds it through ANOTHER kernel (a second
+ * connection to the same database): that would wait on its own turn forever, so it throws.
+ */
+async function takingTurn<T>(lock: TurnLock | undefined, kind: "shared" | "exclusive", body: () => Promise<T>): Promise<T> {
+  if (lock === undefined) return body();
+  const held = heldLocks.getStore();
+  if (held?.has(lock)) {
+    throw new Error(
+      "this call chain already holds another connection to the same database file; use one connection (one kernel) for the whole unit of work"
+    );
+  }
+  await lock.acquire(kind);
+  try {
+    return await heldLocks.run(new Set([...(held ?? []), lock]), body);
+  } finally {
+    lock.release(kind);
+  }
+}
+
 export function buildKernel<DB>(driver: KernelDriver<DB>): StorageKernel<DB> {
   const scope = new AsyncLocalStorage<Scope<DB>>();
-  const lock = driver.oneConnection ? new TurnLock() : undefined;
+  const lock = driver.oneConnection ? (driver.turnLock ?? new TurnLock()) : undefined;
   let ownTransactions = 0;
   const joinsForeign = () => ownTransactions === 0 && driver.foreignTransactionOpen?.() === true;
 
@@ -61,12 +91,7 @@ export function buildKernel<DB>(driver: KernelDriver<DB>): StorageKernel<DB> {
     const current = scope.getStore();
     if (current !== undefined) return fn(current.db);
     if (joinsForeign()) return fn(driver.base);
-    await lock?.acquire("shared");
-    try {
-      return await scope.run({ kind: "run", db: driver.base }, () => fn(driver.base));
-    } finally {
-      lock?.release("shared");
-    }
+    return takingTurn(lock, "shared", async () => scope.run({ kind: "run", db: driver.base }, () => fn(driver.base)));
   }
 
   async function transaction<T>(fn: () => Promise<T>): Promise<T> {
@@ -80,14 +105,14 @@ export function buildKernel<DB>(driver: KernelDriver<DB>): StorageKernel<DB> {
       );
     }
     if (joinsForeign()) return fn();
-    await lock?.acquire("exclusive");
-    ownTransactions += 1;
-    try {
-      return await driver.begin((tx) => scope.run({ kind: "transaction", db: tx }, fn));
-    } finally {
-      ownTransactions -= 1;
-      lock?.release("exclusive");
-    }
+    return takingTurn(lock, "exclusive", async () => {
+      ownTransactions += 1;
+      try {
+        return await driver.begin((tx) => scope.run({ kind: "transaction", db: tx }, fn));
+      } finally {
+        ownTransactions -= 1;
+      }
+    });
   }
 
   async function lockKey(key: string): Promise<void> {
