@@ -257,9 +257,6 @@
   "apps/website/src/platform/db/sqlite/media-repo.sqlite.ts": {
     "sync-terminal": 25
   },
-  "apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts": {
-    "sync-terminal": 10
-  },
   "apps/website/src/platform/db/sqlite/publish-trust-revocations.sqlite.ts": {
     "sync-terminal": 4
   },
