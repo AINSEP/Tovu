@@ -2350,3 +2350,14 @@ mechanism found by grep in the time available (`EXECUTION_NAMESPACE`, `publishSe
 step: reproduce with the browser devtools Network tab open on the Visitor's AI Assistant screen while
 opening the dock, and see whether a `listModels`/discovery call fires with an empty or stale key at
 the moment the dock opens.
+
+## LATER — Local Postgres in the desktop app via PGlite (owner, 2026-09-27; NOT now)
+Idea: ship PGlite (Postgres compiled to WebAssembly, no outside service) in the desktop app so sites can run on real Postgres locally, then copy to Supabase later Postgres-to-Postgres.
+- Why: Postgres extensions SQLite lacks. Per the PGlite docs (context7, 2026-09-27): pgvector (official), pg_textsearch, PostGIS (`@electric-sql/pglite-postgis`, marked EXPERIMENTAL), plus bundled contrib extensions.
+- One PGlite per site: each is its own data directory, so multiple sites = multiple instances.
+- Open questions for a measured spike (Opus):
+  - Real disk and RAM in the desktop build, with and without PostGIS.
+  - PGlite is single-process, but Tovu's API and the agent daemon are separate processes. How do they share one PGlite (pglite-socket / a small bridge)?
+  - Does Tovu's existing Postgres dialect (schema.postgres.ts) run on it unchanged?
+- Alternative to compare: bundled real Postgres (`embedded-postgres`, ~50–100 MB per platform, a separate server process to manage).
+- Related: the SQLite→Postgres copy tool (features/database-transfer, commits 681fc0c21…fc3f9de3a) already moves data to Supabase without this.
