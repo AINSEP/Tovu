@@ -39,7 +39,17 @@ export interface FederatedToolIdentity {
    * (`externalMcpAdmissionRevision`), which is what "the server changed" means here.
    */
   readonly origin: FederatedConnectionOrigin | undefined;
+  /** The description the model reads, as admitted (`AdmittedFederatedTool.description`). */
+  readonly description: string;
+  /** The input schema, as admitted. */
+  readonly inputSchema: Readonly<Record<string, unknown>>;
 }
+
+/**
+ * The fingerprint's version. v2 (owner rule 2026-09-27, "hint drift") added the description and the
+ * input schema, so every approval saved under v1 no longer matches: it asks once, then is saved again.
+ */
+const FINGERPRINT_VERSION = "g3-approval-v2";
 
 /** Stable JSON: object keys sorted at every depth, so the same hints always hash the same. */
 function canonicalJson(value: unknown): string {
@@ -55,16 +65,28 @@ function canonicalJson(value: unknown): string {
 
 /**
  * The fingerprint a remembered approval is saved under and later matched against: the connection,
- * the server it reaches (its origin and admission revision), the remote tool name and its declared
- * hints. Hashed, because an admission revision is itself derived from values that can carry
+ * the server it reaches (its origin and admission revision), the remote tool name, its declared
+ * hints, the description the model reads and its input schema — so any drift in what the tool says
+ * about itself voids the approval. Object keys are sorted first, so key order alone never counts as
+ * drift. Hashed, because an admission revision is itself derived from values that can carry
  * credentials and this string is stored and compared, never shown.
  *
- * @complexity O(h) in the size of the hints.
+ * @complexity O(h + s) in the size of the hints and the schema.
  */
 export function federatedToolApprovalFingerprint(identity: FederatedToolIdentity): string {
   const origin = identity.origin === undefined ? null : identity.origin.kind === "roster" ? ["roster", identity.origin.admissionRevision] : ["preset"];
   return createHash("sha256")
-    .update(canonicalJson(["g3-approval-v1", identity.connectionId, origin, identity.remoteName, identity.declaredAnnotations ?? null]))
+    .update(
+      canonicalJson([
+        FINGERPRINT_VERSION,
+        identity.connectionId,
+        origin,
+        identity.remoteName,
+        identity.declaredAnnotations ?? null,
+        identity.description,
+        identity.inputSchema,
+      ]),
+    )
     .digest("hex");
 }
 

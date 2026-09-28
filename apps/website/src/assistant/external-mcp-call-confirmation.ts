@@ -21,6 +21,10 @@
  * (`external-mcp-tool-approvals.ts`), so a changed server, name or hints asks again. A remembered
  * approval skips the card; it never changes what is sent — the frozen arguments go out as before.
  *
+ * Write-shaped inputs (owner rule 2026-09-27, "Extra safety checks"): a call whose schema or arguments
+ * carry a write-shaped input name (`sql`, `query`, `drop`, …; `trust.ts` `WRITE_SHAPED_INPUT_WORDS`)
+ * is asked every time — no remembered approval skips it, and its card offers nothing to remember.
+ *
  * Architectural role: `assistant` composition helper, implementing `FederationDeps.confirmCall`.
  */
 import type { AuthorizeFn, UUID } from "@jini-ai/cms/core";
@@ -80,9 +84,18 @@ function argumentDetail(name: string, value: unknown): SurfaceDetail {
   return { label: name, value: JSON.stringify(value, null, 2) ?? String(value), format: "code" };
 }
 
-/** The card's extra buttons. "Always allow" is never offered for a destructive tool, whatever `offers` says. */
+/** A call with a write-shaped input asks every time: nothing about it may be remembered. */
+function isWriteShaped(request: FederatedCallConfirmationRequest): boolean {
+  return request.writeShapedInputs.length > 0;
+}
+
+/**
+ * The card's extra buttons. "Always allow" is never offered for a destructive tool, and neither
+ * remembered approval for a write-shaped call, whatever `offers` says.
+ */
 function approvalAlternatives(request: FederatedCallConfirmationRequest, offers: FederatedCardOffers): HumanConfirmAlternative[] {
   const alternatives: HumanConfirmAlternative[] = [];
+  if (isWriteShaped(request)) return alternatives;
   if (offers.offerChat) alternatives.push({ id: "allow-chat", label: "Allow for this chat", choice: "chat" });
   if (offers.offerAlways && !request.destructive) alternatives.push({ id: "allow-always", label: "Always allow", choice: "always" });
   return alternatives;
@@ -110,13 +123,20 @@ export function buildFederatedCallConfirmSpec(
       { label: "Tool", value: request.remoteName },
       ...(argumentRows.length > 0 ? argumentRows : [{ label: "Arguments", value: "(none)" }]),
     ],
-    warning: request.destructive
-      ? `${label} marks this tool as destructive: it can delete or overwrite data, and that may not be undoable.`
-      : `This can change things in ${label}.`,
+    warning: cardWarning(request),
     danger: request.destructive,
     confirmLabel: "Allow",
     ...(alternatives.length > 0 ? { alternatives } : {}),
   };
+}
+
+function cardWarning(request: FederatedCallConfirmationRequest): string {
+  const label = request.connectionLabel;
+  const base = request.destructive
+    ? `${label} marks this tool as destructive: it can delete or overwrite data, and that may not be undoable.`
+    : `This can change things in ${label}.`;
+  if (!isWriteShaped(request)) return base;
+  return `${base} Its input ${request.writeShapedInputs.join(", ")} looks like it can change data, so Tovu asks every time.`;
 }
 
 /** Everything one call needs to look up, offer and save a remembered approval. */
@@ -152,6 +172,7 @@ async function approvalContext(
  * stops listing it — and the call asks again.
  */
 async function isRemembered(approvals: FederatedApprovalDeps, request: FederatedCallConfirmationRequest, context: ApprovalContext): Promise<boolean> {
+  if (isWriteShaped(request)) return false;
   if (context.alwaysKey && approvals.always) {
     const saved = await approvals.always.find(context.alwaysKey);
     // Never honoured for a destructive tool, even if a matching row somehow exists.
@@ -182,6 +203,8 @@ async function remember(
   context: ApprovalContext,
   choice: string | undefined,
 ): Promise<void> {
+  // A forged choice on a write-shaped card saves nothing: that call is asked every time.
+  if (isWriteShaped(request)) return;
   const grantedAt = (approvals.now?.() ?? new Date()).toISOString();
   try {
     if (choice === "chat" && context.chatKey && approvals.chat) await approvals.chat.grant(context.chatKey, grantedAt);
@@ -209,8 +232,10 @@ export function createFederatedCallConfirmer(
   return async (ctx, request): Promise<FederatedCallConfirmationOutcome> => {
     const context = await approvalContext(ctx, request, approvals);
     if (approvals && (await isRemembered(approvals, request, context))) return { confirmed: true };
-    const offerAlways = context.alwaysKey !== undefined && !request.destructive && approvals !== undefined && (await mayAlwaysAllow(ctx, approvals));
-    const spec = buildFederatedCallConfirmSpec(request, { offerChat: context.chatKey !== undefined, offerAlways });
+    const rememberable = !isWriteShaped(request);
+    const offerAlways =
+      rememberable && context.alwaysKey !== undefined && !request.destructive && approvals !== undefined && (await mayAlwaysAllow(ctx, approvals));
+    const spec = buildFederatedCallConfirmSpec(request, { offerChat: rememberable && context.chatKey !== undefined, offerAlways });
     const outcome = await requireHumanConfirm(ctx, surfaces, spec);
     if (!outcome.confirmed) return { confirmed: false, result: notConfirmedResult(outcome) };
     if (approvals) await remember(ctx, approvals, request, context, outcome.choice);

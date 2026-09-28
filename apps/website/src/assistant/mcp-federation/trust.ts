@@ -91,6 +91,10 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports
  *     What this does not fix, and cannot: a dishonest server can label a write `readOnlyHint: true`
  *     and skip the card. The mitigations are the operator allowlist (R2) and reviewed first-party
  *     plugins. A lie can only ever cost the liar its own card — it can never widen the allowlist.
+ *     One cheap check narrows it (owner rule 2026-09-27, "Extra safety checks"): a tool whose schema
+ *     or call arguments carry a write-shaped input name ({@link WRITE_SHAPED_INPUT_WORDS} — `sql`,
+ *     `query`, `drop`, …) gets the card on every call whatever its hints say, and no remembered
+ *     approval skips it (`external-mcp-call-confirmation.ts`).
  *
  * R4. SCHEMA REQUIRED. A tool whose `inputSchema` is not a JSON-Schema object is refused, matching
  *     `buildDomainRegistrations`'s identical native rule ("add one... so the model gets a contract,
@@ -205,7 +209,11 @@ export interface AdmittedFederatedTool {
    * and still be capable of writing — see R3's header paragraph on the silent-write gap this field
    * cannot close on its own. */
   readonly writeAuthorized: boolean;
-  /** How much friction each call carries — R3, {@link federatedCallConfirmationFor}. Anything but
+  /** Input names in {@link inputSchema} that look like writes ({@link WRITE_SHAPED_INPUT_WORDS}),
+   *  sorted. Non-empty means every call asks, and no remembered approval skips the card. */
+  readonly writeShapedInputs: readonly string[];
+  /** How much friction each call carries — R3, {@link federatedCallConfirmationFor} raised by
+   *  {@link writeShapedInputs}. Anything but
    *  `"none"` means every call waits on a human's Confirm before it reaches the remote. */
   readonly confirmation: FederatedCallConfirmation;
 }
@@ -363,6 +371,105 @@ export function federatedCallConfirmationFor(annotations: RemoteToolDescriptorAn
 }
 
 /**
+ * R3's write-shaped inputs (owner rule 2026-09-27, "Extra safety checks"): words that, as a whole word
+ * of an input name, say the input carries a write — SQL, a statement, a mutation, a delete. A tool
+ * with such an input gets the card on EVERY call whatever its hints say, and no remembered approval
+ * skips it. One generic list, in core: no plugin adds to it or opts out of it.
+ */
+export const WRITE_SHAPED_INPUT_WORDS: readonly string[] = [
+  "sql",
+  "query",
+  "queries",
+  "statement",
+  "statements",
+  "mutation",
+  "mutations",
+  "delete",
+  "drop",
+  "truncate",
+  "alter",
+  "insert",
+  "update",
+  "upsert",
+  "migration",
+  "migrations",
+  "ddl",
+  "exec",
+  "execute",
+  "command",
+  "script",
+];
+
+const WRITE_SHAPED_WORDS = new Set(WRITE_SHAPED_INPUT_WORDS);
+
+/** How deep {@link writeShapedInputNames} and {@link writeShapedSchemaInputNames} look into nested objects. */
+const WRITE_SHAPED_MAX_DEPTH = 8;
+
+/** `sqlText`, `delete_ids`, `DROP` → their words (`sql text`, `delete ids`, `drop`), and whether one is write-shaped. */
+function isWriteShapedName(name: string): boolean {
+  const words = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z0-9]+/);
+  return words.some((word) => WRITE_SHAPED_WORDS.has(word));
+}
+
+function sortedUnique(names: Iterable<string>): string[] {
+  return [...new Set(names)].sort();
+}
+
+/**
+ * The write-shaped key names anywhere in a call's arguments (nested objects and arrays included, to a
+ * fixed depth), sorted. A remote can accept inputs its schema never declared, so the call's own
+ * argument names count as well as the schema's.
+ *
+ * @complexity O(n) in the argument tree's size, depth-capped.
+ */
+export function writeShapedInputNames(args: unknown): string[] {
+  const found: string[] = [];
+  const walk = (value: unknown, depth: number): void => {
+    if (depth > WRITE_SHAPED_MAX_DEPTH || value === null || typeof value !== "object") return;
+    const isArray = Array.isArray(value);
+    for (const [key, child] of Object.entries(value)) {
+      if (!isArray && isWriteShapedName(key)) found.push(key);
+      walk(child, depth + 1);
+    }
+  };
+  walk(args, 0);
+  return sortedUnique(found);
+}
+
+/**
+ * The write-shaped property names a JSON Schema declares (`properties`, nested `properties` and
+ * `items`, to a fixed depth), sorted.
+ *
+ * @complexity O(n) in the schema's size, depth-capped.
+ */
+export function writeShapedSchemaInputNames(schema: unknown): string[] {
+  const found: string[] = [];
+  const walk = (node: unknown, depth: number): void => {
+    if (depth > WRITE_SHAPED_MAX_DEPTH || node === null || typeof node !== "object" || Array.isArray(node)) return;
+    const { properties, items } = node as { properties?: unknown; items?: unknown };
+    if (properties !== null && typeof properties === "object" && !Array.isArray(properties)) {
+      for (const [key, child] of Object.entries(properties)) {
+        if (isWriteShapedName(key)) found.push(key);
+        walk(child, depth + 1);
+      }
+    }
+    walk(items, depth + 1);
+  };
+  walk(schema, 0);
+  return sortedUnique(found);
+}
+
+/**
+ * R3 with write-shaped inputs: a tool with any write-shaped input never runs without a card, even
+ * when its hints claim read-only. Only ever adds friction.
+ *
+ * @complexity O(1).
+ */
+function atLeastConfirmWhenWriteShaped(confirmation: FederatedCallConfirmation, writeShapedInputs: readonly string[]): FederatedCallConfirmation {
+  return confirmation === "none" && writeShapedInputs.length > 0 ? "confirm" : confirmation;
+}
+
+/**
  * R2, reapplied to an ALREADY-ADMITTED tool against the operator's CURRENT allowlist — the
  * narrowing-only, per-call counterpart of {@link classifyRemoteTool} that `external-mcp-revocation.ts`
  * `rosterRefusalFor` uses to catch a tool an operator removed from the allowlist after admission.
@@ -431,6 +538,7 @@ function classifyRemoteTool(
 
   if (admittedCount >= config.maxTools) return { ok: false, remoteName, reason: "connection-tool-cap-reached" };
 
+  const writeShapedInputs = writeShapedSchemaInputNames(inputSchema);
   return {
     ok: true,
     tool: {
@@ -440,7 +548,8 @@ function classifyRemoteTool(
       inputSchema,
       declaredAnnotations: tool.annotations,
       writeAuthorized,
-      confirmation: federatedCallConfirmationFor(tool.annotations),
+      writeShapedInputs,
+      confirmation: atLeastConfirmWhenWriteShaped(federatedCallConfirmationFor(tool.annotations), writeShapedInputs),
     },
   };
 }

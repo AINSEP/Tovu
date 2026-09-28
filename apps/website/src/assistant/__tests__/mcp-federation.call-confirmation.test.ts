@@ -38,6 +38,8 @@ import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
 
 const PRINCIPAL_ID = "principal-g3";
 const SCHEMA = { type: "object", properties: { query: { type: "string" }, project_id: { type: "string" } } } as const;
+/** A read-only tool's inputs: nothing write-shaped (`query`, `sql`, …), which would always ask. */
+const READ_SCHEMA = { type: "object", properties: { project_id: { type: "string" } } } as const;
 
 const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
@@ -51,7 +53,7 @@ const CONFIG: FederatedMcpConnectionConfig = {
 };
 
 const TOOLS: RemoteToolDescriptor[] = [
-  { name: "list_tables", description: "Lists tables.", inputSchema: SCHEMA, annotations: { readOnlyHint: true } },
+  { name: "list_tables", description: "Lists tables.", inputSchema: READ_SCHEMA, annotations: { readOnlyHint: true } },
   { name: "execute_sql", description: "Runs SQL.", inputSchema: SCHEMA, annotations: { readOnlyHint: false, destructiveHint: true } },
   { name: "create_project", description: "Creates a project.", inputSchema: SCHEMA, annotations: { readOnlyHint: false } },
   { name: "get_advisors", description: "Advisors.", inputSchema: SCHEMA },
@@ -300,7 +302,7 @@ test("G3 card: one confirmation authorizes exactly one call — a second call ge
 });
 
 test("G3 card: destructive tools get the danger-styled card with the stronger warning; plain writes do not", async () => {
-  const base = { toolId: "mcp__supabase__x", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, declaredAnnotations: undefined, origin: undefined };
+  const base = { toolId: "mcp__supabase__x", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, declaredAnnotations: undefined, origin: undefined, description: "", inputSchema: {}, writeShapedInputs: [] };
   const destructive = buildFederatedCallConfirmSpec({ ...base, destructive: true });
   const write = buildFederatedCallConfirmSpec({ ...base, remoteName: "create_project", destructive: false });
 

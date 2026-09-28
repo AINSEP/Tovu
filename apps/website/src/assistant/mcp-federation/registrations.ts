@@ -21,6 +21,7 @@ import {
   FEDERATED_ENTITY_TYPE,
   FEDERATED_TOOL_PERMISSION,
   wrapUntrustedResult,
+  writeShapedInputNames,
   type AdmittedFederatedTool,
   type FederatedAdmissionReport,
 } from "./trust.js";
@@ -270,8 +271,9 @@ export async function federateSession(params: {
 }
 
 /**
- * G3: the per-call human gate for a tool that is not marked read-only (`trust.ts` R3). Returns
- * `null` when the call may proceed — a read-only tool, or an explicit Confirm — and otherwise the
+ * G3: the per-call human gate for a tool that is not marked read-only (`trust.ts` R3), or whose
+ * schema or arguments carry a write-shaped input name (`WRITE_SHAPED_INPUT_WORDS`). Returns
+ * `null` when the call may proceed — a read-only tool with ordinary inputs, or an explicit Confirm — and otherwise the
  * model-facing result that replaces the call. One card per call: the card is opened here, inside the
  * call it guards, and closes when answered, so one Confirm authorizes exactly one call.
  *
@@ -286,10 +288,15 @@ async function askBeforeCall(
   tool: AdmittedFederatedTool,
   args: Readonly<Record<string, unknown>>,
 ): Promise<Record<string, unknown> | null> {
-  if (tool.confirmation === "none") return null;
+  const writeShapedInputs = [...new Set([...tool.writeShapedInputs, ...writeShapedInputNames(args)])].sort();
+  if (tool.confirmation === "none" && writeShapedInputs.length === 0) return null;
   if (!deps.confirmCall) {
     throw new ToolInputError(
-      `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${tool.toolId}: this tool is not marked read-only by ${config.label}, ` +
+      `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${tool.toolId}: ${
+        tool.confirmation === "none"
+          ? `its input ${writeShapedInputs.join(", ")} looks like it can change data`
+          : `this tool is not marked read-only by ${config.label}`
+      }, ` +
         "so a person must approve each call, and nothing here can ask one. Nothing was sent.",
     );
   }
@@ -302,6 +309,9 @@ async function askBeforeCall(
     destructive: tool.confirmation === "confirm-destructive",
     declaredAnnotations: tool.declaredAnnotations,
     origin: config.origin,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    writeShapedInputs,
   });
   if (outcome.confirmed) return null;
   return { federated: { connectionId: config.connectionId, tool: tool.remoteName }, ran: false, ...outcome.result };

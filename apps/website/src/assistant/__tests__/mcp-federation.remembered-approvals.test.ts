@@ -19,6 +19,7 @@ import {
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
+import { describeFederatedTool } from "../mcp-federation/trust.js";
 import { createSqliteConversationToolApprovalStore } from "../persistence/conversation-tool-approval-store.js";
 
 /**
@@ -36,7 +37,9 @@ import { createSqliteConversationToolApprovalStore } from "../persistence/conver
 const WORKSPACE_ID = "ws-g3r";
 const PRINCIPAL_ID = "principal-g3r";
 const OTHER_PRINCIPAL_ID = "principal-other";
-const SCHEMA = { type: "object", properties: { query: { type: "string" }, name: { type: "string" } } } as const;
+// No write-shaped input names here (`sql`, `query`, …): those always ask, whatever is remembered
+// (`mcp-federation.extra-approval-checks.test.ts`).
+const SCHEMA = { type: "object", properties: { project_id: { type: "string" }, name: { type: "string" } } } as const;
 
 const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
@@ -166,7 +169,7 @@ async function callAndAnswer(
   params: Record<string, unknown>,
   options: { conversation?: string; principalId?: string } = {},
 ): Promise<Card> {
-  const { pending, cards } = call(h, name, { query: "select 1" }, options);
+  const { pending, cards } = call(h, name, { name: "one" }, options);
   await tick();
   assert.equal(cards.length, 1, `expected a card for ${name}`);
   const card = readCard(cards[0]);
@@ -178,7 +181,7 @@ async function callAndAnswer(
 /** Calls `name` and reports whether it ran without asking. */
 async function runsWithoutCard(h: Harness, name: string, options: { conversation?: string; principalId?: string } = {}): Promise<boolean> {
   const before = h.sent.length;
-  const { pending, cards } = call(h, name, { query: "select 2" }, options);
+  const { pending, cards } = call(h, name, { name: "two" }, options);
   await tick();
   if (cards.length > 0) {
     answer(h, readCard(cards[0]), name, { decision: "cancel" }, options.principalId);
@@ -219,7 +222,7 @@ test("G3 remembered: a destructive card never offers Always allow", async () => 
 });
 
 test("G3 remembered: the spec builder never offers Always allow for a destructive tool, even when asked to", () => {
-  const request = { toolId: "mcp__supabase__execute_sql", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, destructive: true, declaredAnnotations: undefined, origin: undefined };
+  const request = { toolId: "mcp__supabase__execute_sql", remoteName: "execute_sql", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, destructive: true, declaredAnnotations: undefined, origin: undefined, description: "", inputSchema: {}, writeShapedInputs: [] };
   const spec = buildFederatedCallConfirmSpec(request, { offerChat: true, offerAlways: true });
   assert.deepEqual(spec.confirmLabel, "Allow");
   assert.deepEqual(spec.alternatives?.map((entry) => entry.label), ["Allow for this chat"]);
@@ -261,6 +264,9 @@ test("G3 remembered: long or multi-line arguments render as a scrolling code blo
     destructive: true,
     declaredAnnotations: undefined,
     origin: undefined,
+    description: "",
+    inputSchema: {},
+    writeShapedInputs: ["query"],
   };
   const spec = buildFederatedCallConfirmSpec(request);
   assert.deepEqual(spec.details.map((row) => [row.label, row.format ?? "text"]), [
@@ -376,6 +382,8 @@ test("G3 remembered: Always allow runs this call, is saved per site + connection
         remoteName: "create_project",
         declaredAnnotations: { readOnlyHint: false },
         origin: { kind: "roster", admissionRevision: "rev-1" },
+        description: describeFederatedTool({ label: "Supabase", remoteName: "create_project", remoteDescription: "Creates a project." }),
+        inputSchema: SCHEMA,
       }),
       grantedByPrincipalId: PRINCIPAL_ID,
       grantedAt: "(time)",
@@ -448,7 +456,7 @@ test("G3 remembered: a changed server (a new admission revision) voids an Always
 });
 
 test("G3 remembered: the fingerprint ignores hint key order but not hint values", () => {
-  const base = { connectionId: "supabase", remoteName: "create_project", origin: { kind: "roster", admissionRevision: "rev-1" } } as const;
+  const base = { connectionId: "supabase", remoteName: "create_project", origin: { kind: "roster", admissionRevision: "rev-1" }, description: "Creates a project.", inputSchema: SCHEMA } as const;
   assert.equal(
     federatedToolApprovalFingerprint({ ...base, declaredAnnotations: { readOnlyHint: false, idempotentHint: true } }),
     federatedToolApprovalFingerprint({ ...base, declaredAnnotations: { idempotentHint: true, readOnlyHint: false } }),

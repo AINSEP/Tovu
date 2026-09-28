@@ -302,6 +302,16 @@ export interface FederatedCallConfirmationRequest {
    */
   readonly declaredAnnotations: RemoteToolDescriptor["annotations"] | undefined;
   readonly origin: FederatedConnectionOrigin | undefined;
+  /** The description the model reads (`AdmittedFederatedTool.description`) and the input schema, as
+   *  admitted — also part of that identity, so a drifted description or schema asks again. */
+  readonly description: string;
+  readonly inputSchema: Readonly<Record<string, unknown>>;
+  /**
+   * Input names, in the schema or in this call's arguments, that look like writes (`trust.ts`
+   * `WRITE_SHAPED_INPUT_WORDS`), sorted. Non-empty: the card is shown whatever the hints say, no
+   * remembered approval skips it, and it offers nothing to remember.
+   */
+  readonly writeShapedInputs: readonly string[];
 }
 
 /**
