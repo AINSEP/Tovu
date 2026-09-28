@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 
-import { getTableConfig, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
-
-import { computeCoreTableCopyOrder } from "../../platform/db/migration/manifest.js";
-import * as pgSchema from "../../platform/db/schema.postgres.js";
 import { EXCLUDED_CORE_TABLES, PARTIALLY_EXCLUDED_TABLES, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
+import { constraintSql, createTableSql, indexSql, qualified, quoteIdent, quoteLiteral, reseedIdentitySql, UNVALIDATED_TABLE } from "./postgres-ddl.js";
 import type { PostgresTargetPort } from "./postgres-target.js";
 import type { TransferSource } from "./sqlite-source.js";
+import type { TransferColumn, TransferTable } from "./table-catalog.js";
+
+export { collectTransferTables, planSnapshotTables, type SnapshotTablePlan, type TransferColumn, type TransferTable } from "./table-catalog.js";
 
 /**
  * @file The COPY-mode engine (plan slice P0): which tables go, the target DDL, the psql script, and
@@ -25,15 +25,17 @@ import type { TransferSource } from "./sqlite-source.js";
  *    other) — checked inside the transaction, so a stale plan or a race can never wipe another
  *    site's copy or someone else's data;
  * 2. drop the site's previous copy and create its schema — never `public`, never any other schema;
- * 3. create each table from `schema.postgres.ts` (columns, NOT NULL, primary key only — the generated
- *    migrations with indexes, FKs and identity columns are slice T1);
- * 4. `COPY ... FROM STDIN` every table in `computeCoreTableCopyOrder()`, minus the logins and saved
- *    keys in `exclusions.ts`;
+ * 3. create every table `table-catalog.ts` plans (core tables from `schema.postgres.ts`, the
+ *    snapshot's other tables from its own layout): columns, defaults, identity, primary key;
+ * 4. `COPY ... FROM STDIN` every table's rows (minus the logins, saved keys and secret settings in
+ *    `exclusions.ts`);
  * 5. check every table's `count(*)` against the source count and abort on any difference;
- * 6. write the marker row (site, source snapshot time, counts) and commit.
+ * 6. move identity counters past the copied numbers, build the indexes, then add CHECKs and foreign
+ *    keys (see `postgres-ddl.ts`: a key the old rows break stays NOT VALID and is reported, it never
+ *    aborts the copy);
+ * 7. write the marker row (site, source snapshot time, counts, unvalidated constraints) and commit.
  *
- * Not yet (later slices): plugin and chat tables (T2), checksums, identity reseed and staging swap
- * (T3), a sealed connection record (T4).
+ * Not yet (later slices): chat.db tables, checksums and staging swap (T3).
  */
 
 /** The schema the first site to copy into a database gets. */
@@ -74,59 +76,9 @@ function schemaCandidates(site: string): string[] {
   return [...new Set([DEFAULT_TRANSFER_SCHEMA, siteSchemaName(site), withHash(site, slug)])];
 }
 
-export interface TransferColumn {
-  readonly name: string;
-  readonly sqlType: string;
-  readonly notNull: boolean;
-}
-
-export interface TransferTable {
-  readonly name: string;
-  readonly columns: readonly TransferColumn[];
-  readonly primaryKey: readonly string[];
-  /** A source-side predicate selecting the rows that are copied; absent = every row. */
-  readonly keep?: string;
-}
-
 export interface TableCount {
   readonly table: TransferTable;
   readonly rows: number;
-}
-
-function quoteIdent(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
-}
-
-function quoteLiteral(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
-}
-
-function qualified(schema: string, table: string): string {
-  return `${quoteIdent(schema)}.${quoteIdent(table)}`;
-}
-
-function toTransferTable(table: PgTable): TransferTable {
-  const cfg = getTableConfig(table);
-  const columns = cfg.columns.map((column: PgColumn) => ({ name: column.name, sqlType: column.getSQLType(), notNull: column.notNull }));
-  const inline = cfg.columns.filter((column) => column.primary).map((column) => column.name);
-  const composite = cfg.primaryKeys.flatMap((pk) => pk.columns.map((column) => column.name));
-  const keep = PARTIALLY_EXCLUDED_TABLES[cfg.name]?.keep;
-  return { name: cfg.name, columns, primaryKey: inline.length > 0 ? inline : composite, ...(keep === undefined ? {} : { keep }) };
-}
-
-/**
- * The core tables a copy carries, in foreign-key-safe order, logins and saved keys removed.
- *
- * @complexity O(tables + foreign keys).
- */
-export function collectTransferTables(): TransferTable[] {
-  const byExportName = pgSchema as unknown as Record<string, PgTable | undefined>;
-  return computeCoreTableCopyOrder().flatMap((exportName) => {
-    const table = byExportName[exportName];
-    if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
-    const transfer = toTransferTable(table);
-    return transfer.name in EXCLUDED_CORE_TABLES ? [] : [transfer];
-  });
 }
 
 /** The core tables left out, by SQL name. */
@@ -229,26 +181,22 @@ export async function inspectTarget(target: PostgresTargetPort, site: string): P
   return { ...base, schemaState: free === null ? "foreign" : "absent", schema: free, lastCopy: null };
 }
 
-function createTableSql(schema: string, table: TransferTable): string {
-  const columns = table.columns.map((column) => `${quoteIdent(column.name)} ${column.sqlType}${column.notNull ? " NOT NULL" : ""}`);
-  if (table.primaryKey.length > 0) columns.push(`PRIMARY KEY (${table.primaryKey.map(quoteIdent).join(", ")})`);
-  return `CREATE TABLE ${qualified(schema, table.name)} (${columns.join(", ")});\n`;
-}
-
-/** One value in COPY text format: `\N` for NULL, backslash escapes for the four specials. */
-function copyField(value: unknown, table: string, column: string): string {
+/** One value in COPY text format: `\N` for NULL, backslash escapes for the four specials, `\\x<hex>` for bytes. */
+function copyField(value: unknown, table: string, column: TransferColumn): string {
   if (value === null || value === undefined) return "\\N";
   if (typeof value === "number" || typeof value === "bigint") return String(value);
   if (typeof value === "string") return value.replace(/[\\\n\r\t]/g, (ch) => (ch === "\\" ? "\\\\" : ch === "\n" ? "\\n" : ch === "\r" ? "\\r" : "\\t"));
-  throw new SourceSchemaMismatchError(`'${table}.${column}' holds binary data, which no Postgres column in this copy accepts`);
+  if (Buffer.isBuffer(value) && column.sqlType === "bytea") return `\\\\x${value.toString("hex")}`;
+  throw new SourceSchemaMismatchError(`'${table}.${column.name}' holds binary data, which its Postgres column does not accept`);
 }
 
 function* copyTableData(source: TransferSource, schema: string, table: TransferTable): Generator<string> {
   const names = table.columns.map((column) => column.name);
+  const columns = table.columns;
   yield `COPY ${qualified(schema, table.name)} (${names.map(quoteIdent).join(", ")}) FROM STDIN;\n`;
   let batch = "";
   for (const row of source.rows(table.name, names, table.keep)) {
-    batch += row.map((value, i) => copyField(value, table.name, names[i]!)).join("\t") + "\n";
+    batch += row.map((value, i) => copyField(value, table.name, columns[i]!)).join("\t") + "\n";
     if (batch.length > 256 * 1024) {
       yield batch;
       batch = "";
@@ -294,8 +242,9 @@ export interface CopyMarker {
 function markerSql(schema: string, marker: CopyMarker, counts: readonly TableCount[]): string {
   const tableCounts = JSON.stringify(Object.fromEntries(counts.map(({ table, rows }) => [table.name, rows])));
   return (
-    `CREATE TABLE ${qualified(schema, TRANSFER_MARKER_TABLE)} (site text NOT NULL, snapshot_at text NOT NULL, copied_at timestamptz NOT NULL DEFAULT now(), table_counts jsonb NOT NULL);\n` +
-    `INSERT INTO ${qualified(schema, TRANSFER_MARKER_TABLE)} (site, snapshot_at, table_counts) VALUES (${quoteLiteral(marker.site)}, ${quoteLiteral(marker.snapshotAt)}, ${quoteLiteral(tableCounts)}::jsonb);\n`
+    `CREATE TABLE ${qualified(schema, TRANSFER_MARKER_TABLE)} (site text NOT NULL, snapshot_at text NOT NULL, copied_at timestamptz NOT NULL DEFAULT now(), table_counts jsonb NOT NULL, unvalidated jsonb NOT NULL);\n` +
+    `INSERT INTO ${qualified(schema, TRANSFER_MARKER_TABLE)} (site, snapshot_at, table_counts, unvalidated) VALUES (${quoteLiteral(marker.site)}, ${quoteLiteral(marker.snapshotAt)}, ${quoteLiteral(tableCounts)}::jsonb, ` +
+    `(SELECT coalesce(jsonb_agg(name ORDER BY name), '[]'::jsonb) FROM ${UNVALIDATED_TABLE}));\n`
   );
 }
 
@@ -306,13 +255,31 @@ function* copyScript(source: TransferSource, schema: string, counts: readonly Ta
   for (const { table } of counts) yield createTableSql(schema, table);
   for (const { table } of counts) yield* copyTableData(source, schema, table);
   yield countCheckSql(schema, counts);
+  for (const { table } of counts) yield reseedIdentitySql(schema, table);
+  for (const { table } of counts) yield indexSql(schema, table);
+  yield constraintSql(schema, counts.map(({ table }) => table));
   yield markerSql(schema, marker, counts);
   yield "COMMIT;\n";
 }
 
 export type CopyResult =
-  | { readonly ok: true; readonly tables: readonly { readonly name: string; readonly rows: number }[] }
+  | {
+      readonly ok: true;
+      readonly tables: readonly { readonly name: string; readonly rows: number }[];
+      /** `table.constraint` for each CHECK or foreign key the copied rows break: kept, but NOT VALID. */
+      readonly unvalidatedConstraints: readonly string[];
+      /** Set when the copy committed but its unvalidated list could not be read back. */
+      readonly warning?: string;
+    }
   | { readonly ok: false; readonly code: "TARGET_NOT_OURS" | "COPY_FAILED" | "COUNT_MISMATCH"; readonly message: string; readonly logDetail?: string };
+
+/** The constraints the committed copy left NOT VALID, from its marker. */
+async function readUnvalidated(target: PostgresTargetPort, schema: string): Promise<{ unvalidatedConstraints: string[]; warning?: string }> {
+  const read = await target.query(`SELECT unvalidated FROM ${qualified(schema, TRANSFER_MARKER_TABLE)} LIMIT 1`);
+  const cell = read.ok ? read.value[0]?.[0] : undefined;
+  if (cell === undefined) return { unvalidatedConstraints: [], warning: "the copy finished, but its list of unchecked constraints could not be read back" };
+  return { unvalidatedConstraints: JSON.parse(cell) as string[] };
+}
 
 /**
  * Runs one copy as a single transaction (see this file's header). A failure's message names at most
@@ -332,7 +299,7 @@ export async function runCopy(input: { source: TransferSource; target: PostgresT
     if (err instanceof SourceSchemaMismatchError) return { ok: false, code: "COPY_FAILED", message: `${err.message}. Nothing was changed.` };
     throw err;
   }
-  if (result.ok) return { ok: true, tables: input.counts.map(({ table, rows }) => ({ name: table.name, rows })) };
+  if (result.ok) return { ok: true, tables: input.counts.map(({ table, rows }) => ({ name: table.name, rows })), ...(await readUnvalidated(input.target, schema)) };
   if (result.error.includes(FOREIGN_SCHEMA_SIGNAL)) {
     return { ok: false, code: "TARGET_NOT_OURS", message: `the destination already has a '${schema}' area that holds other data. Nothing was written, and it was left untouched.` };
   }

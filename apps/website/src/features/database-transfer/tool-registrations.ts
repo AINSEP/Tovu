@@ -27,13 +27,13 @@ import {
   type SurfaceMessage,
 } from "../../contracts/core/tool-surface-exchanges.js";
 import { buildConfirmationSurface, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confirmation-ui.js";
-import { collectTransferTables, countPartialExclusions, countSourceRows, inspectTarget, runCopy, SourceSchemaMismatchError } from "./copy-engine.js";
+import { countPartialExclusions, countSourceRows, inspectTarget, planSnapshotTables, runCopy, SourceSchemaMismatchError } from "./copy-engine.js";
 import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, type DatabaseDestinationStorePort, type SavedDatabaseDestination } from "./destination-store.js";
 import { buildDestinationForm, buildDestinationOutcome, DESTINATION_ADDRESS_FIELD, SET_DESTINATION_TOOL_ID } from "./destination-ui.js";
-import { EXCLUDED_CORE_TABLES, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
 import { databaseTransferPlanStore as DEFAULT_PLAN_STORE, type DatabaseTransferPlan, type DatabaseTransferPlanStore } from "./plan-store.js";
 import { createPsqlPostgresTarget, InvalidConnectionStringError, type PostgresTargetPort, type TargetDescription } from "./postgres-target.js";
 import { openSqliteSnapshotSource, type TransferSource } from "./sqlite-source.js";
+import { LEFT_OUT_REASON } from "./table-catalog.js";
 
 /**
  * @file `database_transfer_plan` (read-only) and `database_transfer_run` (human-confirmed): COPY this
@@ -208,9 +208,14 @@ async function checkTarget(target: PostgresTargetPort, site: string): Promise<{ 
 function countSnapshot(bytes: Buffer): { ok: true; tableCount: number; rowCount: number; leftOut: DatabaseTransferPlan["leftOut"] } | Refusal {
   const source = openSqliteSnapshotSource(bytes);
   try {
-    const counts = countSourceRows(source, collectTransferTables());
+    const inventory = planSnapshotTables(source);
+    const counts = countSourceRows(source, inventory.tables);
+    // The human hears about their own data left behind; the database's bookkeeping and search
+    // indexes (rebuilt from the content) are not theirs to miss.
     const leftOut = [
-      ...Object.entries(EXCLUDED_CORE_TABLES).map(([table, reason]) => ({ table, rows: source.columns(table) === null ? 0 : source.countRows(table), reason: TRANSFER_EXCLUSION_REASON_TEXT[reason] })),
+      ...inventory.leftOut
+        .filter((entry) => entry.reason !== LEFT_OUT_REASON.bookkeeping && entry.reason !== LEFT_OUT_REASON.derived)
+        .map((entry) => ({ ...entry, rows: source.countRows(entry.table) })),
       ...countPartialExclusions(source),
     ];
     return { ok: true, tableCount: counts.length, rowCount: counts.reduce((sum, count) => sum + count.rows, 0), leftOut };
@@ -306,7 +311,7 @@ async function askToConfirm(ctx: ToolExecutionContext, surfaces: AssistantSurfac
 async function copyPlanned(deps: DatabaseTransferToolDeps, plan: DatabaseTransferPlan): Promise<RunResult> {
   const source: TransferSource = openSqliteSnapshotSource(plan.snapshot);
   try {
-    const tables = collectTransferTables();
+    const { tables } = planSnapshotTables(source);
     const counts = countSourceRows(source, tables);
     const result = await runCopy({ source, target: targetFor(deps, plan.connectionString), tables, counts, schema: plan.schema, marker: { site: plan.site, snapshotAt: plan.snapshotAt } });
     if (!result.ok) {
@@ -314,6 +319,7 @@ async function copyPlanned(deps: DatabaseTransferToolDeps, plan: DatabaseTransfe
       destinationsOf(deps).recordRun(deps.workspaceId, { copied: false, snapshotAt: plan.snapshotAt, code: result.code, message: result.message });
       return { copied: false, cancelled: false, code: result.code, message: result.message };
     }
+    if (result.warning !== undefined) log(deps, `${DATABASE_TRANSFER_RUN_TOOL_ID}: ${result.warning}`);
     const rowCount = result.tables.reduce((sum, table) => sum + table.rows, 0);
     destinationsOf(deps).recordRun(deps.workspaceId, { copied: true, snapshotAt: plan.snapshotAt, tableCount: result.tables.length, rowCount });
     return {
@@ -324,6 +330,12 @@ async function copyPlanned(deps: DatabaseTransferToolDeps, plan: DatabaseTransfe
       tableCount: result.tables.length,
       rowCount,
       tables: result.tables,
+      ...(result.unvalidatedConstraints.length === 0
+        ? {}
+        : {
+            unvalidatedConstraints: result.unvalidatedConstraints,
+            note: "Some copied rows point at records that no longer exist in this site's data. Those links are kept but marked unchecked on the destination; everything was still copied.",
+          }),
     };
   } finally {
     source.close();

@@ -7,7 +7,10 @@ import test from "node:test";
 import { computeCoreTableCopyOrder } from "#src/platform/db/migration/manifest";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { connectionFor, dropDatabase, recreateDatabase, sql } from "./pg-test-db.js";
-import { collectTransferTables, countPartialExclusions, countSourceRows, DEFAULT_TRANSFER_SCHEMA, inspectTarget, runCopy, siteSchemaName, type CopyResult } from "../copy-engine.js";
+import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
+
+import * as pgSchema from "#src/platform/db/schema.postgres";
+import { collectTransferTables, countPartialExclusions, countSourceRows, DEFAULT_TRANSFER_SCHEMA, inspectTarget, planSnapshotTables, runCopy, siteSchemaName, type CopyResult } from "../copy-engine.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
 import { createPsqlPostgresTarget } from "../postgres-target.js";
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
@@ -25,11 +28,12 @@ const CONNECTION = connectionFor(FIXTURE_DB);
 const TRICKY_TEXT = "tab\there\nnew line \\ backslash \\N not-null 'quote' \"dq\" é ✓";
 
 /** A migrated content.db with rows that exercise every COPY escape, a jsonb and a boolean column, and an excluded table. */
-function fixtureSnapshot(): Buffer {
+function fixtureSnapshot(extra?: (c: ReturnType<typeof openContentDb>["$client"]) => void): Buffer {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-transfer-"));
   try {
     const db = openContentDb(path.join(dir, "content.db"));
     const c = db.$client;
+    extra?.(c);
     c.prepare(
       "INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES (?, 'ws', ?, ?, 'published', ?, '[]', '2026-09-27T00:00:00.000Z', 1)"
     ).run("menu-1", "main", TRICKY_TEXT, JSON.stringify({ items: [{ label: TRICKY_TEXT }] }));
@@ -59,7 +63,7 @@ async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureS
   assert.ok(inspected.ok && inspected.schema !== null, JSON.stringify(inspected));
   const source = openSqliteSnapshotSource(bytes);
   try {
-    const tables = collectTransferTables();
+    const { tables } = planSnapshotTables(source);
     const result = await runCopy({ source, target: TARGET(), tables, counts: countSourceRows(source, tables), schema: inspected.schema, marker: { site, snapshotAt } });
     return { schema: inspected.schema, result };
   } finally {
@@ -226,4 +230,88 @@ test("siteSchemaName: the readable per-site schema for every site after the firs
   assert.match(siteSchemaName("café"), /^tovu_caf_[0-9a-f]{8}$/, "a name that loses characters keeps a hash, so 'café' and 'caf' differ");
   assert.match(siteSchemaName("My Site!"), /^tovu_my_site_[0-9a-f]{8}$/);
   assert.notEqual(siteSchemaName("public"), "public");
+});
+
+/** The Postgres schema's own declarations for the tables a copy carries, for comparison. */
+function declaredFor(copied: ReadonlySet<string>) {
+  const out = { indexes: 0, foreignKeys: 0, checks: 0 };
+  for (const table of Object.values(pgSchema) as unknown[]) {
+    if (table === null || typeof table !== "object" || !(Symbol.for("drizzle:IsDrizzleTable") in table)) continue;
+    const cfg = getTableConfig(table as PgTable);
+    if (!copied.has(cfg.name)) continue;
+    const hasPrimaryKey = cfg.columns.some((column) => column.primary) || cfg.primaryKeys.length > 0;
+    out.indexes += cfg.indexes.length + (hasPrimaryKey ? 1 : 0) + cfg.columns.filter((column) => column.isUnique).length;
+    out.foreignKeys += cfg.foreignKeys.filter((fk) => copied.has(getTableConfig(fk.reference().foreignTable).name)).length;
+    out.checks += cfg.checks.length;
+  }
+  return out;
+}
+
+test("T1: the copy carries the schema's indexes, foreign keys, checks, defaults and identity columns, and new rows number after the copied ones", async () => {
+  const bytes = fixtureSnapshot((c) => {
+    const attempt = c.prepare("INSERT INTO agent_tool_attempts (id, attempt_id, workspace_id, run_id, tool_id, principal_id, phase, at) VALUES (?, ?, 'ws', 'r', 't', 'p', 'start', 'x')");
+    attempt.run(5, "a5");
+    attempt.run(7, "a7");
+  });
+  const { schema, result } = await copyAs("ddl-site", "x", bytes);
+  assert.ok(result.ok, JSON.stringify(result));
+  assert.deepEqual(result.unvalidatedConstraints, []);
+  const copied = new Set(result.tables.map((table) => table.name));
+  const declared = declaredFor(copied);
+  const q = (text: string) => sql(FIXTURE_DB, text);
+  assert.equal(Number(await q(`SELECT count(*) FROM pg_indexes WHERE schemaname = '${schema}' AND tablename <> '_tovu_transfer'`)), declared.indexes);
+  assert.equal(Number(await q(`SELECT count(*) FROM pg_constraint WHERE connamespace = '${schema}'::regnamespace AND contype = 'f'`)), declared.foreignKeys);
+  assert.equal(Number(await q(`SELECT count(*) FROM pg_constraint WHERE connamespace = '${schema}'::regnamespace AND contype = 'c'`)), declared.checks);
+  assert.equal(await q(`SELECT indexdef LIKE 'CREATE UNIQUE INDEX%' FROM pg_indexes WHERE schemaname = '${schema}' AND indexname = 'pk_setting_values_workspace'`), "t");
+  assert.equal(await q(`SELECT column_default FROM information_schema.columns WHERE table_schema = '${schema}' AND table_name = 'setting_values_global' AND column_name = 'state'`), "'set'::text");
+  assert.equal(await q(`SELECT is_identity || ' ' || identity_generation FROM information_schema.columns WHERE table_schema = '${schema}' AND table_name = 'agent_tool_attempts' AND column_name = 'id'`), "YES ALWAYS");
+  assert.equal(await q(`INSERT INTO "${schema}".agent_tool_attempts (attempt_id, workspace_id, run_id, tool_id, principal_id, phase, at) VALUES ('new', 'ws', 'r', 't', 'p', 'start', 'x') RETURNING id`), "8");
+  await assert.rejects(q(`INSERT INTO "${schema}".commerce_orders (id, workspace_id, status, currency, total_amount_cents, created_at, updated_at) VALUES ('o', 'ws', 'bogus', 'usd', 1, 'x', 'x')`), /violates/);
+});
+
+test("T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result", async () => {
+  const bytes = fixtureSnapshot((c) => {
+    c.pragma("foreign_keys = OFF");
+    c.prepare("INSERT INTO setting_values_workspace (setting_id, workspace_id, value_json, def_version, seq, updated_by, updated_at) VALUES ('s', 'no-such-workspace', '1', 1, 1, 'p', 'x')").run();
+  });
+  const { schema, result } = await copyAs("orphan-site", "x", bytes);
+  assert.ok(result.ok, JSON.stringify(result));
+  assert.deepEqual(result.unvalidatedConstraints, ["setting_values_workspace.setting_values_workspace_workspace_id_workspaces_id_fk"]);
+  assert.equal(await sql(FIXTURE_DB, `SELECT convalidated FROM pg_constraint WHERE connamespace = '${schema}'::regnamespace AND conname = 'setting_values_workspace_workspace_id_workspaces_id_fk'`), "f");
+  assert.equal(await count("setting_values_workspace", schema), 1);
+});
+
+test("T2: every table in the snapshot is copied or left out with a reason; a plugin's tables are copied from the snapshot's own layout", async () => {
+  const blob = Buffer.from([0, 1, 2, 254, 255, 92, 10]);
+  const bytes = fixtureSnapshot((c) => {
+    c.exec("CREATE TABLE p_demo__items (id INTEGER PRIMARY KEY, title TEXT NOT NULL, data BLOB, score REAL, status TEXT NOT NULL DEFAULT 'new')");
+    c.exec("CREATE INDEX idx_p_demo__items_title ON p_demo__items (title)");
+    c.exec("CREATE TABLE p_demo__links (id INTEGER PRIMARY KEY, item_id INTEGER NOT NULL REFERENCES p_demo__items(id) ON DELETE CASCADE, url TEXT UNIQUE)");
+    c.exec("CREATE TABLE p_demo__tokens (id INTEGER PRIMARY KEY, token_hash TEXT NOT NULL)");
+    c.prepare("INSERT INTO p_demo__items (id, title, data, score) VALUES (3, 'Three', ?, 1.5)").run(blob);
+    c.prepare("INSERT INTO p_demo__links (id, item_id, url) VALUES (1, 3, 'https://x')").run();
+    c.prepare("INSERT INTO p_demo__tokens (id, token_hash) VALUES (1, 'SECRET-TOKEN-HASH')").run();
+  });
+  const source = openSqliteSnapshotSource(bytes);
+  const inventory = planSnapshotTables(source);
+  const all = source.tableNames();
+  source.close();
+  const copied = new Set(inventory.tables.map((table) => table.name));
+  const leftOut = new Map(inventory.leftOut.map((entry) => [entry.table, entry.reason]));
+  assert.deepEqual(all.filter((name) => !copied.has(name) && !leftOut.has(name)), [], "a table on neither list");
+  assert.deepEqual(all.filter((name) => copied.has(name) && leftOut.has(name)), [], "a table on both lists");
+  assert.ok(copied.has("p_demo__items") && copied.has("p_demo__links"));
+  assert.equal(leftOut.get("p_demo__tokens"), "tables holding passwords, keys or sign-in tokens are not copied");
+  assert.equal(leftOut.get("post_search_fts"), "search indexes are rebuilt from the content, not copied");
+  assert.equal(leftOut.get("post_search_document"), "search indexes are rebuilt from the content, not copied");
+  assert.equal(leftOut.get("__drizzle_migrations"), "the database's own bookkeeping is not copied");
+
+  const { schema, result } = await copyAs("plugin-site", "x", bytes);
+  assert.ok(result.ok, JSON.stringify(result));
+  const q = (text: string) => sql(FIXTURE_DB, text);
+  assert.equal(await q(`SELECT title || ' ' || encode(data, 'hex') || ' ' || score || ' ' || status FROM "${schema}".p_demo__items`), `Three ${blob.toString("hex")} 1.5 new`);
+  assert.equal(await q(`INSERT INTO "${schema}".p_demo__items (title) VALUES ('next') RETURNING id`), "4");
+  assert.equal(await q(`SELECT count(*) FROM pg_indexes WHERE schemaname = '${schema}' AND tablename LIKE 'p_demo__%'`), "4", "two primary keys, the title index and the url unique");
+  assert.equal(await q(`SELECT confdeltype FROM pg_constraint WHERE connamespace = '${schema}'::regnamespace AND conrelid = '"${schema}".p_demo__links'::regclass AND contype = 'f'`), "c");
+  assert.equal(await q(`SELECT to_regclass('"${schema}".p_demo__tokens') IS NULL`), "t");
 });
