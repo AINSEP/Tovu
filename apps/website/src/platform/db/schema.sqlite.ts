@@ -2654,8 +2654,8 @@ export const analyticsEvents = sqliteTable(
 // `text`, `blob`, `numeric` is the complete list) and Drizzle's `customType.fromDriver` cannot
 // rewrite a SELECT to wrap the column in `json(...)`, so binary storage would mean hand-written
 // `sql` fragments at every call site. What would change this: a Drizzle `jsonb` column builder,
-// or a codegen layer that rewrites SELECTs. See `src/platform/db/sqlite/jsonb-column.ts` for the
-// (deliberately unwired) reference material this decision is grounded in.
+// or a codegen layer that rewrites SELECTs. The unwired JSONB codec this decision was grounded in
+// (`sqlite/jsonb-column.ts`) was deleted in the storage-kernel move; it is in git history.
 // ---------------------------------------------------------------------------
 
 /**
