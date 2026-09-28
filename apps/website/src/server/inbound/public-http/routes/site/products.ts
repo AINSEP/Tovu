@@ -3,7 +3,7 @@ import { toSiteProducts } from "#src/features/commerce/index";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
-import { resolveSiteTitleForRender, resolveSiteAssistantEnabledForRequest } from "./pages.js";
+import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest, resolveSiteTitleForRender, resolveSiteAssistantEnabledForRequest } from "./pages.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
 /**
@@ -31,6 +31,13 @@ import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
  *  every anonymous visitor requesting the same URL. Not shared as a cross-file export — two short,
  *  independently-readable copies over a new cross-file coupling for one string constant. */
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
+
+/** This file's two render handlers' `Cache-Control`: the shared-cacheable directive, except for a
+ *  request carrying the static-export marker, whose widget-less body must never be stored under the
+ *  plain URL (`pages.ts`'s `isStaticExportRequest` doc). */
+function cacheControlFor(req: Parameters<typeof isStaticExportRequest>[0]): string {
+  return isStaticExportRequest(req) ? CACHE_CONTROL_PRIVATE_STATIC_EXPORT : CACHE_CONTROL_PUBLIC_PAGE;
+}
 
 /**
  * 2026-08-12 (wiring products into template render data): Commerce's real catalog
@@ -92,7 +99,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
       const html = await renderSite({ theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
+      res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -124,7 +131,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
       const html = await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled });
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
+      res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }

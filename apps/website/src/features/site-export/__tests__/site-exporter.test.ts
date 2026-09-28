@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -113,6 +113,15 @@ async function enablePublicAssistant(deps: ReturnType<typeof createRouteDeps>): 
   );
 }
 
+/** The seeded demo workspace has no storefront products, which would leave `products.ts`'s two
+ *  handlers out of both the crawl and these widget tests — one sample-store product brings them in. */
+function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
+  deps.store = {
+    listProducts: () => [{ id: "prod-widget-1", slug: "widget-mug", title: "Widget Mug", price: 1200, stock: 3, version: 1 }],
+    checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+  };
+}
+
 /**
  * Static-export chat-widget gap (2026-09-27, owner decision): a static export/static-publish
  * ships no `/api/site-assistant/chat` endpoint for the visitor-chat bubble to call, so an exported
@@ -128,6 +137,7 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
 
   const deps = createRouteDeps();
   await enablePublicAssistant(deps);
+  withOneSampleProduct(deps);
 
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
@@ -143,7 +153,49 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
     /site-assistant/,
     "a static export must ship NO site-assistant markup at all — there is no /api/site-assistant/chat endpoint on a static host for the bubble to talk to"
   );
+
+  // Every route family the crawl wrote, not only the home page — a render handler that resolves the
+  // switch without the static-export carve-out would leak the widget into exactly its own files.
+  const htmlFiles = (readdirSync(outputDir, { recursive: true }) as string[]).filter((f) => f.endsWith(".html"));
+  const families = new Set(htmlFiles.map((f) => (f === "index.html" ? "home" : f.startsWith("products") ? "products" : "slug")));
+  assert.deepEqual([...families].sort(), ["home", "products", "slug"], `the fixture must exercise every widget-rendering route family; wrote ${htmlFiles.join(", ")}`);
+  for (const file of htmlFiles) {
+    assert.doesNotMatch(readFileSync(path.join(outputDir, file), "utf8"), /site-assistant/, `${file} must ship no site-assistant markup`);
+  }
 });
+
+/**
+ * The static-export marker header is public: anyone can send it to the LIVE server. Honoring it is
+ * harmless for that one visitor (they just don't get the bubble), but the widget-less body must never
+ * be stored by a shared cache under the plain URL — every page response is otherwise `public,
+ * max-age=60` with no `Vary`, so one crafted request would strip the widget from every visitor behind
+ * that cache for minutes. Covers each of the four handlers that resolve the switch.
+ */
+test("live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control", async (t) => {
+  const deps = createRouteDeps();
+  await enablePublicAssistant(deps);
+  withOneSampleProduct(deps);
+  const baseUrl = await startTestServer(createApp(deps), t);
+
+  const slugRoute = (await listPublishedSlugPaths(deps))[0];
+  assert.ok(slugRoute, "the seeded fixture must publish at least one /:slug page");
+
+  for (const route of ["/", slugRoute, "/products", "/products/widget-mug"]) {
+    const live = await fetch(`${baseUrl}${route}`);
+    assert.match(await live.text(), /\/site-chat\/site-assistant\.css[\s\S]*\/site-chat\/site-assistant\.js/, `${route}: live must ship both widget assets`);
+    assert.match(live.headers.get("cache-control") ?? "", /^public/, `${route}: an ordinary live response stays publicly cacheable`);
+
+    const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });
+    assert.doesNotMatch(await marked.text(), /site-assistant/, `${route}: the marked request must carry no widget`);
+    assert.equal(marked.headers.get("cache-control"), "private, no-store", `${route}: a widget-less body must never be stored by a shared cache`);
+  }
+});
+
+/** The `/:slug` paths of the seeded workspace's published pages/posts (excluding the `/` home row). */
+async function listPublishedSlugPaths(deps: ReturnType<typeof createRouteDeps>): Promise<string[]> {
+  const rows = await deps.postRepo.list({ workspaceId: deps.workspaceId });
+  return rows.filter((p) => p.status === "published" && p.slug !== "/").map((p) => `/${p.slug}`);
+}
 
 /**
  * LAN-bind plan (2026-09-23), Slice 1: the exporter's own temporary server (`site-exporter.ts:879`,

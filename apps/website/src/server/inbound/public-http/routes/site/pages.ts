@@ -220,6 +220,22 @@ export function resolveSiteTitleForRender(deps: RouteDeps): Promise<string> {
 const STATIC_EXPORT_REQUEST_HEADER = "x-tovu-static-export";
 
 /**
+ * Whether this request carries the exporter's {@link STATIC_EXPORT_REQUEST_HEADER} marker. The header
+ * is public — any visitor can send it to the live server — so every response rendered under it must
+ * also send {@link CACHE_CONTROL_PRIVATE_STATIC_EXPORT} instead of the shared-cacheable directive:
+ * otherwise one crafted request would let a CDN store the widget-less body under the plain URL and
+ * replay it to every visitor for the full `max-age` + `stale-while-revalidate` window.
+ */
+export function isStaticExportRequest(req: Pick<Request, "header">): boolean {
+  return Boolean(req.header(STATIC_EXPORT_REQUEST_HEADER));
+}
+
+/** What a page response sends instead of {@link CACHE_CONTROL_PUBLIC_PAGE} when rendered under the
+ *  static-export marker — see {@link isStaticExportRequest}. Same never-store literal and same
+ *  "own named constant, independent reason" shape as the form/member directives below. */
+export const CACHE_CONTROL_PRIVATE_STATIC_EXPORT = "private, no-store";
+
+/**
  * ADR-054's visitor-chat switch, resolved for ONE incoming request rather than for a workspace in
  * the abstract. Every one of this file's and `products.ts`'s four render handlers used to call
  * `isPublicAssistantEnabled` directly; collapsed here (2026-09-27) so the static-export carve-out
@@ -234,7 +250,7 @@ const STATIC_EXPORT_REQUEST_HEADER = "x-tovu-static-export";
  * showing the widget exactly as the workspace setting says.
  */
 export function resolveSiteAssistantEnabledForRequest(req: Pick<Request, "header">, deps: RouteDeps): Promise<boolean> {
-  if (req.header(STATIC_EXPORT_REQUEST_HEADER)) return Promise.resolve(false);
+  if (isStaticExportRequest(req)) return Promise.resolve(false);
   return isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId });
 }
 
@@ -2203,6 +2219,11 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
   // fired, so a request carrying both cookies can never fall back to it through either path.
   if (readRawCookie(req, MEMBER_SESSION_COOKIE) !== undefined) {
     return { result, cacheControl: CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE };
+  }
+  // The static-export marker changes the body (no visitor-chat widget), so it is a per-visitor
+  // trigger too — see {@link isStaticExportRequest}.
+  if (isStaticExportRequest(req)) {
+    return { result, cacheControl: CACHE_CONTROL_PRIVATE_STATIC_EXPORT };
   }
   return { result, cacheControl: CACHE_CONTROL_PUBLIC_PAGE };
 }

@@ -562,6 +562,14 @@ const EXPORT_FETCH_TIMEOUT_MS = 30_000;
  */
 const STATIC_EXPORT_REQUEST_HEADER = "x-tovu-static-export";
 
+/** `init.headers` may be a `Headers` instance or entry array, which an object spread silently drops —
+ *  normalized through `Headers` so the marker is added without losing a caller's own headers. */
+function withStaticExportMarker(headers: HeadersInit | undefined): Headers {
+  const merged = new Headers(headers);
+  merged.set(STATIC_EXPORT_REQUEST_HEADER, "1");
+  return merged;
+}
+
 /** The one place every fetch below goes through — adds the timeout, the {@link
  *  STATIC_EXPORT_REQUEST_HEADER} marker, and turns a thrown network or timeout failure into the
  *  same typed, non-throwing outcome `writeContentRoute` / `writeRedirectRoute` /
@@ -573,7 +581,7 @@ async function exportFetch(url: string, init?: RequestInit): Promise<{ ok: true;
   try {
     const response = await fetch(url, {
       ...init,
-      headers: { ...init?.headers, [STATIC_EXPORT_REQUEST_HEADER]: "1" },
+      headers: withStaticExportMarker(init?.headers),
       signal: AbortSignal.timeout(EXPORT_FETCH_TIMEOUT_MS),
     });
     return { ok: true, response };
