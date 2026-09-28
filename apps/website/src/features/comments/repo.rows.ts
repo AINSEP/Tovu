@@ -10,7 +10,7 @@ import type { CommentRecord, CommentStatus, ModerationAction, ModerationLogEntry
  * (`COMMENTS_DATA_MODULE` in `types.ts`) declares them.
  */
 
-export interface CommentTableRow {
+export type CommentTableRow = {
   id: string;
   workspace_id: string;
   entry_id: string;
@@ -29,9 +29,9 @@ export interface CommentTableRow {
   created_at: string;
   updated_at: string;
   version: number;
-}
+};
 
-export interface ModerationLogTableRow {
+export type ModerationLogTableRow = {
   id: string;
   workspace_id: string;
   comment_id: string;
@@ -41,13 +41,14 @@ export interface ModerationLogTableRow {
   to_status: string;
   at: string;
   note: string | null;
-}
+};
 
-/** The tables the comments repo adds to the content kernel's schema. */
-export interface CommentTables {
+/** The tables the comments repo adds to the content kernel's schema. Type aliases, not interfaces:
+ *  Kysely's `withTables` needs the implicit index signature only an alias has. */
+export type CommentTables = {
   p_comments__comments: CommentTableRow;
   p_comments__moderation_log: ModerationLogTableRow;
-}
+};
 
 export function toRecord(row: Selectable<CommentTableRow>): CommentRecord {
   return {
