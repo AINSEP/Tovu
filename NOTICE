@@ -157,6 +157,18 @@ attributed to real, identifiable people -- were replaced with fictional ones
 during porting. No external image is hotlinked by any of the three themes.
 
 --------------------------------------------------------------------------------
+8. PGlite Socket  (https://pglite.dev)  -- @electric-sql/pglite-socket 0.2.11
+--------------------------------------------------------------------------------
+Licence:   Apache-2.0
+Copyright: Copyright Electric DB Limited
+Text:      apps/website/src/platform/db/kernel/pglite-server/LICENSE
+
+Modified (not copied verbatim) into:
+  apps/website/src/platform/db/kernel/pglite-server/socket-server.ts
+
+Every change from upstream is listed in `NOTICE.md` in the same directory.
+
+--------------------------------------------------------------------------------
 KNOWN GAPS -- third-party material with no licence documentation in this repo
 --------------------------------------------------------------------------------
 

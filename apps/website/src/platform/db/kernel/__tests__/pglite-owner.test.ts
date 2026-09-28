@@ -1,0 +1,343 @@
+import assert from "node:assert/strict";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
+import { after, before, describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import { PGlite } from "@electric-sql/pglite";
+import { sql } from "kysely";
+import pg from "pg";
+
+import { jsonText, listTables, toBool } from "../dialect.js";
+import {
+  acquireOwnerLock,
+  assertSocketPathFits,
+  defaultPgliteSocketDir,
+  ensurePrivateDir,
+  OWNER_LOCK_FILE,
+  PGLITE_LOW_MEMORY_START_PARAMS,
+  PGLITE_SOCKET_FILE,
+  type PgliteOwner,
+  PgliteOwnerLockedError,
+  startPgliteOwner,
+} from "../drivers/pglite-owner.js";
+import { openPgliteSocketKernel } from "../drivers/pglite-socket.js";
+import type { StorageKernel } from "../port.js";
+import { ensurePgContentSchema } from "../../pglite/content-schema.js";
+
+/**
+ * @file The PGlite owner (`drivers/pglite-owner.ts`) and its socket clients
+ * (`drivers/pglite-socket.ts`), on real data dirs in temp directories: the version pin the
+ * ReadyForQuery fix depends on, the low-memory settings, owner-only socket permissions, the
+ * one-owner lock, kill -9 of the owner mid-write, and the storage kernel's rules through the socket.
+ */
+
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(here, "../../../../../../..");
+const scratch = mkdtempSync(join(tmpdir(), "pgo-"));
+/** One initdb per file (seconds); every test copies it. */
+const template = join(scratch, "template");
+let copies = 0;
+
+before(async () => {
+  const db = await PGlite.create({ dataDir: template, startParams: [...PGLITE_LOW_MEMORY_START_PARAMS] });
+  await db.close();
+});
+
+after(() => {
+  rmSync(scratch, { recursive: true, force: true });
+});
+
+/** A fresh data dir (a copy of the template) and a short private socket dir. */
+function freshSite(): { dataDir: string; socketDir: string } {
+  copies += 1;
+  const dataDir = join(scratch, `data-${copies}`);
+  cpSync(template, dataDir, { recursive: true });
+  return { dataDir, socketDir: join(scratch, `s${copies}`) };
+}
+
+function deadPid(): number {
+  const child = spawnSync(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], { encoding: "utf8" });
+  return Number(child.stdout);
+}
+
+test("@electric-sql/pglite is pinned to exactly 0.5.8 (the ReadyForQuery filter is version-specific)", () => {
+  const manifest = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as { dependencies: Record<string, string> };
+  assert.equal(manifest.dependencies["@electric-sql/pglite"], "0.5.8");
+  const installed = JSON.parse(
+    readFileSync(join(repoRoot, "node_modules/@electric-sql/pglite/package.json"), "utf8")
+  ) as { version: string };
+  assert.equal(installed.version, "0.5.8");
+});
+
+describe("owner lock", () => {
+  test("a live owner (this process or another) refuses; a dead pid's lock is taken over", () => {
+    const dir = mkdtempSync(join(scratch, "lock-"));
+    const release = acquireOwnerLock(dir);
+    assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.pid}\n`);
+    assert.throws(() => acquireOwnerLock(dir), PgliteOwnerLockedError);
+    release();
+    assert.equal(existsSync(join(dir, OWNER_LOCK_FILE)), false);
+
+    writeFileSync(join(dir, OWNER_LOCK_FILE), `${process.ppid}\n`);
+    assert.throws(() => acquireOwnerLock(dir), (error: PgliteOwnerLockedError) => error.pid === process.ppid);
+
+    writeFileSync(join(dir, OWNER_LOCK_FILE), `${deadPid()}\n`);
+    const takeover = acquireOwnerLock(dir);
+    assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.pid}\n`);
+    takeover();
+  });
+
+  test("release never deletes a lock that another owner has taken since", () => {
+    const dir = mkdtempSync(join(scratch, "lock-"));
+    const release = acquireOwnerLock(dir);
+    writeFileSync(join(dir, OWNER_LOCK_FILE), `${process.ppid}\n`);
+    release();
+    assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.ppid}\n`);
+  });
+});
+
+describe("socket location", () => {
+  test("socket paths over 103 bytes are refused before the data dir is touched", async () => {
+    assert.doesNotThrow(() => assertSocketPathFits(`/${"a".repeat(102)}`));
+    assert.throws(() => assertSocketPathFits(`/${"a".repeat(103)}`), /at most 103/);
+    const dataDir = join(scratch, "never-created");
+    await assert.rejects(startPgliteOwner({ dataDir }, { socketDir: `/tmp/${"d".repeat(100)}` }), /at most 103/);
+    assert.equal(existsSync(dataDir), false);
+  });
+
+  test("the default socket dir is under ~/.tovu/run, or /tmp/tovu-<uid> when home is too deep", () => {
+    const short = defaultPgliteSocketDir("/sites/a/pglite", "/Users/me");
+    assert.match(short, /^\/Users\/me\/\.tovu\/run\/[0-9a-f]{8}$/);
+    assert.equal(defaultPgliteSocketDir("/sites/a/pglite", "/Users/me"), short, "stable, so clients can find it");
+    assert.notEqual(defaultPgliteSocketDir("/sites/b/pglite", "/Users/me"), short, "one per data dir");
+    const deep = defaultPgliteSocketDir("/sites/a/pglite", `/Users/${"x".repeat(90)}`);
+    assert.equal(deep, `/tmp/tovu-${process.getuid!()}/${short.slice(-8)}`);
+    assertSocketPathFits(join(deep, PGLITE_SOCKET_FILE));
+  });
+
+  test("a socket dir that is a symlink is refused", () => {
+    const target = mkdtempSync(join(scratch, "target-"));
+    const link = join(scratch, "link");
+    symlinkSync(target, link);
+    assert.throws(() => ensurePrivateDir(link), /not a directory owned by this user/);
+  });
+});
+
+describe("a running owner", () => {
+  let owner: PgliteOwner;
+  let site: { dataDir: string; socketDir: string };
+  let kernel: StorageKernel<ProbeDb>;
+
+  before(async () => {
+    site = freshSite();
+    owner = await startPgliteOwner({ dataDir: site.dataDir }, { socketDir: site.socketDir });
+    kernel = openPgliteSocketKernel<ProbeDb>({ socketPath: owner.socketPath });
+    await kernel.execute(sql`CREATE TABLE kernel_probe (id text PRIMARY KEY NOT NULL, doc jsonb, n integer, flag boolean)`);
+  });
+
+  after(async () => {
+    await kernel.close();
+    await owner.close();
+  });
+
+  test("the socket is owner-only (0600 in a 0700 dir) and is not a TCP listener", () => {
+    assert.equal(statSync(owner.socketPath).mode & 0o777, 0o600);
+    assert.equal(statSync(owner.socketDir).mode & 0o777, 0o700);
+    assert.ok(statSync(owner.socketPath).isSocket());
+    assert.equal(owner.socketPath, join(site.socketDir, PGLITE_SOCKET_FILE));
+  });
+
+  test("the low-memory settings are live", async () => {
+    const show = async (name: string) => (await kernel.query<Record<string, string>>(sql.raw(`SHOW ${name}`)))[0]![name];
+    assert.deepEqual(
+      {
+        shared_buffers: await show("shared_buffers"),
+        work_mem: await show("work_mem"),
+        maintenance_work_mem: await show("maintenance_work_mem"),
+        wal_buffers: await show("wal_buffers"),
+        max_connections: await show("max_connections"),
+      },
+      { shared_buffers: "16MB", work_mem: "1MB", maintenance_work_mem: "8MB", wal_buffers: "256kB", max_connections: "1" }
+    );
+  });
+
+  test("a second owner for the same data dir is refused; another data dir runs side by side", async () => {
+    await assert.rejects(
+      startPgliteOwner({ dataDir: site.dataDir }, { socketDir: join(scratch, "other-sock") }),
+      (error: PgliteOwnerLockedError) => error instanceof PgliteOwnerLockedError && error.pid === process.pid
+    );
+    const other = freshSite();
+    const second = await startPgliteOwner({ dataDir: other.dataDir }, { socketDir: other.socketDir });
+    try {
+      const otherKernel = openPgliteSocketKernel<ProbeDb>({ socketPath: second.socketPath });
+      assert.equal((await listTables(otherKernel as StorageKernel<unknown>)).includes("kernel_probe"), false);
+      await otherKernel.close();
+    } finally {
+      await second.close();
+    }
+    assert.equal(existsSync(join(other.dataDir, OWNER_LOCK_FILE)), false, "close releases the lock");
+    assert.equal(existsSync(second.socketPath), false, "close removes the socket");
+  });
+
+  // ---- the storage kernel's rules, through the socket (the `pglite-socket` leg) ----
+
+  const ids = async () =>
+    (await kernel.run((db) => db.selectFrom("kernel_probe").select("id").orderBy("id").execute())).map((row) => row.id);
+  const insert = (id: string, on: StorageKernel<ProbeDb> = kernel) =>
+    on.run((db) => db.insertInto("kernel_probe").values({ id, doc: null, n: null, flag: null }).execute());
+  const reset = () => kernel.execute(sql`DELETE FROM kernel_probe`);
+
+  test("socket kernel: commit, roll back, nested join", async () => {
+    await reset();
+    await kernel.transaction(async () => insert("kept"));
+    await assert.rejects(
+      kernel.transaction(async () => {
+        await kernel.transaction(async () => insert("inner"));
+        throw new Error("outer fails");
+      }),
+      /outer fails/
+    );
+    assert.deepEqual(await ids(), ["kept"]);
+  });
+
+  test("socket kernel: a second client's write waits for the first's transaction, and survives its rollback", async () => {
+    await reset();
+    const daemon = openPgliteSocketKernel<ProbeDb>({ socketPath: owner.socketPath });
+    try {
+      let inside!: () => void;
+      const opened = new Promise<void>((resolve) => (inside = resolve));
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => (release = resolve));
+      const tx = kernel.transaction(async () => {
+        await insert("in-tx");
+        inside();
+        await released;
+        throw new Error("roll back");
+      });
+      await opened;
+      const outside = insert("from-daemon", daemon);
+      release();
+      await assert.rejects(tx, /roll back/);
+      await outside;
+      assert.deepEqual(await ids(), ["from-daemon"]);
+    } finally {
+      await daemon.close();
+    }
+  });
+
+  test("socket kernel: lockKey, booleans, JSON and an ON CONFLICT upsert", async () => {
+    await reset();
+    const doc = JSON.stringify({ meta: { lang: "en" } });
+    const upsert = (n: number, flag: boolean) =>
+      kernel.transaction(async () => {
+        await kernel.lockKey("probe:upsert");
+        await kernel.run((db) =>
+          db
+            .insertInto("kernel_probe")
+            .values({ id: "x", doc, n, flag })
+            .onConflict((oc) => oc.column("id").doUpdateSet((eb) => ({ n: eb.ref("excluded.n"), flag: eb.ref("excluded.flag") })))
+            .execute()
+        );
+      });
+    await upsert(1, true);
+    await upsert(2, false);
+    const [row] = await kernel.query<{ n: number; flag: boolean; lang: string }>(
+      sql`SELECT n, flag, ${jsonText(kernel.dialect, sql.ref("doc"), ["meta", "lang"])} AS lang FROM kernel_probe`
+    );
+    assert.deepEqual({ n: row!.n, flag: toBool(row!.flag), lang: row!.lang }, { n: 2, flag: false, lang: "en" });
+  });
+
+  test("the content schema installs through runExclusive and is visible to socket clients", async () => {
+    await owner.runExclusive((db) => ensurePgContentSchema(db));
+    const tables = await listTables(kernel as StorageKernel<unknown>);
+    assert.ok(tables.includes("posts"), `content tables present: ${tables.length}`);
+  });
+});
+
+// ---- kill -9 of the owner mid-write ----
+
+interface ProbeDb {
+  kernel_probe: { id: string; doc: string | null; n: number | null; flag: boolean | null };
+}
+
+async function spawnOwner(dataDir: string, socketDir: string): Promise<ChildProcess> {
+  const child = spawn(process.execPath, ["--import", "tsx", join(here, "fixtures/pglite-owner-child.ts"), dataDir, socketDir], {
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  const ready = await new Promise<string>((resolve, reject) => {
+    createInterface({ input: child.stdout! }).once("line", resolve);
+    child.once("exit", (code) => reject(new Error(`owner child exited ${code} before it was ready`)));
+  });
+  assert.equal((JSON.parse(ready) as { ready: boolean }).ready, true);
+  return child;
+}
+
+async function client(socketDir: string): Promise<pg.Client> {
+  const each = new pg.Client({ host: socketDir, port: 5432, user: "postgres", database: "postgres" });
+  each.on("error", () => {});
+  await each.connect();
+  return each;
+}
+
+async function killHard(child: ChildProcess): Promise<void> {
+  const exited = new Promise((resolve) => child.once("exit", resolve));
+  child.kill("SIGKILL");
+  await exited;
+}
+
+test("kill -9 of the owner mid-write: reopen keeps every acked row, no uncommitted row, and takes over the stale lock and socket", async () => {
+  const { dataDir, socketDir } = freshSite();
+  const children: ChildProcess[] = [];
+  try {
+    // Round 1: an autocommit writer in flight.
+    const first = await spawnOwner(dataDir, socketDir);
+    children.push(first);
+    const writer = await client(socketDir);
+    await writer.query("CREATE TABLE crash_probe (i integer, tag text)");
+    const acked: number[] = [];
+    const writing = (async () => {
+      for (let i = 0; ; i += 1) {
+        await writer.query("INSERT INTO crash_probe VALUES ($1, 'acked')", [i]);
+        acked.push(i);
+      }
+    })().catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await killHard(first);
+    await writing;
+    assert.ok(acked.length > 0, "the writer was acked before the kill");
+    assert.equal(existsSync(join(dataDir, OWNER_LOCK_FILE)), true, "kill -9 leaves the lock behind");
+
+    // Round 2: a new owner takes over the stale lock; a big transaction is open when it dies.
+    const second = await spawnOwner(dataDir, socketDir);
+    children.push(second);
+    const open = await client(socketDir);
+    await open.query("BEGIN");
+    await open.query("INSERT INTO crash_probe SELECT g, 'uncommitted' FROM generate_series(1, 500) g");
+    await killHard(second);
+    await open.end().catch(() => {});
+    await writer.end().catch(() => {});
+
+    const owner = await startPgliteOwner({ dataDir }, { socketDir });
+    try {
+      const reader = await client(socketDir);
+      const tags = await reader.query<{ tag: string }>("SELECT DISTINCT tag FROM crash_probe");
+      const acks = await reader.query<{ count: number; distinct: number; min: number; max: number }>(
+        "SELECT count(*)::int AS count, count(DISTINCT i)::int AS distinct, min(i) AS min, max(i) AS max FROM crash_probe"
+      );
+      await reader.end();
+      assert.deepEqual(tags.rows.map((row) => row.tag), ["acked"], "no uncommitted row survived");
+      const { count, distinct, min, max } = acks.rows[0]!;
+      // The insert in flight at the kill may or may not have committed; every acked one did.
+      assert.ok(count === acked.length || count === acked.length + 1, `rows ${count}, acked ${acked.length}`);
+      assert.deepEqual({ distinct, min, max: max - (count - acked.length) }, { distinct: count, min: 0, max: acked.at(-1) });
+    } finally {
+      await owner.close();
+    }
+  } finally {
+    for (const child of children) if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+  }
+});
