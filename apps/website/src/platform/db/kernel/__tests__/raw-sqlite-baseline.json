@@ -130,9 +130,6 @@
   "apps/website/src/features/presentation/repo.sqlite.ts": {
     "sync-terminal": 2
   },
-  "apps/website/src/features/redirects/repo.sqlite.ts": {
-    "sync-terminal": 4
-  },
   "apps/website/src/features/taxonomy/repo.sqlite.ts": {
     "sync-terminal": 21
   },
