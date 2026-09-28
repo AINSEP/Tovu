@@ -20,7 +20,7 @@ import type Database from "better-sqlite3";
 
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { SqlNewsletterCampaignRepo } from "./repo.js";
+import { SqlNewsletterCampaignRepo, SqlNewsletterListRepo } from "./repo.js";
 import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest.js";
 import type {
   NewsletterAudienceSnapshotRepoPort,
@@ -55,74 +55,10 @@ export class SqliteNewsletterCampaignRepo extends SqlNewsletterCampaignRepo {
  * The 5 p_newsletter__* tables — raw SQL, declareDataModule()-created (ADR-023 §7/§8)
  * ------------------------------------------------------------------------------------------------ */
 
-interface ListDbRow {
-  id: string;
-  workspace_id: string;
-  name: string;
-  slug: string;
-  is_default: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-const toListRow = (r: ListDbRow): NewsletterListRow => ({
-  id: r.id,
-  workspaceId: r.workspace_id,
-  name: r.name,
-  slug: r.slug,
-  isDefault: r.is_default === 1,
-  status: r.status as NewsletterListRow["status"],
-  createdAt: r.created_at,
-  updatedAt: r.updated_at,
-});
-
-export class SqliteNewsletterListRepo implements NewsletterListRepoPort {
-  private readonly table = NEWSLETTER_TABLE_NAMES.lists;
-  constructor(private readonly db: ContentDb) {}
-  private get client(): Database.Database {
-    return rawClient(this.db);
-  }
-
-  async findById(required: { workspaceId: string; id: string }): Promise<NewsletterListRow | null> {
-    const row = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND id = ?`)
-      .get(required.workspaceId, required.id) as ListDbRow | undefined;
-    return row ? toListRow(row) : null;
-  }
-
-  async findDefault(required: { workspaceId: string }): Promise<NewsletterListRow | null> {
-    const row = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ? AND is_default = 1`)
-      .get(required.workspaceId) as ListDbRow | undefined;
-    return row ? toListRow(row) : null;
-  }
-
-  async list(required: { workspaceId: string }): Promise<NewsletterListRow[]> {
-    const rows = this.client
-      .prepare(`SELECT * FROM "${this.table}" WHERE workspace_id = ?`)
-      .all(required.workspaceId) as ListDbRow[];
-    return rows.map(toListRow);
-  }
-
-  async save(row: NewsletterListRow): Promise<void> {
-    this.client
-      .prepare(
-        `INSERT INTO "${this.table}" (id, workspace_id, name, slug, is_default, status, created_at, updated_at)
-         VALUES (@id, @workspaceId, @name, @slug, @isDefault, @status, @createdAt, @updatedAt)
-         ON CONFLICT(id) DO UPDATE SET
-           name = excluded.name, slug = excluded.slug, is_default = excluded.is_default,
-           status = excluded.status, updated_at = excluded.updated_at`
-      )
-      .run({
-        id: row.id,
-        workspaceId: row.workspaceId,
-        name: row.name,
-        slug: row.slug,
-        isDefault: row.isDefault ? 1 : 0,
-        status: row.status,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      });
+export class SqliteNewsletterListRepo extends SqlNewsletterListRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 

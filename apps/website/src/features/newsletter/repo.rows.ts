@@ -1,13 +1,98 @@
 import type { Insertable, Selectable } from "kysely";
 
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
-import type { CampaignCounters, CampaignRecord, CampaignRevision } from "./types.js";
+import { toBool } from "../../platform/db/kernel/index.js";
+import type {
+  AudienceSnapshotRow,
+  CampaignCounters,
+  CampaignRecord,
+  CampaignRevision,
+  ConfirmationTokenRecord,
+  NewsletterListRow,
+  SendRow,
+  SubscriptionRow,
+} from "./types.js";
 
 /**
  * @file Row types and mapping for the newsletter tables, shared by every dialect. The campaign pair
  * is in the migrated core schema, so its columns are the generated `ContentDatabase` types
- * (snake_case, JSON as compact text). Neutral on purpose: no repo, no driver.
+ * (snake_case, JSON as compact text). The five `p_newsletter__*` tables are created by the
+ * dataModule engine (`data-module-manifest.ts`), not the migrated schema, so they are NOT in
+ * `ContentDatabase`: the repo brings them into a query with Kysely's `withTables<NewsletterTables>()`.
+ * Neutral on purpose: no repo, no driver.
  */
+
+export type ListTableRow = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  slug: string;
+  is_default: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SubscriptionTableRow = {
+  id: string;
+  workspace_id: string;
+  list_id: string;
+  subscriber_id: string;
+  status: string;
+  source: string;
+  consent_revision_id_at_subscribe: string | null;
+  subscribed_at: string | null;
+  unsubscribed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AudienceSnapshotTableRow = {
+  id: string;
+  workspace_id: string;
+  campaign_id: string;
+  list_id: string;
+  recipient_count: number;
+  created_at: string;
+};
+
+export type SendTableRow = {
+  id: string;
+  workspace_id: string;
+  campaign_id: string;
+  audience_snapshot_id: string;
+  subscriber_id: string;
+  recipient_email: string;
+  status: string;
+  attempts: number;
+  idempotency_key: string;
+  provider_message_id: string | null;
+  last_error: string | null;
+  next_attempt_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ConfirmationTokenTableRow = {
+  id: string;
+  workspace_id: string;
+  subscription_id: string;
+  token_hash: string;
+  purpose: string;
+  created_at: string;
+  expires_at: string;
+  consumed_at: string | null;
+};
+
+/** The tables the newsletter repos add to the content kernel's schema. Type aliases, not interfaces:
+ *  Kysely's `withTables` needs the implicit index signature only an alias has. */
+export type NewsletterTables = {
+  p_newsletter__lists: ListTableRow;
+  p_newsletter__subscriptions: SubscriptionTableRow;
+  p_newsletter__audience_snapshots: AudienceSnapshotTableRow;
+  p_newsletter__sends: SendTableRow;
+  p_newsletter__confirmation_tokens: ConfirmationTokenTableRow;
+};
 
 export type CampaignTableRow = Selectable<ContentDatabase["newsletter_campaigns"]>;
 export type CampaignRevisionTableRow = Selectable<ContentDatabase["newsletter_campaign_revisions"]>;
@@ -77,4 +162,38 @@ export function toCampaignRevision(row: CampaignRevisionTableRow): CampaignRevis
     actorId: row.actor_id,
     recordedAt: row.recorded_at,
   };
+}
+
+/** One `p_newsletter__lists` row as a {@link NewsletterListRow}; `is_default` is read through `toBool`. */
+export function toListRecord(row: Selectable<ListTableRow>): NewsletterListRow {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    name: row.name,
+    slug: row.slug,
+    isDefault: toBool(row.is_default) === true,
+    status: row.status as NewsletterListRow["status"],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** The `p_newsletter__lists` row an INSERT writes. */
+export function toListRow(row: NewsletterListRow): Insertable<ListTableRow> {
+  return {
+    id: row.id,
+    workspace_id: row.workspaceId,
+    name: row.name,
+    slug: row.slug,
+    is_default: row.isDefault ? 1 : 0,
+    status: row.status,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
+
+/** The columns a re-save of a list overwrites: everything except the key, workspace and creation time. */
+export function updatableListColumns(row: Insertable<ListTableRow>) {
+  const { id: _id, workspace_id: _workspace, created_at: _created, ...updatable } = row;
+  return updatable;
 }

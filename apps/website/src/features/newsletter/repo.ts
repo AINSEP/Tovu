@@ -1,7 +1,16 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { CampaignOutcomeCounter, NewsletterCampaignRepoPort } from "./ports.js";
-import { toCampaignRecord, toCampaignRevision, toCampaignRow, updatableCampaignColumns } from "./repo.rows.js";
-import type { CampaignCounters, CampaignRecord, CampaignRevision } from "./types.js";
+import type { CampaignOutcomeCounter, NewsletterCampaignRepoPort, NewsletterListRepoPort } from "./ports.js";
+import {
+  type NewsletterTables,
+  toCampaignRecord,
+  toCampaignRevision,
+  toCampaignRow,
+  toListRecord,
+  toListRow,
+  updatableCampaignColumns,
+  updatableListColumns,
+} from "./repo.rows.js";
+import type { CampaignCounters, CampaignRecord, CampaignRevision, NewsletterListRow } from "./types.js";
 
 /**
  * @file THE newsletter repositories: one Kysely query body for every database the storage kernel
@@ -130,4 +139,66 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
 /** The newsletter campaign repo for `kernel`. */
 export function newsletterCampaignRepoFor(kernel: ContentKernel): SqlNewsletterCampaignRepo {
   return new SqlNewsletterCampaignRepo(kernel);
+}
+
+export class SqlNewsletterListRepo implements NewsletterListRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findById(required: { workspaceId: string; id: string }): Promise<NewsletterListRow | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__lists")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("id", "=", required.id)
+        .executeTakeFirst()
+    );
+    return row ? toListRecord(row) : null;
+  }
+
+  async findDefault(required: { workspaceId: string }): Promise<NewsletterListRow | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__lists")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("is_default", "=", 1)
+        .orderBy("id", "asc")
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toListRecord(row) : null;
+  }
+
+  async list(required: { workspaceId: string }): Promise<NewsletterListRow[]> {
+    const rows = await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .selectFrom("p_newsletter__lists")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .orderBy("id", "asc")
+        .execute()
+    );
+    return rows.map(toListRecord);
+  }
+
+  async save(row: NewsletterListRow): Promise<void> {
+    const values = toListRow(row);
+    await this.kernel.run((db) =>
+      db
+        .withTables<NewsletterTables>()
+        .insertInto("p_newsletter__lists")
+        .values(values)
+        .onConflict((oc) => oc.column("id").doUpdateSet(updatableListColumns(values)))
+        .execute()
+    );
+  }
+}
+
+/** The newsletter list repo for `kernel`. */
+export function newsletterListRepoFor(kernel: ContentKernel): SqlNewsletterListRepo {
+  return new SqlNewsletterListRepo(kernel);
 }

@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { sql } from "kysely";
+
+import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { newsletterCampaignRepoFor } from "../repo.js";
-import type { CampaignRecord, CampaignRevision } from "../types.js";
+import { newsletterCampaignRepoFor, newsletterListRepoFor } from "../repo.js";
+import type { CampaignRecord, CampaignRevision, NewsletterListRow } from "../types.js";
 
 /**
  * @file The six newsletter repos on every dialect through the kernel's matrix (`describeEachDialect`
@@ -20,8 +22,22 @@ const OTHER = "ws-other";
 const T0 = "2026-09-28T00:00:00.000Z";
 const T1 = "2026-09-28T01:00:00.000Z";
 
-function repos(kernel: ContentKernel) {
-  return { kernel, campaigns: newsletterCampaignRepoFor(kernel) };
+const CREATE_TABLES = [
+  sql`DROP TABLE IF EXISTS p_newsletter__lists`,
+  sql`CREATE TABLE p_newsletter__lists (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
+    is_default INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+];
+
+function repos(base: ContentKernel) {
+  const pending = CREATE_TABLES.reduce((chain, statement) => chain.then(() => base.execute(statement)), Promise.resolve());
+  pending.catch(() => {});
+  const kernel = heldUntil(base, pending);
+  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel) };
+}
+
+function list(id: string, overrides: Partial<NewsletterListRow> = {}): NewsletterListRow {
+  return { id, workspaceId: WS, name: `List ${id}`, slug: `slug-${id}`, isDefault: false, status: "active", createdAt: T0, updatedAt: T0, ...overrides };
 }
 
 function campaign(id: string, overrides: Partial<CampaignRecord> = {}): CampaignRecord {
@@ -150,6 +166,58 @@ describeEachDialect(
         );
         assert.equal(await campaigns.findById({ workspaceId: WS, id: "c1" }), null);
         assert.deepEqual(await campaigns.listRevisions({ workspaceId: WS, campaignId: "c1" }), []);
+      });
+    });
+
+    describe("list repo", () => {
+      test("save then findById round-trips; misses and other workspaces are null", async () => {
+        const { lists } = makeRepos();
+        await lists.save(list("l1", { isDefault: true }));
+        assert.deepEqual(await lists.findById({ workspaceId: WS, id: "l1" }), list("l1", { isDefault: true }));
+        assert.equal(await lists.findById({ workspaceId: WS, id: "nope" }), null);
+        assert.equal(await lists.findById({ workspaceId: OTHER, id: "l1" }), null);
+      });
+
+      test("findDefault returns only the workspace's default list", async () => {
+        const { lists } = makeRepos();
+        assert.equal(await lists.findDefault({ workspaceId: WS }), null);
+        await lists.save(list("l1"));
+        await lists.save(list("l2", { isDefault: true }));
+        await lists.save(list("lx", { workspaceId: OTHER, isDefault: true }));
+        assert.equal((await lists.findDefault({ workspaceId: WS }))?.id, "l2");
+        assert.equal((await lists.findDefault({ workspaceId: OTHER }))?.id, "lx");
+        assert.equal(await lists.findDefault({ workspaceId: "empty" }), null);
+      });
+
+      test("list is scoped to the workspace and ordered by id", async () => {
+        const { lists } = makeRepos();
+        for (const id of ["l2", "l1"]) await lists.save(list(id));
+        await lists.save(list("lx", { workspaceId: OTHER }));
+        assert.deepEqual((await lists.list({ workspaceId: WS })).map((l) => l.id), ["l1", "l2"]);
+        assert.deepEqual(await lists.list({ workspaceId: "empty" }), []);
+      });
+
+      test("re-saving updates name, slug, default flag, status and updatedAt but keeps createdAt", async () => {
+        const { lists } = makeRepos();
+        await lists.save(list("l1"));
+        await lists.save(list("l1", { name: "Renamed", slug: "renamed", isDefault: true, status: "archived", createdAt: T1, updatedAt: T1 }));
+        assert.deepEqual(
+          await lists.findById({ workspaceId: WS, id: "l1" }),
+          list("l1", { name: "Renamed", slug: "renamed", isDefault: true, status: "archived", createdAt: T0, updatedAt: T1 })
+        );
+        assert.equal((await lists.list({ workspaceId: WS })).length, 1);
+      });
+
+      test("a failed save inside a rolled-back transaction leaves no list behind", async () => {
+        const { kernel, lists } = makeRepos();
+        await assert.rejects(
+          kernel.transaction(async () => {
+            await lists.save(list("l1"));
+            throw new Error("boom");
+          }),
+          /boom/
+        );
+        assert.equal(await lists.findById({ workspaceId: WS, id: "l1" }), null);
       });
     });
   }
