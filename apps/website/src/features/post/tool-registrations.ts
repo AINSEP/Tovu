@@ -48,6 +48,7 @@ import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
   indexCatalogById,
+  optionalBoolean,
   optionalNumber,
   optionalString,
   requireInputRecord,
@@ -115,7 +116,7 @@ import {
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
-import { searchAdminPosts, type PostSearchPort } from "./search.js";
+import { extractPostPlainText, searchAdminPosts, type PostSearchPort } from "./search.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
@@ -481,6 +482,61 @@ function toPostToolViewWithPublicUrl(routeDeps: PostToolDeps, post: PostRecord):
 }
 
 /**
+ * Plain-text characters one `content_post_list` call returns across all its rows (2026-09-28).
+ * The listing used to return every row's full TipTap `bodyJson`: a real "summarize my 6 posts" turn
+ * got 67.7 KB back through the MCP bridge, over Claude Code's MCP output cap, so the CLI saved it to
+ * a file and the model spent extra rounds reading it back. Now each row carries a plain-text
+ * `excerpt` instead, and the budget is split evenly across the rows returned: a small inventory
+ * gets whole bodies (no follow-up reads), a default 50-row page gets 600 characters each. Never
+ * less than {@link POST_LIST_MIN_EXCERPT_CHARS} per row. `includeBody: true`, or a read by id,
+ * returns the full body.
+ */
+export const POST_LIST_TEXT_BUDGET = 30_000;
+
+/** The per-row excerpt floor, however many rows a listing returns. */
+export const POST_LIST_MIN_EXCERPT_CHARS = 300;
+
+/** A listing row without `bodyJson`: see {@link POST_LIST_TEXT_BUDGET}. */
+type PostListRow = Omit<PostToolViewWithPublicUrl, "bodyJson"> & { excerpt: string; bodyChars: number };
+
+/**
+ * Cuts `text` to at most `maxChars` characters, on a word boundary when one is near the end, and
+ * appends "…" when anything was cut, so a cut excerpt never reads as the whole body.
+ * @complexity O(n) in the text length.
+ */
+function toExcerpt(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  const head = text.slice(0, maxChars);
+  const lastSpace = head.lastIndexOf(" ");
+  const cut = lastSpace > maxChars * 0.8 ? head.slice(0, lastSpace) : head;
+  return `${cut.trimEnd()}…`;
+}
+
+/** Per-row excerpt length for a listing of `rowCount` rows: see {@link POST_LIST_TEXT_BUDGET}. */
+function excerptCharsFor(rowCount: number): number {
+  return Math.max(POST_LIST_MIN_EXCERPT_CHARS, Math.floor(POST_LIST_TEXT_BUDGET / Math.max(1, rowCount)));
+}
+
+/** The compact listing row: {@link toPostToolViewWithPublicUrl} minus `bodyJson`, plus a plain-text
+ *  `excerpt` and the full plain-text length as `bodyChars`. */
+function toPostListRow(routeDeps: PostToolDeps, post: PostRecord, excerptChars: number): PostListRow {
+  const text = extractPostPlainText(post.bodyJson);
+  return {
+    id: post.id,
+    kind: post.kind,
+    title: post.title,
+    slug: post.slug,
+    status: post.status,
+    updatedAt: post.updatedAt,
+    version: post.version,
+    publicUrl: resolvePublicUrl(routeDeps, post),
+    adminUrl: resolveAdminUrl(post),
+    excerpt: toExcerpt(text, excerptChars),
+    bodyChars: text.length,
+  };
+}
+
+/**
  * Reads the row `content_post_delete` is about to gate on, applying the same not-found rules
  * `content_post_get` uses (kind mismatch and trashed rows both read as not-found — a second delete
  * cannot "succeed"). Throws `PostNotFoundError` rather than returning `null` because there is no
@@ -615,6 +671,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
       const kind = requirePostKind(input);
       const limit = clampPostListLimit(optionalNumber(input, "limit"));
+      const includeBody = optionalBoolean(input, "includeBody") === true;
       const { posts: allPosts } =
         kind === "post"
           ? await listAdminPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } })
@@ -623,7 +680,9 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const total = allPosts.length;
       const posts = allPosts.slice(0, limit);
       return {
-        posts: posts.map((post) => toPostToolViewWithPublicUrl(routeDeps, post)),
+        posts: posts.map((post) =>
+          includeBody ? toPostToolViewWithPublicUrl(routeDeps, post) : toPostListRow(routeDeps, post, excerptCharsFor(posts.length)),
+        ),
         total,
         hasMore: total > posts.length,
       };

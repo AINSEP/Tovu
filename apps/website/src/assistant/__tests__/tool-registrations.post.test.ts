@@ -489,7 +489,8 @@ test("workflow (post): create a post, give it a real TipTap body, publish it, th
 
   // Step 4: list — the published post must appear in a FRESH read, proving state actually
   // persisted rather than the tool merely reporting success.
-  const listed = (await wired("content_read.content_post", deps).handler(executionContext({ kind: "post" }))) as {
+  // includeBody:true — the listing is compact (excerpt, no bodyJson) by default since 2026-09-28.
+  const listed = (await wired("content_read.content_post", deps).handler(executionContext({ kind: "post", includeBody: true }))) as {
     posts: Array<{ id: string; status: string; version: number; bodyJson: unknown }>;
   };
   const row = listed.posts.find((p) => p.id === postId);

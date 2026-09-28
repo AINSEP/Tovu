@@ -718,8 +718,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "match first. Drafts are included; trashed items are never returned. " +
       "Returns SUMMARIES ONLY — id, kind, title, slug, status, updatedAt, a short body snippet, and a relevance score. " +
       "It deliberately does NOT return bodyJson: call content_read.content_post WITH the id once you have picked a result. " +
-      "PREFER THIS OVER content_read.content_post's listing mode for finding things — listing has no query and returns the full body " +
-      "of every row, which will flood your context on a site with real content. Use that listing mode only when you " +
+      "PREFER THIS OVER content_read.content_post's listing mode for finding things — listing has no query and returns every row " +
+      "of one kind (each with a plain-text excerpt), which gets long on a site with real content. Use that listing mode only when you " +
       "genuinely need the complete inventory of one kind. " +
       "Scores are relative within one result set (higher is better) and are not comparable across different queries; " +
       "an empty result means no post or page contains any of your terms, so try fewer or more general words.",
@@ -760,8 +760,11 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_list",
     description:
-      "Lists posts or pages in the workspace (id, kind, title, slug, status, bodyJson, updatedAt, version, publicUrl) — drafts " +
-      "included. publicUrl is the row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page — " +
+      "Lists posts or pages in the workspace (id, kind, title, slug, status, updatedAt, version, publicUrl, adminUrl, excerpt, " +
+      "bodyChars) — drafts included. excerpt is the body's plain text: whole for a short list, cut shorter the more rows " +
+      "are returned (at least 300 characters, ending in '…' when cut); " +
+      "bodyChars is the full plain-text length. Pass includeBody:true to get every row's full bodyJson instead of excerpt/" +
+      "bodyChars, or read one post WITH its id for its bodyJson. publicUrl is the row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page — " +
       "or null for a draft/unpublished row, since it has no live link yet. " +
       "Mirrors the admin Posts/Pages list screens exactly: kind is required because there is no combined 'list everything' admin " +
       "screen to mirror, and no status/date filter is available because neither list route exposes one. " +
@@ -781,6 +784,12 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
           minimum: 1,
           maximum: MAX_POST_LIST_LIMIT,
           description: `Maximum rows to return. Defaults to ${DEFAULT_POST_LIST_LIMIT}; values above ${MAX_POST_LIST_LIMIT} are clamped to ${MAX_POST_LIST_LIMIT} rather than rejected.`,
+        },
+        includeBody: {
+          type: "boolean",
+          description:
+            "Listing only. true returns each row's full TipTap bodyJson (large) instead of the plain-text excerpt/bodyChars. " +
+            "Default false. Prefer reading one post by id when you need only a few full bodies.",
         },
       },
     },
