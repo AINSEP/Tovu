@@ -1,14 +1,19 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
   MagicLinkTokenRepoPort,
+  MemberConsentRepoPort,
   MemberRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
 } from "./ports.js";
 import {
+  toConsentRevisionRow,
   toMagicLinkTokenRecord,
   toMagicLinkTokenRow,
+  toMemberConsentRecord,
+  toMemberConsentRevisionRecord,
+  toMemberConsentRow,
   toMemberRecord,
   toMemberRow,
   toMemberSessionRecord,
@@ -18,7 +23,15 @@ import {
   toMemberTierRecord,
   toMemberTierRow,
 } from "./repo.rows.js";
-import type { MagicLinkTokenRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "./types.js";
+import type {
+  ConsentPurpose,
+  MagicLinkTokenRecord,
+  MemberConsentRecord,
+  MemberConsentRevisionRecord,
+  MemberSessionRecord,
+  MemberSubscriptionRecord,
+  MemberTierRecord,
+} from "./types.js";
 
 /**
  * @file THE members repositories: one Kysely query body for every database the storage kernel drives
@@ -349,6 +362,75 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
   }
 }
 
+/**
+ * D1c consent adapter (ADR-PIPE-013 Decision §4-5). Backs both `member_consents` and the shared
+ * `member_revisions` ledger (`entity_kind='consent'`). `save` is a single upsert by id, so it needs
+ * no lock; the `(workspace, member, purpose)` unique index is the backstop for a second consent row.
+ * `transaction` is the kernel's: `consent-service.ts` awaits repo calls inside it.
+ */
+export class SqlMemberConsentRepo implements MemberConsentRepoPort {
+  constructor(protected readonly kernel: ContentKernel) {}
+
+  async findByMemberAndPurpose(required: {
+    workspaceId: string;
+    memberId: string;
+    purpose: ConsentPurpose;
+  }): Promise<MemberConsentRecord | null> {
+    const row = await this.kernel.run((db) =>
+      db
+        .selectFrom("member_consents")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("member_id", "=", required.memberId)
+        .where("purpose", "=", required.purpose)
+        .limit(1)
+        .executeTakeFirst()
+    );
+    return row ? toMemberConsentRecord(row) : null;
+  }
+
+  async save(record: MemberConsentRecord): Promise<void> {
+    const row = toMemberConsentRow(record);
+    await this.kernel.run((db) =>
+      db
+        .insertInto("member_consents")
+        .values(row)
+        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
+        .execute()
+    );
+  }
+
+  /** Appends one consent revision and returns its `seq`. */
+  async appendRevision(record: Omit<MemberConsentRevisionRecord, "seq">): Promise<number> {
+    const inserted = await this.kernel.run((db) =>
+      db.insertInto("member_revisions").values(toConsentRevisionRow(record)).returning("seq").executeTakeFirstOrThrow()
+    );
+    return Number(inserted.seq);
+  }
+
+  /** A member's revisions, oldest `seq` first, optionally for one purpose. */
+  async listRevisions(required: {
+    workspaceId: string;
+    memberId: string;
+    purpose?: ConsentPurpose;
+  }): Promise<MemberConsentRevisionRecord[]> {
+    const rows = await this.kernel.run((db) => {
+      let query = db
+        .selectFrom("member_revisions")
+        .selectAll()
+        .where("workspace_id", "=", required.workspaceId)
+        .where("member_id", "=", required.memberId);
+      if (required.purpose !== undefined) query = query.where("purpose", "=", required.purpose);
+      return query.orderBy("seq").execute();
+    });
+    return rows.map(toMemberConsentRevisionRecord);
+  }
+
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    return this.kernel.transaction(fn);
+  }
+}
+
 /** The member repo for `kernel`. */
 export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
   return new SqlMemberRepo(kernel);
@@ -372,4 +454,9 @@ export function memberSessionRepoFor(kernel: ContentKernel): SqlMemberSessionRep
 /** The magic-link token repo for `kernel`. */
 export function magicLinkTokenRepoFor(kernel: ContentKernel): SqlMagicLinkTokenRepo {
   return new SqlMagicLinkTokenRepo(kernel);
+}
+
+/** The member-consent repo for `kernel`. */
+export function memberConsentRepoFor(kernel: ContentKernel): SqlMemberConsentRepo {
+  return new SqlMemberConsentRepo(kernel);
 }

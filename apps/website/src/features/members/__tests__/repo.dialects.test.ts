@@ -3,8 +3,8 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { magicLinkTokenRepoFor, memberRepoFor, memberSessionRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
-import type { MagicLinkTokenRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
+import { magicLinkTokenRepoFor, memberConsentRepoFor, memberRepoFor, memberSessionRepoFor, memberSubscriptionRepoFor, memberTierRepoFor } from "../repo.js";
+import type { MagicLinkTokenRecord, MemberConsentRecord, MemberConsentRevisionRecord, MemberRecord, MemberSessionRecord, MemberSubscriptionRecord, MemberTierRecord } from "../types.js";
 
 /**
  * @file The members repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE
@@ -113,6 +113,42 @@ function token(id: string, overrides: Partial<MagicLinkTokenRecord> = {}): Magic
   };
 }
 
+function consent(id: string, overrides: Partial<MemberConsentRecord> = {}): MemberConsentRecord {
+  return {
+    id,
+    workspaceId: WS,
+    memberId: "m1",
+    purpose: "newsletter",
+    status: "granted",
+    evidence: { source: "signup-form", ip: "203.0.113.9" },
+    grantedAt: T0,
+    revokedAt: undefined,
+    createdAt: T0,
+    updatedAt: T0,
+    version: 1,
+    ...overrides,
+  };
+}
+
+function revision(
+  consentId: string,
+  purpose: string,
+  overrides: Partial<Omit<MemberConsentRevisionRecord, "seq">> = {}
+): Omit<MemberConsentRevisionRecord, "seq"> {
+  return {
+    workspaceId: WS,
+    memberId: "m1",
+    consentId,
+    purpose,
+    op: "consent_request" as const,
+    beforeJson: null,
+    afterJson: { status: "granted" },
+    originModule: "members",
+    createdAt: T0,
+    ...overrides,
+  };
+}
+
 function repos(kernel: ContentKernel) {
   return {
     kernel,
@@ -121,6 +157,7 @@ function repos(kernel: ContentKernel) {
     subs: memberSubscriptionRepoFor(kernel),
     sessions: memberSessionRepoFor(kernel),
     tokens: magicLinkTokenRepoFor(kernel),
+    consents: memberConsentRepoFor(kernel),
   };
 }
 
@@ -476,6 +513,89 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
       );
       assert.equal((await tokens.findByTokenHash({ workspaceId: WS, tokenHash: "hash-k1" }))?.consumedAt, undefined);
       await tokens.consume({ workspaceId: WS, id: "k1", consumedAt: USED });
+    });
+  });
+
+  describe("MemberConsentRepo", () => {
+    test("save then findByMemberAndPurpose round-trips evidence JSON; revokedAt stays undefined", async () => {
+      const { consents } = makeRepos();
+      await consents.save(consent("c1"));
+      assert.deepEqual(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" }), consent("c1"));
+    });
+
+    test("findByMemberAndPurpose misses on another purpose, member or workspace", async () => {
+      const { consents } = makeRepos();
+      await consents.save(consent("c1"));
+      assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "marketing" }), null);
+      assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m2", purpose: "newsletter" }), null);
+      assert.equal(await consents.findByMemberAndPurpose({ workspaceId: OTHER, memberId: "m1", purpose: "newsletter" }), null);
+    });
+
+    test("save upserts by id; the (member, purpose) unique index rejects a second row for the same pair", async () => {
+      const { consents } = makeRepos();
+      await consents.save(consent("c1"));
+      await consents.save(consent("c1", { status: "revoked", revokedAt: "2026-09-29T00:00:00.000Z", version: 2 }));
+      const row = await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" });
+      assert.equal(row?.status, "revoked");
+      assert.equal(row?.revokedAt, "2026-09-29T00:00:00.000Z");
+      assert.equal(row?.version, 2);
+      await assert.rejects(consents.save(consent("c2")));
+      await consents.save(consent("c3", { workspaceId: OTHER }));
+    });
+
+    test("appendRevision returns increasing seqs and listRevisions returns them oldest first", async () => {
+      const { consents } = makeRepos();
+      const a = await consents.appendRevision(revision("c1", "newsletter"));
+      const b = await consents.appendRevision(revision("c1", "newsletter", { op: "consent_revoke", beforeJson: { status: "granted" }, afterJson: null }));
+      assert.ok(b > a);
+      const list = await consents.listRevisions({ workspaceId: WS, memberId: "m1" });
+      assert.deepEqual(list.map((r) => r.seq), [a, b]);
+      assert.deepEqual(list[0], { seq: a, ...revision("c1", "newsletter") });
+      assert.deepEqual(list[1]?.beforeJson, { status: "granted" });
+      assert.equal(list[1]?.afterJson, null);
+    });
+
+    test("listRevisions filters by purpose and never crosses members or workspaces", async () => {
+      const { consents } = makeRepos();
+      await consents.appendRevision(revision("c1", "newsletter"));
+      await consents.appendRevision(revision("c2", "marketing"));
+      await consents.appendRevision(revision("c3", "newsletter", { memberId: "m2" }));
+      await consents.appendRevision(revision("c4", "newsletter", { workspaceId: OTHER }));
+      assert.deepEqual((await consents.listRevisions({ workspaceId: WS, memberId: "m1" })).map((r) => r.consentId), ["c1", "c2"]);
+      assert.deepEqual(
+        (await consents.listRevisions({ workspaceId: WS, memberId: "m1", purpose: "marketing" })).map((r) => r.consentId),
+        ["c2"]
+      );
+      assert.deepEqual(await consents.listRevisions({ workspaceId: WS, memberId: "nobody" }), []);
+    });
+
+    test("transaction returns the callback's value; a throw rolls the consent and its revision back together", async () => {
+      const { consents } = makeRepos();
+      assert.equal(await consents.transaction(async () => 42), 42);
+      await assert.rejects(
+        consents.transaction(async () => {
+          await consents.save(consent("c1"));
+          await consents.appendRevision(revision("c1", "newsletter"));
+          throw new Error("boom");
+        }),
+        /boom/
+      );
+      assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" }), null);
+      assert.deepEqual(await consents.listRevisions({ workspaceId: WS, memberId: "m1" }), []);
+    });
+
+    test("nested transactions join the outer one", async () => {
+      const { consents } = makeRepos();
+      await assert.rejects(
+        consents.transaction(async () => {
+          await consents.transaction(async () => {
+            await consents.save(consent("c1"));
+          });
+          throw new Error("boom");
+        }),
+        /boom/
+      );
+      assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" }), null);
     });
   });
 });

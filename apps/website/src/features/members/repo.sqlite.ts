@@ -1,45 +1,21 @@
-import { and, eq } from "drizzle-orm";
-
-import type { JsonObject } from "@jini-ai/cms/core";
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo, SqlMemberSubscriptionRepo, SqlMemberTierRepo } from "./repo.js";
-import {
-  memberConsents,
-  memberRevisions,
-} from "../../platform/db/schema.sqlite.js";
-import { sqliteKernel } from "../../platform/db/kernel/index.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
-import type {
-  MemberConsentRepoPort,
-} from "./ports.js";
-import type {
-  ConsentEvidence,
-  ConsentPurpose,
-  ConsentStatus,
-  MemberConsentRecord,
-  MemberConsentRevisionRecord,
-} from "./types.js";
+import {
+  SqlMagicLinkTokenRepo,
+  SqlMemberConsentRepo,
+  SqlMemberRepo,
+  SqlMemberSessionRepo,
+  SqlMemberSubscriptionRepo,
+  SqlMemberTierRepo,
+} from "./repo.js";
 
 /**
- * @file Drizzle/SQLite adapter for all 6 `members` repo ports (ADR-PIPE-013
- * Decision §5, REQ-18, Article IV rule-of-two).
- *
- * Purpose:
- * Satisfies the same 6 ports as `repo.memory.ts`, mirroring `SqlitePostRepo`'s/
- * `src/features/settings/repo.sqlite.ts`'s exact shape: typed row -> domain-
- * record mapping, `.onConflictDoUpdate` upserts, `and(eq(...))` composite-key
- * queries. `MemberConsentRepoPort.transaction` uses the same manual
- * `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` pattern `SqliteSettingsRepo.transaction`
- * documents (better-sqlite3 has no real async I/O, so no other statement can
- * interleave on this single connection between awaits).
- *
- * NOT wired into `server/app.ts`'s boot path this pass (ADR-PIPE-013 Decision
- * §5) — the in-memory adapters remain the only ones actually receiving
- * traffic, exactly like `SqlitePostRepo` today.
+ * @file The 6 `members` repos on a site's SQLite `content.db` (ADR-PIPE-013 Decision §5, REQ-18):
+ * each is a thin subclass of the one Kysely query body in `repo.ts`. Kept as named classes so
+ * existing call sites that construct them from the content db handle stay as they are; new code
+ * calls the `…RepoFor(kernel)` factories.
  */
 
-/** The member repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
 export class SqliteMemberRepo extends SqlMemberRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
@@ -47,7 +23,6 @@ export class SqliteMemberRepo extends SqlMemberRepo {
   }
 }
 
-/** The member-tier repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
 export class SqliteMemberTierRepo extends SqlMemberTierRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
@@ -55,7 +30,6 @@ export class SqliteMemberTierRepo extends SqlMemberTierRepo {
   }
 }
 
-/** The member-subscription repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
 export class SqliteMemberSubscriptionRepo extends SqlMemberSubscriptionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
@@ -63,7 +37,6 @@ export class SqliteMemberSubscriptionRepo extends SqlMemberSubscriptionRepo {
   }
 }
 
-/** The member-session repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
 export class SqliteMemberSessionRepo extends SqlMemberSessionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
@@ -71,7 +44,6 @@ export class SqliteMemberSessionRepo extends SqlMemberSessionRepo {
   }
 }
 
-/** The magic-link token repo on a site's SQLite `content.db` (the one Kysely body, `repo.ts`). */
 export class SqliteMagicLinkTokenRepo extends SqlMagicLinkTokenRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
@@ -79,123 +51,9 @@ export class SqliteMagicLinkTokenRepo extends SqlMagicLinkTokenRepo {
   }
 }
 
-function toMemberConsentRecord(row: typeof memberConsents.$inferSelect): MemberConsentRecord {
-  return {
-    id: row.id,
-    workspaceId: row.workspaceId,
-    memberId: row.memberId,
-    purpose: row.purpose as ConsentPurpose,
-    status: row.status as ConsentStatus,
-    evidence: JSON.parse(row.evidenceJson) as ConsentEvidence,
-    grantedAt: row.grantedAt ?? undefined,
-    revokedAt: row.revokedAt ?? undefined,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    version: row.version,
-  };
-}
-
-function toMemberConsentRevisionRecord(row: typeof memberRevisions.$inferSelect): MemberConsentRevisionRecord {
-  return {
-    seq: row.seq,
-    workspaceId: row.workspaceId,
-    memberId: row.memberId,
-    consentId: row.entityId,
-    purpose: (row.purpose ?? "") as ConsentPurpose,
-    op: row.op as MemberConsentRevisionRecord["op"],
-    beforeJson: row.beforeJson == null ? null : (JSON.parse(row.beforeJson) as JsonObject),
-    afterJson: row.afterJson == null ? null : (JSON.parse(row.afterJson) as JsonObject),
-    originModule: row.originModule ?? "",
-    createdAt: row.createdAt,
-  };
-}
-
-/**
- * D1c consent adapter #2 (ADR-PIPE-013 Decision §4-5). Backs both
- * `member_consents` and the shared `member_revisions` ledger
- * (`entity_kind='consent'`), matching `SqliteSettingsRepo`'s combined
- * value+revision-ledger shape.
- */
-export class SqliteMemberConsentRepo implements MemberConsentRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findByMemberAndPurpose(required: {
-    workspaceId: string;
-    memberId: string;
-    purpose: ConsentPurpose;
-  }): Promise<MemberConsentRecord | null> {
-    return findOneBy(
-      this.db,
-      memberConsents,
-      [
-        eq(memberConsents.workspaceId, required.workspaceId),
-        eq(memberConsents.memberId, required.memberId),
-        eq(memberConsents.purpose, required.purpose),
-      ],
-      toMemberConsentRecord
-    );
-  }
-
-  async save(record: MemberConsentRecord): Promise<void> {
-    const row = {
-      id: record.id,
-      workspaceId: record.workspaceId,
-      memberId: record.memberId,
-      purpose: record.purpose,
-      status: record.status,
-      evidenceJson: JSON.stringify(record.evidence),
-      grantedAt: record.grantedAt ?? null,
-      revokedAt: record.revokedAt ?? null,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      version: record.version,
-    };
-    this.db
-      .insert(memberConsents)
-      .values(row)
-      .onConflictDoUpdate({ target: memberConsents.id, set: row })
-      .run();
-  }
-
-  async appendRevision(record: Omit<MemberConsentRevisionRecord, "seq">): Promise<number> {
-    const result = this.db
-      .insert(memberRevisions)
-      .values({
-        entityKind: "consent",
-        entityId: record.consentId,
-        workspaceId: record.workspaceId,
-        memberId: record.memberId,
-        purpose: record.purpose,
-        op: record.op,
-        beforeJson: record.beforeJson == null ? null : JSON.stringify(record.beforeJson),
-        afterJson: record.afterJson == null ? null : JSON.stringify(record.afterJson),
-        originModule: record.originModule,
-        createdAt: record.createdAt,
-      })
-      .run();
-    return Number(result.lastInsertRowid);
-  }
-
-  async listRevisions(required: {
-    workspaceId: string;
-    memberId: string;
-    purpose?: ConsentPurpose;
-  }): Promise<MemberConsentRevisionRecord[]> {
-    const rows = this.db
-      .select()
-      .from(memberRevisions)
-      .where(
-        and(eq(memberRevisions.workspaceId, required.workspaceId), eq(memberRevisions.memberId, required.memberId))
-      )
-      .all()
-      .filter((row) => required.purpose === undefined || row.purpose === required.purpose)
-      .sort((a, b) => a.seq - b.seq);
-    return rows.map(toMemberConsentRevisionRecord);
-  }
-
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // The connection's storage kernel: nested calls join, other requests wait their turn instead of
-    // landing inside this transaction (plan: ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md).
-    return sqliteKernel(this.db).transaction(fn);
+export class SqliteMemberConsentRepo extends SqlMemberConsentRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
