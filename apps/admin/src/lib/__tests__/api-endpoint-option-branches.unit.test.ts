@@ -114,44 +114,6 @@ test("pauseIntegrationSubscription sends the same request whether or not the unu
   expect(withArg[0].url).toContain("/subscriptions/s1/pause");
 });
 
-// --- Connectors -----------------------------------------------------------------
-
-test("listConnectors has no ?refresh query param when refresh is not requested", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.listConnectors();
-  expect(calls[0].url).not.toContain("refresh");
-});
-
-test("listConnectors appends ?refresh=1 when a live refresh is requested", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.listConnectors(true);
-  expect(calls[0].url).toContain("?refresh=1");
-});
-
-test("getConnector with no options builds a bare URL — no query string at all", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.getConnector("c1");
-  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/connectors/c1`);
-});
-
-test("getConnector sets hydrateTools=1 only when hydrateTools is requested", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.getConnector("c1", { hydrateTools: true });
-  expect(calls[0].url).toContain("hydrateTools=1");
-});
-
-test("getConnector sets toolsLimit when a limit is given", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.getConnector("c1", { toolsLimit: 5 });
-  expect(calls[0].url).toContain("toolsLimit=5");
-});
-
-test("getConnector sets toolsCursor when a cursor is given", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.getConnector("c1", { toolsCursor: "abc" });
-  expect(calls[0].url).toContain("toolsCursor=abc");
-});
-
 // --- Media -----------------------------------------------------------------
 
 test("uploadMedia sends no extra metadata fields when the caller passes none", async () => {

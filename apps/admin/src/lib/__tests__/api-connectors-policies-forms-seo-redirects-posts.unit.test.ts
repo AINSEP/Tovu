@@ -11,15 +11,14 @@ import { ApiError, api } from "../api";
 vi.mock("../admin-dev-origin", () => ({ isAdminDevServerOrigin: vi.fn() }));
 
 /**
- * @file Coverage-gap-fill pass (2026-09-05) for the `connectors`/`policies`/`forms`/`seo`/
+ * @file Coverage-gap-fill pass (2026-09-05) for the `policies`/`forms`/`seo`/
  * `redirects`/`posts` endpoint wrappers in `api.ts` — of these ~40 methods, most had no test at all
  * before this file (`listPosts`, `createPost`, `getPost`, `templatePreviewUrl`, `updatePost`,
- * `deletePost`, `getComposioConfig`, `saveComposioConfig`, `getConnectorStatuses`,
- * `connectConnector`, `disconnectConnector`, `cancelConnectorAuthorization`, `listPolicies`,
+ * `deletePost`, `listPolicies`,
  * `deletePolicy`, `listPolicyPermissions`, `removePolicyPermission`, `listForms`, `getForm`,
  * `getSeoSettings`, `regenerateSitemap`, `getSeoEntry`, `getSeoEntryAnalyze`, `listRedirects`,
  * `tombstoneRedirect`, `getRedirectHits`, `importRedirects`). A handful of others
- * (`listConnectors`, `getConnector`, `createPolicy`, `updatePolicy`, `writePolicyPermission`,
+ * (`createPolicy`, `updatePolicy`, `writePolicyPermission`,
  * `createForm`, `updateForm`, `listFormSubmissions`, `getFormSubmission`,
  * `setSeoSettings`, `putSeoEntry`, `createRedirect`, `updateRedirect`) already had partial coverage
  * in `api-endpoint-option-branches.unit.test.ts` (URL/body branch shape only) — this file adds the
@@ -103,11 +102,11 @@ describe("posts", () => {
     expect(method()).toBe("POST");
   });
 
-  test("getPost GETs the post by id, encodeURIComponent-applied like getConnector/templatePreviewUrl", async () => {
+  test("getPost GETs the post by id, encodeURIComponent-applied like templatePreviewUrl", async () => {
     const { calls } = stubFetchCapturing(() => jsonResponse({ post: { id: "a/b" } }));
     await api.getPost("a/b");
     // Was pinned as raw/unencoded (`.../posts/a/b`) — fixed 2026-09-05 (`fix-apienc` dispatch) for
-    // consistency with getConnector/templatePreviewUrl and the rest of this sweep; see
+    // consistency with templatePreviewUrl and the rest of this sweep; see
     // `api-id-url-encoding.unit.test.ts` for the full id-encoding coverage this fix added.
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/${encodeURIComponent("a/b")}`);
   });
@@ -185,81 +184,6 @@ describe("posts", () => {
         `${BASE_WORKSPACE}/posts/p1/template-preview?templateChoice=${encodeURIComponent("page one.html")}`
       );
     });
-  });
-});
-
-// --- Connectors -----------------------------------------------------------------
-
-describe("connectors", () => {
-  test("getComposioConfig GETs the connectors config and resolves it verbatim", async () => {
-    const { calls, method } = stubFetchCapturing(() => jsonResponse({ configured: true, apiKeyTail: "abcd" }));
-    await expect(api.getComposioConfig()).resolves.toEqual({ configured: true, apiKeyTail: "abcd" });
-    expect(calls[0].url).toBe(`${BASE_WORKSPACE}/connectors/config`);
-    expect(method()).toBe("GET");
-  });
-
-  test("saveComposioConfig PUTs { apiKey } with a real key", async () => {
-    const { body, method } = stubFetchCapturing(() => jsonResponse({ configured: true, apiKeyTail: "wxyz" }));
-    await api.saveComposioConfig("sk-live-wxyz");
-    expect(body()).toEqual({ apiKey: "sk-live-wxyz" });
-    expect(method()).toBe("PUT");
-  });
-
-  test("saveComposioConfig PUTs { apiKey: null } to clear the key", async () => {
-    const { body } = stubFetchCapturing();
-    await api.saveComposioConfig(null);
-    expect(body()).toEqual({ apiKey: null });
-  });
-
-  test("getConnectorStatuses GETs the statuses map and resolves it verbatim", async () => {
-    const { calls } = stubFetchCapturing(() => jsonResponse({ c1: { status: "connected" } }));
-    await expect(api.getConnectorStatuses()).resolves.toEqual({ c1: { status: "connected" } });
-    expect(calls[0].url).toBe(`${BASE_WORKSPACE}/connectors/statuses`);
-  });
-
-  test("connectConnector POSTs to /connect with the connector id encoded", async () => {
-    const { calls, method, body } = stubFetchCapturing(() =>
-      jsonResponse({ connector: { id: "gh/hub" }, auth: { kind: "redirect_required", redirectUrl: "https://x" } })
-    );
-    await expect(api.connectConnector("gh/hub")).resolves.toEqual({
-      connector: { id: "gh/hub" },
-      auth: { kind: "redirect_required", redirectUrl: "https://x" },
-    });
-    expect(calls[0].url).toBe(`${BASE_WORKSPACE}/connectors/${encodeURIComponent("gh/hub")}/connect`);
-    expect(method()).toBe("POST");
-    expect(body()).toBeUndefined();
-  });
-
-  test("disconnectConnector POSTs to /disconnect with the connector id encoded", async () => {
-    const { calls, method } = stubFetchCapturing(() => jsonResponse({ id: "c1", status: "available" }));
-    await expect(api.disconnectConnector("c1")).resolves.toEqual({ id: "c1", status: "available" });
-    expect(calls[0].url).toBe(`${BASE_WORKSPACE}/connectors/c1/disconnect`);
-    expect(method()).toBe("POST");
-  });
-
-  test("cancelConnectorAuthorization POSTs to /cancel with the connector id encoded", async () => {
-    const { calls, method } = stubFetchCapturing(() => jsonResponse({ id: "c1", status: "available" }));
-    await expect(api.cancelConnectorAuthorization("c1")).resolves.toEqual({ id: "c1", status: "available" });
-    expect(calls[0].url).toBe(`${BASE_WORKSPACE}/connectors/c1/cancel`);
-    expect(method()).toBe("POST");
-  });
-
-  test("getConnector with hydrateTools+toolsLimit+toolsCursor resolves the parsed connector", async () => {
-    const { calls } = stubFetchCapturing(() => jsonResponse({ id: "c1", tools: [] }));
-    await expect(
-      api.getConnector("c1", { hydrateTools: true, toolsLimit: 5, toolsCursor: "cur1" })
-    ).resolves.toEqual({ id: "c1", tools: [] });
-    const url = new URL(calls[0].url, "http://x");
-    expect(url.searchParams.get("hydrateTools")).toBe("1");
-    expect(url.searchParams.get("toolsLimit")).toBe("5");
-    expect(url.searchParams.get("toolsCursor")).toBe("cur1");
-  });
-
-  test("a connector-scoped call propagates a thrown ApiError with the server's exact message", async () => {
-    stubFetchCapturing(() => jsonResponse({ error: "connector not found", code: "NOT_FOUND" }, 404));
-    const error = await api.disconnectConnector("missing").catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(ApiError);
-    expect((error as ApiError).message).toBe("connector not found");
   });
 });
 

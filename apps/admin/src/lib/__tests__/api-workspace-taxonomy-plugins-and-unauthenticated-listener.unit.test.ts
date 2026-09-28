@@ -155,8 +155,8 @@ test("a real 401 carrying code: UNAUTHENTICATED notifies every registered listen
   }
 });
 
-test("a 401 that does NOT carry code: UNAUTHENTICATED (e.g. a relayed Composio 401) notifies no one", async () => {
-  stubFetchCapturing(() => jsonResponse({ error: "invalid Composio key" }, 401));
+test("a 401 that does NOT carry code: UNAUTHENTICATED (e.g. a relayed third-party 401) notifies no one", async () => {
+  stubFetchCapturing(() => jsonResponse({ error: "invalid upstream API key" }, 401));
   const listener = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
   try {

@@ -18,11 +18,11 @@ import { api } from "../../lib/api";
  * (`listPosts`, standing in for "any screen"), not `/auth/me` itself, still clears the session.
  *
  * Second bug, found by adversarial review the same day: gating on bare `status === 401` (the
- * original version of this fix) is too broad — a relayed Composio connector failure (bad API key)
- * is ALSO a verbatim 401 in this codebase (`src/server/routes/admin/connectors/errors.ts`), so the
+ * original version of this fix) is too broad — a relayed third-party failure (bad API key) can
+ * ALSO be a verbatim 401 (the since-removed connectors routes relayed one exactly so), so the
  * original fix would silently log the whole tab out on a bad third-party key, with a perfectly
  * valid Tovu session. The fix narrowed to `status === 401 && code === "UNAUTHENTICATED"` — every
- * genuine session-invalidity 401 in `dev-auth.ts` sets that code; Composio's relay does not. The
+ * genuine session-invalidity 401 in `dev-auth.ts` sets that code; a third-party relay does not. The
  * third test below proves the narrowed gate: a 401 without that code must NOT clear the session.
  */
 
@@ -91,7 +91,7 @@ it("a 403 (authenticated but forbidden) does NOT clear the session — a real pe
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
 });
 
-it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed Composio connector failure) does NOT clear the session", async () => {
+it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed third-party 401) does NOT clear the session", async () => {
   let call = 0;
   const fetchMock = vi.fn(async () => {
     call += 1;
@@ -101,9 +101,9 @@ it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed Composio connector failur
         headers: { "content-type": "application/json" },
       });
     }
-    // Real shape from src/server/routes/admin/connectors/errors.ts relaying Composio's own 401 for
-    // a bad/expired API key — status 401, but NOT a session-invalidity signal.
-    return new Response(JSON.stringify({ error: "Composio tools request failed with HTTP 401", code: "CONNECTOR_EXECUTION_FAILED" }), {
+    // A relayed third-party 401 (e.g. an upstream service rejecting a bad/expired API key) —
+    // status 401, but NOT a session-invalidity signal.
+    return new Response(JSON.stringify({ error: "Upstream request failed with HTTP 401", code: "UPSTREAM_REQUEST_FAILED" }), {
       status: 401,
       headers: { "content-type": "application/json" },
     });
@@ -113,7 +113,7 @@ it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed Composio connector failur
   const { result } = renderHook(() => useAdminSession());
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  await api.listConnectors().catch(() => undefined);
+  await api.listExternalMcpServers().catch(() => undefined);
 
   // Same reasoning as the 403 case above — a settled read, not a race.
   await new Promise((resolve) => setTimeout(resolve, 0));
