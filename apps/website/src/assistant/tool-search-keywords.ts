@@ -248,6 +248,8 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   change_sets_revert: "change set undo revert restore rollback previous version post page edit",
 
   // --- database ------------------------------------------------------------------------------------
+  database_transfer_plan: "transfer move copy migrate export my data database sqlite to postgres postgresql another database server",
+  database_transfer_run: "transfer move copy migrate export data database postgres postgresql confirm copy run",
   database_get_health: "database health healthy status ok working check diagnose",
   database_get_schema_state: "database schema tables structure state",
   database_list_pending_migrations: "database migration migrations pending upgrade schema",

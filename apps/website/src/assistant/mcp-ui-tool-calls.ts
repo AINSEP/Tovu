@@ -243,6 +243,10 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // a private GitHub repository. Every call is gated. Without this entry both buttons would 403
   // with TOOL_NOT_ALLOWLISTED, the same gap `custom_credential_write_files` above describes.
   "site_backup_push",
+  // 2026-09-27 — `database_transfer_run` (`features/database-transfer/tool-registrations.ts`) parks on
+  // the human's Copy/Cancel click (`features/database-transfer/confirmation-ui.ts`) before copying the
+  // site's data into a Postgres database. Every call is gated; without this entry both buttons 403.
+  "database_transfer_run",
   // 2026-09-21 (trash T4) — `trash_item` (`features/trash/trash-item-tool.ts`) holds up the SAME
   // held-open-exchange shape every entry above does, but only for a GENERIC `TRASHABLE` kind with no
   // bespoke delegate (`form`, `form_submission`, ...): for those it opens its OWN

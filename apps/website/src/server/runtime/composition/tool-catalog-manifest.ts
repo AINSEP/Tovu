@@ -10,6 +10,7 @@ import { contributeContentDuplicationTools } from "#src/features/content-duplica
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
 import { contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
+import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
@@ -285,6 +286,10 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeContentTypesTools());
   registerToolContributor(contributeCustomCredentialsTools());
   registerToolContributor(contributeDatabaseTools());
+  // Database transfer P0 (2026-09-27): `database_transfer_plan` (read-only) and `database_transfer_run`,
+  // which holds its call open for the human's Copy before copying the site's data into a Postgres
+  // database's private `tovu` area. The site keeps running on SQLite.
+  registerToolContributor(contributeDatabaseTransferTools());
   registerToolContributor(contributeDeploymentsTools());
   registerToolContributor(contributeEntriesTools());
   registerToolContributor(contributeExternalMcpTools());
