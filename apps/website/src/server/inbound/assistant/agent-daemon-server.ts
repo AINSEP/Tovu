@@ -116,6 +116,7 @@ import {
 import { createConversationStartLock } from "./conversation-start-lock.js";
 import {
   ASSISTANT_DISALLOWED_TOOLS,
+  ASSISTANT_SETTING_SOURCES,
   buildBaseSystemOverlay,
   resolveBashProhibitionEnabled,
 } from "./assistant-system-overlay.js";
@@ -1043,6 +1044,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // restriction — see ASSISTANT_DISALLOWED_TOOLS's own doc for the evidence behind this exact
         // list. Unconditional, unlike resolveBashProhibitionEnabled()'s prompt-only diagnostic above.
         disallowedTools: ASSISTANT_DISALLOWED_TOOLS,
+        // Owner call 2026-09-28: no personal or repo CLI settings layers (hooks, plugins, defaults)
+        // in assistant runs — see ASSISTANT_SETTING_SOURCES's own doc.
+        settingSources: ASSISTANT_SETTING_SOURCES,
         ...(model !== undefined ? { model } : {}),
         // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
         // def's own `buildArgs` options, which is where it becomes real argv.

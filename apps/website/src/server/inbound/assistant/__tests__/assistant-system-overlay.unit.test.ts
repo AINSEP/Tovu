@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   ASSISTANT_DISALLOWED_TOOLS,
+  ASSISTANT_SETTING_SOURCES,
   BASH_GUIDANCE_BLOCK,
   BASH_PROHIBITION_BLOCK,
   buildBaseSystemOverlay,
@@ -162,4 +163,10 @@ test("ASSISTANT_DISALLOWED_TOOLS does not name a tool the assistant has real obs
   for (const usedTool of ["Read", "ToolSearch", "search_tools", "describe_tool", "execute_delegated_tool"]) {
     assert.equal(ASSISTANT_DISALLOWED_TOOLS.includes(usedTool), false, `${usedTool} has real observed use in chat.db and must not be restricted`);
   }
+});
+
+// Owner call 2026-09-28: assistant runs load none of the CLI's own settings layers, so the operator's
+// personal ~/.claude hooks, plugins and defaults (and the repo's own .claude hooks) never reach them.
+test("ASSISTANT_SETTING_SOURCES is empty: an assistant run loads no user, project or local CLI settings", () => {
+  assert.deepEqual([...ASSISTANT_SETTING_SOURCES], []);
 });

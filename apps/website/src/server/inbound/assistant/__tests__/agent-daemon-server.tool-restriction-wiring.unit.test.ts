@@ -44,4 +44,19 @@ describe("Finding 2 wiring — the spawned assistant's tool grant is actually re
       "the agentExecutor.run() call must pass disallowedTools: ASSISTANT_DISALLOWED_TOOLS unconditionally — without this, Finding 2 is built but never actually applied to a live run",
     );
   });
+
+  test("agentExecutor.run() is called with settingSources: ASSISTANT_SETTING_SOURCES", () => {
+    assert.match(
+      DAEMON_ENTRY_SOURCE,
+      /import\s*\{[^}]*ASSISTANT_SETTING_SOURCES[^}]*\}\s*from\s*["'][^"']*assistant-system-overlay(\.js)?["']/,
+      "agent-daemon-server.ts must import ASSISTANT_SETTING_SOURCES from assistant-system-overlay.ts",
+    );
+    const runCallIndex = DAEMON_ENTRY_SOURCE.indexOf("await agentExecutor.run({");
+    const runCallBody = DAEMON_ENTRY_SOURCE.slice(runCallIndex, DAEMON_ENTRY_SOURCE.indexOf("});", runCallIndex));
+    assert.match(
+      runCallBody,
+      /settingSources\s*:\s*ASSISTANT_SETTING_SOURCES\s*,/,
+      "the agentExecutor.run() call must pass settingSources: ASSISTANT_SETTING_SOURCES — without it the operator's personal CLI hooks and plugins run inside every assistant turn",
+    );
+  });
 });

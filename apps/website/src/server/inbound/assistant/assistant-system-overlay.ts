@@ -112,6 +112,18 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
 ];
 
 /**
+ * Which of the `claude` CLI's own settings layers an assistant run loads — forwarded to
+ * `AgentExecutorRunInput.settingSources`, which becomes `--setting-sources` (`@jini-ai/agent-runtime`'s
+ * `defs/claude.ts`, probe-gated). Empty = none: the operator's personal ~/.claude hooks, plugins and
+ * model/effort defaults, and this repo's own `.claude` hooks, never run inside an assistant turn (a
+ * user SessionStart hook was injecting its own instructions into every run and adding ~8 s to spawn).
+ * The CLI keeps its Keychain login. Trade-off the owner accepted (2026-09-28): the "Default" model and
+ * effort become the CLI's own defaults rather than the operator's. To revert, delete this constant and
+ * its one use in `agent-daemon-server.ts`'s `agentExecutor.run()` call.
+ */
+export const ASSISTANT_SETTING_SOURCES: readonly string[] = [];
+
+/**
  * `TOVU_AGENT_FORBID_BASH=1` opts a single install into {@link BASH_PROHIBITION_BLOCK}. Unset — the
  * default, and the only state a downloaded Tovu or the desktop app ever sees — leaves the base
  * overlay carrying {@link BASH_GUIDANCE_BLOCK} instead: byte-for-byte the same overlay this file
