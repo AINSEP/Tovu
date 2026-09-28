@@ -410,9 +410,11 @@ test("pages_write_html REFUSES an editor's script injection, names pages.edit_ht
     () => call("pages_write_html", chain.principals.editor, { id: "page-1", html: INJECTION }),
     // The exact text, not a truthy check: this is the string an operator reads when a legitimate
     // author is refused, and it is the only place the permission name surfaces to a caller.
-    // `requireToolPermission` builds it as `principal '<id>' is not authorized for '<perm>' (<reason>)`.
+    // `requireToolPermission` builds it as `principal '<id>' is not authorized for '<perm>' (<reason>)`,
+    // and `withModelFacingErrors`' `forbiddenRule("PAGES")` prefixes the domain's refusal code (as
+    // every domain's model-facing arm does) so the model receives it instead of a redacted 500.
     (err: Error) =>
-      err.message === `principal 'principal-editor' is not authorized for 'pages.edit_html' (no_grant)`
+      err.message === `PAGES_FORBIDDEN: principal 'principal-editor' is not authorized for 'pages.edit_html' (no_grant)`
   );
 
   // The assertion that makes this worth having. `ensureHtmlFormat` alone would already have
