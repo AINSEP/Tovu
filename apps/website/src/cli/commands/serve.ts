@@ -292,18 +292,22 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
   pinServedSiteDirIntoEnv(target);
   pinPlainHttpIntoEnv();
-  // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
-  // see `ensureSiteKeyForBoot`'s own header). Result is discarded — no caller here needs it, same
-  // "safe to call on every boot" framing `ensureSiteKey` itself documents. Must precede
-  // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
-  // adopted or minted.
-  await ensureSiteKeyForBoot({ siteDir: target, findKeyDependentData });
   const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   const port = resolveServePort(input, bootResult.config);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
   // than after `bootSiteDir`'s migrations/side effects have already run.
   const host = resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST);
+
+  // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
+  // see `ensureSiteKeyForBoot`'s own header). Result is discarded — no caller here needs it, same
+  // "safe to call on every boot" framing `ensureSiteKey` itself documents. Must precede
+  // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
+  // adopted or minted. Must FOLLOW `bootSiteDir` and the port/host checks above: it can write
+  // `.site-meta.json`, and a boot those refuse must leave the directory untouched — a refused
+  // marker-less dir that gained a `.site-meta.json` here is one `tovu adopt` then refuses as
+  // partially adopted.
+  await ensureSiteKeyForBoot({ siteDir: target, findKeyDependentData });
 
   const dbPath = path.join(target, "content.db");
   const deps = await createSiteRouteDeps(dbPath, {

@@ -12,6 +12,8 @@ import Database from "better-sqlite3";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 
+import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
+
 const require = createRequire(import.meta.url);
 
 /**
@@ -173,6 +175,7 @@ test("the whole point: a marker-less but working site directory is REFUSED by se
     const before = runCli(["serve", dir, "--port", "1"], 60000);
     assert.equal(before.status, 3, `serve must refuse a marker-less dir (stderr: ${before.stderr})`);
     assert.match(before.stderr, /^tovu: SITE_DIR_INVALID:/m);
+    assert.ok(!fs.existsSync(path.join(dir, ".site-meta.json")), "a refused serve must write nothing into the dir (it once minted .site-meta.json before refusing)");
 
     // Half 2 — adopt, then the SAME directory actually boots and answers HTTP.
     const adopted = runCli(["adopt", dir]);
@@ -194,7 +197,8 @@ test("the whole point: a marker-less but working site directory is REFUSED by se
         child.kill("SIGTERM");
       });
     }
-    fs.rmSync(parent, { recursive: true, force: true });
+    // The served site's background writers can outlive the child's `exit` — see the helper.
+    removeFixtureTree(parent);
   }
 });
 
