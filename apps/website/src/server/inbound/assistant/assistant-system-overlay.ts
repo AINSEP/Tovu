@@ -124,6 +124,23 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
 export const ASSISTANT_SETTING_SOURCES: readonly string[] = [];
 
 /**
+ * The one operator hook assistant runs keep despite {@link ASSISTANT_SETTING_SOURCES}: the owner's
+ * `~/.claude/hooks/no-system-search` PreToolUse guard (denies Bash/Glob/Grep searches rooted at `/`,
+ * `$HOME` and other whole-system roots). Returned as a `--settings` JSON string (forwarded through
+ * `AgentExecutorRunInput.settings`), which the CLI applies even with every settings layer off —
+ * verified on Claude Code 2.1.283: `find / -name x` was denied with the hook's "IRON RULE" message.
+ * Matcher and timeout copied from that hook's own entry in ~/.claude/settings.json. `undefined` when
+ * the hook file is absent, so a machine without it runs exactly as before.
+ */
+export function resolveAssistantRunSettings(homeDir: string, fileExists: (path: string) => boolean): string | undefined {
+  const command = `${homeDir}/.claude/hooks/no-system-search`;
+  if (!fileExists(command)) return undefined;
+  return JSON.stringify({
+    hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [{ type: "command", command, timeout: 5 }] }] },
+  });
+}
+
+/**
  * `TOVU_AGENT_FORBID_BASH=1` opts a single install into {@link BASH_PROHIBITION_BLOCK}. Unset — the
  * default, and the only state a downloaded Tovu or the desktop app ever sees — leaves the base
  * overlay carrying {@link BASH_GUIDANCE_BLOCK} instead: byte-for-byte the same overlay this file

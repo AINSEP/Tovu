@@ -45,6 +45,16 @@ describe("Finding 2 wiring — the spawned assistant's tool grant is actually re
     );
   });
 
+  test("agentExecutor.run() is handed resolveAssistantRunSettings()'s hook settings", () => {
+    const runCallIndex = DAEMON_ENTRY_SOURCE.indexOf("await agentExecutor.run({");
+    const runCallBody = DAEMON_ENTRY_SOURCE.slice(runCallIndex, DAEMON_ENTRY_SOURCE.indexOf("});", runCallIndex));
+    assert.match(
+      runCallBody,
+      /resolveAssistantRunSettings\(/,
+      "the agentExecutor.run() call must pass resolveAssistantRunSettings()'s result — without it the no-system-search hook never runs in assistant turns",
+    );
+  });
+
   test("agentExecutor.run() is called with settingSources: ASSISTANT_SETTING_SOURCES", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,

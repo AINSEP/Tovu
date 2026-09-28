@@ -8,6 +8,7 @@ import {
   BASH_PROHIBITION_BLOCK,
   buildBaseSystemOverlay,
   buildBashProhibitionBlock,
+  resolveAssistantRunSettings,
   resolveBashProhibitionEnabled,
 } from "../assistant-system-overlay.js";
 
@@ -169,4 +170,18 @@ test("ASSISTANT_DISALLOWED_TOOLS does not name a tool the assistant has real obs
 // personal ~/.claude hooks, plugins and defaults (and the repo's own .claude hooks) never reach them.
 test("ASSISTANT_SETTING_SOURCES is empty: an assistant run loads no user, project or local CLI settings", () => {
   assert.deepEqual([...ASSISTANT_SETTING_SOURCES], []);
+});
+
+// With every settings layer off, the owner's search guard (~/.claude/hooks/no-system-search) is
+// handed back to assistant runs on its own through `--settings`, with its exact user-settings entry.
+test("resolveAssistantRunSettings: only the no-system-search PreToolUse hook, same matcher and timeout", () => {
+  const hook = "/home/op/.claude/hooks/no-system-search";
+  const settings = resolveAssistantRunSettings("/home/op", (p) => p === hook);
+  assert.deepEqual(JSON.parse(settings!), {
+    hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [{ type: "command", command: hook, timeout: 5 }] }] },
+  });
+});
+
+test("resolveAssistantRunSettings: no hook file on this machine -> no settings (the run still works)", () => {
+  assert.equal(resolveAssistantRunSettings("/home/op", () => false), undefined);
 });

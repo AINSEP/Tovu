@@ -58,7 +58,9 @@
  */
 import { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
 
 import express from "express";
 
@@ -118,6 +120,7 @@ import {
   ASSISTANT_DISALLOWED_TOOLS,
   ASSISTANT_SETTING_SOURCES,
   buildBaseSystemOverlay,
+  resolveAssistantRunSettings,
   resolveBashProhibitionEnabled,
 } from "./assistant-system-overlay.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
@@ -1047,6 +1050,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // Owner call 2026-09-28: no personal or repo CLI settings layers (hooks, plugins, defaults)
         // in assistant runs — see ASSISTANT_SETTING_SOURCES's own doc.
         settingSources: ASSISTANT_SETTING_SOURCES,
+        // ...except the owner's no-system-search hook, handed back alone via `--settings` (absent
+        // hook file = no flag) — see resolveAssistantRunSettings's own doc.
+        ...((settings) => (settings !== undefined ? { settings } : {}))(resolveAssistantRunSettings(homedir(), existsSync)),
         ...(model !== undefined ? { model } : {}),
         // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
         // def's own `buildArgs` options, which is where it becomes real argv.
