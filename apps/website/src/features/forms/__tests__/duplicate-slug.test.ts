@@ -27,7 +27,9 @@ test("slugifyFormName lowercases, collapses non-alphanumerics to single hyphens,
   assert.equal(slugifyFormName("Contact Us"), "contact-us");
   assert.equal(slugifyFormName("Copy of Contact Us"), "copy-of-contact-us");
   assert.equal(slugifyFormName("  Newsletter — Signup!!  "), "newsletter-signup");
-  assert.equal(slugifyFormName("Já_Vou (2026)"), "j-vou-2026");
+  // Non-ASCII letters transliterate (`platform/html/slug.ts`, 2026-09-28); they used to become
+  // separators, which gave "j-vou-2026".
+  assert.equal(slugifyFormName("Já_Vou (2026)"), "ja-vou-2026");
 });
 
 test("slugifyFormName truncates to the pattern's own 64-character ceiling without leaving a trailing hyphen", () => {

@@ -115,6 +115,7 @@
     "@opentelemetry/sdk-trace-base": "^2.10.0",
     "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
+    "@sindresorhus/slugify": "^3.0.1",
     "argon2": "^0.44.0",
     "aws4fetch": "^1.0.20",
     "better-sqlite3": "^13.0.0",

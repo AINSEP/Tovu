@@ -1,3 +1,4 @@
+import { toSlug } from "#src/platform/html/slug";
 import { SLUG_PATTERN } from "./write-service.js";
 import { deriveAvailableName, MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
 
@@ -63,12 +64,7 @@ const RESERVED_SLUGS = new Set(["new"]);
  * @complexity O(n) in the name's length.
  */
 export function slugifyFormName(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug.slice(0, FORM_SLUG_MAX_LENGTH).replace(/-+$/g, "");
+  return toSlug(name).slice(0, FORM_SLUG_MAX_LENGTH).replace(/-+$/g, "");
 }
 
 /**

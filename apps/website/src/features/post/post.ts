@@ -1,6 +1,7 @@
 import type { ClockPort, JsonObject, OutboxPort, UUID } from "@jini-ai/cms/core";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { toSlug } from "#src/platform/html/slug";
 
 export type PostStatus = "draft" | "published";
 
@@ -1198,7 +1199,7 @@ export async function createPost(
     }
     slug = explicitSlug;
   } else {
-    const base = slugify(title) || "untitled";
+    const base = toSlug(title) || "untitled";
     slug = base;
     let suffix = 1;
     while (await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug })) {
@@ -1270,14 +1271,6 @@ export async function createPost(
     await emitStatusTransitionEvent(deps.outbox, "draft", post.status, post);
   }
   return { post, revisionId, previousRevisionId };
-}
-
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 /**

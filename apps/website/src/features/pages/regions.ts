@@ -1,4 +1,5 @@
 import { maskNonRenderableRegions } from "../../contracts/core/embeds/marker.js";
+import { toSlug } from "#src/platform/html/slug";
 
 /**
  * @file Locating and replacing ONE `data-agent-element` region inside a Page's `body_html`.
@@ -397,11 +398,7 @@ const HEADING_PATTERN = /<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i;
 export function suggestRegionHandle(inner: string, taken: ReadonlySet<string>): string | undefined {
   const heading = HEADING_PATTERN.exec(inner);
   if (!heading) return undefined;
-  const slug = (heading[1] as string)
-    .replace(/<[^>]*>/g, " ")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+  const slug = toSlug((heading[1] as string).replace(/<[^>]*>/g, " "))
     .slice(0, 48)
     .replace(/-+$/g, "");
   if (slug === "" || taken.has(slug)) return undefined;

@@ -60,6 +60,7 @@ import { findWidgetTypeRegistration } from "./registry.js";
 import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "./types.js";
 import type { RemoveWidgetFn } from "./ports.js";
 import type { WidgetInstanceEntry, WidgetInstanceStatus, WidgetTypeKey } from "./types.js";
+import { toSlug } from "#src/platform/html/slug";
 
 export interface WidgetWriteServiceDeps {
   entryRepo: EntryRepoPort & EntryListPort;
@@ -72,11 +73,7 @@ export interface WidgetWriteServiceDeps {
 }
 
 function slugify(title: string): string {
-  const base = title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-+|-+$)/g, "");
+  const base = toSlug(title);
   return base.length > 0 ? base : "widget";
 }
 

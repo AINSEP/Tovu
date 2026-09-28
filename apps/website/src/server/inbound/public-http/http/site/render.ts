@@ -36,6 +36,7 @@ import {
   type FormFlashPayload,
 } from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
+import { toSlug } from "#src/platform/html/slug";
 
 /**
  * Re-exported so every existing importer of this file (`render.test.ts`, `routes/site/pages.ts`,
@@ -947,18 +948,16 @@ function nodeText(node: JsonValue): string {
 /**
  * The `id` a rendered heading carries so an in-page `#anchor` link has something to land on.
  *
- * Matches `post.ts`'s own `slugify` rule character-for-character rather than inventing a second
- * slug dialect — a heading's anchor and a post's slug should not disagree about what "C++ & Rust"
- * becomes. Returns `""` for a heading whose text slugifies to nothing (emoji-only, punctuation-only);
+ * Uses the same `toSlug` rule as post slugs (`platform/html/slug.ts`) rather than a second slug
+ * dialect — a heading's anchor and a post's slug should not disagree about what "C++ & Rust"
+ * becomes. ASCII headings keep exactly the anchors they always had; headings with non-ASCII letters
+ * now transliterate (`#caf` became `#cafe` on 2026-09-28). Returns `""` for a heading whose text
+ * slugifies to nothing (emoji-only, punctuation-only, CJK);
  * the caller then emits no `id` rather than an empty one, since `id=""` is invalid and unlinkable
  * anyway.
  */
 function headingAnchorId(node: JsonValue): string {
-  return nodeText(node)
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return toSlug(nodeText(node));
 }
 
 /**
