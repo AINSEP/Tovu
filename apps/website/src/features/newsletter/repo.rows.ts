@@ -266,3 +266,56 @@ export function toAudienceSnapshotRow(row: AudienceSnapshotRow): Insertable<Audi
     created_at: row.createdAt,
   };
 }
+
+/** One `p_newsletter__sends` row as a {@link SendRow}. */
+export function toSendRecord(row: Selectable<SendTableRow>): SendRow {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    campaignId: row.campaign_id,
+    audienceSnapshotId: row.audience_snapshot_id,
+    subscriberId: row.subscriber_id,
+    recipientEmail: row.recipient_email,
+    status: row.status as SendRow["status"],
+    attempts: row.attempts,
+    idempotencyKey: row.idempotency_key,
+    providerMessageId: row.provider_message_id,
+    lastError: row.last_error,
+    nextAttemptAt: row.next_attempt_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** The `p_newsletter__sends` row an INSERT writes. */
+export function toSendRow(row: SendRow): Insertable<SendTableRow> {
+  return {
+    id: row.id,
+    workspace_id: row.workspaceId,
+    campaign_id: row.campaignId,
+    audience_snapshot_id: row.audienceSnapshotId,
+    subscriber_id: row.subscriberId,
+    recipient_email: row.recipientEmail,
+    status: row.status,
+    attempts: row.attempts,
+    idempotency_key: row.idempotencyKey,
+    provider_message_id: row.providerMessageId,
+    last_error: row.lastError,
+    next_attempt_at: row.nextAttemptAt,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
+
+/** The columns a re-save of a send overwrites: its delivery state, not its identity (campaign, snapshot, subscriber, key). */
+export function updatableSendColumns(row: Insertable<SendTableRow>) {
+  return {
+    status: row.status,
+    attempts: row.attempts,
+    provider_message_id: row.provider_message_id,
+    last_error: row.last_error,
+    next_attempt_at: row.next_attempt_at,
+    recipient_email: row.recipient_email,
+    updated_at: row.updated_at,
+  };
+}

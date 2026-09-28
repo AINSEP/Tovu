@@ -5,8 +5,8 @@ import { sql } from "kysely";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { newsletterAudienceSnapshotRepoFor, newsletterCampaignRepoFor, newsletterListRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
-import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, NewsletterListRow, SubscriptionRow } from "../types.js";
+import { newsletterAudienceSnapshotRepoFor, newsletterCampaignRepoFor, newsletterListRepoFor, newsletterSendRepoFor, newsletterSubscriptionRepoFor } from "../repo.js";
+import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
 
 /**
  * @file The six newsletter repos on every dialect through the kernel's matrix (`describeEachDialect`
@@ -36,13 +36,19 @@ const CREATE_TABLES = [
   sql`CREATE TABLE p_newsletter__audience_snapshots (
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, campaign_id TEXT NOT NULL, list_id TEXT NOT NULL,
     recipient_count INTEGER NOT NULL, created_at TEXT NOT NULL)`,
+  sql`DROP TABLE IF EXISTS p_newsletter__sends`,
+  sql`CREATE TABLE p_newsletter__sends (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, campaign_id TEXT NOT NULL, audience_snapshot_id TEXT NOT NULL,
+    subscriber_id TEXT NOT NULL, recipient_email TEXT NOT NULL, status TEXT NOT NULL, attempts INTEGER NOT NULL,
+    idempotency_key TEXT NOT NULL, provider_message_id TEXT, last_error TEXT, next_attempt_at TEXT,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 ];
 
 function repos(base: ContentKernel) {
   const pending = CREATE_TABLES.reduce((chain, statement) => chain.then(() => base.execute(statement)), Promise.resolve());
   pending.catch(() => {});
   const kernel = heldUntil(base, pending);
-  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel), snapshots: newsletterAudienceSnapshotRepoFor(kernel) };
+  return { kernel, campaigns: newsletterCampaignRepoFor(kernel), lists: newsletterListRepoFor(kernel), subscriptions: newsletterSubscriptionRepoFor(kernel), snapshots: newsletterAudienceSnapshotRepoFor(kernel), sends: newsletterSendRepoFor(kernel) };
 }
 
 function list(id: string, overrides: Partial<NewsletterListRow> = {}): NewsletterListRow {
@@ -95,6 +101,26 @@ function subscription(id: string, overrides: Partial<SubscriptionRow> = {}): Sub
 
 function snapshot(id: string, overrides: Partial<AudienceSnapshotRow> = {}): AudienceSnapshotRow {
   return { id, workspaceId: WS, campaignId: `camp-${id}`, listId: "list-1", recipientCount: 3, createdAt: T0, ...overrides };
+}
+
+function send(id: string, overrides: Partial<SendRow> = {}): SendRow {
+  return {
+    id,
+    workspaceId: WS,
+    campaignId: "camp-1",
+    audienceSnapshotId: "snap-1",
+    subscriberId: `sub-${id}`,
+    recipientEmail: `${id}@example.com`,
+    status: "pending",
+    attempts: 0,
+    idempotencyKey: `key-${id}`,
+    providerMessageId: null,
+    lastError: null,
+    nextAttemptAt: null,
+    createdAt: T0,
+    updatedAt: T0,
+    ...overrides,
+  };
 }
 
 describeEachDialect(
@@ -361,6 +387,120 @@ describeEachDialect(
           /boom/
         );
         assert.equal(await snapshots.findById({ workspaceId: WS, id: "a1" }), null);
+      });
+    });
+
+    describe("send repo", () => {
+      test("save then findById / findByIdempotencyKey round-trip; misses and other workspaces are null", async () => {
+        const { sends } = makeRepos();
+        const full = send("s1", { providerMessageId: "pm-1", lastError: "e", nextAttemptAt: T1 });
+        await sends.save(full);
+        assert.deepEqual(await sends.findById({ workspaceId: WS, id: "s1" }), full);
+        assert.deepEqual(await sends.findByIdempotencyKey({ workspaceId: WS, idempotencyKey: "key-s1" }), full);
+        assert.equal(await sends.findById({ workspaceId: WS, id: "nope" }), null);
+        assert.equal(await sends.findById({ workspaceId: OTHER, id: "s1" }), null);
+        assert.equal(await sends.findByIdempotencyKey({ workspaceId: WS, idempotencyKey: "nope" }), null);
+        assert.equal(await sends.findByIdempotencyKey({ workspaceId: OTHER, idempotencyKey: "key-s1" }), null);
+      });
+
+      test("re-saving updates delivery state only, never the identity fields", async () => {
+        const { sends } = makeRepos();
+        await sends.save(send("s1"));
+        await sends.save(
+          send("s1", { status: "delivered", attempts: 2, providerMessageId: "pm", lastError: "x", nextAttemptAt: T1, recipientEmail: "new@example.com", updatedAt: T1, campaignId: "hijack", idempotencyKey: "hijack", createdAt: T1 })
+        );
+        assert.deepEqual(
+          await sends.findById({ workspaceId: WS, id: "s1" }),
+          send("s1", { status: "delivered", attempts: 2, providerMessageId: "pm", lastError: "x", nextAttemptAt: T1, recipientEmail: "new@example.com", updatedAt: T1 })
+        );
+      });
+
+      test("listByCampaign is scoped, ordered by id and keyset-paginated with a limit", async () => {
+        const { sends } = makeRepos();
+        for (const id of ["s3", "s1", "s2"]) await sends.save(send(id));
+        await sends.save(send("s9", { campaignId: "camp-2" }));
+        await sends.save(send("sx", { workspaceId: OTHER }));
+        assert.deepEqual((await sends.listByCampaign({ workspaceId: WS, campaignId: "camp-1" })).map((s) => s.id), ["s1", "s2", "s3"]);
+        assert.deepEqual((await sends.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 2 })).map((s) => s.id), ["s1", "s2"]);
+        assert.deepEqual((await sends.listByCampaign({ workspaceId: WS, campaignId: "camp-1", afterId: "s1", limit: 1 })).map((s) => s.id), ["s2"]);
+        assert.deepEqual((await sends.listByCampaign({ workspaceId: OTHER, campaignId: "camp-1" })).map((s) => s.id), ["sx"]);
+        assert.deepEqual(await sends.listByCampaign({ workspaceId: "empty", campaignId: "camp-1" }), []);
+      });
+
+      test("listPendingByAudienceSnapshot returns only pending rows of that snapshot, up to the limit", async () => {
+        const { sends } = makeRepos();
+        await sends.save(send("s1"));
+        await sends.save(send("s2"));
+        await sends.save(send("s3"));
+        await sends.save(send("s4", { status: "delivered" }));
+        await sends.save(send("s5", { audienceSnapshotId: "snap-2" }));
+        await sends.save(send("s6", { workspaceId: OTHER }));
+        assert.deepEqual((await sends.listPendingByAudienceSnapshot({ workspaceId: WS, audienceSnapshotId: "snap-1", limit: 10 })).map((s) => s.id), ["s1", "s2", "s3"]);
+        assert.deepEqual((await sends.listPendingByAudienceSnapshot({ workspaceId: WS, audienceSnapshotId: "snap-1", limit: 2 })).map((s) => s.id), ["s1", "s2"]);
+        assert.deepEqual(await sends.listPendingByAudienceSnapshot({ workspaceId: OTHER, audienceSnapshotId: "snap-2", limit: 10 }), []);
+      });
+
+      test("countPendingByCampaign counts only pending rows of that campaign and workspace", async () => {
+        const { sends } = makeRepos();
+        await sends.save(send("s1"));
+        await sends.save(send("s2"));
+        await sends.save(send("s3", { status: "failed" }));
+        await sends.save(send("s4", { campaignId: "camp-2" }));
+        await sends.save(send("s5", { workspaceId: OTHER }));
+        assert.equal(await sends.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 2);
+        assert.equal(await sends.countPendingByCampaign({ workspaceId: WS, campaignId: "nope" }), 0);
+        assert.equal(await sends.countPendingByCampaign({ workspaceId: OTHER, campaignId: "camp-1" }), 1);
+      });
+
+      test("saveBatch stores every row, and a failing row rolls the whole batch back", async () => {
+        const { sends } = makeRepos();
+        await sends.saveBatch([]);
+        await sends.saveBatch([send("s1"), send("s2")]);
+        assert.equal((await sends.listByCampaign({ workspaceId: WS, campaignId: "camp-1" })).length, 2);
+        const bad = { ...send("s3"), recipientEmail: null } as unknown as SendRow;
+        await assert.rejects(sends.saveBatch([send("s4"), bad]));
+        assert.equal(await sends.findById({ workspaceId: WS, id: "s4" }), null);
+      });
+
+      test("claimForDispatch leases a due pending row once and rejects every other case", async () => {
+        const { sends } = makeRepos();
+        await sends.save(send("s1"));
+        await sends.save(send("s2", { nextAttemptAt: "2026-09-28T09:00:00.000Z" }));
+        await sends.save(send("s3", { nextAttemptAt: "2026-09-28T00:30:00.000Z" }));
+        await sends.save(send("s4", { status: "delivered" }));
+        const claim = (id: string, workspaceId = WS) => sends.claimForDispatch({ workspaceId, id, nowIso: T1, leaseUntilIso: "2026-09-28T02:00:00.000Z" });
+        const claimed = await claim("s1");
+        assert.deepEqual(claimed, send("s1", { nextAttemptAt: "2026-09-28T02:00:00.000Z", updatedAt: T1 }));
+        assert.equal(await claim("s1"), null, "a live lease blocks the second claim");
+        assert.equal(await claim("s2"), null, "not due yet");
+        assert.ok(await claim("s3"), "an expired lease can be re-claimed");
+        assert.equal(await claim("s4"), null, "not pending");
+        assert.equal(await claim("nope"), null);
+        assert.equal(await claim("s1", OTHER), null);
+      });
+
+      test("concurrent claims of one send: exactly one wins", async () => {
+        const { sends } = makeRepos();
+        await sends.save(send("s1"));
+        const results = await Promise.all(
+          Array.from({ length: 5 }, () => sends.claimForDispatch({ workspaceId: WS, id: "s1", nowIso: T1, leaseUntilIso: "2026-09-28T02:00:00.000Z" }))
+        );
+        assert.equal(results.filter((r) => r !== null).length, 1);
+      });
+
+      test("recordOutcome writes the outcome once, keeps a stored provider id when given null, and rejects a repeat", async () => {
+        const { sends } = makeRepos();
+        await sends.save(send("s1", { nextAttemptAt: T1 }));
+        await sends.save(send("s2", { providerMessageId: "old", nextAttemptAt: T1 }));
+        const outcome = { workspaceId: WS, status: "delivered" as const, lastError: null, updatedAt: T1 };
+        const first = await sends.recordOutcome({ ...outcome, id: "s1", providerMessageId: "pm-1" });
+        assert.deepEqual(first, send("s1", { status: "delivered", attempts: 1, providerMessageId: "pm-1", nextAttemptAt: null, updatedAt: T1 }));
+        assert.equal(await sends.recordOutcome({ ...outcome, id: "s1", providerMessageId: "pm-2" }), null);
+        assert.equal((await sends.findById({ workspaceId: WS, id: "s1" }))?.providerMessageId, "pm-1");
+        const kept = await sends.recordOutcome({ ...outcome, id: "s2", status: "failed", lastError: "bounce", providerMessageId: null });
+        assert.deepEqual([kept?.status, kept?.providerMessageId, kept?.lastError], ["failed", "old", "bounce"]);
+        assert.equal(await sends.recordOutcome({ ...outcome, id: "nope", providerMessageId: null }), null);
+        assert.equal(await sends.recordOutcome({ ...outcome, workspaceId: OTHER, id: "s1", providerMessageId: null }), null);
       });
     });
   }
