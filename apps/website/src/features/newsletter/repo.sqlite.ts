@@ -17,17 +17,13 @@
  * `src/features/plugins/store/store-plugin.ts`'s raw-SQL precedent.
  */
 import type Database from "better-sqlite3";
-import { asc, eq, gt, and, sql } from "drizzle-orm";
 
-import { sqliteKernel } from "../../platform/db/kernel/index.js";
-import { newsletterCampaignRevisions, newsletterCampaigns } from "../../platform/db/schema.sqlite.js";
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
+import { SqlNewsletterCampaignRepo } from "./repo.js";
 import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest.js";
 import type {
-  CampaignOutcomeCounter,
   NewsletterAudienceSnapshotRepoPort,
-  NewsletterCampaignRepoPort,
   NewsletterConfirmationTokenRepoPort,
   NewsletterListRepoPort,
   NewsletterSendRepoPort,
@@ -35,9 +31,6 @@ import type {
 } from "./ports.js";
 import type {
   AudienceSnapshotRow,
-  CampaignCounters,
-  CampaignRecord,
-  CampaignRevision,
   ConfirmationTokenRecord,
   NewsletterListRow,
   SendRow,
@@ -46,165 +39,15 @@ import type {
 
 const DEFAULT_LIST_LIMIT = 100;
 
-/** JSON path of each counter `incrementCounter` may bump — a fixed map, never built from input. */
-const COUNTER_JSON_PATH: Record<CampaignOutcomeCounter, string> = { delivered: "$.delivered", failed: "$.failed" };
-
 /** Narrow accessor for the raw better-sqlite3 handle underneath a Drizzle `ContentDb` (mirrors `SqliteSettingsRepo`). */
 function rawClient(db: ContentDb): Database.Database {
   return (db as unknown as { $client: Database.Database }).$client;
 }
 
-/* ------------------------------------------------------------------------------------------------
- * Campaign pair — Drizzle-backed (bespoke table pair, not dataModule)
- * ------------------------------------------------------------------------------------------------ */
-
-type CampaignDbRow = typeof newsletterCampaigns.$inferSelect;
-type RevisionDbRow = typeof newsletterCampaignRevisions.$inferSelect;
-
-function toCampaignRecord(row: CampaignDbRow): CampaignRecord {
-  return {
-    id: row.id,
-    workspaceId: row.workspaceId,
-    status: row.status as CampaignRecord["status"],
-    subject: row.subject,
-    preheader: row.preheader,
-    fromName: row.fromName,
-    fromEmail: row.fromEmail,
-    replyTo: row.replyTo,
-    listId: row.listId,
-    scheduledAt: row.scheduledAt,
-    sendStartedAt: row.sendStartedAt,
-    audienceSnapshotId: row.audienceSnapshotId,
-    counters: JSON.parse(row.countersJson) as CampaignCounters,
-    version: row.version,
-    createdByPrincipal: row.createdByPrincipal,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-}
-
-function fromCampaignRecord(c: CampaignRecord): CampaignDbRow {
-  return {
-    id: c.id,
-    workspaceId: c.workspaceId,
-    status: c.status,
-    subject: c.subject,
-    preheader: c.preheader,
-    fromName: c.fromName,
-    fromEmail: c.fromEmail,
-    replyTo: c.replyTo,
-    listId: c.listId,
-    scheduledAt: c.scheduledAt,
-    sendStartedAt: c.sendStartedAt,
-    audienceSnapshotId: c.audienceSnapshotId,
-    countersJson: JSON.stringify(c.counters),
-    version: c.version,
-    createdByPrincipal: c.createdByPrincipal,
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-  };
-}
-
-function toCampaignRevision(row: RevisionDbRow): CampaignRevision {
-  return {
-    campaignId: row.campaignId,
-    workspaceId: row.workspaceId,
-    seq: row.seq,
-    state: JSON.parse(row.stateJson) as CampaignRecord,
-    actorId: row.actorId,
-    recordedAt: row.recordedAt,
-  };
-}
-
-export class SqliteNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
-  constructor(private readonly db: ContentDb) {}
-
-  async findById(required: { workspaceId: string; id: string }): Promise<CampaignRecord | null> {
-    return findOneBy(
-      this.db,
-      newsletterCampaigns,
-      [eq(newsletterCampaigns.workspaceId, required.workspaceId), eq(newsletterCampaigns.id, required.id)],
-      toCampaignRecord
-    );
-  }
-
-  async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<CampaignRecord[]> {
-    const limit = required.limit ?? DEFAULT_LIST_LIMIT;
-    const conditions = required.afterId
-      ? and(eq(newsletterCampaigns.workspaceId, required.workspaceId), gt(newsletterCampaigns.id, required.afterId))
-      : eq(newsletterCampaigns.workspaceId, required.workspaceId);
-    const rows = this.db
-      .select()
-      .from(newsletterCampaigns)
-      .where(conditions)
-      .orderBy(asc(newsletterCampaigns.id))
-      .limit(limit)
-      .all();
-    return rows.map(toCampaignRecord);
-  }
-
-  async saveCampaignRow(campaign: CampaignRecord): Promise<void> {
-    const values = fromCampaignRecord(campaign);
-    // Counters are insert-only here; `incrementCounter` owns them afterwards (see `ports.ts`).
-    const { countersJson: _insertOnlyCounters, ...updatable } = values;
-    this.db
-      .insert(newsletterCampaigns)
-      .values(values)
-      .onConflictDoUpdate({ target: newsletterCampaigns.id, set: updatable })
-      .run();
-  }
-
-  async appendRevision(revision: CampaignRevision): Promise<void> {
-    this.db
-      .insert(newsletterCampaignRevisions)
-      .values({
-        campaignId: revision.campaignId,
-        workspaceId: revision.workspaceId,
-        stateJson: JSON.stringify(revision.state),
-        actorId: revision.actorId,
-        recordedAt: revision.recordedAt,
-      })
-      .run();
-  }
-
-  async listRevisions(required: { workspaceId: string; campaignId: string }): Promise<CampaignRevision[]> {
-    const rows = this.db
-      .select()
-      .from(newsletterCampaignRevisions)
-      .where(
-        and(
-          eq(newsletterCampaignRevisions.workspaceId, required.workspaceId),
-          eq(newsletterCampaignRevisions.campaignId, required.campaignId)
-        )
-      )
-      .orderBy(asc(newsletterCampaignRevisions.seq))
-      .all();
-    return rows.map(toCampaignRevision);
-  }
-
-  /** Manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` — mirrors `SqliteSettingsRepo.transaction` exactly. */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // The connection's storage kernel: nested calls join, other requests wait their turn instead of
-    // landing inside this transaction (plan: ADS-memory/.local-artifacts/plans/2026-09-28-storage-adapter-plan.md).
-    return sqliteKernel(this.db).transaction(fn);
-  }
-
-  /**
-   * One UPDATE statement, so reading the old count and writing the new one cannot be split by any other statement on any
-   * connection (see `ports.ts`).
-   *
-   * @complexity O(1) (primary-key update).
-   */
-  async incrementCounter(required: { workspaceId: string; id: string; counter: CampaignOutcomeCounter; updatedAt: string }): Promise<void> {
-    const path = COUNTER_JSON_PATH[required.counter];
-    this.db
-      .update(newsletterCampaigns)
-      .set({
-        countersJson: sql`json_set(${newsletterCampaigns.countersJson}, ${path}, coalesce(json_extract(${newsletterCampaigns.countersJson}, ${path}), 0) + 1)`,
-        updatedAt: required.updatedAt,
-      })
-      .where(and(eq(newsletterCampaigns.workspaceId, required.workspaceId), eq(newsletterCampaigns.id, required.id)))
-      .run();
+export class SqliteNewsletterCampaignRepo extends SqlNewsletterCampaignRepo {
+  /** The connection's kernel, or the content db handle it is derived from. */
+  constructor(store: ContentKernel | ContentDb) {
+    super(contentKernel(store));
   }
 }
 
