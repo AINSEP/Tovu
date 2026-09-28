@@ -1,9 +1,9 @@
 import type { PGlite, Transaction } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
+import { Kysely } from "kysely";
 
+import type { ContentDatabase } from "../content-database.generated.js";
+import { PgliteDialect } from "../kernel/drivers/pglite-dialect.js";
 import { openPgliteKernel, type PgKernel, sqliteKernel } from "../kernel/index.js";
-import * as pgSchema from "../schema.postgres.js";
-import * as sqliteSchema from "../schema.sqlite.js";
 import type { ContentDb } from "../sqlite/content-db.js";
 import { hasPgContentSchema, pgContentSchemaSql } from "./content-schema.js";
 
@@ -21,23 +21,20 @@ import { hasPgContentSchema, pgContentSchemaSql } from "./content-schema.js";
  * Only ONE process may open a data dir. The API process owns it; see `selectPostRepo`.
  */
 
-export type PgliteContentStore = PgKernel<typeof pgSchema>;
+export type PgliteContentStore = PgKernel<ContentDatabase>;
 
 /** Rows per INSERT during the one-time import (keeps each statement's parameter count small). */
 const IMPORT_BATCH = 200;
 
 async function importRows(tx: Transaction, from: ContentDb): Promise<void> {
-  // Drizzle only needs `query` from its client for inserts, which a PGlite `Transaction` has; this
-  // keeps the import inside the raw transaction the DDL runs in.
-  const target = drizzle({ client: tx as unknown as PGlite });
-  const pairs = [
-    [sqliteSchema.posts, pgSchema.posts],
-    [sqliteSchema.postRevisions, pgSchema.postRevisions],
-  ] as const;
-  for (const [source, into] of pairs) {
-    const rows = await sqliteKernel(from).run((db) => db.select().from(source));
+  // A Kysely over the raw transaction the DDL runs in (it has `query`, all the dialect uses).
+  // SQLite's 0/1 booleans bind as Postgres booleans; JSON text binds into jsonb.
+  const target = new Kysely<ContentDatabase>({ dialect: new PgliteDialect(tx as unknown as PGlite) });
+  const source = sqliteKernel<ContentDatabase>(from);
+  for (const table of ["posts", "post_revisions"] as const) {
+    const rows = await source.run((db) => db.selectFrom(table).selectAll().execute());
     for (let at = 0; at < rows.length; at += IMPORT_BATCH) {
-      await target.insert(into).values(rows.slice(at, at + IMPORT_BATCH) as never);
+      await target.insertInto(table).values(rows.slice(at, at + IMPORT_BATCH) as never).execute();
     }
   }
 }
@@ -58,8 +55,8 @@ async function bootstrap(client: PGlite, importFrom: ContentDb | undefined): Pro
  * @param optional.importFrom the SQLite content db whose posts seed a brand-new data dir.
  */
 export function openPgliteContentStore(optional: { dataDir?: string; importFrom?: ContentDb }): PgliteContentStore {
-  return openPgliteKernel(
-    { schema: pgSchema },
-    { dataDir: optional.dataDir, prepare: (client) => bootstrap(client, optional.importFrom) }
-  );
+  return openPgliteKernel<ContentDatabase>({
+    dataDir: optional.dataDir,
+    prepare: (client) => bootstrap(client, optional.importFrom),
+  });
 }

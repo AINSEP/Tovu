@@ -1,9 +1,9 @@
 import type { Database as SqliteDatabase } from "better-sqlite3";
-import { type SQL, sql } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { PostKind, PostStatus } from "./post.js";
+import type { PostSearchProjection } from "./repo.js";
 import {
   toPostSearchDocument,
   type PostSearchDocument,
@@ -93,20 +93,40 @@ interface PostSearchRow {
   rank: number;
 }
 
-/**
- * The same upsert as {@link indexPostSearchDocument}, as a statement for the storage kernel
- * (`kernel.execute`), so a kernel-based repo writes the projection in its own transaction.
- */
-export function postSearchDocumentUpsert(document: PostSearchDocument): SQL {
-  return sql`INSERT INTO post_search_document (post_id, title, slug, body_text)
-    VALUES (${document.postId}, ${document.title}, ${document.slug}, ${document.bodyText})
-    ON CONFLICT(post_id) DO UPDATE SET title = excluded.title, slug = excluded.slug, body_text = excluded.body_text`;
-}
+/** `post_search_document` — a plain table, but SQLite-only (FTS5 reads it through triggers), so
+ *  it is not in the generated `ContentDatabase` types. */
+type SearchProjectionTables = {
+  post_search_document: { post_id: string; title: string; slug: string; body_text: string };
+};
 
-/** Drops one post's projection (the FTS triggers drop its index entry). */
-export function postSearchDocumentDelete(postId: string): SQL {
-  return sql`DELETE FROM post_search_document WHERE post_id = ${postId}`;
-}
+/**
+ * The post repo's search projection on SQLite (`repo.ts`'s `PostSearchProjection`): the same upsert
+ * and delete as {@link indexPostSearchDocument}, through the storage kernel, so they run in the
+ * repo's own transaction. The 0022 triggers keep `post_search_fts` in step.
+ */
+export const sqlitePostSearchProjection: PostSearchProjection = {
+  async upsert(kernel, document) {
+    await kernel.run((db) =>
+      db
+        .withTables<SearchProjectionTables>()
+        .insertInto("post_search_document")
+        .values({ post_id: document.postId, title: document.title, slug: document.slug, body_text: document.bodyText })
+        .onConflict((oc) =>
+          oc.column("post_id").doUpdateSet((eb) => ({
+            title: eb.ref("excluded.title"),
+            slug: eb.ref("excluded.slug"),
+            body_text: eb.ref("excluded.body_text"),
+          }))
+        )
+        .execute()
+    );
+  },
+  async remove(kernel, postId) {
+    await kernel.run((db) =>
+      db.withTables<SearchProjectionTables>().deleteFrom("post_search_document").where("post_id", "=", postId).execute()
+    );
+  },
+};
 
 /**
  * Writes (or rewrites) one post's searchable projection. Idempotent per post id.

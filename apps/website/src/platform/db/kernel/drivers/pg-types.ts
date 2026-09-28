@@ -4,8 +4,10 @@
  * so a row reads the same on both.
  *
  * - `json`/`jsonb` stay JSON TEXT: the repos store and parse JSON themselves (SQLite has no JSON
- *   type), so a `string` column type holds on every dialect. Postgres returns its normalised
- *   spelling (`{"a": 1}`), which parses to the same value.
+ *   type), so a `string` column type holds on every dialect. The text is re-serialised compactly
+ *   (`{"a":1}`, as `JSON.stringify` writes it) instead of Postgres's own spelling (`{"a": 1}`), so a
+ *   value written compactly reads back byte-identical — what the Drizzle jsonb column type did.
+ *   Key order is jsonb's (it does not keep insertion order); compare parsed values, not text.
  * - `int8` (`bigint`) is a `number` when it fits in a double exactly, else a `bigint` — PGlite's own
  *   rule, which node-postgres (default: string) is aligned to.
  */
@@ -17,11 +19,11 @@ export function parseInt8(text: string): number | bigint {
   return value < BigInt(Number.MIN_SAFE_INTEGER) || value > BigInt(Number.MAX_SAFE_INTEGER) ? value : Number(value);
 }
 
-const asText = (text: string) => text;
+const compactJson = (text: string) => JSON.stringify(JSON.parse(text));
 
 /** Parser overrides by type oid. */
 export const PG_PARSERS: Readonly<Record<number, (text: string) => unknown>> = {
   [PG_OID.int8]: parseInt8,
-  [PG_OID.json]: asText,
-  [PG_OID.jsonb]: asText,
+  [PG_OID.json]: compactJson,
+  [PG_OID.jsonb]: compactJson,
 };

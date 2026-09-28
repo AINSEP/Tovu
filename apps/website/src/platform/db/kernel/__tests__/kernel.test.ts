@@ -2,55 +2,64 @@ import assert from "node:assert/strict";
 import { after, beforeEach, describe, test } from "node:test";
 
 import Database from "better-sqlite3";
-import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { Kysely, type RawBuilder, sql, SqliteDialect } from "kysely";
 
-import { excluded, jsonSet, jsonText, listColumns, listTables, nowIso, tableExists, toBytes } from "../dialect.js";
+import { jsonSet, jsonText, listColumns, listTables, nowIso, tableExists, toBool, toBytes } from "../dialect.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import type { StorageKernel } from "../port.js";
+import { buildKernel } from "../kernel-core.js";
+import { type StorageKernel, UnsupportedCapabilityError } from "../port.js";
 import { TurnLock } from "../turn-lock.js";
 
 /**
- * @file The storage kernel's rules, proven on EVERY driver by the same assertions: transactions
- * commit/roll back, nested calls join, `transaction()` inside `run()` is refused, and — the reason
- * the turn lock exists — an unrelated caller's write never lands inside someone else's open
- * transaction on a shared connection. Plus the dialect helpers returning the same values on both.
+ * @file The storage kernel's rules, proven on EVERY embedded driver by the same assertions:
+ * transactions commit/roll back, nested calls join, `transaction()` inside `run()` is refused, and —
+ * the reason the turn lock exists — an unrelated caller's write never lands inside someone else's
+ * open transaction on a shared connection. Plus one Kysely query body reading and writing the same
+ * values on both (booleans, JSON text), and the dialect helpers agreeing. Real Postgres (two
+ * connections) is `kernel.postgres.test.ts`.
  */
 
-const probe = sql.identifier("kernel_probe");
+interface ProbeDb {
+  kernel_probe: { id: string; doc: string | null; n: number | null; flag: boolean | 0 | 1 | null };
+}
 
 interface Case {
   name: string;
-  kernel: StorageKernel<unknown>;
-  /** DDL for the probe table: `doc` is a JSON column in the dialect's own type. */
-  create: ReturnType<typeof sql>;
+  kernel: StorageKernel<ProbeDb>;
+  /** DDL for the probe table: `doc` is a JSON column and `flag` a boolean, in the dialect's own types. */
+  create: RawBuilder<unknown>;
 }
 
-const cases: Case[] = [
-  {
-    name: "sqlite",
-    kernel: sqliteKernel(drizzle(new Database(":memory:"))) as StorageKernel<unknown>,
-    create: sql`CREATE TABLE ${probe} (id text PRIMARY KEY NOT NULL, doc text, n integer)`,
-  },
-  {
-    name: "pglite",
-    kernel: openPgliteKernel({ schema: {} }) as StorageKernel<unknown>,
-    create: sql`CREATE TABLE ${probe} (id text PRIMARY KEY NOT NULL, doc jsonb, n integer)`,
-  },
-];
+function probeCases(): Case[] {
+  return [
+    {
+      name: "sqlite",
+      kernel: sqliteKernel<ProbeDb>(drizzle(new Database(":memory:"))),
+      create: sql`CREATE TABLE kernel_probe (id text PRIMARY KEY NOT NULL, doc text, n integer, flag integer)`,
+    },
+    {
+      name: "pglite",
+      kernel: openPgliteKernel<ProbeDb>(),
+      create: sql`CREATE TABLE kernel_probe (id text PRIMARY KEY NOT NULL, doc jsonb, n integer, flag boolean)`,
+    },
+  ];
+}
+
+const cases = probeCases();
 
 after(async () => {
   for (const each of cases) await each.kernel.close();
 });
 
-async function ids(kernel: StorageKernel<unknown>): Promise<string[]> {
-  const rows = await kernel.query<{ id: string }>(sql`SELECT id FROM ${probe} ORDER BY id`);
+async function ids(kernel: StorageKernel<ProbeDb>): Promise<string[]> {
+  const rows = await kernel.run((db) => db.selectFrom("kernel_probe").select("id").orderBy("id").execute());
   return rows.map((row) => row.id);
 }
 
-const insert = (kernel: StorageKernel<unknown>, id: string) =>
-  kernel.execute(sql`INSERT INTO ${probe} (id) VALUES (${id})`);
+const insert = (kernel: StorageKernel<ProbeDb>, id: string) =>
+  kernel.run((db) => db.insertInto("kernel_probe").values({ id, doc: null, n: null, flag: null }).execute());
 
 /** A promise plus the function that resolves it. */
 function gate(): { opened: Promise<void>; open: () => void } {
@@ -62,7 +71,7 @@ function gate(): { opened: Promise<void>; open: () => void } {
 for (const { name, kernel, create } of cases) {
   describe(`storage kernel [${name}]`, () => {
     beforeEach(async () => {
-      await kernel.execute(sql`DROP TABLE IF EXISTS ${probe}`);
+      await kernel.execute(sql`DROP TABLE IF EXISTS kernel_probe`);
       await kernel.execute(create);
     });
 
@@ -115,22 +124,53 @@ for (const { name, kernel, create } of cases) {
       assert.deepEqual(await ids(kernel), ["outside"]);
     });
 
-    test("jsonText / jsonSet read and write the same values on both dialects", async () => {
-      await kernel.execute(sql`INSERT INTO ${probe} (id, doc) VALUES ('a', ${JSON.stringify({ title: "Hi", meta: { lang: "en" } })})`);
-      await kernel.execute(sql`INSERT INTO ${probe} (id, doc) VALUES ('b', NULL)`);
-      const doc = sql.identifier("doc");
-      await kernel.execute(sql`UPDATE ${probe} SET doc = ${jsonSet(kernel.dialect, doc, ["meta", "lang"], "fr")} WHERE id = 'a'`);
-      await kernel.execute(sql`UPDATE ${probe} SET doc = ${jsonSet(kernel.dialect, doc, ["title"], "New")} WHERE id = 'b'`);
-      const rows = await kernel.query<{ id: string; title: string | null; lang: string | null }>(
-        sql`SELECT id, ${jsonText(kernel.dialect, doc, ["title"])} AS title,
-                   ${jsonText(kernel.dialect, doc, ["meta", "lang"])} AS lang
-            FROM ${probe} ORDER BY id`
+    test("lockKey works inside a transaction and is refused outside one", async () => {
+      await kernel.transaction(async () => {
+        await kernel.lockKey("probe:a");
+        await insert(kernel, "locked");
+      });
+      assert.deepEqual(await ids(kernel), ["locked"]);
+      await assert.rejects(kernel.lockKey("probe:a"), { message: "lockKey() must be called inside transaction()" });
+    });
+
+    test("one query body: booleans, JSON text and an ON CONFLICT upsert read back the same", async () => {
+      const doc = JSON.stringify({ title: "Hi" });
+      const upsert = (n: number, flag: boolean) =>
+        kernel.run((db) =>
+          db
+            .insertInto("kernel_probe")
+            .values({ id: "x", doc, n, flag })
+            .onConflict((oc) => oc.column("id").doUpdateSet((eb) => ({ n: eb.ref("excluded.n"), flag: eb.ref("excluded.flag") })))
+            .execute()
+        );
+      await upsert(1, true);
+      await upsert(2, false);
+      const [row] = await kernel.run((db) => db.selectFrom("kernel_probe").selectAll().where("flag", "=", false).execute());
+      assert.equal(row?.n, 2);
+      assert.equal(toBool(row!.flag), false);
+      // JSON reads back as JSON text on both (Postgres normalises spacing, so compare parsed).
+      assert.equal(typeof row?.doc, "string");
+      assert.deepEqual(JSON.parse(row!.doc!), { title: "Hi" });
+    });
+
+    test("jsonText reads scalars with the same spelling on both dialects; jsonSet writes", async () => {
+      const value = { s: "Hi", i: 42, t: true, f: false, z: null, meta: { lang: "en" } };
+      await kernel.execute(sql`INSERT INTO kernel_probe (id, doc) VALUES ('a', ${JSON.stringify(value)})`);
+      await kernel.execute(sql`INSERT INTO kernel_probe (id, doc) VALUES ('b', NULL)`);
+      const doc = sql.ref("doc");
+      await kernel.execute(sql`UPDATE kernel_probe SET doc = ${jsonSet(kernel.dialect, doc, ["meta", "lang"], "fr")} WHERE id = 'a'`);
+      await kernel.execute(sql`UPDATE kernel_probe SET doc = ${jsonSet(kernel.dialect, doc, ["s"], "New")} WHERE id = 'b'`);
+      const read = (...path: string[]) => jsonText(kernel.dialect, doc, path);
+      const rows = await kernel.query<Record<string, string | null>>(
+        sql`SELECT id, ${read("s")} AS s, ${read("i")} AS i, ${read("t")} AS t, ${read("f")} AS f,
+                   ${read("z")} AS z, ${read("missing")} AS missing, ${read("meta", "lang")} AS lang
+            FROM kernel_probe ORDER BY id`
       );
       assert.deepEqual(
         rows.map((row) => ({ ...row })),
         [
-          { id: "a", title: "Hi", lang: "fr" },
-          { id: "b", title: "New", lang: null },
+          { id: "a", s: "Hi", i: "42", t: "true", f: "false", z: null, missing: null, lang: "fr" },
+          { id: "b", s: "New", i: null, t: null, f: null, z: null, missing: null, lang: null },
         ]
       );
       assert.throws(() => jsonText(kernel.dialect, doc, ["a'b"]), { message: "JSON path key 'a'b' is not a plain identifier" });
@@ -142,29 +182,18 @@ for (const { name, kernel, create } of cases) {
       assert.ok(Math.abs(Date.parse(row!.now) - Date.now()) < 60_000);
     });
 
-    test("an upsert through excluded() keeps the inserted value", async () => {
-      const n = { name: "n" };
-      const upsert = (value: number) =>
-        kernel.execute(
-          sql`INSERT INTO ${probe} (id, n) VALUES ('x', ${value}) ON CONFLICT (id) DO UPDATE SET n = ${excluded(n)}`
-        );
-      await upsert(1);
-      await upsert(2);
-      const rows = await kernel.query<{ n: number }>(sql`SELECT n FROM ${probe}`);
-      assert.deepEqual(rows.map((row) => Number(row.n)), [2]);
-    });
-
     test("introspection lists tables and columns", async () => {
-      assert.ok((await listTables(kernel)).includes("kernel_probe"));
-      assert.equal(await tableExists(kernel, "kernel_probe"), true);
-      assert.equal(await tableExists(kernel, "no_such_table"), false);
-      const columns = await listColumns(kernel, "kernel_probe");
+      assert.ok((await listTables(kernel as StorageKernel<unknown>)).includes("kernel_probe"));
+      assert.equal(await tableExists(kernel as StorageKernel<unknown>, "kernel_probe"), true);
+      assert.equal(await tableExists(kernel as StorageKernel<unknown>, "no_such_table"), false);
+      const columns = await listColumns(kernel as StorageKernel<unknown>, "kernel_probe");
       assert.deepEqual(
         columns.map(({ name, notNull, primaryKey }) => ({ name, notNull, primaryKey })),
         [
           { name: "id", notNull: true, primaryKey: true },
           { name: "doc", notNull: false, primaryKey: false },
           { name: "n", notNull: false, primaryKey: false },
+          { name: "flag", notNull: false, primaryKey: false },
         ]
       );
     });
@@ -173,16 +202,44 @@ for (const { name, kernel, create } of cases) {
 
 test("sqlite: one kernel per connection, and a legacy BEGIN IMMEDIATE is joined, not nested", async () => {
   const db = drizzle(new Database(":memory:"));
-  const kernel = sqliteKernel(db);
+  const kernel = sqliteKernel<{ t: { id: string } }>(db);
   assert.equal(sqliteKernel(db), kernel);
+  assert.equal(sqliteKernel(db.$client), kernel);
   await kernel.execute(sql`CREATE TABLE t (id text)`);
   db.$client.exec("BEGIN IMMEDIATE");
-  await kernel.transaction(async () => kernel.execute(sql`INSERT INTO t VALUES ('a')`));
+  await kernel.transaction(async () => {
+    await kernel.lockKey("joined");
+    await kernel.execute(sql`INSERT INTO t VALUES ('a')`);
+  });
   db.$client.exec("ROLLBACK");
   assert.deepEqual(await kernel.query(sql`SELECT id FROM t`), []);
 });
 
-test("toBytes accepts Buffer and Uint8Array, refuses anything else", () => {
+test("a missing capability is an explicit error, never a silent downgrade", async () => {
+  const base = new Kysely<unknown>({ dialect: new SqliteDialect({ database: new Database(":memory:") }) });
+  const kernel = buildKernel<unknown>({
+    dialect: "sqlite",
+    transport: "better-sqlite3",
+    capabilities: { interactiveTransactions: false, atomicBatch: true, transactionalDdl: true, backup: false },
+    ready: Promise.resolve(),
+    base,
+    oneConnection: true,
+    begin: () => assert.fail("begin must not be reached"),
+    lockKey: async () => {},
+    close: () => base.destroy(),
+  });
+  await assert.rejects(kernel.transaction(async () => {}), (error: unknown) => {
+    assert.ok(error instanceof UnsupportedCapabilityError);
+    assert.equal(error.message, "the better-sqlite3 storage driver does not support interactiveTransactions");
+    return true;
+  });
+  assert.throws(() => kernel.require("backup"), { message: "the better-sqlite3 storage driver does not support backup" });
+  kernel.require("atomicBatch");
+  await kernel.close();
+});
+
+test("toBool / toBytes accept each driver's shape and refuse anything else", () => {
+  assert.deepEqual([toBool(true), toBool(1), toBool(false), toBool(0), toBool(null)], [true, true, false, false, null]);
   assert.deepEqual([...toBytes(Buffer.from([1, 2]))], [1, 2]);
   assert.deepEqual([...toBytes(new Uint8Array([3]))], [3]);
   assert.throws(() => toBytes("AQI="), { message: "expected a binary column value, got string" });

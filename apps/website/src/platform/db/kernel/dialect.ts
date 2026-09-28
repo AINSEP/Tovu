@@ -1,15 +1,15 @@
-import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
+import { type Expression, type RawBuilder, sql } from "kysely";
 
 import type { StorageDialect, StorageKernel } from "./port.js";
 
 /**
  * @file Dialect helpers: the few places SQLite and Postgres spell the same thing differently, as
- * Drizzle `sql` fragments or kernel queries. A repo that needs one of these calls the helper with
+ * Kysely `sql` fragments or kernel queries. A repo that needs one of these calls the helper with
  * `kernel.dialect`; it never writes the dialect's own spelling (the raw-SQLite guard enforces the
- * SQLite side). Idea from EmDash's `dialect-helpers.ts`, re-implemented for Drizzle.
+ * SQLite side). Idea from EmDash's `dialect-helpers.ts`, re-implemented here.
  *
- * Upserts need no helper: Drizzle's `onConflictDoUpdate`/`onConflictDoNothing` exist on both
- * dialects with the same shape; use {@link excluded} for "the value that was being inserted".
+ * Upserts need no helper: Kysely's `onConflict(oc => oc.column(…).doUpdateSet(…))` compiles to the
+ * same `ON CONFLICT … DO UPDATE` on both; "the value being inserted" is `eb.ref("excluded.col")`.
  */
 
 const JSON_KEY = /^[A-Za-z0-9_]+$/;
@@ -26,37 +26,44 @@ const sqlitePath = (path: readonly string[]) => `$.${checkedPath(path).join(".")
 const pgPath = (path: readonly string[]) => `{${checkedPath(path).join(",")}}`;
 
 /**
- * A key inside a JSON text/jsonb column, as TEXT. String values read the same on both dialects;
- * numbers and booleans do not (SQLite returns them typed, Postgres as text) — compare those
- * through an explicit cast.
+ * A SCALAR at `path` inside a JSON text/jsonb column, as TEXT with the same spelling on both
+ * dialects: strings as themselves, integers in decimal, booleans as `'true'`/`'false'`, and SQL NULL
+ * for JSON `null` or a missing key. Compare numbers through an explicit cast of this text.
+ *
+ * Not for objects or arrays (each dialect prints those differently), nor for fractional numbers
+ * whose spelling matters (`1.50` reads `1.50` on Postgres, `1.5` on SQLite).
  */
-export function jsonText(dialect: StorageDialect, column: SQLWrapper, path: readonly string[]): SQL<string | null> {
-  return dialect === "sqlite"
-    ? sql<string | null>`json_extract(${column}, ${sqlitePath(path)})`
-    : sql<string | null>`(${column}::jsonb #>> ${pgPath(path)})`;
+export function jsonText(dialect: StorageDialect, column: Expression<unknown>, path: readonly string[]): RawBuilder<string | null> {
+  if (dialect === "postgres") return sql<string | null>`(${column}::jsonb #>> ${pgPath(path)})`;
+  const at = sqlitePath(path);
+  // json_extract hands back SQLite values (1/0 for booleans, typed numbers); spell them as JSON does.
+  return sql<string | null>`(CASE json_type(${column}, ${at})
+    WHEN 'true' THEN 'true' WHEN 'false' THEN 'false'
+    ELSE CAST(json_extract(${column}, ${at}) AS TEXT) END)`;
 }
 
 /**
  * The column's JSON with `path` set to `value` (any JSON-serialisable value), creating the last key
  * if it is missing. A NULL column counts as `{}`. The parent object must already exist.
  */
-export function jsonSet(dialect: StorageDialect, column: SQLWrapper, path: readonly string[], value: unknown): SQL {
+export function jsonSet(dialect: StorageDialect, column: Expression<unknown>, path: readonly string[], value: unknown): RawBuilder<string> {
   const encoded = JSON.stringify(value);
   return dialect === "sqlite"
-    ? sql`json_set(coalesce(${column}, '{}'), ${sqlitePath(path)}, json(${encoded}))`
-    : sql`jsonb_set(coalesce(${column}::jsonb, '{}'::jsonb), ${pgPath(path)}, ${encoded}::jsonb, true)`;
+    ? sql<string>`json_set(coalesce(${column}, '{}'), ${sqlitePath(path)}, json(${encoded}))`
+    : sql<string>`jsonb_set(coalesce(${column}::jsonb, '{}'::jsonb), ${pgPath(path)}, ${encoded}::jsonb, true)`;
 }
 
 /** The statement's current time as `Date#toISOString()` text (UTC, milliseconds, `Z`). */
-export function nowIso(dialect: StorageDialect): SQL<string> {
+export function nowIso(dialect: StorageDialect): RawBuilder<string> {
   return dialect === "sqlite"
     ? sql<string>`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
     : sql<string>`to_char(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 }
 
-/** In an upsert's SET: the value the conflicting INSERT tried to write to `column`. */
-export function excluded(column: { name: string }): SQL {
-  return sql`excluded.${sql.identifier(column.name)}`;
+/** A boolean column as read: `true`/`false` on Postgres, `1`/`0` on SQLite. NULL stays null. */
+export function toBool(value: boolean | number | null | undefined): boolean | null {
+  if (value === null || value === undefined) return null;
+  return value === true || value === 1;
 }
 
 /** A blob/bytea value as bytes, whichever shape the driver returned (Buffer, Uint8Array). */

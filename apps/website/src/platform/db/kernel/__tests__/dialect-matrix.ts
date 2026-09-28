@@ -1,13 +1,12 @@
 import { after, describe } from "node:test";
 
-import { sql } from "drizzle-orm";
+import { sql } from "kysely";
 
+import type { ContentDatabase } from "../../content-database.generated.js";
 import { openPgliteKernel, type PgKernel } from "../drivers/pglite.js";
 import { type SqliteKernel, sqliteKernel } from "../drivers/sqlite.js";
 import type { StorageDialect, StorageKernel } from "../port.js";
 import { ensurePgContentSchema } from "../../pglite/content-schema.js";
-import * as pgSchema from "../../schema.postgres.js";
-import type * as sqliteSchema from "../../schema.sqlite.js";
 import { openContentDb } from "../../sqlite/content-db.js";
 
 /**
@@ -20,8 +19,7 @@ import { openContentDb } from "../../sqlite/content-db.js";
  * ```ts
  * describeEachDialect("PostRepoPort", {
  *   tables: ["posts", "post_revisions"],
- *   sqlite: (kernel) => new SqlitePostRepo(kernel),
- *   postgres: (kernel) => new PgPostRepo(kernel),
+ *   make: (kernel) => postRepoFor(kernel),
  * }, (makeRepo) => {
  *   test("saves", async () => { const repo = makeRepo(); … });
  * });
@@ -36,14 +34,15 @@ import { openContentDb } from "../../sqlite/content-db.js";
  *   their tests one after another (node:test's default inside a file). Closed after the file.
  */
 
-export type SqliteContentKernel = SqliteKernel<typeof sqliteSchema>;
-export type PgContentKernel = PgKernel<typeof pgSchema>;
+export type ContentKernel = StorageKernel<ContentDatabase>;
+export type SqliteContentKernel = SqliteKernel<ContentDatabase>;
+export type PgContentKernel = PgKernel<ContentDatabase>;
 
 export interface DialectOptions<R> {
   /** Content tables the suite writes; emptied (PGlite) before each `make()`. */
   tables: readonly string[];
-  sqlite: (kernel: SqliteContentKernel) => R;
-  postgres: (kernel: PgContentKernel) => R;
+  /** One factory for every dialect — the point of a single query body. */
+  make: (kernel: ContentKernel) => R;
 }
 
 export interface DialectCase<R> {
@@ -62,17 +61,17 @@ after(async () => {
 
 /** The file's shared in-memory PGlite content kernel (schema created on first use). */
 export function sharedPgContentKernel(): PgContentKernel {
-  sharedPg ??= openPgliteKernel({ schema: pgSchema }, { prepare: ensurePgContentSchema });
+  sharedPg ??= openPgliteKernel<ContentDatabase>({ prepare: ensurePgContentSchema });
   return sharedPg;
 }
 
 /** A fresh in-memory SQLite `content.db` (migrated) behind its kernel. */
 export function freshSqliteContentKernel(): SqliteContentKernel {
-  return sqliteKernel(openContentDb(":memory:"));
+  return sqliteKernel<ContentDatabase>(openContentDb(":memory:"));
 }
 
 /** `kernel` with every call held until `pending` settles (the per-test table reset). */
-function heldUntil<TDb>(kernel: StorageKernel<TDb>, pending: Promise<void>): StorageKernel<TDb> {
+function heldUntil<DB>(kernel: StorageKernel<DB>, pending: Promise<void>): StorageKernel<DB> {
   return {
     ...kernel,
     ready: pending,
@@ -87,19 +86,15 @@ function heldUntil<TDb>(kernel: StorageKernel<TDb>, pending: Promise<void>): Sto
 export function emptiedPgContentKernel(tables: readonly string[]): PgContentKernel {
   const base = sharedPgContentKernel();
   if (tables.length === 0) return base;
-  const list = sql.join(
-    tables.map((table) => sql.identifier(table)),
-    sql`, `
-  );
-  const pending = base.execute(sql`TRUNCATE ${list}`);
+  const pending = base.execute(sql`TRUNCATE ${sql.join(tables.map((table) => sql.table(table)))}`);
   pending.catch(() => {});
   return heldUntil(base, pending);
 }
 
 export function eachDialect<R>(options: DialectOptions<R>): DialectCase<R>[] {
   return [
-    { name: "sqlite", dialect: "sqlite", make: () => options.sqlite(freshSqliteContentKernel()) },
-    { name: "pglite", dialect: "postgres", make: () => options.postgres(emptiedPgContentKernel(options.tables)) },
+    { name: "sqlite", dialect: "sqlite", make: () => options.make(freshSqliteContentKernel()) },
+    { name: "pglite", dialect: "postgres", make: () => options.make(emptiedPgContentKernel(options.tables)) },
   ];
 }
 

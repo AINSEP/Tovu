@@ -5,7 +5,7 @@ import { sql } from "kysely";
 
 import { openPostgresKernel } from "../drivers/postgres.js";
 import type { StorageKernel } from "../port.js";
-import { freshPostgresDatabase } from "./postgres-fixture.js";
+import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
 
 /**
  * @file The kernel on a REAL Postgres server through node-postgres: a pool, so two transactions run
@@ -114,7 +114,8 @@ test("two connections WITH lockKey: the second append waits and chains after the
   let fastSettled = false;
   const fast = append(second, { stream: "locked", id: "l2", lock: true }).finally(() => (fastSettled = true));
   await new Promise((resolve) => setTimeout(resolve, 150));
-  assert.equal(fastSettled, false, "the second append must wait for the first transaction's lock");
+  const waited = !fastSettled;
   release.open();
+  assert.equal(waited, true, "the second append must wait for the first transaction's lock");
   assert.deepEqual([await slow, await fast], ["l0", "l1"]);
 });
