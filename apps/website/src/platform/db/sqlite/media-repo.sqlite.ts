@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { assetBlobs, assetRenditions, media, mediaSlugHistory, transformDefinitions } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
 import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
@@ -109,17 +110,12 @@ function translateSlugConflict(err: unknown, slug: string): never {
   throw err;
 }
 
-/** Same derivation `media-provider-credential-repo.sqlite.ts`'s own `ContentDbTx` uses — the Drizzle
- *  transaction callback argument's type, extracted structurally since Drizzle does not export it
- *  directly. */
-type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
-
 /** The `media_slug_history` row currently claiming `slug` in this workspace, or `null` if none
  *  (readable-slugs plan, S2a — see `VersionedMediaRepoPort.listRetiredSlugs`'s doc for the full
  *  rename-safety contract this and its sibling helpers below implement). */
-function findSlugClaimant(tx: ContentDbTx, workspaceId: UUID, slug: string): typeof mediaSlugHistory.$inferSelect | null {
+function findSlugClaimant(db: ContentDb, workspaceId: UUID, slug: string): typeof mediaSlugHistory.$inferSelect | null {
   return (
-    tx
+    db
       .select()
       .from(mediaSlugHistory)
       .where(and(eq(mediaSlugHistory.workspaceId, workspaceId), eq(mediaSlugHistory.slug, slug)))
@@ -138,16 +134,16 @@ function assertSlugReclaimable(claimant: typeof mediaSlugHistory.$inferSelect | 
 
 /** Removes a slug from `media_slug_history` — called once its claimant has actually reclaimed it
  *  (the row write that reclaims it has already landed in the same transaction). */
-function deleteHistoryRow(tx: ContentDbTx, workspaceId: UUID, slug: string): void {
-  tx.delete(mediaSlugHistory).where(and(eq(mediaSlugHistory.workspaceId, workspaceId), eq(mediaSlugHistory.slug, slug))).run();
+function deleteHistoryRow(db: ContentDb, workspaceId: UUID, slug: string): void {
+  db.delete(mediaSlugHistory).where(and(eq(mediaSlugHistory.workspaceId, workspaceId), eq(mediaSlugHistory.slug, slug))).run();
 }
 
 /** Moves `oldSlug` into `media_slug_history` for `mediaId`, unless the write left the slug
  *  unchanged or there was no prior slug (a brand-new row) — mirrors
  *  `InMemoryVersionedMediaRepo`'s identical `retireSlug` private method. */
-function retireSlug(tx: ContentDbTx, workspaceId: UUID, mediaId: UUID, oldSlug: string | null, newSlug: string, retiredAt: string): void {
+function retireSlug(db: ContentDb, workspaceId: UUID, mediaId: UUID, oldSlug: string | null, newSlug: string, retiredAt: string): void {
   if (!oldSlug || oldSlug === newSlug) return;
-  tx.insert(mediaSlugHistory).values({ workspaceId, slug: oldSlug, mediaId, retiredAt }).run();
+  db.insert(mediaSlugHistory).values({ workspaceId, slug: oldSlug, mediaId, retiredAt }).run();
 }
 
 export class SqliteMediaRepo implements VersionedMediaRepoPort {
@@ -225,7 +221,7 @@ export class SqliteMediaRepo implements VersionedMediaRepoPort {
   /**
    * S2a (readable slugs, 2026-09-23): the read, the retired-slug conflict check, the write, and the
    * slug-history move (reclaim the new slug out of history if it was retired; retire the row's PRIOR
-   * slug if this write actually changes it) all run inside ONE `db.transaction` — never a separate
+   * slug if this write actually changes it) all run inside ONE kernel transaction — never a separate
    * `findById()`/history-read followed by a separate write, the same "one atomic step, not a
    * check-then-write pair" reasoning `saveIfVersion`'s own doc gives.
    */
@@ -238,21 +234,21 @@ export class SqliteMediaRepo implements VersionedMediaRepoPort {
     // translated to the SAME `MediaConflictError` type the app-level check throws, so every caller
     // handles one error shape regardless of which layer actually caught the collision.
     try {
-      this.db.transaction((tx) => {
-        const existingRow = tx
+      await contentKernel(this.db).transaction(async () => {
+        const existingRow = this.db
           .select()
           .from(media)
           .where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id)))
           .get();
-        const claimant = findSlugClaimant(tx, record.workspaceId, record.slug);
+        const claimant = findSlugClaimant(this.db, record.workspaceId, record.slug);
         assertSlugReclaimable(claimant, record.id, record.slug);
         if (existingRow) {
-          tx.update(media).set(values).where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id))).run();
+          this.db.update(media).set(values).where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id))).run();
         } else {
-          tx.insert(media).values(values).run();
+          this.db.insert(media).values(values).run();
         }
-        if (claimant) deleteHistoryRow(tx, record.workspaceId, record.slug);
-        retireSlug(tx, record.workspaceId, record.id, existingRow?.slug ?? null, record.slug, record.updatedAt);
+        if (claimant) deleteHistoryRow(this.db, record.workspaceId, record.slug);
+        retireSlug(this.db, record.workspaceId, record.id, existingRow?.slug ?? null, record.slug, record.updatedAt);
       });
     } catch (err) {
       translateSlugConflict(err, record.slug);
@@ -273,23 +269,23 @@ export class SqliteMediaRepo implements VersionedMediaRepoPort {
   async saveIfVersion(required: { record: MediaRecord; ifVersion: number }): Promise<{ applied: boolean }> {
     const { record, ifVersion } = required;
     try {
-      return this.db.transaction((tx) => {
-        const existingRow = tx
+      return await contentKernel(this.db).transaction(async () => {
+        const existingRow = this.db
           .select()
           .from(media)
           .where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id), eq(media.version, ifVersion)))
           .get();
         if (!existingRow) return { applied: false };
-        const claimant = findSlugClaimant(tx, record.workspaceId, record.slug);
+        const claimant = findSlugClaimant(this.db, record.workspaceId, record.slug);
         assertSlugReclaimable(claimant, record.id, record.slug);
-        const result = tx
+        const result = this.db
           .update(media)
           .set(toMediaRow(record))
           .where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id), eq(media.version, ifVersion)))
           .run();
         if (result.changes === 0) return { applied: false };
-        if (claimant) deleteHistoryRow(tx, record.workspaceId, record.slug);
-        retireSlug(tx, record.workspaceId, record.id, existingRow.slug, record.slug, record.updatedAt);
+        if (claimant) deleteHistoryRow(this.db, record.workspaceId, record.slug);
+        retireSlug(this.db, record.workspaceId, record.id, existingRow.slug, record.slug, record.updatedAt);
         return { applied: true };
       });
     } catch (err) {
@@ -309,14 +305,14 @@ export class SqliteMediaRepo implements VersionedMediaRepoPort {
    */
   async insertIfAbsent(record: MediaRecord): Promise<{ applied: boolean }> {
     try {
-      return this.db.transaction((tx) => {
-        const claimant = findSlugClaimant(tx, record.workspaceId, record.slug);
+      return await contentKernel(this.db).transaction(async () => {
+        const claimant = findSlugClaimant(this.db, record.workspaceId, record.slug);
         assertSlugReclaimable(claimant, record.id, record.slug);
-        const result = tx.insert(media).values(toMediaRow(record)).onConflictDoNothing({ target: media.id }).run();
+        const result = this.db.insert(media).values(toMediaRow(record)).onConflictDoNothing({ target: media.id }).run();
         // Only drop the history row once the insert actually landed — an `applied: false` (id
         // already taken) must leave `media_slug_history` exactly as it was, same "no partial
         // effect on a refused write" rule every other branch here follows.
-        if (result.changes > 0 && claimant) deleteHistoryRow(tx, record.workspaceId, record.slug);
+        if (result.changes > 0 && claimant) deleteHistoryRow(this.db, record.workspaceId, record.slug);
         return { applied: result.changes > 0 };
       });
     } catch (err) {
@@ -327,9 +323,9 @@ export class SqliteMediaRepo implements VersionedMediaRepoPort {
   /** Drops the row's `media_slug_history` entries in the SAME transaction as the delete itself —
    *  S2a: "permanent delete drops that asset's history rows, which frees the name." */
   async remove(required: { workspaceId: UUID; id: UUID }): Promise<void> {
-    this.db.transaction((tx) => {
-      tx.delete(media).where(and(eq(media.workspaceId, required.workspaceId), eq(media.id, required.id))).run();
-      tx.delete(mediaSlugHistory)
+    await contentKernel(this.db).transaction(async () => {
+      this.db.delete(media).where(and(eq(media.workspaceId, required.workspaceId), eq(media.id, required.id))).run();
+      this.db.delete(mediaSlugHistory)
         .where(and(eq(mediaSlugHistory.workspaceId, required.workspaceId), eq(mediaSlugHistory.mediaId, required.id)))
         .run();
     });

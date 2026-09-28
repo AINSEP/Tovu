@@ -291,8 +291,7 @@
     "sync-terminal": 3
   },
   "apps/website/src/platform/db/sqlite/media-repo.sqlite.ts": {
-    "sync-terminal": 25,
-    "sync-transaction": 4
+    "sync-terminal": 25
   },
   "apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts": {
     "sync-terminal": 10,

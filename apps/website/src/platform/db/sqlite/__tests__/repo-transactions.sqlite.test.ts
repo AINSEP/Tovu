@@ -9,6 +9,7 @@ import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteTokenStore } from "../gated-mutation-token-repo.sqlite.js";
 import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-repo.sqlite.js";
+import { SqliteMediaRepo } from "../media-repo.sqlite.js";
 import { SqliteOutboxAdapter } from "../outbox-repo.sqlite.js";
 import { SqlitePublishCredentialSetRepo } from "../publish-credential-repo.sqlite.js";
 
@@ -116,4 +117,31 @@ test("gated mutation tokens: a redeem survives another caller's rollback (no sec
   await store.save(record);
   await writeDuringOthersRollback(db, () => store.tryRedeem({ token: record.confirmationToken, now: NOW }));
   assert.equal((await store.tryRedeem({ token: record.confirmationToken, now: NOW })).redeemed, false);
+});
+
+test("media: save and remove survive another caller's rollback", async () => {
+  const db = openSeededDb();
+  const repo = new SqliteMediaRepo(db);
+  const record = {
+    id: "media-1",
+    workspaceId: WORKSPACE,
+    title: "A photo",
+    slug: "a-photo",
+    alt: "alt text",
+    caption: "a caption",
+    credit: "a credit",
+    source: { sha256: "a".repeat(64) },
+    status: "active" as const,
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    htmlAttributes: null,
+  };
+  await writeDuringOthersRollback(db, () => repo.save(record));
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "media-1" }))?.slug, "a-photo");
+  await writeDuringOthersRollback(db, () => repo.remove({ workspaceId: WORKSPACE, id: "media-1" }));
+  assert.equal(await repo.findById({ workspaceId: WORKSPACE, id: "media-1" }), null);
 });
