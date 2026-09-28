@@ -152,9 +152,6 @@
   "apps/website/src/features/taxonomy/repo.sqlite.ts": {
     "sync-terminal": 21
   },
-  "apps/website/src/features/tool-audit/repo.sqlite.ts": {
-    "sync-terminal": 3
-  },
   "apps/website/src/features/trash/adapters/comment.ts": {
     "better-sqlite3-import": 1
   },

@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { desc, eq } from "drizzle-orm";
 
+import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
 import { agentToolAttempts } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { MAX_ROWS_PER_WORKSPACE, SqliteToolAttemptAuditSink } from "../../repo.sqlite.js";
@@ -80,7 +81,8 @@ test("append never throws, even when the underlying write fails — audit is obs
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
   const errors: unknown[] = [];
-  const broken = { insert: () => { throw new Error("database is locked"); } } as unknown as typeof db;
+  const kernel = contentKernel(db);
+  const broken: ContentKernel = { ...kernel, run: async () => { throw new Error("database is locked"); } };
 
   await assert.doesNotReject(() => new SqliteToolAttemptAuditSink(broken, { onError: (e) => errors.push(e) }).append(event()));
   assert.equal(errors.length, 1, "the failure must be reported, not silently dropped");
