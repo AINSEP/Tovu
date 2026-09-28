@@ -49,9 +49,6 @@
     "sqlite-json": 2,
     "sync-terminal": 5
   },
-  "apps/website/src/features/forms/repo.sqlite.ts": {
-    "sync-terminal": 8
-  },
   "apps/website/src/features/members/repo.sqlite.ts": {
     "sync-terminal": 17
   },
