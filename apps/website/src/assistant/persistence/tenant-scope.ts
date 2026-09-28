@@ -77,9 +77,8 @@ export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
  * Returns chat history scoped to exactly one principal.
  *
  * There is no sibling function that returns an unscoped store, and that absence is the design.
- * Retention — the one operation that legitimately spans owners — belongs in its own
- * `ChatHistoryMaintenance` (`@jini-ai/chat/core`), not an escape hatch here. No sweep is wired
- * in Tovu today, so expired guest chats are not yet deleted.
+ * Retention — the one operation that legitimately spans owners — lives in its own module
+ * (`chat-expiry-sweep.ts`), not an escape hatch here.
  *
  * @param db the chat kernel, or Tovu's open `chat.db` handle (`openChatDb`) whose kernel to use.
  *   The store writes through it and never opens a database of its own.

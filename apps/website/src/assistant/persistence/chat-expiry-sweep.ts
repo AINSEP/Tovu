@@ -1,0 +1,57 @@
+import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
+import type { SqliteConnectionSource } from "#src/platform/db/kernel/index";
+
+/**
+ * @file Retention for chat history: deletes every conversation whose `expires_at` has passed.
+ *
+ * This is the one chat operation that legitimately spans owners (`tenant-scope.ts`'s doc), so it
+ * lives here, on the raw chat kernel, and never in a scoped store. Only guest chats carry an
+ * `expires_at` (`chatExpiryFor`); a NULL one never expires. Messages, agent sessions and tool
+ * approvals go with each conversation through `ON DELETE CASCADE`.
+ */
+
+/** How often {@link startChatExpirySweep} re-runs after its boot pass: hourly. */
+export const CHAT_EXPIRY_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * Deletes every conversation that expired at or before `now`.
+ *
+ * @param store the chat kernel, or the open `chat.db` handle whose kernel to use.
+ * @returns how many conversations were deleted.
+ * @complexity one DELETE over the partial `expires_at` index.
+ */
+export async function sweepExpiredChats(store: ChatKernel | SqliteConnectionSource, now: number = Date.now()): Promise<number> {
+  const kernel = chatKernel(store);
+  const result = await kernel.run((db) =>
+    db.deleteFrom("ai_chats").where("expires_at", "is not", null).where("expires_at", "<=", now).executeTakeFirst()
+  );
+  return Number(result.numDeletedRows);
+}
+
+/**
+ * Runs {@link sweepExpiredChats} once now and then every `intervalMs`, until the returned stop
+ * function is called. The timer is `unref`'d so it never keeps the process alive. A failed pass is
+ * reported through `onError` and the next pass still runs.
+ */
+export function startChatExpirySweep(
+  store: ChatKernel | SqliteConnectionSource,
+  options: {
+    readonly intervalMs?: number;
+    readonly now?: () => number;
+    readonly onError?: (error: unknown) => void;
+  } = {}
+): () => void {
+  const { intervalMs = CHAT_EXPIRY_SWEEP_INTERVAL_MS, now = Date.now } = options;
+  const onError =
+    options.onError ??
+    ((error: unknown) => {
+      // eslint-disable-next-line no-console
+      console.warn(`[chat-expiry-sweep] sweep failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  const kernel = chatKernel(store);
+  const pass = () => void sweepExpiredChats(kernel, now()).catch(onError);
+  pass();
+  const timer = setInterval(pass, intervalMs);
+  timer.unref();
+  return () => clearInterval(timer);
+}
