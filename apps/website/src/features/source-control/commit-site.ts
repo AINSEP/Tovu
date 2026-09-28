@@ -199,7 +199,7 @@ export interface CommitSiteDeps {
  * (`server/routes/types.ts`) — that field is `ExportEngine<RouteDeps>`, which takes a `routeDeps`
  * parameter the caller must supply on every call; THIS function takes none, because `RouteDeps` is
  * already closed over at the composition root (`server/app.ts`'s `createRouteDeps()`/
- * `server/deps.ts`'s `createSqliteRouteDeps()`, bound as `RouteDeps.exportSiteBound`). Naming the two
+ * `server/deps.ts`'s `createSiteRouteDeps()`, bound as `RouteDeps.exportSiteBound`). Naming the two
  * similarly was reviewed and rejected specifically because a caller mixing them up (passing a
  * `routeDeps` field this function does not want, or omitting one `runExportSite` requires) would
  * still type-check — see this domain's own `tool-registrations.ts` for where that exact class of bug

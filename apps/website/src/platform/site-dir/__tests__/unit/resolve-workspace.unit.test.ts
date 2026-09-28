@@ -9,7 +9,7 @@ import { resolveWorkspace } from "../../resolve-workspace.js";
  * @file SPEC-003 C-005 (`resolveWorkspace`) — TDD certification, unit tier.
  *
  * Traces: REQ-06, state.spec.md §5 (`resolveWorkspace` selector contract), CIC U-001
- * (`resolveWorkspace` is the single source of truth both `createSqliteRouteDeps`'s changed
+ * (`resolveWorkspace` is the single source of truth both `createSiteRouteDeps`'s changed
  * default path and `bootSiteDir` must call).
  *
  * `resolveWorkspace` does not exist yet — this file is expected to fail to compile/run until

@@ -8,7 +8,7 @@ import type { ContentDb } from "./content-db.js";
  * SqlPublishTrustRevocationStore} (the one Kysely query body, `repos/publish-trust-revocations.ts`).
  *
  * Construction proves the table is readable, synchronously, because the SQLite composition root
- * (`createSqliteRouteDeps`) is synchronous: a missing or inaccessible deny store stops boot rather
+ * (`createSiteRouteDeps`) is synchronous: a missing or inaccessible deny store stops boot rather
  * than making every disconnected publisher silently look connected. That one probe is the only
  * Drizzle query left here; an async composition root uses `publishTrustRevocationStoreFor` instead.
  */

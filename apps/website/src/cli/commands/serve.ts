@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { createServingApp } from "../../server/runtime/composition/serving-app.js";
-import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
@@ -72,7 +72,7 @@ import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/ad
  * never called `registerPluginSdkResolver()` either — only `src/index.ts`'s `main()` did. CIC
  * U-002-B1/ORD1 requires it registered synchronously, before any route is registered and before any
  * code path that could reach `loadPlugin()`'s dynamic `import()` — `createApp()` below unconditionally
- * mounts the `plugins` module (`PLUGIN_SET_ENABLED`), and `createSqliteRouteDeps()` above always wires
+ * mounts the `plugins` module (`PLUGIN_SET_ENABLED`), and `createSiteRouteDeps()` above always wires
  * a real `installDir`, so a site-installed plugin enabled through this command's own admin route (or
  * the equivalent `plugins_set_enabled` agent tool) reached a real `import()` with the resolution hook
  * never registered — ordinary Node resolution then governs, which a plugin can defeat by planting its
@@ -224,7 +224,7 @@ export function pinServedSiteDirIntoEnv(target: string, env: NodeJS.ProcessEnv =
   // The SECOND half of the same fact, for the same inheritance reason (2026-09-07 audit, claim #4):
   // this boot's site was pinned by an explicit argument, so the Sites switcher's write paths must
   // refuse. The API learns that from its own `siteBinding` override below; the agent daemon — a
-  // separate process that rebuilds its own `RouteDeps` through `createSqliteRouteDepsForWorkspace`,
+  // separate process that rebuilds its own `RouteDeps` through `createSiteRouteDepsForWorkspace`,
   // and the process where `sites_duplicate_site` actually EXECUTES — falls back to
   // `describeSiteBinding()` and would otherwise reconstruct the binding as switchable, duplicating
   // under whatever `<process.cwd()>/sites` happens to be while the HTTP routes refuse the identical
@@ -295,7 +295,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
   // see `ensureSiteKeyForBoot`'s own header). Result is discarded — no caller here needs it, same
   // "safe to call on every boot" framing `ensureSiteKey` itself documents. Must precede
-  // `createSqliteRouteDeps` below, which is what actually resolves the root key this may have just
+  // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
   // adopted or minted.
   await ensureSiteKeyForBoot({ siteDir: target, findKeyDependentData });
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
@@ -306,7 +306,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   const host = resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST);
 
   const dbPath = path.join(target, "content.db");
-  const deps = createSqliteRouteDeps(dbPath, {
+  const deps = await createSiteRouteDeps(dbPath, {
     db: bootResult.db,
     workspaceId: bootResult.workspaceId,
     uploadsDir: path.join(target, "uploads"),

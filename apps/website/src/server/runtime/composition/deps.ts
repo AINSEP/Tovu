@@ -448,7 +448,7 @@ export function bundledAgentPluginsDir(): string {
  * trigger + the `deployment_trigger_export` agent tool) or `cli/commands/export.ts` (`tovu export`)
  * — both now read `RouteDeps.exportOutputRootDir` instead, which this function feeds in both
  * composition roots (`server/app.ts`'s `createRouteDeps()` and this file's
- * `createSqliteRouteDeps()`). See `routes/types.ts`'s `exportOutputRootDir` doc for the full
+ * `createSiteRouteDeps()`). See `routes/types.ts`'s `exportOutputRootDir` doc for the full
  * reasoning.
  */
 export function resolveExportOutputRootDir(): string {
@@ -550,7 +550,7 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
  * own db. `db`/`workspaceId` are required together or omitted together (validated below) — there
  * is no legal state where only one is supplied. `uploadsDir` is independent of that pair.
  */
-export interface CreateSqliteRouteDepsOverrides {
+export interface CreateSiteRouteDepsOverrides {
   db: ContentDb;
   workspaceId: string;
   /** Consecutive plugin hook failures before automatic quarantine. */
@@ -587,17 +587,17 @@ export interface CreateSqliteRouteDepsOverrides {
 
 /**
  * 2026-08-20 (complexity pass) — CIC U-001 / Contract Map C-010's paired-override guard, hoisted
- * out of `createSqliteRouteDeps`. Each `overrides?.field` read is its own branch under ESLint's
+ * out of `createSiteRouteDeps`. Each `overrides?.field` read is its own branch under ESLint's
  * `complexity` rule; splitting the two reads plus the comparison `if` into their own 4-line
  * function moves those 3 points of complexity here instead of onto the composition root, without
  * changing what gets checked or when.
  */
-function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSqliteRouteDepsOverrides>): void {
+function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
   const hasOverrideDb = overrides?.db !== undefined;
   const hasOverrideWorkspaceId = overrides?.workspaceId !== undefined;
   if (hasOverrideDb !== hasOverrideWorkspaceId) {
     throw new Error(
-      "createSqliteRouteDeps: overrides.db and overrides.workspaceId must be supplied together or not at all"
+      "createSiteRouteDeps: overrides.db and overrides.workspaceId must be supplied together or not at all"
     );
   }
 }
@@ -610,7 +610,7 @@ function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSqliteRouteDeps
  * root.
  */
 function pluginFailureThresholdOverride(
-  overrides?: Partial<CreateSqliteRouteDepsOverrides>
+  overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): { failureThreshold?: number } {
   return overrides?.pluginFailureThreshold === undefined ? {} : { failureThreshold: overrides.pluginFailureThreshold };
 }
@@ -619,33 +619,33 @@ function pluginFailureThresholdOverride(
  * First-boot-only: turns a deployed container's stock `content.seed.db` into this site's live
  * `content.db`, exactly once — same presence-not-contents gate `seedSiteThemes()` above uses for
  * `themes/`, so a live db from any later boot is never touched (see `hydrateContentDbFromSeed()`'s
- * own header for the full rationale). Hoisted out of `createSqliteRouteDeps` for the same reason
+ * own header for the full rationale). Hoisted out of `createSiteRouteDeps` for the same reason
  * {@link assertOverridesPairedOrAbsent} is: one branch counted once here, not inline in the
  * composition root. A no-op whenever `overrides.db` is supplied — that caller (`boot-site-dir.ts`'s
  * install-dir path) has already opened its own db before reaching here, so `dbPath` is never even
  * read in that branch.
  */
-function hydrateContentDbIfNeeded(dbPath: string, overrides?: Partial<CreateSqliteRouteDepsOverrides>): void {
+function hydrateContentDbIfNeeded(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
   if (overrides?.db !== undefined) return;
   hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath(), dbPath });
 }
 
 /**
  * 2026-09-03 (complexity pass) — `overrides.themesDir ?? siteThemesDir()`, hoisted out of
- * `createSqliteRouteDeps` for the same reason {@link assertOverridesPairedOrAbsent} is: one `??`
+ * `createSiteRouteDeps` for the same reason {@link assertOverridesPairedOrAbsent} is: one `??`
  * counted once here, not inline in the composition root.
  */
-function resolveThemesDirOverride(overrides?: Partial<CreateSqliteRouteDepsOverrides>): string {
+function resolveThemesDirOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>): string {
   return overrides?.themesDir ?? siteThemesDir();
 }
 
 /**
  * `overrides.siteBinding ?? describeSiteBinding()`, hoisted for the same reason
  * {@link resolveThemesDirOverride} is: one `??` counted once here, not inline in the composition
- * root. See `CreateSqliteRouteDepsOverrides.siteBinding`'s own doc for why the install-dir boot
+ * root. See `CreateSiteRouteDepsOverrides.siteBinding`'s own doc for why the install-dir boot
  * path (`cli/commands/serve.ts`) must supply an explicit value rather than let this default apply.
  */
-function resolveSiteBindingOverride(overrides?: Partial<CreateSqliteRouteDepsOverrides>): SiteBinding {
+function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>): SiteBinding {
   return overrides?.siteBinding ?? describeSiteBinding();
 }
 
@@ -698,7 +698,7 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
  * `serve` path), reuse that SAME handle rather than opening/migrating a second db — `bootSiteDir`
  * has already validated, migrated, and stamped this db before calling here (BR-05/BR-06).
  */
-function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSqliteRouteDepsOverrides>): ContentDb {
+function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): ContentDb {
   return (
     overrides?.db ??
     openContentDb(
@@ -721,7 +721,7 @@ function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSqlite
  * single-source-of-truth) still holds: this remains the sole `resolveWorkspace` call site: moving
  * it into its own function does not add a second one.
  */
-function resolveWorkspaceIdOverride(db: ContentDb, overrides?: Partial<CreateSqliteRouteDepsOverrides>): string {
+function resolveWorkspaceIdOverride(db: ContentDb, overrides?: Partial<CreateSiteRouteDepsOverrides>): string {
   return overrides?.workspaceId ?? resolveWorkspace({ db }).id;
 }
 
@@ -753,7 +753,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
   identity: IdentityRouteDepsSlice;
   clock: ClockPort;
   idGen: IdGeneratorPort;
-  overrides?: Partial<CreateSqliteRouteDepsOverrides>;
+  overrides?: Partial<CreateSiteRouteDepsOverrides>;
 }): Promise<void> {
   if (required.overrides?.db !== undefined) return Promise.resolve();
 
@@ -808,10 +808,15 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
     });
 }
 
-export function createSqliteRouteDeps(
+/**
+ * The site composition root: builds every `RouteDeps` service over the site's content database.
+ * Async so storage opening can await (R1 plan); the body has no `await` yet, so it still runs to its
+ * return synchronously and boot order is unchanged. Bad overrides reject rather than throw.
+ */
+export async function createSiteRouteDeps(
   dbPath: string = defaultContentDbPath(),
-  overrides?: Partial<CreateSqliteRouteDepsOverrides>
-): NewsletterRouteDeps {
+  overrides?: Partial<CreateSiteRouteDepsOverrides>
+): Promise<NewsletterRouteDeps> {
   assertOverridesPairedOrAbsent(overrides);
 
   // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
@@ -2167,28 +2172,28 @@ export function createSqliteRouteDeps(
  * coincidence of `resolveWorkspace`'s current semantics, not by construction, and the two
  * processes have no way to agree at all once an explicit workspace choice enters the picture.
  *
- * `workspaceIdOverride` undefined reproduces `createSqliteRouteDeps()`'s existing no-override
+ * `workspaceIdOverride` undefined reproduces `createSiteRouteDeps()`'s existing no-override
  * behavior exactly (byte-identical for every current single-workspace caller). When supplied, it
  * is validated against a real workspace row via {@link resolveWorkspace} BEFORE
- * `createSqliteRouteDeps` is called — CIC U-001's `overrides.db`/`overrides.workspaceId`
- * "together or not at all" rule (`createSqliteRouteDeps` above) means the caller cannot supply a
+ * `createSiteRouteDeps` is called — CIC U-001's `overrides.db`/`overrides.workspaceId`
+ * "together or not at all" rule (`createSiteRouteDeps` above) means the caller cannot supply a
  * bare workspaceId override without also supplying the db handle it was validated against, so
- * this function opens that db handle itself rather than asking `createSqliteRouteDeps` to do so
+ * this function opens that db handle itself rather than asking `createSiteRouteDeps` to do so
  * twice.
  *
- * @throws {ValidationError} `workspaceIdOverride` was supplied but names no real workspace row —
+ * @throws {ValidationError} (as a rejection) `workspaceIdOverride` was supplied but names no real workspace row —
  *   propagates uncaught (`resolveWorkspace`'s own error), which is deliberate: a caller (the
  *   daemon) that silently fell back to the default workspace on a bad override would be a worse
  *   failure mode than a loud boot-time crash naming the bad id.
  * @complexity O(1) beyond `resolveWorkspace`'s own cost (see that function's own complexity note).
  * @overallScore 100
  */
-export function createSqliteRouteDepsForWorkspace(
+export async function createSiteRouteDepsForWorkspace(
   workspaceIdOverride: string | undefined,
   dbPath: string = defaultContentDbPath(),
   contentStoreRole: ContentStoreRole = "owner"
-): NewsletterRouteDeps {
-  if (workspaceIdOverride === undefined) return createSqliteRouteDeps(dbPath, { contentStoreRole });
+): Promise<NewsletterRouteDeps> {
+  if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { contentStoreRole });
 
   const db = openContentDb(
     dbPath,
@@ -2196,5 +2201,6 @@ export function createSqliteRouteDepsForWorkspace(
     recoverIncompleteDataModuleMigrations
   );
   const workspace = resolveWorkspace({ db }, { workspaceId: workspaceIdOverride });
-  return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id, contentStoreRole });
+  return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, contentStoreRole });
 }
+

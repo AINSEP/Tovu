@@ -253,10 +253,10 @@ test("formatOrphanedChatRowsWarning renders nothing-to-say state as an empty str
  * The dominant defect shape in this repo is a correct primitive with an unwired call site, so this
  * asserts the composition root actually invokes the check — a green unit test on
  * `warnOnOrphanedChatRows` alone would pass with `deps.ts` never calling it. Source assertion (not
- * a behavioural one) because `createSqliteRouteDeps` opens, migrates, and seeds a real content.db
+ * a behavioural one) because `createSiteRouteDeps` opens, migrates, and seeds a real content.db
  * from a `process.cwd()`-relative default; booting it inside a test risks touching a real site.
  */
-test("deps.ts wires the check into createSqliteRouteDeps right where chat.db is opened", () => {
+test("deps.ts wires the check into createSiteRouteDeps right where chat.db is opened", () => {
   assert.ok(fs.existsSync(DEPS_PATH), `guard: the composition root must be at ${DEPS_PATH}`);
   const source = fs.readFileSync(DEPS_PATH, "utf8");
 
@@ -265,7 +265,7 @@ test("deps.ts wires the check into createSqliteRouteDeps right where chat.db is 
 
   assert.ok(
     source.includes("warnOnOrphanedChatRows("),
-    "createSqliteRouteDeps must call warnOnOrphanedChatRows; the detector is useless unwired"
+    "createSiteRouteDeps must call warnOnOrphanedChatRows; the detector is useless unwired"
   );
   const openIndex = source.indexOf("const chatDb = openChatDb(");
   const warnIndex = source.indexOf("warnOnOrphanedChatRows({");

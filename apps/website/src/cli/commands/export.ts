@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { exportSite, type ExportReport } from "../../features/site-export/index.js";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { closeSqliteConnection } from "../../platform/db/kernel/drivers/sqlite.js";
@@ -12,7 +12,7 @@ import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../err
 /**
  * @file `tovu export <dir>` — wires a commander action's parsed arguments to the exporter engine
  * (`export/site-exporter.ts`'s `exportSite`), mirroring `cli/commands/serve.ts`'s own shape: same
- * `bootSiteDir` → `createSqliteRouteDeps` composition, minus the `app.listen` half (the exporter
+ * `bootSiteDir` → `createSiteRouteDeps` composition, minus the `app.listen` half (the exporter
  * boots its OWN short-lived in-process listener and closes it before this function returns).
  *
  * Purpose:
@@ -26,19 +26,19 @@ import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../err
  * uncaught to `cli/main.ts`.
  *
  * Plugin SDK resolver (2026-09-05 dispatch, CIC U-002/ADR-005, ESCALATE_SECURITY): same gap as
- * `serve.ts` had, same fix — this command builds the SAME `createSqliteRouteDeps()` composition
+ * `serve.ts` had, same fix — this command builds the SAME `createSiteRouteDeps()` composition
  * root (always wiring a real plugin installDir) and `exportSite()`'s own internal listener runs the
  * SAME `createApp()`-equivalent (`routeDeps.createSiteApp()`), so its crawl is served by a process
  * that mounts the `plugins` module with `registerPluginSdkResolver()` never registered. `tovu export`
  * doesn't itself call the `PLUGIN_SET_ENABLED` route, but the resolver hook is a process-wide,
  * one-time registration (CIC U-002-B1: "before any code path that could reach `loadPlugin()` is
- * wired into the running process") — this process is one such path the instant `createSqliteRouteDeps()`
+ * wired into the running process") — this process is one such path the instant `createSiteRouteDeps()`
  * wires a real `installDir`, independent of whether this specific command happens to exercise it.
  * Fixed the same way as `serve.ts`: `registerPluginSdkResolver()` called first, before any other
  * boot step, with no `await` ahead of it.
  *
  * Crash-interrupted-migration scan (2026-09-06 composition-root fix): this command built the SAME
- * `createSqliteRouteDeps()` composition root `serve.ts` does, and `exportSite()`'s own internal
+ * `createSiteRouteDeps()` composition root `serve.ts` does, and `exportSite()`'s own internal
  * listener runs the real `createApp()`-equivalent (`routeDeps.createSiteApp()`) to crawl it — but
  * unlike `serve.ts`, this command never ran `runBootLifecycle`/`buildBootModules` at all, so the
  * `database-migration-reconciliation` scan (`reconcile-interrupted-migration.ts` — detects a
@@ -47,7 +47,7 @@ import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../err
  * data with no warning at all. Fixed by calling that same scan directly (not the full
  * `buildBootModules` bundle — that also seeds bundled agent plugins and other optional boot modules
  * with no relationship to exporting, which this command has never done and should not start doing as
- * a side effect of this fix) right after `createSqliteRouteDeps()`, refusing outright
+ * a side effect of this fix) right after `createSiteRouteDeps()`, refusing outright
  * (`ExportBlockedPendingRecoveryError`, exit 7) rather than letting the crawl surface the same
  * problem indirectly as N confusing per-route failures.
  */
@@ -71,7 +71,7 @@ export interface RunExportCommandInput {
  * restart and is what an operator copies out), not to wherever the install dir happens to live.
  *
  * `exportOutputRootDir` is `RouteDeps.exportOutputRootDir` — this command's own composition root
- * (`createSqliteRouteDeps`, below) resolves the `TOVU_EXPORT_DIR`-env-then-default half of this
+ * (`createSiteRouteDeps`, below) resolves the `TOVU_EXPORT_DIR`-env-then-default half of this
  * precedence chain exactly once (`server/deps.ts`'s `resolveExportOutputRootDir`); only the
  * CLI-only `--out` flag is decided here. This function never reads `process.env` itself.
  */
@@ -134,7 +134,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
 
   const dbPath = path.join(target, "content.db");
-  const routeDeps = createSqliteRouteDeps(dbPath, {
+  const routeDeps = await createSiteRouteDeps(dbPath, {
     db: bootResult.db,
     workspaceId: bootResult.workspaceId,
     uploadsDir: path.join(target, "uploads"),

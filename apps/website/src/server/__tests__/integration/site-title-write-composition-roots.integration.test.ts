@@ -6,14 +6,14 @@ import test from "node:test";
 
 import { getEffective, ValueValidationFailedError } from "#src/features/settings/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { createSqliteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file SPEC-050 REQ-08 (AC-14) in both composition roots. `RouteDeps.set` is the settings write every
  * assistant module takes as an injected dep, and the agent daemon builds its `RouteDeps` from exactly
  * these two factories (`agent-daemon-server.ts`: `createRouteDeps()` under `TOVU_DB=memory`, else
- * `createSqliteRouteDepsForWorkspace`). The admin route binds the same `set` directly, asserted over
+ * `createSiteRouteDepsForWorkspace`). The admin route binds the same `set` directly, asserted over
  * HTTP in `site-title.integration.test.ts`.
  *
  * `authorize` is an allow-all shim, so a write that reaches the ledger succeeds. A rejection here can
@@ -74,10 +74,10 @@ test("REQ-08: the in-memory root's RouteDeps.set trims a core.site.title write a
   await assertRootEnforcesTitleBounds(deps, "createRouteDeps");
 });
 
-test("REQ-08: the SQLite root the agent daemon builds (createSqliteRouteDepsForWorkspace) enforces the same bounds", async () => {
+test("REQ-08: the SQLite root the agent daemon builds (createSiteRouteDepsForWorkspace) enforces the same bounds", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-title-write-"));
   try {
-    const deps = createSqliteRouteDepsForWorkspace(undefined, path.join(dir, "content.db"));
+    const deps = await createSiteRouteDepsForWorkspace(undefined, path.join(dir, "content.db"));
     // Same settle as `create-sqlite-route-deps-for-workspace.integration.test.ts`: the boot-time
     // installers must finish before the temp dir is removed.
     await Promise.all([
@@ -92,7 +92,7 @@ test("REQ-08: the SQLite root the agent daemon builds (createSqliteRouteDepsForW
       deps.siteTitleReady,
     ]);
 
-    await assertRootEnforcesTitleBounds(deps, "createSqliteRouteDepsForWorkspace");
+    await assertRootEnforcesTitleBounds(deps, "createSiteRouteDepsForWorkspace");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

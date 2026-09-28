@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
  * synchronously, before any code path can reach `loadPlugin()`'s dynamic `import()`
  * (`server/runtime/boot/plugin-sdk-resolver.ts`'s own header;
  * `ADS-memory/reports/pipeline/005-plugin-system/critical-internal-constraints.md` U-002-B1/ORD1).
- * `cli/commands/export.ts` (`tovu export`) builds the same `createSqliteRouteDeps()` composition
+ * `cli/commands/export.ts` (`tovu export`) builds the same `createSiteRouteDeps()` composition
  * root as `cli/commands/serve.ts` — always wiring a real plugin `installDir` — and its own
  * `exportSite()` boots the same `createApp()`-equivalent internally, but never called
  * `registerPluginSdkResolver()` either.

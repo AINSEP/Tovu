@@ -51,7 +51,7 @@ export class ExportIncompleteError extends Error {
 
 /**
  * `EXPORT_BLOCKED_PENDING_RECOVERY` (exit 7) — 2026-09-06 composition-root fix. `tovu export` ran
- * `createSqliteRouteDeps()` and booted the real `createApp()`-equivalent (`exportSite()`'s own
+ * `createSiteRouteDeps()` and booted the real `createApp()`-equivalent (`exportSite()`'s own
  * internal crawl listener) without ever running `runBootLifecycle`/`buildBootModules` first, unlike
  * `tovu serve` — so the `database-migration-reconciliation` scan (`reconcile-interrupted-migration.ts`,
  * the one that detects a crash-interrupted migration and flips `siteStatusRepo` to

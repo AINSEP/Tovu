@@ -59,7 +59,7 @@ export const SITE_BACKUP_MANIFEST_PATH = "tovu-backup.json";
 export const SITE_BACKUP_DATABASE_PATH = "database/content.db";
 
 /** Where each scope's bytes live on this machine — resolved once by the composition root
- *  (`server/runtime/composition/deps.ts`'s `createSqliteRouteDeps`), so this file never re-derives a
+ *  (`server/runtime/composition/deps.ts`'s `createSiteRouteDeps`), so this file never re-derives a
  *  site path itself. */
 export interface SiteBackupSources {
   readonly siteDir: string;

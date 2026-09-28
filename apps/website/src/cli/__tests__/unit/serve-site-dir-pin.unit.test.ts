@@ -100,7 +100,7 @@ test("the pinned value is what the daemon child inherits — buildDaemonSpawnEnv
 // 2026-09-07 audit claim #4 (second half) — the site-switching guard was enforced by the HTTP
 // routes and bypassed by the agent tool. `runServeCommand` hands the API a `siteBinding` with
 // `switcherCompatible: false`, but the agent daemon is a separate process that rebuilds its own
-// `RouteDeps` through `createSqliteRouteDepsForWorkspace` (no override) and so fell back to
+// `RouteDeps` through `createSiteRouteDepsForWorkspace` (no override) and so fell back to
 // `describeSiteBinding()`, which reported `true`. `sites_duplicate_site` executes in THAT process.
 // ---------------------------------------------------------------------------
 

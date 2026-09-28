@@ -74,7 +74,7 @@ RUN npm run build
 # survive `fly.toml`'s volume mount over `/workspace/Tovu/sites`, which shadows the image's ENTIRE
 # `sites/` tree at runtime — anything left there for a fresh volume to read would be invisible the
 # moment the mount takes effect. `hydrate-content-db-from-seed.ts`'s `hydrateContentDbFromSeed()`
-# (wired into `server/deps.ts`'s `createSqliteRouteDeps()`) copies this back INTO the mounted
+# (wired into `server/deps.ts`'s `createSiteRouteDeps()`) copies this back INTO the mounted
 # `<site>/content.db` on that one site's first boot only — see its own header for why a later boot
 # must never repeat that copy: content.db is live production data by then. Looped rather than a
 # single explicit COPY: correct for however many sites happen to have a committed seed (today, just
@@ -85,7 +85,7 @@ RUN npm run build
 # existed nothing shipped the BYTES those rows' `storage_key`s point at — real rows, zero files,
 # every admin media preview 500ing. Same "must live outside `sites/`" reasoning as the seed db
 # above; `hydrate-blob-store-from-seed.ts`'s `hydrateBlobStoreFromSeed()` (also wired into
-# `createSqliteRouteDeps()`) is the boot-time consumer, gated per-blob rather than per-directory —
+# `createSiteRouteDeps()`) is the boot-time consumer, gated per-blob rather than per-directory —
 # see that function's own header for why. `[ -d ... ]` guarded, not unconditional: a site can have a
 # committed `content.seed.db` with no blobs at all (no media uploaded yet), and `cp -R` on a missing
 # source directory would fail the build.

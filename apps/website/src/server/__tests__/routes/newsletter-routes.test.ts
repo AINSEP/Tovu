@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
@@ -14,7 +14,7 @@ import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes
 /**
  * @file SPEC-011 (Newsletter) Stage 5 — route-level happy-path integration tests for each route
  * group (campaigns, lists, subscriptions), against the REAL SQLite adapter
- * (`createSqliteRouteDeps(":memory:")`, `server/deps.ts`), mirroring `settings-principal-check.
+ * (`createSiteRouteDeps(":memory:")`, `server/deps.ts`), mirroring `settings-principal-check.
  * test.ts`'s real-SQLite pattern and `admin-widgets-routes.test.ts`'s create -> read -> mutate flow
  * shape. Domain-layer edge cases are already covered by `src/newsletter/__tests__/**`'s 83 tests —
  * these focus on HTTP wiring across the real chokepoints end to end.
@@ -26,8 +26,8 @@ import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes
  * never succeed in this composition. That 409 is this feature working as designed, not a gap in
  * this test file or the routes it exercises.
  */
-function buildTestApp(): { app: express.Express; deps: NewsletterRouteDeps } {
-  const deps = createSqliteRouteDeps(":memory:");
+async function buildTestApp(): Promise<{ app: express.Express; deps: NewsletterRouteDeps }> {
+  const deps = await createSiteRouteDeps(":memory:");
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -51,7 +51,7 @@ function buildTestApp(): { app: express.Express; deps: NewsletterRouteDeps } {
 const BASE = (workspaceId: string) => `/api/admin/v1/workspaces/${workspaceId}/newsletter`;
 
 test("campaigns: create -> get -> list -> update -> schedule -> send/send-test correctly blocked by the Launch Gate -> cancel", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await deps.newsletterReady;
   const base = BASE(deps.workspaceId);
@@ -141,7 +141,7 @@ test("campaigns: create -> get -> list -> update -> schedule -> send/send-test c
 });
 
 test("lists: create -> list (includes the seeded default) -> archive -> default list archive is protected 409", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await deps.newsletterReady;
   const base = BASE(deps.workspaceId);
@@ -175,7 +175,7 @@ test("lists: create -> list (includes the seeded default) -> archive -> default 
 });
 
 test("subscriptions: create -> list -> import (partial success, 207) -> remove -> resend-confirmation", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await deps.newsletterReady;
   const base = BASE(deps.workspaceId);
@@ -315,7 +315,7 @@ test("subscriptions: create -> list -> import (partial success, 207) -> remove -
 });
 
 test("send-log: an empty (never-sent) campaign's send log is a 200 empty array, not a 404/500", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await deps.newsletterReady;
   const base = BASE(deps.workspaceId);
@@ -347,7 +347,7 @@ test("send-log: an empty (never-sent) campaign's send log is a 200 empty array, 
 });
 
 test("404s for unknown workspace and unknown campaign id", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const wrongWorkspace = await fetch(`${baseUrl}/api/admin/v1/workspaces/some-other-workspace/newsletter/campaigns`, {

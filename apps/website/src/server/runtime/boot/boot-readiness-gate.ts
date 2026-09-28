@@ -45,7 +45,7 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
       // origin+egress-allowlist unconditionally, with no env-var escape hatch, so this check cannot
       // yet distinguish a real deploy from a dev one. A disclosed gap, not fixed here.
       hasLocalhostEgressAllowance: false,
-      // False as of ADR-046 Phase 1's analytics slice — `deps.ts`'s `createSqliteRouteDeps()` now
+      // False as of ADR-046 Phase 1's analytics slice — `deps.ts`'s `createSiteRouteDeps()` now
       // unconditionally wires the durable `SqliteBufferSink`.
       hasAlwaysOnAnalyticsStub: false,
       // True when `TOVU_ADMIN_PASSWORD` is unset or still equal to `DEFAULT_OWNER_PASSWORD` — the

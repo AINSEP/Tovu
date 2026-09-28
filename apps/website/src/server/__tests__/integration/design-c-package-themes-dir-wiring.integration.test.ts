@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { builtInThemesDir, createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { builtInThemesDir, createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daemon-deps.js";
 
 /**
@@ -18,11 +18,11 @@ import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daem
  * in `server/routes/types.ts`) — no hand-built `RouteDeps` fixture sets it, so nothing but the real
  * composition roots can catch its removal.
  *
- * Production sets it in exactly ONE place: `createSqliteRouteDeps` (`deps.ts:~1382`),
+ * Production sets it in exactly ONE place: `createSiteRouteDeps` (`deps.ts:~1382`),
  * `packageThemesDir: builtInThemesDir()`. Both real consumers inherit that one line:
- *  - admin HTTP routes (`routes/themes/explore.ts`) via `createSqliteRouteDeps` directly.
+ *  - admin HTTP routes (`routes/themes/explore.ts`) via `createSiteRouteDeps` directly.
  *  - the agent daemon's `theme_reset_file` tool via `createAgentDaemonRouteDeps` ->
- *    `createSqliteRouteDepsForWorkspace` -> `createSqliteRouteDeps` (same line).
+ *    `createSiteRouteDepsForWorkspace` -> `createSiteRouteDeps` (same line).
  *
  * `TOVU_DB === "memory"` (`composition/app.ts`'s `createRouteDeps()`) deliberately does NOT set it —
  * that is the documented hermetic/test-only contract, not a gap, and is NOT exercised here.
@@ -62,16 +62,16 @@ async function settle(deps: { identityReady: Promise<void>; settingsReady: Promi
   ]);
 }
 
-test("admin HTTP routes path: createSqliteRouteDeps wires packageThemesDir to the real builtInThemesDir(), not undefined", async () => {
+test("admin HTTP routes path: createSiteRouteDeps wires packageThemesDir to the real builtInThemesDir(), not undefined", async () => {
   const dbPath = mkTempDbPath();
   const themesDir = mkTempThemesDir();
   try {
-    const deps = createSqliteRouteDeps(dbPath, { themesDir });
+    const deps = await createSiteRouteDeps(dbPath, { themesDir });
 
     assert.equal(
       deps.packageThemesDir,
       builtInThemesDir(),
-      "createSqliteRouteDeps must wire packageThemesDir to builtInThemesDir() — routes/themes/explore.ts's detail/copy/rename/reset routes read this field directly"
+      "createSiteRouteDeps must wire packageThemesDir to builtInThemesDir() — routes/themes/explore.ts's detail/copy/rename/reset routes read this field directly"
     );
     assert.ok(deps.packageThemesDir !== undefined, "packageThemesDir must not be undefined on the real SQLite composition root");
     assert.ok(fs.existsSync(deps.packageThemesDir!), `packageThemesDir must point at a real directory: ${deps.packageThemesDir}`);
@@ -87,10 +87,10 @@ test("admin HTTP routes path: createSqliteRouteDeps wires packageThemesDir to th
   }
 });
 
-test("agent daemon path (theme_reset_file's own composition): createAgentDaemonRouteDeps -> createSqliteRouteDepsForWorkspace -> createSqliteRouteDeps wires packageThemesDir the same way", async () => {
+test("agent daemon path (theme_reset_file's own composition): createAgentDaemonRouteDeps -> createSiteRouteDepsForWorkspace -> createSiteRouteDeps wires packageThemesDir the same way", async () => {
   const dbPath = mkTempDbPath();
   const themesDir = mkTempThemesDir();
-  // `createSqliteRouteDepsForWorkspace`/`createSqliteRouteDeps` have no themesDir-override parameter
+  // `createSiteRouteDepsForWorkspace`/`createSiteRouteDeps` have no themesDir-override parameter
   // reachable from `createAgentDaemonRouteDeps` — the real daemon boot resolves it from
   // `process.env.TOVU_THEMES_DIR` (`siteThemesDir()`, `deps.ts`), so this test overrides that same
   // env var (save/restore) rather than pointing at the owner's live `sites/tovu-com/themes`.
@@ -102,7 +102,7 @@ test("agent daemon path (theme_reset_file's own composition): createAgentDaemonR
     delete daemonEnv.TOVU_DB;
     delete daemonEnv.TOVU_WORKSPACE;
 
-    const deps = createAgentDaemonRouteDeps({ env: daemonEnv }, { dbPath });
+    const deps = await createAgentDaemonRouteDeps({ env: daemonEnv }, { dbPath });
 
     assert.equal(
       deps.packageThemesDir,

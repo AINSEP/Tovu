@@ -39,7 +39,7 @@ import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
  * - **Refuse to boot.** Takes a working site offline over data that is present and intact, merely
  *   unread.
  *
- * Reversal is deleting this file and its single call in `deps.ts`'s `createSqliteRouteDeps`; there
+ * Reversal is deleting this file and its single call in `deps.ts`'s `createSiteRouteDeps`; there
  * is no state to unwind, because it creates none.
  */
 

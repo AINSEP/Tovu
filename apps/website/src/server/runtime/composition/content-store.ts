@@ -24,7 +24,7 @@ import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 
 export type ContentStoreRole = "owner" | "client";
 
-/** One store per data dir per process, so a second `createSqliteRouteDeps` call never re-opens it. */
+/** One store per data dir per process, so a second `createSiteRouteDeps` call never re-opens it. */
 const openStores = new Map<string, PgliteContentStore>();
 
 /** The pglite switch is on for this environment. Anything other than `pglite`/`sqlite`/unset throws. */

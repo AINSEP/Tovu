@@ -7,7 +7,7 @@ import test, { type TestContext } from "node:test";
 import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
-import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import type { RedirectRecord, RedirectRevision } from "../types.js";
@@ -19,13 +19,13 @@ import type { RedirectRecord, RedirectRevision } from "../types.js";
  * The defect this pins (2026-09-16): `routing`'s `phaseRegistry` was append-only, and
  * `registerRedirectsPhaseHandlers` registers a `RedirectPhaseHandlerResolver` bound BY OBJECT
  * IDENTITY to one composition's `SqliteRedirectRepo` (`phase-handler.repo-identity-binding.test.ts`
- * documents that binding). Every `createSqliteRouteDeps()` in a process therefore left another
+ * documents that binding). Every `createSiteRouteDeps()` in a process therefore left another
  * site's closure on the live request path forever. Once the first site's database closed, the next
  * request through ANY phase-running route threw `TypeError: The database connection is not open`
  * out of `SqliteRedirectRepo.allActive` and 500ed — while `/products`, which runs no phase, kept
  * serving, which is exactly why it read as a render bug rather than a lifecycle bug.
  *
- * Real sites and real SQLite, composed through the same `bootSiteDir` + `createSqliteRouteDeps`
+ * Real sites and real SQLite, composed through the same `bootSiteDir` + `createSiteRouteDeps`
  * path `cli/commands/serve.ts` uses, because the bug lives in the wiring rather than in any one
  * unit. The assertions call `runPreContentPhase`/`runPostContentPhase` directly: those are the
  * exact two calls `routes/site/pages.ts`'s `tryRedirectPhase` makes per request, so this is the
@@ -102,7 +102,7 @@ async function bootSite(t: TestContext, name: string): Promise<BootedSite> {
   initSite({ dir, name });
 
   const boot = bootSiteDir({ dir });
-  const deps = createSqliteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(dir, "uploads"),

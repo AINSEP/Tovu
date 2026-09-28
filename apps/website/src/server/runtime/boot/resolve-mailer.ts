@@ -58,7 +58,7 @@ import {
  * **Resolution order and the startup race.** `MailerPort.capabilities()` returns synchronously,
  * but the credential lookup + decrypt is async (`SecretSealerPort.open()` derives a key through
  * `KeyringPort.derive()`, which is genuinely async) — and both composition roots
- * (`createSqliteRouteDeps`/`createRouteDeps`) must stay synchronous (`server/routes/types.ts`'s own
+ * (`createSiteRouteDeps`/`createRouteDeps`) must stay synchronous (`server/routes/types.ts`'s own
  * `identityReady` doc explains why: route wiring needs `RouteDeps` back immediately). So
  * {@link createResolvedMailer} returns a `MailerPort` that starts as `ConsoleMailerAdapter` and
  * swaps itself to the resolved real adapter on a background promise — the exact "construct

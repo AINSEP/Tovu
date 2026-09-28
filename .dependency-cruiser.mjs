@@ -158,7 +158,7 @@ const HAND_WRITTEN_RULES = [
       // `ExportEngine<T>` declaration impossible on its own (verified, not assumed) — is solved by a
       // NEW `RouteDeps.exportSiteBound` field (`server/routes/types.ts`): a pre-bound export call,
       // closed over the full `RouteDeps` once at the composition root (`server/app.ts`'s
-      // `createRouteDeps()`/`server/deps.ts`'s `createSqliteRouteDeps()`), so each narrow domain type
+      // `createRouteDeps()`/`server/deps.ts`'s `createSiteRouteDeps()`), so each narrow domain type
       // only ever has to describe `{outputDir; clean?; basePath?}` — never `routeDeps` itself.
       // `features/deployments/export-run.ts` needed NO changes: its own `ExportEngine<TRouteDeps>`
       // was already generic and never named `RouteDeps` — it was already the target shape this whole
@@ -421,7 +421,7 @@ const GUARDED_MODULES = [
 // same role as `server`'s two files for the HTTP process (confirmed: `cli/commands/serve.ts`'s
 // own docblock names this explicitly; see plan doc §3 / trace-A's site-dir section).
 // `export.ts` joined 2026-08-18 (no-deep-imports:site-dir triage) — it is architecturally
-// identical to `serve.ts`: both call `createSqliteRouteDeps` (`server/deps.ts`) and reach
+// identical to `serve.ts`: both call `createSiteRouteDeps` (`server/deps.ts`) and reach
 // `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `site-dir/resolve-install-dir-target.ts`'s
 // `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
 // `app.listen` half (the exporter crawls the app instead of serving it).

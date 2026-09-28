@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 /**
  * Builds the `ObservabilityPort` a composition root should inject into `RouteDeps.observability`.
  * `config` defaults to {@link resolveObservabilityConfig}'s real env read; both composition roots
- * (`server/runtime/composition/deps.ts`'s `createSqliteRouteDeps`, the real running server) call
+ * (`server/runtime/composition/deps.ts`'s `createSiteRouteDeps`, the real running server) call
  * this with no argument. `server/runtime/composition/app.ts`'s hermetic `createRouteDeps()`
  * deliberately does NOT call this — it always uses {@link createNoopObservabilityPort} directly, so
  * a stray `OTEL_EXPORTER_OTLP_ENDPOINT` left in a developer's shell can never make the hermetic

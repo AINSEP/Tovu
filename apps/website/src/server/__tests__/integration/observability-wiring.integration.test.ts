@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } from "#src/platform/observability/index";
 
@@ -16,7 +16,7 @@ import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } 
  *
  * - `createRouteDeps()` (this file, in-memory) — what `src/index.ts` builds in its `useMemory`
  *   branch.
- * - `createSqliteRouteDeps()` (`runtime/composition/deps.ts`, real SQLite) — what `src/index.ts`
+ * - `createSiteRouteDeps()` (`runtime/composition/deps.ts`, real SQLite) — what `src/index.ts`
  *   builds in its non-memory branch AND what `cli/commands/serve.ts`'s `tovu serve` builds (grep
  *   confirms both call sites: `index.ts:273`/`290`, `serve.ts:84`/`93`).
  *
@@ -62,14 +62,14 @@ test("createApp(createRouteDeps()) — the in-memory composition root src/index.
   assert.equal(calls[0].outcome.statusCode, 200);
 });
 
-test("createApp(createSqliteRouteDeps()) — the REAL SQLite composition root both src/index.ts's non-memory branch AND cli/commands/serve.ts's `tovu serve` build RouteDeps from — records inbound requests through RouteDeps.observability", async (t) => {
+test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both src/index.ts's non-memory branch AND cli/commands/serve.ts's `tovu serve` build RouteDeps from — records inbound requests through RouteDeps.observability", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-observability-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
   const { port: spy, calls } = createSpyObservabilityPort();
   // No `uploadsDir`/`themesDir` overrides — mirrors `create-sqlite-route-deps-overrides.
   // integration.test.ts`'s own precedent (a fresh temp `dbPath`, default everything else).
-  const deps = createSqliteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
   // Mutate in place, not a spread copy — `routes/types.ts`'s `RouteDeps` doc (the "TEST GOTCHA"
   // note on `exportSiteBound`/`createSiteApp`) documents this as the general-safe override style
   // for this composition root's returned object; `observability` is a plain data field (not one of
@@ -87,12 +87,12 @@ test("createApp(createSqliteRouteDeps()) — the REAL SQLite composition root bo
   assert.equal(calls[0].outcome.statusCode, 200);
 });
 
-test("createSqliteRouteDeps() defaults RouteDeps.observability to the no-op port (Constitution Article VIII coverage does not silently require an operator to configure OTEL_EXPORTER_OTLP_ENDPOINT just to boot) when OTEL_EXPORTER_OTLP_ENDPOINT is unset", () => {
+test("createSiteRouteDeps() defaults RouteDeps.observability to the no-op port (Constitution Article VIII coverage does not silently require an operator to configure OTEL_EXPORTER_OTLP_ENDPOINT just to boot) when OTEL_EXPORTER_OTLP_ENDPOINT is unset", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-observability-wiring-default-"));
   const originalEnv = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   try {
-    const deps = createSqliteRouteDeps(path.join(dir, "content.db"));
+    const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
     // Behavioral proof, not an identity/type check: the no-op port's own contract test
     // (`platform/observability/__tests__/unit/noop.unit.test.ts`) already proves repeated calls
     // return the SAME tracker instance — a property only the no-op adapter has (the OTel adapter

@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsClearRoute } from "../../inbound/admin-http/routes/settings/clear.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
@@ -17,13 +17,13 @@ import type { RouteDeps } from "../../routes/types.js";
  * targeting a `principalId` that does not resolve to an active principal in
  * the request's workspace must be rejected `404 PRINCIPAL_NOT_FOUND`, not
  * 500 (Red-Team RT-001's flagged gap). Run against the REAL SQLite adapter
- * (`createSqliteRouteDeps(":memory:")`, `server/deps.ts`) per tasks.md T037,
+ * (`createSiteRouteDeps(":memory:")`, `server/deps.ts`) per tasks.md T037,
  * not the in-memory one `settings-auth.test.ts` uses — proves the whole
  * chokepoint (route -> write-service -> `SqliteSettingsRepo` -> real
  * transactional SQLite) rejects the same way an in-memory double would.
  */
-function buildTestApp(): { app: express.Express; deps: RouteDeps } {
-  const deps = createSqliteRouteDeps(":memory:");
+async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }> {
+  const deps = await createSiteRouteDeps(":memory:");
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -57,7 +57,7 @@ async function registerUserScopedDefinition(baseUrl: string, cookie: string, dep
 }
 
 test("SETTINGS_SET at scope=user targeting a principalId from a different workspace is rejected 404 PRINCIPAL_NOT_FOUND (AC-24/RT-001), real SQLite adapter", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerUserScopedDefinition(baseUrl, cookie, deps);
@@ -92,7 +92,7 @@ test("SETTINGS_SET at scope=user targeting a principalId from a different worksp
 });
 
 test("SETTINGS_SET at scope=user targeting a principalId that doesn't exist anywhere is rejected 404 PRINCIPAL_NOT_FOUND, real SQLite adapter", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerUserScopedDefinition(baseUrl, cookie, deps);
@@ -115,7 +115,7 @@ test("SETTINGS_SET at scope=user targeting a principalId that doesn't exist anyw
 });
 
 test("SETTINGS_CLEAR at scope=user targeting a principalId from a different workspace is rejected 404 PRINCIPAL_NOT_FOUND (AC-24/RT-001), real SQLite adapter", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerUserScopedDefinition(baseUrl, cookie, deps);
@@ -148,7 +148,7 @@ test("SETTINGS_CLEAR at scope=user targeting a principalId from a different work
 });
 
 test("SETTINGS_SET at scope=user targeting a real principal in the SAME workspace succeeds (control case), real SQLite adapter", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerUserScopedDefinition(baseUrl, cookie, deps);

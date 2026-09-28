@@ -17,7 +17,7 @@ import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { createApp } from "#src/server/runtime/composition/app";
-import { createSqliteRouteDeps, createSqliteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { seedSite } from "../../../../../../../../../../development/scripts/seed-site.mjs";
@@ -114,13 +114,13 @@ function publishPricingPage(deps: RouteDeps): void {
 }
 
 /**
- * Boots `dir` with the same `bootSiteDir` + `createSqliteRouteDeps` overrides `tovu serve <dir>`
- * passes. `beforeBootChain` runs synchronously right after `createSqliteRouteDeps` returns, before
+ * Boots `dir` with the same `bootSiteDir` + `createSiteRouteDeps` overrides `tovu serve <dir>`
+ * passes. `beforeBootChain` runs synchronously right after `createSiteRouteDeps` returns, before
  * any step of its chained boot registrations has run.
  */
 async function bootSite(t: TestContext, dir: string, beforeBootChain?: (deps: RouteDeps) => void): Promise<BootedSite> {
   const boot = bootSiteDir({ dir });
-  const deps = createSqliteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(dir, "uploads"),
@@ -496,7 +496,7 @@ test("AC-22 (REQ-13, INV-01): a config.json rename never moves a pinned pre-exis
   assert.ok(products.includes(`<a class="wordmark" href="/">${LEGACY_TITLE}</a>`), "B: header wordmark after the rename");
 });
 
-test("AC-22 (REQ-13): the root the agent daemon builds (createSqliteRouteDepsForWorkspace) resolves a config.json rename too", async (t) => {
+test("AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWorkspace) resolves a config.json rename too", async (t) => {
   const dir = createNewSite(t);
   // Every `siteDir()`-derived path (themes, uploads, the site binding) then points into the temp
   // site, as `tovu serve`'s `pinServedSiteDirIntoEnv` arranges for the real daemon.
@@ -504,7 +504,7 @@ test("AC-22 (REQ-13): the root the agent daemon builds (createSqliteRouteDepsFor
   process.env.TOVU_SITE_DIR = dir;
   let deps: RouteDeps | undefined;
   try {
-    deps = createSqliteRouteDepsForWorkspace(undefined, path.join(dir, "content.db"));
+    deps = await createSiteRouteDepsForWorkspace(undefined, path.join(dir, "content.db"));
     await deps.siteTitleReady;
     assert.equal(await resolveSiteTitleForRender(deps), SITE_NAME, "before the rename");
 

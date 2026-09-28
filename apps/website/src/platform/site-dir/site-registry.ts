@@ -310,7 +310,7 @@ export interface SiteBinding {
  *
  * WHY AN ENV FLAG AND NOT JUST THE PATH CHECK BELOW: the API process gets its non-switchable
  * binding handed to it directly (`composition/deps.ts`'s `siteBinding` override), but the daemon is
- * a separate process that builds its OWN `RouteDeps` via `createSqliteRouteDepsForWorkspace` and so
+ * a separate process that builds its OWN `RouteDeps` via `createSiteRouteDepsForWorkspace` and so
  * falls back to this function. The daemon is also where `sites_duplicate_site` actually executes —
  * so the guard `features/sites/tool-registrations.ts` raises for a non-switchable binding was
  * enforced by the HTTP routes and bypassed by the agent tool. A path comparison alone cannot close

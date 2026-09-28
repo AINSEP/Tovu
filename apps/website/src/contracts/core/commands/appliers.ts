@@ -21,7 +21,7 @@ import type { ChangeSetItemRecord, UUID } from "@jini-ai/cms/core";
  * `features/post/reverters.ts`'s reverters close over their adapters at construction time instead,
  * since the composition roots already build `postRepo`/`clock`/`outbox` once per process and thread
  * the same instances through every request (verified via `src/index.ts`'s single
- * `createSqliteRouteDeps()`/`createRouteDeps()` call per boot) — closing over them here changes
+ * `createSiteRouteDeps()`/`createRouteDeps()` call per boot) — closing over them here changes
  * nothing observable, it just moves where the closure happens.
  */
 

@@ -51,7 +51,7 @@ export interface BootSiteDirResult {
  * @param options.workspaceId - when supplied, resolve exactly this workspace id instead of the
  *   default (oldest) — threaded from `tovu serve --workspace <id>`.
  * @returns `{ db, workspaceId, config }` — `db` is the one open, migrated content.db handle;
- *   `cli/commands/serve.ts` passes it straight to `createSqliteRouteDeps`'s `overrides` (no
+ *   `cli/commands/serve.ts` passes it straight to `createSiteRouteDeps`'s `overrides` (no
  *   second db is ever opened for the same boot).
  * @throws {SiteDirInvalidError} `config.json`/`.site-meta.json` invalid (via `readSiteDir`), or
  *   `content.db` missing entirely.

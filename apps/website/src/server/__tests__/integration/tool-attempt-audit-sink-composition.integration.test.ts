@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createAssistantByokModule } from "../../runtime/composition/modules/assistant-byok.js";
 import { SEARCH_TOOLS_TOOL_ID } from "#src/assistant/tool-catalog-audit";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
@@ -46,12 +46,12 @@ function mkTempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-test("createSqliteRouteDeps composes the SQLite audit sink itself, over the SAME content.db it opened", async () => {
+test("createSiteRouteDeps composes the SQLite audit sink itself, over the SAME content.db it opened", async () => {
   const dir = mkTempDir("tovu-audit-sink-sqlite-");
   const dbPath = path.join(dir, "content.db");
-  let deps: ReturnType<typeof createSqliteRouteDeps> | undefined;
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
-    deps = createSqliteRouteDeps(dbPath);
+    deps = await createSiteRouteDeps(dbPath);
 
     assert.ok(
       deps.toolAttemptAuditSink instanceof SqliteToolAttemptAuditSink,
@@ -84,14 +84,14 @@ test("the SQLite audit sink follows the root's OWN ContentDb HANDLE, not its dbP
   const dir = mkTempDir("tovu-audit-sink-handle-");
   const handleDbPath = path.join(dir, "handle.db");
   const neverOpenedDbPath = path.join(dir, "never-opened.db");
-  let deps: ReturnType<typeof createSqliteRouteDeps> | undefined;
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
     // `overrides.db` is `cli/commands/serve.ts`'s real install-dir path (`boot-site-dir.ts` has
     // already opened and migrated the handle), and in that branch `dbPath` is never opened at all.
     // So a sink built from `openContentDb(dbPath)` instead of from the handle would write to — and
     // create — a DIFFERENT file. That is what distinguishes injecting the port from threading a path.
     const handle = openContentDb(handleDbPath);
-    deps = createSqliteRouteDeps(neverOpenedDbPath, { db: handle, workspaceId: "workspace-local" });
+    deps = await createSiteRouteDeps(neverOpenedDbPath, { db: handle, workspaceId: "workspace-local" });
 
     await deps.toolAttemptAuditSink.append(APPENDED_EVENT);
 

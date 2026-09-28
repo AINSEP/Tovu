@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 
 /**
  * @file Regression coverage for the production incident this fix closes: `content.seed.db` ships
@@ -15,7 +15,7 @@ import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
  * rows' `storage_key`s point at — confirmed live on `tovu.fly.dev/admin/media` (real rows, zero
  * files, every preview 500ing).
  *
- * This exercises the REAL composition-root entry point (`createSqliteRouteDeps`) end to end — the
+ * This exercises the REAL composition-root entry point (`createSiteRouteDeps`) end to end — the
  * isolated unit is covered by `features/media/__tests__/hydrate-blob-store-from-seed.test.ts`.
  * Mirrors `hydrate-content-db-boot.integration.test.ts`'s exact shape for the DB half of this same
  * fix (isolated site dir + isolated stock root via `TOVU_SITE_DIR`/`TOVU_STOCK_CONTENT_SEED_DIR`,
@@ -23,7 +23,7 @@ import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
  * design — see that function's own doc for why it is not a second env var).
  */
 
-async function drainBootReadiness(deps: ReturnType<typeof createSqliteRouteDeps>): Promise<void> {
+async function drainBootReadiness(deps: Awaited<ReturnType<typeof createSiteRouteDeps>>): Promise<void> {
   await Promise.all([
     deps.identityReady,
     deps.settingsReady,
@@ -59,7 +59,7 @@ function writeStockBlob(
 }
 
 /** Runs `fn` with `TOVU_SITE_DIR`/`TOVU_STOCK_CONTENT_SEED_DIR`/`TOVU_CONTENT_DB` set, then restores them. */
-function withHydrationEnv<T>(vars: { siteDir: string; stockRoot: string }, fn: () => T): T {
+async function withHydrationEnv<T>(vars: { siteDir: string; stockRoot: string }, fn: () => Promise<T>): Promise<T> {
   const originalSiteDir = process.env.TOVU_SITE_DIR;
   const originalStockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR;
   const originalContentDb = process.env.TOVU_CONTENT_DB;
@@ -67,7 +67,7 @@ function withHydrationEnv<T>(vars: { siteDir: string; stockRoot: string }, fn: (
   process.env.TOVU_STOCK_CONTENT_SEED_DIR = vars.stockRoot;
   delete process.env.TOVU_CONTENT_DB;
   try {
-    return fn();
+    return await fn();
   } finally {
     if (originalSiteDir === undefined) delete process.env.TOVU_SITE_DIR;
     else process.env.TOVU_SITE_DIR = originalSiteDir;
@@ -85,7 +85,7 @@ test("first boot hydrates the live blob store from the stock seed payload — th
   const { storageKey } = writeStockBlob(stockRoot, siteName, { workspaceId, bytes });
 
   try {
-    const deps = withHydrationEnv({ siteDir, stockRoot }, () => createSqliteRouteDeps());
+    const deps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
 
     const result = await deps.blobHydrationReady;
     assert.equal(result?.status, "seeded");
@@ -109,7 +109,7 @@ test("REGRESSION: a second boot never overwrites a blob the live store already h
 
   try {
     // First boot: hydrates the seed blob into the live store.
-    const firstBootDeps = withHydrationEnv({ siteDir, stockRoot }, () => createSqliteRouteDeps());
+    const firstBootDeps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
     await drainBootReadiness(firstBootDeps);
     assert.equal(await firstBootDeps.blobStore.exists({ storageKey }), true);
 
@@ -119,7 +119,7 @@ test("REGRESSION: a second boot never overwrites a blob the live store already h
     await firstBootDeps.blobStore.put({ workspaceId, sha256, bytes: realBytes });
 
     // Second boot against the SAME site dir (a redeploy against the same mounted volume).
-    const secondBootDeps = withHydrationEnv({ siteDir, stockRoot }, () => createSqliteRouteDeps());
+    const secondBootDeps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
     const result = await secondBootDeps.blobHydrationReady;
     assert.equal(result?.status, "already-present");
     assert.equal(result?.copied, 0);

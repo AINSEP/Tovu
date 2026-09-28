@@ -8,7 +8,7 @@ import { SiteCorruptError, ValidationError } from "./errors.js";
  * workspace row a content.db's boot/serve path should use.
  *
  * Purpose:
- * Both `server/deps.ts`'s changed `createSqliteRouteDeps` default path (CIC U-001) and
+ * Both `server/deps.ts`'s changed `createSiteRouteDeps` default path (CIC U-001) and
  * `site-dir/boot-site-dir.ts`'s `serve` boot path (BR-05 step 6) call this instead of
  * re-implementing the same workspace selector twice.
  *

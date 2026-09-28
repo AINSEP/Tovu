@@ -120,7 +120,7 @@ test("§2.1 step 1: the real composition boots successfully in local mode despit
 /**
  * 2026-09-09 integrations-root-key fix — real-composition wiring regression, same DEPS_SOURCE
  * static-read technique the AC-23/24 test above already uses for the identical reason: exercising
- * `createSqliteRouteDeps()` end-to-end here would let `newsletterKeyring` actually write to the
+ * `createSiteRouteDeps()` end-to-end here would let `newsletterKeyring` actually write to the
  * REAL `homedir()`-relative `~/.tovu/integrations-root-key.hex` on whichever machine runs this
  * suite whenever `TOVU_INTEGRATIONS_ROOT_KEY` is unset there — a live-filesystem side effect this
  * test must never risk. A source-level assertion on the exact composition-root wiring line proves

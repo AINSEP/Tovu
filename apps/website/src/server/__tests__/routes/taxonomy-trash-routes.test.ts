@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminTaxonomyListRoute } from "../../inbound/admin-http/routes/taxonomy/list.js";
 import { registerAdminTaxonomyCreateRoute } from "../../inbound/admin-http/routes/taxonomy/create-taxonomy.js";
@@ -18,7 +18,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * @file T6 (trash parallel plan §2, owner decision 5) — `delete-term`/`delete-taxonomy` now move
  * rows to the Trash (`trashTerm`/`trashTaxonomy`, `features/taxonomy/trash-term.ts`) instead of
  * Jini's guarded hard delete. Against the REAL SQLite composition
- * (`createSqliteRouteDeps(":memory:")`, same pattern as `newsletter-routes.test.ts`/
+ * (`createSiteRouteDeps(":memory:")`, same pattern as `newsletter-routes.test.ts`/
  * `settings-principal-check.test.ts`), not the hermetic one `taxonomy-routes.test.ts` uses: the
  * hermetic in-memory taxonomy/term repos have no `findForTrash` implementation yet (T6b handoff
  * item 4, a separate dispatch — `composition/app.ts` binds an inert always-not-found stub there
@@ -28,8 +28,8 @@ import type { RouteDeps } from "../../routes/types.js";
  * The 403/404-not-found delete-term/delete-taxonomy cases stay in `taxonomy-routes.test.ts`: they
  * never reach `findForTrash`, so the hermetic composition still proves them validly.
  */
-function buildTestApp(): { app: express.Express; deps: RouteDeps } {
-  const deps = createSqliteRouteDeps(":memory:");
+async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }> {
+  const deps = await createSiteRouteDeps(":memory:");
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -45,7 +45,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 }
 
 test("taxonomy trash routes: delete-term moves an unassigned, childless term to the Trash (200 {trashed,id,version}) and it drops out of list", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
@@ -77,7 +77,7 @@ test("taxonomy trash routes: delete-term moves an unassigned, childless term to 
 });
 
 test("taxonomy trash routes: delete-term now trashes a term that is still assigned to content (owner decision 5 — no more TERM_HAS_ASSIGNMENTS refusal)", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   await deps.postRepo.save({
@@ -123,7 +123,7 @@ test("taxonomy trash routes: delete-term now trashes a term that is still assign
 });
 
 test("taxonomy trash routes: delete-term refuses with 409 TERM_HAS_CHILDREN and the exact child count when the term still has children", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
@@ -155,7 +155,7 @@ test("taxonomy trash routes: delete-term refuses with 409 TERM_HAS_CHILDREN and 
 });
 
 test("taxonomy trash routes: delete-taxonomy moves the taxonomy to the Trash (200 {trashed,id,version}) and it drops out of list", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
@@ -185,7 +185,7 @@ test("taxonomy trash routes: delete-taxonomy moves the taxonomy to the Trash (20
 });
 
 test("taxonomy trash routes: delete-taxonomy now trashes a taxonomy whose member term is still assigned to content (owner decision 5 — no more TAXONOMY_HAS_ASSIGNMENTS refusal)", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   await deps.postRepo.save({

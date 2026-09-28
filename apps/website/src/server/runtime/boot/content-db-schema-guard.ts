@@ -18,7 +18,7 @@ import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/errors.js"
  * minted there as a side effect of boot's site-key step in LOCAL mode when one is absent
  * (`site-key-ensure.ts`'s `ensureSiteKeyForBoot`, site-key plan §A.1) — but that file carries only a
  * `siteKeyId`, never a schema-version stamp, so this module still has nothing of that kind to
- * compare against there. `deps.ts`'s `createSqliteRouteDeps()` calls `openContentDb()` directly,
+ * compare against there. `deps.ts`'s `createSiteRouteDeps()` calls `openContentDb()` directly,
  * which unconditionally runs Drizzle's `migrate()` with no schema-version check of any kind first.
  *
  * This module reuses `compareSchemaVersion` itself — the exact same policy `tovu serve` enforces,

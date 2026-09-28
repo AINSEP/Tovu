@@ -14,7 +14,7 @@
  *
  * Tool handlers still need Tovu's real database to do anything real (create a content type,
  * etc.), so this process opens its own connection to the SAME SQLite file Tovu's main process
- * uses (`createSqliteRouteDeps`) — safe under SQLite's WAL mode, which supports multiple
+ * uses (`createSiteRouteDeps`) — safe under SQLite's WAL mode, which supports multiple
  * process-level connections to one file. `src/index.ts` spawns this process only after its own
  * boot/migrations finish, so the two don't race on first-boot schema setup.
  *
@@ -357,7 +357,7 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 // its bus or subscribers, so a drain here (the post tools drain after every write) marked rows
 // delivered that the serving process never saw. The serving process's background drainer
 // (`serving-app.ts`) delivers them instead.
-const routeDeps = createAgentDaemonRouteDeps({ env: process.env });
+const routeDeps = await createAgentDaemonRouteDeps({ env: process.env });
 // P0b fix (hooks v2 plan, 2026-09-23): this process's hook registry is built once, here, from a
 // snapshot of the activation table — an enable/disable through the admin process afterwards never
 // reaches it on its own. See `agent-daemon-deps.ts`'s own header for why polling, not an outbox
@@ -370,7 +370,7 @@ lifecycle.rehydrate().catch((error: unknown) => {
   console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
 });
 
-// `createRouteDeps()`/`createSqliteRouteDeps()` do not construct `magicLinkPerEmailLimiter` — it is
+// `createRouteDeps()`/`createSiteRouteDeps()` do not construct `magicLinkPerEmailLimiter` — it is
 // built per-boot inside `server/app.ts`'s `registerAdminRoutes` and spread into a local
 // `membersDeps`, never onto the object those factories return (ADR-PIPE-013 §2-3, C-015: one
 // counter per email). This process is a separate boot that never runs that code, so it must build
@@ -539,7 +539,7 @@ for (const registration of withPageNavigateErrorRewrap(frontendControl.toolRegis
 // of one of the two real roots, chosen on the SAME `TOVU_DB === "memory"` branch this const used to
 // repeat, so the field it now carries (`RouteDeps.toolAttemptAuditSink`) is that same choice made
 // once instead of twice. Same rows, same database: the sqlite branch's
-// `createSqliteRouteDepsForWorkspace(...)` defaults its `dbPath` to `defaultContentDbPath()`, the
+// `createSiteRouteDepsForWorkspace(...)` defaults its `dbPath` to `defaultContentDbPath()`, the
 // exact path the deleted `openContentDb(defaultContentDbPath())` call opened — the only difference
 // an operator can observe is that this process no longer opens a SECOND connection to that file
 // (and no longer runs `openContentDb`'s unconditional `migrate()` a second time) at boot.
@@ -1192,13 +1192,13 @@ frontendControl.httpExtension(app, { adapter });
  * `routeDeps.externalMcpOAuth` reused directly.
  *
  * Not because `routeDeps.externalMcpOAuth` "lives in the web server" — it does not; `routeDeps`
- * above is built by THIS process's own `createSqliteRouteDepsForWorkspace`/`createRouteDeps` call
+ * above is built by THIS process's own `createSiteRouteDepsForWorkspace`/`createRouteDeps` call
  * (this file is its own composition root, same as the main web server is its), so that field is
  * every bit as much a daemon-process object as this one. The real reason for a second instance is
  * narrower: `start()`'s stored-connection source/federation deps (`external-mcp-connection-source.ts`)
  * need a token resolver/`reportAuthFailure` bound to THIS boot's federation setup, and building that
  * inline here is simpler than threading a second construction parameter through
- * `createSqliteRouteDeps` for a concern only the daemon has. The two instances share the only thing
+ * `createSiteRouteDeps` for a concern only the daemon has. The two instances share the only thing
  * they must: the database row, which is where the sealed token, the plaintext expiry, and the
  * cross-process refresh lease all live — `tryClaimOAuthRefreshLease` is what keeps the two from
  * redeeming one single-use rotating refresh token twice.

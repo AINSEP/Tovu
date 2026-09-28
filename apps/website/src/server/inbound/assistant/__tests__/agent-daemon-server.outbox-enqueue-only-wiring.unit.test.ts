@@ -26,13 +26,13 @@ test("agent-daemon-server.ts builds routeDeps with createAgentDaemonRouteDeps", 
     /import\s*\{[^}]*\bcreateAgentDaemonRouteDeps\b[^}]*\}\s*from\s*["'][^"']*agent-daemon-deps(\.js)?["']/,
   );
   assert.ok(
-    CODE_LINES.some((line) => /^\s*const routeDeps\s*=\s*createAgentDaemonRouteDeps\(/.test(line)),
+    CODE_LINES.some((line) => /^\s*const routeDeps\s*=\s*await\s+createAgentDaemonRouteDeps\(/.test(line)),
     "the daemon's module-level routeDeps must come from createAgentDaemonRouteDeps",
   );
 });
 
 test("agent-daemon-server.ts never calls a RouteDeps factory directly, which would bypass the enqueue-only outbox", () => {
-  const bypasses = CODE_LINES.filter((line) => /\b(createSqliteRouteDepsForWorkspace|createSqliteRouteDeps|createRouteDeps)\(/.test(line));
+  const bypasses = CODE_LINES.filter((line) => /\b(createSiteRouteDepsForWorkspace|createSiteRouteDeps|createRouteDeps)\(/.test(line));
   assert.deepEqual(bypasses, []);
 });
 

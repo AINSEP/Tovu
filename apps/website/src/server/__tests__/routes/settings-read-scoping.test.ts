@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsGetEffectiveRoute } from "../../inbound/admin-http/routes/settings/get-effective.js";
 import { registerAdminSettingsGetRawRoute } from "../../inbound/admin-http/routes/settings/get-raw.js";
@@ -23,14 +23,14 @@ import type { RouteDeps } from "../../routes/types.js";
  * setting values (ADR-007 workspace-scoping break, ADR-021 authorize-is-the-only-evaluator
  * break).
  *
- * Run against the REAL SQLite adapter (`createSqliteRouteDeps(":memory:")`, `server/deps.ts`),
+ * Run against the REAL SQLite adapter (`createSiteRouteDeps(":memory:")`, `server/deps.ts`),
  * matching `settings-principal-check.test.ts` rather than `settings-auth.test.ts`'s in-memory
  * repo: the other workspace's row is seeded through the same FK-enforced
  * `setting_values_workspace`/`setting_values_user` tables production uses, so "the value really
  * is sitting in the same database the bypass reached" is proven, not stipulated.
  */
-function buildTestApp(): { app: express.Express; deps: RouteDeps } {
-  const deps = createSqliteRouteDeps(":memory:");
+async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }> {
+  const deps = await createSiteRouteDeps(":memory:");
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -237,7 +237,7 @@ async function loginWithPermissions(
 // ---------------------------------------------------------------------------
 
 test("F2: SETTINGS_GET_RAW with ?workspaceId=<other tenant> must NOT return the other tenant's workspace-layer value", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const settingId = await seedPlatformDefinition(deps);
@@ -261,7 +261,7 @@ test("F2: SETTINGS_GET_RAW with ?workspaceId=<other tenant> must NOT return the 
 });
 
 test("F2: SETTINGS_GET_EFFECTIVE with ?workspaceId=<other tenant> must NOT resolve against the other tenant's layer", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const settingId = await seedPlatformDefinition(deps);
@@ -291,7 +291,7 @@ test("F2: SETTINGS_GET_EFFECTIVE with ?workspaceId=<other tenant> must NOT resol
 // ---------------------------------------------------------------------------
 
 test("F2: SETTINGS_GET_RAW with ?principalId=<another principal> is 403 FORBIDDEN for a caller holding only settings.read.raw", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   await registerProbeDefinition(baseUrl, ownerCookie, deps);
@@ -326,7 +326,7 @@ test("F2: SETTINGS_GET_RAW with ?principalId=<another principal> is 403 FORBIDDE
 });
 
 test("F2: SETTINGS_GET_EFFECTIVE with ?principalId=<another principal> is 403 FORBIDDEN for a caller holding only settings.read", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   await registerProbeDefinition(baseUrl, ownerCookie, deps);
@@ -347,7 +347,7 @@ test("F2: SETTINGS_GET_EFFECTIVE with ?principalId=<another principal> is 403 FO
 });
 
 test("F2 control: reading your OWN user layer via ?principalId=<self> needs no cross-principal grant", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   await registerProbeDefinition(baseUrl, ownerCookie, deps);
@@ -380,7 +380,7 @@ test("F2 control: reading your OWN user layer via ?principalId=<self> needs no c
 });
 
 test("F2 control: a settings.user.read holder may read another principal's layer (Settings screen's target-principal selector keeps working)", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   await registerProbeDefinition(baseUrl, ownerCookie, deps);
@@ -414,7 +414,7 @@ test("F2 control: a settings.user.read holder may read another principal's layer
 });
 
 test("F2: settings.user.write alone does NOT authorize a cross-principal read â€” the read permission is not implied by the write one", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   await registerProbeDefinition(baseUrl, ownerCookie, deps);
@@ -438,7 +438,7 @@ test("F2: settings.user.write alone does NOT authorize a cross-principal read â€
 });
 
 test("F2 control: the owner's `*` wildcard still covers the cross-principal read", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   await deps.settingsReady;
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   await registerProbeDefinition(baseUrl, ownerCookie, deps);

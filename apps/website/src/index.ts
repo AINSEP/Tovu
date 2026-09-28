@@ -2,7 +2,7 @@ import { createServer as createHttpsServer } from "node:https";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
-import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
+import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoRootKeyAtBoot } from "./server/runtime/boot/root-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
@@ -215,7 +215,7 @@ startOwnParentWatchdog();
 /**
  * Applies the same schema-version guard `tovu serve` gets for free from `boot-site-dir.ts` (see
  * `content-db-schema-guard.ts`'s own header for why the non-CLI boot path had no equivalent at
- * all): refuses to boot, rather than silently letting `createSqliteRouteDeps()` -> `openContentDb()`
+ * all): refuses to boot, rather than silently letting `createSiteRouteDeps()` -> `openContentDb()`
  * migrate forward, when `dbPath` is newer than or has diverged from this runtime's bundled
  * migrations. REFUSE (not warn-and-continue) — chosen for parity with `tovu serve`'s own
  * unconditional throw in this exact situation ("the two paths should not diverge on safety"), and
@@ -273,11 +273,11 @@ async function main(): Promise<void> {
   if (!useMemory) guardContentDbSchemaOrExit(defaultContentDbPath());
   // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
   // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
-  // `createSqliteRouteDeps` below, which is what actually resolves the root key this may have just
+  // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
   // adopted or minted.
   if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findKeyDependentData });
 
-  const deps = useMemory ? createRouteDeps() : createSqliteRouteDeps();
+  const deps = useMemory ? createRouteDeps() : await createSiteRouteDeps();
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
   // `server/runtime/boot/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
@@ -362,12 +362,12 @@ async function main(): Promise<void> {
     console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
 
     // `runBootLifecycle` above does not cover these: `identityReady`/`settingsReady`/etc. are
-    // fired directly by `createSqliteRouteDeps()` as independent, un-awaited side effects (see
+    // fired directly by `createSiteRouteDeps()` as independent, un-awaited side effects (see
     // each field's own doc in `server/routes/types.ts`), not part of `buildBootModules`'s set.
     // `app.listen()`'s callback firing says nothing about whether they've settled — reproduced
     // directly: spawning the daemon here unconditionally raced this process's own first-boot
     // identity seed and crashed both processes on a `UNIQUE constraint failed` (two concurrent
-    // `createSqliteRouteDeps()` calls, one per process, both trying to seed the same row).
+    // `createSiteRouteDeps()` calls, one per process, both trying to seed the same row).
     // Awaiting them first, then spawning, closes that window.
     // `executionSettingsReady`/`settingsUiTabsReady`/`analyticsSettingsReady` belong in this list
     // for exactly the reason the paragraph above describes, and their absence was not theoretical —

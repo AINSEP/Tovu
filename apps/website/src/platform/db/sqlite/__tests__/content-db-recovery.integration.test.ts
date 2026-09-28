@@ -37,7 +37,7 @@ test("openContentDb's recover hook restores a crash-interrupted dataModule attem
   raw.close();
 
   // Reopen through the REAL seam, with the REAL recovery hook — this is what index.ts actually
-  // does via server/deps.ts's createSqliteRouteDeps.
+  // does via server/deps.ts's createSiteRouteDeps.
   const db = openContentDb(dbPath, undefined, recoverIncompleteDataModuleMigrations);
 
   const found = db.$client.prepare(`SELECT name FROM sqlite_master WHERE name = 'p_crashed_plugin__half_created'`).get();

@@ -4,7 +4,7 @@ import path from "node:path";
 /**
  * @file SPEC-003 CIC U-004-B1 — path-containment resolution shared by `init-site.ts` and
  * `boot-site-dir.ts` (and re-used by `cli/commands/serve.ts`, which needs the SAME resolved
- * target to compute `content.db`'s path for `createSqliteRouteDeps`'s `dbPath` parameter,
+ * target to compute `content.db`'s path for `createSiteRouteDeps`'s `dbPath` parameter,
  * consistent with whatever real destination `bootSiteDir` itself resolved and wrote to).
  *
  * Purpose:

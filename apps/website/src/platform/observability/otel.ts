@@ -16,7 +16,7 @@
  * instances and that no measurement of the OTel SDK's own footprint exists yet — an always-loaded
  * SDK would be dead weight for every operator who never configures an exporter. `require`, not a
  * dynamic `await import()`: both composition roots' `RouteDeps` are built synchronously today
- * (`index.ts`'s own comment on `createSqliteRouteDeps()`/`createApp()` — "both of those are
+ * (`index.ts`'s own comment on `createSiteRouteDeps()`/`createApp()` — "both of those are
  * synchronous functions"), and Node 24 (this repo's minimum engine) resolves `require()` of an ESM
  * target synchronously, so this stays a plain, synchronous factory call with no ripple into
  * `index.ts`/`cli/commands/serve.ts`'s own call sites.

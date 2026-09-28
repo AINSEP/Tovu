@@ -11,7 +11,7 @@ import { processOutbox } from "#src/contracts/core/events/index";
 import { outboxEvents } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daemon-deps.js";
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 
 /**
  * @file Regression proof for the agent daemon's lost outbox events (2026-09-14).
@@ -25,7 +25,7 @@ import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
  * row the serving process had enqueued.
  *
  * Both processes use their REAL composition functions over one temp `content.db`, each with its own
- * connection, as in production: `createSqliteRouteDeps` for the serving process (`src/index.ts`) and
+ * connection, as in production: `createSiteRouteDeps` for the serving process (`src/index.ts`) and
  * `createAgentDaemonRouteDeps` for the daemon (what `agent-daemon-server.ts` calls; that wiring is
  * pinned by `inbound/assistant/__tests__/agent-daemon-server.outbox-enqueue-only-wiring.unit.test.ts`).
  * The spy is attached only to the serving process's bus, so only a serving-process delivery can
@@ -70,7 +70,7 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  const server = createSqliteRouteDeps(dbPath);
+  const server = await createSiteRouteDeps(dbPath);
   roots.push(server);
   // Same ordering as the real boot: `index.ts` spawns the daemon only after these settle.
   await settle(server);
@@ -82,7 +82,7 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
     received.push(event.id);
   });
 
-  const daemon = createAgentDaemonRouteDeps({ env: { TOVU_WORKSPACE: server.workspaceId } }, { dbPath });
+  const daemon = await createAgentDaemonRouteDeps({ env: { TOVU_WORKSPACE: server.workspaceId } }, { dbPath });
   roots.push(daemon);
   await settle(daemon);
 
@@ -115,7 +115,7 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
 });
 
 test("memory mode (TOVU_DB=memory): the daemon's composition is enqueue-only as well", async () => {
-  const daemon = createAgentDaemonRouteDeps({ env: { TOVU_DB: "memory" } });
+  const daemon = await createAgentDaemonRouteDeps({ env: { TOVU_DB: "memory" } });
   await daemon.outbox.enqueue(makeEvent("evt-daemon-memory-1", "entry.updated", daemon.workspaceId, daemon.clock.nowIso()));
 
   const claimed = await processOutbox({ outbox: daemon.outbox, bus: daemon.bus, clock: daemon.clock });

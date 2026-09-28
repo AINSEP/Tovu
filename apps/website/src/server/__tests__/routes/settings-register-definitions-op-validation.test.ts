@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
 import type { RouteDeps } from "../../routes/types.js";
@@ -20,8 +20,8 @@ import type { RouteDeps } from "../../routes/types.js";
  * regression (`constructor` silently "applied" with 200; `toString` also "applied")
  * against the real SQLite-backed route.
  */
-function buildTestApp(): { app: express.Express; deps: RouteDeps } {
-  const deps = createSqliteRouteDeps(":memory:");
+async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }> {
+  const deps = await createSiteRouteDeps(":memory:");
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -32,7 +32,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 
 for (const op of ["constructor", "toString", "hasOwnProperty", "__proto__"]) {
   test(`SETTINGS_REGISTER_DEFINITIONS: op='${op}' (an Object.prototype member) is rejected as an unknown op, not dispatched`, async (t) => {
-    const { app, deps } = buildTestApp();
+    const { app, deps } = await buildTestApp();
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
     const res = await fetch(

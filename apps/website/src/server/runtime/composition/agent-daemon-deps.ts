@@ -2,7 +2,7 @@ import { toEnqueueOnlyOutbox } from "#src/contracts/core/events/index";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
 import { createRouteDeps } from "./app.js";
-import { createSqliteRouteDepsForWorkspace } from "./deps.js";
+import { createSiteRouteDepsForWorkspace } from "./deps.js";
 
 /**
  * @file The agent daemon's `RouteDeps` composition, moved out of `agent-daemon-server.ts` (a
@@ -15,7 +15,7 @@ import { createSqliteRouteDepsForWorkspace } from "./deps.js";
  * (`serving-app.ts`) is the one owner of delivery.
  *
  * P0b fix (hooks v2 plan, 2026-09-23): the admin process and this daemon each build their OWN
- * `composePluginRuntime()` (via `createSqliteRouteDepsForWorkspace`/`createSqliteRouteDeps`), so
+ * `composePluginRuntime()` (via `createSiteRouteDepsForWorkspace`/`createSiteRouteDeps`), so
  * each has its own in-memory hook registry. Enabling/disabling a plugin through the admin HTTP
  * path updates only the admin process's registry — this daemon's registry is a snapshot from
  * whenever IT last booted (`pluginRuntimeReady`/P0a fixes THAT staleness at boot, not while
@@ -117,16 +117,16 @@ export function startPluginActivationPolling(
  * @param required.env the daemon's environment (`process.env` in production).
  * @param optional.dbPath content database path; defaults to `defaultContentDbPath()`. Tests only.
  * @returns the composed deps.
- * @throws whatever `createSqliteRouteDepsForWorkspace` throws for an unknown `TOVU_WORKSPACE`.
+ * @throws (rejects) whatever `createSiteRouteDepsForWorkspace` rejects with for an unknown `TOVU_WORKSPACE`.
  * @complexity O(1) beyond the wrapped factory's own boot cost.
  */
-export function createAgentDaemonRouteDeps(
+export async function createAgentDaemonRouteDeps(
   required: { env: NodeJS.ProcessEnv },
   optional: { dbPath?: string } = {}
-): NewsletterRouteDeps {
+): Promise<NewsletterRouteDeps> {
   const { env } = required;
   const routeDeps =
-    env.TOVU_DB === "memory" ? createRouteDeps() : createSqliteRouteDepsForWorkspace(env.TOVU_WORKSPACE, optional.dbPath, "client");
+    env.TOVU_DB === "memory" ? createRouteDeps() : await createSiteRouteDepsForWorkspace(env.TOVU_WORKSPACE, optional.dbPath, "client");
   // Mutated, not spread into a copy: `createSiteApp` is closed over this exact object (see
   // `RouteDeps.exportSiteBound`'s doc in `routes/types.ts`), so a copy would leave the export app's
   // routes on the claiming outbox. Services the factory built earlier kept the raw outbox, which is

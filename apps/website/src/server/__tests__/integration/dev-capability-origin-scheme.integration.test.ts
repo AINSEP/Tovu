@@ -4,10 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 
 /**
- * @file Regression coverage for the `dev-capability` origin `createSqliteRouteDeps`
+ * @file Regression coverage for the `dev-capability` origin `createSiteRouteDeps`
  * (`server/runtime/composition/deps.ts`) seeds at boot via `seedDevCapabilityOrigin`
  * (`platform/db/sqlite/origin-repo.sqlite.ts`).
  *
@@ -28,7 +28,7 @@ function mkTempDbPath(): string {
 test("a fresh boot's dev-capability origin resolves to scheme https, matching the dev API server's own TLS termination (51c59f5c)", async () => {
   const dbPath = mkTempDbPath();
   try {
-    const deps = createSqliteRouteDeps(dbPath);
+    const deps = await createSiteRouteDeps(dbPath);
     const origin = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
     assert.equal(origin.scheme, "https");
     assert.equal(origin.host, "localhost");
@@ -58,7 +58,7 @@ test("REGRESSION: the dev-capability origin's scheme is http, not hardcoded http
   const originalDisableFlag = process.env.TOVU_DISABLE_DEV_TLS;
   process.env.TOVU_DISABLE_DEV_TLS = "1";
   try {
-    const deps = createSqliteRouteDeps(dbPath);
+    const deps = await createSiteRouteDeps(dbPath);
     const origin = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
     assert.equal(origin.scheme, "http");
     assert.equal(origin.host, "localhost");

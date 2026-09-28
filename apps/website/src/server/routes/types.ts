@@ -197,7 +197,7 @@ export interface IdentityDeps {
   /**
    * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
    * Seeding hashes the owner's password (async, argon2id), so
-   * `createRouteDeps()`/`createSqliteRouteDeps()` stay synchronous by kicking
+   * `createRouteDeps()`/`createSiteRouteDeps()` return without waiting on it by kicking
    * the seed off immediately and handing back this promise; auth-adjacent
    * middleware/routes `await` it before touching identity repos, so
    * correctness never depends on request timing (no race).
@@ -396,7 +396,7 @@ export interface CredentialsDeps {
    * ONCE per composition root and threaded through both instances instead.
    *
    * These are what actually make `beginConnect`/`completeAuthorizationCallback`/
-   * `pollDeviceAuthorization` work across processes: `composition/deps.ts`'s `createSqliteRouteDeps`
+   * `pollDeviceAuthorization` work across processes: `composition/deps.ts`'s `createSiteRouteDeps`
    * backs them with `platform/db/sqlite/oauth-pending-store.sqlite.ts`'s `content.db`-backed
    * adapters, so a handshake begun in the agent daemon (`external_mcp_oauth_connect` is an assistant
    * tool — it runs there) can be completed by the public callback route running in the main web
@@ -1082,7 +1082,7 @@ export interface EventBusDeps {
  * adapter type (`platform/observability/ports.ts`'s file header explains why that boundary is the
  * whole point of the port). `server/runtime/composition/app.ts`'s hermetic `createRouteDeps()`
  * builds this with `createNoopObservabilityPort()`; `server/runtime/composition/deps.ts`'s
- * `createSqliteRouteDeps()` builds it with the env-driven `createObservabilityPort()` — the same
+ * `createSiteRouteDeps()` builds it with the env-driven `createObservabilityPort()` — the same
  * rule-of-two split every other adapter pair in this file already follows.
  */
 export interface ObservabilityDeps {
@@ -1539,7 +1539,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * 2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 6) — staged-bundle storage for
    * `POST .../publish-content/bundles`, backing `publish_content_bundles` (migration `0066`).
    * Real `SqlitePublishContentBundleRepo` in `server/runtime/composition/deps.ts`'s
-   * `createSqliteRouteDeps()`; `InMemoryPublishContentBundleRepo` in `server/runtime/composition/
+   * `createSiteRouteDeps()`; `InMemoryPublishContentBundleRepo` in `server/runtime/composition/
    * app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here follows.
    */
   publishContentBundleRepo: PublishContentBundleRepoPort;
@@ -1558,7 +1558,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * 2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 7) — per-peer sync memory for
    * `publish_content_baselines` (migration `0066`), read by `gated-hooks.ts`'s `planImport()`
    * wiring. Real `SqlitePublishContentBaselineRepo` in `server/runtime/composition/deps.ts`'s
-   * `createSqliteRouteDeps()`; `InMemoryPublishContentBaselineRepo` in `server/runtime/
+   * `createSiteRouteDeps()`; `InMemoryPublishContentBaselineRepo` in `server/runtime/
    * composition/app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here
    * follows.
    */
@@ -1591,7 +1591,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * workspace can push to or pull from (`publish_content_peers`), with their API keys sealed at
    * rest under the same shared ADR-058 sealer/keyring every other credential table here uses.
    * Real `SqlitePublishContentPeerRepo` in `server/runtime/composition/deps.ts`'s
-   * `createSqliteRouteDeps()`; `InMemoryPublishContentPeerRepo` in `server/runtime/composition/
+   * `createSiteRouteDeps()`; `InMemoryPublishContentPeerRepo` in `server/runtime/composition/
    * app.ts`'s hermetic `createRouteDeps()` — same rule-of-two every other repo here follows.
    */
   publishContentPeerRepo: PublishContentPeerRepoPort;
@@ -1614,7 +1614,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * the injection now stays for a different reason — it keeps `features/deployments` off the export
    * engine's whole graph at all (see `export-run.ts`'s file header, which owns the full trace).
    * Always the real `exportSite` in both `server/app.ts`'s `createRouteDeps()` and
-   * `server/deps.ts`'s `createSqliteRouteDeps()` — the two places safe to import
+   * `server/deps.ts`'s `createSiteRouteDeps()` — the two places safe to import
    * `#src/features/site-export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
    * Typed structurally via `ExportEngine`, imported `type`-only (erased, zero runtime edge) so this
    * field costs this file nothing even though `export-run.ts` sits under `features/`.
@@ -1634,7 +1634,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — the export engine's default output directory
    * root, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
-   * `resolveExportOutputRootDir()` (via `createSqliteRouteDeps()`) rather than re-read deep inside
+   * `resolveExportOutputRootDir()` (via `createSiteRouteDeps()`) rather than re-read deep inside
    * `features/deployments/export-run.ts`'s `startExportRun` or `cli/commands/export.ts`'s
    * `runExportCommand` — same "read once at the root, thread the value down" discipline `themesDir`
    * above already establishes for `TOVU_THEMES_DIR`. `cli/commands/export.ts`'s own `--out` flag
@@ -1644,7 +1644,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   exportOutputRootDir: string;
   /**
    * What THIS process is actually serving, read ONCE at boot by `server/app.ts`'s
-   * `createRouteDeps()`/`server/deps.ts`'s `createSqliteRouteDeps()` — same "read once at the root,
+   * `createRouteDeps()`/`server/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root,
    * thread the value down" discipline `exportOutputRootDir`/`themesDir` above establish for their
    * own env-derived values.
    *
@@ -1668,7 +1668,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
    * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process
    * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
-   * `server/runtime/composition/deps.ts`'s `createSqliteRouteDeps()`.
+   * `server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`.
    *
    * Optional because the in-memory `server/app.ts` runtime has no site folder on disk; both
    * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.
@@ -1677,7 +1677,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`
-   * and `server/deps.ts`'s `createSqliteRouteDeps()` — same "read once at the root, thread the
+   * and `server/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root, thread the
    * value down" discipline `exportOutputRootDir` above establishes for its own env var.
    *
    * `app.ts`'s own module-mounting code reads this SAME field (not a second `isAdminAssistantEnabled()`
@@ -1699,7 +1699,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * architecture audit: dependency-cruiser flagged module cycle, propagation cost measured at 29.05%
    * with the edge present vs 9.43% with only this one edge removed). Mirrors `runExportSite`'s
    * injection precedent immediately above — always the real `createApp` in both `server/app.ts`'s
-   * `createRouteDeps()` (direct same-file reference) and `server/deps.ts`'s `createSqliteRouteDeps()`
+   * `createRouteDeps()` (direct same-file reference) and `server/deps.ts`'s `createSiteRouteDeps()`
    * (a static import since 2026-09-16, t91 F4.1-A; the call-time `require()` it replaced built the
    * site app from a second tsx module graph that saw none of the live registries — the resulting
    * `deps.ts` <-> `app.ts` cycle is recorded in `.dependency-cruiser.mjs`'s `no-circular` header).
@@ -1789,7 +1789,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * `TOVU_PUBLISH_DIR` env, then `<cwd>/infra/publish` — the static-publish flow's parent output
    * directory, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
-   * `resolvePublishOutputRootDir()` (via `createSqliteRouteDeps()`), same "read once at the root"
+   * `resolvePublishOutputRootDir()` (via `createSiteRouteDeps()`), same "read once at the root"
    * discipline `exportOutputRootDir` above establishes. `static-publish/adapter.ts`'s
    * `publishOutputDir` joins this with the target id to get the per-target directory it actually
    * exports into — never re-reads `process.env` itself.
@@ -1815,7 +1815,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `exportOutputRootDir`/`publishOutputRootDir` above so no two of these features ever race over
    * the same on-disk output — see `features/source-control/commit-site.ts`'s header), read ONCE at
    * boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
-   * `resolveSourceControlExportRootDir()` (via `createSqliteRouteDeps()`). `commit-site.ts`'s
+   * `resolveSourceControlExportRootDir()` (via `createSiteRouteDeps()`). `commit-site.ts`'s
    * `commitExportDir` joins this with the provider subdirectory (`"github"`) — never re-reads
    * `process.env` itself.
    */
@@ -1823,7 +1823,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * A pre-bound `exportSite` call — the SAME real export engine `runExportSite` above wraps, closed
    * over this exact `RouteDeps` object at construction time (`server/app.ts`'s `createRouteDeps()`/
-   * `server/deps.ts`'s `createSqliteRouteDeps()`), so a caller supplies only `{outputDir; clean?;
+   * `server/deps.ts`'s `createSiteRouteDeps()`), so a caller supplies only `{outputDir; clean?;
    * basePath?}` — never a `routeDeps` argument.
    *
    * 2026-08-20 RouteDeps-narrowing fix, added specifically for `features/source-control/commit-site.ts`'s
@@ -1855,7 +1855,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    *
    * TEST GOTCHA (live-found, `source-control/__tests__/commit-site.unit.test.ts`): this closure is
    * bound to ONE object identity, at construction time, inside `createRouteDeps()`/
-   * `createSqliteRouteDeps()`. A test that overrides another field the real `exportSite` reads
+   * `createSiteRouteDeps()`. A test that overrides another field the real `exportSite` reads
    * internally (e.g. `createSiteApp`, to force one route/asset to fail) by SPREADING a copy —
    * `{ ...createRouteDeps(), createSiteApp: fake }` — produces a logically-overridden but DIFFERENT
    * object; this closure still points at the ORIGINAL, so the override silently never applies. The
@@ -1870,13 +1870,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `resolveStorefrontProducts` immediately above were converted to this SAME closure-bound-at-
    * construction-time shape (nullary, no `routeDeps` parameter) the same day, for the same "one
    * reader, no per-call argument it needs" reason this field was. They carry the IDENTICAL gotcha —
-   * both are bound as `() => realFn(routeDeps)` inside `createRouteDeps()`/`createSqliteRouteDeps()`,
+   * both are bound as `() => realFn(routeDeps)` inside `createRouteDeps()`/`createSiteRouteDeps()`,
    * closed over that one object identity, so a spread-copy override of either is exactly as silently
    * inert as a spread-copy override of `createSiteApp` used to be for THIS field's own call. The
    * general rule, stated once here rather than re-derived per field: **any `RouteDeps` field whose
    * value is a function bound by closure at construction time — as opposed to a field the closure's
    * own body reads fresh off `routeDeps` at call time — must be overridden by mutating the object
-   * `createRouteDeps()`/`createSqliteRouteDeps()` returned, never by spreading it into a copy.** As of
+   * `createRouteDeps()`/`createSiteRouteDeps()` returned, never by spreading it into a copy.** As of
    * this pass that set is `exportSiteBound`, `createSiteApp`, and `resolveStorefrontProducts`; check
    * this doc first before assuming a new closure-shaped field is safe to spread-override.
    */

@@ -4,35 +4,35 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
 /**
  * @file Regression coverage for the container-boot gap: `npm run seed:site`
  * (development/scripts/seed-site.mjs) produces `sites/<site>/content.seed.db`, but nothing wired it
- * to the `content.db` a deployed container actually boots `createSqliteRouteDeps()` against. A fresh
+ * to the `content.db` a deployed container actually boots `createSiteRouteDeps()` against. A fresh
  * volume had neither file connected, so a deploy came up with no site.
  *
- * This exercises the REAL composition-root entry point (`createSqliteRouteDeps`, `src/index.ts`'s
+ * This exercises the REAL composition-root entry point (`createSiteRouteDeps`, `src/index.ts`'s
  * own call site) end to end, not just `hydrateContentDbFromSeed()` in isolation — the isolated unit
  * is covered by `db/sqlite/__tests__/hydrate-content-db-from-seed.test.ts`. Before the fix wires
- * `hydrateContentDbFromSeed()` into `createSqliteRouteDeps()`, the first test below fails: no stock
+ * `hydrateContentDbFromSeed()` into `createSiteRouteDeps()`, the first test below fails: no stock
  * seed is ever consulted, and the resulting db only ever has the built-in DEMO workspace, never the
  * seed's own marker row.
  */
 
 /**
  * Awaits the same boot-readiness set `src/index.ts`'s own `main()` awaits before doing anything else
- * past `createSqliteRouteDeps()` — required here for the identical reason that file documents
+ * past `createSiteRouteDeps()` — required here for the identical reason that file documents
  * (`seoReady` chained after `settingsReady`, etc.): letting a boot's own background seeding still be
- * in flight when a SECOND `createSqliteRouteDeps()` opens the SAME `content.db` file races
+ * in flight when a SECOND `createSiteRouteDeps()` opens the SAME `content.db` file races
  * independent writers against one SQLite file (observed directly: a `UNIQUE constraint failed:
  * roles.workspace_id, roles.name` from two concurrent identity-seed attempts). Errors are caught, not
  * asserted on, mirroring `index.ts`'s own `.catch()` — a readiness promise rejecting is a logged boot
  * -module failure, never a reason to fail a test about `content.db` hydration itself.
  */
-async function drainBootReadiness(deps: ReturnType<typeof createSqliteRouteDeps>): Promise<void> {
+async function drainBootReadiness(deps: Awaited<ReturnType<typeof createSiteRouteDeps>>): Promise<void> {
   await Promise.all([
     deps.identityReady,
     deps.settingsReady,
@@ -64,7 +64,7 @@ function buildStockSeedDb(seedDbPath: string): void {
 }
 
 /** Runs `fn` with TOVU_SITE_DIR / TOVU_STOCK_CONTENT_SEED_DIR / TOVU_CONTENT_DB set, then restores them. */
-function withHydrationEnv<T>(vars: { siteDir: string; stockRoot: string }, fn: () => T): T {
+async function withHydrationEnv<T>(vars: { siteDir: string; stockRoot: string }, fn: () => Promise<T>): Promise<T> {
   const originalSiteDir = process.env.TOVU_SITE_DIR;
   const originalStockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR;
   const originalContentDb = process.env.TOVU_CONTENT_DB;
@@ -74,7 +74,7 @@ function withHydrationEnv<T>(vars: { siteDir: string; stockRoot: string }, fn: (
   // which is what a real deployed container relies on (TOVU_SITE_DIR alone, from fly.toml's mount).
   delete process.env.TOVU_CONTENT_DB;
   try {
-    return fn();
+    return await fn();
   } finally {
     if (originalSiteDir === undefined) delete process.env.TOVU_SITE_DIR;
     else process.env.TOVU_SITE_DIR = originalSiteDir;
@@ -92,7 +92,7 @@ test("first boot with no content.db hydrates it from the stock seed before openi
   const dbPath = path.join(siteDir, "content.db");
 
   try {
-    const deps = withHydrationEnv({ siteDir, stockRoot }, () => createSqliteRouteDeps());
+    const deps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
 
     assert.ok(fs.existsSync(dbPath), "hydration must have created content.db at the site's default path");
     const found = await deps.workspaceRepo.findById("seed-marker-workspace");
@@ -115,7 +115,7 @@ test("REGRESSION: a second boot against an already-hydrated site never re-copies
   try {
     // First boot: hydrates from the seed. Fully drained before touching the file again — see
     // drainBootReadiness's own doc for the concurrent-writer hazard this closes.
-    const firstBootDeps = withHydrationEnv({ siteDir, stockRoot }, () => createSqliteRouteDeps());
+    const firstBootDeps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
     await drainBootReadiness(firstBootDeps);
     assert.ok(fs.existsSync(dbPath));
 
@@ -134,7 +134,7 @@ test("REGRESSION: a second boot against an already-hydrated site never re-copies
     buildStockSeedDb(seedDbPath);
 
     // Second boot against the SAME site dir.
-    const secondBootDeps = withHydrationEnv({ siteDir, stockRoot }, () => createSqliteRouteDeps());
+    const secondBootDeps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
 
     const survived = await secondBootDeps.workspaceRepo.findById("post-boot-production-workspace");
     assert.ok(survived, "a workspace written after the first boot must still exist after a second boot — a redeploy must never clobber live production data");

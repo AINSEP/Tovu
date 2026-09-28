@@ -16,7 +16,7 @@ import { seededWorkspace, seededPosts, seededPresentation } from "#src/server/ru
  *
  * Byte-parity note (REQ-02: "content equals today's seed module output"): `server/seed.ts`'s
  * `seededWorkspace`/`seededPosts`/`seededPresentation` already match `ContentDbSeedData`'s exact
- * insert shape today (`createSqliteRouteDeps` passes them to `openContentDb`'s seed parameter
+ * insert shape today (`createSiteRouteDeps` passes them to `openContentDb`'s seed parameter
  * verbatim) — so this test asserts full deep-equality against those live exports rather than a
  * hand-copied fixture, so it can never silently drift from the actual current seed module output.
  * (Disclosed drift: feature.spec.md's AC-02 prose names "glass-demo post" and presentation theme

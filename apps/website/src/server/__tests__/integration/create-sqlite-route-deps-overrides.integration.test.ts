@@ -4,19 +4,19 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
 /**
- * @file SPEC-003 C-010 (`createSqliteRouteDeps`, changed signature) — TDD certification,
+ * @file SPEC-003 C-010 (`createSiteRouteDeps`, changed signature) — TDD certification,
  * integration tier.
  *
  * Traces: REQ-06, REQ-10, AC-08, AC-09, AC-13, and CIC U-001 (Workspace-id single-source-of-truth
- * in `createSqliteRouteDeps`) Binding constraint U-001-B2 (the existing test suite's assertions
+ * in `createSiteRouteDeps`) Binding constraint U-001-B2 (the existing test suite's assertions
  * against `workspaceId === "workspace-local"` must remain true with zero test-file changes).
  *
- * `createSqliteRouteDeps` TODAY (pre-Programmer) still has its OLD single-parameter signature
+ * `createSiteRouteDeps` TODAY (pre-Programmer) still has its OLD single-parameter signature
  * (`(dbPath?: string)`) and hardcodes `seededWorkspace.id` internally — this file is expected to
  * fail (either at compile time, once the `overrides` parameter is referenced against the old
  * signature, or at assertion time against the old hardcoded-literal behavior) until Programmer
@@ -44,22 +44,22 @@ function mkTempDbPath(): string {
   return path.join(dir, "content.db");
 }
 
-test("legacy default path (no overrides): createSqliteRouteDeps(dbPath) still resolves workspaceId to \"workspace-local\" — REQ-10/AC-13 byte-for-byte parity", () => {
+test("legacy default path (no overrides): createSiteRouteDeps(dbPath) still resolves workspaceId to \"workspace-local\" — REQ-10/AC-13 byte-for-byte parity", async () => {
   const dbPath = mkTempDbPath();
   try {
-    const deps = createSqliteRouteDeps(dbPath);
+    const deps = await createSiteRouteDeps(dbPath);
     assert.equal(deps.workspaceId, "workspace-local", "the additive signature change must not alter the legacy default path's resolved workspace id");
   } finally {
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
   }
 });
 
-test("legacy default path with no dbPath argument at all also still resolves workspaceId to \"workspace-local\" (mirrors src/index.ts's own zero-argument call) — routed via TOVU_CONTENT_DB to a temp dir so this test never touches the real repo cwd", () => {
+test("legacy default path with no dbPath argument at all also still resolves workspaceId to \"workspace-local\" (mirrors src/index.ts's own zero-argument call) — routed via TOVU_CONTENT_DB to a temp dir so this test never touches the real repo cwd", async () => {
   const dbPath = mkTempDbPath();
   const originalEnv = process.env.TOVU_CONTENT_DB;
   process.env.TOVU_CONTENT_DB = dbPath;
   try {
-    const deps = createSqliteRouteDeps();
+    const deps = await createSiteRouteDeps();
     assert.equal(deps.workspaceId, "workspace-local");
   } finally {
     if (originalEnv === undefined) delete process.env.TOVU_CONTENT_DB;
@@ -69,14 +69,14 @@ test("legacy default path with no dbPath argument at all also still resolves wor
 });
 
 test("new overrides path: a pre-opened db + explicit workspaceId is honored verbatim, and the EXACT SAME db handle is reused (not a second db opened)", async () => {
-  // A ':memory:' db is a fresh, wholly isolated instance per open — if createSqliteRouteDeps
+  // A ':memory:' db is a fresh, wholly isolated instance per open — if createSiteRouteDeps
   // incorrectly opened its OWN second db instead of reusing `overrides.db`, this pre-inserted row
   // (which lives ONLY in this exact in-memory instance) would be invisible through `deps`.
   const db = openContentDb(":memory:");
   const customWorkspaceId = "custom-override-workspace";
   db.insert(workspaces).values({ id: customWorkspaceId, name: "Custom Override", slug: "custom-override", createdAt: "2026-07-28T00:00:00.000Z" }).run();
 
-  const deps = createSqliteRouteDeps(undefined, { db, workspaceId: customWorkspaceId });
+  const deps = await createSiteRouteDeps(undefined, { db, workspaceId: customWorkspaceId });
 
   assert.equal(deps.workspaceId, customWorkspaceId, "REQ-06: the override's workspaceId must be honored verbatim, not the legacy literal");
 
@@ -93,11 +93,11 @@ test("new overrides path: a pre-opened db + explicit workspaceId is honored verb
   assert.ok(foundSecond, "a row inserted directly via the original db object after construction must be visible through deps' repo — proving deps and the caller share the identical handle");
 });
 
-test("overrides.themesDir is honored verbatim — the install-dir-relative themes root `tovu serve <dir>` needs, not the process.cwd()-relative default (CR-R01)", () => {
+test("overrides.themesDir is honored verbatim — the install-dir-relative themes root `tovu serve <dir>` needs, not the process.cwd()-relative default (CR-R01)", async () => {
   const dbPath = mkTempDbPath();
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-deps-themes-override-"));
   try {
-    const deps = createSqliteRouteDeps(dbPath, { themesDir });
+    const deps = await createSiteRouteDeps(dbPath, { themesDir });
     assert.equal(deps.themesDir, themesDir, "overrides.themesDir must be honored verbatim, not the process.cwd()-relative siteThemesDir() default");
   } finally {
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
@@ -105,24 +105,24 @@ test("overrides.themesDir is honored verbatim — the install-dir-relative theme
   }
 });
 
-test("overrides.db supplied without overrides.workspaceId -> throws (must be supplied together or not at all)", () => {
+test("overrides.db supplied without overrides.workspaceId -> throws (must be supplied together or not at all)", async () => {
   const db = openContentDb(":memory:");
-  assert.throws(
-    () => createSqliteRouteDeps(undefined, { db }),
+  await assert.rejects(
+    () => createSiteRouteDeps(undefined, { db }),
     /overrides/i,
     "Contract Map C-010: overrides.db and overrides.workspaceId must be supplied together or not at all"
   );
 });
 
-test("overrides.workspaceId supplied without overrides.db -> throws (must be supplied together or not at all)", () => {
-  assert.throws(
-    () => createSqliteRouteDeps(undefined, { workspaceId: "some-id" }),
+test("overrides.workspaceId supplied without overrides.db -> throws (must be supplied together or not at all)", async () => {
+  await assert.rejects(
+    () => createSiteRouteDeps(undefined, { workspaceId: "some-id" }),
     /overrides/i,
     "Contract Map C-010: overrides.db and overrides.workspaceId must be supplied together or not at all"
   );
 });
 
-test("B1 regression: legacy default path (no overrides) with a pre-existing 2nd workspace row resolves to the OLDEST instead of throwing (boot-bricking regression)", () => {
+test("B1 regression: legacy default path (no overrides) with a pre-existing 2nd workspace row resolves to the OLDEST instead of throwing (boot-bricking regression)", async () => {
   const dbPath = mkTempDbPath();
   try {
     const seedDb = openContentDb(dbPath);
@@ -130,7 +130,7 @@ test("B1 regression: legacy default path (no overrides) with a pre-existing 2nd 
     seedDb.insert(workspaces).values({ id: "ws-added-later", name: "Added Later", slug: "added-later", createdAt: "2026-01-02T00:00:00.000Z" }).run();
     seedDb.$client.close();
 
-    const deps = createSqliteRouteDeps(dbPath);
+    const deps = await createSiteRouteDeps(dbPath);
     assert.equal(deps.workspaceId, "ws-original", "the oldest pre-existing row must win — this must not throw SiteCorruptError (B1)");
   } finally {
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });

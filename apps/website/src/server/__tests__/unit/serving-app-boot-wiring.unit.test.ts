@@ -94,7 +94,7 @@ test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
 /**
  * The Trash routes are mounted in exactly one place, and it is the `createApp()` both composition
  * roots go through — the hermetic one (`app.ts`'s own `createRouteDeps`) and the durable one
- * (`index.ts` -> `createSqliteRouteDeps()` -> `createServingApp` -> `createApp`). `RouteDeps.trash`
+ * (`index.ts` -> `createSiteRouteDeps()` -> `createServingApp` -> `createApp`). `RouteDeps.trash`
  * is a required field, so tsc already makes each root supply a port; what it cannot see is a SECOND
  * mount somewhere, built over a different deps bag, which is how two surfaces of the same feature
  * start disagreeing about permissions. That the single mount really answers requests is proven over

@@ -16,7 +16,7 @@ import { publishTrustRevocations } from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishTrustRevocationStore } from "#src/platform/db/sqlite/publish-trust-revocations.sqlite";
 import { createApp } from "#src/server/runtime/composition/app";
-import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
 /**
  * @file End-to-end proof that the real, database-backed destination disconnect survives until the
@@ -157,11 +157,11 @@ async function stop(server: Server): Promise<void> {
 test("a database disconnect refuses the next real publish request even with its already-minted valid token", async () => {
   const { dir, db } = await copiedContentDb();
   let server: Server | undefined;
-  let deps: ReturnType<typeof createSqliteRouteDeps> | undefined;
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
     const key = await sourceKey();
     process.env[PUBLISH_TRUST_ENV_VAR] = grantDocument(key.publicKeyB64u);
-    deps = createSqliteRouteDeps(join(dir, "content.db"), { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") });
+    deps = await createSiteRouteDeps(join(dir, "content.db"), { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") });
     deps.siteAssistantSecretKeyring = testKeyring(SOURCE_ROOT);
     assert.ok(deps.publishTrustRevocations instanceof SqlitePublishTrustRevocationStore);
 

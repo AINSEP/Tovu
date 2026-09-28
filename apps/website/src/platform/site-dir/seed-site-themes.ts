@@ -37,7 +37,7 @@ import { dirname, join } from "node:path";
  *
  * Architectural role:
  * Pure filesystem effect, no domain logic and no port. Called from the real composition root
- * (`server/deps.ts`'s `createSqliteRouteDeps`) only — deliberately NOT from `server/app.ts`'s
+ * (`server/deps.ts`'s `createSiteRouteDeps`) only — deliberately NOT from `server/app.ts`'s
  * in-memory `createRouteDeps()`, which is the hermetic/test path and would copy the whole tree per
  * test run.
  */

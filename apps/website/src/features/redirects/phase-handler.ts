@@ -220,7 +220,7 @@ export interface RegisterRedirectsPhaseHandlersDeps {
  * site it boots. Loading `composition/app.ts` itself registers nothing (removed
  * 2026-09-16, t91 F4.1; `app-module-load-registers-no-phase-handler.test.ts` pins
  * it), so the only way a process gets a second composition is an explicit
- * `createRouteDeps()`/`createSqliteRouteDeps()` call. Each registration closes over
+ * `createRouteDeps()`/`createSiteRouteDeps()` call. Each registration closes over
  * that composition's own `RedirectRepoPort`, so under the old append-only registry
  * the superseded ones stayed on the live request path: harmless while the orphan was
  * an `InMemoryRedirectRepo` (empty, so it returned `null` and yielded to the real

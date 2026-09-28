@@ -37,7 +37,7 @@
  * export engine as a parameter (typed structurally via {@link ExportEngine}, never by naming
  * `ExportSiteOptions`/`ExportReport`), and `RouteDeps.runExportSite`
  * (`server/routes/types.ts`) is where the real `exportSite` function is bound — exactly once, in
- * `server/app.ts`'s `createRouteDeps()` and `server/deps.ts`'s `createSqliteRouteDeps()`, the two
+ * `server/app.ts`'s `createRouteDeps()` and `server/deps.ts`'s `createSiteRouteDeps()`, the two
  * places that are safe to import `#src/features/site-export/index` directly (neither is reachable FROM
  * `assistant/tool-registrations.ts`, so no cycle closes). Both callers of `startExportRun` —
  * `export-site.ts`'s POST handler and this domain's `deployment_trigger_export` handler — pass

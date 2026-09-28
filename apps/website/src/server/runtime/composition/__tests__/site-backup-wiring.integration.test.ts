@@ -14,7 +14,7 @@ import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import { createRouteDeps } from "../app.js";
-import { createSqliteRouteDeps, mediaUploadsDir } from "../deps.js";
+import { createSiteRouteDeps, mediaUploadsDir } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
 /**
@@ -48,10 +48,10 @@ function callPlan(registration: ToolRegistration): Promise<unknown> {
   return Promise.resolve(registration.handler(ctx));
 }
 
-test("createSqliteRouteDeps gives site backup the directories the site is served from, and the real registry wires both tools to them", async (t) => {
+test("createSiteRouteDeps gives site backup the directories the site is served from, and the real registry wires both tools to them", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-backup-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const deps = createSqliteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
   await deps.identityReady;
 
   const sources = deps.siteBackupSources;

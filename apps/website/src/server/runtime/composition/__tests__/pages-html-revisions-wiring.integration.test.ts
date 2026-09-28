@@ -11,7 +11,7 @@ import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { createPost } from "#src/features/post/post";
 import { createRouteDeps } from "../app.js";
-import { createSqliteRouteDeps } from "../deps.js";
+import { createSiteRouteDeps } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
 /**
@@ -24,7 +24,7 @@ import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
  */
 
 type RegistryDeps = Parameters<typeof buildAssistantToolRegistrations>[0];
-type RootDeps = ReturnType<typeof createRouteDeps> | ReturnType<typeof createSqliteRouteDeps>;
+type RootDeps = ReturnType<typeof createRouteDeps> | Awaited<ReturnType<typeof createSiteRouteDeps>>;
 
 const PRINCIPAL_ID = "principal-pages-wiring";
 const HTML = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>`;
@@ -62,10 +62,10 @@ async function assertLedgered(routeDeps: RootDeps, id: string): Promise<void> {
   assert.equal(latest.seq, row?.version, "the latest revision must capture the row's current version");
 }
 
-test("createSqliteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller", async (t) => {
+test("createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-pages-revisions-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const deps = createSqliteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
   await deps.identityReady;
 
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-w", title: "Landing", kind: "page", bodyJson: DOC } });

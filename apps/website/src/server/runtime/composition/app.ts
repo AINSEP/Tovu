@@ -1792,7 +1792,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // the first is the PUBLIC assistant's master switch (a different product), and the second is the
   // settings tab that would have to render the off state. See `admin-assistant-enabled.ts`.
   //
-  // Reads `routeDeps.adminAssistantEnabled` (computed once in `createRouteDeps()`/`createSqliteRouteDeps()`)
+  // Reads `routeDeps.adminAssistantEnabled` (computed once in `createRouteDeps()`/`createSiteRouteDeps()`)
   // rather than calling `isAdminAssistantEnabled()` again here — see `routes/types.ts`'s
   // `adminAssistantEnabled` field doc: the admin SPA's `GET .../assistant/settings` response threads
   // the SAME field, so a second, separate read here could never end up disagreeing with what that

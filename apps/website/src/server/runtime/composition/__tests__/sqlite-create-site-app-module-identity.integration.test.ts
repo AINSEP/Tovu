@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
@@ -87,7 +87,7 @@ async function bootSqliteSite(t: TestContext): Promise<NewsletterRouteDeps> {
   initSite({ dir, name: "Module Identity Site" });
 
   const boot = bootSiteDir({ dir });
-  const deps = createSqliteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(dir, "uploads"),

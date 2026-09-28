@@ -375,7 +375,7 @@ export interface RegisterResolvePhaseOptions {
  * process-wide, but its registrants are not: a composition root registers a
  * handler that has CLOSED OVER that composition's resources, and more than one
  * composition runs per process (an integration test boots one site per case,
- * and `createRouteDeps()` plus `createSqliteRouteDeps()` can both run in one
+ * and `createRouteDeps()` plus `createSiteRouteDeps()` can both run in one
  * test process). Append-only, that left every previous composition's closure
  * live on the request path forever — benign
  * while the superseded resources were in-memory, a `TypeError: The database
