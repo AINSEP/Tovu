@@ -272,9 +272,6 @@
   "apps/website/src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite.ts": {
     "sync-terminal": 4
   },
-  "apps/website/src/platform/db/sqlite/gated-mutation-token-repo.sqlite.ts": {
-    "sync-terminal": 5
-  },
   "apps/website/src/platform/db/sqlite/media-repo.sqlite.ts": {
     "sync-terminal": 25
   },
