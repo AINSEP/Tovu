@@ -36,6 +36,9 @@ export type SqliteConnectionSource = Database.Database | { readonly $client: Dat
 
 const kernels = new WeakMap<Database.Database, SqliteKernel<unknown>>();
 
+/** The reverse of `kernels`, plus the owning kernels {@link openSqliteFileKernel} hands out. */
+const connectionsByKernel = new WeakMap<StorageKernel<unknown>, Database.Database>();
+
 /** One turn lock per database FILE, shared by every connection to it in this process. */
 const fileTurnLocks = new Map<string, TurnLock>();
 
@@ -106,6 +109,7 @@ export function sqliteKernel<DB>(source: SqliteConnectionSource): SqliteKernel<D
     close: async () => {},
   });
   kernels.set(client, kernel as SqliteKernel<unknown>);
+  connectionsByKernel.set(kernel as SqliteKernel<unknown>, client);
   return kernel;
 }
 
@@ -114,14 +118,46 @@ export function sqliteKernel<DB>(source: SqliteConnectionSource): SqliteKernel<D
  * them). `close()` closes the connection. For scratch work, e.g. building a reference schema.
  */
 export function openMemorySqliteKernel<DB>(): SqliteKernel<DB> {
-  const client = new Database(":memory:");
-  client.pragma("foreign_keys = ON");
+  return openSqliteFileKernel<DB>(":memory:");
+}
+
+/**
+ * A kernel over its OWN connection to the SQLite file at `filePath`, opened as-is: no migration, no
+ * WAL switch, foreign keys on (as `openContentDb` sets them). `close()` closes the connection.
+ *
+ * For ops on a database file that is not the running site's (a duplicate being prepared, a site dir
+ * being inspected). `readOnly` opens with better-sqlite3's own `readonly` mode, so SQLite itself
+ * rejects any write, and requires the file to exist.
+ *
+ * @throws whatever better-sqlite3 throws opening the file (missing file when `readOnly`, not a
+ *   database, locked).
+ */
+export function openSqliteFileKernel<DB>(filePath: string, optional: { readOnly?: boolean } = {}): SqliteKernel<DB> {
+  const readOnly = optional.readOnly === true;
+  const client = new Database(filePath, readOnly ? { readonly: true, fileMustExist: true } : {});
+  if (readOnly) client.pragma("busy_timeout = 5000");
+  else client.pragma("foreign_keys = ON");
   const kernel = sqliteKernel<DB>(client);
-  return {
+  const owned: SqliteKernel<DB> = {
     ...kernel,
-    close: async () => {
-      kernels.delete(client);
-      client.close();
-    },
+    close: async () => closeSqliteConnection(client),
   };
+  connectionsByKernel.set(owned, client);
+  return owned;
+}
+
+/**
+ * Closes the better-sqlite3 connection under `source` (a Drizzle handle from `openContentDb`, or
+ * the client) and forgets its kernel. For callers that opened a content db themselves and must
+ * release it; the kernel's own `close()` never closes a connection it did not open.
+ */
+export function closeSqliteConnection(source: SqliteConnectionSource): void {
+  const client = clientOf(source);
+  kernels.delete(client);
+  client.close();
+}
+
+/** The connection under a kernel this driver built, for the SQLite `StorageOps` (`../ops.ts`). */
+export function sqliteConnectionOf(kernel: StorageKernel<unknown>): Database.Database | undefined {
+  return connectionsByKernel.get(kernel);
 }

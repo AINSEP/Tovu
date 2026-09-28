@@ -7,7 +7,14 @@ export {
   type StorageTransport,
   UnsupportedCapabilityError,
 } from "./port.js";
-export { type SqliteConnectionSource, sqliteKernel, type SqliteKernel } from "./drivers/sqlite.js";
+export {
+  closeSqliteConnection,
+  openSqliteFileKernel,
+  type SqliteConnectionSource,
+  sqliteKernel,
+  type SqliteKernel,
+} from "./drivers/sqlite.js";
+export { StorageOpError, StorageOpNotSupportedError, type StorageOps, storageOps } from "./ops.js";
 export { openPgliteKernel, type PgKernel } from "./drivers/pglite.js";
 export { openPostgresKernel } from "./drivers/postgres.js";
 export {
