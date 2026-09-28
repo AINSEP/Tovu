@@ -6,6 +6,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { writeDuringOthersRollback } from "#src/platform/db/sqlite/__tests__/concurrent-rollback";
+
 import { declareDataModule } from "../../plugins/data-module.js";
 import { InMemoryCommentRepo } from "../repo.memory.js";
 import { SqliteCommentRepo } from "../repo.sqlite.js";
@@ -45,14 +47,42 @@ function makeComment(overrides: Partial<CommentRecord> = {}): CommentRecord {
 }
 
 async function makeSqliteRepo(): Promise<CommentRepoPort> {
+  return (await makeSqliteRepoOnDb()).repo;
+}
+
+async function makeSqliteRepoOnDb(): Promise<{ repo: SqliteCommentRepo; db: Database.Database }> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-comments-"));
   const dbPath = path.join(dir, "content.db");
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   const result = await declareDataModule({ db, dbPath, decl: COMMENTS_DATA_MODULE });
   if (!result.ok) throw new Error(`declareDataModule failed: ${JSON.stringify(result.error)}`);
-  return new SqliteCommentRepo(db);
+  return { repo: new SqliteCommentRepo(db), db };
 }
+
+test("[sqlite] submit, moderation and purge each survive another caller's rollback (own transaction, not theirs)", async () => {
+  const { repo, db } = await makeSqliteRepoOnDb();
+  const submitLog = {
+    id: "log-submit",
+    workspaceId: WORKSPACE_ID,
+    commentId: "comment-1",
+    actorPrincipalId: "visitor",
+    action: "submit" as const,
+    fromStatus: null,
+    toStatus: "pending" as const,
+    at: "2026-07-16T00:00:00.000Z",
+    note: null,
+  };
+  await writeDuringOthersRollback(db, () => repo.create(makeComment(), submitLog));
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "pending");
+
+  const moderation = { workspaceId: WORKSPACE_ID, id: "comment-1", expectedVersion: 0, action: "approve" as const, toStatus: "approved" as const, actorPrincipalId: "admin", note: null, at: "2026-07-16T00:01:00.000Z" };
+  await writeDuringOthersRollback(db, () => repo.applyModeration(moderation));
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "approved");
+
+  await writeDuringOthersRollback(db, () => repo.purge({ workspaceId: WORKSPACE_ID, id: "comment-1", actorPrincipalId: "admin", note: null, at: "2026-07-16T00:02:00.000Z" }));
+  assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }), null);
+});
 
 function runSuite(label: string, makeRepo: () => CommentRepoPort | Promise<CommentRepoPort>) {
   test(`[${label}] create() then findById() round-trips`, async () => {

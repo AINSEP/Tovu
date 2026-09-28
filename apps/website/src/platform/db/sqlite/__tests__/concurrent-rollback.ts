@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 
 import { contentKernel } from "../../content-kernel.js";
-import type { ContentDb } from "../content-db.js";
 
 /**
  * @file Test helper: run a repo write while ANOTHER async context holds a content-db transaction
@@ -12,7 +11,7 @@ import type { ContentDb } from "../content-db.js";
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
-export async function writeDuringOthersRollback<T>(db: ContentDb, write: () => Promise<T>): Promise<T> {
+export async function writeDuringOthersRollback<T>(db: Parameters<typeof contentKernel>[0], write: () => Promise<T>): Promise<T> {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => (release = resolve));
   const other = contentKernel(db).transaction(async () => {

@@ -19,6 +19,7 @@ import {
   type PendingAuthorizationStore,
 } from "#src/platform/oauth/index";
 import { oauthDeviceAuthorizations, oauthPendingAuthorizations } from "../schema.sqlite.js";
+import { contentKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -64,12 +65,8 @@ import type { ContentDb } from "./content-db.js";
  *   timer.
  */
 
-/** The transaction handle Drizzle hands its synchronous callback. Structurally the same query
- *  builder as `ContentDb`, which is why the private helpers below accept either. */
-type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
-
-/** Either the connection itself or an open transaction on it. */
-type Writer = Pick<ContentDb, "select" | "delete"> | Pick<ContentDbTx, "select" | "delete">;
+/** The connection the private helpers below read and delete through. */
+type Writer = Pick<ContentDb, "select" | "delete">;
 
 /** One `SealedSecret`'s four columns, factored out because both tables carry an identical sealed
  *  group and both directions (row -> `SealedSecret`, `SealedSecret` -> row values) need it. */
@@ -157,29 +154,27 @@ export function createSqlitePendingAuthorizationStore(deps: SqlitePendingAuthori
         aad: input.ownerKey,
       });
 
-      deps.db.transaction(
-        (tx) => {
-          pruneExpired(tx, nowIso);
-          evictOverCap(tx);
+      // The kernel's SQLite transaction is `BEGIN IMMEDIATE`: it takes the write lock up front, so
+      // two processes can never both read the count under the cap and then both insert — the exact
+      // race the cap test at `platform/db/__tests__/oauth-pending-store.sqlite.test.ts` guards against.
+      await contentKernel(deps.db).transaction(async () => {
+        pruneExpired(deps.db, nowIso);
+        evictOverCap(deps.db);
 
-          tx.insert(oauthPendingAuthorizations)
-            .values({
-              state,
-              ownerKey: input.ownerKey,
-              providerId: input.providerId,
-              ...sealedColumnValues(sealed),
-              redirectUri: input.redirectUri,
-              scopesJson: JSON.stringify(input.scopes),
-              createdAt: nowIso,
-              expiresAt,
-            })
-            .run();
-        },
-        // `immediate` takes the write lock up front, so two processes can never both read the count
-        // under the cap and then both insert — the exact race the cap test at
-        // `platform/db/__tests__/oauth-pending-store.sqlite.test.ts` guards against.
-        { behavior: "immediate" }
-      );
+        deps.db
+          .insert(oauthPendingAuthorizations)
+          .values({
+            state,
+            ownerKey: input.ownerKey,
+            providerId: input.providerId,
+            ...sealedColumnValues(sealed),
+            redirectUri: input.redirectUri,
+            scopesJson: JSON.stringify(input.scopes),
+            createdAt: nowIso,
+            expiresAt,
+          })
+          .run();
+      });
 
       const entry: PendingAuthorization = {
         state,

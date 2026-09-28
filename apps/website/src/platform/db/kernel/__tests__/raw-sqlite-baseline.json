@@ -34,8 +34,7 @@
   },
   "apps/website/src/features/comments/repo.sqlite.ts": {
     "better-sqlite3-import": 1,
-    "prepare": 14,
-    "sync-transaction": 3
+    "prepare": 14
   },
   "apps/website/src/features/commerce/repo.sqlite.ts": {
     "sync-terminal": 12
@@ -292,8 +291,7 @@
     "sync-terminal": 25
   },
   "apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts": {
-    "sync-terminal": 10,
-    "sync-transaction": 1
+    "sync-terminal": 10
   },
   "apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts": {
     "sync-terminal": 8

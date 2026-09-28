@@ -13,6 +13,7 @@ import { createPendingAuthorizationStore, isOAuthError, type OAuthClock } from "
 import { oauthDeviceAuthorizations, oauthPendingAuthorizations, workspaces } from "../schema.sqlite.js";
 import { openContentDb, type ContentDb } from "../sqlite/content-db.js";
 import { createSqliteDeviceAuthorizationStore, createSqlitePendingAuthorizationStore } from "../sqlite/oauth-pending-store.sqlite.js";
+import { writeDuringOthersRollback } from "../sqlite/__tests__/concurrent-rollback.js";
 
 /**
  * @file Proves the defect `assistant/external-mcp-oauth.ts`'s header now documents, and that this
@@ -107,6 +108,17 @@ test("REGRESSION GUARD — two independently-constructed IN-MEMORY stores do NOT
     caught = error;
   }
   assert.ok(isOAuthError(caught) && caught.code === "OAUTH_INVALID_STATE", "expected the second in-memory instance to have no record of the first's entry");
+});
+
+test("a put survives another caller's rollback (its own transaction, not theirs)", async () => {
+  const db = openContentDb(":memory:");
+  const keyring = new InMemoryKeyring();
+  const store = createSqlitePendingAuthorizationStore({ db, clock: createTestClock(), sealer: new AesGcmSecretSealer(keyring), keyring });
+
+  const minted = await writeDuringOthersRollback(db, () => store.put(samplePendingInput()));
+
+  const redeemed = await store.take({ state: minted.state, ownerKey: "ws-1:higgs" });
+  assert.equal(redeemed.codeVerifier, "v".repeat(43));
 });
 
 test("an expired pending state is refused, even though the row briefly existed", async () => {

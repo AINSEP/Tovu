@@ -10,6 +10,7 @@
  */
 import type Database from "better-sqlite3";
 
+import { contentKernel } from "../../platform/db/content-kernel.js";
 import { COMMENTS_PLUGIN_ID } from "./types.js";
 import type { CommentRepoPort } from "./ports.js";
 import type { CommentRecord, CommentStatus, CommentThreadNode, ModerationAction, ModerationLogEntry, ModerationQueuePage } from "./types.js";
@@ -171,7 +172,7 @@ export class SqliteCommentRepo implements CommentRepoPort {
     // OQ-3 resolution (SPEC-035): the comment row and its `submit` moderation_log row land as ONE
     // atomic transaction — mirrors `applyModeration`/`purge`'s existing both-or-neither pattern
     // below, and `SqliteChangeSetRepo.insert()`'s optional-event co-persistence (ADR-046 BR-04).
-    this.db.transaction(() => {
+    await contentKernel(this.db).transaction(async () => {
       insertComment();
       this.db
         .prepare(
@@ -189,7 +190,7 @@ export class SqliteCommentRepo implements CommentRepoPort {
           submitLog.at,
           submitLog.note
         );
-    })();
+    });
   }
 
   async listModerationLog(required: { workspaceId: string; commentId: string }): Promise<ModerationLogEntry[]> {
@@ -238,7 +239,7 @@ export class SqliteCommentRepo implements CommentRepoPort {
     const logId = `${required.id}-${required.at}-${current.version + 1}`;
     let conflicted = false;
 
-    this.db.transaction(() => {
+    await contentKernel(this.db).transaction(async () => {
       const result = this.db
         .prepare(`UPDATE "${COMMENTS_TABLE}" SET status = ?, updated_at = ?, version = version + 1 WHERE workspace_id = ? AND id = ? AND version = ?`)
         .run(required.toStatus, required.at, required.workspaceId, required.id, required.expectedVersion);
@@ -252,7 +253,7 @@ export class SqliteCommentRepo implements CommentRepoPort {
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(logId, required.workspaceId, required.id, required.actorPrincipalId, required.action, current.status, required.toStatus, required.at, required.note);
-    })();
+    });
 
     if (conflicted) {
       const latest = await this.findById({ workspaceId: required.workspaceId, id: required.id });
@@ -285,7 +286,7 @@ export class SqliteCommentRepo implements CommentRepoPort {
     if (!current) return { ok: false, reason: "not-found" };
 
     const logId = `${required.id}-${required.at}-purge`;
-    this.db.transaction(() => {
+    await contentKernel(this.db).transaction(async () => {
       this.db.prepare(`DELETE FROM "${COMMENTS_TABLE}" WHERE workspace_id = ? AND id = ?`).run(required.workspaceId, required.id);
       this.db
         .prepare(
@@ -293,7 +294,7 @@ export class SqliteCommentRepo implements CommentRepoPort {
            VALUES (?, ?, ?, ?, 'purge', ?, ?, ?, ?)`
         )
         .run(logId, required.workspaceId, required.id, required.actorPrincipalId, current.status, current.status, required.at, required.note);
-    })();
+    });
 
     const log: ModerationLogEntry = {
       id: logId,
