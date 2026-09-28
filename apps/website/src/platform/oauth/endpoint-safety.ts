@@ -22,9 +22,8 @@ import { OAuthError } from "./errors.js";
  *
  * DNS-level pinning (`validateBaseUrlResolved` + `pinnedFetch`) is deliberately NOT applied. It
  * would close a rebinding gap, but it also replaces `fetch` with a raw `node:http` client, and an
- * OAuth token endpoint is an operator-configured origin rather than request-body input — the same
- * reasoning `connectors/composio-key-probe.ts` records for not importing the SSRF guard it does not
- * need. This is written down so a future reviewer sees a decision rather than an omission.
+ * OAuth token endpoint is an operator-configured origin rather than request-body input. This is
+ * written down so a future reviewer sees a decision rather than an omission.
  */
 
 /** `http` is permitted ONLY for loopback, so an operator can develop against a local authorization

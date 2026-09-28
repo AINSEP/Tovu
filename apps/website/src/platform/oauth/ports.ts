@@ -4,20 +4,18 @@ import type { ISODateTime } from "@jini-ai/cms/core";
  * @file The typed boundary for Tovu's GENERIC OAuth 2.0 client — provider-agnostic, and deliberately
  * knowing nothing about MCP, connectors, or any one vendor.
  *
- * ## Why this is not the connectors subsystem
+ * ## Why this is not the (since-removed) connectors subsystem
  *
- * `src/platform/connectors/` already runs a working, hardened per-workspace "click to authorize" flow, and
- * its *edges* are reused verbatim by callers of this module — the public callback mount point, the
- * XSS-safe callback page (`server/routes/oauth/callback-page.ts`, extracted from
- * `routes/connectors/composio-callback.ts`), the popup + origin-checked `postMessage` bridge with
+ * `src/platform/connectors/` ran a hardened per-workspace Composio "click to authorize" flow until
+ * 2026-09-27. Its *edges* are reused verbatim by callers of this module — the public callback mount
+ * point, the XSS-safe callback page (`server/routes/oauth/callback-page.ts`, extracted from the
+ * Composio callback), the popup + origin-checked `postMessage` bridge with
  * its focus-regain fallback, and the per-IP rate limiters. Those are the parts teams get wrong.
  *
  * What is NOT reused is the state machine, and that is a deliberate finding rather than an
- * oversight: `ComposioConnectorProvider` never performs an OAuth token exchange at all. Composio is
- * the OAuth client; Tovu asks it for a redirect URL and later asks it for a *connected account*.
- * There is no `authorization_code` grant, no PKCE, no token endpoint, no refresh token and no
- * expiry anywhere in that path (`ConnectorCredentialRow` has no `expiresAt` column precisely
- * because Composio refreshes vendor-side). A direct integration inherits all of those duties, so
+ * oversight: the Composio provider never performed an OAuth token exchange at all. Composio was
+ * the OAuth client; Tovu asked it for a redirect URL and later for a *connected account*, with no
+ * `authorization_code` grant, no PKCE, no token endpoint, no refresh token and no expiry. A direct integration inherits all of those duties, so
  * the machine is written fresh here and kept behind {@link OAuthProviderDescriptor} so no vendor's
  * quirks leak into the caller.
  *
@@ -117,7 +115,7 @@ export interface OAuthTokenSet {
 
 /**
  * The outbound HTTP seam. `typeof fetch` rather than a bespoke interface, matching
- * `connectors/composio-key-probe.ts` and `routes/admin/assistant/list-models.ts`: every call site in
+ * `routes/admin/assistant/list-models.ts`: every call site in
  * this codebase that talks to a third party injects `fetchFn` and defaults to the global.
  */
 export type OAuthFetch = typeof fetch;

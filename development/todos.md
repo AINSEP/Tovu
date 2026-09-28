@@ -1807,8 +1807,8 @@ built now.
 |---|---|
 | Site / BYOK credentials | `apps/website/src/platform/db/sqlite/site-credential-repo.sqlite.ts` |
 | Publish targets | `apps/website/src/platform/db/sqlite/publish-credential-repo.sqlite.ts` |
-| Composio connector credentials | `apps/website/src/platform/db/sqlite/composio-connector-credential-repo.sqlite.ts` |
-| Composio config | `apps/website/src/platform/db/sqlite/composio-config-repo.sqlite.ts` |
+| Composio connector credentials (removed 2026-09-27, migration 0075) | `apps/website/src/platform/db/sqlite/composio-connector-credential-repo.sqlite.ts` |
+| Composio config (removed 2026-09-27, migration 0075) | `apps/website/src/platform/db/sqlite/composio-config-repo.sqlite.ts` |
 | Admin execution credentials | `apps/website/src/platform/db/sqlite/execution-credential-repo.sqlite.ts` |
 | External MCP servers | `apps/website/src/platform/db/sqlite/external-mcp-repo.sqlite.ts` |
 | Media provider credentials | `apps/website/src/platform/db/sqlite/media-provider-credential-repo.sqlite.ts` |
@@ -1822,7 +1822,7 @@ is **ten**, not eight (verified by grepping every `deps.sealer.seal(` call site 
 this table's shape and 2026-08-15 snapshot for history, but do not quote "eight" as today's count.
 
 And five admin screens already accept a token: `features/settings/SettingsUi.tsx`,
-`features/settings/ComposioKeyField.tsx`, `features/ai-assistant/AiAssistant.tsx` (BYOK),
+`features/settings/ComposioKeyField.tsx` (removed 2026-09-27), `features/ai-assistant/AiAssistant.tsx` (BYOK),
 `features/deployment/StaticSiteTab.tsx`, `features/source-control/SourceControl.tsx`.
 
 **Scope it to READ + REMOVE. Never a second place to enter a token.** Two entry points for one secret
@@ -1852,7 +1852,7 @@ stored credential: provider, what it is for, when it was saved, and a deep link 
 that owns it.
 
 **Known cost when someone picks this up:** a complete inventory means reading from all eight stores,
-and two of those surfaces — BYOK and Composio — are already flagged as broken or unfinished elsewhere
+and two of those surfaces — BYOK and Composio (Composio removed 2026-09-27) — were flagged as broken or unfinished elsewhere
 in the backlog. Either confront them or scope the first pass to the stores that are healthy and say so
 on screen, rather than silently listing a subset as if it were everything.
 

@@ -42,7 +42,7 @@ export const DEFAULT_TOKEN_REQUEST_TIMEOUT_MS = 15_000;
 
 export interface TokenRequestDeps {
   readonly clock: OAuthClock;
-  /** Defaults to global `fetch`, matching `composio-key-probe.ts`'s injection shape. */
+  /** Defaults to global `fetch`. */
   readonly fetchFn?: OAuthFetch;
 }
 

@@ -158,8 +158,7 @@ function assertDeviceAuthorizationAccepted(response: Response, body: RawDeviceAu
  *  `OAUTH_UNSAFE_ENDPOINT` when the server's own `verification_uri` fails the user-facing-link check. */
 function narrowDeviceAuthorization(body: RawDeviceAuthorizationResponse, nowIso: ISODateTime): DeviceAuthorization {
   // `verification_url` is Google's long-standing pre-RFC spelling and is still emitted by several
-  // providers; accepted for the same reason `composio-callback.ts` accepts four spellings of its
-  // connection id — silently dropping it would fail with a confusing "missing field".
+  // providers; accepted because silently dropping it would fail with a confusing "missing field".
   const verificationUri = assertSafeUserFacingUrl(
     requiredString(body.verification_uri ?? body.verification_url, "verification_uri"),
   ).toString();

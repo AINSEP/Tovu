@@ -16,7 +16,7 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/as
  * `ExternalMcpServerRepoPort`/`ExternalMcpOAuthService` are type-imported from `#src/assistant/
  * index` rather than restated, unlike `AuthorizeFn`/`ClockPort` (an external package) and
  * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `#src/features/webhooks/index.js`,
- * ADR-058's shared sealer/keyring types, the same instances the Composio/BYOK/media-provider stores
+ * ADR-058's shared sealer/keyring types, the same instances the BYOK/media-provider stores
  * share). This domain's `tool-registrations.ts` ALREADY value-imports `saveExternalMcpServer`/
  * `listExternalMcpServerViews`/etc. from that same `#src/assistant/index` barrel — the identical
  * seam `server/routes/admin/external-mcp/put.ts` uses — so importing their types from there too adds

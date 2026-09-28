@@ -1,7 +1,6 @@
 /**
- * @file The HTML an OAuth popup lands on — extracted verbatim from
- * `routes/connectors/composio-callback.ts` so a second OAuth flow inherits its properties instead of
- * re-deriving them.
+ * @file The HTML an OAuth popup lands on — extracted verbatim from the (since-removed) Composio
+ * connector callback so a second OAuth flow inherited its properties instead of re-deriving them.
  *
  * ## Why this page is safe, restated because it is the reason it can be shared
  *
@@ -41,7 +40,7 @@
  * "still not connected", not as an error — see `apps/admin`'s connectors port for the precedent.
  */
 
-/** Posted to `window.opener` by the Composio callback. Must match `@jini-ai/ui`'s own constant. */
+/** Posted to `window.opener` by the OAuth callback page. Must match `@jini-ai/ui`'s own constant. */
 export const CONNECTOR_CALLBACK_MESSAGE_TYPE = "jini:connector-connected";
 
 /** Posted by the external-MCP OAuth callback. Distinct from the connectors one on purpose. */
@@ -66,8 +65,7 @@ export type OAuthCallbackFailureReason =
  *  used — `admin-external-mcp-oauth-routes.test.ts` already pins `/Couldn’t finish connecting/` for
  *  two of these reasons, and there is no product reason for the heading to differ when the body
  *  already carries the specific explanation. `exchange_failed` is also the copy an `ok: false` call
- *  with no `reason` at all renders (see {@link renderOAuthCallbackPage}), so `composio-callback.ts` —
- *  which predates this vocabulary and never classifies — keeps its original, unchanged text. */
+ *  with no `reason` at all renders (see {@link renderOAuthCallbackPage}). */
 const FAILURE_HEADING = "Couldn’t finish connecting";
 const FAILURE_BODY: Record<OAuthCallbackFailureReason, string> = {
   rate_limited: "Too many attempts too quickly. Wait a moment, then try connecting again from Tovu.",
@@ -89,7 +87,7 @@ export interface CallbackPageOptions {
   readonly messageType: string;
   /**
    * Which closed-vocabulary reason to render when `ok` is `false`. Ignored when `ok` is `true`.
-   * Optional so a caller that does not classify (`composio-callback.ts`) keeps rendering the page's
+   * Optional so a caller that does not classify keeps rendering the page's
    * original generic failure copy — defaults to `"exchange_failed"`, whose text is that original copy
    * verbatim, so an unclassifying caller's behavior is unchanged by this field's addition.
    */

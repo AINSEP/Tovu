@@ -21,7 +21,7 @@ import { supabaseMcpScopeFailure } from "./supabase-mcp-scope.js";
  * ## Secrets
  *
  * An MCP server's `env` block routinely carries live credentials, so it is sealed through ADR-058's
- * `SecretSealerPort` using the same keyring instance the Composio/BYOK/media-provider stores share
+ * `SecretSealerPort` using the same keyring instance the BYOK/media-provider stores share
  * — `src/webhooks/ports.ts` states the rule this follows: keep secret material out of the
  * portable `content.db`.
  *
@@ -196,7 +196,7 @@ export interface ExternalMcpServerRecord {
 }
 
 /** Workspace-scoped persistence (ADR-007 §1). Multi-row per workspace, so list/upsert/delete rather
- *  than the single-row find/upsert `ComposioConfigRepoPort` uses. */
+ *  than a single-row find/upsert. */
 export interface ExternalMcpServerRepoPort {
   listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpServerRecord[]>;
   findByServerId(input: { workspaceId: UUID; serverId: string }): Promise<ExternalMcpServerRecord | null>;

@@ -103,8 +103,8 @@ export interface KeyringPort {
  *
  * As of the 2026-09-02 AAD gap closure, five previously-unauthenticated credential-shaped tables now
  * seal with an aad: `site-credential-store.ts`, `execution-credential-store.ts`,
- * `media/provider-credential-store.ts`, `connectors/composio-config-store.ts`, and
- * `connectors/connector-credential-store.ts` (this doc used to name three of these as sealing with
+ * `media/provider-credential-store.ts`, and the two Composio stores (removed with their tables by
+ * migration 0075, 2026-09-27) (this doc used to name three of these as sealing with
  * NO aad at all — that list was already stale by the time it named "three": it predated the last two
  * tables entirely, and none of the five unconditionally omit `aad` any more). Each of those five now
  * carries its own `aad_version` column (`db/schema.sqlite.ts`) so a row sealed BEFORE this change (no aad)

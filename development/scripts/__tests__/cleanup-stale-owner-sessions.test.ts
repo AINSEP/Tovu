@@ -29,7 +29,7 @@ function tmpDir(prefix: string): string {
 
 /** Runs the real CLI with `node --import tsx`, capturing stdout+stderr even on a non-zero exit — a
  *  refusal (missing db path) exits 1, and the assertions below want the printed message, not the
- *  thrown error, the same pattern `backfill-composio-config-aad.test.ts`'s own `runScript` uses. */
+ *  thrown error. */
 function runCli(args: string[]): string {
   try {
     return execFileSync("node", ["--import", "tsx", SCRIPT, ...args], { cwd: REPO_ROOT, encoding: "utf8" });

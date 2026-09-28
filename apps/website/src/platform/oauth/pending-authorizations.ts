@@ -9,10 +9,9 @@ import type { OAuthClock, OAuthRandomBytes } from "./ports.js";
  * @file The in-flight `state` ledger for authorization-code flows — single-use, expiring, and BOUND
  * to the connection that issued it.
  *
- * These four properties are the ones `routes/connectors/composio-callback.ts` documents as the
- * reason its callback can be public at all, and they are reproduced here rather than reused because
- * Composio's pending map lives inside `ComposioConnectorProvider` and is keyed by *its* connector
- * model. What is reproduced is the security argument, not the code:
+ * These four properties are the reason an OAuth callback can be public at all (the since-removed
+ * Composio connector callback relied on the same four). What is reproduced is the security
+ * argument, not the code:
  *
  * - **24 random bytes**, minted by `node:crypto`. Guessing is infeasible, which is what lets the
  *   callback route authenticate on `state` instead of a cookie that a cross-site top-level
@@ -48,7 +47,7 @@ import type { OAuthClock, OAuthRandomBytes } from "./ports.js";
  * still only need one process to see the whole handshake.
  */
 
-/** Same width as the Composio flow's state — see this file's header. Exported so
+/** The `state` width. Exported so
  *  `oauth-pending-store.sqlite.ts` mints `state` at the identical width rather than restating the
  *  number. */
 export const STATE_BYTES = 24;

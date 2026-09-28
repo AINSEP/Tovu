@@ -5,8 +5,8 @@
  * first consumer is `assistant/external-mcp-oauth.ts`; a second consumer should be able to use this
  * module without changing it.
  *
- * `ports.ts` carries the argument for why this is not the connectors/Composio subsystem, and which
- * parts of that subsystem ARE reused (its hardened edges, not its state machine).
+ * `ports.ts` carries the argument for why this was written fresh rather than reusing the (since
+ * removed) Composio connectors subsystem's state machine, and which of its hardened edges survive.
  */
 
 export type {

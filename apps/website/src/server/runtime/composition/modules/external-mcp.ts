@@ -22,11 +22,8 @@ import type { ServerModuleHandle } from "./types.js";
  * @file The `external-mcp` server module — the operator's roster of third-party MCP servers,
  * backing Settings → External MCP.
  *
- * Distinct from `modules/connectors.ts` despite both being "third-party integrations" and both
- * gating on `admin.integrations.manage`: connectors reach external ACCOUNTS through Composio's
- * hosted API, while this module configures external PROCESSES that Tovu's agent daemon launches and
- * whose tools the assistant may then call. The trust questions are different enough that
- * `mcp-federation/trust.ts` exists as a separate tier for the second one.
+ * This module configures external MCP servers that Tovu's agent daemon connects to and whose tools
+ * the assistant may then call; `mcp-federation/trust.ts` is the separate trust tier for them.
  *
  * Nine routes now, not three. Eight are behind `requireAdminSession` under `/api/admin`, and ONE is
  * PUBLIC — the OAuth callback, mounted outside that prefix because a `SameSite=Strict` cookie

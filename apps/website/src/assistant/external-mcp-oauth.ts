@@ -55,9 +55,9 @@ import {
  * right on the first try in `routes/connectors/` because someone had already got them wrong
  * elsewhere.
  *
- * NOT REUSED: the state machine. `ComposioConnectorProvider` performs no token exchange at all —
- * Composio is the OAuth client there, and Tovu asks it for a redirect URL and later for a
- * *connected account*. There is no authorization-code grant, no PKCE, no token endpoint, no refresh
+ * NOT REUSED: the state machine. The (since-removed) Composio provider performed no token exchange
+ * at all — Composio was the OAuth client there, and Tovu asked it for a redirect URL and later for
+ * a *connected account*. There was no authorization-code grant, no PKCE, no token endpoint, no refresh
  * token and no expiry column anywhere in that path. There was nothing to port; a direct integration
  * inherits every one of those duties, and they are implemented fresh in `src/platform/oauth/` behind a
  * provider-agnostic descriptor so no vendor's quirks reach this file either.

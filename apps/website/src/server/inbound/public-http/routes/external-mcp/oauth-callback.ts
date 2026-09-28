@@ -9,9 +9,8 @@ import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuth
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
 
 /**
- * @file The PUBLIC external-MCP OAuth callback — the second route in this codebase that is not
- * behind `requireAdminSession`, and for exactly the same reason as the first
- * (`routes/connectors/composio-callback.ts`, whose header carries the full argument).
+ * @file The PUBLIC external-MCP OAuth callback — a route that is not behind `requireAdminSession`
+ * (the same reasoning the since-removed Composio connector callback carried).
  *
  * Short version: `tovu_session` is `SameSite=Strict`, the provider redirects the operator's browser
  * here from its own origin, that is a cross-site top-level navigation, and the browser sends NO
@@ -123,7 +122,7 @@ function classifyCallbackFailure(error: unknown): OAuthCallbackFailureReason {
  */
 export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: ExternalMcpOAuthCallbackRouteDeps): void {
   app.get(`${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`, async (req, res) => {
-    // In front of everything, matching `composio-callback.ts`: the route is anonymous and each hit
+    // In front of everything: the route is anonymous and each hit
     // can cost an outbound token exchange.
     if (!deps.callbackLimiter.check(resolveClientIp(req)).allowed) {
       res.status(429).type("html").send(renderOAuthCallbackPage({ ok: false, reason: "rate_limited", messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));

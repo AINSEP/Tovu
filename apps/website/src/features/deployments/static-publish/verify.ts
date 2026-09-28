@@ -26,10 +26,8 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js"
  * composed DB-first/env-fallback source — the same one `static-publish/credentials.ts`'s
  * `composePublishCredentialSource` builds), makes ONE lightweight, read-only, authenticated request
  * against that provider's own API, and caches only the outcome (`status`/`message`/`checkedAt`) —
- * never the credential itself, and never the provider's raw response body (mirrors
- * `connectors/composio-key-probe.ts`'s "never return the response body/error text" discipline, the
- * closest existing precedent in this codebase for "probe a stored credential against its real
- * provider" — see that file's own header for the full reasoning this module reuses).
+ * never the credential itself, and never the provider's raw response body (the same "never return
+ * the response body/error text" discipline the since-removed Composio key probe followed).
  *
  * `PublishCredentialVerificationResult.status` is a closed THREE-way enum
  * (`"valid" | "invalid" | "unreachable"`), never a plain boolean — this is a hard requirement from
@@ -69,13 +67,12 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js"
  */
 
 /** One bounded probe per provider. Short because a human is waiting on a form submit or an explicit
- *  "Verify" click, not a background job — same reasoning and same order of magnitude
- *  `composio-key-probe.ts`'s `PROBE_TIMEOUT_MS` documents for its own single-shot check. */
+ *  "Verify" click, not a background job. */
 const VERIFY_TIMEOUT_MS = 10_000;
 
 /**
  * One provider check's raw outcome, before this module turns it into a human-facing message.
- * Mirrors `composio-key-probe.ts`'s `ComposioKeyProbeResult` shape exactly (`"rejected"` — the
+ * Two failure kinds (`"rejected"` — the
  * provider answered and refused the credential, actionable by the human — vs `"unreachable"` — a
  * transport failure, timeout, or unexpected status that says nothing about whether the credential
  * itself is good), extended with the optional HTTP status so the human-facing message can be
@@ -86,8 +83,8 @@ type ProviderCredentialCheckResult =
   | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number };
 
 /** Shared "did the provider authenticate this request" classifier — every checker below ends with
- *  this same three-way read of a `Response` it must not otherwise inspect (no body read, matching
- *  `composio-key-probe.ts`'s "response body discarded entirely" discipline: an authenticated
+ *  this same three-way read of a `Response` it must not otherwise inspect (no body read — the
+ *  response body is discarded entirely, because an authenticated
  *  provider's error body can carry request/account detail that has no business in a cached,
  *  potentially agent-visible message). Never reads the body on EITHER branch — {@link probe} is the
  *  one place a success body is ever opened, and only for the two providers with a reviewed field to
@@ -181,8 +178,7 @@ async function probe(fetchFn: typeof fetch, url: string, init: RequestInit, extr
   }
 }
 
-/** `GET /user` — the same "cheapest authenticated read" reasoning `composio-key-probe.ts`'s
- *  `PROBE_PATH` doc gives for its own choice; GitHub's `/user` is its own documented "who am I"
+/** `GET /user` — the cheapest authenticated read; GitHub's `/user` is its own documented "who am I"
  *  endpoint and returns 401 for a bad/revoked token, exactly the shape the live-reported bug needs
  *  distinguished from "unreachable". */
 async function verifyGitHubPagesCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {

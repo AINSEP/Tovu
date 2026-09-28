@@ -22,8 +22,7 @@ import { requestOAuthToken, type TokenRequestDeps } from "./token-endpoint.js";
  *
  * Every argument to {@link completeAuthorizationCode} comes off a redirect issued by a third party
  * into a PUBLIC route that no session cookie can reach (a `SameSite=Strict` cookie does not survive
- * a cross-site top-level navigation — the argument `routes/connectors/composio-callback.ts` records
- * for the same reason). So they are validated as hostile input before anything else happens:
+ * a cross-site top-level navigation). So they are validated as hostile input before anything else happens:
  * bounded lengths, expected charsets, and the `state` redeemed through a single-use, owner-bound
  * store. An `error` parameter is honored — a provider saying "the user declined" must not be
  * retried as if it were a network blip.

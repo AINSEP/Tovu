@@ -62,12 +62,10 @@ import {
  * `identityReady` doc explains why: route wiring needs `RouteDeps` back immediately). So
  * {@link createResolvedMailer} returns a `MailerPort` that starts as `ConsoleMailerAdapter` and
  * swaps itself to the resolved real adapter on a background promise — the exact "construct
- * synchronously, hydrate asynchronously" shape `server/runtime/composition/deps.ts`'s own
- * `composioConnectors.refresh()` already uses for an equally credential-gated capability.
+ * synchronously, hydrate asynchronously" shape.
  * `capabilities()` stays synchronous and can still reflect the pre-swap (`console`) adapter for a
  * caller that checks it in the first few milliseconds after boot, before the local SQLite read +
- * AES-GCM decrypt finish (routinely sub-millisecond) — the same disclosed race `composioConnectors`
- * already carries. `send()`/`sendBatch()` do NOT share that race: both await the background
+ * AES-GCM decrypt finish (routinely sub-millisecond) — a disclosed race. `send()`/`sendBatch()` do NOT share that race: both await the background
  * resolution before delegating, so a send made during that window is held until resolution
  * settles and then reaches whichever adapter actually won (real credential or, only once
  * genuinely unconfigured/undecryptable, Console) — it can no longer report success for a message
