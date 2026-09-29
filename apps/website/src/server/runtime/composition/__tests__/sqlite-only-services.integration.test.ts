@@ -4,7 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { DatabaseDestinationRecord } from "#src/features/database-transfer/destination-store";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -17,7 +16,7 @@ import { sqliteOnlyServices } from "../sqlite-only-services.js";
  * Outcome Matrix:
  *   Given an open, prepared content.db   -> stampWatermark bumps the file's watermark
  *   Given the same                       -> dbOps captures a restore point of that file at the current watermark
- *   Given the same                       -> the transfer destination repo round-trips a row
+ * (The transfer destination repo left this seam in R1f: it is a kernel repo on every dialect.)
  */
 
 test("each SQLite-bound service works on the handle and file it was given", async () => {
@@ -36,16 +35,6 @@ test("each SQLite-bound service works on the handle and file it was given", asyn
     assert.equal(restorePoint.watermarkAtCapture, before + 1);
     assert.equal(typeof restorePoint.artifactRef, "string");
 
-    const record: DatabaseDestinationRecord = {
-      workspaceId: "workspace-local",
-      description: { host: "db.example", port: "5432", database: "site", user: "tovu" },
-      sealed: { keyId: "k", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
-      aadVersion: 1,
-      savedAt: "2026-09-28T00:00:00.000Z",
-      lastRunJson: null,
-    };
-    await services.databaseTransferDestinationRepo.upsert(record);
-    assert.deepEqual(await services.databaseTransferDestinationRepo.find("workspace-local"), record);
   } finally {
     db.$client.close();
     fs.rmSync(dir, { recursive: true, force: true });

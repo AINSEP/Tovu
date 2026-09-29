@@ -187,7 +187,7 @@ export interface TaxonomyPublishPorts {
   /** Also read and unassigned: post/page/entry `termIds` sync through these (`taxonomy/publish-term-ids.ts`). */
   readonly entryTerms: EntryTermRepoPort & UnassignableEntryTermRepoPort & EntryTermReadPort;
   readonly revisions: TaxonomyRevisionRepoPort;
-  readonly stampWatermark: () => void;
+  readonly stampWatermark: () => Promise<void> | void;
   /** Resolves posts/pages and collection entries (Jini `createContentLookup`). */
   readonly contentLookup: ContentLookupPort;
   /** Which collection types take terms: every live one (`server/runtime/composition/content-publish-ports.ts`). */

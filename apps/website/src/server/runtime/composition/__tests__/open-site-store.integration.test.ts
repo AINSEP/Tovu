@@ -8,13 +8,16 @@ import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { createSiteRouteDeps } from "../deps.js";
 import { openSiteStore, StorageNotAvailableError } from "../open-site-store.js";
+import { StorageSecretError } from "../storage-secret.js";
 
 /**
  * @file R1d — the composition root's store step: `openSiteStore` and how `createSiteRouteDeps` uses it.
  *
  * Outcome Matrix:
  *   Given sqlite storage                         -> content + chat kernels over content.db / chat.db
- *   Given pglite / postgres storage               -> StorageNotAvailableError, nothing created
+ *   Given pglite storage                          -> StorageNotAvailableError, nothing created (R1f part 2)
+ *   Given postgres storage with no secret         -> StorageSecretError naming where to look, nothing created
+ *   (Postgres opening for real: `create-site-route-deps.postgres.test.ts`.)
  *   Given a site folder whose meta says pglite    -> createSiteRouteDeps rejects before opening content.db
  *   Given an expired guest chat in chat.db         -> the API process's composition deletes it (sweep started)
  *   Given the agent daemon's composition (client)  -> no sweep; the expired chat stays
@@ -27,7 +30,7 @@ function mkSiteDir(): string {
 function isStorageNotAvailable(kind: string) {
   return (err: unknown) => {
     assert.ok(err instanceof StorageNotAvailableError, `expected StorageNotAvailableError, got ${String(err)}`);
-    assert.match(err.message, new RegExp(`stored on ${kind}, which lands in R1 plan slice R1f`));
+    assert.match(err.message, new RegExp(`stored on ${kind}, which lands in R1 plan slice R1f part 2`));
     return true;
   };
 }
@@ -73,20 +76,34 @@ test("sqlite: opens content.db and chat.db beside it and hands back both kernels
     assert.equal(store.chat.dialect, "sqlite");
     assert.ok(store.sqliteDb, "SQLite exposes its Drizzle handle for sqliteOnlyServices");
     assert.ok(fs.existsSync(path.join(dir, "content.db")) && fs.existsSync(path.join(dir, "chat.db")));
-    store.close();
+    await store.close();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("pglite and postgres are refused before anything is opened or created", async () => {
+test("pglite is refused before anything is opened or created", async () => {
   const dir = mkSiteDir();
   try {
-    const kinds: SiteStorage[] = [{ kind: "pglite" }, { kind: "postgres", secretRef: "site" }];
-    for (const storage of kinds) {
+    await assert.rejects(
+      openSiteStore({ storage: { kind: "pglite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" }),
+      isStorageNotAvailable("pglite")
+    );
+    assert.deepEqual(fs.readdirSync(dir), [], "no file is created for a refused store");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("postgres without its connection string is refused with where to look, before anything is created", async () => {
+  const dir = mkSiteDir();
+  try {
+    const kinds: SiteStorage[] = [{ kind: "postgres", secretRef: "site" }, { kind: "postgres", secretRef: { env: "TOVU_R1F_UNSET_PG_URL" } }];
+    const expected = [/\.storage-secret\.json, which does not exist/, /environment variable TOVU_R1F_UNSET_PG_URL, which is not set/];
+    for (const [i, storage] of kinds.entries()) {
       await assert.rejects(
-        openSiteStore({ storage, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" }),
-        isStorageNotAvailable(storage.kind)
+        openSiteStore({ storage, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" }, { env: {} }),
+        (err: unknown) => err instanceof StorageSecretError && expected[i].test(err.message)
       );
     }
     assert.deepEqual(fs.readdirSync(dir), [], "no file is created for a refused store");

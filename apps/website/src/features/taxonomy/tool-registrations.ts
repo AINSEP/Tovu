@@ -110,7 +110,7 @@ export interface TaxonomyToolDeps {
   /** See `RouteDeps.stampWatermark`'s doc comment (`server/routes/types.ts`) — same field, this
    * domain's tool-calling deps bag is structurally satisfied by the same composition-root object
    * the admin HTTP routes use. */
-  stampWatermark: () => void;
+  stampWatermark: () => Promise<void> | void;
 }
 
 /**

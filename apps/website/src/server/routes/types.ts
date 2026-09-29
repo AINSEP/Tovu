@@ -1217,11 +1217,12 @@ export interface DatabaseOpsDeps {
    * a second connection to the same file. Set only by `server/deps.ts`; `server/app.ts`'s hermetic
    * composition has no content database. */
   contentKernel?: ContentKernel;
-  /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
-   * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
-   * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory
-   * composition, which has no watermark table to advance. */
-  stampWatermark: () => void;
+  /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in
+   * `server/deps.ts` (`store-bound-services.ts`): SQLite `sqliteStampWatermark(db)` (the certified
+   * `stampWatermarkTx`, see `core/gated-mutations/watermark.ts`), Postgres/PGlite the async kernel
+   * stamp, which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,
+   * which has no watermark table to advance. */
+  stampWatermark: () => Promise<void> | void;
   /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
    * agent tools' backing read port (`features/database/adapter.sqlite.ts`, closing the gap that
    * file's own catalog header previously disclosed as "no backing adapter composed into RouteDeps

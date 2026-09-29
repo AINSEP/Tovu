@@ -29,7 +29,7 @@ export interface ContentPublishSources {
   readonly termRepo: TaxonomyPublishPorts["terms"];
   readonly entryTermRepo: TaxonomyPublishPorts["entryTerms"];
   readonly taxonomyRevisionRepo: TaxonomyPublishPorts["revisions"];
-  readonly stampWatermark: () => void;
+  readonly stampWatermark: () => Promise<void> | void;
   readonly entryRepo: EntryPublishPorts["entries"] & WidgetPublishPorts["entries"];
   readonly entryRefsRepo: WidgetPublishPorts["entryRefs"];
   readonly widgetBindingRepo: WidgetPublishPorts["bindings"];

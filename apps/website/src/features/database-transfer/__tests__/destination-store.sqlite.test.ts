@@ -8,7 +8,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { DestinationUnreadableError, SealedDatabaseDestinationStore, type SavedDatabaseDestination } from "../destination-store.js";
-import { SqliteDatabaseDestinationRepo } from "../destination-repo.sqlite.js";
+import { DatabaseDestinationRepo } from "../destination-repo.js";
 
 /**
  * @file The saved destination is persistent and sealed: a server restart (a new store over the same
@@ -33,7 +33,7 @@ function fixture(t: test.TestContext): { db: ContentDb; keyring: InMemoryKeyring
   });
   const keyring = new InMemoryKeyring();
   // Every call builds a fresh store and repo over the same database: what a restart does.
-  const open = () => new SealedDatabaseDestinationStore({ repo: new SqliteDatabaseDestinationRepo(db), sealer: new AesGcmSecretSealer(keyring), keyring });
+  const open = () => new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(db), sealer: new AesGcmSecretSealer(keyring), keyring });
   return { db, keyring, open };
 }
 
@@ -88,7 +88,7 @@ test("a sealed address copied onto another workspace's row does not open, and sa
 test("a destination sealed under another root key does not open", async (t) => {
   const { db } = fixture(t);
   const other = new InMemoryKeyring("v1");
-  const repo = new SqliteDatabaseDestinationRepo(db);
+  const repo = new DatabaseDestinationRepo(db);
   await new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(other), keyring: other }).save("ws-1", DESTINATION);
   const mine = new InMemoryKeyring("v1");
   await assert.rejects(new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(mine), keyring: mine }).get("ws-1"), DestinationUnreadableError);

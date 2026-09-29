@@ -11,7 +11,7 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
+import { backfillPostSearchIndex, SqlitePostRepo, postSearchIndexFor, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
@@ -59,7 +59,7 @@ import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
-import { sqliteOnlyServices } from "./sqlite-only-services.js";
+import { storeBoundServicesFor } from "./store-bound-services.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
@@ -113,6 +113,7 @@ import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyrin
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
 import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/destination-store";
+import { DatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo";
 import { SqliteAdminExecutionCredentialRepo } from "#src/platform/db/sqlite/execution-credential-repo.sqlite";
 import { SqliteMediaProviderCredentialRepo } from "#src/platform/db/sqlite/media-provider-credential-repo.sqlite";
 import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mcp-repo.sqlite";
@@ -583,6 +584,12 @@ export interface CreateSiteRouteDepsOverrides {
    * `"client"`; omitted means `"owner"` (the API process, which also runs the guest-chat sweep).
    */
   storeRole: SiteStoreRole;
+  /**
+   * A workspace id to serve, validated against the store this call opens (`resolveWorkspace`
+   * rejects an id with no row). The Postgres/PGlite form of `db` + `workspaceId`, which need the
+   * SQLite handle the id was validated against; see {@link createSiteRouteDepsForWorkspace}.
+   */
+  requestedWorkspaceId: string;
 }
 
 /**
@@ -721,7 +728,9 @@ async function openCompositionStore(dbPath: string, overrides?: Partial<CreateSi
  * it into its own function does not add a second one.
  */
 async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<string> {
-  return overrides?.workspaceId ?? (await resolveWorkspace({ kernel })).id;
+  if (overrides?.workspaceId !== undefined) return overrides.workspaceId;
+  const requested = overrides?.requestedWorkspaceId;
+  return (await resolveWorkspace({ kernel }, requested === undefined ? {} : { workspaceId: requested })).id;
 }
 
 /**
@@ -827,15 +836,12 @@ export async function createSiteRouteDeps(
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
 
   const store = await openCompositionStore(dbPath, overrides);
-  // The Drizzle handle behind the content kernel. Only SQLite opens in this slice (pglite/postgres
-  // are refused inside `openSiteStore`), so it is always present here.
-  const db = store.sqliteDb as ContentDb;
-  // The one content kernel over `db` (the SQLite driver keeps one per connection), read by the
-  // prelude below and handed to boot modules as `deps.contentKernel`.
+  // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
+  // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
-  // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which need the
-  // SQLite handle or file itself (`sqlite-only-services.ts`; R1f adds the PGlite/Postgres twin).
-  const storeBound = sqliteOnlyServices(db, dbPath);
+  // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
+  // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
+  const storeBound = storeBoundServicesFor(store, dbPath);
   // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
   // internal construction below that used to read the old seeded-workspace literal directly —
   // this is the sole `resolveWorkspace` call site in this function's call graph
@@ -863,10 +869,13 @@ export async function createSiteRouteDeps(
   // boot. It deliberately does NOT migrate: `applyChatSplit` deletes from content.db after
   // copying, and its own header requires a backup first — see `chat-orphan-check.ts`'s header for
   // the rejected alternatives. A warning only: a failure is logged, never fatal.
-  await warnOnOrphanedChatRows({ contentDb: kernel, contentDbPath: dbPath, chatDbPath }).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
-  });
+  // SQLite only: a Postgres/PGlite site never had chat rows in its content tables.
+  if (store.storage.kind === "sqlite") {
+    await warnOnOrphanedChatRows({ contentDb: kernel, contentDbPath: dbPath, chatDbPath }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
+    });
+  }
   // Posts written before migration 0022 existed — and the demo content `prepareContentStore` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
   // `content_post_search` would not find them without an edit. Unconditional, and awaited by every
@@ -1753,7 +1762,7 @@ export async function createSiteRouteDeps(
     registry: trashRegistry,
     db: sqliteTrashDb,
     postRepo,
-    postSearch: new SqlitePostSearchIndex(kernel, { ready: postSearchBackfillReady }),
+    postSearch: postSearchIndexFor(kernel, { ready: postSearchBackfillReady }),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
     // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
@@ -1785,7 +1794,7 @@ export async function createSiteRouteDeps(
     siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(kernel),
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
-    databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: storeBound.databaseTransferDestinationRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
+    databaseTransferDestinationStore: new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(kernel), sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring }),
     // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing
     // capability is correct here rather than a third `EnvOrFileKeyring` instance).
@@ -2197,6 +2206,11 @@ export async function createSiteRouteDepsForWorkspace(
   storeRole: SiteStoreRole = "owner"
 ): Promise<NewsletterRouteDeps> {
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { storeRole });
+  // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
+  // store it opens.
+  if (!isInMemoryDbPath(dbPath) && resolveSiteStorage(dirname(dbPath)).kind !== "sqlite") {
+    return await createSiteRouteDeps(dbPath, { requestedWorkspaceId: workspaceIdOverride, storeRole });
+  }
 
   const db = await openSiteContentDb(dbPath);
   const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
