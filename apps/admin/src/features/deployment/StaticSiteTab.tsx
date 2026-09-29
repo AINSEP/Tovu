@@ -6,7 +6,6 @@ import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type {
-  AdminDeployCliStatus,
   AdminExportRunSnapshot,
   AdminPublishExecutionMode,
   AdminPublishRunSnapshot,
@@ -19,10 +18,7 @@ import {
   STATIC_HOSTS,
   STATIC_PUBLISH_TARGETS,
   STATIC_SITE_CAPABILITIES,
-  PUBLISH_CLI_TOOLS,
-  cliInstalledStatus,
   exportRunStatusLabelKey,
-  publishAssistantRequest,
   publishCredentialProviderInfo,
   publishCredentialRowReadyToSave,
   publishRunStatusLabelKey,
@@ -31,12 +27,9 @@ import {
   staticPublishFormReadyToPublish,
   credentialVerifyStatusClass,
   staticPublishProjectNameCopy,
-  type PublishCliTool,
   type PublishCredentialFormFields,
 } from "./rules";
-import { AssistantIcon, CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
-import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
-import type { DeploymentOverviewController } from "./hooks/use-deployment-overview.hooks";
+import { CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
 import type { StaticExportController } from "./hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
@@ -69,12 +62,8 @@ import type { PublishCredentialRowState, PublishCredentialsController } from "./
  * alongside the CLI-first assistant route rather than replacing it — see that card's own doc for how
  * the two relate.
  *
- * `deployClis` (`AdminDeploymentOverview.deployClis`, real PATH detection as of the same session —
- * `deployment-overview.ts`'s `isOnPath`) replaces the second pass's "Tovu can't see what's installed"
- * sentence with a real per-tool pill, SPLIT per provider rather than shown as one joint list — the
- * owner's own instruction: "split the installed GitHub CLI and Vercel CLI into different commands,
- * because maybe they only wanna use one, and it may be confusing." Someone with only `gh` on PATH who
- * only wants GitHub Pages now sees a complete GitHub-only path with no Vercel row anywhere near it.
+ * The CLI-first assistant route (a `gh`/`vercel` PATH probe per provider) was removed 2026-09-29
+ * (owner decision: publishing goes through the deploy plugin's hosts, not a server CLI).
  *
  * ## Fourth pass (2026-08-15) — the picker catches up to all four providers the credential form
  * already saved for
@@ -440,71 +429,16 @@ function ExportTriggerAction({ controller, t: translate }: { controller: StaticE
   );
 }
 
-/** One provider's CLI-first row inside the selected target's route block — real name/command, a
- *  real detected/not-detected pill from `deployClis` (or "Checking…" while the Overview snapshot is
- *  still loading), its own description, and its own single-tool "ask the assistant" copy line. Never
- *  renders the OTHER provider's tool — see this file's header for why that split matters.
- *
- *  The copy line is derived from the SAME `installed` boolean the pill renders, via
- *  {@link publishAssistantRequest} — see that function's doc for the contradiction this closes
- *  (a row reading "Detected on this server" while offering "Install the GitHub CLI…" to copy).
- *  `targetLabel` is threaded in for the detected-state sentence, which names the destination; it
- *  comes from the caller's already-resolved `selectedTarget`, since the tool→target relation is 1:1
- *  through `StaticPublishTargetInfo.cliToolId` and re-deriving it here would be a second lookup of
- *  a fact the caller already holds. */
-function ProviderCliRow({
-  tool,
-  targetLabel,
-  deployClis,
-  overviewLoaded,
-  t: translate,
-}: {
-  tool: PublishCliTool;
-  targetLabel: string;
-  deployClis: readonly AdminDeployCliStatus[];
-  overviewLoaded: boolean;
-  t: Translate;
-}) {
-  const installed = cliInstalledStatus(deployClis, tool.id);
-  return (
-    <div className="deployment-provider-list-item">
-      <span className="deployment-provider-name">
-        <span translate="no">{tool.name}</span>
-        <span className="deployment-tool-command" translate="no">
-          {tool.command}
-        </span>
-        {overviewLoaded ? (
-          <span className={`status status-${installed ? "ok" : "neutral"}`}>
-            {installed ? translate("Detected on this server") : translate("Not detected on this server")}
-          </span>
-        ) : (
-          <span className="status status-neutral">{translate("Checking…")}</span>
-        )}
-      </span>
-      <p>{translate(tool.descriptionKey)}</p>
-      <CopyLine
-        text={publishAssistantRequest(tool, targetLabel, installed)}
-        prose
-        copyLabel={translate("Copy")}
-        copiedLabel={translate("Copied!")}
-        copyAccessibleName={translate(`Copy this request to the assistant (${tool.name})`)}
-        agentHandleId={`deployment-static-site-assistant-request-copy-${tool.id}`}
-      />
-    </div>
-  );
-}
-
 export interface StaticSiteTabProps {
   /** DI seams for tests — same convention as every other wired-hook prop in this app
    *  (`DockerfileTabProps.useDockerfileSourceHook`, `OverviewTabProps.useDeploymentOverviewHook`). */
   useStaticExportHook?: typeof useWiredStaticExport;
   useStaticPublishHook?: typeof useWiredStaticPublish;
-  useDeploymentOverviewHook?: typeof useWiredDeploymentOverview;
   usePublishCredentialsHook?: typeof useWiredPublishCredentials;
 }
 
-/** Resolves each of {@link StaticSiteTabProps}'s four DI seams to its real hook when a caller
- *  passes none — four small resolvers rather than four inline `??` expressions in
+/** Resolves each of {@link StaticSiteTabProps}'s DI seams to its real hook when a caller
+ *  passes none — small resolvers rather than inline `??` expressions in
  *  `StaticSiteTab` itself, same complexity-gate reasoning `OverviewTab.tsx`'s own
  *  `resolveDeploymentOverviewHook` documents (a resolver here counts one branch each; four inline
  *  `??`s in the component body would count four against ITS OWN score instead). */
@@ -513,11 +447,6 @@ function resolveStaticExportHook(override: typeof useWiredStaticExport | undefin
 }
 function resolveStaticPublishHook(override: typeof useWiredStaticPublish | undefined): typeof useWiredStaticPublish {
   return override ?? useWiredStaticPublish;
-}
-function resolveDeploymentOverviewHookForStaticSite(
-  override: typeof useWiredDeploymentOverview | undefined
-): typeof useWiredDeploymentOverview {
-  return override ?? useWiredDeploymentOverview;
 }
 function resolvePublishCredentialsHook(
   override: typeof useWiredPublishCredentials | undefined
@@ -531,12 +460,10 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
 
   const useStaticExportHook = resolveStaticExportHook(props.useStaticExportHook);
   const useStaticPublishHook = resolveStaticPublishHook(props.useStaticPublishHook);
-  const useDeploymentOverviewHook = resolveDeploymentOverviewHookForStaticSite(props.useDeploymentOverviewHook);
   const usePublishCredentialsHook = resolvePublishCredentialsHook(props.usePublishCredentialsHook);
 
   const exportController = useStaticExportHook();
   const publishController = useStaticPublishHook();
-  const overview = useDeploymentOverviewHook();
   const credentialsController = usePublishCredentialsHook();
 
   return (
@@ -583,7 +510,6 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
 
       <GettingItOnlineCard
         publishController={publishController}
-        overview={overview}
         credentialsController={credentialsController}
         t={publishController.t}
       />
@@ -591,37 +517,25 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
   );
 }
 
-/** The "Getting it online" card — a provider picker (GitHub Pages, Vercel, Netlify, Cloudflare
- *  Pages), that provider's own CLI-first recommendation (github-pages/vercel only — see
- *  `StaticPublishTargetInfo.cliToolId`'s doc), and that provider's own preview+publish mini-form.
- *  Composed as its own function (not inline in `StaticSiteTab`) for the same complexity-gate reason
- *  `Deployment.tsx`'s `deploymentTabPanel` documents — this card alone owns the CLI-tool-or-not
- *  branch plus the four-target field sets `StaticPublishTargetFields` renders.
+/** The "Getting it online" card — a provider picker and that provider's own credential step and
+ *  preview+publish mini-form. Composed as its own function (not inline in `StaticSiteTab`) for the
+ *  same complexity-gate reason `Deployment.tsx`'s `deploymentTabPanel` documents.
  *
  *  `t` is `publishController.t` (the injected hook's own bound translator), not a second one built
  *  from `useAdminLocale()` — same "the DI seam has to actually be exercised" reasoning
  *  `use-deployment-overview.unit.test.tsx`'s own "proving the value isn't built internally" test
- *  pins for `OverviewTab`. `overview` supplies only DATA (`deployClis`) here, never its own `t` —
- *  one card, one translator, so a test injecting a fake `useStaticPublishHook` controls every string
- *  this card renders without also needing to fake the Overview hook's locale plumbing. */
+ *  pins for `OverviewTab`. One card, one translator, so a test injecting a fake `useStaticPublishHook` controls every string
+ *  this card renders. */
 function GettingItOnlineCard({
   publishController,
-  overview,
   credentialsController,
   t: translate,
 }: {
   publishController: StaticPublishController;
-  overview: DeploymentOverviewController;
   credentialsController: PublishCredentialsController;
   t: Translate;
 }) {
   const selectedTarget = STATIC_PUBLISH_TARGETS.find((target) => target.id === publishController.target) ?? STATIC_PUBLISH_TARGETS[0]!;
-  // `undefined` for Netlify/Cloudflare Pages (no CLI this codebase drives — see
-  // `StaticPublishTargetInfo.cliToolId`'s own doc) — deliberately NOT resolved with a `?? PUBLISH_CLI_TOOLS[0]`
-  // fallback, which would silently recommend the GitHub CLI for a Netlify selection. `selectedTool`
-  // stays `undefined` and the CLI-first block below renders its own explicit "no CLI path" note instead.
-  const selectedTool = selectedTarget.cliToolId !== undefined ? PUBLISH_CLI_TOOLS.find((tool) => tool.id === selectedTarget.cliToolId) : undefined;
-  const deployClis = overview.snapshot?.deployClis ?? [];
 
   function handleTargetChange(id: string) {
     const next = STATIC_PUBLISH_TARGETS.find((target) => target.id === id);
@@ -631,9 +545,7 @@ function GettingItOnlineCard({
   // One `Set` lookup per render, not a `.find()` inside the `.map()` below — `rows` is at most four
   // (soon five) entries, so the difference is not about speed, it is about keeping the connected
   // check a single small expression the `tabs` map stays readable with. `undefined` (rows not
-  // loaded yet) reads as "nothing connected yet" rather than a loading state of its own — a tab dot
-  // popping in a beat after the tab bar itself is the same acceptable one-render lag `overviewLoaded`
-  // already tolerates on `ProviderCliRow`'s own "Checking…" pill just below.
+  // loaded yet) reads as "nothing connected yet" rather than a loading state of its own.
   const connectedProviderIds = new Set((credentialsController.rows ?? []).filter((row) => row.saved !== undefined).map((row) => row.providerId));
 
   return (
@@ -641,7 +553,7 @@ function GettingItOnlineCard({
       className="card"
       {...agentHandle("deployment-static-site-online-card", {
         role: "region",
-        label: "Publish target picker, CLI-first recommendation, and direct preview/publish form for this static export",
+        label: "Publish target picker and direct preview/publish form for this static export",
       })}
     >
       <div className="card-head">
@@ -662,7 +574,7 @@ function GettingItOnlineCard({
         ) : null}
         <p className="card-lead">
           {translate(
-            "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here."
+            "The export is just a folder of files. Pick where it goes, then publish straight from here."
           )}
         </p>
 
@@ -677,46 +589,6 @@ function GettingItOnlineCard({
           activeId={selectedTarget.id}
           onChange={handleTargetChange}
         />
-
-        {selectedTool ? (
-          <>
-            <div className="deployment-route deployment-route-quiet">
-              <div className="deployment-route-label">
-                <AssistantIcon size={16} />
-                <span className="deployment-fact-label">{translate("Fastest — ask the assistant")}</span>
-              </div>
-              {/* State-NEUTRAL wording. This used to read "once this tool is installed it can
-                  publish the export for you", which quietly presumed the not-installed case and sat
-                  directly above a row that may well say "Detected on this server" — the same
-                  install-when-already-installed contradiction `publishAssistantRequest` fixes in the
-                  copy line below, in prose form. Phrasing it as a capability rather than a
-                  precondition is true in BOTH states, so this line needs no branch of its own (and
-                  this card has no complexity budget to spend on one — see the gate note in
-                  `eslint.config.mjs`). */}
-              <p className="deployment-action-reason">
-                {translate(
-                  "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored."
-                )}
-              </p>
-              <ul className="deployment-provider-list">
-                <ProviderCliRow
-                  tool={selectedTool}
-                  targetLabel={selectedTarget.label}
-                  deployClis={deployClis}
-                  overviewLoaded={Boolean(overview.snapshot)}
-                  t={translate}
-                />
-              </ul>
-            </div>
-            {/* Names the CLI block above and the numbered flow below as ALTERNATIVES, not two steps
-                of one sequence — without it, "Connect GitHub Pages" reads like the thing you do
-                right after installing the CLI, when it is really the other option entirely. Plain
-                text, not `.deployment-route*`: a divider is not a block with its own content, and
-                giving it a box would make it look like a third choice rather than the seam between
-                the two real ones. */}
-            <p className="deployment-route-divider">{translate("or")}</p>
-          </>
-        ) : null}
 
         <PublishCredentialsSection controller={credentialsController} selectedProviderId={selectedTarget.id} t={translate} />
         <ManageAccessTokensLink t={translate} />

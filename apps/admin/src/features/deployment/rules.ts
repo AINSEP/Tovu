@@ -1,6 +1,5 @@
 import {
   ApiError,
-  type AdminDeployCliStatus,
   type AdminDeploymentEnvVarStatus,
   type AdminDeploymentOverview,
   type AdminExportRunSnapshot,
@@ -105,137 +104,13 @@ export const FULL_SITE_PROVIDERS: readonly FullSiteProviderRow[] = [
 /** The four static-hosting destinations named in the brief. Proper nouns, never translated. */
 export const STATIC_HOSTS: readonly string[] = ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"] as const;
 
-/**
- * One command-line tool the assistant can drive to publish a static export, keyed 1:1 to a
- * {@link StaticPublishTargetInfo.cliToolId} and to `AdminDeployCliStatus.name` — the same id
- * threads through `rules.ts`, the server's `DEPLOY_CLI_NAMES`, and the wire shape, so a lookup by
- * `id` never needs a second translation table.
- *
- * `installed` used to be permanently absent here ("the server cannot see its own PATH" was true
- * through this tab's first pass on 2026-08-15). It stopped being true the same day:
- * `deployment-overview.ts`'s `isOnPath` landed and is real, committed detection — `id` is what a
- * caller joins against the live `AdminDeployCliStatus[]` from `GET .../system/deployment-overview`
- * (see {@link cliInstalledStatus}) to get a real `true`/`false`, never a third "unknown" state.
- */
-export interface PublishCliTool {
-  readonly id: string;
-  /** Human name, e.g. "GitHub CLI". Brand noun — rendered verbatim, never translated. */
-  readonly name: string;
-  /** The binary as typed, e.g. `gh`. A code token — rendered verbatim and `translate="no"`. */
-  readonly command: string;
-  /** What this specific tool publishes to. Names its destination explicitly so the list cannot be
-   *  read as covering all four `STATIC_HOSTS` — `gh` and `vercel` reach two of them, not Netlify or
-   *  Cloudflare Pages. */
-  readonly descriptionKey: string;
-}
-
-/**
- * The two CLIs worth having installed before publishing a static export.
- *
- * Why these two and why a CLI at all: Tovu's assistant is a spawned coding-agent CLI (project
- * memory: `@jini-ai/agent-runtime` PATH detection, no API key), so it has a real shell. If a tool
- * is present it can run it directly — which needs no token pasted into this admin, no credential
- * stored, and no provider adapter. That is a smaller and more capable path than the token-based
- * one, which is why the tab presents it first, PER PROVIDER (see {@link STATIC_PUBLISH_TARGETS} —
- * a reader who only has `gh` installed and only wants GitHub Pages must see just this one row, not
- * both, so callers look up a single tool by {@link StaticPublishTargetInfo.cliToolId} rather than
- * rendering this whole list together).
- */
-export const PUBLISH_CLI_TOOLS: readonly PublishCliTool[] = [
-  {
-    id: "gh",
-    name: "GitHub CLI",
-    command: "gh",
-    descriptionKey: "Creates the repo, pushes the exported folder, and switches GitHub Pages on.",
-  },
-  {
-    id: "vercel",
-    name: "Vercel CLI",
-    command: "vercel",
-    descriptionKey: "Deploys the exported folder straight to Vercel.",
-  },
-] as const;
-
-/** Looks up whether one CLI is on the server's PATH from the live `deployClis` array
- *  (`AdminDeploymentOverview.deployClis`) — the real, per-tool boolean {@link PublishCliTool}'s own
- *  doc comment describes. `false` (never `undefined`) when the name is absent, since the server's
- *  fixed `DEPLOY_CLI_NAMES` list always reports both known tools once the overview snapshot has
- *  loaded at all — an absent entry only happens before that first load, which callers already gate
- *  on separately (same "snapshot undefined = still loading" convention every other tab in this
- *  panel follows).
- *  @complexity O(1) — the array has exactly two entries. */
-export function cliInstalledStatus(deployClis: readonly AdminDeployCliStatus[], toolId: string): boolean {
-  return deployClis.find((cli) => cli.name === toolId)?.installed ?? false;
-}
-
-/**
- * The exact sentence to say to the assistant to install ONE tool, kept here rather than inline in
- * the component because it is the one string on this screen people copy verbatim and paste
- * elsewhere. Per-tool rather than the two-tool joint sentence this used to be
- * ("Install the GitHub CLI and the Vercel CLI…") — a reader who only wants GitHub Pages should
- * never be handed a request that also asks the assistant to install Vercel's CLI (this file's own
- * "SPLIT the two CLIs" brief item).
- *
- * The trailing "confirm it's on my PATH" is doing real work, not padding: `deployment-overview.ts`
- * checks this SERVER process's PATH, which is not necessarily the same shell the assistant's own
- * spawned CLI runs in — the assistant, running in that actual shell, can give a second, definitive
- * answer the admin's own detection cannot.
- *
- * **Only valid for a tool that is NOT detected.** Handing this sentence to someone whose CLI is
- * already on PATH is the self-contradiction {@link publishAssistantRequest} exists to prevent —
- * callers must go through that chooser rather than calling this directly.
- * @complexity O(1).
- */
-export function publishAssistantRequestForTool(tool: PublishCliTool): string {
-  return `Install the ${tool.name}, then confirm it's on my PATH.`;
-}
-
-/**
- * The counterpart sentence for a tool that IS already detected: skip installing, just do the thing.
- * Names the destination rather than only the tool, because "publish with the GitHub CLI" is
- * ambiguous once a second GitHub-driven target exists, and the reader has a specific one selected.
- *
- * The PATH caveat {@link publishAssistantRequestForTool} documents does not need restating here.
- * If the assistant's own shell turns out not to have the tool that this server's PATH check found,
- * the assistant discovers that when it tries to run it and says so — which is strictly better than
- * asking a reader whose CLI is visibly detected to go install it again.
- * @complexity O(1).
- */
-export function publishAssistantRequestForInstalledTool(tool: PublishCliTool, targetLabel: string): string {
-  return `Publish my static export to ${targetLabel} with the ${tool.name}.`;
-}
-
-/**
- * Picks the request that matches what the screen is simultaneously CLAIMING about this tool.
- *
- * This exists because the two facts were rendered independently and contradicted each other
- * (2026-08-15, owner-reported): the row said `GitHub CLI · gh · Detected on this server` and then,
- * directly below it, offered "Install the GitHub CLI, then confirm it's on my PATH." to copy. One
- * chooser keyed on the SAME `installed` boolean the pill renders makes that state impossible to
- * reach — the detected pill and the copy line can no longer disagree, because they read one value.
- *
- * Deliberately not GitHub-specific. Every provider with a `cliToolId` routes through here, so a
- * fifth target that ships a CLI gets the fixed behaviour by existing rather than by remembering.
- * @complexity O(1).
- */
-export function publishAssistantRequest(tool: PublishCliTool, targetLabel: string, installed: boolean): string {
-  return installed ? publishAssistantRequestForInstalledTool(tool, targetLabel) : publishAssistantRequestForTool(tool);
-}
-
 /** One static-publish destination this tab's provider picker can select — pairs a
- *  `StaticPublishConfig["target"]` wire value with its display name and the {@link PublishCliTool}
- *  id its own CLI-first path uses. Order here is the provider picker's display order. */
+ *  `StaticPublishConfig["target"]` wire value with its display name. Order here is the provider
+ *  picker's display order. */
 export interface StaticPublishTargetInfo {
   readonly id: AdminStaticPublishTargetId;
   /** Proper noun — rendered verbatim, never translated, same treatment `STATIC_HOSTS` gets. */
   readonly label: string;
-  /** Absent for Netlify and Cloudflare Pages (2026-08-15) — neither has a CLI this codebase drives
-   *  (`PUBLISH_CLI_TOOLS` only ever listed `gh`/`vercel`; there is no equivalent Netlify/Wrangler CLI
-   *  integration here), so there is no tool id to pair them with. `GettingItOnlineCard` in
-   *  `StaticSiteTab.tsx` reads this as "this target has no CLI-first row to show" rather than falling
-   *  back to some other target's tool — see that component's own doc for why an `?? PUBLISH_CLI_TOOLS[0]`
-   *  fallback would have been a real bug (silently recommending the GitHub CLI for a Netlify publish). */
-  readonly cliToolId?: string;
 }
 
 /**
@@ -248,8 +123,8 @@ export interface StaticPublishTargetInfo {
  * list a different provider set again.
  */
 export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
-  { id: "github-pages", label: "GitHub Pages", cliToolId: "gh" },
-  { id: "vercel", label: "Vercel", cliToolId: "vercel" },
+  { id: "github-pages", label: "GitHub Pages" },
+  { id: "vercel", label: "Vercel" },
   { id: "netlify", label: "Netlify" },
   { id: "cloudflare-pages", label: "Cloudflare Pages" },
 ] as const;

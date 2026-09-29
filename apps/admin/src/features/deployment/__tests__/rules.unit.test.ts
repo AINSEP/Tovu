@@ -3,14 +3,12 @@ import { describe, expect, it } from "vitest";
 import { ApiError, type AdminPublishCredentialSummary } from "@/lib/api";
 import {
   FULL_SITE_PROVIDERS,
-  PUBLISH_CLI_TOOLS,
   PUBLISH_CREDENTIAL_PROVIDERS,
   PUBLISH_CREDENTIAL_ROW_LABEL,
   STATIC_HOSTS,
   STATIC_PUBLISH_TARGETS,
   buildPublishConnectionInput,
   classifyPublishCredentialSubmitError,
-  cliInstalledStatus,
   credentialsForProvider,
   daemonStatusLabelKey,
   defaultCredentialForProvider,
@@ -22,9 +20,6 @@ import {
   isEnvVarRowUnsafe,
   ownerPasswordLabelKey,
   productionGateLabelKey,
-  publishAssistantRequest,
-  publishAssistantRequestForInstalledTool,
-  publishAssistantRequestForTool,
   publishCredentialProviderInfo,
   publishCredentialRowReadyToSave,
   publishRunStatusLabelKey,
@@ -175,87 +170,6 @@ describe("STATIC_PUBLISH_TARGETS", () => {
     expect(STATIC_PUBLISH_TARGETS).toHaveLength(4);
     expect(STATIC_PUBLISH_TARGETS.map((target) => target.id)).toEqual(["github-pages", "vercel", "netlify", "cloudflare-pages"]);
     expect(new Set(STATIC_PUBLISH_TARGETS.map((t) => t.id))).toEqual(new Set(PUBLISH_CREDENTIAL_PROVIDERS.map((p) => p.id)));
-  });
-
-  it("github-pages and vercel each pair to a real CLI tool id; netlify and cloudflare-pages carry none", () => {
-    const gh = STATIC_PUBLISH_TARGETS.find((t) => t.id === "github-pages")!;
-    const vercel = STATIC_PUBLISH_TARGETS.find((t) => t.id === "vercel")!;
-    const netlify = STATIC_PUBLISH_TARGETS.find((t) => t.id === "netlify")!;
-    const cloudflare = STATIC_PUBLISH_TARGETS.find((t) => t.id === "cloudflare-pages")!;
-    expect(PUBLISH_CLI_TOOLS.some((tool) => tool.id === gh.cliToolId)).toBe(true);
-    expect(PUBLISH_CLI_TOOLS.some((tool) => tool.id === vercel.cliToolId)).toBe(true);
-    expect(netlify.cliToolId).toBeUndefined();
-    expect(cloudflare.cliToolId).toBeUndefined();
-  });
-});
-
-describe("cliInstalledStatus", () => {
-  it("returns the real per-tool boolean from a live deployClis array", () => {
-    const deployClis = [
-      { name: "gh", installed: true },
-      { name: "vercel", installed: false },
-    ];
-    expect(cliInstalledStatus(deployClis, "gh")).toBe(true);
-    expect(cliInstalledStatus(deployClis, "vercel")).toBe(false);
-  });
-
-  it("returns false (never throws or returns undefined) for a name absent from the array", () => {
-    expect(cliInstalledStatus([], "gh")).toBe(false);
-  });
-});
-
-describe("publishAssistantRequestForTool", () => {
-  it("names only the ONE tool passed in — never both CLIs in the same sentence", () => {
-    const ghTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === "gh")!;
-    const request = publishAssistantRequestForTool(ghTool);
-    expect(request).toContain("GitHub CLI");
-    expect(request).not.toMatch(/vercel/i);
-  });
-
-  it("produces a distinct sentence per tool", () => {
-    const [gh, vercel] = PUBLISH_CLI_TOOLS;
-    expect(publishAssistantRequestForTool(gh!)).not.toBe(publishAssistantRequestForTool(vercel!));
-  });
-});
-
-describe("publishAssistantRequestForInstalledTool", () => {
-  it("names the tool AND the destination — 'publish with the GitHub CLI' alone is ambiguous once a second GitHub-driven target exists", () => {
-    const ghTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === "gh")!;
-    const request = publishAssistantRequestForInstalledTool(ghTool, "GitHub Pages");
-    expect(request).toContain("GitHub CLI");
-    expect(request).toContain("GitHub Pages");
-  });
-
-  it("never asks to install — that sentence belongs to publishAssistantRequestForTool, not this one", () => {
-    const ghTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === "gh")!;
-    expect(publishAssistantRequestForInstalledTool(ghTool, "GitHub Pages")).not.toMatch(/install/i);
-  });
-});
-
-describe("publishAssistantRequest", () => {
-  const ghTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === "gh")!;
-  const vercelTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === "vercel")!;
-
-  // REGRESSION (owner-reported 2026-08-15, "U1"): the row read "Detected on this server" directly
-  // above a copy line that still said "Install the GitHub CLI, then confirm it's on my PATH." — this
-  // chooser is what makes that combination impossible, keyed on the SAME `installed` boolean the
-  // pill renders. Checked against BOTH CLI-backed tools, not only GitHub — deliberately not
-  // GitHub-specific, per `publishAssistantRequest`'s own doc in `rules.ts`.
-  it("installed: returns the installed-tool sentence, never the install instruction — gh", () => {
-    const request = publishAssistantRequest(ghTool, "GitHub Pages", true);
-    expect(request).toBe(publishAssistantRequestForInstalledTool(ghTool, "GitHub Pages"));
-    expect(request).not.toMatch(/install/i);
-  });
-
-  it("installed: returns the installed-tool sentence, never the install instruction — vercel", () => {
-    const request = publishAssistantRequest(vercelTool, "Vercel", true);
-    expect(request).toBe(publishAssistantRequestForInstalledTool(vercelTool, "Vercel"));
-    expect(request).not.toMatch(/install/i);
-  });
-
-  it("not installed: returns the install instruction, for either tool", () => {
-    expect(publishAssistantRequest(ghTool, "GitHub Pages", false)).toBe(publishAssistantRequestForTool(ghTool));
-    expect(publishAssistantRequest(vercelTool, "Vercel", false)).toBe(publishAssistantRequestForTool(vercelTool));
   });
 });
 

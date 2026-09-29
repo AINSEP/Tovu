@@ -443,16 +443,6 @@ export interface AdminDeploymentEnvVarStatus {
   invalid?: true;
 }
 
-/** One publish CLI's presence on the SERVER process's PATH (never the browser's) — mirrors
- *  `DeployCliStatus` in `src/server/routes/admin/system/deployment-overview.ts`. A real filesystem
- *  check (`isOnPath`, committed 2026-08-15), not a placeholder: `installed` is either `true` or
- *  `false`, never a third "unknown" state, so a caller renders a real pill for it directly rather
- *  than a "can't tell yet" sentence. */
-export interface AdminDeployCliStatus {
-  name: string;
-  installed: boolean;
-}
-
 /** Mirrors `DeploymentOverviewSnapshot` in `src/server/routes/admin/system/deployment-overview.ts`
  *  — see that type's own doc comments for what each field does and does not prove. */
 export interface AdminDeploymentOverview {
@@ -463,8 +453,6 @@ export interface AdminDeploymentOverview {
   dbPath: string;
   uploadsDir: string;
   envVars: AdminDeploymentEnvVarStatus[];
-  /** `gh`/`vercel` PATH presence, in server display order. See {@link AdminDeployCliStatus}. */
-  deployClis: AdminDeployCliStatus[];
 }
 
 /** Mirrors `ObservabilityConfig` in `apps/website/src/platform/observability/config.ts`, flattened

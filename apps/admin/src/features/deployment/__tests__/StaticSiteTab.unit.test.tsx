@@ -5,17 +5,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { StaticSiteTab } from "../StaticSiteTab";
 import type { StaticExportController } from "../hooks/use-static-export.hooks";
 import type { StaticPublishController } from "../hooks/use-static-publish.hooks";
-import type { DeploymentOverviewController } from "../hooks/use-deployment-overview.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
 import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@/lib/api";
-import { PUBLISH_CLI_TOOLS, PUBLISH_CREDENTIAL_PROVIDERS, STATIC_HOSTS, STATIC_SITE_CAPABILITIES } from "../rules";
+import { PUBLISH_CREDENTIAL_PROVIDERS, STATIC_HOSTS, STATIC_SITE_CAPABILITIES } from "../rules";
 import { usePublishCredentials } from "../hooks/use-publish-credentials.hooks";
 import { createFakePublishCredentialsPort } from "../hooks/publish-credentials-dependencies.hooks";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 
 /**
- * @file `StaticSiteTab` — driven through its three `useStaticExportHook`/`useStaticPublishHook`/
- * `useDeploymentOverviewHook` DI seams, same convention `DockerfileTab.unit.test.tsx` established
+ * @file `StaticSiteTab` — driven through its `useStaticExportHook`/`useStaticPublishHook`/
+ * `usePublishCredentialsHook` DI seams, same convention `DockerfileTab.unit.test.tsx` established
  * for the first tab in this panel to gain injected hooks. Replaces this tab's old coverage in
  * `PureTabs.unit.test.tsx` (moved here 2026-08-15 once the tab stopped being a pure, hookless
  * component — see that file's own header).
@@ -23,9 +22,8 @@ import { FetchQueryProvider } from "@/lib/fetch-query";
  * Pins: card 1's content is unchanged (still no hook, still the honest capability/host lists); the
  * build action now calls the injected `trigger()` and reflects `run`/`isRunning`/`triggerError`
  * rather than being permanently inert; the "Getting it online" card's provider picker shows ONE
- * provider's CLI row at a time (never both), the CLI row's detected pill is driven by the injected
- * `deployClis`, and the publish mini-form's fields/gating/results are driven by the injected
- * controller. The hooks' own load/poll/trigger mechanics are each hook's own unit test's job, not
+ * provider's fields at a time and no CLI-first route (removed 2026-09-29), and the publish
+ * mini-form's fields/gating/results are driven by the injected controller. The hooks' own load/poll/trigger mechanics are each hook's own unit test's job, not
  * this file's — this file only proves the component wires the controllers to the right markup.
  */
 
@@ -72,15 +70,6 @@ function publishControllerFixture(overrides: Partial<StaticPublishController> = 
     publishError: null,
     publishing: false,
     publish: vi.fn().mockResolvedValue(undefined),
-    t: fakeT,
-    ...overrides,
-  };
-}
-
-function overviewControllerFixture(overrides: Partial<DeploymentOverviewController> = {}): DeploymentOverviewController {
-  return {
-    snapshot: undefined,
-    error: null,
     t: fakeT,
     ...overrides,
   };
@@ -158,14 +147,12 @@ function credentialsControllerFixture(overrides: CredentialsControllerFixtureOve
 function renderTab(overrides: {
   exportController?: Partial<StaticExportController>;
   publishController?: Partial<StaticPublishController>;
-  overviewController?: Partial<DeploymentOverviewController>;
   credentialsController?: CredentialsControllerFixtureOverrides;
 } = {}) {
   return render(
     <StaticSiteTab
       useStaticExportHook={() => exportControllerFixture(overrides.exportController)}
       useStaticPublishHook={() => publishControllerFixture(overrides.publishController)}
-      useDeploymentOverviewHook={() => overviewControllerFixture(overrides.overviewController)}
       usePublishCredentialsHook={() => credentialsControllerFixture(overrides.credentialsController)}
     />,
   );
@@ -371,18 +358,16 @@ describe("StaticSiteTab — build export action", () => {
   });
 });
 
-describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () => {
-  it("defaults to GitHub Pages: shows owner/repo/branch fields, the gh CLI row, and no Vercel row or teamId field anywhere", () => {
+describe("StaticSiteTab — provider picker shows one provider's fields at a time", () => {
+  it("defaults to GitHub Pages: shows owner/repo/branch fields and no teamId field", () => {
     renderTab();
     expect(screen.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("gh")).toBeInTheDocument();
-    expect(screen.queryByText("vercel")).not.toBeInTheDocument();
     expect(screen.getByLabelText("GitHub owner or org")).toBeInTheDocument();
     expect(screen.getByLabelText("Repository")).toBeInTheDocument();
     expect(screen.queryByLabelText(/Vercel team/)).not.toBeInTheDocument();
   });
 
-  it("switching to Vercel shows only the Vercel CLI row and the teamId field — no GitHub fields, no gh row", async () => {
+  it("switching to Vercel shows only the teamId field — no GitHub fields", async () => {
     const user = userEvent.setup();
     const setTarget = vi.fn();
     const { rerender } = renderTab({ publishController: { setTarget } });
@@ -394,49 +379,30 @@ describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () 
       <StaticSiteTab
         useStaticExportHook={() => exportControllerFixture()}
         useStaticPublishHook={() => publishControllerFixture({ target: "vercel" })}
-        useDeploymentOverviewHook={() => overviewControllerFixture()}
         usePublishCredentialsHook={() => credentialsControllerFixture()}
       />,
     );
-    expect(screen.getByText("vercel")).toBeInTheDocument();
-    expect(screen.queryByText("gh")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Vercel team (optional)")).toBeInTheDocument();
     expect(screen.queryByLabelText("GitHub owner or org")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Repository")).not.toBeInTheDocument();
   });
 
-  it("names each tool from rules.ts once — the split is real, not two labels for the same row", () => {
-    renderTab();
-    for (const tool of PUBLISH_CLI_TOOLS.filter((t) => t.id === "gh")) {
-      expect(screen.getByText(tool.name)).toBeInTheDocument();
-    }
-  });
-
-  // REWRITTEN 2026-08-16 (step-flow redesign): a "no CLI-first path" note used to stand in for the
-  // (hidden, "Advanced") credential form below it. Now that Step 1 renders open and immediately
-  // visible, the note is redundant — there is nothing left to explain, since Step 1 already speaks
-  // for itself as the one thing to do. Pinning instead that no CLI block/"or" divider render at all
-  // for a provider with no CLI route, and Step 1 shows up directly.
-  it("netlify: no CLI row, no 'Fastest' block, no 'or' divider — Step 1 renders directly, no target-specific field", () => {
-    renderTab({ publishController: { target: "netlify" } });
-    expect(screen.getByRole("tab", { name: "Netlify" })).toHaveAttribute("aria-selected", "true");
+  // The gh/vercel CLI-first route was removed 2026-09-29 (owner decision): no target shows a CLI row,
+  // a "Fastest" block or an "or" divider; Step 1 renders directly.
+  it.each(["github-pages", "vercel", "netlify", "cloudflare-pages"] as const)("%s: no CLI row, no 'Fastest' block, no 'or' divider", (target) => {
+    renderTab({ publishController: { target } });
     expect(screen.queryByText("gh")).not.toBeInTheDocument();
     expect(screen.queryByText("vercel")).not.toBeInTheDocument();
     expect(screen.queryByText("Fastest — ask the assistant")).not.toBeInTheDocument();
     expect(screen.queryByText("or")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toBeInTheDocument();
+  });
+
+  it("netlify: no target-specific field", () => {
+    renderTab({ publishController: { target: "netlify" } });
     expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toHaveTextContent("Netlify");
     expect(screen.queryByLabelText("GitHub owner or org")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Vercel team/)).not.toBeInTheDocument();
-  });
-
-  it("cloudflare-pages: no CLI row, no 'Fastest' block, no 'or' divider — Step 1 renders directly", () => {
-    renderTab({ publishController: { target: "cloudflare-pages" } });
-    expect(screen.getByRole("tab", { name: "Cloudflare Pages" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByText("gh")).not.toBeInTheDocument();
-    expect(screen.queryByText("vercel")).not.toBeInTheDocument();
-    expect(screen.queryByText("Fastest — ask the assistant")).not.toBeInTheDocument();
-    expect(screen.queryByText("or")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toHaveTextContent("Cloudflare Pages");
   });
 });
 
@@ -480,177 +446,6 @@ describe("StaticSiteTab — publish-target tab bar: connected indicator", () => 
   it("shows no dots anywhere while credentials are still loading — never a false 'connected' guess", () => {
     renderTab({ credentialsController: { rows: undefined, executionMode: undefined } });
     expect(document.querySelectorAll(".tab-bar-dot")).toHaveLength(0);
-  });
-});
-
-describe("StaticSiteTab — real CLI detection, no more 'can't tell' placeholder", () => {
-  it("shows 'Checking…' while the Overview snapshot has not loaded yet", () => {
-    renderTab({ overviewController: { snapshot: undefined } });
-    expect(screen.getByText("Checking…")).toBeInTheDocument();
-  });
-
-  it("shows a real Detected pill when deployClis reports the selected provider's CLI installed", () => {
-    renderTab({
-      overviewController: {
-        snapshot: {
-          mode: "local",
-          productionReadinessGate: { applicable: false, passed: false },
-          defaultOwnerPasswordUnsafe: false,
-          daemonKnownFailed: false,
-          dbPath: "infra/content.db",
-          uploadsDir: "infra/uploads",
-          envVars: [],
-          deployClis: [
-            { name: "gh", installed: true },
-            { name: "vercel", installed: false },
-          ],
-        },
-      },
-    });
-    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
-  });
-
-  it("shows a real Not-detected pill when the selected provider's CLI is absent — never a false positive", () => {
-    renderTab({
-      overviewController: {
-        snapshot: {
-          mode: "local",
-          productionReadinessGate: { applicable: false, passed: false },
-          defaultOwnerPasswordUnsafe: false,
-          daemonKnownFailed: false,
-          dbPath: "infra/content.db",
-          uploadsDir: "infra/uploads",
-          envVars: [],
-          deployClis: [
-            { name: "gh", installed: false },
-            { name: "vercel", installed: true },
-          ],
-        },
-      },
-    });
-    expect(screen.getByText("Not detected on this server")).toBeInTheDocument();
-  });
-
-  it("only-gh installed: GitHub Pages (the default target) reads Detected, with no vercel row anywhere to contradict it", () => {
-    renderTab({
-      overviewController: {
-        snapshot: {
-          mode: "local",
-          productionReadinessGate: { applicable: false, passed: false },
-          defaultOwnerPasswordUnsafe: false,
-          daemonKnownFailed: false,
-          dbPath: "infra/content.db",
-          uploadsDir: "infra/uploads",
-          envVars: [],
-          deployClis: [
-            { name: "gh", installed: true },
-            { name: "vercel", installed: false },
-          ],
-        },
-      },
-    });
-    expect(screen.getByText("gh")).toBeInTheDocument();
-    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
-    expect(screen.queryByText("vercel")).not.toBeInTheDocument();
-  });
-
-  it("only-vercel installed: switching the picker to Vercel reads Detected, with no gh row left over from the default GitHub Pages selection", () => {
-    renderTab({
-      publishController: { target: "vercel" },
-      overviewController: {
-        snapshot: {
-          mode: "local",
-          productionReadinessGate: { applicable: false, passed: false },
-          defaultOwnerPasswordUnsafe: false,
-          daemonKnownFailed: false,
-          dbPath: "infra/content.db",
-          uploadsDir: "infra/uploads",
-          envVars: [],
-          deployClis: [
-            { name: "gh", installed: false },
-            { name: "vercel", installed: true },
-          ],
-        },
-      },
-    });
-    expect(screen.getByText("vercel")).toBeInTheDocument();
-    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
-    expect(screen.queryByText("gh")).not.toBeInTheDocument();
-  });
-
-  // REGRESSION (U1, owner-reported 2026-08-15): the row read "GitHub CLI · gh · Detected on this
-  // server" directly above a copy line that STILL said "Install the GitHub CLI, then confirm it's
-  // on my PATH." — install instructions for a tool the row itself just said was already there. The
-  // fix (`publishAssistantRequest` in rules.ts) is keyed on the same `installed` boolean the pill
-  // above renders, and is deliberately not GitHub-specific — checked against BOTH CLI-backed
-  // providers here, not only the one the owner happened to report.
-  it("REGRESSION (U1): a DETECTED CLI's copy line asks to use the tool, never to install it — github-pages", () => {
-    renderTab({
-      overviewController: {
-        snapshot: {
-          mode: "local",
-          productionReadinessGate: { applicable: false, passed: false },
-          defaultOwnerPasswordUnsafe: false,
-          daemonKnownFailed: false,
-          dbPath: "infra/content.db",
-          uploadsDir: "infra/uploads",
-          envVars: [],
-          deployClis: [
-            { name: "gh", installed: true },
-            { name: "vercel", installed: false },
-          ],
-        },
-      },
-    });
-    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
-    expect(screen.queryByText(/Install the GitHub CLI/)).not.toBeInTheDocument();
-    expect(screen.getByText("Publish my static export to GitHub Pages with the GitHub CLI.")).toBeInTheDocument();
-  });
-
-  it("REGRESSION (U1): a DETECTED CLI's copy line asks to use the tool, never to install it — vercel", () => {
-    renderTab({
-      publishController: { target: "vercel" },
-      overviewController: {
-        snapshot: {
-          mode: "local",
-          productionReadinessGate: { applicable: false, passed: false },
-          defaultOwnerPasswordUnsafe: false,
-          daemonKnownFailed: false,
-          dbPath: "infra/content.db",
-          uploadsDir: "infra/uploads",
-          envVars: [],
-          deployClis: [
-            { name: "gh", installed: false },
-            { name: "vercel", installed: true },
-          ],
-        },
-      },
-    });
-    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
-    expect(screen.queryByText(/Install the Vercel CLI/)).not.toBeInTheDocument();
-    expect(screen.getByText("Publish my static export to Vercel with the Vercel CLI.")).toBeInTheDocument();
-  });
-
-  it("REGRESSION (U1): a NOT-detected CLI's copy line still asks to install it", () => {
-    renderTab({
-      overviewController: {
-        snapshot: {
-          mode: "local",
-          productionReadinessGate: { applicable: false, passed: false },
-          defaultOwnerPasswordUnsafe: false,
-          daemonKnownFailed: false,
-          dbPath: "infra/content.db",
-          uploadsDir: "infra/uploads",
-          envVars: [],
-          deployClis: [
-            { name: "gh", installed: false },
-            { name: "vercel", installed: true },
-          ],
-        },
-      },
-    });
-    expect(screen.getByText("Not detected on this server")).toBeInTheDocument();
-    expect(screen.getByText("Install the GitHub CLI, then confirm it's on my PATH.")).toBeInTheDocument();
   });
 });
 
@@ -713,7 +508,6 @@ describe("StaticSiteTab — preview and publish gating", () => {
       <StaticSiteTab
         useStaticExportHook={() => exportControllerFixture()}
         useStaticPublishHook={() => publishControllerFixture({ target: "vercel", projectName: "my-site", isPublishing: true })}
-        useDeploymentOverviewHook={() => overviewControllerFixture()}
         usePublishCredentialsHook={() => credentialsControllerFixture()}
       />,
     );
@@ -1080,7 +874,6 @@ describe("StaticSiteTab — credential section: rows", () => {
       <StaticSiteTab
         useStaticExportHook={() => exportControllerFixture()}
         useStaticPublishHook={() => publishControllerFixture({ target: "vercel" })}
-        useDeploymentOverviewHook={() => overviewControllerFixture()}
         usePublishCredentialsHook={() => credentialsControllerFixture()}
       />,
     );
@@ -1419,7 +1212,6 @@ describe("StaticSiteTab — Publish waits for a credential switch to land (terra
         <StaticSiteTab
           useStaticExportHook={() => exportControllerFixture()}
           useStaticPublishHook={() => publishControllerFixture({ owner: "octo", repo: "demo-repo", projectName: "deploy", publish })}
-          useDeploymentOverviewHook={() => overviewControllerFixture()}
           usePublishCredentialsHook={() => usePublishCredentials(port, fakeT, "en")}
         />
       </FetchQueryProvider>,
