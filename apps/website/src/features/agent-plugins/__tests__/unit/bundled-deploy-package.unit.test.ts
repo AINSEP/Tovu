@@ -56,13 +56,14 @@ test("target ids are byte-identical to the legacy provider ids (sealed credentia
       ["netlify", "targets/netlify.mjs"],
       ["cloudflare-pages", "targets/cloudflare-pages.mjs"],
       ["vercel", "targets/vercel.mjs"],
+      ["github-pages", "targets/github-pages.mjs"],
     ],
   );
 });
 
 test("the package packs through the real packer with its descriptor and modules", async () => {
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
-  for (const file of ["plugin.json", "mcp.json", DEPLOY_TARGETS_FILENAME, "targets/netlify.mjs", "targets/cloudflare-pages.mjs", "targets/vercel.mjs", "skills/deploy/SKILL.md"]) {
+  for (const file of ["plugin.json", "mcp.json", DEPLOY_TARGETS_FILENAME, "targets/netlify.mjs", "targets/cloudflare-pages.mjs", "targets/vercel.mjs", "targets/github-pages.mjs", "skills/deploy/SKILL.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
 });
@@ -121,5 +122,6 @@ test("seeded by the real seeder, deploy is ENABLED with no user action and the r
     assert.equal(typeof netlify?.module.create, "function");
     assert.equal(registry.get("cloudflare-pages")?.descriptor.label, "Cloudflare Pages");
     assert.equal(registry.get("vercel")?.descriptor.label, "Vercel");
+    assert.equal(registry.get("github-pages")?.descriptor.label, "GitHub Pages");
   });
 });

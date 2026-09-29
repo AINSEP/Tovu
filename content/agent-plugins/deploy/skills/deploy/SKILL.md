@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages, Vercel.
+description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages, Vercel, GitHub Pages.
 ---
 
 # Deploy the site to a host
@@ -12,8 +12,8 @@ site to plain files, and the chosen host serves them. The host code ships inside
 it only because Tovu shipped it.
 
 Hosts this plugin runs today: **Netlify** (`references/netlify.md`), **Cloudflare Pages**
-(`references/cloudflare-pages.md`) and **Vercel** (`references/vercel.md`). The other hosts Tovu offers
-(GitHub Pages, S3-compatible buckets) still publish through Tovu's older built-in path and move in here one at a time. The tools below work the same for every host.
+(`references/cloudflare-pages.md`), **Vercel** (`references/vercel.md`) and **GitHub Pages**
+(`references/github-pages.md`). S3-compatible buckets still publish through Tovu's older built-in path and move in here one at a time. The tools below work the same for every host.
 
 ## The procedure
 
@@ -35,7 +35,7 @@ Hosts this plugin runs today: **Netlify** (`references/netlify.md`), **Cloudflar
 
 Tovu hands every host the live site's security headers. Netlify and Cloudflare Pages get them as a
 `_headers` file, Vercel as a `vercel.json`, both written by this plugin; the site's own root copy is
-replaced.
+replaced. GitHub Pages has no header config.
 
 ## When it fails
 

@@ -14,6 +14,7 @@
     "netlify",
     "cloudflare-pages",
     "vercel",
+    "github-pages",
     "go-live",
     "website"
   ]

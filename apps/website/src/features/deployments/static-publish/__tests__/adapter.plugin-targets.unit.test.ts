@@ -38,6 +38,7 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 const NETLIFY_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/netlify.mjs");
 const CLOUDFLARE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/cloudflare-pages.mjs");
 const VERCEL_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/vercel.mjs");
+const GITHUB_PAGES_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/github-pages.mjs");
 
 function credentialSource(extra: Record<string, string> = {}): PublishCredentialSource {
   return {
@@ -201,6 +202,41 @@ test("the REAL plugin Vercel module, fed through the adapter, posts exactly one 
   assert.equal(result.ok, true, JSON.stringify(result));
   assert.equal(posted.filter((file) => file === "vercel.json").length, 1);
   assert.equal(vercelJson, renderVercelConfig());
+});
+
+test("the REAL plugin GitHub Pages module, fed through the adapter, commits one .nojekyll and reports the /<repo> base path", async (t) => {
+  const githubPages = ((await import(pathToFileURL(GITHUB_PAGES_MODULE_PATH).href)) as { default: DeployTargetModule }).default;
+  let treePaths: string[] = [];
+  const realFetch = globalThis.fetch;
+  t.mock.method(globalThis, "fetch", async (input: string | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    // The export itself fetches every page from the in-process app over loopback: let those through.
+    if (!url.includes("github")) return realFetch(input, init);
+    const method = init.method ?? "GET";
+    const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+    if (method === "GET" && url.includes("/git/ref/heads/")) return json(200, { object: { sha: "parent-sha" } });
+    if (method === "POST" && url.endsWith("/git/blobs")) return json(201, { sha: "blob-sha" });
+    if (method === "POST" && url.endsWith("/git/trees")) {
+      treePaths = JSON.parse(String(init.body)).tree.map((entry: { path: string }) => entry.path);
+      return json(201, { sha: "tree-sha" });
+    }
+    if (method === "POST" && url.endsWith("/git/commits")) return json(201, { sha: "commit-sha" });
+    if (method === "PATCH") return json(200, {});
+    if (method === "GET" && url.endsWith("/pages")) return json(200, { html_url: "https://octo.github.io/demo/", source: { branch: "gh-pages" } });
+    if (method === "GET" && url.includes("/pages/builds")) return json(200, { status: "built", commit: "commit-sha" });
+    if (url.startsWith("https://octo.github.io")) return new Response("", { status: 200 });
+    throw new Error(`unexpected GitHub call: ${method} ${url}`);
+  });
+
+  const result = await publishWith(
+    { loadDeployTargets: async () => registryOf([loaded("github-pages", githubPages)]), hostKit: { ...createDeployHostKit(), sleep: async () => undefined } },
+    { target: "github-pages", owner: "octo", repo: "demo" },
+  );
+
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.ok === true && result.basePath, "/demo");
+  assert.equal(treePaths.filter((file) => file === ".nojekyll").length, 1);
+  assert.deepEqual(treePaths.filter((file) => file === "_headers" || file === "vercel.json"), []);
 });
 
 test("an id the registry does not know keeps the legacy branch (cloudflare-pages still demands an accountId there)", async () => {
