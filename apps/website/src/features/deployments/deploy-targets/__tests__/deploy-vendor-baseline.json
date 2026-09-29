@@ -36,9 +36,6 @@
     "github-pages": 6,
     "netlify": 1
   },
-  "apps/website/src/features/deployments/static-publish/s3-compatible-target.ts": {
-    "s3-compatible": 20
-  },
   "apps/website/src/features/deployments/static-publish/verify.ts": {
     "github-pages": 2
   },
