@@ -388,7 +388,8 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     signal: new AbortController().signal,
     emitSurface: async (s) => void emitted.push(s as { payload: { resource: { resource: { text: string } } } }),
   });
-  await new Promise((resolve) => setImmediate(resolve));
+  // Bounded: planning loads the deploy registry (async module imports) before the dialog is raised.
+  for (let attempt = 0; attempt < 400 && emitted.length === 0; attempt++) await delay(5);
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const html = emitted[0]!.payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
@@ -489,7 +490,6 @@ test("publish-site preview: github-pages reports the derived base path and, with
     // not the single-name form this assertion asserted back when github-pages had only one alias.
     credentialGuidance:
       "none of GITHUB_TOKEN, GH_TOKEN, GITHUB_ACCESS_TOKEN is set — publishing to github-pages requires a token with write access configured in the server environment (any one of these env vars)",
-    willInjectNojekyll: true,
   });
 
   // Never mutates `currentRun` — a preview is a pure read, so the run slot this file's other tests
@@ -515,7 +515,7 @@ test("publish-site preview: an invalid owner is reported as invalid with no base
   const vercelBody = await vercel.json();
   assert.equal(vercelBody.valid, true);
   assert.equal(vercelBody.basePath, null);
-  assert.equal(vercelBody.willInjectNojekyll, false);
+  assert.equal("willInjectNojekyll" in vercelBody, false, "the .nojekyll marker is the github-pages module's business, not the preview's");
 });
 
 test("publish-site preview: with a token configured, credentialsConfigured is true and the token itself never crosses the response", async (t) => {
@@ -606,7 +606,7 @@ test("publish-site: a trigger body missing 'owner' for github-pages, and an inva
     body: JSON.stringify({ projectName: "demo" }),
   });
   assert.equal(missingTarget.status, 400);
-  assert.equal((await missingTarget.json()).error, "'target' must be one of: github-pages, vercel, netlify, cloudflare-pages");
+  assert.equal((await missingTarget.json()).error, "'target' (non-empty string) is required");
 });
 
 test("publish-site: a github-pages trigger WITH a valid 'branch', and a vercel trigger WITH a valid 'teamId', both parse and start a real run (202) -- same hermetic NO_CREDENTIALS_CONFIGURED settle as every other trigger test in this file", async (t) => {

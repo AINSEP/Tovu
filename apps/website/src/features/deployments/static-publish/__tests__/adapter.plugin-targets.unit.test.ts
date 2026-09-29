@@ -26,8 +26,8 @@ import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
 /**
  * @file The static-publish adapter's plugin path (deploy plan T2, strangler): a target id the
  * deploy-target registry knows is built by the plugin's module and handed the security headers as
- * DATA (`responseHeaders`); the adapter itself no longer adds a host header file for it. Ids the
- * registry does not know keep the legacy branches, unchanged, until their own slices move them.
+ * DATA (`responseHeaders`); the adapter itself adds no host header file. An id the registry does not
+ * know, or a registry that will not load, is refused (T7b: there is no legacy branch left).
  *
  * Runs a REAL export of the hermetic fixture (same as `adapter.unit.test.ts`), never a real network.
  */
@@ -239,16 +239,15 @@ test("the REAL plugin GitHub Pages module, fed through the adapter, commits one 
   assert.deepEqual(treePaths.filter((file) => file === "_headers" || file === "vercel.json"), []);
 });
 
-test("an id the registry does not know keeps the legacy branch (cloudflare-pages still demands an accountId there)", async () => {
+test("an id the registry does not know is refused as INVALID_CONFIG, naming what is installed, before any credential or export work", async () => {
   const result = await publishWith(
-    { loadDeployTargets: async () => registryOf([loaded("netlify", { create: () => assert.fail("netlify module must not be used") })]) },
+    {
+      credentialSource: { resolve: async () => assert.fail("no credential lookup"), isConfigured: async () => assert.fail("unused") },
+      loadDeployTargets: async () => registryOf([loaded("netlify", { create: () => assert.fail("netlify module must not be used") })]),
+    },
     { target: "cloudflare-pages" },
   );
-  assert.deepEqual(result, {
-    ok: false,
-    code: "NO_CREDENTIALS_CONFIGURED",
-    message: "credential is not usable for cloudflare-pages: Cloudflare account ID is required but was not resolved from the saved credential.",
-  });
+  assert.deepEqual(result, { ok: false, code: "INVALID_CONFIG", message: "publish target 'cloudflare-pages' is not available; choose one of: netlify" });
 });
 
 test("a module's validateConfig refusal is returned as INVALID_CONFIG before any credential or export work", async () => {
@@ -279,17 +278,17 @@ test("a module whose create() throws is reported like a legacy unusable credenti
   assert.deepEqual(result, { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "credential is not usable for netlify: Netlify token is required." });
 });
 
-test("a registry that fails to load falls back to the legacy branch instead of failing the publish", async () => {
+test("a registry that fails to load is refused as INVALID_CONFIG with the reason, never published some other way", async () => {
   const result = await publishWith(
     {
+      credentialSource: { resolve: async () => assert.fail("no credential lookup"), isConfigured: async () => assert.fail("unused") },
       loadDeployTargets: async () => {
         throw new Error("EACCES: packages dir unreadable");
       },
     },
     { target: "cloudflare-pages" },
   );
-  assert.equal(result.ok, false);
-  assert.equal(!result.ok && result.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.deepEqual(result, { ok: false, code: "INVALID_CONFIG", message: "publish targets could not be loaded: EACCES: packages dir unreadable" });
 });
 
 test("a supplied buildTarget (the target-construction test seam) still wins over the registry", async () => {

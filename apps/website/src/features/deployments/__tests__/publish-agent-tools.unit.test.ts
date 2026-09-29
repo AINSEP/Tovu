@@ -115,6 +115,12 @@ function exchangeIdFromSurface(surface: unknown): string {
   return match[1]!;
 }
 
+/** Bounded wait for a publish call to reach its park point: planning loads the deploy registry
+ *  (async module imports) before the dialog is raised, so one `setImmediate` tick is not enough. */
+async function untilParked(parked: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 400 && !parked(); attempt++) await new Promise((resolve) => setTimeout(resolve, 5));
+}
+
 /** Raises the publish confirmation dialog and returns everything a test needs to answer it.
  *  `emitted` is the SAME live array `emitSurface` pushes onto — a test that also cares about a
  *  later, post-answer emission (the outcome surface, `askThenReport`'s whole reason for existing)
@@ -123,7 +129,7 @@ function exchangeIdFromSurface(surface: unknown): string {
 async function raiseDialog(executeTool: ToolRegistration, input: Record<string, unknown>) {
   const emitted: unknown[] = [];
   const pending = call(executeTool, { input, emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
+  await untilParked(() => emitted.length > 0);
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const exchangeId = exchangeIdFromSurface(emitted[0]);
@@ -150,12 +156,12 @@ function outcomeStatusState(html: string): string | null {
 
 /** Records every `publish()` call's file set and returns a canned success result — never touches
  *  `fetch` (mirrors `static-publish/__tests__/adapter.unit.test.ts`'s identical helper). */
-function fakeDeployTarget(captured: { value: DeployFile[] | null }): DeployTarget {
+function fakeDeployTarget(captured: { value: DeployFile[] | null }, providerMetadata?: Record<string, unknown>): DeployTarget {
   return {
     id: "fake",
     async publish(input: DeployPublishInput): Promise<DeployPublishResult> {
       captured.value = input.files;
-      return { targetId: "fake", url: "https://example.test/published", status: "ready" };
+      return { targetId: "fake", url: "https://example.test/published", status: "ready", ...(providerMetadata !== undefined ? { providerMetadata } : {}) };
     },
     async checkReachability() {
       return { reachable: true, status: "ready" as const };
@@ -279,7 +285,7 @@ test("deployment_preview_static_publish reports validity, computed base path, an
   assert.equal(result.valid, true);
   assert.equal(result.basePath, "/my-site");
   assert.equal(result.credentialsConfigured, true);
-  assert.equal(result.willInjectNojekyll, true);
+  assert.equal("willInjectNojekyll" in result, false, "the .nojekyll marker is the github-pages module's business");
   assert.doesNotMatch(JSON.stringify(result), /should-never-appear-in-output/);
   assert.equal(resolveCallCount, 0, "deployment_preview_static_publish must never call PublishCredentialSource.resolve()");
 });
@@ -652,7 +658,8 @@ test("confirm: a real publish records history in the injected historyStore, read
   const history = new InMemoryPublishHistoryStore();
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
-    buildTarget: () => fakeDeployTarget(captured),
+    // History's owner/repo are the host's own facts (`providerMetadata`), as the github-pages module reports them.
+    buildTarget: () => fakeDeployTarget(captured, { owner: "octo", repo: "my-site", branch: "gh-pages" }),
   });
   deps.historyStore = history;
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -914,7 +921,7 @@ test("a cancelled run abandons the dialog and reports 'abandoned', not a hang or
   const controller = new AbortController();
 
   const pending = call(executeTool, { input: { target: "vercel", projectName: "demo" }, emitSurface: async () => undefined, signal: controller.signal });
-  await new Promise((resolve) => setImmediate(resolve));
+  await untilParked(() => surfaceExchanges.size() > 0);
   assert.equal(surfaceExchanges.size(), 1);
 
   controller.abort();
@@ -1144,7 +1151,10 @@ test("the dialog names the target and project name, so the consent is informed",
   const { html, exchangeId, pending } = await raiseDialog(executeTool, { target: "github-pages", owner: "octo", repo: "my-site", projectName: "my-site-release" });
   assert.match(html, /github-pages/);
   assert.match(html, /my-site-release/);
-  assert.match(html, /octo\/my-site/);
+  // One generic row per config field the publish carries (owner, repo), whatever the target.
+  assert.match(html, /owner/);
+  assert.match(html, /octo/);
+  assert.match(html, /repo/);
   assert.match(html, /public internet/i, "the human must be told the consequence is immediate and public");
 
   surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
@@ -1460,7 +1470,7 @@ test("deployment_preview_static_publish: a vercel preview with a teamId is accep
   assert.equal(result.basePath, null);
 });
 
-test("deployment_preview_static_publish: a github-pages preview with owner/repo omitted falls back to empty strings and reports invalid, never throws", async () => {
+test("deployment_preview_static_publish: a github-pages preview with owner/repo omitted reports the missing required field as invalid, never throws", async () => {
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { return { ok: false, reason: "n/a" }; }, async isConfigured() { return { configured: false, reason: "n/a" }; } },
   });
@@ -1469,7 +1479,7 @@ test("deployment_preview_static_publish: a github-pages preview with owner/repo 
 
   const result = (await call(preview, { input: { target: "github-pages" } })) as Record<string, unknown>;
   assert.equal(result.valid, false);
-  assert.match(result.validationError as string, /invalid GitHub owner/);
+  assert.equal(result.validationError, "'owner' (non-empty string) is required for target 'github-pages'");
 });
 
 test("deployment_preview_static_publish: an unrecognized target throws before any permission check or credential read", async () => {

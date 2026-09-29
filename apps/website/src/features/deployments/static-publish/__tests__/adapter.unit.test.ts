@@ -6,41 +6,21 @@ import test from "node:test";
 
 import express from "express";
 
-import {
-  CloudflarePagesDeployTarget,
-  DeployError,
-  GitHubPagesDeployTarget,
-  NetlifyDeployTarget,
-  VercelDeployTarget,
-  type DeployFile,
-  type DeployPublishInput,
-  type DeployPublishResult,
-  type DeployTarget,
-} from "@jini-ai/devops/deploy";
-import { S3CompatibleDeployTarget } from "../s3-compatible-target.js";
+import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import {
-  publishStaticSite,
-  toDeployFile,
-  computeBasePath,
-  publishOutputDir as computePublishOutputDir,
-  validateStaticPublishConfig,
-  buildS3CompatibleTargetConfig,
-  buildJiniTarget,
-} from "../adapter.js";
+import { publishStaticSite, toDeployFile, publishOutputDir as computePublishOutputDir } from "../adapter.js";
+import type { HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
-import { renderHeadersFile, renderVercelConfig } from "#src/features/site-export/static-security-headers";
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 
 /**
- * @file `static-publish/adapter.ts` unit tests — the brief's three required coverage points:
- * `.nojekyll` is injected for the GitHub Pages target and NOT for Vercel; a missing token fails
- * cleanly without leaking; the exporter's own output maps to `DeployFile[]` with deploy-relative
- * paths intact. Plus the base-path derivation this feature's whole "structurally hard to get wrong"
- * claim rests on.
+ * @file `static-publish/adapter.ts` unit tests: a missing token fails cleanly without leaking; the
+ * exporter's own output maps to `DeployFile[]` with deploy-relative paths intact and NO host file
+ * added by core (`.nojekyll`, `_headers`, `vercel.json` are each target module's job, covered by the
+ * `bundled-deploy-*` plugin tests); the base path comes from the registry's target module.
  *
  * Every test redirects `RouteDeps.publishOutputRootDir` to a throwaway temp directory (via
  * {@link testRouteDeps} below, matching `export-site-route.test.ts`'s own precedent for
@@ -67,6 +47,10 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
  *  to export" test below) would silently never apply. See `routes/types.ts`'s `exportSiteBound` doc
  *  for this same gotcha, generalized. Every call site below therefore also takes `testRouteDeps()`'s
  *  return value directly (`const deps = testRouteDeps()`), never re-spreading it a second time. */
+/** The bundled deploy plugin's targets, read from source — what decides config fields, validation
+ *  and base path for every publish below (a test's `buildTarget` replaces only the module's `create`). */
+const hermeticDeployTargets = createRouteDeps().loadDeployTargets;
+
 function testRouteDeps(): RouteDeps {
   const deps = createRouteDeps();
   deps.publishOutputRootDir = publishOutputDir;
@@ -122,11 +106,6 @@ function neverCalledCredentialSource(): PublishCredentialSource {
   };
 }
 
-test("computeBasePath: derives /<repo> for github-pages and undefined for vercel — the one place base path is ever decided", () => {
-  assert.equal(computeBasePath({ target: "github-pages", owner: "octo", repo: "my-site" }), "/my-site");
-  assert.equal(computeBasePath({ target: "vercel" }), undefined);
-});
-
 test("toDeployFile: preserves deploy-relative path and data, normalizing to forward slashes", () => {
   assert.deepEqual(toDeployFile({ outputFile: "about/index.html", data: "<html></html>", contentType: "text/html" }), {
     file: "about/index.html",
@@ -148,8 +127,7 @@ test("toDeployFile: a literal null contentType (a fetched response with no Conte
 
 test("publishStaticSite: an invalid config is rejected before credentials or the deploy target are ever touched", async () => {
   const deps = testRouteDeps();
-  const result = await publishStaticSite(
-    { credentialSource: neverCalledCredentialSource() },
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: neverCalledCredentialSource() },
     {
       workspaceId: "does-not-matter",
       publishOutputRootDir: deps.publishOutputRootDir,
@@ -173,8 +151,7 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
   // target is never even constructed — via `buildTarget` below never firing.
   void exportAttempted;
 
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: false, reason: "GITHUB_TOKEN is not set" }; }, async isConfigured() { return { configured: false, reason: "GITHUB_TOKEN is not set" }; } },
       buildTarget: () => {
         throw new Error("buildTarget must not be called when no credential was resolved");
@@ -201,12 +178,11 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
   assert.doesNotMatch(JSON.stringify(result), /Bearer |ghp_[A-Za-z0-9]|["']token["']?\s*:\s*["'][^"']{4,}/i);
 });
 
-test("publishStaticSite: injects .nojekyll for github-pages and maps real exported files to deploy-relative DeployFile[]", async () => {
+test("publishStaticSite: github-pages gets the module's /<repo> base path, core adds no .nojekyll, and real exported files map to deploy-relative DeployFile[]", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
   const deps: RouteDeps = testRouteDeps();
 
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => fakeDeployTarget(captured),
     },
@@ -226,9 +202,9 @@ test("publishStaticSite: injects .nojekyll for github-pages and maps real export
   assert.ok(captured.value, "the fake deploy target must have been invoked");
   const files = captured.value!;
 
-  const nojekyll = files.find((f) => f.file === ".nojekyll");
-  assert.ok(nojekyll, ".nojekyll must be present in the file set published to github-pages");
-  assert.equal(nojekyll!.data, "");
+  // The marker is the github-pages MODULE's job (its publish adds it); a `buildTarget` fake replaces
+  // that module, so what arrives here is exactly what core produced.
+  assert.ok(!files.some((f) => f.file === ".nojekyll"), "core must not add a host marker file");
 
   // Deploy-relative paths intact: the hermetic fixture always renders a home page at "/", which
   // this exporter writes to "index.html" (site-exporter.ts's own pretty-URL convention) — never an
@@ -243,8 +219,7 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
   const captured: { value: DeployFile[] | null } = { value: null };
   const deps: RouteDeps = testRouteDeps();
 
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => fakeDeployTarget(captured),
     },
@@ -265,40 +240,48 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
   assert.ok(!captured.value!.some((f) => f.file === ".nojekyll"), ".nojekyll must never be published to vercel");
 });
 
-/** Publishes the hermetic fixture to `config`'s target through a fake deploy target and returns the file set it received. */
-async function publishedFilesFor(config: StaticPublishConfig): Promise<DeployFile[]> {
-  const captured: { value: DeployFile[] | null } = { value: null };
+/** Publishes the hermetic fixture to `config`'s target through a fake deploy target and returns what
+ *  its `publish()` received. */
+async function publishInputFor(config: StaticPublishConfig): Promise<HostDeployPublishInput> {
+  let received: HostDeployPublishInput | undefined;
   const deps = testRouteDeps();
-  const result = await publishStaticSite(
-    {
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
-      buildTarget: () => fakeDeployTarget(captured),
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
+      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => ({
+        id: "fake",
+        async publish(input: HostDeployPublishInput): Promise<DeployPublishResult> {
+          received = input;
+          return { targetId: "fake", url: "https://example.test/published", status: "ready" };
+        },
+        async checkReachability() {
+          return { reachable: true, status: "ready" as const };
+        },
+      }),
     },
     { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo" }
   );
   assert.equal(result.ok, true, JSON.stringify(result));
-  assert.ok(captured.value, "the fake deploy target must have been invoked");
-  return captured.value!;
+  assert.ok(received, "the fake deploy target must have been invoked");
+  return received!;
 }
 
-/** Static publishes carry the live server's security headers (see `static-security-headers.ts`):
- *  a `_headers` file for Netlify and Cloudflare Pages (Jini's direct upload sends a root `_headers`
- *  as its own form field, which Pages applies), `vercel.json` for Vercel, and a `<meta name="referrer">`
- *  in every exported HTML page for every host. */
-test("publishStaticSite: each target gets the live security headers in the form its host applies", async () => {
-  const expectations: Array<{ config: StaticPublishConfig; file?: { name: string; data: string } }> = [
-    { config: { target: "netlify" }, file: { name: "_headers", data: renderHeadersFile() } },
-    { config: { target: "vercel" }, file: { name: "vercel.json", data: renderVercelConfig() } },
-    { config: { target: "cloudflare-pages" }, file: { name: "_headers", data: renderHeadersFile() } },
-    { config: { target: "github-pages", owner: "octo", repo: "demo-repo" } },
-    { config: { target: "s3-compatible" } },
+/** Static publishes carry the live server's security headers (see `static-security-headers.ts`) as
+ *  DATA (`responseHeaders`) for every target — each module renders its own host's form — plus a
+ *  `<meta name="referrer">` in every exported HTML page. Core writes no header file itself. */
+test("publishStaticSite: every target gets the live security headers as data, and core adds no header file", async () => {
+  const configs: StaticPublishConfig[] = [
+    { target: "netlify" },
+    { target: "vercel" },
+    { target: "cloudflare-pages" },
+    { target: "github-pages", owner: "octo", repo: "demo-repo" },
+    { target: "s3-compatible" },
   ];
-  for (const { config, file } of expectations) {
-    const files = await publishedFilesFor(config);
-    const headerFiles = files.filter((f) => f.file === "_headers" || f.file === "vercel.json");
-    assert.deepEqual(headerFiles.map((f) => ({ name: f.file, data: f.data })), file ? [file] : [], config.target);
+  for (const config of configs) {
+    const input = await publishInputFor(config);
+    assert.deepEqual(input.responseHeaders, PUBLIC_PAGE_SECURITY_HEADERS, config.target);
+    assert.deepEqual(input.files.filter((f) => f.file === "_headers" || f.file === "vercel.json"), [], config.target);
     for (const page of ["index.html", "404.html"]) {
-      const html = String(files.find((f) => f.file === page)?.data ?? "");
+      const html = String(input.files.find((f) => f.file === page)?.data ?? "");
       assert.ok(html.includes(`<meta name="referrer" content="${PUBLIC_PAGE_SECURITY_HEADERS["Referrer-Policy"]}">`), `${config.target} ${page}`);
     }
   }
@@ -320,8 +303,7 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
   // one more reason this must stay a mutation.
   deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/tovu-starter/css/theme.css", deps);
 
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => {
         throw new Error("buildTarget must not be called when the export had a failed asset");
@@ -387,12 +369,10 @@ test("publishStaticSite: two concurrent publishes to the SAME target both still 
   const config: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo-repo" };
 
   const [resultA, resultB] = await Promise.all([
-    publishStaticSite(
-      { credentialSource: { async resolve() { return { ok: true, token: "fake-token-a" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedA) },
+    publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: { async resolve() { return { ok: true, token: "fake-token-a" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedA) },
       { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo-a" }
     ),
-    publishStaticSite(
-      { credentialSource: { async resolve() { return { ok: true, token: "fake-token-b" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedB) },
+    publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: { async resolve() { return { ok: true, token: "fake-token-b" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedB) },
       { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo-b" }
     ),
   ]);
@@ -409,33 +389,12 @@ test("publishStaticSite: two concurrent publishes to the SAME target both still 
   assert.ok(capturedB.value!.some((f) => f.file === "index.html"), "run B must still have its home page");
 });
 
-test("validateStaticPublishConfig: rejects a blank teamId for vercel and an out-of-pattern branch for github-pages", () => {
-  const badTeam: StaticPublishConfig = { target: "vercel", teamId: "   " };
-  assert.match(validateStaticPublishConfig(badTeam) ?? "", /teamId/);
-
-  const badBranch: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo", branch: "has a space" };
-  assert.match(validateStaticPublishConfig(badBranch) ?? "", /branch/);
-
-  assert.equal(validateStaticPublishConfig({ target: "vercel" }), null);
-});
-
-test("validateStaticPublishConfig: netlify and cloudflare-pages configs are always valid — accountId lives on the credential, not this config", () => {
-  assert.equal(validateStaticPublishConfig({ target: "netlify" }), null);
-  assert.equal(validateStaticPublishConfig({ target: "cloudflare-pages" }), null);
-});
-
-test("computeBasePath: netlify and cloudflare-pages never carry a base path, same as vercel", () => {
-  assert.equal(computeBasePath({ target: "netlify" }), undefined);
-  assert.equal(computeBasePath({ target: "cloudflare-pages" }), undefined);
-});
-
 test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pages, and never sets a base path", async () => {
   for (const config of [{ target: "netlify" }, { target: "cloudflare-pages" }] as const) {
     const captured: { value: DeployFile[] | null } = { value: null };
     const deps: RouteDeps = testRouteDeps();
 
-    const result = await publishStaticSite(
-      {
+    const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
         credentialSource: {
           async resolve() {
             return { ok: true, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" };
@@ -460,8 +419,7 @@ test("publishStaticSite: passes the resolved credential's accountId through to b
   const deps: RouteDeps = testRouteDeps();
   let observedCredential: { token: string; accountId?: string } | null = null;
 
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
           return { ok: true, token: "cf-token", accountId: "acct-42" };
@@ -486,8 +444,7 @@ test("publishStaticSite: a resolved credential for vercel/github-pages/netlify n
   const deps: RouteDeps = testRouteDeps();
   let observedCredential: { token: string; accountId?: string } | null = null;
 
-  await publishStaticSite(
-    {
+  await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
           return { ok: true, token: "vercel-token" };
@@ -507,61 +464,13 @@ test("publishStaticSite: a resolved credential for vercel/github-pages/netlify n
   assert.equal("accountId" in (observedCredential as object), false);
 });
 
-// ---- s3-compatible + StaticPublishOutcome's "partial" branch (spec §3a/§4/§10) ----
-
-test("buildS3CompatibleTargetConfig: maps a full resolved credential, secretAccessKey carried by token, endpoint passed through", () => {
-  const config = buildS3CompatibleTargetConfig({
-    token: "s3cr3t",
-    accessKeyId: "AKIAEXAMPLE",
-    bucket: "my-bucket",
-    region: "us-east-1",
-    endpoint: "https://s3.us-east-1.amazonaws.com",
-    publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
-  });
-  assert.deepEqual(config, {
-    accessKeyId: "AKIAEXAMPLE",
-    secretAccessKey: "s3cr3t",
-    bucket: "my-bucket",
-    region: "us-east-1",
-    publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
-    endpoint: "https://s3.us-east-1.amazonaws.com",
-  });
-});
-
-test("buildS3CompatibleTargetConfig: an omitted endpoint stays omitted, never coerced to an empty string", () => {
-  const config = buildS3CompatibleTargetConfig({ token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://x.test" });
-  assert.ok(!("endpoint" in config));
-});
-
-test("buildS3CompatibleTargetConfig: throws DeployError naming every missing required field, defense-in-depth against a non-conforming credential source", () => {
-  assert.throws(
-    () => buildS3CompatibleTargetConfig({ token: "s3cr3t" }),
-    (err: unknown) => {
-      assert.ok(err instanceof Error);
-      assert.match(err.message, /accessKeyId/);
-      assert.match(err.message, /bucket/);
-      assert.match(err.message, /region/);
-      assert.match(err.message, /publicUrl/);
-      assert.doesNotMatch(err.message, /s3cr3t/);
-      return true;
-    }
-  );
-});
-
-test("validateStaticPublishConfig: s3-compatible is always valid — every field lives on the credential, not this (empty) config", () => {
-  assert.equal(validateStaticPublishConfig({ target: "s3-compatible" }), null);
-});
-
-test("computeBasePath: s3-compatible never carries a base path — a bucket serves from its own root", () => {
-  assert.equal(computeBasePath({ target: "s3-compatible" }), undefined);
-});
+// ---- credential fields + StaticPublishOutcome's "partial" branch (spec §3a/§4/§10) ----
 
 test("publishStaticSite: forwards all six s3-compatible credential fields through to buildTarget, with token carrying secretAccessKey's role", async () => {
   const deps: RouteDeps = testRouteDeps();
   let observedCredential: Record<string, unknown> | null = null;
 
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
           return {
@@ -601,8 +510,7 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
   const deps: RouteDeps = testRouteDeps();
   let observedCredential: Record<string, unknown> | null = null;
 
-  await publishStaticSite(
-    {
+  await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
           return { ok: true, token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://my-bucket.example.test" };
@@ -624,8 +532,7 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
 
 test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true success", async () => {
   const deps: RouteDeps = testRouteDeps();
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => ({
         id: "fake",
@@ -645,8 +552,7 @@ test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true
 for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
   test(`publishStaticSite: a target's terminal status of '${notReadyStatus}' is a genuine "partial" outcome — never ok:true, never ok:false`, async () => {
     const deps: RouteDeps = testRouteDeps();
-    const result = await publishStaticSite(
-      {
+    const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
         credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
         buildTarget: () => ({
           id: "fake",
@@ -686,8 +592,7 @@ test("publishStaticSite: a credentialSource.resolve() that THROWS (a genuine dec
   // a silent `null` — this is the exact shape that failure takes once it reaches the composed
   // `PublishCredentialSource.resolve()` this function calls.
   const deps: RouteDeps = testRouteDeps();
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve() {
           throw new Error("bad AAD: ciphertext does not match the derived key");
@@ -709,14 +614,11 @@ test("publishStaticSite: a credentialSource.resolve() that THROWS (a genuine dec
   assert.match(result.message, /bad AAD/);
 });
 
-test("publishStaticSite: a buildTarget/buildJiniTarget that THROWS (credential missing a target-required field) is caught, not left to escape as an uncaught exception", async () => {
-  // Mirrors `buildS3CompatibleTargetConfig`'s own real "throws DeployError naming every missing
-  // required field" defense-in-depth behavior — this test uses a plain throw (not a real
-  // `buildS3CompatibleTargetConfig` call) to isolate the claim under test to `publishStaticSite`'s own
-  // catch, not that helper's specific validation logic (already covered by its own dedicated test).
+test("publishStaticSite: a buildTarget that THROWS (credential missing a target-required field) is caught, not left to escape as an uncaught exception", async () => {
+  // A module's `create()` refusing a credential missing a field it needs (the s3-compatible module's
+  // own check is covered by its plugin test); a plain throw isolates `publishStaticSite`'s own catch.
   const deps: RouteDeps = testRouteDeps();
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => {
         throw new Error("s3-compatible credential is missing required field 'bucket'");
@@ -732,82 +634,17 @@ test("publishStaticSite: a buildTarget/buildJiniTarget that THROWS (credential m
 });
 
 // ---------------------------------------------------------------------------
-// Characterization tests, added ahead of a complexity-reduction refactor of
-// `validateStaticPublishConfig`, `buildJiniTarget`, and `publishStaticSite` — pinning branches the
+// Characterization tests, added ahead of a complexity-reduction refactor of `publishStaticSite` —
+// pinning branches the
 // existing suite above never exercised (confirmed via `c8` branch coverage: 86.25% on this file
 // before this block). Every assertion here must pass unchanged before AND after the refactor.
 // ---------------------------------------------------------------------------
-
-test("validateStaticPublishConfig: rejects an out-of-pattern github-pages repo name", () => {
-  const badRepo: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "" };
-  assert.match(validateStaticPublishConfig(badRepo) ?? "", /invalid GitHub repo/);
-
-  const dotRepo: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "." };
-  assert.match(validateStaticPublishConfig(dotRepo) ?? "", /invalid GitHub repo/);
-});
-
-// ---- buildJiniTarget: the real, default DeployTarget constructor (every test above injects a
-// fake `buildTarget`, so this dispatch itself has never run) ----
-
-test("buildJiniTarget: github-pages builds a GitHubPagesDeployTarget, forwarding owner/repo/token and omitting branch when not supplied", () => {
-  const config: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo" };
-  const target = buildJiniTarget(config, { token: "gh-token" });
-  assert.ok(target instanceof GitHubPagesDeployTarget);
-  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "gh-token", owner: "octo", repo: "demo" });
-});
-
-test("buildJiniTarget: github-pages forwards an explicit branch when supplied", () => {
-  const config: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo", branch: "release" };
-  const target = buildJiniTarget(config, { token: "gh-token" });
-  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "gh-token", owner: "octo", repo: "demo", branch: "release" });
-});
-
-test("buildJiniTarget: vercel builds a VercelDeployTarget, omitting teamId when not supplied and forwarding it when present", () => {
-  const withoutTeam = buildJiniTarget({ target: "vercel" }, { token: "v-token" });
-  assert.ok(withoutTeam instanceof VercelDeployTarget);
-  assert.deepEqual((withoutTeam as unknown as { config: unknown }).config, { token: "v-token" });
-
-  const withTeam = buildJiniTarget({ target: "vercel", teamId: "team_1" }, { token: "v-token" });
-  assert.deepEqual((withTeam as unknown as { config: unknown }).config, { token: "v-token", teamId: "team_1" });
-});
-
-test("buildJiniTarget: netlify builds a NetlifyDeployTarget carrying only the token", () => {
-  const target = buildJiniTarget({ target: "netlify" }, { token: "nt-token" });
-  assert.ok(target instanceof NetlifyDeployTarget);
-  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "nt-token" });
-});
-
-test("buildJiniTarget: cloudflare-pages builds a CloudflarePagesDeployTarget from the resolved accountId", () => {
-  const target = buildJiniTarget({ target: "cloudflare-pages" }, { token: "cf-token", accountId: "acct-1" });
-  assert.ok(target instanceof CloudflarePagesDeployTarget);
-  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "cf-token", accountId: "acct-1" });
-});
-
-test("buildJiniTarget: cloudflare-pages throws DeployError when the resolved credential has no accountId", () => {
-  assert.throws(
-    () => buildJiniTarget({ target: "cloudflare-pages" }, { token: "cf-token" }),
-    (err: unknown) => {
-      assert.ok(err instanceof DeployError);
-      assert.match(err.message, /Cloudflare account ID is required/);
-      return true;
-    }
-  );
-});
-
-test("buildJiniTarget: s3-compatible builds an S3CompatibleDeployTarget via buildS3CompatibleTargetConfig", () => {
-  const target = buildJiniTarget(
-    { target: "s3-compatible" },
-    { token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://x.test" }
-  );
-  assert.ok(target instanceof S3CompatibleDeployTarget);
-});
 
 // ---- publishStaticSite: branches no existing test above exercises ----
 
 test("publishStaticSite: rejects a blank projectName before credentials or export are touched", async () => {
   const deps = testRouteDeps();
-  const result = await publishStaticSite(
-    { credentialSource: neverCalledCredentialSource() },
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: neverCalledCredentialSource() },
     { workspaceId: "w", publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "   " }
   );
   assert.equal(result.ok, false);
@@ -818,8 +655,7 @@ test("publishStaticSite: rejects a blank projectName before credentials or expor
 
 test("publishStaticSite: rejects a projectName over the 200-character limit", async () => {
   const deps = testRouteDeps();
-  const result = await publishStaticSite(
-    { credentialSource: neverCalledCredentialSource() },
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: neverCalledCredentialSource() },
     { workspaceId: "w", publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "x".repeat(201) }
   );
   assert.equal(result.ok, false);
@@ -830,8 +666,7 @@ test("publishStaticSite: rejects a projectName over the 200-character limit", as
 
 test("publishStaticSite: exportSiteBound itself throwing (not merely returning failed routes) is caught as EXPORT_FAILED, and the run directory is still cleaned up", async () => {
   const deps: RouteDeps = testRouteDeps();
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => {
         throw new Error("buildTarget must not be called when exportSiteBound itself threw");
@@ -856,8 +691,7 @@ test("publishStaticSite: exportSiteBound itself throwing (not merely returning f
 
 test("publishStaticSite: a partial outcome with no statusMessage falls back to the default not-yet-reachable message", async () => {
   const deps: RouteDeps = testRouteDeps();
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => ({
         id: "fake",
@@ -886,8 +720,7 @@ test("publishStaticSite: the input's credentialId reaches credentialSource.resol
   const deps: RouteDeps = testRouteDeps();
   const seen: { value: unknown } = { value: null };
 
-  const result = await publishStaticSite(
-    {
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve(input) {
           seen.value = input;
@@ -920,8 +753,7 @@ test("publishStaticSite: with no credentialId on the input, resolve() is called 
   const deps: RouteDeps = testRouteDeps();
   const seen: { value: Record<string, unknown> | null } = { value: null };
 
-  await publishStaticSite(
-    {
+  await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: {
         async resolve(input) {
           seen.value = input as unknown as Record<string, unknown>;
