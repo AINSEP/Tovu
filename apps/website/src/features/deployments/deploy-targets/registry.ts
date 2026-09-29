@@ -231,7 +231,10 @@ const MAX_HELP_LENGTH = 500;
 /** A target's `config` list (absent = none), or the reason it is invalid. @complexity O(f). */
 function parseConfigFields(value: unknown, at: string): DeployTargetFieldSpec[] | string {
   if (value === undefined) return [];
-  return parseFieldList(value, at, RESERVED_FIELD_NAMES);
+  const fields = parseFieldList(value, at, RESERVED_FIELD_NAMES);
+  if (typeof fields === "string") return fields;
+  const secretAt = fields.findIndex((field) => field.secret === true);
+  return secretAt === -1 ? fields : `${at}[${secretAt}] is marked secret; config is passed in the clear, so declare it under credential.fields`;
 }
 
 /** A list of uniquely named field specs, or the reason it is invalid. @complexity O(f²), f <= {@link MAX_FIELDS}. */

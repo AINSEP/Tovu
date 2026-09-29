@@ -5,6 +5,10 @@
   Deployment, Static site.
 - **Config fields:** `owner` (user or organization), `repo`, and optional `branch` (default `gh-pages`).
   Tovu commits the site to that branch and switches GitHub Pages on for it if it is off.
+- **Owner:** never guess it from the person's name or email address. Use the verified token's login
+  (`accountLabel` in the capabilities result) and confirm it with the person. If `accountLabel` is null,
+  say the account is not known and ask for the GitHub user or organization. Do not offer an example
+  name: an invented one was once read back as a real suggestion and published to a repo nobody owned.
 - **Address:** `https://<owner>.github.io/<repo>/`. The site is built with every link under `/<repo>`,
   so previewing shows that base path.
 - **`.nojekyll`:** this plugin adds it, so GitHub does not run Jekyll and drop files whose names start

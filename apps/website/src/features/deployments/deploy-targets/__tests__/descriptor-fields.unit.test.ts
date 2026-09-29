@@ -42,6 +42,13 @@ test("a config field may not shadow a publish request's own keys", () => {
   }
 });
 
+test("a config field is never secret: the agent passes config in the clear, so a secret belongs on the credential", () => {
+  assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, config: [{ name: "apiKey", label: "Key", secret: true }] }])), {
+    ok: false,
+    reason: "targets[0].config[0] is marked secret; config is passed in the clear, so declare it under credential.fields",
+  });
+});
+
 test("malformed config fields and env blocks are refused with the exact reason", () => {
   const cases: ReadonlyArray<[unknown, unknown, string]> = [
     [{ name: "has space", label: "X" }, undefined, "targets[0].config[0].name must be a camelCase identifier"],

@@ -112,7 +112,7 @@
           "name": "owner",
           "label": "Owner",
           "required": true,
-          "help": "The GitHub user or organization that owns the repository."
+          "help": "The GitHub user or organization that owns the repository. Default it to the verified account (accountLabel) and confirm it; never guess it."
         },
         {
           "name": "repo",

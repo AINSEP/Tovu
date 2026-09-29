@@ -255,10 +255,38 @@ test("the catalog's risk map has an entry for every wired tool, matching its dec
 
 test("deployment_execute_static_publish's schema carries no token/credential field of any kind", () => {
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_execute_static_publish")!;
-  const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: boolean; required: string[] };
-  assert.equal(schema.additionalProperties, false);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["branch", "owner", "projectName", "repo", "target", "teamId"]);
+  const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: unknown; required: string[] };
+  assert.deepEqual(schema.additionalProperties, { type: "string" }, "a host's config fields are top-level strings; the handler refuses any key its host does not declare");
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["projectName", "target"]);
   assert.deepEqual(schema.required.sort(), ["projectName", "target"]);
+});
+
+test("preview/execute schemas name no host: target is any id the capabilities tool lists, not a fixed enum", () => {
+  for (const name of ["deployment_preview_static_publish", "deployment_execute_static_publish"]) {
+    const entry = staticPublishAgentToolCatalog.find((t) => t.name === name)!;
+    const target = (entry.inputSchema as { properties: { target: { enum?: unknown; description: string } } }).properties.target;
+    assert.equal(target.enum, undefined, `${name}: no enum of host ids`);
+    assert.match(target.description, /deployment_get_static_publish_capabilities/);
+    assert.doesNotMatch(entry.description + target.description, /github|vercel|netlify|cloudflare/i, `${name}: host names live in the deploy plugin, not in core tool text`);
+  }
+});
+
+test("deployment_preview_static_publish refuses a field its host does not declare (a credential can never ride in as config)", async () => {
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true }; } } });
+  const preview = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_preview_static_publish");
+  await assert.rejects(
+    () => call(preview, { input: { target: "github-pages", owner: "octo", repo: "site", token: "ghp_secret" } }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'token' is not a field of github-pages. It takes: owner, repo, branch."
+  );
+});
+
+test("deployment_execute_static_publish refuses a field its host does not declare, before any dialog is raised", async () => {
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true }; } } });
+  const execute = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_execute_static_publish");
+  await assert.rejects(
+    () => call(execute, { input: { target: "vercel", projectName: "p", owner: "octo" } }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'owner' is not a field of vercel. It takes: teamId."
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -598,8 +626,7 @@ test("deployment_get_static_publish_capabilities's description forbids ever offe
   assert.match(entry.description, /never offer an example, placeholder/i);
 
   const preview = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_preview_static_publish")!;
-  const ownerDescription = (preview.inputSchema as { properties: { owner: { description: string } } }).properties.owner.description;
-  assert.match(ownerDescription, /never soften that question with an illustrative example/i);
+  assert.match(preview.description, /never soften that question with an illustrative example/i);
 });
 
 test("deployment_get_static_publish_capabilities: a recorded lastPublish is surfaced per provider, and defaults to null when nothing has been published there yet", async () => {
@@ -661,9 +688,8 @@ test("deployment_get_static_publish_capabilities's description tells the model t
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
   assert.match(entry.description, /accountLabel/);
   const preview = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_preview_static_publish")!;
-  const ownerDescription = (preview.inputSchema as { properties: { owner: { description: string } } }).properties.owner.description;
-  assert.match(ownerDescription, /accountLabel/);
-  assert.match(ownerDescription, /confirm/i);
+  assert.match(preview.description, /accountLabel/);
+  assert.match(preview.description, /confirm/i);
 });
 
 // 2026-08-16 — Defect fix: "ready" used to mean only "a credential row/env-var exists"
