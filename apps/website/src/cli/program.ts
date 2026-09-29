@@ -4,6 +4,7 @@ import { runAdoptCommand } from "./commands/adopt.js";
 import { runDeployConfigCommand } from "./commands/deploy-config.js";
 import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
+import { runStorageMoveCommand } from "./commands/storage-move.js";
 import { runIntrospectCommand } from "./commands/introspect.js";
 import { runServeCommand } from "./commands/serve.js";
 import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index.js";
@@ -49,6 +50,18 @@ export function createProgram(): Command {
     .option("--storage-env <name>", "postgres: read the connection string from this environment variable (default: asked for once and sealed in the site folder)")
     .action(async (dir: string, options: { name?: string; storage?: string; storageEnv?: string }) => {
       await runInitCommand({ dir, name: options.name, storage: options.storage, storageEnv: options.storageEnv });
+    });
+
+  program
+    .command("storage")
+    .description("change where a site keeps its data")
+    .command("move")
+    .description("move a stopped PGlite site onto an empty Postgres database (the PGlite data dir is kept)")
+    .argument("<dir>", "site directory")
+    .requiredOption("--to <kind>", "the new storage: postgres")
+    .option("--storage-env <name>", "read the connection string from this environment variable, and keep reading it there (default: asked for once and sealed in the site folder)")
+    .action(async (dir: string, options: { to?: string; storageEnv?: string }) => {
+      await runStorageMoveCommand({ dir, to: options.to, storageEnv: options.storageEnv });
     });
 
   // Registered next to `init` deliberately: the two are the only ways a directory becomes servable,

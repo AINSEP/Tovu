@@ -49,9 +49,9 @@ export function parseInitStorage(storage: string | undefined, storageEnv: string
 
 /**
  * The connection string to seal: asked for without echo on a terminal, else read from stdin
- * (`printf '%s' "$URL" | tovu init --storage postgres <dir>`).
+ * (`printf '%s' "$URL" | tovu init --storage postgres <dir>`). Shared with `tovu storage move`.
  */
-async function readConnectionStringFromUser(): Promise<string> {
+export async function readConnectionStringFromUser(): Promise<string> {
   if (!process.stdin.isTTY) {
     const chunks: Buffer[] = [];
     for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk as Buffer));
