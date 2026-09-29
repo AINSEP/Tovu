@@ -42,7 +42,7 @@ import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-conten
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
 import { createInMemoryRevocations } from "#src/features/publish-trust/revocations";
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
-import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
+import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
@@ -1260,14 +1260,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),
     listPublishedPosts: () =>
       listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } }),
-    // 2026-08-15 (Contract v2) — hermetic double for `server/deps.ts`'s real
-    // `SqlitePublishCredentialSetRepo`; see `routes/types.ts`'s `publishCredentialSetRepo`/
-    // `publishExecutionMode` docs. `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so
-    // a test can still exercise `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.
-    publishCredentialSetRepo: new InMemoryPublishCredentialSetRepo(),
     // 2026-08-16 rework — hermetic double for `server/deps.ts`'s real `SqlitePublishHistoryStore`;
     // see `routes/types.ts`'s `publishHistoryStore` doc.
     publishHistoryStore: new InMemoryPublishHistoryStore(),
+    // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
+    // `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so a test can still exercise
+    // `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.
     publishExecutionMode: executionModeFromEnv(),
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `server/deps.ts`'s
     // `resolvePublishOutputRootDir` doc and `routes/types.ts`'s `publishOutputRootDir` doc.

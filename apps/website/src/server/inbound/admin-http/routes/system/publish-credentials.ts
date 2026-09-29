@@ -102,7 +102,7 @@ export type AdminPublishCredentialsDeps = Pick<
   | "authorize"
   | "clock"
   | "idGen"
-  | "publishCredentialSetRepo"
+  | "vendorCredentialSetRepo"
   | "siteAssistantSecretSealer"
   | "siteAssistantSecretKeyring"
   | "publishExecutionMode"
@@ -175,9 +175,9 @@ function sendStoreError(res: Response, err: unknown): void {
 }
 
 export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminPublishCredentialsDeps): void {
-  const readDeps = { repo: deps.publishCredentialSetRepo };
+  const readDeps = { repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets };
   const writeDeps = {
-    repo: deps.publishCredentialSetRepo,
+    repo: deps.vendorCredentialSetRepo,
     sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
@@ -218,7 +218,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
   async function verifyAfterSave(id: string): Promise<PublishCredentialVerificationResult | undefined> {
     const result = await verifyPublishCredentialById(
       {
-        repo: deps.publishCredentialSetRepo,
+        repo: deps.vendorCredentialSetRepo,
         sealer: deps.siteAssistantSecretSealer,
         cache: deps.publishCredentialVerificationCache,
         clock: deps.clock,
@@ -227,7 +227,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       { workspaceId: deps.workspaceId, id }
     );
     if (result?.accountLabel !== undefined) {
-      await healAccountLabel({ repo: deps.publishCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
+      await healAccountLabel({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
     }
     return result ?? undefined;
   }

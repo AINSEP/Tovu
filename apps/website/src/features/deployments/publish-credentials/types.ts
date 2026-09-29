@@ -58,7 +58,11 @@ export type PublishProviderId = string;
  */
 export type PublishConnectionInput = { readonly providerId: PublishProviderId } & Readonly<Record<string, string>>;
 
-/** A `publish_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque
+/** LEGACY (2026-09-29): publish credentials now live in `vendor_credential_sets` (`store.ts`). This
+ *  record and {@link PublishCredentialSetRepoPort} remain only so `vendor-table-backfill.ts` can read
+ *  the old rows it copies at boot; nothing else may read them.
+ *
+ *  A `publish_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque
  *  `SealedSecret` — the actual `PublishConnectionInput` only exists in memory after
  *  `resolveForPublish` opens it; see `store.ts`). */
 export interface PublishCredentialSetRecord {
@@ -86,10 +90,15 @@ export interface PublishCredentialSetRecord {
  *  type has no field capable of carrying one. */
 export interface PublishCredentialSummary {
   readonly id: UUID;
+  /** The host this row is shown under: the first deploy host declaring its vendor. */
   readonly providerId: PublishProviderId;
+  /** The account the credential authenticates to (`vendor_credential_sets.vendor_id`). */
+  readonly vendorId: string;
   readonly label: string;
   readonly configured: true;
   readonly isDefault: boolean;
+  /** Last 4 characters of the token field — see `vendor_credential_sets.token_tail`'s own doc. */
+  readonly tokenTail: string;
   /** See `PublishCredentialSetRecord.accountLabel`'s own doc — carried through unchanged, never
    *  re-derived here (this is a read model, it never decrypts or verifies anything). */
   readonly accountLabel: string | null;

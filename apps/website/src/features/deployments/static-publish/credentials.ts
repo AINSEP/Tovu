@@ -1,15 +1,16 @@
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
-import { resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
-import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
+import { hasDefaultForPublish, resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
+import type { PublishConnectionInput } from "../publish-credentials/types.js";
+import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
 import type { DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishCredentialSource, ResolvedPublishCredentialSuccess, StaticPublishTargetId } from "./types.js";
 
 /**
  * @file `PublishCredentialSource` implementations + composition — env-var (self-hosted operator
- * fallback), DB-backed (the encrypted `publish_credential_sets` store, 2026-08-15), and the function
+ * fallback), DB-backed (the encrypted publish-credential store, 2026-08-15; `vendor_credential_sets` since 2026-09-29), and the function
  * that combines them per the install's `PublishExecutionMode`.
  *
  * Purpose:
@@ -60,7 +61,7 @@ function unknownTargetReason(target: StaticPublishTargetId): string {
 /**
  * The ONE refusal text every "the chosen connection cannot be used" path shares (terra review
  * 2026-09-20, finding 1). Deliberately IDENTICAL for a credential id that does not exist and for one
- * that belongs to another workspace: `PublishCredentialSetRepoPort.findById` is workspace-scoped, so
+ * that belongs to another workspace: `VendorCredentialSetRepoPort.findById` is workspace-scoped, so
  * both are the same `null` here, and keeping one message means a caller cannot use this endpoint to
  * learn whether some other workspace's id exists. Never echoes the caller-supplied id back — the
  * operator's next step is to reload and pick again, not to read their own input.
@@ -196,17 +197,18 @@ export function projectConnectionForPublish(
 }
 
 export interface DbPublishCredentialSourceDeps {
-  repo: PublishCredentialSetRepoPort;
+  /** `vendor_credential_sets`, where saved publish credentials live (`publish-credentials/store.ts`). */
+  repo: VendorCredentialSetRepoPort;
   sealer: SecretSealerPort;
   /** This workspace's deploy registry: which field of a saved connection is the token. */
   loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
 /**
- * Builds a `PublishCredentialSource` backed by the encrypted `publish_credential_sets` store,
+ * Builds a `PublishCredentialSource` backed by the encrypted publish-credential store,
  * resolving each `(workspaceId, target)`'s DEFAULT saved connection (Contract v2 Correction B — see
  * this file's header). `resolve()` decrypts via `resolveDefaultForPublish`; `isConfigured()` reads
- * `PublishCredentialSetRepoPort.findDefaultByProvider` directly and never decrypts.
+ * `hasDefaultForPublish` and never decrypts.
  *
  * @complexity O(1) DB read for `isConfigured`; `resolve` additionally pays one decrypt + `JSON.parse`
  *   (`resolveDefaultForPublish`'s own cost) only when a default exists.
@@ -226,7 +228,7 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
    * (terra review 2026-09-20, finding 1). `credentialId` is UNTRUSTED (an HTTP body field), so both
    * checks below are load-bearing: `resolveForPublish` reads through the workspace-scoped
    * `findById`, so another workspace's id is a `null` here and can never decrypt, and the row's own
-   * `providerId` must match the target this publish is actually going to.
+   * vendor must be the vendor of the target this publish is actually going to.
    *
    * @complexity O(1) — one repo read plus, only on a full match, one decrypt (`resolveForPublish`).
    */
@@ -237,10 +239,11 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
     if (!resolved) {
       return { ok: false, reason: CHOSEN_CREDENTIAL_UNAVAILABLE_REASON };
     }
-    if (resolved.providerId !== input.target) {
+    const targetVendor = (await deps.loadDeployTargets(input.workspaceId)).get(input.target)?.descriptor.credential?.vendorId;
+    if (resolved.vendorId !== targetVendor) {
       return { ok: false, reason: chosenCredentialWrongProviderReason(resolved.providerId, input.target) };
     }
-    return project(input.workspaceId, resolved.connection);
+    return project(input.workspaceId, { ...resolved.connection, providerId: input.target });
   }
 
   return {
@@ -257,8 +260,8 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
       return project(input.workspaceId, resolved.connection);
     },
     async isConfigured(input) {
-      const record = await deps.repo.findDefaultByProvider({ workspaceId: input.workspaceId, providerId: input.target });
-      return record ? { configured: true } : { configured: false, reason: notConfiguredReason(input.target) };
+      const configured = await hasDefaultForPublish(deps, { workspaceId: input.workspaceId, providerId: input.target });
+      return configured ? { configured: true } : { configured: false, reason: notConfiguredReason(input.target) };
     },
   };
 }

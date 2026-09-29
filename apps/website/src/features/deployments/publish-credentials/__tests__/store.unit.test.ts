@@ -4,11 +4,12 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { KeyringPort } from "#src/features/webhooks/index";
-import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import {
   createPublishCredential,
   deletePublishCredential,
   describeCredential,
+  hasDefaultForPublish,
   healAccountLabel,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
@@ -21,6 +22,10 @@ import {
   type PublishCredentialWriteDeps,
 } from "../store.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
+import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
+import { buildPublishCredentialAad } from "../aad.js";
+import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
+import { copyPublishCredentialsToVendorTable } from "../vendor-table-backfill.js";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 /** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
@@ -56,7 +61,7 @@ function makeDeps(overrides: Partial<PublishCredentialWriteDeps> = {}): PublishC
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
-    repo: new InMemoryPublishCredentialSetRepo(),
+    repo: new InMemoryVendorCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: { nowIso: () => NOW },
@@ -123,7 +128,7 @@ test("describeCredential/listPublishCredentials never touch the sealer — a bro
     connection: { providerId: "vercel", token: "vercel_token" },
   });
 
-  const brokenSealerRepoDeps = { repo: deps.repo }; // deliberately no sealer/keyring at all
+  const brokenSealerRepoDeps = { repo: deps.repo, loadDeployTargets: deps.loadDeployTargets }; // deliberately no sealer/keyring at all
   const list = await listPublishCredentials(brokenSealerRepoDeps, { workspaceId: WORKSPACE });
   assert.equal(list.length, 1);
   assert.equal(list[0]!.label, "Main repo");
@@ -174,7 +179,7 @@ test("resolveForPublish converts a decrypt failure (missing root key) into the t
   // Same repo (the same saved row), but a keyring that cannot derive the key to open it — simulates
   // exactly the live scenario: the row already exists, the CURRENT process just has no root key.
   const brokenKeyring = new BrokenKeyring();
-  const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(brokenKeyring) };
+  const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(brokenKeyring), loadDeployTargets: workingDeps.loadDeployTargets };
 
   await assert.rejects(
     () => resolveForPublish(brokenDeps, { workspaceId: WORKSPACE, id: created.id }),
@@ -218,7 +223,7 @@ test("createPublishCredential rejects a second credential with the same (workspa
 /** Postgres/PGlite reports the label's UNIQUE index as SQLSTATE `23505` with its own wording, not
  *  SQLite's "UNIQUE constraint failed" — the store must still map it to the typed duplicate-label error. */
 test("createPublishCredential maps a Postgres UNIQUE violation (SQLSTATE 23505) to PublishCredentialDuplicateLabelError", async () => {
-  class PgDuplicateRepo extends InMemoryPublishCredentialSetRepo {
+  class PgDuplicateRepo extends InMemoryVendorCredentialSetRepo {
     override async insert(): Promise<void> {
       throw Object.assign(new Error('duplicate key value violates unique constraint "publish_credential_sets_label_idx"'), { code: "23505" });
     }
@@ -704,4 +709,77 @@ test("updatePublishCredential with a NEW connection resets accountLabel back to 
     connection: { providerId: "github-pages", token: "new-token" },
   });
   assert.equal(updated.accountLabel, null, "a new token replaces the credential — the old account label must not be carried over unverified");
+});
+
+// ---------------------------------------------------------------------------------------------
+// Storage: `vendor_credential_sets` (2026-09-29). A row belongs to the vendor its host declares.
+// ---------------------------------------------------------------------------------------------
+
+test("a saved connection lands in its host's vendor group, sealed as {vendorId, ...fields} under the vendor AAD", async () => {
+  const deps = makeDeps();
+  const summary = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pages", connection: { providerId: "github-pages", token: "ghp_abcd9876" } });
+
+  assert.equal(summary.vendorId, "github");
+  assert.equal(summary.tokenTail, "9876");
+  const row = await deps.repo.findById({ workspaceId: WORKSPACE, id: summary.id });
+  assert.equal(row?.vendorId, "github");
+  const plaintext = await deps.sealer.open({ sealed: row!.sealed, aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: summary.id }) });
+  assert.deepEqual(JSON.parse(plaintext), { vendorId: "github", token: "ghp_abcd9876" });
+});
+
+test("a row written by the vendor-credentials store (the custom-provider form) resolves for its host", async () => {
+  const deps = makeDeps();
+  const sealed = await deps.sealer.seal({
+    plaintext: JSON.stringify({ vendorId: "s3-compatible", region: "auto", bucket: "b", accessKeyId: "AK", secretAccessKey: "SK12", publicUrl: "https://x" }),
+    key: await deps.keyring.activeKey(),
+    aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "s3-compatible", id: "v-1" }),
+  });
+  await deps.repo.insert({ workspaceId: WORKSPACE, id: "v-1", vendorId: "s3-compatible", label: "custom", sealed, tokenTail: "SK12", isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW });
+
+  const resolved = await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "s3-compatible" });
+  assert.deepEqual(resolved?.connection, { providerId: "s3-compatible", region: "auto", bucket: "b", accessKeyId: "AK", secretAccessKey: "SK12", publicUrl: "https://x" });
+  assert.deepEqual((await listPublishCredentials(deps, { workspaceId: WORKSPACE })).map((c) => [c.id, c.providerId]), [["v-1", "s3-compatible"]]);
+});
+
+test("a vendor row no deploy host declares (a source-control-only vendor) is not a publish credential", async () => {
+  const deps = makeDeps();
+  const sealed = await deps.sealer.seal({ plaintext: JSON.stringify({ vendorId: "gitlab", token: "t" }), key: await deps.keyring.activeKey(), aad: "unused" });
+  await deps.repo.insert({ workspaceId: WORKSPACE, id: "gl", vendorId: "gitlab", label: "gl", sealed, tokenTail: "t", isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW });
+
+  assert.deepEqual(await listPublishCredentials(deps, { workspaceId: WORKSPACE }), []);
+  assert.equal(await describeCredential(deps, { workspaceId: WORKSPACE, id: "gl" }), null);
+  assert.equal(await resolveForPublish(deps, { workspaceId: WORKSPACE, id: "gl" }), null);
+  await assert.rejects(
+    () => updatePublishCredential(deps, { workspaceId: WORKSPACE, id: "gl", label: "renamed" }),
+    (err: unknown) => err instanceof PublishCredentialNotFoundError && err.message === "no publish credential 'gl' in this workspace",
+  );
+});
+
+test("hasDefaultForPublish reads the host's vendor group without decrypting", async () => {
+  const deps = makeDeps();
+  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), false);
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "v", connection: { providerId: "vercel", token: "t" } });
+  assert.equal(await hasDefaultForPublish({ repo: deps.repo, loadDeployTargets: deps.loadDeployTargets }, { workspaceId: WORKSPACE, providerId: "vercel" }), true);
+  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "no-such-host" }), false);
+});
+
+test("a legacy row copied by the boot backfill is what a publish resolves", async () => {
+  const deps = makeDeps();
+  const legacyRepo = new InMemoryPublishCredentialSetRepo();
+  const sealed = await deps.sealer.seal({
+    plaintext: JSON.stringify({ providerId: "netlify", token: "nf-token" }),
+    key: await deps.keyring.activeKey(),
+    aad: buildPublishCredentialAad({ workspaceId: WORKSPACE, providerId: "netlify", id: "legacy-1" }),
+  });
+  await legacyRepo.insert({ workspaceId: WORKSPACE, id: "legacy-1", providerId: "netlify", label: "Netlify", sealed, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW });
+
+  assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "netlify" }), null, "the legacy table is no longer read");
+  await copyPublishCredentialsToVendorTable(
+    { legacyRepo, vendorRepo: deps.repo, sealer: deps.sealer, keyring: deps.keyring, registries: [await loadBundledDeployTargets()] },
+    { workspaceId: WORKSPACE },
+  );
+
+  const resolved = await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "netlify" });
+  assert.equal(resolved?.id, "legacy-1");
+  assert.deepEqual(resolved?.connection, { providerId: "netlify", token: "nf-token" });
 });

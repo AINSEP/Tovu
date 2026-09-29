@@ -182,7 +182,6 @@ import type { ExternalMcpToolDeps } from "../features/external-mcp/deps.js";
 // reaches back into `assistant`, so this cannot itself become a cycle.
 import {
   createVendorCredential,
-  listVendorCredentials,
   updateVendorCredential,
 } from "../features/vendor-credentials/index.js";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
@@ -668,7 +667,6 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * functions — nothing here needs to be rebuilt per request. See the import block above for why this is the one file allowed to construct it.
  */
 const REAL_VENDOR_CREDENTIAL_PORT: VendorCredentialPort = {
-  list: listVendorCredentials,
   create: createVendorCredential,
   update: updateVendorCredential,
 };

@@ -2,19 +2,23 @@ import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import { isUniqueViolation } from "../../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../../webhooks/index.js";
-import type { DeployTargetRegistry } from "../deploy-targets/types.js";
-import { buildPublishCredentialAad } from "./aad.js";
-import type {
-  PublishConnectionInput,
-  PublishCredentialSetRecord,
-  PublishCredentialSetRepoPort,
-  PublishCredentialSummary,
-  PublishProviderId,
-} from "./types.js";
+import { buildVendorCredentialAad } from "../../vendor-credentials/aad.js";
+import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
+import type { DeployTargetCredentialSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { PublishConnectionInput, PublishCredentialSummary, PublishProviderId } from "./types.js";
 
 /**
- * @file Two strictly separated operations on `publish_credential_sets`, per this dispatch's brief and
- * Terra's design — never blur the line between them:
+ * @file Publish credentials: the saved connections a deploy host publishes with. Stored in
+ * `vendor_credential_sets` (2026-09-29; the legacy `publish_credential_sets` rows are copied there at
+ * boot by `vendor-table-backfill.ts` and no longer read). A row belongs to a VENDOR (the account a
+ * token authenticates to), a host names its vendor in its deploy-plugin descriptor
+ * (`DeployTargetCredentialSpec.vendorId`), and every function here speaks in hosts (`providerId`): it
+ * maps to the vendor through this workspace's deploy registry. The sealed blob is
+ * `{vendorId, ...fields}`, the same shape `vendor-credentials/store.ts` writes, so a row saved
+ * through either store reads the same.
+ *
+ * Two strictly separated operations, per this dispatch's brief and Terra's design — never blur the
+ * line between them:
  *
  * - {@link describeCredential}/{@link listPublishCredentials} — read model only. Never decrypts, never
  *   touches `sealer`/`keyring` at all, so neither can fail on a misconfigured master secret. This is
@@ -70,9 +74,10 @@ import type {
 
 const MAX_LABEL_LENGTH = 200;
 
+/** Thrown for any caller-supplied value that fails shape validation — the route maps this to `400`. */
 export class PublishCredentialValidationError extends Error {}
 
-/** A `(workspaceId, providerId, label)` collision — the route maps this to `409 DUPLICATE_LABEL`. */
+/** A `(workspaceId, vendor, label)` collision — the route maps this to `409 DUPLICATE_LABEL`. */
 export class PublishCredentialDuplicateLabelError extends Error {}
 
 /** Thrown when `sealer.seal()`/`keyring.activeKey()` fails while writing a connection — the realistic
@@ -80,13 +85,32 @@ export class PublishCredentialDuplicateLabelError extends Error {}
  *  `SiteAssistantSecretStoreUnconfiguredError` documents for the sibling ADR-058 table. */
 export class PublishCredentialSecretStoreUnconfiguredError extends Error {}
 
-function toSummary(record: PublishCredentialSetRecord): PublishCredentialSummary {
+export class PublishCredentialNotFoundError extends Error {}
+
+/**
+ * Vendor -> the host its rows are shown and resolved under: the first host in registry order that
+ * declares that vendor. A vendor no host declares (a source-control-only vendor) is absent, so its
+ * rows are not publish credentials.
+ *
+ * @complexity O(t) targets.
+ */
+function hostsByVendor(registry: DeployTargetRegistry): Map<string, PublishProviderId> {
+  const hosts = new Map<string, PublishProviderId>();
+  for (const { descriptor } of registry.list()) {
+    if (descriptor.credential !== undefined && !hosts.has(descriptor.credential.vendorId)) hosts.set(descriptor.credential.vendorId, descriptor.id);
+  }
+  return hosts;
+}
+
+function toSummary(record: VendorCredentialSetRecord, providerId: PublishProviderId): PublishCredentialSummary {
   return {
     id: record.id,
-    providerId: record.providerId,
+    providerId,
+    vendorId: record.vendorId,
     label: record.label,
     configured: true,
     isDefault: record.isDefault,
+    tokenTail: record.tokenTail,
     accountLabel: record.accountLabel,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -94,36 +118,51 @@ function toSummary(record: PublishCredentialSetRecord): PublishCredentialSummary
 }
 
 export interface PublishCredentialReadDeps {
-  repo: PublishCredentialSetRepoPort;
+  repo: VendorCredentialSetRepoPort;
+  /** This workspace's deploy registry: which vendor each host's credential belongs to. */
+  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
 /**
  * The read model for ONE credential set. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured master secret. Returns `null` if no row exists for `(workspaceId, id)` (not an error —
- * the caller decides whether that is a 404).
+ * misconfigured master secret. Returns `null` if no row exists for `(workspaceId, id)`, or the row's
+ * vendor is no deploy host's (not an error — the caller decides whether that is a 404).
  *
- * @complexity O(1) — one `findById` lookup.
- * @overallScore 100
+ * @complexity O(1) — one `findById` lookup plus one registry load.
  */
-export async function describeCredential(
-  deps: PublishCredentialReadDeps,
-  input: { workspaceId: UUID; id: UUID }
-): Promise<PublishCredentialSummary | null> {
+export async function describeCredential(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<PublishCredentialSummary | null> {
   const record = await deps.repo.findById(input);
-  return record ? toSummary(record) : null;
+  if (!record) return null;
+  const providerId = hostsByVendor(await deps.loadDeployTargets(input.workspaceId)).get(record.vendorId);
+  return providerId === undefined ? null : toSummary(record, providerId);
 }
 
 /**
- * The read model for EVERY credential set a workspace has saved — what `GET .../publish/credentials`
- * returns. Same "never decrypts" contract as {@link describeCredential}.
+ * The read model for EVERY publish credential a workspace has saved — what `GET .../publish/credentials`
+ * returns: each row whose vendor a deploy host declares. Same "never decrypts" contract as
+ * {@link describeCredential}.
  *
- * @complexity O(n) in the workspace's own (small — see `PublishCredentialSetRepoPort.listByWorkspace`'s
- *   own doc) credential-set count. One repo read, one array map, no per-row I/O.
- * @overallScore 100
+ * @complexity O(n + t) in the workspace's own (small) credential-set count and the registry's targets.
  */
 export async function listPublishCredentials(deps: PublishCredentialReadDeps, input: { workspaceId: UUID }): Promise<PublishCredentialSummary[]> {
+  const hosts = hostsByVendor(await deps.loadDeployTargets(input.workspaceId));
   const records = await deps.repo.listByWorkspace(input);
-  return records.map(toSummary);
+  return records.flatMap((record) => {
+    const providerId = hosts.get(record.vendorId);
+    return providerId === undefined ? [] : [toSummary(record, providerId)];
+  });
+}
+
+/**
+ * Whether `providerId`'s vendor has a default saved connection. Never decrypts — what a readiness
+ * check (`isConfigured`) reads.
+ *
+ * @complexity O(1) — one registry load, one repo read.
+ */
+export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<boolean> {
+  const spec = (await deps.loadDeployTargets(input.workspaceId)).get(input.providerId)?.descriptor.credential;
+  if (spec === undefined) return false;
+  return (await deps.repo.findDefaultByVendor({ workspaceId: input.workspaceId, vendorId: spec.vendorId })) !== null;
 }
 
 export interface PublishCredentialWriteDeps extends PublishCredentialReadDeps {
@@ -131,8 +170,6 @@ export interface PublishCredentialWriteDeps extends PublishCredentialReadDeps {
   keyring: KeyringPort;
   clock: ClockPort;
   idGen: { newId(): string };
-  /** This workspace's deploy registry: which hosts take a saved credential, and its fields. */
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every rejection
@@ -184,6 +221,12 @@ function optionalBoolean(raw: unknown, field: string): boolean | undefined {
   return raw;
 }
 
+/** A validated connection plus the host credential spec it was validated against. */
+interface ValidatedConnection {
+  readonly connection: PublishConnectionInput;
+  readonly spec: DeployTargetCredentialSpec;
+}
+
 /**
  * Validates a caller-supplied `connection` against the credential its host declares
  * (`DeployTargetDescriptor.credential` in this workspace's deploy registry): `providerId` must be a
@@ -194,7 +237,7 @@ function optionalBoolean(raw: unknown, field: string): boolean | undefined {
  *
  * @complexity O(t + f): one pass over the registry's targets (for the error text), one over the fields.
  */
-function validateConnection(raw: unknown, registry: DeployTargetRegistry): PublishConnectionInput {
+function validateConnection(raw: unknown, registry: DeployTargetRegistry): ValidatedConnection {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new PublishCredentialValidationError("connection must be an object");
   }
@@ -214,20 +257,29 @@ function validateConnection(raw: unknown, registry: DeployTargetRegistry): Publi
     const optional = optionalString(value[field.name], field.name);
     if (optional !== undefined) fields[field.name] = optional;
   }
-  return { providerId, ...fields };
+  return { connection: { providerId, ...fields }, spec };
 }
 
-/** Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
+/** What a validated connection writes: its vendor, the sealed `{vendorId, ...fields}` blob, and the
+ *  last 4 characters of its token field (the vendor table's `token_tail`). */
+interface SealedConnection {
+  readonly vendorId: string;
+  readonly sealed: SealedSecret;
+  readonly tokenTail: string;
+}
+
+/** Seals `{vendorId, ...fields}` under the vendor table's AAD for `(workspaceId, vendorId, id)`.
+ *  Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
  *  {@link PublishCredentialSecretStoreUnconfiguredError} contract — never falls through to a
  *  plaintext write. */
-async function sealConnection(
-  deps: PublishCredentialWriteDeps,
-  input: { workspaceId: UUID; providerId: PublishProviderId; id: UUID; connection: PublishConnectionInput }
-) {
+async function sealConnection(deps: PublishCredentialWriteDeps, input: { workspaceId: UUID; id: UUID; validated: ValidatedConnection }): Promise<SealedConnection> {
+  const { providerId: _providerId, ...fields } = input.validated.connection;
+  const vendorId = input.validated.spec.vendorId;
   try {
     const activeKey = await deps.keyring.activeKey();
-    const aad = buildPublishCredentialAad({ workspaceId: input.workspaceId, providerId: input.providerId, id: input.id });
-    return await deps.sealer.seal({ plaintext: JSON.stringify(input.connection), key: activeKey, aad });
+    const aad = buildVendorCredentialAad({ workspaceId: input.workspaceId, vendorId, id: input.id });
+    const sealed = await deps.sealer.seal({ plaintext: JSON.stringify({ vendorId, ...fields }), key: activeKey, aad });
+    return { vendorId, sealed, tokenTail: (fields[input.validated.spec.tokenField] ?? "").slice(-4) };
   } catch (err) {
     throw new PublishCredentialSecretStoreUnconfiguredError(
       `publish credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
@@ -235,7 +287,7 @@ async function sealConnection(
   }
 }
 
-/** True iff `err` is the label's UNIQUE `(workspace_id, provider_id, label)` index rejecting a
+/** True iff `err` is the label's UNIQUE `(workspace_id, vendor_id, label)` index rejecting a
  *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
  *  SQLSTATE 23505). */
 export function isUniqueLabelViolation(err: unknown): boolean {
@@ -246,55 +298,64 @@ export interface CreatePublishCredentialInput {
   workspaceId: UUID;
   label: unknown;
   connection: unknown;
-  /** `true` makes this the provider's default connection (clearing any previous one — see
-   *  `PublishCredentialSetRepoPort`'s own header). Omitted/`false` still auto-defaults if this turns
-   *  out to be the provider's FIRST saved connection — see {@link decideCreateDefault}. */
+  /** `true` makes this the vendor's default connection (clearing any previous one — see
+   *  `VendorCredentialSetRepoPort`'s own header). Omitted/`false` still auto-defaults if this turns
+   *  out to be the vendor's FIRST saved connection — see {@link decideCreateDefault}. */
   isDefault?: unknown;
 }
 
 /**
- * Decides whether a newly-created row should be the group's default: always `true` for a provider's
+ * Decides whether a newly-created row should be the group's default: always `true` for a vendor's
  * first-ever saved connection (a saved connection that can never resolve because nothing is marked
  * default would be a silently-broken feature, not a safe default), otherwise exactly the caller's own
  * request.
  *
  * @complexity O(1) — one length check.
- * @overallScore 100
  */
-function decideCreateDefault(existingForProvider: readonly unknown[], requested: boolean | undefined): boolean {
-  return existingForProvider.length === 0 || requested === true;
+function decideCreateDefault(existingForVendor: readonly unknown[], requested: boolean | undefined): boolean {
+  return existingForVendor.length === 0 || requested === true;
+}
+
+/** Translates the vendor table's unique-label rejection into the typed error. */
+async function writeTranslatingDuplicateLabel(write: () => Promise<void>, providerId: PublishProviderId, label: string): Promise<void> {
+  try {
+    await write();
+  } catch (err) {
+    if (isUniqueLabelViolation(err)) {
+      throw new PublishCredentialDuplicateLabelError(`a '${providerId}' credential labeled '${label}' already exists in this workspace`);
+    }
+    throw err;
+  }
 }
 
 /**
- * Validates, seals, and inserts a new credential set. `id` is minted here (`deps.idGen`), not
- * caller-supplied — matches this table's own "caller cannot choose an existing row's identity" shape.
+ * Validates, seals, and inserts a new credential set into its host's vendor group. `id` is minted
+ * here (`deps.idGen`), not caller-supplied — matches this table's own "caller cannot choose an
+ * existing row's identity" shape.
  *
  * @throws {PublishCredentialValidationError} `label`/`connection`/`isDefault` fails shape validation.
- * @throws {PublishCredentialDuplicateLabelError} `(workspaceId, providerId, label)` already exists.
+ * @throws {PublishCredentialDuplicateLabelError} `(workspaceId, vendor, label)` already exists.
  * @throws {PublishCredentialSecretStoreUnconfiguredError} The master secret is unavailable.
- * @complexity O(n) in the provider's own (small) existing-connection count, to decide default
- *   auto-assignment, plus one keyring derivation, one seal, and one insert (which may itself throw on
- *   the UNIQUE index, translated here rather than propagated raw).
- * @overallScore 100
+ * @complexity O(n) in the vendor's own (small) existing-connection count, to decide default
+ *   auto-assignment, plus one keyring derivation, one seal, and one insert.
  */
 export async function createPublishCredential(deps: PublishCredentialWriteDeps, input: CreatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const label = validateLabel(input.label);
-  const connection = validateConnection(input.connection, await deps.loadDeployTargets(input.workspaceId));
+  const validated = validateConnection(input.connection, await deps.loadDeployTargets(input.workspaceId));
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const id = deps.idGen.newId();
   const now = deps.clock.nowIso();
 
-  const existingForProvider = await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: connection.providerId });
-  const isDefault = decideCreateDefault(existingForProvider, requestedDefault);
-
-  const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId: connection.providerId, id, connection });
-  const record: PublishCredentialSetRecord = {
+  const existingForVendor = await deps.repo.listByVendor({ workspaceId: input.workspaceId, vendorId: validated.spec.vendorId });
+  const { vendorId, sealed, tokenTail } = await sealConnection(deps, { workspaceId: input.workspaceId, id, validated });
+  const record: VendorCredentialSetRecord = {
     workspaceId: input.workspaceId,
     id,
-    providerId: connection.providerId,
+    vendorId,
     label,
     sealed,
-    isDefault,
+    tokenTail,
+    isDefault: decideCreateDefault(existingForVendor, requestedDefault),
     // Always starts unknown — see this file's own header for why create/update never probe a
     // provider themselves. Healed later by `healAccountLabel`, via the admin route's post-save verify.
     accountLabel: null,
@@ -302,121 +363,106 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
     updatedAt: now,
   };
 
-  try {
-    await deps.repo.insert(record);
-  } catch (err) {
-    if (isUniqueLabelViolation(err)) {
-      throw new PublishCredentialDuplicateLabelError(`a '${connection.providerId}' credential labeled '${label}' already exists in this workspace`);
-    }
-    throw err;
-  }
-  return toSummary(record);
+  await writeTranslatingDuplicateLabel(() => deps.repo.insert(record), validated.connection.providerId, label);
+  return toSummary(record, validated.connection.providerId);
 }
-
-export class PublishCredentialNotFoundError extends Error {}
 
 export interface UpdatePublishCredentialInput {
   workspaceId: UUID;
   id: UUID;
   /** Omitted = leave the label unchanged. */
   label?: unknown;
-  /** Omitted = leave the stored connection (and its provider) untouched — this route's own
+  /** Omitted = leave the stored connection (and its vendor) untouched — this route's own
    *  "connection omitted => keep the stored secret untouched" contract. Supplying a NEW connection
-   *  may change `providerId`; the AAD is rebuilt for the (possibly new) provider either way, since
-   *  `id` (the third AAD component) never changes across an update. */
+   *  may change the host, and so the vendor; the AAD is rebuilt for the (possibly new) vendor either
+   *  way, since `id` (the third AAD component) never changes across an update. */
   connection?: unknown;
   /** `true` makes this the default connection for its (possibly new — see `connection` above)
-   *  provider, clearing any previous default in the same repo call. Omitted/`false` leaves default
+   *  vendor, clearing any previous default in the same repo call. Omitted/`false` leaves default
    *  status UNCHANGED — this route never un-defaults the current default without a replacement; use
    *  `createPublishCredential`/another `updatePublishCredential` call with `isDefault: true` to
    *  promote a different row instead. */
   isDefault?: unknown;
 }
 
-/**
- * Validate-then-write for an existing credential set. Mirrors `setSiteAssistantCredential`'s
- * "omitted field is left alone" contract exactly.
- *
- * @throws {PublishCredentialNotFoundError} No row exists for `(workspaceId, id)`.
- * @throws {PublishCredentialValidationError} A supplied `label`/`connection`/`isDefault` fails
- *   validation.
- * @throws {PublishCredentialDuplicateLabelError} The (possibly renamed) `(providerId, label)` collides
- *   with a different row.
- * @throws {PublishCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but the
- *   master secret is unavailable.
- * @complexity O(1) — one read, at most one seal, one update.
- * @overallScore 100
- */
-/** The (possibly new) `providerId`/`sealed`/`accountLabel` triple `updatePublishCredential` writes.
- *  `accountLabel` is reset (never carried over) whenever a NEW connection is resealed — see this
- *  file's own header: an accountLabel naming the OLD token's account must not survive that token
- *  being replaced, even though this function itself never re-probes to learn the new one (that
- *  happens later, via `healAccountLabel`, after the admin route's post-save verify). */
+/** The (possibly new) host/vendor/secret fields `updatePublishCredential` writes. `accountLabel` is
+ *  reset (never carried over) whenever a NEW connection is resealed — see this file's own header: an
+ *  accountLabel naming the OLD token's account must not survive that token being replaced, even though
+ *  this function itself never re-probes to learn the new one (that happens later, via
+ *  `healAccountLabel`, after the admin route's post-save verify). `existingHost` is the host the kept
+ *  row is shown under. */
 async function resolveUpdatedConnectionSecrets(
   deps: PublishCredentialWriteDeps,
   input: { workspaceId: UUID; id: UUID; connection?: unknown },
-  existing: PublishCredentialSetRecord
-): Promise<{ providerId: PublishProviderId; sealed: SealedSecret; accountLabel: string | null }> {
+  existing: { record: VendorCredentialSetRecord; host: PublishProviderId },
+  registry: DeployTargetRegistry
+): Promise<SealedConnection & { providerId: PublishProviderId; accountLabel: string | null }> {
   if (input.connection === undefined) {
-    return { providerId: existing.providerId, sealed: existing.sealed, accountLabel: existing.accountLabel };
+    const { vendorId, sealed, tokenTail, accountLabel } = existing.record;
+    return { vendorId, sealed, tokenTail, accountLabel, providerId: existing.host };
   }
-  const connection = validateConnection(input.connection, await deps.loadDeployTargets(input.workspaceId));
-  const providerId = connection.providerId;
-  const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
-  return { providerId, sealed, accountLabel: null };
+  const validated = validateConnection(input.connection, registry);
+  const resealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, validated });
+  return { ...resealed, accountLabel: null, providerId: validated.connection.providerId };
 }
 
 /**
  * `requestedDefault === true` always wins (see `UpdatePublishCredentialInput.isDefault`'s own doc).
- * Otherwise: if the provider did NOT change, default status is left exactly as it already was for
+ * Otherwise: if the vendor did NOT change, default status is left exactly as it already was for
  * this row (never a false "un-default with no replacement").
  *
- * If the provider DID change, `existingIsDefault` must NOT simply carry over — it answered "was I
- * the default for the OLD provider," which says nothing about the NEW one, and blindly copying it
- * silently clobbered whatever the new provider's real default already was (Terra audit finding #4,
- * 2026-08-16 fix — confirmed by direct probe against this exact function, worse than reported: not
- * only did the OLD provider group end up with rows but no default, an UNREQUESTED `isDefault: true`
- * on the new provider also silently stole default status away from an unrelated, working credential
- * the human never touched). A provider change is treated the same way a brand-new row is —
+ * If the vendor DID change, `existingIsDefault` must NOT simply carry over — it answered "was I
+ * the default for the OLD vendor," which says nothing about the NEW one, and blindly copying it
+ * silently clobbered whatever the new vendor's real default already was (Terra audit finding #4,
+ * 2026-08-16). A vendor change is treated the same way a brand-new row is —
  * {@link decideCreateDefault}'s own "first in the (new) group, or explicitly requested" rule reused
- * verbatim, so a solo credential moved onto a provider with nothing else configured still becomes its
- * default (matching `createPublishCredential`'s own behavior for a first row), but never displaces an
- * existing one without an explicit `isDefault: true`.
+ * verbatim, so a solo credential moved onto a vendor with nothing else configured still becomes its
+ * default, but never displaces an existing one without an explicit `isDefault: true`.
  */
 async function resolveUpdatedIsDefault(
   deps: PublishCredentialWriteDeps,
-  args: { workspaceId: UUID; providerId: PublishProviderId; requestedDefault: boolean | undefined; providerChanged: boolean; existingIsDefault: boolean }
+  args: { workspaceId: UUID; vendorId: string; requestedDefault: boolean | undefined; vendorChanged: boolean; existingIsDefault: boolean }
 ): Promise<boolean> {
   if (args.requestedDefault === true) return true;
-  if (!args.providerChanged) return args.existingIsDefault;
-  return decideCreateDefault(await deps.repo.listByProvider({ workspaceId: args.workspaceId, providerId: args.providerId }), undefined);
+  if (!args.vendorChanged) return args.existingIsDefault;
+  return decideCreateDefault(await deps.repo.listByVendor({ workspaceId: args.workspaceId, vendorId: args.vendorId }), undefined);
 }
 
 /**
  * The OTHER half of the Terra finding {@link resolveUpdatedIsDefault} documents: if this row WAS the
- * OLD provider's default and just left that group, the old group may now have rows but no default at
- * all — the same "a provider group with any rows always has exactly one default" invariant
- * `PublishCredentialSetRepoPort.delete`'s own promotion step already maintains for a REMOVED row. A
- * provider change is, from the old group's point of view, exactly that: this row just left it. Reuses
- * `delete()`'s own tie-break rule (most-recently-updated wins) rather than inventing a second one —
- * this is the one case `updatePublishCredential` must promote a DIFFERENT row than the one it just
- * wrote, so it cannot be folded into that single `deps.repo.update()` call. A no-op unless BOTH the
- * provider changed AND this row actually was the old provider's default.
+ * OLD vendor's default and just left that group, the old group may now have rows but no default at
+ * all. Reuses `delete()`'s own tie-break rule (most-recently-updated wins) rather than inventing a
+ * second one. A no-op unless BOTH the vendor changed AND this row actually was the old vendor's default.
  */
 async function promoteReplacementDefaultInOldGroup(
   deps: PublishCredentialWriteDeps,
-  args: { workspaceId: UUID; providerChanged: boolean; wasDefault: boolean; oldProviderId: PublishProviderId }
+  args: { workspaceId: UUID; vendorChanged: boolean; wasDefault: boolean; oldVendorId: string }
 ): Promise<void> {
-  if (!(args.providerChanged && args.wasDefault)) return;
-  const remainingInOldGroup = await deps.repo.listByProvider({ workspaceId: args.workspaceId, providerId: args.oldProviderId });
+  if (!(args.vendorChanged && args.wasDefault)) return;
+  const remainingInOldGroup = await deps.repo.listByVendor({ workspaceId: args.workspaceId, vendorId: args.oldVendorId });
   if (remainingInOldGroup.length === 0) return;
   const promoted = remainingInOldGroup.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
   await deps.repo.update({ ...promoted, isDefault: true });
 }
 
+/**
+ * Validate-then-write for an existing credential set. Mirrors `setSiteAssistantCredential`'s
+ * "omitted field is left alone" contract exactly.
+ *
+ * @throws {PublishCredentialNotFoundError} No publish credential exists for `(workspaceId, id)`.
+ * @throws {PublishCredentialValidationError} A supplied `label`/`connection`/`isDefault` fails
+ *   validation.
+ * @throws {PublishCredentialDuplicateLabelError} The (possibly renamed) `(vendor, label)` collides
+ *   with a different row.
+ * @throws {PublishCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but the
+ *   master secret is unavailable.
+ * @complexity O(1) — one read, one registry load, at most one seal, one update.
+ */
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) {
+  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const existingHost = existing ? hostsByVendor(registry).get(existing.vendorId) : undefined;
+  if (!existing || existingHost === undefined) {
     throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   }
 
@@ -424,88 +470,45 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const now: ISODateTime = deps.clock.nowIso();
 
-  const { providerId, sealed, accountLabel } = await resolveUpdatedConnectionSecrets(deps, input, existing);
-  const providerChanged = providerId !== existing.providerId;
-  const isDefault = await resolveUpdatedIsDefault(deps, {
-    workspaceId: input.workspaceId,
-    providerId,
-    requestedDefault,
-    providerChanged,
-    existingIsDefault: existing.isDefault,
-  });
+  const { vendorId, sealed, tokenTail, accountLabel, providerId } = await resolveUpdatedConnectionSecrets(deps, input, { record: existing, host: existingHost }, registry);
+  const vendorChanged = vendorId !== existing.vendorId;
+  const isDefault = await resolveUpdatedIsDefault(deps, { workspaceId: input.workspaceId, vendorId, requestedDefault, vendorChanged, existingIsDefault: existing.isDefault });
 
-  const record: PublishCredentialSetRecord = {
-    workspaceId: input.workspaceId,
-    id: input.id,
-    providerId,
-    label,
-    sealed,
-    isDefault,
-    accountLabel,
-    createdAt: existing.createdAt,
-    updatedAt: now,
-  };
+  const record: VendorCredentialSetRecord = { ...existing, vendorId, label, sealed, tokenTail, isDefault, accountLabel, updatedAt: now };
+  await writeTranslatingDuplicateLabel(() => deps.repo.update(record), providerId, label);
+  await promoteReplacementDefaultInOldGroup(deps, { workspaceId: input.workspaceId, vendorChanged, wasDefault: existing.isDefault, oldVendorId: existing.vendorId });
 
-  try {
-    await deps.repo.update(record);
-  } catch (err) {
-    if (isUniqueLabelViolation(err)) {
-      throw new PublishCredentialDuplicateLabelError(`a '${providerId}' credential labeled '${label}' already exists in this workspace`);
-    }
-    throw err;
-  }
-
-  await promoteReplacementDefaultInOldGroup(deps, {
-    workspaceId: input.workspaceId,
-    providerChanged,
-    wasDefault: existing.isDefault,
-    oldProviderId: existing.providerId,
-  });
-
-  return toSummary(record);
+  return toSummary(record, providerId);
 }
 
 /**
  * Deletes a credential set. No-op (not an error) if no row exists for `(workspaceId, id)` — matches
- * `PublishCredentialSetRepoPort.delete`'s own idempotent contract and this feature's `DELETE`
- * route's documented 204-always behavior. If the deleted row was its provider's default,
- * `PublishCredentialSetRepoPort.delete` itself promotes the group's next candidate — see that port's
- * own header; this function does not need to know that happened.
+ * `VendorCredentialSetRepoPort.delete`'s own idempotent contract and this feature's `DELETE`
+ * route's documented 204-always behavior. If the deleted row was its vendor's default, the repo
+ * itself promotes the group's next candidate.
  *
- * @complexity O(1) at this layer (the repo's own promotion work is O(n) in the small provider group).
- * @overallScore 100
+ * @complexity O(1) at this layer (the repo's own promotion work is O(n) in the small vendor group).
  */
-export async function deletePublishCredential(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
+export async function deletePublishCredential(deps: { repo: VendorCredentialSetRepoPort }, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   await deps.repo.delete(input);
 }
 
-/** Shared decrypt step for {@link resolveForPublish}/{@link resolveDefaultForPublish} — the exact
- *  same AAD-derive-then-open-then-parse sequence, extracted so the two resolution paths (by id, by
- *  provider default) cannot drift onto two different decrypt procedures.
+/** Shared decrypt step for {@link resolveForPublish}/{@link resolveDefaultForPublish}: opens the
+ *  vendor-table blob and re-labels it as `providerId`'s connection.
  *
  *  Wraps ANY failure (bad AAD, tampered ciphertext, wrong key, or — the realistic one — a missing
  *  `TOVU_INTEGRATIONS_ROOT_KEY` surfacing as a raw `KeyringPort` error) into the SAME typed
  *  {@link PublishCredentialSecretStoreUnconfiguredError} {@link sealConnection} already throws for
- *  the write side, rather than letting a raw `Error` escape — this does NOT weaken this module's own
- *  "a decrypt failure must surface, never degrade to `null`" contract (documented on
- *  {@link resolveForPublish}/{@link resolveDefaultForPublish} below): it still throws, still ends the
+ *  the write side, rather than letting a raw `Error` escape — it still throws, still ends the
  *  request, just as a type every caller's HTTP boundary already knows how to map (`publish-
- *  credentials.ts`'s `sendStoreError` → `503 SECRET_STORE_UNCONFIGURED`) instead of an untyped
- *  `Error` that boundary does not recognize.
- *
- *  Found live (2026-08-16): before this wrap existed, a raw `Error` from this exact call reached
- *  `static-publish/verify.ts`'s `verifyPublishCredentialById` uncaught, and the admin route's
- *  `POST .../:id/verify` handler had no try/catch of its own either — Express 4 does not catch an
- *  async handler's own rejection, so the raw error became an unhandled rejection that took down the
- *  WHOLE server process on Node's default behavior, not just that one request. The `POST`/`PUT`
- *  handlers in that same file DID have a try/catch, but their shared `sendStoreError` helper only
- *  recognizes four specific typed errors and rethrows anything else (`throw err` on its own fallback
- *  branch) — so a raw `Error` from here escaped THOSE handlers too, just one layer further out. */
-async function decryptRecord(sealer: SecretSealerPort, record: PublishCredentialSetRecord): Promise<PublishConnectionInput> {
-  const aad = buildPublishCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId, id: record.id });
+ *  credentials.ts`'s `sendStoreError` → `503 SECRET_STORE_UNCONFIGURED`). Found live (2026-08-16):
+ *  a raw `Error` from this call once reached an async Express handler uncaught and took down the
+ *  whole server process. */
+async function decryptRecord(sealer: SecretSealerPort, record: VendorCredentialSetRecord, providerId: PublishProviderId): Promise<PublishConnectionInput> {
+  const aad = buildVendorCredentialAad({ workspaceId: record.workspaceId, vendorId: record.vendorId, id: record.id });
   try {
-    const plaintext = await sealer.open({ sealed: record.sealed, aad });
-    return JSON.parse(plaintext) as PublishConnectionInput;
+    const { vendorId: _vendorId, ...fields } = JSON.parse(await sealer.open({ sealed: record.sealed, aad })) as Record<string, string>;
+    return { ...fields, providerId };
   } catch (err) {
     throw new PublishCredentialSecretStoreUnconfiguredError(
       `publish credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
@@ -513,57 +516,51 @@ async function decryptRecord(sealer: SecretSealerPort, record: PublishCredential
   }
 }
 
-/**
- * The ONLY decrypting read in this module — see this file's header. Resolves a credential set's full
- * `PublishConnectionInput`, ready for a real publish call. Distinguishes "no such row"
- * (`null`, a normal, expected outcome — a caller-supplied id that does not exist) from a genuine
- * decrypt failure (thrown — a tampered/corrupt row or a missing master secret, both real operator-
- * visible problems that must not be swallowed into a silent `null` the way the SITE assistant's own
- * `resolveSiteAssistantApiKey` deliberately does for its own, lower-stakes, degrade-not-500 contract;
- * a publish credential resolves for a human-triggered write with real external effect, so a decrypt
- * failure here should surface, not degrade).
- *
- * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed — a tampered/corrupt
- *   row or (the realistic cause) a missing master secret. See that function's own doc for why this
- *   is a typed error rather than whatever raw error `SecretSealerPort.open()`/`KeyringPort` produced.
- * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.
- * @overallScore 100
- */
-export async function resolveForPublish(
-  deps: { repo: PublishCredentialSetRepoPort; sealer: SecretSealerPort },
-  input: { workspaceId: UUID; id: UUID }
-): Promise<{ providerId: PublishProviderId; label: string; connection: PublishConnectionInput } | null> {
-  const record = await deps.repo.findById(input);
-  if (!record) return null;
-  const connection = await decryptRecord(deps.sealer, record);
-  return { providerId: record.providerId, label: record.label, connection };
+export interface PublishCredentialResolveDeps extends PublishCredentialReadDeps {
+  sealer: SecretSealerPort;
 }
 
 /**
- * Contract v2 Correction B — the provider-scoped sibling of {@link resolveForPublish}: resolves the
- * DEFAULT credential set for `(workspaceId, providerId)` instead of a caller-supplied `id`. This is
- * what a real publish attempt actually has (a target provider, never a specific saved connection's
- * id) — see `store.ts`'s file header and `PublishCredentialSetRepoPort.findDefaultByProvider`'s own
- * doc for why "no default" (`null`) is the only "not configured" outcome this function can produce;
- * it never refuses with an "ambiguous, multiple saved" error the way an earlier design did, because
- * the write path's own invariant guarantees at most one default per provider.
+ * The ONLY decrypting read by id — see this file's header. Resolves a credential set's full
+ * `PublishConnectionInput` (labelled with the host its vendor is shown under), ready for a real
+ * publish call. Distinguishes "no such publish credential" (`null`, a normal outcome — a
+ * caller-supplied id that does not exist, or a row whose vendor no deploy host declares) from a
+ * genuine decrypt failure (thrown — a publish credential resolves for a human-triggered write with
+ * real external effect, so a decrypt failure must surface, not degrade).
  *
- * Same "no such row" (`null`) vs. genuine decrypt failure (thrown) distinction as `resolveForPublish` —
- * see that function's own doc for the full reasoning.
+ * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed.
+ * @complexity O(1) — one repo read, one registry load, one decrypt, one `JSON.parse`.
+ */
+export async function resolveForPublish(
+  deps: PublishCredentialResolveDeps,
+  input: { workspaceId: UUID; id: UUID }
+): Promise<{ providerId: PublishProviderId; vendorId: string; label: string; isDefault: boolean; connection: PublishConnectionInput } | null> {
+  const record = await deps.repo.findById(input);
+  if (!record) return null;
+  const providerId = hostsByVendor(await deps.loadDeployTargets(input.workspaceId)).get(record.vendorId);
+  if (providerId === undefined) return null;
+  const connection = await decryptRecord(deps.sealer, record, providerId);
+  return { providerId, vendorId: record.vendorId, label: record.label, isDefault: record.isDefault, connection };
+}
+
+/**
+ * Contract v2 Correction B — the host-scoped sibling of {@link resolveForPublish}: resolves the
+ * DEFAULT credential set of `providerId`'s vendor instead of a caller-supplied `id`. This is what a
+ * real publish attempt actually has (a target host, never a specific saved connection's id). `null`
+ * — "not configured" — when the host takes no saved credential or its vendor has no default.
  *
- * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed — a tampered/corrupt
- *   row or (the realistic cause) a missing master secret. See `decryptRecord`'s own doc for why this
- *   is a typed error rather than whatever raw error `SecretSealerPort.open()`/`KeyringPort` produced.
- * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.
- * @overallScore 100
+ * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed.
+ * @complexity O(1) — one registry load, one repo read, one decrypt, one `JSON.parse`.
  */
 export async function resolveDefaultForPublish(
-  deps: { repo: PublishCredentialSetRepoPort; sealer: SecretSealerPort },
+  deps: PublishCredentialResolveDeps,
   input: { workspaceId: UUID; providerId: PublishProviderId }
 ): Promise<{ id: UUID; label: string; connection: PublishConnectionInput } | null> {
-  const record = await deps.repo.findDefaultByProvider(input);
+  const spec = (await deps.loadDeployTargets(input.workspaceId)).get(input.providerId)?.descriptor.credential;
+  if (spec === undefined) return null;
+  const record = await deps.repo.findDefaultByVendor({ workspaceId: input.workspaceId, vendorId: spec.vendorId });
   if (!record) return null;
-  const connection = await decryptRecord(deps.sealer, record);
+  const connection = await decryptRecord(deps.sealer, record, input.providerId);
   return { id: record.id, label: record.label, connection };
 }
 
@@ -572,19 +569,15 @@ export async function resolveDefaultForPublish(
  * why {@link createPublishCredential}/{@link updatePublishCredential} never do this themselves. The
  * ONE intended caller is the admin credential-CRUD route (`server/routes/admin/system/publish-
  * credentials.ts`), immediately after its own `verifyPublishCredentialById` call returns a `"valid"`
- * result carrying an `accountLabel` — the same human-gated boundary `static-publish/verify.ts`'s own
- * header enforces for that call. Never call this with an EMPTY/absent label to "clear" one: a failed
- * or inconclusive re-verify (`"invalid"`/`"unreachable"`, or `"valid"` for a provider with no
- * reviewed field) carries no `accountLabel` at all and must leave a previously-healed value alone —
- * the caller's own `result.accountLabel !== undefined` check is what enforces that, not this function.
+ * result carrying an `accountLabel`. Never call this with an EMPTY/absent label to "clear" one: a
+ * failed or inconclusive re-verify carries no `accountLabel` at all and must leave a previously-healed
+ * value alone — the caller's own `result.accountLabel !== undefined` check enforces that.
  *
- * A targeted single-column write ({@link PublishCredentialSetRepoPort.updateAccountLabel}), not a
+ * A targeted single-column write ({@link VendorCredentialSetRepoPort.updateAccountLabel}), not a
  * full-row replace — never touches `sealed`, `isDefault`, or `updatedAt`.
  *
- * @complexity O(1) — one repo write, no read first (the repo's own `updateAccountLabel` is a no-op,
- *   not an error, if the row vanished between the verify and this call).
- * @overallScore 100
+ * @complexity O(1) — one repo write (a no-op, not an error, if the row vanished meanwhile).
  */
-export async function healAccountLabel(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void> {
+export async function healAccountLabel(deps: { repo: VendorCredentialSetRepoPort }, input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void> {
   await deps.repo.updateAccountLabel(input);
 }

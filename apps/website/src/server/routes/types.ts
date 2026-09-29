@@ -59,7 +59,7 @@ import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store.js";
 import type { DatabaseDestinationStorePort } from "../../features/database-transfer/destination-store.js";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
-import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
+import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
 import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
@@ -439,25 +439,13 @@ export interface CredentialsDeps {
    */
   derivedPublicOrigin?: string;
   /**
-   * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
-   * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s
-   * `composePublishCredentialSource`. Real `SqlitePublishCredentialSetRepo` in `server/deps.ts`
-   * (migration `0041` already applied — see that repo's own doc); `InMemoryPublishCredentialSetRepo`
-   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
-   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
-   * one sealing capability app-wide, same reasoning `adminExecutionCredentialRepo`/
-   * `mediaProviderCredentialRepo` already establish.
-   */
-  publishCredentialSetRepo: PublishCredentialSetRepoPort;
-  /**
    * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
    * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
    * `SqliteSourceControlCredentialSetRepo` in `server/deps.ts`; `InMemorySourceControlCredentialSetRepo`
    * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
-   * sealing capability app-wide, same reasoning `publishCredentialSetRepo` already establishes. A
-   * deliberately SEPARATE table from `publishCredentialSetRepo` above, not a widened
-   * `PublishProviderId` union — see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment for
+   * sealing capability app-wide. A deliberately SEPARATE table from the publish credentials in
+   * `vendorCredentialSetRepo` below, not a widened `PublishProviderId` union — see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment for
    * why.
    */
   sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
@@ -469,15 +457,12 @@ export interface CredentialsDeps {
    * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
    * every other repo here follows. Sealed via the SAME shared `siteAssistantSecretSealer`/
    * `siteAssistantSecretKeyring` instances above — one sealing capability app-wide, same reasoning
-   * `publishCredentialSetRepo`/`sourceControlCredentialSetRepo` already establish.
+   * `sourceControlCredentialSetRepo` already establishes.
    *
-   * This table does NOT yet replace `publishCredentialSetRepo`/`sourceControlCredentialSetRepo`
-   * above — both stay wired and fully live. `features/vendor-credentials/dual-read.ts`'s
-   * `resolveDefaultForVendorDualRead` is the seam that lets a future caller read this table first
-   * and fall back to one of the two legacy repos above when a vendor's group here is still empty
-   * (an install whose data has not been backfilled by `development/scripts/backfill-vendor-
-   * credentials.ts` yet) — see that module's own header for the full design and why a straight
-   * cutover was rejected.
+   * Since 2026-09-29 this is where publish credentials live (`deployments/publish-credentials/store.ts`
+   * reads and writes them here, by each deploy host's declared vendor); the legacy
+   * `publish_credential_sets` rows are copied in at boot (`vendor-table-backfill.ts`) and no longer
+   * read. Source-control credentials still live in `sourceControlCredentialSetRepo`.
    */
   vendorCredentialSetRepo: VendorCredentialSetRepoPort;
   /**
@@ -486,8 +471,8 @@ export interface CredentialsDeps {
    * `SqliteCustomCredentialSetRepo` in `server/deps.ts`; `InMemoryCustomCredentialSetRepo` in
    * `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
-   * one sealing capability app-wide, same reasoning `publishCredentialSetRepo`/
-   * `sourceControlCredentialSetRepo` already establish. A deliberately separate table from both of
+   * one sealing capability app-wide, same reasoning `sourceControlCredentialSetRepo` already
+   * establishes. A deliberately separate table from both of
    * those and from `vendorCredentialSetRepo` — see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc
    * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
    * vendor-keyed model).
@@ -1810,7 +1795,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
   /**
-   * 2026-08-16 — cached, non-secret provider-verification results for `publishCredentialSetRepo`'s
+   * 2026-08-16 — cached, non-secret provider-verification results for the saved publish credentials'
    * (or the env-var fallback's) credentials, keyed by `(workspaceId, target)`. Fixes "ready means a
    * row exists, not a working credential" (`deployments/static-publish/verify.ts`'s own header has
    * the full incident/design trail): `deployment_get_static_publish_capabilities`

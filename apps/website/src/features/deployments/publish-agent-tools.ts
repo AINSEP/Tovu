@@ -101,7 +101,7 @@ import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type U
 import type { ExportReport } from "#src/features/site-export/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "./publish-credentials/index.js";
+import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
 import type { ToolContributor } from "#src/assistant/index";
@@ -119,10 +119,10 @@ import { listPublishCredentials, type PublishCredentialReadDeps } from "./publis
 import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
 import type { DeployTargetDescriptor, DeployTargetFieldSpec, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
-// Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
-// file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
+// Publish credentials live in `vendor_credential_sets` (`publish-credentials/store.ts`, 2026-09-29).
+// `deployment_propose_custom_provider_credential` still writes through `vendor-credentials/store.ts`.
 // Deliberately NO VALUE import of any kind from `../vendor-credentials/**` here — an earlier revision
-// imported `createVendorCredential`/`listVendorCredentials`/`updateVendorCredential`/
+// imported `createVendorCredential`/`updateVendorCredential`/
 // `PUBLISH_PROVIDER_TO_VENDOR` directly, which closed a real `features/deployments <->
 // features/vendor-credentials` module cycle (`vendor-credentials/dual-read.ts` already imports back
 // into `publish-credentials/store.ts` for its own temporary legacy-fallback — see that file's header).
@@ -418,8 +418,7 @@ interface VendorCredentialSummaryLike {
 }
 
 /**
- * Structural stand-ins for `vendor-credentials/store.ts`'s own `VendorCredentialReadDeps`/
- * `VendorCredentialWriteDeps`. 2026-08-20 RouteDeps-narrowing fix: these used to be an indexed-access
+ * Structural stand-in for `vendor-credentials/store.ts`'s own `VendorCredentialWriteDeps`. 2026-08-20 RouteDeps-narrowing fix: these used to be an indexed-access
  * off `RouteDeps` itself (`RouteDeps["vendorCredentialSetRepo"]` etc.) — that still worked structurally
  * (an indexed-access type is not, by itself, a runtime edge), but it kept this file's `StaticPublishToolDeps`
  * from ever dropping its `extends RouteDeps`, since every field here was DERIVED from that name. Typed
@@ -428,7 +427,6 @@ interface VendorCredentialSummaryLike {
  * same "narrow domain ports, never the god type" discipline `comments/tool-registrations.ts`'s
  * `CommentsToolDeps` already establishes.
  */
-type VendorCredentialReadDepsLike = { repo: VendorCredentialSetRepoPort };
 type VendorCredentialWriteDepsLike = {
   repo: VendorCredentialSetRepoPort;
   sealer: SecretSealerPort;
@@ -453,7 +451,6 @@ type VendorCredentialWriteDepsLike = {
  * is a wiring bug" precedent for the identical shape of problem.
  */
 export interface VendorCredentialPort {
-  list(deps: VendorCredentialReadDepsLike, input: { workspaceId: string }): Promise<VendorCredentialSummaryLike[]>;
   create(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; label: unknown; connection: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
   update(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; id: string; label?: unknown; connection?: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
 }
@@ -483,7 +480,7 @@ type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePat
  * `exportSiteBound`); nothing there changes.
  *
  * Every other field below is a direct port type (never an indexed-access off `RouteDeps`) — see
- * `VendorCredentialReadDepsLike`/`VendorCredentialWriteDepsLike`'s own doc above for why that
+ * `VendorCredentialWriteDepsLike`'s own doc above for why that
  * distinction matters even though an indexed-access type alone was not itself a dependency-cruiser
  * edge.
  */
@@ -492,7 +489,6 @@ export interface StaticPublishToolDeps {
   readonly workspaceId: string;
   readonly clock: { nowIso(): string };
   readonly idGen: { newId(): string };
-  readonly publishCredentialSetRepo: PublishCredentialSetRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
   readonly publishExecutionMode: PublishExecutionMode;
@@ -506,7 +502,7 @@ export interface StaticPublishToolDeps {
    *  it replaces the `routeDeps: RouteDeps` field this interface used to carry (via `extends RouteDeps`). */
   readonly exportSiteBound: ExportSiteBoundFn;
   /** Test-only override — when supplied, replaces the composed `PublishCredentialSource` entirely
-   *  (DB-backed + env-fallback composition, `publishCredentialSetRepo`/`siteAssistantSecretSealer`/
+   *  (DB-backed + env-fallback composition, `vendorCredentialSetRepo`/`siteAssistantSecretSealer`/
    *  `publishExecutionMode` are all ignored). Production never sets this. */
   credentialSource?: PublishCredentialSource;
   /** Test-only override for `publishStaticSite`'s own `StaticPublishDeps.buildTarget` — lets a test
@@ -903,45 +899,19 @@ function buildStaticPublishPreviewResult(
   };
 }
 
-/** Per-provider dependencies {@link buildProviderCapability} needs — bundles the two already-fetched
- *  credential-summary lists plus every port it reads, so `deployment_get_static_publish_capabilities`'s
- *  `PROVIDER_IDS.map()` callback stays a single call per provider rather than a long inline closure. */
+/** Per-provider dependencies {@link buildProviderCapability} needs — the already-fetched credential
+ *  summaries plus every port it reads, so the capabilities handler's `registry.list().map()` callback
+ *  stays a single call per provider rather than a long inline closure. */
 interface ProviderCapabilityContext {
   readonly deps: StaticPublishToolDeps;
   readonly credentialSource: PublishCredentialSource;
   readonly historyStore: PublishHistoryStore;
   readonly saved: Awaited<ReturnType<typeof listPublishCredentials>>;
-  readonly savedVendor: VendorCredentialSummaryLike[];
 }
 
-/** {@link buildProviderCapability}'s `savedCredentials` mapping — new-table rows when the vendor
- *  table has any row for this provider, legacy-table rows otherwise (see that function's own doc for
- *  the "new table wins" precedence). Legacy `publish_credential_sets` rows have no `token_tail`
- *  column (Phase 1 added it only to the new table) — `null` there is an honest "not known", never
- *  derived by decrypting (this handler's own "never decrypts" contract, unchanged by this cutover). */
-function mapSavedCredentials(
-  usingVendorTable: boolean,
-  savedForVendor: VendorCredentialSummaryLike[],
-  savedForProvider: Awaited<ReturnType<typeof listPublishCredentials>>
-) {
-  if (usingVendorTable) {
-    return savedForVendor.map((credential) => ({
-      id: credential.id,
-      label: credential.label,
-      isDefault: credential.isDefault,
-      createdAt: credential.createdAt,
-      updatedAt: credential.updatedAt,
-      tokenTail: credential.tokenTail,
-    }));
-  }
-  return savedForProvider.map((credential) => ({
-    id: credential.id,
-    label: credential.label,
-    isDefault: credential.isDefault,
-    createdAt: credential.createdAt,
-    updatedAt: credential.updatedAt,
-    tokenTail: null as string | null,
-  }));
+/** {@link buildProviderCapability}'s `savedCredentials` entries: no secret, only the token's last 4. */
+function mapSavedCredentials(saved: Awaited<ReturnType<typeof listPublishCredentials>>) {
+  return saved.map(({ id, label, isDefault, createdAt, updatedAt, tokenTail }) => ({ id, label, isDefault, createdAt, updatedAt, tokenTail }));
 }
 
 /**
@@ -997,22 +967,9 @@ function buildProviderCapabilityResult(spec: {
  * handler's own `PROVIDER_IDS.map()` callback purely to keep this domain's complexity gates: this was
  * previously a single ~100-line inline async arrow.
  *
- * `providerToVendor` is exhaustive over every `StaticPublishTargetId` by `VendorCredentialPort`'s own
- * type doc, so `vendorId` is never undefined for any member of `PROVIDER_IDS` — asserted rather than
- * defensively guarded, matching how this handler already treats its own fixed, closed inputs.
- *
- * New table wins the moment it has ANY row for this vendor — same per-vendor precedence
- * `dual-read.ts` documents ("new table FIRST, legacy only when the new group is genuinely empty"). A
- * provider whose vendor group has migrated (or was only ever saved through the new
- * `deployment_propose_custom_provider_credential` write path) is reported from the new table
- * exclusively; any stale legacy row for the same provider is simply not looked at, matching the write
- * side's own "new table wins" behavior.
- *
- * `readiness`/`credentialConfigured` merges the new table's "is anything saved" signal (checked
- * first) with the existing old-table-or-env-var mechanism (`credentialSource`, untouched by this
- * cutover) for when the new table's group for this vendor is empty. Without this merge, a credential
- * saved ONLY through the new write path would show up in `savedCredentials` while `credentialConfigured`
- * still reported `false` — a self-contradictory result this merge exists to prevent.
+ * `savedCredentials` are the rows of this host's vendor (`descriptor.credential.vendorId`), so every
+ * host sharing a vendor lists the same saved connections. `credentialConfigured` comes from
+ * `credentialSource.isConfigured` (a saved default, or in self-hosted mode an env var).
  *
  * `ready` means "will actually work," not merely "a credential is saved" (2026-08-16 fix: a saved
  * GitHub token GitHub rejected outright with 401 used to still report `ready: true`) — a credential
@@ -1026,12 +983,10 @@ function buildProviderCapabilityResult(spec: {
 async function buildProviderCapability(loaded: LoadedDeployTarget, ctx: ProviderCapabilityContext) {
   const providerId = loaded.descriptor.id;
   const vendorId = loaded.descriptor.credential?.vendorId;
-  const savedForVendor = vendorId === undefined ? [] : ctx.savedVendor.filter((credential) => credential.vendorId === vendorId);
-  const savedForProvider = ctx.saved.filter((credential) => credential.providerId === providerId);
-  const usingVendorTable = savedForVendor.length > 0;
-  const savedCredentials = mapSavedCredentials(usingVendorTable, savedForVendor, savedForProvider);
-  const defaultCredential = usingVendorTable ? savedForVendor.find((credential) => credential.isDefault) : savedForProvider.find((credential) => credential.isDefault);
-  const readiness = usingVendorTable ? ({ configured: true } as const) : await ctx.credentialSource.isConfigured({ workspaceId: ctx.deps.workspaceId, target: providerId });
+  const savedForVendor = vendorId === undefined ? [] : ctx.saved.filter((credential) => credential.vendorId === vendorId);
+  const savedCredentials = mapSavedCredentials(savedForVendor);
+  const defaultCredential = savedForVendor.find((credential) => credential.isDefault);
+  const readiness = await ctx.credentialSource.isConfigured({ workspaceId: ctx.deps.workspaceId, target: providerId });
   // 2026-08-16, Defect 2: the last successful publish to this provider, if any — see
   // `publish-history.ts`'s own header for the storage design. `null` means never published (from
   // this server, in this history store) rather than an absent key, so an agent-facing JSON result
@@ -1418,7 +1373,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     composePublishCredentialSource({
       workspaceId: deps.workspaceId,
       executionMode: deps.publishExecutionMode,
-      dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deployTargetsLoader(deps) },
+      dbDeps: { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deployTargetsLoader(deps) },
     });
   const historyStore = deps.historyStore ?? deps.publishHistoryStore;
 
@@ -1443,44 +1398,24 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     },
 
     /**
-     * Never decrypts — reads through `listVendorCredentials`/`listPublishCredentials` (both pure DB
-     * reads; see either function's own "read model only" doc) and `credentialSource.isConfigured`
+     * Never decrypts — reads through `listPublishCredentials` (a pure DB read of
+     * `vendor_credential_sets`; see its own "read model only" doc) and `credentialSource.isConfigured`
      * (this file's own preview handler already relies on the identical never-decrypting contract).
-     * Structurally cannot reach `resolveForPublish`/`resolveDefaultForPublish`/`resolveForVendor`/
-     * `resolveDefaultForVendor`: this handler is never given a `SecretSealerPort`, and every one of
-     * those functions requires one.
-     *
-     * Phase 3 cutover (this dispatch): reads `vendor_credential_sets` FIRST for each provider's
-     * mapped `VendorId`, falling back to the legacy `publish_credential_sets` rows only when that
-     * vendor's group is empty — same "new table wins, legacy is a fallback, both are non-decrypting
-     * reads" precedence `vendor-credentials/dual-read.ts` documents for its own (decrypting) resolve
-     * path, reimplemented inline here rather than calling that module: this handler's own contract
-     * (this doc, above) is that it never decrypts, and `dual-read.ts`'s function exists specifically
-     * to hand back a real, decrypted connection for an actual publish attempt — using it here would
-     * decrypt on every capabilities call, silently breaking the guarantee this doc and this file's
-     * own test already enforce. `tokenTail` is populated only for a vendor-table-sourced entry (the
-     * legacy table has no such column, and deriving one would mean decrypting); `null` there is
-     * honest, not a placeholder — see this tool's own catalog description for the model-facing
-     * contract.
-     *
-     * `listVendorCredentials`/`providerToVendor` are read off `deps.vendorCredentials`
-     * ({@link VendorCredentialPort}, resolved by {@link requireVendorCredentialPort}), never imported
-     * directly — see this file's header for why.
+     * Structurally cannot reach `resolveForPublish`/`resolveDefaultForPublish`: this handler never
+     * hands them a `SecretSealerPort`. `tokenTail` is the stored last 4 characters, never derived by
+     * decrypting.
      */
     deployment_get_static_publish_capabilities: async (ctx) => {
       requireNoInput(ctx.input);
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
 
-      const vendorCredentials = requireVendorCredentialPort(deps);
-      const saved = await listPublishCredentials({ repo: deps.publishCredentialSetRepo } satisfies PublishCredentialReadDeps, {
+      const loadDeployTargets = deployTargetsLoader(deps);
+      const saved = await listPublishCredentials({ repo: deps.vendorCredentialSetRepo, loadDeployTargets } satisfies PublishCredentialReadDeps, {
         workspaceId: deps.workspaceId,
       });
-      // Phase 3 cutover — see this handler's own doc above for why this is a second, independent list
-      // read (never a decrypting resolve) rather than a call into `vendor-credentials/dual-read.ts`.
-      const savedVendor = await vendorCredentials.list({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId });
 
-      const registry = await deployTargetsLoader(deps)(deps.workspaceId);
-      const providerCapabilityContext: ProviderCapabilityContext = { deps, credentialSource, historyStore, saved, savedVendor };
+      const registry = await loadDeployTargets(deps.workspaceId);
+      const providerCapabilityContext: ProviderCapabilityContext = { deps, credentialSource, historyStore, saved };
       const providers = await Promise.all(registry.list().map((loaded) => buildProviderCapability(loaded, providerCapabilityContext)));
 
       return { executionMode: deps.publishExecutionMode, providers };

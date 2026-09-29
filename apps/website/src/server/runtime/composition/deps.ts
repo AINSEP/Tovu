@@ -2165,13 +2165,10 @@ async function composeSiteRouteDeps(
     resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),
     listPublishedPosts: () =>
       listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } }),
-    // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
-    // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
-    // repos above already reuse (no third `EnvOrFileKeyring` instance).
-    publishCredentialSetRepo: new SqlitePublishCredentialSetRepo(kernel),
     // 2026-08-16 rework — see `routes/types.ts`'s `publishHistoryStore` doc. Real, DB-backed;
     // `server/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
     publishHistoryStore: new SqlitePublishHistoryStore(kernel),
+    // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishExecutionMode` doc.
     publishExecutionMode: executionModeFromEnv(),
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see
     // `resolvePublishOutputRootDir`'s own doc above and `routes/types.ts`'s `publishOutputRootDir`

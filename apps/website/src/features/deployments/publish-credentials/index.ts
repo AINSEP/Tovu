@@ -15,6 +15,7 @@ export {
   createPublishCredential,
   deletePublishCredential,
   describeCredential,
+  hasDefaultForPublish,
   healAccountLabel,
   isUniqueLabelViolation,
   listPublishCredentials,
@@ -27,6 +28,7 @@ export {
   updatePublishCredential,
   type CreatePublishCredentialInput,
   type PublishCredentialReadDeps,
+  type PublishCredentialResolveDeps,
   type PublishCredentialWriteDeps,
   type UpdatePublishCredentialInput,
 } from "./store.js";
@@ -41,3 +43,9 @@ export {
 } from "./account-label-heal-scheduler.js";
 
 export { InMemoryPublishCredentialSetRepo } from "./repo.memory.js";
+
+export {
+  copyPublishCredentialsToVendorTable,
+  type VendorTableBackfillDeps,
+  type VendorTableBackfillReport,
+} from "./vendor-table-backfill.js";

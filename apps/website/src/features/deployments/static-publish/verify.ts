@@ -4,7 +4,7 @@ import type { SecretSealerPort } from "../../webhooks/index.js";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
 import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetRegistry } from "../deploy-targets/types.js";
 import { resolveForPublish } from "../publish-credentials/store.js";
-import type { PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
+import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
@@ -264,7 +264,8 @@ export async function verifyPublishCredential(
 }
 
 export interface VerifyPublishCredentialByIdDeps {
-  readonly repo: PublishCredentialSetRepoPort;
+  /** `vendor_credential_sets`, where saved publish credentials live. */
+  readonly repo: VendorCredentialSetRepoPort;
   readonly sealer: SecretSealerPort;
   readonly cache: PublishCredentialVerificationCache;
   readonly clock: { nowIso(): string };
@@ -294,16 +295,15 @@ export interface VerifyPublishCredentialByIdDeps {
  * @returns `null` if no row exists for `(workspaceId, id)` — the caller (the admin route) is
  *   expected to have already checked existence and map this to its own 404, matching
  *   `resolveForPublish`'s own "no such row is `null`, not thrown" contract.
- * @complexity O(1) — two independent repo reads (`findById` for the `isDefault` flag,
- *   `resolveForPublish` for the decrypt) run concurrently, one registry load, plus one bounded
+ * @complexity O(1) — one decrypting read (`resolveForPublish`), one registry load, plus one bounded
  *   outbound HTTP request.
  */
 export async function verifyPublishCredentialById(
   deps: VerifyPublishCredentialByIdDeps,
   input: { workspaceId: UUID; id: UUID }
 ): Promise<PublishCredentialVerificationResult | null> {
-  const [record, resolved] = await Promise.all([deps.repo.findById(input), resolveForPublish({ repo: deps.repo, sealer: deps.sealer }, input)]);
-  if (!record || !resolved) return null;
+  const resolved = await resolveForPublish(deps, input);
+  if (!resolved) return null;
 
   const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
   const spec = context.registry.get(resolved.providerId)?.descriptor.credential;
@@ -311,7 +311,7 @@ export async function verifyPublishCredentialById(
   const result = projected?.ok
     ? await computeVerificationResult(context, resolved.providerId, toDeployTargetCredential(projected))
     : cannotVerify(projected?.reason ?? noCheckReason(resolved.providerId), deps.clock);
-  if (record.isDefault) {
+  if (resolved.isDefault) {
     deps.cache.set({ workspaceId: input.workspaceId, target: resolved.providerId }, result);
   }
   return result;
@@ -461,8 +461,10 @@ async function fetchGitHubRepos(fetchFn: typeof fetch, token: string): Promise<L
 }
 
 export interface ListGitHubReposByCredentialIdDeps {
-  readonly repo: PublishCredentialSetRepoPort;
+  readonly repo: VendorCredentialSetRepoPort;
   readonly sealer: SecretSealerPort;
+  /** Which host a saved row is shown under (its vendor's first deploy host). */
+  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
   /** Injected by tests; defaults to global `fetch`. */
   readonly fetchFn?: typeof fetch;
 }
@@ -496,7 +498,7 @@ export async function listGitHubReposByCredentialId(
   input: { workspaceId: UUID; id: UUID }
 ): Promise<ListGitHubReposResult | null> {
   const fetchFn = deps.fetchFn ?? fetch;
-  const resolved = await resolveForPublish({ repo: deps.repo, sealer: deps.sealer }, input);
+  const resolved = await resolveForPublish(deps, input);
   if (!resolved) return null;
 
   // Narrows on `connection.providerId` (the discriminant `PublishConnectionInput`'s own variants key
