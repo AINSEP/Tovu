@@ -1,0 +1,151 @@
+{
+  "apps/admin/src/features/deployment/StaticSiteTab.tsx": {
+    "cloudflare": 4,
+    "github-pages": 2,
+    "netlify": 1,
+    "vercel": 3
+  },
+  "apps/admin/src/features/deployment/deployment-i18n.tsx": {
+    "cloudflare": 105,
+    "github-pages": 23,
+    "netlify": 46,
+    "vercel": 128
+  },
+  "apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts": {
+    "vercel": 1
+  },
+  "apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts": {
+    "cloudflare": 2,
+    "github-pages": 3,
+    "netlify": 2,
+    "vercel": 2
+  },
+  "apps/admin/src/features/deployment/rules.ts": {
+    "cloudflare": 14,
+    "github-pages": 10,
+    "netlify": 12,
+    "vercel": 18
+  },
+  "apps/admin/src/lib/api.ts": {
+    "cloudflare": 4,
+    "github-pages": 4,
+    "netlify": 4,
+    "vercel": 4
+  },
+  "apps/website/src/features/deployments/agent-tools.ts": {
+    "github-pages": 6,
+    "netlify": 1
+  },
+  "apps/website/src/features/deployments/publish-agent-tools.ts": {
+    "cloudflare": 28,
+    "github-pages": 26,
+    "netlify": 12,
+    "s3-compatible": 71,
+    "vercel": 18
+  },
+  "apps/website/src/features/deployments/publish-credentials/index.ts": {
+    "cloudflare": 1,
+    "github-pages": 1,
+    "netlify": 1,
+    "vercel": 1
+  },
+  "apps/website/src/features/deployments/publish-credentials/s3-compatible-field-guidance.ts": {
+    "cloudflare": 5,
+    "s3-compatible": 8
+  },
+  "apps/website/src/features/deployments/publish-credentials/store.ts": {
+    "cloudflare": 4,
+    "github-pages": 3,
+    "netlify": 3,
+    "s3-compatible": 6,
+    "vercel": 3
+  },
+  "apps/website/src/features/deployments/publish-credentials/types.ts": {
+    "cloudflare": 4,
+    "github-pages": 4,
+    "netlify": 4,
+    "s3-compatible": 4,
+    "vercel": 4
+  },
+  "apps/website/src/features/deployments/static-publish/adapter.ts": {
+    "cloudflare": 7,
+    "github-pages": 13,
+    "netlify": 4,
+    "s3-compatible": 8,
+    "vercel": 16
+  },
+  "apps/website/src/features/deployments/static-publish/credentials.ts": {
+    "cloudflare": 12,
+    "github-pages": 1,
+    "netlify": 4,
+    "s3-compatible": 7,
+    "vercel": 3
+  },
+  "apps/website/src/features/deployments/static-publish/index.ts": {
+    "cloudflare": 2,
+    "github-pages": 1,
+    "netlify": 1,
+    "vercel": 1
+  },
+  "apps/website/src/features/deployments/static-publish/publish-run.ts": {
+    "github-pages": 4
+  },
+  "apps/website/src/features/deployments/static-publish/s3-compatible-target.ts": {
+    "s3-compatible": 20
+  },
+  "apps/website/src/features/deployments/static-publish/types.ts": {
+    "cloudflare": 3,
+    "github-pages": 3,
+    "netlify": 3,
+    "s3-compatible": 3,
+    "vercel": 3
+  },
+  "apps/website/src/features/deployments/static-publish/verify.ts": {
+    "cloudflare": 6,
+    "github-pages": 8,
+    "netlify": 4,
+    "s3-compatible": 5,
+    "vercel": 7
+  },
+  "apps/website/src/features/site-export/static-security-headers.ts": {
+    "vercel": 3
+  },
+  "apps/website/src/features/vendor-credentials/dual-read.ts": {
+    "cloudflare": 2,
+    "github-pages": 1,
+    "netlify": 2,
+    "s3-compatible": 2,
+    "vercel": 2
+  },
+  "apps/website/src/features/vendor-credentials/index.ts": {
+    "cloudflare": 1,
+    "netlify": 1,
+    "s3-compatible": 1,
+    "vercel": 1
+  },
+  "apps/website/src/features/vendor-credentials/store.ts": {
+    "cloudflare": 7,
+    "netlify": 6,
+    "s3-compatible": 11,
+    "vercel": 6
+  },
+  "apps/website/src/features/vendor-credentials/types.ts": {
+    "cloudflare": 8,
+    "github-pages": 2,
+    "netlify": 8,
+    "s3-compatible": 8,
+    "vercel": 8
+  },
+  "apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts": {
+    "vercel": 1
+  },
+  "apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts": {
+    "github-pages": 2
+  },
+  "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts": {
+    "cloudflare": 6,
+    "github-pages": 11,
+    "netlify": 6,
+    "vercel": 6
+  }
+}
