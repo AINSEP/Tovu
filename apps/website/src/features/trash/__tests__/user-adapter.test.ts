@@ -5,6 +5,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/cms/identity";
 
 import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
@@ -364,4 +365,59 @@ test("mayActOnEntityType('user'): a principal holding only 'user.manage' is refu
     { principalId: f.ownerPrincipalId, entityType: USER_ENTITY_TYPE }
   );
   assert.equal(ownerDecision.allowed, true);
+});
+
+/**
+ * A kernel whose first `run` (the adapter's read of the principal) is followed by `sneak` on the raw
+ * client — another writer committing between the read and the status write. `SqlPrincipalRepo.save`
+ * never takes the Trash's principal lock, so on Postgres this interleaving is real.
+ */
+function kernelWithWriterAfterFirstRead(db: ContentDb, sneak: () => void) {
+  const kernel = contentKernel(db);
+  let reads = 0;
+  return new Proxy(kernel, {
+    get(target, prop, receiver) {
+      if (prop !== "run") return Reflect.get(target, prop, receiver);
+      return async (fn: Parameters<typeof target.run>[0]) => {
+        const result = await target.run(fn);
+        if (++reads === 1) sneak();
+        return result;
+      };
+    },
+  });
+}
+
+test("hide: a status change committed between the read and the write reports version-changed — no stale priorMarker, no event", async () => {
+  const f = await setup(WS);
+  const targetId = await createBareUser(f, "racing");
+  const adapter = createUserTrashAdapter({
+    db: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)),
+    purge: new SqliteUserPurge(f.db),
+    idGen: counterIdGen(),
+    clock: { nowIso: () => AT },
+  });
+
+  const outcome = await adapter.hide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null });
+  assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
+  assert.deepEqual(principalRow(f, targetId), { status: "disabled", disabledAt: null });
+  assert.equal(outboxEventsNamed(f, "identity.user.trashed").length, 0);
+});
+
+test("unhide: a re-enable committed between the read and the write is not overwritten — version-changed, no event", async () => {
+  const f = await setup(WS);
+  const targetId = await createBareUser(f, "racing");
+  f.db.$client.prepare(`UPDATE principals SET status = 'disabled', disabled_at = ? WHERE id = ?`).run(AT, targetId);
+  const adapter = createUserTrashAdapter({
+    db: kernelWithWriterAfterFirstRead(f.db, () =>
+      f.db.$client.prepare(`UPDATE principals SET status = 'active', disabled_at = NULL WHERE id = ?`).run(targetId)
+    ),
+    purge: new SqliteUserPurge(f.db),
+    idGen: counterIdGen(),
+    clock: { nowIso: () => AT },
+  });
+
+  const outcome = await adapter.unhide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null, priorMarker: "disabled" });
+  assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
+  assert.deepEqual(principalRow(f, targetId), { status: "active", disabledAt: null });
+  assert.equal(outboxEventsNamed(f, "identity.user.restored").length, 0);
 });

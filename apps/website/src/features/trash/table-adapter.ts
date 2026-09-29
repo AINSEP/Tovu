@@ -12,9 +12,11 @@
  *  - `hide`/`unhide` read the row FIRST, then classify not-found / version-changed / already-in-state
  *    / real transition, in that order — matching `flipMarker`'s precedence (a version mismatch always
  *    wins over "it's already in the target state"). Each runs in `kernel.transaction` holding
- *    `kernel.lockKey` for the row, so the read-then-write is as atomic as `flipMarker`'s single
- *    compound `UPDATE ... WHERE`: SQLite's `BEGIN IMMEDIATE` already takes the write lock, and on
- *    Postgres the advisory lock keeps a second writer of the same row out until this one commits.
+ *    `kernel.lockKey` for the row. The lock only orders Trash against Trash — a domain writer (the
+ *    menu, term, form… update routes) never takes it, so on Postgres (READ COMMITTED) it can commit
+ *    between the read and the write. The write therefore repeats the read's marker and version in its
+ *    own `WHERE`, like `flipMarker`'s compound `UPDATE ... WHERE`, and 0 affected rows is
+ *    `version-changed`.
  *  - `purge` never deletes a LIVE row or its `purgeFirst` children, even at a matching version
  *    (decision 6) — checked before either delete runs, same order as `adapters/form.ts`'s bespoke
  *    purge.
@@ -158,20 +160,37 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
   }
 
   /**
-   * Writes the marker (plus the touch column, plus a version bump) on the one row.
+   * Writes the marker (plus the touch column, plus a version bump) on the one row — only if the row
+   * still holds the `before` marker and version it was classified on. A domain writer never takes the
+   * Trash's row lock, so on Postgres it can commit between the read and this write; the guard turns
+   * that into 0 affected rows instead of trashing (or restoring) a version nobody confirmed.
+   *
+   * @returns whether the row was written; `false` means it changed since `before` was read.
    * @complexity O(1) plus whatever index the entry's `where` matches.
    */
-  async function writeMarker(workspaceId: string, entityId: string, markerValue: unknown, at: string): Promise<void> {
+  async function writeMarker(workspaceId: string, entityId: string, markerValue: unknown, at: string, before: MarkerRow): Promise<boolean> {
     const set: Record<string, unknown> = { [entry.marker.column]: markerValue };
     if (entry.touchColumn) set[entry.touchColumn] = at;
     if (entry.versionColumn) set[entry.versionColumn] = sql`${sql.ref(entry.versionColumn)} + 1`;
-    await run((db) =>
+    const versionColumn = entry.versionColumn;
+    const result = await run((db) =>
       loose(db)
         .updateTable(entry.table)
         .set(set)
-        .where((eb) => entryWhere(eb, { entry, workspaceId, entityId }))
-        .execute()
+        .where((eb) => {
+          const markerRef = qualified(entry.table, entry.marker.column);
+          const guards = [
+            entryWhere(eb, { entry, workspaceId, entityId }),
+            before.marker === null || before.marker === undefined ? eb(markerRef, "is", null) : eb(markerRef, "=", before.marker),
+          ];
+          if (versionColumn && before.version !== null && before.version !== undefined) {
+            guards.push(eb(qualified(entry.table, versionColumn), "=", before.version));
+          }
+          return eb.and(guards);
+        })
+        .executeTakeFirst()
     );
+    return affected(result.numUpdatedRows) > 0;
   }
 
   return {
@@ -214,7 +233,8 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
           if (count > 0) return { ok: false, reason: "blocked", code: blocker.code, count };
         }
 
-        await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? at : entry.marker.trashed, at);
+        const written = await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? at : entry.marker.trashed, at, before);
+        if (!written) return { ok: false, reason: "version-changed" };
 
         const version = await readVersion(workspaceId, entityId);
         // `priorMarker` is additive (migration 0072) and only meaningful for a status marker's
@@ -251,7 +271,14 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
           return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
         }
 
-        await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? null : (priorMarker ?? entry.marker.restoreFallback), at);
+        const written = await writeMarker(
+          workspaceId,
+          entityId,
+          entry.marker.kind === "timestamp" ? null : (priorMarker ?? entry.marker.restoreFallback),
+          at,
+          before
+        );
+        if (!written) return { ok: false, reason: "version-changed" };
 
         return { ok: true, version: await readVersion(workspaceId, entityId) };
       });

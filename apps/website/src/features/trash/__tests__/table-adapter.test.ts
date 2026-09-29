@@ -640,3 +640,64 @@ test("taxonomy: purge of a missing row reports already-gone", async () => {
   const outcome = await h.taxonomyAdapter.purge({ workspaceId: WS, entityId: "does-not-exist", expectedVersion: 1 });
   assert.equal(outcome, "already-gone");
 });
+
+/**
+ * A kernel whose first `run` (the adapter's read of the row) is followed by `sneak` on the raw
+ * client — another writer committing between the read and the marker write. A domain writer (the
+ * menu update route) never takes the Trash's row lock, so on Postgres this interleaving is real.
+ */
+function kernelWithWriterAfterFirstRead(db: ContentDb, sneak: () => void) {
+  const kernel = createSqliteTrashDb({ db });
+  let reads = 0;
+  return new Proxy(kernel, {
+    get(target, prop, receiver) {
+      if (prop !== "run") return Reflect.get(target, prop, receiver);
+      return async (fn: Parameters<typeof target.run>[0]) => {
+        const result = await target.run(fn);
+        if (++reads === 1) sneak();
+        return result;
+      };
+    },
+  });
+}
+
+test("hide: a writer that bumps the version between the read and the write makes hide report version-changed and leaves the row live", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-1", { status: "published", version: 3 });
+  const racing = createTableTrashAdapter({
+    entry: h.menuEntry,
+    db: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()),
+  });
+
+  const hidden = await racing.hide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3 });
+  assert.deepEqual(hidden, { ok: false, reason: "version-changed" });
+  assert.deepEqual(readMenuRow(h.client, "menu-1"), { status: "published", version: 4 });
+});
+
+test("unhide: a writer that bumps the version between the read and the write makes unhide report version-changed and leaves the row trashed", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-1", { status: "trashed", version: 3 });
+  const racing = createTableTrashAdapter({
+    entry: h.menuEntry,
+    db: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()),
+  });
+
+  const unhidden = await racing.unhide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3, priorMarker: "published" });
+  assert.deepEqual(unhidden, { ok: false, reason: "version-changed" });
+  assert.deepEqual(readMenuRow(h.client, "menu-1"), { status: "trashed", version: 4 });
+});
+
+test("hide with no expected version: a writer that changes the status between the read and the write is not overwritten, and priorMarker is never recorded from a stale read", async () => {
+  const h = harness();
+  seedMenu(h.client, "menu-1", { status: "published", version: 3 });
+  const racing = createTableTrashAdapter({
+    entry: h.menuEntry,
+    db: kernelWithWriterAfterFirstRead(h.db, () =>
+      h.client.prepare(`UPDATE menus SET status = 'draft', version = version + 1 WHERE id = 'menu-1'`).run()
+    ),
+  });
+
+  const hidden = await racing.hide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: null });
+  assert.deepEqual(hidden, { ok: false, reason: "version-changed" });
+  assert.deepEqual(readMenuRow(h.client, "menu-1"), { status: "draft", version: 4 });
+});

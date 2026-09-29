@@ -19,9 +19,11 @@ import { lazyKernel, type MarkerStore } from "./marker-sql.js";
  *
  * One Kysely body over the content database's storage kernel, so the same statements run on SQLite,
  * PGlite and Postgres. Each method is read-then-write, so each runs in `kernel.transaction` holding
- * `kernel.lockKey` for the principal (a nested transaction joins the trash core's own): SQLite's
- * `BEGIN IMMEDIATE` already holds the write lock, and on Postgres the advisory lock keeps a second
- * writer of the same principal out until this one commits. `hide`/`unhide` insert their own
+ * `kernel.lockKey` for the principal (a nested transaction joins the trash core's own). That lock
+ * only orders Trash against Trash: `SqlPrincipalRepo.save` never takes it, so on Postgres a
+ * re-enable or disable can commit between the read and the write. `hide`/`unhide` therefore repeat
+ * the status they read in the `UPDATE`'s `WHERE`, and 0 affected rows is `version-changed` — no
+ * stale `priorMarker`, no overwritten status, no event. `hide`/`unhide` insert their own
  * `identity.user.trashed` / `identity.user.restored` outbox event ({@link outboxEventValues}) in that
  * same transaction as the marker write; `purge`'s `purgeUser` joins it too, so the status check and
  * the delete cannot be split by a concurrent restore.
@@ -112,14 +114,16 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         const before = await readPrincipal(k, workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };
 
-        await k.run((db) =>
+        const disabled = await k.run((db) =>
           db
             .updateTable("principals")
             .set({ status: "disabled", disabled_at: required.at })
             .where("workspace_id", "=", workspaceId)
             .where("id", "=", entityId)
-            .execute()
+            .where("status", "=", before.status)
+            .executeTakeFirst()
         );
+        if (Number(disabled.numUpdatedRows) === 0) return { ok: false, reason: "version-changed" };
         const revoked = await k.run((db) =>
           db.deleteFrom("sessions").where("workspace_id", "=", workspaceId).where("principal_id", "=", entityId).executeTakeFirst()
         );
@@ -151,14 +155,16 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         if (!before) return { ok: false, reason: "not-found" };
 
         const restoredStatus = required.priorMarker ?? "disabled";
-        await k.run((db) =>
+        const restored = await k.run((db) =>
           db
             .updateTable("principals")
             .set(restoredStatus === "active" ? { status: restoredStatus, disabled_at: null } : { status: restoredStatus })
             .where("workspace_id", "=", workspaceId)
             .where("id", "=", entityId)
-            .execute()
+            .where("status", "=", before.status)
+            .executeTakeFirst()
         );
+        if (Number(restored.numUpdatedRows) === 0) return { ok: false, reason: "version-changed" };
 
         const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);
         await appendEvent(k, {
