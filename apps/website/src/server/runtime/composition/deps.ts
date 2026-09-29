@@ -42,8 +42,9 @@ import { createResolvedMailer } from "../boot/resolve-mailer.js";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
+import { copyPublishCredentialsToVendorTable } from "#src/features/deployments/publish-credentials/vendor-table-backfill";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
-import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
+import { loadDeployTargetRegistry, loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
   createChatRunLedger,
@@ -2230,7 +2231,47 @@ async function composeSiteRouteDeps(
     });
   void widgetAdoptionReady;
 
+  // After the boot writers above settle (same shared-connection transaction hazard).
+  if ((overrides?.storeRole ?? "owner") === "owner") void widgetAdoptionReady.then(() => copyLegacyPublishCredentialsAtBoot(routeDeps, kernel));
+
   return routeDeps;
+}
+
+/**
+ * Moves legacy `publish_credential_sets` rows into `vendor_credential_sets`, where publishing reads
+ * them (`publish-credentials/vendor-table-backfill.ts`). Every boot, on the owner process only;
+ * idempotent, so a boot with nothing left to copy writes nothing. Fire-and-forget: logged, never
+ * aborts boot.
+ */
+async function copyLegacyPublishCredentialsAtBoot(routeDeps: NewsletterRouteDeps, kernel: ContentKernel): Promise<void> {
+  const workspaceId = routeDeps.workspaceId;
+  try {
+    const registries = [
+      await routeDeps.loadDeployTargets(workspaceId),
+      await loadDeployTargetRegistryFromSource({ pluginId: "deploy", packageRoot: join(bundledAgentPluginsDir(), "deploy") }),
+    ];
+    const report = await copyPublishCredentialsToVendorTable(
+      {
+        legacyRepo: new SqlitePublishCredentialSetRepo(kernel),
+        vendorRepo: routeDeps.vendorCredentialSetRepo,
+        sealer: routeDeps.siteAssistantSecretSealer,
+        keyring: routeDeps.siteAssistantSecretKeyring,
+        registries,
+      },
+      { workspaceId }
+    );
+    for (const id of report.copied) {
+      // eslint-disable-next-line no-console
+      console.info(`[publish-credentials] moved saved credential '${id}' to vendor_credential_sets`);
+    }
+    for (const { id, reason } of report.skipped) {
+      // eslint-disable-next-line no-console
+      console.warn(`[publish-credentials] saved credential '${id}' was not moved to vendor_credential_sets (tried again next boot): ${reason}`);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`copyPublishCredentialsToVendorTable failed at boot: ${(err as Error).message}`);
+  }
 }
 
 /**

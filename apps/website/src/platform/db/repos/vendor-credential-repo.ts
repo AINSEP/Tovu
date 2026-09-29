@@ -1,7 +1,7 @@
 import type { Insertable, Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorId } from "#src/features/vendor-credentials/types";
+import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
 import type { ContentKernel } from "../content-kernel.js";
 import type { VendorCredentialSetsTable } from "../content-database.generated.js";
 import { toBool } from "../kernel/dialect.js";
@@ -28,7 +28,7 @@ function toRecord(row: Selectable<VendorCredentialSetsTable>): VendorCredentialS
   return {
     workspaceId: row.workspace_id,
     id: row.id,
-    vendorId: row.vendor_id as VendorId,
+    vendorId: row.vendor_id,
     label: row.label,
     sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg },
     tokenTail: row.token_tail,
@@ -100,7 +100,7 @@ export class SqlVendorCredentialSetRepo implements VendorCredentialSetRepoPort {
     return row ? toRecord(row) : null;
   }
 
-  async findDefaultByVendor(input: { workspaceId: UUID; vendorId: VendorId }): Promise<VendorCredentialSetRecord | null> {
+  async findDefaultByVendor(input: { workspaceId: UUID; vendorId: string }): Promise<VendorCredentialSetRecord | null> {
     const row = await this.kernel.run((db) =>
       db
         .selectFrom("vendor_credential_sets")
@@ -114,7 +114,7 @@ export class SqlVendorCredentialSetRepo implements VendorCredentialSetRepoPort {
     return row ? toRecord(row) : null;
   }
 
-  async listByVendor(input: { workspaceId: UUID; vendorId: VendorId }): Promise<VendorCredentialSetRecord[]> {
+  async listByVendor(input: { workspaceId: UUID; vendorId: string }): Promise<VendorCredentialSetRecord[]> {
     const rows = await this.kernel.run((db) =>
       db
         .selectFrom("vendor_credential_sets")
@@ -199,7 +199,7 @@ export class SqlVendorCredentialSetRepo implements VendorCredentialSetRepoPort {
 
   /** Clears `isDefault` on every OTHER row sharing `(workspaceId, vendorId)` — the group-invariant
    *  half of `insert`/`update`'s contract. Called only inside the caller's own group transaction. */
-  private async clearOtherDefaults(workspaceId: UUID, vendorId: VendorId, keepId: UUID): Promise<void> {
+  private async clearOtherDefaults(workspaceId: UUID, vendorId: string, keepId: UUID): Promise<void> {
     await this.kernel.run((db) =>
       db
         .updateTable("vendor_credential_sets")

@@ -329,7 +329,7 @@ async function probeAccountLabel(connection: VendorConnectionInput, fetchFn: typ
  *  plaintext write. */
 async function sealConnection(
   deps: VendorCredentialWriteDeps,
-  input: { workspaceId: UUID; vendorId: VendorId; id: UUID; connection: VendorConnectionInput }
+  input: { workspaceId: UUID; vendorId: string; id: UUID; connection: VendorConnectionInput }
 ) {
   try {
     const activeKey = await deps.keyring.activeKey();
@@ -453,7 +453,7 @@ async function resolveIsDefaultOnUpdate(
   deps: VendorCredentialWriteDeps,
   input: UpdateVendorCredentialInput,
   existing: VendorCredentialSetRecord,
-  vendorId: VendorId,
+  vendorId: string,
   requestedDefault: boolean | undefined,
   vendorChanged: boolean
 ): Promise<boolean> {
@@ -467,7 +467,7 @@ async function resolveIsDefaultOnUpdate(
 async function applyVendorCredentialUpdate(
   deps: VendorCredentialWriteDeps,
   record: VendorCredentialSetRecord,
-  vendorId: VendorId,
+  vendorId: string,
   label: string
 ): Promise<void> {
   try {
@@ -486,7 +486,7 @@ async function applyVendorCredentialUpdate(
  * `publish-credentials/store.ts`'s own `updatePublishCredential` documents (a vendor change must not
  * leave the old group defaultless). No-op if nothing remains in the old group.
  */
-async function promoteRemainingDefault(deps: VendorCredentialWriteDeps, workspaceId: UUID, oldVendorId: VendorId): Promise<void> {
+async function promoteRemainingDefault(deps: VendorCredentialWriteDeps, workspaceId: UUID, oldVendorId: string): Promise<void> {
   const remainingInOldGroup = await deps.repo.listByVendor({ workspaceId, vendorId: oldVendorId });
   if (remainingInOldGroup.length === 0) return;
   const promoted = remainingInOldGroup.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
@@ -582,7 +582,7 @@ async function decryptRecord(sealer: SecretSealerPort, record: VendorCredentialS
 export async function resolveForVendor(
   deps: { repo: VendorCredentialSetRepoPort; sealer: SecretSealerPort },
   input: { workspaceId: UUID; id: UUID }
-): Promise<{ vendorId: VendorId; label: string; connection: VendorConnectionInput } | null> {
+): Promise<{ vendorId: string; label: string; connection: VendorConnectionInput } | null> {
   const record = await deps.repo.findById(input);
   if (!record) return null;
   const connection = await decryptRecord(deps.sealer, record);
@@ -599,7 +599,7 @@ export async function resolveForVendor(
  */
 export async function resolveDefaultForVendor(
   deps: { repo: VendorCredentialSetRepoPort; sealer: SecretSealerPort },
-  input: { workspaceId: UUID; vendorId: VendorId }
+  input: { workspaceId: UUID; vendorId: string }
 ): Promise<{ id: UUID; label: string; connection: VendorConnectionInput } | null> {
   const record = await deps.repo.findDefaultByVendor(input);
   if (!record) return null;

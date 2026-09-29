@@ -1,7 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { VendorId } from "./types.js";
-
 /**
  * @file The ONE place `vendor_credential_sets`' AES-GCM additional authenticated data (AAD) string
  * is formatted — mirrors `features/deployments/publish-credentials/aad.ts` and
@@ -31,6 +29,6 @@ const AAD_VERSION = "v1";
  *
  * @complexity O(1) — a fixed-shape string template.
  */
-export function buildVendorCredentialAad(input: { workspaceId: UUID; vendorId: VendorId; id: UUID }): string {
+export function buildVendorCredentialAad(input: { workspaceId: UUID; vendorId: string; id: UUID }): string {
   return `vendor-credential-set:${AAD_VERSION}:${input.workspaceId}:${input.vendorId}:${input.id}`;
 }

@@ -159,7 +159,9 @@ export type VendorConnectionInput =
 export interface VendorCredentialSetRecord {
   readonly workspaceId: UUID;
   readonly id: UUID;
-  readonly vendorId: VendorId;
+  /** Open: a deploy plugin's host declares its own vendor (`DeployTargetCredentialSpec.vendorId`).
+   *  {@link VendorId} names only the vendors `store.ts`'s own validators know. */
+  readonly vendorId: string;
   readonly label: string;
   readonly sealed: SealedSecret;
   /** Last 4 characters of the connection's primary secret, plaintext — see `../../db/schema.sqlite.ts`'s
@@ -182,7 +184,7 @@ export interface VendorCredentialSetRecord {
  *  is not meaningful secret material on its own. */
 export interface VendorCredentialSetSummary {
   readonly id: UUID;
-  readonly vendorId: VendorId;
+  readonly vendorId: string;
   readonly label: string;
   readonly configured: true;
   readonly isDefault: boolean;
@@ -206,11 +208,11 @@ export interface VendorCredentialSetRepoPort {
   findById(input: { workspaceId: UUID; id: UUID }): Promise<VendorCredentialSetRecord | null>;
   /** The current default row for one `(workspaceId, vendorId)` pair — `null` if that vendor has no
    *  rows at all for this workspace. */
-  findDefaultByVendor(input: { workspaceId: UUID; vendorId: VendorId }): Promise<VendorCredentialSetRecord | null>;
+  findDefaultByVendor(input: { workspaceId: UUID; vendorId: string }): Promise<VendorCredentialSetRecord | null>;
   /** Every row for one `(workspaceId, vendorId)` pair — used by `store.ts`'s write path to decide
    *  "is this the group's first row" (create-time auto-default) and, ahead of `delete`, to reason
    *  about the promotion candidate. */
-  listByVendor(input: { workspaceId: UUID; vendorId: VendorId }): Promise<VendorCredentialSetRecord[]>;
+  listByVendor(input: { workspaceId: UUID; vendorId: string }): Promise<VendorCredentialSetRecord[]>;
   /** Every credential set a workspace has saved, across all vendors — inherently small (bounded by
    *  how many connections a human bothers to save through this exact form), so no pagination/cap is
    *  added here. */

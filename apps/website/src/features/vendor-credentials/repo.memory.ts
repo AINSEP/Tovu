@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorId } from "./types.js";
+import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
 
 /**
  * @file `VendorCredentialSetRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test double,
@@ -16,7 +16,7 @@ export class InMemoryVendorCredentialSetRepo implements VendorCredentialSetRepoP
     return `${workspaceId}::${id}`;
   }
 
-  private assertLabelAvailable(workspaceId: UUID, vendorId: VendorId, label: string, excludingId?: UUID): void {
+  private assertLabelAvailable(workspaceId: UUID, vendorId: string, label: string, excludingId?: UUID): void {
     for (const row of this.rows.values()) {
       if (row.workspaceId !== workspaceId || row.vendorId !== vendorId || row.label !== label) continue;
       if (excludingId !== undefined && row.id === excludingId) continue;
@@ -24,7 +24,7 @@ export class InMemoryVendorCredentialSetRepo implements VendorCredentialSetRepoP
     }
   }
 
-  private clearOtherDefaults(workspaceId: UUID, vendorId: VendorId, keepId: UUID): void {
+  private clearOtherDefaults(workspaceId: UUID, vendorId: string, keepId: UUID): void {
     for (const [key, row] of this.rows) {
       if (row.workspaceId !== workspaceId || row.vendorId !== vendorId || row.id === keepId || !row.isDefault) continue;
       this.rows.set(key, { ...row, isDefault: false });
@@ -47,14 +47,14 @@ export class InMemoryVendorCredentialSetRepo implements VendorCredentialSetRepoP
     return this.rows.get(InMemoryVendorCredentialSetRepo.rowKey(input.workspaceId, input.id)) ?? null;
   }
 
-  async findDefaultByVendor(input: { workspaceId: UUID; vendorId: VendorId }): Promise<VendorCredentialSetRecord | null> {
+  async findDefaultByVendor(input: { workspaceId: UUID; vendorId: string }): Promise<VendorCredentialSetRecord | null> {
     for (const row of this.rows.values()) {
       if (row.workspaceId === input.workspaceId && row.vendorId === input.vendorId && row.isDefault) return row;
     }
     return null;
   }
 
-  async listByVendor(input: { workspaceId: UUID; vendorId: VendorId }): Promise<VendorCredentialSetRecord[]> {
+  async listByVendor(input: { workspaceId: UUID; vendorId: string }): Promise<VendorCredentialSetRecord[]> {
     return [...this.rows.values()].filter((row) => row.workspaceId === input.workspaceId && row.vendorId === input.vendorId);
   }
 
