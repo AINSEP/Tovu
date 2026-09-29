@@ -34,6 +34,8 @@
     "test:ci": "mkdir -p development/coverage && rm -f development/coverage/test-results-all.tap && TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} --test-reporter=tap --test-reporter-destination=development/coverage/test-results-all.tap --test-reporter=dot --test-reporter-destination=stdout \"apps/website/src/**/*.test.ts\" \"packages/*/src/**/*.test.ts\" \"apps/site-chat/src/**/*.test.ts\" \"development/scripts/**/*.test.ts\"",
     "capture:test-baseline": "tsx development/scripts/check-test-baseline.ts --capture development/scripts/repo-test-failure-baseline.json development/coverage/test-results-all.tap",
     "check:test-baseline": "tsx development/scripts/check-test-baseline.ts development/scripts/repo-test-failure-baseline.json development/coverage/test-results-all.tap",
+    "check:idle-motion": "node --import tsx development/scripts/check-idle-motion.ts",
+    "test:idle-cpu": "node development/scripts/measure-idle-cpu.mjs",
     "test:visual": "playwright test --config=development/playwright.config.ts",
     "test:e2e:agent-plugin-chip": "playwright test --config=development/playwright.composer-agent-plugin-chip.config.ts",
     "test:e2e:agent-plugin-chip:watch": "TOVU_E2E_SLOWMO=250 playwright test --config=development/playwright.composer-agent-plugin-chip.config.ts --headed",
