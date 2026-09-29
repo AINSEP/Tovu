@@ -74,11 +74,11 @@ function streamOf(...chunks: string[]): Response {
   return new Response(chunks.join(""), { status: 200, headers: { "content-type": "text/event-stream" } });
 }
 
-function harness(daemon: RunDaemonClient, deps: RouteDeps = createRouteDeps()) {
+function harness(daemon: RunDaemonClient, deps: RouteDeps = createRouteDeps(), checkpointIntervalMs = 0) {
   const finalizer: AssistantRunFinalizer = createAssistantRunFinalizer({
     ledger: deps.chatRunLedger,
     daemon,
-    checkpointIntervalMs: 0,
+    checkpointIntervalMs,
     reconnectDelayMs: 1,
     maxReconnects: 2,
   });
@@ -252,6 +252,30 @@ test("a run in flight when the API process dies is saved failed at the next boot
     { kind: "text", text: "Still writ" },
     { kind: "status", label: RESTART_LABEL, detail: RESTART_DETAIL },
   ]);
+
+  stream.close();
+  await finalizer.idle();
+});
+
+test("a run that goes quiet right after a frame the interval skipped still gets that frame checkpointed", async (t) => {
+  const stream = controllableStream();
+  const daemon = fakeDaemon({ events: () => stream.response, runStatus: 404 });
+  const deps = createRouteDeps();
+  const { app, finalizer } = harness(daemon, deps, 40);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const conversationId = await startConversation(baseUrl, cookie);
+
+  await putStub(baseUrl, cookie, conversationId);
+  stream.push(text("Still "));
+  await new Promise((r) => setTimeout(r, 5));
+  // Inside the interval: skipped now. Then the run goes quiet (a long tool call), and no frame
+  // arrives to trigger the next checkpoint.
+  stream.push(text("writ"));
+  await new Promise((r) => setTimeout(r, 150));
+
+  const running = await assistantRow(baseUrl, cookie, conversationId);
+  assert.equal(running.runStatus, "running");
+  assert.equal(running.content, "Still writ", "the quiet run's last frame was never checkpointed");
 
   stream.close();
   await finalizer.idle();

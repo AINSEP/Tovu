@@ -19,7 +19,8 @@
  * - this API process exits or is killed (which also kills the daemon, `daemon-supervisor.ts`): no
  *   write can finish then (storage is async, an `exit` listener cannot await), so the finalizer
  *   checkpoints the answer as it streams (`ChatRunLedger.checkpoint`, at most once per
- *   `checkpointIntervalMs`), and the next boot's `ChatRunLedger.reconcileInterrupted` marks the row
+ *   `checkpointIntervalMs`, with a trailing checkpoint so a run that goes quiet still has its last
+ *   frames saved within one interval), and the next boot's `ChatRunLedger.reconcileInterrupted` marks the row
  *   failed, keeping that partial answer and appending the plain restart notice.
  *
  * Every write goes through `ChatRunLedger.settle`, which only changes a row that still belongs to
@@ -114,6 +115,8 @@ interface Watch {
   /** How many events the last checkpoint saved, and when (see `checkpoint`). */
   checkpointedEvents: number;
   checkpointedAt: number;
+  /** The trailing checkpoint armed when the interval skipped one (see `checkpoint`). */
+  trailing?: ReturnType<typeof setTimeout>;
 }
 
 type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | { kind: "gone" } | { kind: "dropped" };
@@ -151,10 +154,27 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
    * Saves what the run has produced so far, when it has grown since the last save and the interval
    * has passed. Only growth counts: a reconnect replays from event 0, and a checkpoint of the
    * replay's first events would shrink the saved answer.
+   *
+   * A save the interval skips is not dropped: a trailing checkpoint is armed for the end of the
+   * interval. Without it, a run that goes quiet (a long tool call) right after a skipped frame kept
+   * its last text and tool-call start in memory only, lost on any stop — the process `exit` flush
+   * that used to cover a graceful stop is gone (an `exit` listener cannot await an async write).
    */
   async function checkpoint(watch: Watch): Promise<void> {
     if (watch.events.length <= watch.checkpointedEvents) return;
-    if (now() - watch.checkpointedAt < checkpointIntervalMs) return;
+    const wait = checkpointIntervalMs - (now() - watch.checkpointedAt);
+    if (wait > 0) {
+      if (!watch.trailing) {
+        watch.trailing = setTimeout(() => {
+          watch.trailing = undefined;
+          void checkpoint(watch);
+        }, wait);
+        watch.trailing.unref();
+      }
+      return;
+    }
+    clearTimeout(watch.trailing);
+    watch.trailing = undefined;
     watch.checkpointedEvents = watch.events.length;
     watch.checkpointedAt = now();
     // Best effort: a failed checkpoint only loses what a restart would keep; the stream goes on.
@@ -225,6 +245,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
           console.error(`[assistant-run-finalizer] watching run ${runId} failed`, error);
         })
         .finally(() => {
+          clearTimeout(watch.trailing);
           active.delete(runId);
         });
       active.set(runId, { watch, done });
