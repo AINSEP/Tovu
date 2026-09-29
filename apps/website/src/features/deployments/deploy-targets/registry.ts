@@ -1,13 +1,6 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
-import { resolveAgentPluginActivation } from "#src/features/agent-plugins/activation";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests, type BundledAgentPluginDigests } from "#src/features/agent-plugins/bundled-digests";
-import type { InstalledAgentPlugin } from "#src/features/agent-plugins/install";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { assertContainedOnDisk, PackagePathViolation } from "#src/features/agent-plugins/package-paths";
-import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
+import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
 
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
@@ -20,7 +13,7 @@ import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEn
  * export is a `DeployTargetModule` (`types.ts`).
  *
  * TRUST RULE (fail closed). Importing a module runs its code in this process, so a module is loaded
- * only when all of these hold:
+ * only when all of these hold (enforced by the shared gate, `features/agent-plugins/trusted-plugin-files.ts`):
  * 1. the plugin is ACTIVE by the fail-closed reader (`resolveAgentPluginActivation`) — an unreadable
  *    activation record refuses rather than reading as consent;
  * 2. its installed digest is the one `bundled-digests.json` records for it — the build's own seed,
@@ -52,8 +45,6 @@ interface PluginLoad {
   readonly refusals: readonly string[];
 }
 
-const NOTHING: PluginLoad = { targets: [], refusals: [] };
-
 /**
  * Builds this workspace's deploy-target registry from its installed Agent Plugins.
  *
@@ -65,42 +56,27 @@ const NOTHING: PluginLoad = { targets: [], refusals: [] };
  * @complexity O(p) installed plugins, each one small file read plus one import per declared target.
  */
 export async function loadDeployTargetRegistry(ctx: { readonly workspaceId: string }): Promise<DeployTargetRegistry> {
-  const layout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
-  const bundled = await readBundledAgentPluginDigests(layout.root);
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(layout.packages), bundled);
+  const verdicts = await findTrustedPluginPackages({ workspaceId: ctx.workspaceId, filename: DEPLOY_TARGETS_FILENAME, contribution: "deploy targets", requireActive: true });
 
   const targets: LoadedDeployTarget[] = [];
   const refusals: string[] = [];
-  for (const plugin of installed) {
-    const load = await loadPluginTargets(plugin, bundled, layout.root);
+  for (const verdict of verdicts) {
+    if ("refusal" in verdict) {
+      refusals.push(verdict.refusal);
+      continue;
+    }
+    const load = await loadPackageTargets(verdict.trusted);
     targets.push(...load.targets);
     refusals.push(...load.refusals);
   }
   return buildRegistry(targets, refusals);
 }
 
-/** One installed plugin's contribution: nothing when it ships no descriptor or is switched off,
- *  otherwise its loadable targets and a refusal for everything else. @complexity O(t) targets. */
-async function loadPluginTargets(plugin: InstalledAgentPlugin, bundled: BundledAgentPluginDigests, workspaceRoot: string): Promise<PluginLoad> {
-  if (!plugin.files.includes(DEPLOY_TARGETS_FILENAME)) return NOTHING;
-  const refuse = (reason: string): PluginLoad => ({ targets: [], refusals: [`deploy targets from '${plugin.pluginId}' were not loaded: ${reason}`] });
-
-  const activation = await resolveAgentPluginActivation(workspaceRoot, plugin.pluginId);
-  if (activation.verdict === "inactive") return NOTHING;
-  if (activation.verdict === "undetermined") return refuse(`its activation could not be read (${activation.reason})`);
-
-  if (bundled.get(plugin.pluginId) !== plugin.archiveDigest) {
-    return refuse(`only plugins shipped with Tovu may add deploy targets (installed digest ${plugin.archiveDigest.slice(0, 12)} is not the one this build shipped)`);
-  }
-
-  return loadPackageTargets(plugin);
-}
-
 /** A package's own targets, trusted: parses its descriptor file and imports each module. Every trust
- *  gate is the CALLER's job ({@link loadPluginTargets}, or the hermetic source registry below).
+ *  gate is the CALLER's job ({@link loadDeployTargetRegistry}, or the hermetic source registry below).
  *  @complexity O(t) targets, one import each. */
 async function loadPackageTargets(plugin: TargetPackage): Promise<PluginLoad> {
-  const parsed = parseDeployTargetsFile(await readFile(path.join(plugin.packageRoot, DEPLOY_TARGETS_FILENAME), "utf8"));
+  const parsed = parseDeployTargetsFile(await readTrustedPluginFile(plugin, DEPLOY_TARGETS_FILENAME));
   if (!parsed.ok) return { targets: [], refusals: [`deploy targets from '${plugin.pluginId}' were not loaded: ${DEPLOY_TARGETS_FILENAME} is invalid: ${parsed.reason}`] };
 
   const targets: LoadedDeployTarget[] = [];
@@ -114,10 +90,7 @@ async function loadPackageTargets(plugin: TargetPackage): Promise<PluginLoad> {
 }
 
 /** The two facts {@link loadPackageTargets} needs about a package: whose it is and where it lives. */
-interface TargetPackage {
-  readonly pluginId: string;
-  readonly packageRoot: string;
-}
+type TargetPackage = TrustedPluginPackage;
 
 /**
  * A registry read straight from a plugin's SOURCE directory, with no install, activation or digest
@@ -135,21 +108,9 @@ export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage):
 /** Imports one module after the containment check. Returns the module, or the refusal reason.
  *  @complexity One `realpath` walk plus one dynamic import. */
 async function loadTargetModule(plugin: TargetPackage, descriptor: DeployTargetDescriptor): Promise<DeployTargetModule | string> {
-  let modulePath: string;
-  try {
-    modulePath = await assertContainedOnDisk(plugin.packageRoot, descriptor.module);
-  } catch (error) {
-    if (error instanceof PackagePathViolation) return `module path '${descriptor.module}' escapes the plugin root`;
-    throw error;
-  }
-
-  let imported: { readonly default?: unknown };
-  try {
-    imported = (await import(pathToFileURL(modulePath).href)) as { readonly default?: unknown };
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  const candidate = imported.default;
+  const imported = await importContainedModule(plugin, descriptor.module);
+  if (typeof imported === "string") return imported;
+  const candidate = imported.exported;
   if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
   return candidate as unknown as DeployTargetModule;
 }
