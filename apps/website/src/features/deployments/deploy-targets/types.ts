@@ -1,10 +1,12 @@
 import type {
   DeployError,
+  assertNotRedirected,
   DeployPublishInput,
   DeployTarget,
   JsonObject,
   checkDeploymentUrl,
   normalizeDeploymentUrl,
+  redirectGuardInit,
   safeDnsLabel,
   safeProjectLabel,
   waitForReachableDeploymentUrl,
@@ -62,6 +64,10 @@ export interface DeployHostKit {
   readonly normalizeDeploymentUrl: typeof normalizeDeploymentUrl;
   readonly safeDnsLabel: typeof safeDnsLabel;
   readonly safeProjectLabel: typeof safeProjectLabel;
+  /** devops' redirect guard: a request built with `redirectGuardInit` never follows a redirect, and
+   *  `assertNotRedirected` fails a 3xx instead of sending the token on to another host. */
+  readonly redirectGuardInit: typeof redirectGuardInit;
+  readonly assertNotRedirected: typeof assertNotRedirected;
   readonly DeployError: typeof DeployError;
 }
 

@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages.
+description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages, Vercel.
 ---
 
 # Deploy the site to a host
@@ -11,9 +11,9 @@ This plugin owns **publishing the site's static export to a hosting service**. T
 site to plain files, and the chosen host serves them. The host code ships inside this plugin; Tovu runs
 it only because Tovu shipped it.
 
-Hosts this plugin runs today: **Netlify** (`references/netlify.md`) and **Cloudflare Pages**
-(`references/cloudflare-pages.md`). The other hosts Tovu offers (GitHub Pages, Vercel, S3-compatible
-buckets) still publish through Tovu's older built-in path and move in here one at a time. The tools below work the same for every host.
+Hosts this plugin runs today: **Netlify** (`references/netlify.md`), **Cloudflare Pages**
+(`references/cloudflare-pages.md`) and **Vercel** (`references/vercel.md`). The other hosts Tovu offers
+(GitHub Pages, S3-compatible buckets) still publish through Tovu's older built-in path and move in here one at a time. The tools below work the same for every host.
 
 ## The procedure
 
@@ -34,7 +34,8 @@ buckets) still publish through Tovu's older built-in path and move in here one a
 ## Security headers
 
 Tovu hands every host the live site's security headers. Netlify and Cloudflare Pages get them as a
-`_headers` file this plugin writes; a root `_headers` file in the site itself is replaced by it.
+`_headers` file, Vercel as a `vercel.json`, both written by this plugin; the site's own root copy is
+replaced.
 
 ## When it fails
 

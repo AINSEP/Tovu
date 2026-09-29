@@ -17,7 +17,7 @@ import type {
   HostDeployPublishInput,
   LoadedDeployTarget,
 } from "#src/features/deployments/deploy-targets/types";
-import { renderHeadersFile } from "#src/features/site-export/static-security-headers";
+import { renderHeadersFile, renderVercelConfig } from "#src/features/site-export/static-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import { publishStaticSite, type StaticPublishDeps } from "../adapter.js";
@@ -37,6 +37,7 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 
 const NETLIFY_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/netlify.mjs");
 const CLOUDFLARE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/cloudflare-pages.mjs");
+const VERCEL_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/vercel.mjs");
 
 function credentialSource(extra: Record<string, string> = {}): PublishCredentialSource {
   return {
@@ -169,6 +170,37 @@ test("the REAL plugin Cloudflare Pages module, fed through the adapter, sends _h
   assert.equal(result.ok, true, JSON.stringify(result));
   assert.equal(await (deployForm?.get("_headers") as File).text(), renderHeadersFile());
   assert.equal(Object.keys(JSON.parse(String(deployForm?.get("manifest")))).includes("/_headers"), false);
+});
+
+test("the REAL plugin Vercel module, fed through the adapter, posts exactly one vercel.json rendered from the live header set", async (t) => {
+  const vercel = ((await import(pathToFileURL(VERCEL_MODULE_PATH).href)) as { default: DeployTargetModule }).default;
+  let posted: string[] = [];
+  let vercelJson: string | undefined;
+  const realFetch = globalThis.fetch;
+  t.mock.method(globalThis, "fetch", async (input: string | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    // The export itself fetches every page from the in-process app over loopback: let those through.
+    if (!url.includes("vercel")) return realFetch(input, init);
+    const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+    if (init.method === "POST" && url.includes("/v13/deployments")) {
+      const files = JSON.parse(String(init.body)).files as Array<{ file: string; data: string }>;
+      posted = files.map((file) => file.file);
+      vercelJson = Buffer.from(files.find((file) => file.file === "vercel.json")?.data ?? "", "base64").toString("utf8");
+      return json(200, { id: "dpl_1", readyState: "QUEUED", url: "demo.vercel.app" });
+    }
+    if (url.includes("/v13/deployments/dpl_1")) return json(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
+    if (url.startsWith("https://demo.vercel.app")) return new Response("", { status: 200 });
+    throw new Error(`unexpected Vercel call: ${init.method ?? "GET"} ${url}`);
+  });
+
+  const result = await publishWith(
+    { loadDeployTargets: async () => registryOf([loaded("vercel", vercel)]), hostKit: { ...createDeployHostKit(), sleep: async () => undefined } },
+    { target: "vercel" },
+  );
+
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(posted.filter((file) => file === "vercel.json").length, 1);
+  assert.equal(vercelJson, renderVercelConfig());
 });
 
 test("an id the registry does not know keeps the legacy branch (cloudflare-pages still demands an accountId there)", async () => {
