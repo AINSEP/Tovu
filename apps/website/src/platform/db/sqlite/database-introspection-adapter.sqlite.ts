@@ -7,6 +7,9 @@ import { sql } from "kysely";
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
 import { getDriftStatus } from "../drift.js";
 import { tableExists } from "../kernel/dialect.js";
+import { LEGACY_BASELINE_ID } from "../migrations/0000_legacy_baseline.js";
+import { CONTENT_MIGRATIONS } from "../migrations/index.js";
+import { LEDGER_TABLE } from "../migrations/runner.js";
 import type {
   DatabaseHealthSummary,
   DatabaseIntrospectionPort,
@@ -16,7 +19,7 @@ import type {
 import type { ContentDb } from "./content-db.js";
 import type { SchemaSnapshot } from "../drift.js";
 
-const MIGRATIONS_TABLE = "__drizzle_migrations";
+const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
 
 /**
  * @file SPEC-017 C-102/C-110 / REQ-20–REQ-23 — the real backing adapter for
@@ -36,6 +39,11 @@ const MIGRATIONS_TABLE = "__drizzle_migrations";
  * possible without a second identity column.
  *
  * How it relates to the project:
+ * Postgres/PGlite has no `__drizzle_migrations`: its ledger is `tovu_migrations` (ADR-066). There, a
+ * pending migration is a `CONTENT_MIGRATIONS` step missing from that ledger, and the applied schema
+ * identity is the bundled journal's head once `0000_legacy_baseline` (everything the drizzle chain was
+ * at the freeze) is recorded — the same identity `.site-meta.json` is stamped with on every dialect.
+ *
  * `server/deps.ts` composes the real `SqliteDatabaseIntrospectionAdapter` against the SAME already-
  * open `ContentDb` handle `restorePointsRepo`/`dbOps` reuse (no second connection is ever opened);
  * `server/app.ts`'s hermetic composition uses `repo.memory.ts`'s `InMemoryDatabaseIntrospectionAdapter`
@@ -84,8 +92,9 @@ const DEFAULT_JOURNAL_PATH = path.resolve(path.dirname(fileURLToPath(import.meta
  * Real `DatabaseIntrospectionPort` over the site's content store. Reuses the caller's already-open
  * connection (the same one `openContentDb`/`bootSiteDir` already migrated) through its kernel rather
  * than opening a second handle to the same file — mirrors `SqliteDbOpsAdapter`'s `{ db, filePath }`
- * constructor shape. A store with no `__drizzle_migrations` table reports it unreadable and its
- * schema state `unknown`, never a guess.
+ * constructor shape. A store with no migrations ledger (`__drizzle_migrations` on SQLite,
+ * `tovu_migrations` on Postgres/PGlite) reports it unreadable and its schema state `unknown`, never a
+ * guess.
  */
 export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospectionPort {
   private readonly kernel: ContentKernel;
@@ -133,6 +142,11 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    * @overallScore 100
    */
   async listPendingMigrations(): Promise<{ items: PendingMigration[] }> {
+    if (this.kernel.dialect === "postgres") {
+      const applied = await this.readLedgerIds();
+      const pending = CONTENT_MIGRATIONS.map((step, index) => ({ index, tag: step.id })).filter((item) => !applied.has(item.tag));
+      return { items: pending };
+    }
     const journal = this.readJournal();
     if (!journal) return { items: [] };
 
@@ -154,9 +168,14 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
     }
   }
 
+  /** The dialect's migration ledger: `tovu_migrations` on Postgres/PGlite, `__drizzle_migrations` on SQLite. */
+  private migrationsTable(): string {
+    return this.kernel.dialect === "postgres" ? LEDGER_TABLE : DRIZZLE_MIGRATIONS_TABLE;
+  }
+
   private async migrationsTableExists(): Promise<boolean> {
     try {
-      return await tableExists(this.kernel, MIGRATIONS_TABLE);
+      return await tableExists(this.kernel, this.migrationsTable());
     } catch {
       return false;
     }
@@ -165,7 +184,7 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
   private async canReadMigrationsTable(): Promise<boolean> {
     if (!(await this.migrationsTableExists())) return false;
     try {
-      await this.kernel.query(sql`SELECT COUNT(*) AS n FROM ${sql.table(MIGRATIONS_TABLE)}`);
+      await this.kernel.query(sql`SELECT COUNT(*) AS n FROM ${sql.table(this.migrationsTable())}`);
       return true;
     } catch {
       return false;
@@ -193,12 +212,13 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    * entry in the bundled journal (a divergent-lineage case this adapter refuses to guess at, rather
    * than fabricating a snapshot). */
   private async readAppliedSnapshot(): Promise<SchemaSnapshot | null> {
+    if (this.kernel.dialect === "postgres") return this.readAppliedPostgresSnapshot();
     if (!(await this.migrationsTableExists())) return null;
 
     let latest: { hash: string; created_at: number | string } | undefined;
     try {
       [latest] = await this.kernel.query<{ hash: string; created_at: number | string }>(
-        sql`SELECT hash, created_at FROM ${sql.table(MIGRATIONS_TABLE)} ORDER BY created_at DESC LIMIT 1`
+        sql`SELECT hash, created_at FROM ${sql.table(DRIZZLE_MIGRATIONS_TABLE)} ORDER BY created_at DESC LIMIT 1`
       );
     } catch {
       return null;
@@ -212,11 +232,30 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
     return matchingEntry ? { version: matchingEntry.idx, tag: matchingEntry.tag } : null;
   }
 
+  /** Postgres/PGlite: the bundled journal's head once `0000_legacy_baseline` is in `tovu_migrations`
+   * (the baseline is the whole frozen drizzle chain), else `null` (no ledger, or no baseline yet). */
+  private async readAppliedPostgresSnapshot(): Promise<SchemaSnapshot | null> {
+    if (!(await this.readLedgerIds()).has(LEGACY_BASELINE_ID)) return null;
+    const head = this.readJournal()?.entries.at(-1);
+    return head ? { version: head.idx, tag: head.tag } : null;
+  }
+
+  /** Postgres/PGlite: the step ids recorded in `tovu_migrations`; empty when it is missing or unreadable. */
+  private async readLedgerIds(): Promise<Set<string>> {
+    if (!(await this.migrationsTableExists())) return new Set();
+    try {
+      const rows = await this.kernel.query<{ id: string }>(sql`SELECT id FROM ${sql.table(LEDGER_TABLE)}`);
+      return new Set(rows.map((row) => row.id));
+    } catch {
+      return new Set();
+    }
+  }
+
   private async readAppliedTimestamps(): Promise<Set<number>> {
     if (!(await this.migrationsTableExists())) return new Set();
     try {
       const rows = await this.kernel.query<{ created_at: number | string }>(
-        sql`SELECT created_at FROM ${sql.table(MIGRATIONS_TABLE)}`
+        sql`SELECT created_at FROM ${sql.table(DRIZZLE_MIGRATIONS_TABLE)}`
       );
       return new Set(rows.map((row) => Number(row.created_at)));
     } catch {
