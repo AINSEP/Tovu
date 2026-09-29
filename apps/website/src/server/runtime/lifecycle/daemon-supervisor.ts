@@ -422,6 +422,9 @@ export interface DaemonSpawnEnvInput {
    *  CLI's `<dir>` argument for `cli/commands/serve.ts`) — see {@link buildDaemonSpawnEnvOverrides}. */
   siteDir: string;
   daemonPortOverride: string | undefined;
+  /** A PGlite site's owner socket (`SiteStore.pgliteSocketPath`), passed as `TOVU_PG_SOCKET` so the
+   *  daemon, a store client, connects to the socket this process serves. Absent on SQLite/Postgres. */
+  pgSocketPath?: string;
 }
 
 /**
@@ -453,6 +456,7 @@ export function buildDaemonSpawnEnvOverrides(input: DaemonSpawnEnvInput): NodeJS
     // `agent-daemon-server.ts:133`) and bind somewhere the proxy above never asked it to listen.
     ...(input.daemonPortOverride !== undefined ? { JINI_AGENT_DAEMON_PORT: input.daemonPortOverride } : {}),
     ...(process.env.TOVU_SITE_DIR === undefined ? { TOVU_SITE_DIR: input.siteDir } : {}),
+    ...(input.pgSocketPath !== undefined ? { TOVU_PG_SOCKET: input.pgSocketPath } : {}),
   };
 }
 
@@ -592,7 +596,7 @@ export interface StartAssistantDaemonOptions {
  * would fight the first one for the same port and the same `process.on(signal, ...)` slot.
  */
 export function startAssistantDaemon(
-  input: { workspaceId: string; siteDir: string },
+  input: { workspaceId: string; siteDir: string; pgSocketPath?: string },
   options: StartAssistantDaemonOptions = {},
 ): void {
   if (shutdownRequested) {
@@ -612,7 +616,8 @@ export function startAssistantDaemon(
   const daemonPortOverride = getAgentDaemonPortForSpawnEnv();
   const spawnDaemonProcess = options.spawnDaemonProcess ?? spawnRealDaemonProcessFor;
   const supervisor = createDaemonSupervisor({
-    spawnDaemonProcess: () => spawnDaemonProcess({ workspaceId: input.workspaceId, siteDir: input.siteDir, daemonPortOverride }),
+    spawnDaemonProcess: () =>
+      spawnDaemonProcess({ workspaceId: input.workspaceId, siteDir: input.siteDir, daemonPortOverride, pgSocketPath: input.pgSocketPath }),
     daemonPort: daemonPortOverride,
   });
   singleton = supervisor;

@@ -596,6 +596,11 @@ export interface CreateSiteRouteDepsOverrides {
    * boot never opens a second pool. The composition does not close it; its opener does.
    */
   store: SiteStore;
+  /**
+   * Called once with the store this call opened itself (not a supplied `db`/`store`), so the default
+   * boot (`index.ts`) can close it on shutdown and hand a PGlite owner's socket to the agent daemon.
+   */
+  onStoreOpened: (store: SiteStore) => void;
 }
 
 /**
@@ -727,6 +732,7 @@ async function openCompositionStore(dbPath: string, overrides?: Partial<CreateSi
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
   const store = await openSiteStore({ storage, dbPath, chatDbPath: defaultChatDbPath(dbPath), role }, { db: overrides?.db });
+  overrides?.onStoreOpened?.(store);
   if (role === "owner") startChatExpirySweep(store.chat);
   return store;
 }

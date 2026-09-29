@@ -71,3 +71,11 @@ test("buildDaemonSpawnEnvOverrides never touches TOVU_CONTENT_DB / TOVU_MEDIA_UP
     assert.equal(key in overrides, false, `${key} must remain independently overridable — this function must not set it`);
   }
 });
+
+test("a PGlite site's owner socket is handed to the daemon as TOVU_PG_SOCKET; other sites get no such var", () => {
+  const pglite = buildDaemonSpawnEnvOverrides({ workspaceId: "workspace-1", siteDir: "/site/A", daemonPortOverride: undefined, pgSocketPath: "/tmp/owner/.s.PGSQL.5432" });
+  assert.equal(pglite.TOVU_PG_SOCKET, "/tmp/owner/.s.PGSQL.5432");
+
+  const sqlite = buildDaemonSpawnEnvOverrides({ workspaceId: "workspace-1", siteDir: "/site/A", daemonPortOverride: undefined });
+  assert.equal("TOVU_PG_SOCKET" in sqlite, false, "a SQLite (or Postgres) site's daemon env is unchanged");
+});

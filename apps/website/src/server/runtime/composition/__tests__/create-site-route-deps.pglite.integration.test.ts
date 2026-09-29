@@ -18,7 +18,7 @@ import { initSite } from "#src/platform/site-dir/init-site";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
-import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME } from "../open-site-store.js";
+import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, type SiteStore } from "../open-site-store.js";
 
 /**
  * @file R1f part 2: a site whose `.site-meta.json` says `storage: pglite` boots the real composition.
@@ -174,4 +174,32 @@ test("owner boot: PGlite data dir in the site folder, no SQLite store, routes re
   assert.ok(fs.existsSync(socketPath), "a new owner serves again");
   await store.close();
   assert.equal(fs.existsSync(socketPath), false, "closing the store stops serving");
+});
+
+test("a daemon composition started before the owner serves waits for the socket, then connects and sees the owner's rows", async () => {
+  const dbPath = path.join(siteDir, "content.db");
+  // The agent daemon's composition (`createAgentDaemonRouteDeps` → role "client"), socket from TOVU_PG_SOCKET.
+  let clientStore: SiteStore | undefined;
+  const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => (clientStore = store) });
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(clientStore, undefined, "the client is still waiting: nobody serves the socket yet");
+
+  const owner = await openSiteStore({ storage: { kind: "pglite" }, dbPath, chatDbPath: path.join(siteDir, "chat.db"), role: "owner" });
+  try {
+    await owner.content.run((db) =>
+      db.updateTable("posts").set({ title: "Renamed while the daemon waited" }).where("title", "=", "Written by the owner").execute()
+    );
+    const deps = await clientDeps;
+    try {
+      assert.ok(clientStore, "the daemon's store opened once the owner served");
+      assert.equal(clientStore.pgliteSocketPath, socketPath, "the client used the socket TOVU_PG_SOCKET names");
+      const titles = (await clientStore.content.run((db) => db.selectFrom("posts").select("title").execute())).map((r) => r.title);
+      assert.ok(titles.includes("Renamed while the daemon waited"), JSON.stringify(titles));
+    } finally {
+      await drainBootReadiness(deps).catch(() => undefined);
+      await clientStore?.close();
+    }
+  } finally {
+    await owner.close();
+  }
 });

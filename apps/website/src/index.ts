@@ -3,6 +3,7 @@ import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
 import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
+import type { SiteStore } from "./server/runtime/composition/open-site-store.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoRootKeyAtBoot } from "./server/runtime/boot/root-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
@@ -277,7 +278,11 @@ async function main(): Promise<void> {
   // adopted or minted.
   if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findKeyDependentData });
 
-  const deps = useMemory ? createRouteDeps() : await createSiteRouteDeps();
+  // The store the composition opens: a PGlite owner's socket goes to the agent daemon below.
+  let siteStore: SiteStore | undefined;
+  const deps = useMemory
+    ? createRouteDeps()
+    : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
   // `server/runtime/boot/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
@@ -392,7 +397,7 @@ async function main(): Promise<void> {
     ])
       .then(async () => {
         if (!(await agentDaemonWanted(deps))) return;
-        startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir: siteDir() });
+        startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath });
       })
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);

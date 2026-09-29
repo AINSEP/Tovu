@@ -456,7 +456,10 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
       ])
         .then(async () => {
           if (!(await agentDaemonWanted(deps))) return;
-          startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir: target }, { registerProcessSignalHandlers: false });
+          startAssistantDaemon(
+            { workspaceId: deps.workspaceId, siteDir: target, pgSocketPath: bootResult.store?.pgliteSocketPath },
+            { registerProcessSignalHandlers: false }
+          );
         })
         .catch((error: unknown) => {
           console.error("[cli/serve] a boot-readiness promise rejected — not starting the agent daemon", error);
