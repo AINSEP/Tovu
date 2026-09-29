@@ -101,6 +101,16 @@ test("a file only the first old migration built gets storage_ledger renamed, row
   }
 });
 
+// The schema is raw DDL now, so drizzle-kit sees no tables there and would generate a migration
+// dropping all three; `drizzle-database-journal/` stays only as the legacy-file fixture above.
+test("no drizzle-kit target or dist copy points at the journal any more", () => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../../..");
+  const scripts = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")).scripts as Record<string, string>;
+  const offenders = Object.entries(scripts).filter(([, command]) => /cp -R \S*drizzle-database-journal|database-journal\.config/.test(command));
+  assert.deepEqual(offenders.map(([name]) => name), []);
+  assert.equal(fs.existsSync(path.join(repoRoot, "apps/website/src/platform/db/drizzle.database-journal.config.ts")), false);
+});
+
 test("a file that is not a database fails every call with the open error", async (t) => {
   const filePath = tempJournalPath(t);
   fs.writeFileSync(filePath, "this is not a sqlite database, just some text long enough to be a header ".repeat(4));
