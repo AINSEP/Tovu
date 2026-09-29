@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import Database from "better-sqlite3";
+
 import { computeCoreTableCopyOrder } from "#src/platform/db/migration/manifest";
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { closeSqliteConnection } from "#src/platform/db/kernel/index";
+import { migrateSqliteContentFile, openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";
 import { connectionFor, dropDatabase, recreateDatabase, sql } from "./pg-test-db.js";
 import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
 
@@ -27,12 +30,39 @@ const FIXTURE_DB = `tovu_transfer_fixture_${process.pid}`;
 const CONNECTION = connectionFor(FIXTURE_DB);
 const TRICKY_TEXT = "tab\there\nnew line \\ backslash \\N not-null 'quote' \"dq\" é ✓";
 
-/** A migrated content.db with rows that exercise every COPY escape, a jsonb and a boolean column, and an excluded table. */
-function fixtureSnapshot(extra?: (c: ReturnType<typeof openContentDb>["$client"]) => void): Buffer {
+/** A content.db built the way a site's boot builds it (the migration runner: `tovu_migrations` ledger, no empty legacy chat tables). */
+let migratedBase: Buffer | undefined;
+
+async function buildMigratedBase(): Promise<Buffer> {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-transfer-"));
   try {
-    const db = openContentDb(path.join(dir, "content.db"));
-    const c = db.$client;
+    const filePath = path.join(dir, "content.db");
+    const db = openSqliteContentConnection(filePath);
+    try {
+      await migrateSqliteContentFile(db, filePath);
+      // Out of WAL, so the bytes open again as an in-memory database.
+      db.$client.pragma("journal_mode = DELETE");
+      return db.$client.serialize();
+    } finally {
+      closeSqliteConnection(db);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** A fresh in-memory copy of the migrated base, foreign keys on (as a site connection has them). */
+function migratedDb(): Database.Database {
+  assert.ok(migratedBase !== undefined, "test.before builds the migrated base first");
+  const c = new Database(migratedBase);
+  c.pragma("foreign_keys = ON");
+  return c;
+}
+
+/** A migrated content.db with rows that exercise every COPY escape, a jsonb and a boolean column, and an excluded table. */
+function fixtureSnapshot(extra?: (c: Database.Database) => void): Buffer {
+  const c = migratedDb();
+  try {
     extra?.(c);
     c.prepare(
       "INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES (?, 'ws', ?, ?, 'published', ?, '[]', '2026-09-27T00:00:00.000Z', 1)"
@@ -42,11 +72,9 @@ function fixtureSnapshot(extra?: (c: ReturnType<typeof openContentDb>["$client"]
       "INSERT INTO posts (id, workspace_id, title, slug, status, body_json, updated_at, version, overrides_theme_page) VALUES ('post-1', 'ws', 'Hello', 'hello', 'draft', '{}', '2026-09-27T00:00:00.000Z', 1, 1)"
     ).run();
     c.prepare("INSERT INTO identity_users (principal_id, workspace_id, username, password_hash) VALUES ('p1', 'ws', 'owner', 'scrypt$secret-hash')").run();
-    const bytes = c.serialize();
-    c.close();
-    return bytes;
+    return c.serialize();
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    c.close();
   }
 }
 
@@ -82,7 +110,10 @@ async function copyInto(schema: string, site: string): Promise<CopyResult> {
   }
 }
 
-test.before(() => recreateDatabase(FIXTURE_DB));
+test.before(async () => {
+  migratedBase = await buildMigratedBase();
+  await recreateDatabase(FIXTURE_DB);
+});
 test.after(() => dropDatabase(FIXTURE_DB));
 
 test("the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys", async () => {
@@ -161,15 +192,13 @@ test("two sites share one database: the second gets `tovu_<site>`, each re-copy 
 });
 
 test("a row Postgres rejects rolls the whole copy back and names only the table", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "tovu-transfer-bad-"));
+  const c = migratedDb();
   let bytes: Buffer;
   try {
-    const db = openContentDb(path.join(dir, "content.db"));
-    db.$client.prepare("INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES ('m', 'ws', 's', 't', 'draft', 'not json SECRET-ROW-VALUE', '[]', 'x', 1)").run();
-    bytes = db.$client.serialize();
-    db.$client.close();
+    c.prepare("INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES ('m', 'ws', 's', 't', 'draft', 'not json SECRET-ROW-VALUE', '[]', 'x', 1)").run();
+    bytes = c.serialize();
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    c.close();
   }
   const { schema, result } = await copyAs("bad-row", "x", bytes);
   assert.equal(result.ok, false);
@@ -180,11 +209,9 @@ test("a row Postgres rejects rolls the whole copy back and names only the table"
 });
 
 test("a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "tovu-transfer-settings-"));
+  const c = migratedDb();
   let bytes: Buffer;
   try {
-    const db = openContentDb(path.join(dir, "content.db"));
-    const c = db.$client;
     const define = c.prepare(
       "INSERT INTO setting_definitions (setting_id, version, namespace, key, owner_kind, schema_json, scopes, secret, status, created_at, updated_at) VALUES (?, 1, 'test', ?, 'core', '{}', 3, ?, 'active', 'x', 'x')"
     );
@@ -197,9 +224,8 @@ test("a setting marked secret stays behind (values at every scope and its histor
       "INSERT INTO setting_revisions (entity_kind, setting_id, scope, op, before_json, after_json, def_version, actor, created_at) VALUES ('value', 'set-secret', 'global', 'set', NULL, ?, 1, 'p', 'x')"
     ).run(JSON.stringify("SECRET-SETTING-VALUE"));
     bytes = c.serialize();
-    c.close();
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    c.close();
   }
   const source = openSqliteSnapshotSource(bytes);
   const counts = countSourceRows(source, collectTransferTables());
@@ -305,6 +331,8 @@ test("T2: every table in the snapshot is copied or left out with a reason; a plu
   assert.equal(leftOut.get("post_search_fts"), "search indexes are rebuilt from the content, not copied");
   assert.equal(leftOut.get("post_search_document"), "search indexes are rebuilt from the content, not copied");
   assert.equal(leftOut.get("__drizzle_migrations"), "the database's own bookkeeping is not copied");
+  // The target runs its own migration runner; a copied SQLite ledger would tell it steps had run there.
+  assert.equal(leftOut.get("tovu_migrations"), "the database's own bookkeeping is not copied");
 
   const { schema, result } = await copyAs("plugin-site", "x", bytes);
   assert.ok(result.ok, JSON.stringify(result));

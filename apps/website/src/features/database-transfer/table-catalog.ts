@@ -235,8 +235,14 @@ export interface SnapshotTablePlan {
   readonly leftOut: readonly { readonly table: string; readonly reason: string }[];
 }
 
+/**
+ * The migration ledgers (`tovu_migrations`, `tovu_chat_migrations`, drizzle's own) stay behind: the
+ * target is built to head by its own runner, and a copied SQLite ledger would tell it steps had run there.
+ */
+const MIGRATION_LEDGERS: ReadonlySet<string> = new Set(["__drizzle_migrations", "tovu_migrations", "tovu_chat_migrations"]);
+
 function isBookkeeping(name: string): boolean {
-  return name.startsWith("sqlite_") || name === "__drizzle_migrations" || name.startsWith("_plugin_");
+  return name.startsWith("sqlite_") || MIGRATION_LEDGERS.has(name) || name.startsWith("_plugin_");
 }
 
 /** The reason a non-core table stays behind, or `null` when it is copied. */
