@@ -97,18 +97,10 @@ let currentRun: PublishRunSnapshot = IDLE_RUN;
 /**
  * Maps a settled `outcome` into the durable record this run's publish produced — `undefined` when
  * nothing was actually published (`outcome.ok === false`; see {@link PublishHistoryEntry}'s own doc
- * on why a failure is never recorded at all, not recorded-as-failed). `owner`/`repo`/`branch` are read
- * off `input.config` (present only for `github-pages` — `StaticPublishConfig`'s own per-target split,
- * `./types.ts`) rather than off `outcome`, which carries neither; `branch` falls back to `'gh-pages'`
- * when `config.branch` was omitted, the same default `GitHubPagesDeployTarget` itself applies
- * (`types.ts`'s `GitHubPagesPublishConfig` doc).
- *
- * `commitSha` is derived, not caller-supplied: `outcome.deploymentId` is verified (against
- * `@jini-ai/devops`'s `github-pages.ts`, `publish()`'s own `deploymentId: commitSha` return) to be a
- * real git commit sha for `github-pages` specifically, and something else entirely (a provider's own
- * deployment id) for every other target — so it is copied into `commitSha` ONLY on that one branch,
- * left `undefined` everywhere else. `deploymentId` itself is always carried through unconditionally
- * when the outcome has one, regardless of target.
+ * on why a failure is never recorded at all, not recorded-as-failed). `owner`/`repo`/`branch`/
+ * `commitSha` are the HOST's own facts, read off `outcome.providerMetadata` (whatever the target
+ * module reports, string values only) — never off `input.config`, and never by naming a target here.
+ * `deploymentId` is always carried through when the outcome has one.
  *
  * @complexity O(1) — fixed-shape field mapping, no iteration.
  */
@@ -119,8 +111,7 @@ function toHistoryEntry(
   triggeredBy: PublishTrigger
 ): PublishHistoryEntry | undefined {
   if (!outcome.ok) return undefined;
-  const { config } = input;
-  const isGitHubPages = config.target === "github-pages";
+  const meta = outcome.providerMetadata ?? {};
   return {
     target: outcome.targetId,
     url: outcome.url,
@@ -129,11 +120,19 @@ function toHistoryEntry(
     projectName: input.projectName,
     publishedAt: clock.nowIso(),
     triggeredBy,
-    ...(isGitHubPages ? { owner: config.owner, repo: config.repo, branch: config.branch ?? "gh-pages" } : {}),
+    ...stringField(meta, "owner"),
+    ...stringField(meta, "repo"),
+    ...stringField(meta, "branch"),
+    ...stringField(meta, "commitSha"),
     ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
     ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-    ...(isGitHubPages && outcome.deploymentId !== undefined ? { commitSha: outcome.deploymentId } : {}),
   };
+}
+
+/** `{ [key]: value }` when `meta[key]` is a string, else `{}` — host metadata is untyped data. */
+function stringField<K extends string>(meta: Readonly<Record<string, unknown>>, key: K): { [P in K]?: string } {
+  const value = meta[key];
+  return (typeof value === "string" ? { [key]: value } : {}) as { [P in K]?: string };
 }
 
 /**

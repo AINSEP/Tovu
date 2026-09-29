@@ -236,7 +236,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
     expect(result.deploymentId).toBe('commit-sha-1');
     expect(result.status).toBe('ready');
     expect(result.url).toBe('https://octo.github.io/demo/');
-    expect(result.providerMetadata).toEqual({ owner: 'octo', repo: 'demo', branch: 'gh-pages', branchCreated: true });
+    expect(result.providerMetadata).toEqual({ owner: 'octo', repo: 'demo', branch: 'gh-pages', commitSha: result.deploymentId, branchCreated: true });
 
     expect(blobCalls).toBe(1); // both files share identical content
     expect(buildPollCount).toBe(4);
@@ -365,7 +365,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
 
     const target = new GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
     const result = await target.publish({ files: [], projectName: 'demo' });
-    expect(result.providerMetadata).toEqual({ owner: 'octo', repo: 'demo', branch: 'gh-pages', branchCreated: false });
+    expect(result.providerMetadata).toEqual({ owner: 'octo', repo: 'demo', branch: 'gh-pages', commitSha: result.deploymentId, branchCreated: false });
   });
 
   it('flags sourceBranchMismatch when the existing Pages site is configured against a different branch', async () => {
@@ -386,7 +386,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
 
     const target = new GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
     const result = await target.publish({ files: [], projectName: 'demo' });
-    expect(result.providerMetadata).toEqual({ owner: 'octo', repo: 'demo', branch: 'gh-pages', branchCreated: true, sourceBranchMismatch: true });
+    expect(result.providerMetadata).toEqual({ owner: 'octo', repo: 'demo', branch: 'gh-pages', commitSha: result.deploymentId, branchCreated: true, sourceBranchMismatch: true });
   });
 
   it('uses a caller-supplied branch instead of the gh-pages default', async () => {

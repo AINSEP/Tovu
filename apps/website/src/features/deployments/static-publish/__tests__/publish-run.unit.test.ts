@@ -42,11 +42,11 @@ function testRouteDeps(): ReturnType<typeof createRouteDeps> {
   return deps;
 }
 
-function fakeDeployTarget(url = "https://example.test/published", status = "ready", deploymentId?: string): DeployTarget {
+function fakeDeployTarget(url = "https://example.test/published", status = "ready", deploymentId?: string, providerMetadata?: Record<string, unknown>): DeployTarget {
   return {
     id: "fake",
     async publish(_input: DeployPublishInput): Promise<DeployPublishResult> {
-      return { targetId: "fake", url, status, ...(deploymentId !== undefined ? { deploymentId } : {}) };
+      return { targetId: "fake", url, status, ...(deploymentId !== undefined ? { deploymentId } : {}), ...(providerMetadata !== undefined ? { providerMetadata } : {}) };
     },
     async checkReachability() {
       return { reachable: true, status: "ready" as const };
@@ -102,7 +102,10 @@ function githubInput(routeDeps: ReturnType<typeof createRouteDeps>): StaticPubli
 
 test("runPublishAndAwait: a full success records history with owner/repo/basePath/branch/commitSha, reachable:true, triggeredBy:agent_tool", async () => {
   const routeDeps = testRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://example.test/published", "ready", "commit-sha-abc123") };
+  // owner/repo/branch/commitSha are the HOST's own facts (`providerMetadata`), not the request's:
+  // the branch here differs from the config's (absent) one to prove which side is read.
+  const providerMetadata = { owner: "octo", repo: "my-site", branch: "gh-pages", commitSha: "commit-sha-abc123", branchCreated: false };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://example.test/published", "ready", "commit-sha-abc123", providerMetadata) };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
 
@@ -119,18 +122,31 @@ test("runPublishAndAwait: a full success records history with owner/repo/basePat
   assert.equal(recorded!.owner, "octo");
   assert.equal(recorded!.repo, "my-site");
   assert.equal(recorded!.basePath, "/my-site");
-  // github-pages only: `branch` defaults to 'gh-pages' when `config.branch` was omitted (matches
-  // `GitHubPagesDeployTarget`'s own default), and `commitSha` is the outcome's `deploymentId` —
-  // genuinely a commit sha for THIS target, per `toHistoryEntry`'s own doc.
+  // Read off the outcome's providerMetadata (strings only), so core names no host.
   assert.equal(recorded!.branch, "gh-pages");
   assert.equal(recorded!.deploymentId, "commit-sha-abc123");
   assert.equal(recorded!.commitSha, "commit-sha-abc123");
   assert.equal(recorded!.triggeredBy, "agent_tool", "runPublishAndAwait is the agent tool's own entry point");
 });
 
+test("runPublishAndAwait: history's owner/repo/branch/commitSha come from providerMetadata, never the request config; non-string metadata is dropped", async () => {
+  const routeDeps = testRouteDeps();
+  const providerMetadata = { owner: "octo", repo: "my-site", branch: "main", commitSha: "sha-from-host", branchCreated: true };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://example.test/p", "ready", "dpl-other", providerMetadata) };
+  const history = new InMemoryPublishHistoryStore();
+
+  await runPublishAndAwait(deps, { ...githubInput(routeDeps), config: { target: "github-pages", owner: "octo", repo: "my-site", branch: "gh-pages" } }, clock, history);
+
+  const recorded = await history.getLast({ workspaceId: routeDeps.workspaceId, target: "github-pages" });
+  assert.ok(recorded);
+  assert.equal(recorded!.branch, "main");
+  assert.equal(recorded!.commitSha, "sha-from-host");
+  assert.equal(recorded!.deploymentId, "dpl-other");
+});
+
 test("runPublishAndAwait: a non-github-pages target never carries commitSha/branch, even though deploymentId is still recorded verbatim", async () => {
   const routeDeps = testRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://demo.vercel.app", "ready", "dpl_not_a_commit") };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://demo.vercel.app", "ready", "dpl_not_a_commit") };
   const history = new InMemoryPublishHistoryStore();
   const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, publishOutputRootDir: routeDeps.publishOutputRootDir, idGen: routeDeps.idGen, exportSiteBound: routeDeps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" };
 
@@ -147,7 +163,7 @@ test("runPublishAndAwait: a non-github-pages target never carries commitSha/bran
 
 test("runPublishAndAwait: a partial (uploaded, not yet reachable) outcome is still recorded, with reachable:false", async () => {
   const routeDeps = testRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => partialDeployTarget() };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => partialDeployTarget() };
   const history = new InMemoryPublishHistoryStore();
   const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, publishOutputRootDir: routeDeps.publishOutputRootDir, idGen: routeDeps.idGen, exportSiteBound: routeDeps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" };
 
@@ -162,7 +178,7 @@ test("runPublishAndAwait: a partial (uploaded, not yet reachable) outcome is sti
 
 test("runPublishAndAwait: a failed outcome is never recorded — no history for a publish that did not happen", async () => {
   const routeDeps = testRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => failingDeployTarget() };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => failingDeployTarget() };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
 
@@ -174,7 +190,7 @@ test("runPublishAndAwait: a failed outcome is never recorded — no history for 
 
 test("runPublishAndAwait: a history-store failure never changes the reported outcome — best-effort only", async () => {
   const routeDeps = testRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget() };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() };
   const brokenHistory = {
     async getLast() {
       return null;
@@ -191,7 +207,7 @@ test("runPublishAndAwait: a history-store failure never changes the reported out
 
 test("startPublishRun: the fire-and-forget path records history too, once the background publish settles", async () => {
   const routeDeps = testRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://example.test/bg", "ready") };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget("https://example.test/bg", "ready") };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
 

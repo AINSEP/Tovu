@@ -154,6 +154,7 @@ export function bindGitHubPages(kit) {
                   owner,
                   repo,
                   branch,
+                  commitSha,
                   branchCreated: !parentSha,
                   ...(sourceBranchMismatch ? { sourceBranchMismatch: true } : {}),
               },
