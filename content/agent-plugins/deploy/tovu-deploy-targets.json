@@ -4,6 +4,7 @@
     { "id": "netlify", "label": "Netlify", "module": "targets/netlify.mjs" },
     { "id": "cloudflare-pages", "label": "Cloudflare Pages", "module": "targets/cloudflare-pages.mjs" },
     { "id": "vercel", "label": "Vercel", "module": "targets/vercel.mjs" },
-    { "id": "github-pages", "label": "GitHub Pages", "module": "targets/github-pages.mjs" }
+    { "id": "github-pages", "label": "GitHub Pages", "module": "targets/github-pages.mjs" },
+    { "id": "s3-compatible", "label": "S3-compatible storage", "module": "targets/s3-compatible.mjs" }
   ]
 }

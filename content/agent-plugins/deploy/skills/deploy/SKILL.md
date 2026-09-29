@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages, Vercel, GitHub Pages.
+description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages, Vercel, GitHub Pages, S3-compatible storage.
 ---
 
 # Deploy the site to a host
@@ -13,7 +13,8 @@ it only because Tovu shipped it.
 
 Hosts this plugin runs today: **Netlify** (`references/netlify.md`), **Cloudflare Pages**
 (`references/cloudflare-pages.md`), **Vercel** (`references/vercel.md`) and **GitHub Pages**
-(`references/github-pages.md`). S3-compatible buckets still publish through Tovu's older built-in path and move in here one at a time. The tools below work the same for every host.
+(`references/github-pages.md`), plus **S3-compatible storage** (AWS S3, Cloudflare R2, Backblaze B2,
+MinIO, ...), whose bucket and keys all live on the saved credential. The tools below work the same for every host.
 
 ## The procedure
 

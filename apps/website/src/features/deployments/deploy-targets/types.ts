@@ -48,6 +48,21 @@ export interface DeployFetchTimeouts {
   readonly UPLOAD: number;
 }
 
+/** What {@link DeployHostKit.createSigV4Client} takes: an access-key pair scoped to one service and
+ *  region, the shape every S3-compatible store (and any other SigV4 API) signs with. */
+export interface SigV4ClientOptions {
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+  readonly service: string;
+  readonly region: string;
+}
+
+/** A client whose `fetch` signs each request with AWS Signature Version 4 before sending it through
+ *  the global `fetch`, retrying a 5xx/429 with backoff the way `aws4fetch`'s `AwsClient` does. */
+export interface SigV4Client {
+  fetch(input: string, init?: RequestInit): Promise<Response>;
+}
+
 /**
  * Everything a module may call that is not a Node builtin. A plugin ships no npm dependencies (it is
  * copied verbatim into `packages/sha256/<digest>/`, where nothing could resolve one), so the host
@@ -68,6 +83,8 @@ export interface DeployHostKit {
    *  `assertNotRedirected` fails a 3xx instead of sending the token on to another host. */
   readonly redirectGuardInit: typeof redirectGuardInit;
   readonly assertNotRedirected: typeof assertNotRedirected;
+  /** A SigV4-signing client (a protocol, not a vendor: S3, R2, B2, MinIO and others all speak it). */
+  createSigV4Client(options: SigV4ClientOptions): SigV4Client;
   readonly DeployError: typeof DeployError;
 }
 

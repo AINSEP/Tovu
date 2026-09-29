@@ -1,3 +1,5 @@
+import { AwsClient } from "aws4fetch";
+
 import {
   DeployError,
   assertNotRedirected,
@@ -13,8 +15,8 @@ import type { DeployFetchTimeouts, DeployHostKit } from "./types.js";
 
 /**
  * @file Builds the {@link DeployHostKit} this app injects into every plugin deploy module. Generic:
- * devops' vendor-neutral helpers (reachability, naming, redirect guard) plus a timeout-bounded
- * `fetch`, nothing host-specific.
+ * devops' vendor-neutral helpers (reachability, naming, redirect guard), a timeout-bounded `fetch`,
+ * and a SigV4 request signer (the protocol S3-compatible stores share), nothing host-specific.
  */
 
 /** Same classes and values as `@jini-ai/platform`'s `FETCH_TIMEOUT_MS` (QUICK/DEPLOY/UPLOAD), which
@@ -54,6 +56,7 @@ export function createDeployHostKit(): DeployHostKit {
     safeProjectLabel,
     redirectGuardInit,
     assertNotRedirected,
+    createSigV4Client: (options) => new AwsClient(options),
     DeployError,
   };
 }
