@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { setAgentPluginActivation } from "../../activation.js";
+import { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } from "../../activation.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
@@ -63,28 +63,57 @@ test("the package packs through the real packer with its descriptor and modules"
   }
 });
 
-test("seeded by the real seeder and enabled, the registry loads Netlify from the installed digest", async () => {
+/** Runs `fn` against a temp agent-plugins dir, restoring the env and removing the frozen tree after. */
+async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgentPluginLayout>) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-deploy-plugin-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    const layout = resolveAgentPluginLayout();
+    return await fn(resolveAgentPluginLayout());
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+}
+
+test("existing site: the seeder's own earlier DISABLED deploy record is switched on at the next boot", async () => {
+  await withAgentPluginsDir(async (layout) => {
+    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    // What a workspace seeded by 9ee7b5d73 carries: the seeder's untouched disabled record.
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: "deploy" });
+
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.deploy?.enabled, true);
+    assert.equal((await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID })).get("netlify")?.pluginId, "deploy");
+  });
+});
+
+test("an operator who switched deploy off stays switched off across boots", async () => {
+  await withAgentPluginsDir(async (layout) => {
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "test:operator" });
+
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    assert.equal((await readAgentPluginActivations(workspaceRoot)).plugins.deploy?.enabled, false);
+  });
+});
+
+test("seeded by the real seeder, deploy is ENABLED with no user action and the registry loads Netlify from the installed digest", async () => {
+  await withAgentPluginsDir(async (layout) => {
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "deploy")?.status, "seeded");
 
-    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
-    assert.equal((await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID })).get("netlify"), undefined, "bundled plugins seed disabled");
+    const activations = await readAgentPluginActivations(layout.forWorkspace(WORKSPACE_ID).root);
+    assert.equal(activations.plugins.deploy?.enabled, true, "publishing must keep working with zero user action");
+    assert.equal(activations.plugins["site-compliance"]?.enabled, false, "every other bundled plugin still seeds disabled");
 
-    await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: true, actor: "test" });
     const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
     assert.deepEqual(registry.refusals, []);
     const netlify = registry.get("netlify");
     assert.equal(netlify?.pluginId, "deploy");
     assert.equal(netlify?.descriptor.label, "Netlify");
     assert.equal(typeof netlify?.module.create, "function");
-  } finally {
-    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
-    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
-    await forceRemove(dir);
-  }
+  });
 });

@@ -1,6 +1,7 @@
 /**
  * @file `seedBundledAgentPlugins()` — installs the Agent Plugins that ship WITH Tovu into a
- * workspace's own package store, and records each one INACTIVE until an operator says otherwise.
+ * workspace's own package store, and records each one INACTIVE until an operator says otherwise
+ * (except the few core paths depend on, `BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED`, which seed active).
  *
  * ---------------------------------------------------------------------------
  * "Bundled but inactive", concretely
@@ -86,13 +87,24 @@ import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "./bu
 import { installAgentPlugin } from "./install.js";
 import type { AgentPluginLayout } from "./layout.js";
 
+/**
+ * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
+ * `deploy` hosts the publish targets (`features/deployments/deploy-targets/`): with it off, publishing
+ * a site would stop working. Owner rule: a user should never have to fix anything by hand, so it is on
+ * from the first boot, and an existing site's untouched disabled seed record is switched on too
+ * (`activation.ts`'s `recordBundledAgentPluginIfAbsent`). An operator can still turn it off, and
+ * that decision survives every later boot.
+ */
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy"]);
+
 export type SeededAgentPluginOutcome =
   | {
       readonly pluginId: string;
       readonly status: "seeded";
       readonly archiveDigest: string;
-      /** True when this boot wrote the initial disabled record; false when a decision already
-       *  existed and was preserved. */
+      /** True when this boot wrote the initial record (disabled, or enabled for
+       *  {@link BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED}); false when a decision already existed and was
+       *  preserved. */
       readonly activationRecorded: boolean;
     }
   | { readonly pluginId: string; readonly status: "failed"; readonly reason: string };
@@ -122,7 +134,8 @@ export interface SeedBundledAgentPluginsRequired {
 }
 
 /**
- * Installs every bundled Agent Plugin into one workspace and records each inactive-by-default.
+ * Installs every bundled Agent Plugin into one workspace and records each inactive-by-default,
+ * except {@link BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED}.
  *
  * @returns A per-plugin report. An absent or unreadable `sourceRoot` yields an empty `outcomes`
  * list rather than an error: a build that shipped no bundled plugins is a legitimate configuration,
@@ -215,10 +228,10 @@ async function seedOne(args: {
     // The plugin's OWN manifest name, not the directory name — `install.ts` reads the id from
     // `plugin.json`, and every consumer keys activation off that same id. Using the folder name
     // here would produce a record nothing ever consults if the two ever disagreed.
-    const { recorded } = await recordBundledAgentPluginIfAbsent({
-      workspaceRoot: args.layout.forWorkspace(args.workspaceId).root,
-      pluginId: installed.pluginId,
-    });
+    const { recorded } = await recordBundledAgentPluginIfAbsent(
+      { workspaceRoot: args.layout.forWorkspace(args.workspaceId).root, pluginId: installed.pluginId },
+      { enabled: BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(installed.pluginId) },
+    );
 
     return {
       pluginId: installed.pluginId,

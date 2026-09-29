@@ -646,6 +646,12 @@ function assertTargetEntryReadable(workspaceRoot: string, current: RawPluginsBag
  * The no-overwrite rule is the whole contract: this runs on every boot (see `seed-bundled.ts`), so
  * overwriting would re-disable a plugin the operator had deliberately enabled, every restart.
  *
+ * `optional.enabled: true` seeds the record ENABLED instead, for a bundled plugin core behaviour
+ * depends on (`seed-bundled.ts`'s `BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED`). It makes one exception to
+ * no-overwrite, for the upgrade path: a record the seeder itself wrote disabled and nobody has
+ * touched since (`enabled: false`, `updatedBy: "system:seed"`) is switched on, so an existing site
+ * needs no manual step. Any record an operator wrote is still left alone.
+ *
  * @returns `{ recorded: true }` when it wrote the initial disabled record, `{ recorded: false }`
  * when a decision already existed and was left alone. A present-but-MALFORMED entry still counts as
  * an existing decision — `Object.hasOwn`, not a shape check — because the gate is already answering
@@ -659,22 +665,34 @@ function assertTargetEntryReadable(workspaceRoot: string, current: RawPluginsBag
  */
 export async function recordBundledAgentPluginIfAbsent(
   required: { readonly workspaceRoot: string; readonly pluginId: string },
-  optional: { readonly now?: () => Date } = {},
+  optional: { readonly now?: () => Date; readonly enabled?: boolean } = {},
 ): Promise<{ readonly recorded: boolean }> {
   assertPluginId(required.pluginId);
+  const enabled = optional.enabled === true;
 
   return lockedActivationsWrite(required.workspaceRoot, async (lock) => {
     const current = await readPluginsBagStrict(required.workspaceRoot);
-    if (Object.hasOwn(current, required.pluginId)) return { recorded: false };
+    if (Object.hasOwn(current, required.pluginId) && !(enabled && isUntouchedDisabledSeed(current[required.pluginId]))) {
+      return { recorded: false };
+    }
 
     await writeActivationDecision(
       current,
-      { workspaceRoot: required.workspaceRoot, pluginId: required.pluginId, enabled: false, actor: "system:seed" },
+      { workspaceRoot: required.workspaceRoot, pluginId: required.pluginId, enabled, actor: SEED_ACTOR },
       { origin: "bundled", ...(optional.now !== undefined ? { now: optional.now } : {}) },
       lock,
     );
     return { recorded: true };
   });
+}
+
+/** `updatedBy` of every record the boot seeder writes. */
+const SEED_ACTOR = "system:seed";
+
+/** Whether a RAW entry is the seeder's own disabled record that no operator has touched since.
+ *  @complexity O(1). */
+function isUntouchedDisabledSeed(entry: unknown): boolean {
+  return isPlainObject(entry) && entry.enabled === false && entry.updatedBy === SEED_ACTOR;
 }
 
 export interface DeleteAgentPluginActivationRequired {

@@ -207,6 +207,53 @@ test("recordBundledAgentPluginIfAbsent NEVER overwrites an existing decision —
   }
 });
 
+test("recordBundledAgentPluginIfAbsent { enabled: true } writes an ENABLED bundled record when none exists", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
+    assert.equal(recorded, true);
+    const record = (await readAgentPluginActivations(root)).plugins.deploy;
+    assert.equal(record?.enabled, true);
+    assert.equal(record?.origin, "bundled");
+    assert.equal(record?.updatedBy, "system:seed");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("recordBundledAgentPluginIfAbsent { enabled: true } upgrades the seeder's OWN untouched disabled record — existing sites need no action", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" });
+    assert.equal((await readAgentPluginActivations(root)).plugins.deploy?.enabled, false);
+
+    const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
+    assert.equal(recorded, true);
+    assert.equal((await readAgentPluginActivations(root)).plugins.deploy?.enabled, true);
+
+    const again = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
+    assert.equal(again.recorded, false, "an enabled seed record is a decision already made");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("recordBundledAgentPluginIfAbsent { enabled: true } NEVER re-enables a plugin an operator switched off", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: "deploy", enabled: false, actor: "cli:alice" });
+
+    const { recorded } = await recordBundledAgentPluginIfAbsent({ workspaceRoot: root, pluginId: "deploy" }, { enabled: true });
+    assert.equal(recorded, false);
+    const record = (await readAgentPluginActivations(root)).plugins.deploy;
+    assert.equal(record?.enabled, false);
+    assert.equal(record?.updatedBy, "cli:alice");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a plugin id that is not valid Agent Plugins grammar is refused with an exact message", async () => {
   const root = await freshWorkspaceRoot();
   try {
