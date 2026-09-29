@@ -25,6 +25,10 @@ const types = {
 
 export function openPostgresKernel<DB>(required: { connectionString: string; max?: number }): StorageKernel<DB> {
   const pool = new pg.Pool({ connectionString: required.connectionString, max: required.max ?? 10, types });
+  // An idle connection dropped by the server (restart, failover, pg_terminate_backend, a pooler's
+  // idle cut) is evicted by the pool and reopened on next use; without a listener it would crash the
+  // process.
+  pool.on("error", (err) => console.warn(`[postgres] idle pool connection dropped: ${err.message}`));
   const base = new Kysely<DB>({ dialect: new PostgresDialect({ pool }) });
   return buildKernel<DB>({
     dialect: "postgres",
