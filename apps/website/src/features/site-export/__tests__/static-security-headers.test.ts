@@ -7,7 +7,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createPublicPageSecurityHeaders } from "#src/server/inbound/public-http/middleware/public-page-security-headers";
 
-import { renderHeadersFile, renderVercelConfig, withSecurityMeta } from "../static-security-headers.js";
+import { renderHeadersFile, withSecurityMeta } from "../static-security-headers.js";
 
 /**
  * @file A static export carries the SAME security headers the live server sends. Every expectation
@@ -33,13 +33,6 @@ function parseHeadersFile(text: string): Record<string, string> {
   return out;
 }
 
-function parseVercelConfig(text: string): Record<string, string> {
-  const parsed = JSON.parse(text) as { headers: Array<{ source: string; headers: Array<{ key: string; value: string }> }> };
-  assert.equal(parsed.headers.length, 1);
-  assert.equal(parsed.headers[0]!.source, "/(.*)", "the rule must cover every path");
-  return Object.fromEntries(parsed.headers[0]!.headers.map((h) => [h.key.toLowerCase(), h.value]));
-}
-
 async function liveHeaders(res: Response, names: readonly string[]): Promise<Record<string, string>> {
   await res.text();
   return Object.fromEntries(names.map((name) => [name, res.headers.get(name) ?? ""]));
@@ -53,7 +46,6 @@ test("the static header files carry exactly what the live server sends on a publ
   for (const name of LIVE_HEADER_NAMES) assert.notEqual(live[name], "", `live server must send ${name}`);
 
   assert.deepEqual(parseHeadersFile(renderHeadersFile()), live);
-  assert.deepEqual(parseVercelConfig(renderVercelConfig()), live);
   assert.equal(
     withSecurityMeta("<!doctype html><html><head><title>x</title></head><body></body></html>"),
     `<!doctype html><html><head><meta name="referrer" content="${live["referrer-policy"]}"><title>x</title></head><body></body></html>`
@@ -73,7 +65,6 @@ test("changing the shared header set changes the live response and every static 
 
   assert.deepEqual(live, { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-test-header": "a \"quoted\" value" });
   assert.deepEqual(parseHeadersFile(renderHeadersFile(custom)), live);
-  assert.deepEqual(parseVercelConfig(renderVercelConfig(custom)), live);
   assert.match(withSecurityMeta("<head></head>", custom), /^<head><meta name="referrer" content="no-referrer"><\/head>$/);
 });
 

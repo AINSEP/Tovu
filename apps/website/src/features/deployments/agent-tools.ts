@@ -60,7 +60,7 @@ const TRIGGER_EXPORT_SCHEMA = {
     basePath: {
       type: "string",
       description:
-        "Set this ONLY when deploying to a GitHub Pages PROJECT site served from a subpath (username.github.io/reponame) — it must exactly match the repo name (e.g. \"/reponame\"), or every exported asset (CSS, JS, images) will 404 once served from that subpath. Leave unset for a root domain, a custom domain, or a GitHub Pages USER/ORG site — setting it in those cases would incorrectly prefix every link.",
+        "Set this ONLY when the destination host serves the site from a subpath (for example a repository-named path, host/reponame) — it must exactly match that subpath (e.g. \"/reponame\"), or every exported asset (CSS, JS, images) will 404 once served from it. Leave unset when the site is served from a domain root, including a custom domain — setting it then would incorrectly prefix every link.",
     },
     clean: {
       type: "boolean",
@@ -108,7 +108,7 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_trigger_export",
     description:
-      "Starts a full static export of the site to disk: a self-contained, fully static COPY of every public page and asset, with NO checkout, admin UI, or assistant included in the output (those only exist in this running server — the exported copy is pure static HTML/CSS/JS/assets, suitable for GitHub Pages, Netlify, or any static host). This is slow — seconds to minutes, one HTTP fetch per route and asset — so this call returns immediately once the run STARTS, not once it finishes; call deployment_get_export_status afterward (poll it) to learn whether the export actually succeeded. Only one export can run at a time on this instance: calling this while one is already running fails outright rather than queuing or restarting it — check status first if unsure. Set basePath when the destination is a GitHub Pages PROJECT site; see that field's own description for exactly when.",
+      "Starts a full static export of the site to disk: a self-contained, fully static COPY of every public page and asset, with NO checkout, admin UI, or assistant included in the output (those only exist in this running server — the exported copy is pure static HTML/CSS/JS/assets, suitable for any static host). This is slow — seconds to minutes, one HTTP fetch per route and asset — so this call returns immediately once the run STARTS, not once it finishes; call deployment_get_export_status afterward (poll it) to learn whether the export actually succeeded. Only one export can run at a time on this instance: calling this while one is already running fails outright rather than queuing or restarting it — check status first if unsure. Set basePath when the destination serves the site from a subpath; see that field's own description for exactly when.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "system.export" },
     inputSchema: TRIGGER_EXPORT_SCHEMA,
@@ -124,7 +124,7 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_list",
     description:
-      "Lists this workspace's configured deployment environments (e.g. staging/production), deployment targets (connected external providers such as a GitHub Pages repo), releases, and past deployment runs — a read-only snapshot exactly as stored. This is unrelated to the static export tools above: it reports what has been configured/recorded for provider-driven deployments, and does not trigger, poll, or affect any export.",
+      "Lists this workspace's configured deployment environments (e.g. staging/production), deployment targets (connected external hosting providers), releases, and past deployment runs — a read-only snapshot exactly as stored. This is unrelated to the static export tools above: it reports what has been configured/recorded for provider-driven deployments, and does not trigger, poll, or affect any export.",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,

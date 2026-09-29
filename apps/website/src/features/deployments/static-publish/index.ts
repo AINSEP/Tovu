@@ -41,7 +41,6 @@ export {
 
 export {
   canYieldAccountLabel,
-  extractGitHubLogin,
   InMemoryPublishCredentialVerificationCache,
   verifyPublishCredential,
   verifyPublishCredentialById,

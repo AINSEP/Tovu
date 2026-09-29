@@ -32,16 +32,6 @@
     "netlify": 4,
     "vercel": 4
   },
-  "apps/website/src/features/deployments/agent-tools.ts": {
-    "github-pages": 6,
-    "netlify": 1
-  },
-  "apps/website/src/features/deployments/static-publish/verify.ts": {
-    "github-pages": 2
-  },
-  "apps/website/src/features/site-export/static-security-headers.ts": {
-    "vercel": 3
-  },
   "apps/website/src/features/vendor-credentials/index.ts": {
     "cloudflare": 1,
     "netlify": 1,
@@ -59,11 +49,5 @@
     "netlify": 5,
     "s3-compatible": 5,
     "vercel": 5
-  },
-  "apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts": {
-    "vercel": 1
-  },
-  "apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts": {
-    "github-pages": 2
   }
 }

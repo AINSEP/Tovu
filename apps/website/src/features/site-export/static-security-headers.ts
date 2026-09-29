@@ -9,7 +9,8 @@ import { escapeHtml } from "#src/platform/html/escape";
  * - Netlify and Cloudflare Pages: a `_headers` file ({@link renderHeadersFile}), applied to every
  *   path. Cloudflare Pages applies it only when the uploader sends it as its own form field, which
  *   Jini's direct upload does for a root `_headers` (sent as a plain asset, it would be served publicly).
- * - Vercel: `vercel.json`'s `headers` block ({@link renderVercelConfig}).
+ * - A host with its own header config format renders it in its deploy module (the deploy plugin's
+ *   Vercel module writes `vercel.json` from the publish's `responseHeaders`).
  * - Everywhere else (GitHub Pages, S3-compatible buckets, a hand-copied folder): only what HTML
  *   itself can say, via {@link withSecurityMeta}.
  *
@@ -24,18 +25,11 @@ import { escapeHtml } from "#src/platform/html/escape";
  */
 
 export const HEADERS_FILE_NAME = "_headers";
-export const VERCEL_CONFIG_FILE_NAME = "vercel.json";
 
 /** The Netlify / Cloudflare Pages `_headers` format: a path pattern, then two-space-indented `Name: value` lines. */
 export function renderHeadersFile(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS): string {
   const lines = Object.entries(headers).map(([name, value]) => `  ${name}: ${value}`);
   return `/*\n${lines.join("\n")}\n`;
-}
-
-/** A `vercel.json` whose only content is one `headers` rule covering every path. */
-export function renderVercelConfig(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS): string {
-  const rule = { source: "/(.*)", headers: Object.entries(headers).map(([key, value]) => ({ key, value })) };
-  return `${JSON.stringify({ headers: [rule] }, null, 2)}\n`;
 }
 
 const HEAD_OPEN_TAG = /<head(\s[^>]*)?>/i;

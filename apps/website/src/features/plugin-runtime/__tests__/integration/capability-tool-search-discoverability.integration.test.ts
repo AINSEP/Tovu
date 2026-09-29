@@ -53,7 +53,7 @@ const AUDIT_COMPETITOR_DESCRIPTORS = [
     // features/deployments/agent-tools.ts:125-127
     id: "deployment_list",
     description:
-      "Lists this workspace's configured deployment environments (e.g. staging/production), deployment targets (connected external providers such as a GitHub Pages repo), releases, and past deployment runs — a read-only snapshot exactly as stored. This is unrelated to the static export tools above: it reports what has been configured/recorded for provider-driven deployments, and does not trigger, poll, or affect any export.",
+      "Lists this workspace's configured deployment environments (e.g. staging/production), deployment targets (connected external hosting providers), releases, and past deployment runs — a read-only snapshot exactly as stored. This is unrelated to the static export tools above: it reports what has been configured/recorded for provider-driven deployments, and does not trigger, poll, or affect any export.",
   },
   {
     // widgets/agent-tools.ts:275-280

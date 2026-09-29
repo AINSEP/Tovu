@@ -9,7 +9,6 @@ import type { PublishCredentialSource } from "../types.js";
 import {
   canYieldAccountLabel,
   InMemoryPublishCredentialVerificationCache,
-  listGitHubReposByCredentialId,
   verifyPublishCredential,
   verifyPublishCredentialById,
   type PublishCredentialVerificationCache,
@@ -346,14 +345,14 @@ test("verifyPublishCredential: an HTTP-level provider failure (5xx, not a networ
   assert.match(result!.message, /Could not reach Vercel to verify this credential \(HTTP 503\)/, "an HTTP-level unreachable must carry the status code, unlike a network throw's message");
 });
 
-test("verifyPublishCredential: a valid JSON body that is not an object (extractGitHubLogin's own type guard) yields no accountLabel, never throws", async () => {
+test("verifyPublishCredential: a valid JSON body that is not an object (the module's own type guard) yields no accountLabel, never throws", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
   for (const literal of ['"just a string"', "42", "null"]) {
     const fetchFn = (async () => new Response(literal, { status: 200 })) as typeof fetch;
     const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target: "github-pages" });
     assert.ok(result, literal);
     assert.equal(result!.status, "valid", literal);
-    assert.equal(result!.accountLabel, undefined, `a non-object JSON body (${literal}) must never crash extractGitHubLogin or fabricate a label`);
+    assert.equal(result!.accountLabel, undefined, `a non-object JSON body (${literal}) must never crash the login read or fabricate a label`);
   }
 });
 
@@ -596,222 +595,4 @@ test("verifyPublishCredentialById: an s3-compatible row with no endpoint configu
   await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.equal(seenUrl, "https://s3.us-east-1.amazonaws.com/my-bucket");
-});
-
-// ---------------------------------------------------------------------------
-// listGitHubReposByCredentialId — the GitHub owner/repo picker's real seam (source-control-ui's
-// dependency, adapted by route-quality's admin route)
-// ---------------------------------------------------------------------------
-
-/** A raw GitHub `/user/repos` entry — deliberately carries extra fields real GitHub responses do
- *  (`html_url`, `description`) so assertions below prove they are excluded by what the code does,
- *  same discipline `verifyPublishCredential`'s own fixtures already use. */
-function rawGitHubRepo(overrides: Partial<{ name: string; full_name: string; owner: { login: string }; private: boolean; default_branch: string }> = {}) {
-  return {
-    name: "demo",
-    full_name: "octo/demo",
-    owner: { login: "octo" },
-    private: false,
-    default_branch: "main",
-    html_url: "https://github.com/octo/demo",
-    description: "a repo",
-    ...overrides,
-  };
-}
-
-test("listGitHubReposByCredentialId: no such row returns null, makes no network call", async () => {
-  const writeDeps = makeWriteDeps();
-  let fetchCalls = 0;
-  const fetchFn = (async () => {
-    fetchCalls += 1;
-    throw new Error("must not be called");
-  }) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: "no-such-id" });
-
-  assert.equal(result, null);
-  assert.equal(fetchCalls, 0);
-});
-
-test("listGitHubReposByCredentialId: a non-github-pages credential throws — the caller's own pre-check (providerId === 'github-pages') is a wiring bug if skipped, not a result this function's return type should have to express", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "prod", connection: { providerId: "vercel", token: "vercel-tok" } });
-  const fetchFn = (async () => {
-    throw new Error("must not be called");
-  }) as typeof fetch;
-
-  await assert.rejects(
-    () => listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id }),
-    /is a 'vercel' connection, not 'github-pages'/
-  );
-});
-
-test("listGitHubReposByCredentialId: a real page of repos maps to the closed GitHubRepoSummary shape, drops a malformed entry, and reports truncated:false with no Link header and an under-full page", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "real-token-must-not-leak" } });
-
-  const requestedUrls: string[] = [];
-  let seenAuthHeader = "";
-  const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    requestedUrls.push(String(input));
-    seenAuthHeader = new Headers(init?.headers).get("authorization") ?? "";
-    return new Response(JSON.stringify([rawGitHubRepo(), rawGitHubRepo({ name: "private-thing", full_name: "octo/private-thing", private: true }), { name: "malformed, no owner" }]), {
-      status: 200,
-    });
-  }) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.status, "valid");
-  assert.equal(result!.message, undefined, "a valid result needs no explanatory message");
-  assert.equal(result!.truncated, false);
-  assert.deepEqual(result!.repos, [
-    { owner: "octo", name: "demo", fullName: "octo/demo", private: false, defaultBranch: "main" },
-    { owner: "octo", name: "private-thing", fullName: "octo/private-thing", private: true, defaultBranch: "main" },
-  ]);
-  assert.equal(requestedUrls[0], "https://api.github.com/user/repos?affiliation=owner,organization_member&sort=updated&per_page=100");
-  assert.equal(seenAuthHeader, "Bearer real-token-must-not-leak");
-  assert.equal(JSON.stringify(result).includes("real-token-must-not-leak"), false, "the token itself must never appear in the returned result");
-  assert.equal(JSON.stringify(result).includes("html_url"), false, "must never surface a field beyond the closed GitHubRepoSummary shape");
-});
-
-test("listGitHubReposByCredentialId: truncated:true when GitHub's Link header names a rel=\"next\" page, even if fewer than 100 repos came back", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const fetchFn = (async () =>
-    new Response(JSON.stringify([rawGitHubRepo()]), {
-      status: 200,
-      headers: { link: '<https://api.github.com/user/repos?page=2>; rel="next", <https://api.github.com/user/repos?page=5>; rel="last"' },
-    })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.truncated, true, "the Link header is the authoritative signal, independent of how many repos this page happened to carry");
-});
-
-test("listGitHubReposByCredentialId: truncated:true falls back to 'page came back exactly full' when GitHub's Link header is absent — under-reporting truncation is the worse failure mode", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const fullPage = Array.from({ length: 100 }, (_, i) => rawGitHubRepo({ name: `repo-${i}`, full_name: `octo/repo-${i}` }));
-  const fetchFn = (async () => new Response(JSON.stringify(fullPage), { status: 200 })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.repos.length, 100);
-  assert.equal(result!.truncated, true);
-});
-
-test("listGitHubReposByCredentialId: GitHub rejects (401) — status:'invalid', empty repos, never the token or the provider's response body", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "ghp_should_never_leak" } });
-  const fetchFn = (async () => new Response(JSON.stringify({ message: "Bad credentials" }), { status: 401 })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.status, "invalid");
-  assert.deepEqual(result!.repos, []);
-  assert.equal(result!.truncated, false);
-  assert.match(result!.message ?? "", /GitHub rejected this credential \(HTTP 401\)/);
-  assert.equal(JSON.stringify(result).includes("ghp_should_never_leak"), false);
-  assert.equal(JSON.stringify(result).includes("Bad credentials"), false, "the provider's own response body must never be echoed");
-});
-
-test("listGitHubReposByCredentialId: a network failure never throws — status:'unreachable', distinct from 'invalid'", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const fetchFn = (async () => {
-    throw new TypeError("fetch failed");
-  }) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.status, "unreachable");
-  assert.notEqual(result!.status, "invalid");
-  assert.deepEqual(result!.repos, []);
-});
-
-test("listGitHubReposByCredentialId: an authenticated 200 with an unparseable body degrades to status:'unreachable' rather than throwing", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const fetchFn = (async () => new Response("not json", { status: 200 })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.status, "unreachable");
-  assert.deepEqual(result!.repos, []);
-});
-
-test("listGitHubReposByCredentialId: an HTTP-level failure that is neither 401 nor 403 (e.g. 500) is status:'unreachable', not 'invalid'", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const fetchFn = (async () => new Response("", { status: 500 })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.status, "unreachable");
-  assert.match(result!.message ?? "", /GitHub/);
-  assert.deepEqual(result!.repos, []);
-});
-
-test("listGitHubReposByCredentialId: a 200 body that parses but is not an array (Array.isArray's own false arm) yields an empty, non-truncated repo list rather than throwing", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const fetchFn = (async () => new Response(JSON.stringify({ message: "not the array shape this endpoint documents" }), { status: 200 })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.status, "valid", "an authenticated 2xx with an unexpected body shape is still a valid credential — the shape mismatch degrades to an empty list, not a failure");
-  assert.deepEqual(result!.repos, []);
-  assert.equal(result!.truncated, false);
-});
-
-test("listGitHubReposByCredentialId: a Link header present but naming no rel=\"next\" page reports truncated:false even on an under-full page — proves the regex is checked, not merely header presence", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const fetchFn = (async () =>
-    new Response(JSON.stringify([rawGitHubRepo()]), {
-      status: 200,
-      headers: { link: '<https://api.github.com/user/repos?page=1>; rel="prev", <https://api.github.com/user/repos?page=1>; rel="last"' },
-    })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.equal(result!.truncated, false);
-});
-
-test("listGitHubReposByCredentialId: a repo entry with a non-object, null, or wrong-typed owner is dropped, never crashes the whole listing", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const badOwnerEntries = [
-    { ...rawGitHubRepo(), owner: null },
-    { ...rawGitHubRepo(), owner: "not-an-object" },
-    { ...rawGitHubRepo(), owner: {} },
-  ];
-  const fetchFn = (async () => new Response(JSON.stringify(badOwnerEntries), { status: 200 })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.deepEqual(result!.repos, [], "every entry with an unreadable owner.login must be dropped, not defaulted or half-populated");
-});
-
-test("listGitHubReposByCredentialId: an entry with a wrong-typed private flag or default_branch is dropped even though name/full_name/owner are all valid", async () => {
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  const entries = [rawGitHubRepo({ private: "yes" as unknown as boolean }), rawGitHubRepo({ default_branch: undefined as unknown as string })];
-  const fetchFn = (async () => new Response(JSON.stringify(entries), { status: 200 })) as typeof fetch;
-
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.ok(result);
-  assert.deepEqual(result!.repos, [], "a wrong-typed private/default_branch field must drop the whole entry, never coerce or default it");
 });

@@ -17,7 +17,8 @@ import type {
   HostDeployPublishInput,
   LoadedDeployTarget,
 } from "#src/features/deployments/deploy-targets/types";
-import { renderHeadersFile, renderVercelConfig } from "#src/features/site-export/static-security-headers";
+import { renderHeadersFile } from "#src/features/site-export/static-security-headers";
+import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import { publishStaticSite, type StaticPublishDeps } from "../adapter.js";
@@ -218,7 +219,8 @@ test("the REAL plugin Vercel module, fed through the adapter, posts exactly one 
 
   assert.equal(result.ok, true, JSON.stringify(result));
   assert.equal(posted.filter((file) => file === "vercel.json").length, 1);
-  assert.equal(vercelJson, renderVercelConfig());
+  const rule = { source: "/(.*)", headers: Object.entries(PUBLIC_PAGE_SECURITY_HEADERS).map(([key, value]) => ({ key, value })) };
+  assert.deepEqual(JSON.parse(vercelJson), { headers: [rule] }, "vercel.json carries the live server's public-page header set on every path");
 });
 
 test("the REAL plugin GitHub Pages module, fed through the adapter, commits one .nojekyll and reports the /<repo> base path", async (t) => {

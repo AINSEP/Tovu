@@ -127,19 +127,15 @@ test("publish-credentials: an unauthorized principal (no grants) gets 403 on eve
   const del = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/some-id`, { method: "DELETE", headers: { cookie } });
   assert.equal(del.status, 403);
 
-  // `POST .../:id/verify` and `GET .../:id/repos` are separate routes from the four above (each with
-  // its OWN `rejectUnlessAuthorized` call site, not a shared middleware) — found missing here by
-  // `development/scripts/mutation-sweep.mjs`: neutralizing either call site's `if` still left every
-  // test in this file green, meaning nothing actually proved these two routes reject an unauthorized
-  // caller. `some-id` is enough — the auth check runs before any existence lookup on both routes.
+  // `POST .../:id/verify` is a separate route from the four above (its OWN `rejectUnlessAuthorized`
+  // call site, not a shared middleware) — found missing here by `development/scripts/mutation-sweep.mjs`:
+  // neutralizing that call site's `if` still left every test in this file green. `some-id` is enough —
+  // the auth check runs before any existence lookup.
   const verify = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/some-id/verify`, {
     method: "POST",
     headers: { cookie },
   });
   assert.equal(verify.status, 403);
-
-  const repos = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/some-id/repos`, { headers: { cookie } });
-  assert.equal(repos.status, 403);
 });
 
 // -------------------------------------------------------------------------------------------------
@@ -626,83 +622,7 @@ test("publish-credentials: a root key missing at verify time (present at save ti
 });
 
 // -------------------------------------------------------------------------------------------------
-// GET .../:id/repos — the GitHub repo-list endpoint backing `source-control-ui`'s owner/repo picker
-// (replacing the free-text fields `development/e2e/live-publish-e2e.spec.ts` guards against). The
-// two tests below cover what is real TODAY: the 404/400 gating this route owns outright, both
-// resolved before `listGitHubReposByCredentialId` is ever called. The actual repo-listing behavior
-// (200 with a real/faked repo list) is NOT tested here yet — `publish-credentials.ts`'s own doc
-// comment on `listGitHubReposByCredentialId` explains why: it is a TEMPORARY STUB pending
-// `routedeps-vendor`'s real probe function in `src/features/deployments/static-publish/**`. The third
-// test below proves that stub's unconditional throw is still safely GUARDED (a fast 500, never a
-// hang) — the same RED-first shape every other handler in this file follows — which is the one thing
-// that must hold even before real GitHub-listing logic exists. Replace that third test with a real
-// success/invalid/unreachable-status assertion once the stub is swapped for the real import.
-// -------------------------------------------------------------------------------------------------
-
-test("publish-credentials: GET .../:id/repos 404s for a never-existed id", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
-  const app = createApp(deps);
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-
-  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/no-such-id/repos`, {
-    headers: { cookie },
-  });
-  assert.equal(res.status, 404);
-  assert.equal((await res.json()).error, "NOT_FOUND");
-});
-
-test("publish-credentials: GET .../:id/repos 400s for a saved credential whose provider isn't github-pages", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
-  const app = createApp(deps);
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
-  stubVerificationFetch(t, baseUrl, 401); // save-time verify; contents irrelevant to this test
-
-  const created = await fetch(base, {
-    method: "POST",
-    headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ label: "vc", connection: { providerId: "vercel", token: "vercel-token" } }),
-  });
-  assert.equal(created.status, 201, await created.clone().text());
-  const { credential } = await created.json();
-  assert.equal(credential.providerId, "vercel");
-
-  // Rejected on `describeCredential`'s own read model, before any decrypt/probe — so this must
-  // resolve immediately even with no stub for the (never-reached) GitHub call.
-  const res = await fetch(`${base}/${credential.id}/repos`, { headers: { cookie }, signal: AbortSignal.timeout(3000) });
-  assert.equal(res.status, 400);
-  const body = (await res.json()) as { code: string; error: string };
-  assert.equal(body.code, "UNSUPPORTED_PROVIDER");
-  assert.match(body.error, /github-pages/);
-  assert.match(body.error, /vercel/);
-});
-
-test("publish-credentials: GET .../:id/repos on a real github-pages credential responds 500 (not a hang) — proves the handler's guard is real, ahead of the real probe landing", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
-  const app = createApp(deps);
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
-  stubVerificationFetch(t, baseUrl, 401); // save-time verify; contents irrelevant to this test
-
-  const created = await fetch(base, {
-    method: "POST",
-    headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }),
-  });
-  assert.equal(created.status, 201, await created.clone().text());
-  const { credential } = await created.json();
-
-  // `listGitHubReposByCredentialId` (the TEMPORARY STUB in `publish-credentials.ts`) throws
-  // unconditionally today. Bounded, not a bare `fetch`, for the same reason every other guard test in
-  // this suite bounds its request: an unguarded async handler that rejects with nothing calling
-  // `res.json()`/`res.status()` leaves the client hanging with no response at all, never a fast error.
-  const res = await fetch(`${base}/${credential.id}/repos`, { headers: { cookie }, signal: AbortSignal.timeout(3000) });
-  assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
-});
-
-// -------------------------------------------------------------------------------------------------
-// Direct-invocation tests for the five branches no route-level test (real HTTP through Express) can
+// Direct-invocation tests for the branches no route-level test (real HTTP through Express) can
 // ever reach. Per the repo's established rule for this class of guard (`extractRouteHandler`'s own
 // doc in `helpers/http-test-server.ts`, and the identical treatment already committed in
 // `taxonomy-routes.test.ts`/`admin-menus-routes.test.ts`): KEEP the guard, do not delete it, and
@@ -883,15 +803,3 @@ test("publish-credentials: verifyAfterSave's `result ?? undefined` fallback, for
   assert.equal(body.verification, undefined);
   assert.equal(JSON.stringify(body).includes("verification"), false);
 });
-
-// -------------------------------------------------------------------------------------------------
-// The fifth branch -- `if (!result)` in `GET .../:id/repos` (~line 404) -- is NOT covered here.
-// `listGitHubReposByCredentialId` (this file's own TEMPORARY STUB doc, above) is a private closure
-// local to `registerAdminPublishCredentialsRoutes`, not a field on `AdminPublishCredentialsDeps` --
-// there is no seam to inject a stub returning a falsy result without editing production source
-// (out of scope for this pass; see the dispatching report). It is unreachable today only because
-// the stub throws unconditionally rather than ever returning -- the real KEEP case of the five, and
-// it becomes directly testable the moment `routedeps-vendor`'s real probe function lands as an
-// import with an injectable dependency, per this file's own "DELETE this function and replace it
-// with a real import" instruction on the stub.
-// -------------------------------------------------------------------------------------------------
