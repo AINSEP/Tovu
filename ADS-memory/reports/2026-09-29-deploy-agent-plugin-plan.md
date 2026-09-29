@@ -235,3 +235,51 @@ until T8 the old branches still exist behind the registry check.
 - Constitution / governance check: not run as a full pipeline (no approved spec). This is a plan report per dispatch. An ADR is warranted at T1 (new cross-cutting generic capability: plugin-provided code modules with a trust rule). Candidate for governance promotion: "hosting-vendor code lives only in agent plugins; core and Jini expose ports only".
 - Implementation outline: needed for T1 (public contract: descriptor, module, kit).
 - Critical Internal Constraints: candidate unit is the T1 loader trust rule (ESCALATE_SECURITY: loads only a bundled digest, and never a path outside the plugin root).
+
+## 10. Owner decisions 2026-09-29 (override §2-§8 where they differ)
+
+1. **The deploy agent plugin lives in Tovu** (`content/agent-plugins/deploy/`). `@jini-ai/devops` keeps only the
+   generic contract. Vendor host implementations are **dependency-injected**: Tovu (via the plugin registry)
+   constructs each host's `DeployTarget` and passes it in; devops names no vendor.
+2. **One plugin for all hosts** (Netlify, Vercel, Cloudflare Pages, GitHub Pages, S3-compatible). Answers Q1.
+3. **Merge the existing `tovu-deploy-fly` plugin into this one plugin.** Reverses Q2 / §1b "out of scope". Scheduled
+   as its own later slice (T10 below), after the static hosts are absorbed.
+4. **Plugin code is plain JS** (ESM, JSDoc types, no build step). Answers Q3.
+5. **Delete the "gh / vercel CLI installed on server" check** (`deployment-overview.ts` `DEPLOY_CLI_NAMES`,
+   admin `PUBLISH_CLI_TOOLS`). Answers Q4; lands in T8.
+6. **Only Tovu-bundled plugins may add hosts for now** (third-party later). Answers Q5: the registry loads a module
+   only when the plugin's installed digest is the one `bundled-digests.json` records for it.
+
+### DI shape for `@jini-ai/devops` (replaces §3's "host kit" location)
+- Jini keeps: `DeployTarget` port, `DeployFile`, `DeployPublishInput` (+ `responseHeaders`, J1), `DeployPublishResult`,
+  `DeployError`, reachability, redirect guard, naming, `DeployTargetToken`, `deploy.publish`.
+- **J1b (new, additive):** export the injection contract so any host can supply vendor targets without devops naming
+  one: `DeployHostKit` (fetch-with-timeout, timeouts, sleep, reachability + naming helpers, `DeployError`) and
+  `DeployTargetModule` (`create({ credential, config, kit }) -> DeployTarget`, optional `validateConfig`, `basePath`,
+  `summarize`, `verifyCredential`). Until J1/J1b ship, Tovu declares both types locally in
+  `apps/website/src/features/deployments/deploy-targets/types.ts` (identical shape) and builds the kit itself from
+  devops' generic exports plus its own `AbortSignal.timeout` fetch (Tovu does not depend on `@jini-ai/platform`).
+- Tovu binds plugin-created targets into devops (today: passed straight to the static-publish adapter; later, if
+  wanted, `bindMany(DeployTargetToken, ...)`), which is the "injected" direction the owner asked for.
+
+### Adjusted slice list
+| # | Repo | Slice | Status |
+|---|---|---|---|
+| R0 | Jini | Release devops 0.3.2 (CF `_headers` fix, `28f67f9a`) | release agent, in progress |
+| J1 | Jini | `DeployPublishInput.responseHeaders` (additive) | needed; Tovu uses a local widened type meanwhile |
+| J1b | Jini | Export `DeployHostKit` + `DeployTargetModule` injection contract (additive) | needed; Tovu local copy meanwhile |
+| T1 | Tovu | Generic plugin-host registry + bundled-digest gate + module-path containment | this build |
+| T2 | Tovu | Plugin skeleton + Netlify module; adapter strangler (registry first, legacy fallback) | this build |
+| T3 | Tovu | Cloudflare Pages module (port from devops **0.3.2** source, commit `28f67f9a`) | |
+| T4 | Tovu | Vercel module | |
+| T5 | Tovu | GitHub Pages module | |
+| T6 | Tovu | S3-compatible module | |
+| T7 | Tovu | Open the ids (routes, tools, store, admin UI from descriptors) + boundary test | |
+| T8 | Tovu | Delete absorbed paths **and the gh/vercel CLI check** (decision 5) | |
+| T10 | Tovu | **Merge `tovu-deploy-fly` into `deploy`** (skill + templates move under `skills/deploy/`; plugin id `tovu-deploy-fly` retired; `deploy-config-{fly,railway,render}.ts` and `provisioning.fly-toml.ts` reviewed for the same move) | new |
+| J2 | Jini | Remove vendor files, publish 0.4.0 | after T8 |
+| T9 | Tovu | Bump to `^0.4.0` | after J2 |
+
+Note for T7/T8: bundled plugins seed **disabled**. While the strangler keeps legacy branches, a disabled `deploy`
+plugin simply falls back to them. Before T8 deletes the legacy branches, decide whether `deploy` seeds enabled
+or whether publish surfaces "turn on the deploy plugin" (owner call).
