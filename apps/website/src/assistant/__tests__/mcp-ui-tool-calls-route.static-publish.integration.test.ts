@@ -18,6 +18,7 @@ import type { PublishCredentialSource } from "#src/features/deployments/static-p
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
@@ -79,6 +80,7 @@ function buildRealStaticPublishToolExecutor(
     workspaceId: WORKSPACE_ID,
     credentialSource: options.credentialSource ?? CONFIGURED_CREDENTIAL_SOURCE,
     buildTarget: () => fakeDeployTarget(captured),
+    loadDeployTargets: loadBundledDeployTargets,
     vendorCredentials: { list: listVendorCredentials, create: createVendorCredential, update: updateVendorCredential, providerToVendor: PUBLISH_PROVIDER_TO_VENDOR },
   };
 
@@ -119,7 +121,11 @@ async function openRealDialog(
       emitted.push(emission);
     },
   );
-  await new Promise((resolve) => setImmediate(resolve));
+  // The handler loads the deploy registry (file reads) before it emits, so wait on the emission
+  // itself rather than a fixed number of ticks; a call that settles first never parked at all.
+  let settled = false;
+  void pending.then(() => (settled = true), () => (settled = true));
+  for (let waited = 0; emitted.length === 0 && !settled && waited < 5_000; waited += 5) await new Promise((resolve) => setTimeout(resolve, 5));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   return { pending, exchangeId: exchangeIdFromEmission(emitted[0]) };
 }
