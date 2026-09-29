@@ -131,7 +131,6 @@ test.describe("site-chat FAB is present on every public page that ships it", () 
         clip: { x: viewport.width - CORNER_SIZE, y: viewport.height - CORNER_SIZE, width: CORNER_SIZE, height: CORNER_SIZE },
         animations: "disabled",
         caret: "hide",
-        style: `body > *:not(#${MOUNT_ID}), body > *:not(#${MOUNT_ID}) * { visibility: hidden !important; }`,
       });
     });
   }
