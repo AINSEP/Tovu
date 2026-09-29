@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -501,6 +501,33 @@ test("generate with the per-site key gone but the stamped key still in the legac
   assert.equal(readFileSync(perSiteKeyPath("recover-site"), "utf8"), hex, "the per-site file now holds the SAME key the data was sealed with");
   const metaAfter = JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>;
   assert.equal(metaAfter.siteKeyFingerprint, fingerprintRootKeyHex(hex), "the stamp is unchanged");
+});
+
+test("generate with a WRONG per-site key and the stamped key in the legacy shared file → 200 'recovered', the wrong file kept as a backup", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const rightHex = randomBytes(32).toString("hex");
+  const wrongHex = randomBytes(32).toString("hex");
+  writeLegacySharedKey(rightHex);
+  const keyPath = perSiteKeyPath("wrong-file-site");
+  mkdirSync(path.dirname(keyPath), { recursive: true });
+  writeFileSync(keyPath, wrongHex, { mode: 0o600 });
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "wrong-file-site", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) }));
+  seedKeyDependentRow(deps.siteBinding.dir);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { outcome: string; fingerprint: string };
+  assert.equal(body.outcome, "recovered");
+  assert.equal(body.fingerprint, fingerprintRootKeyHex(rightHex));
+  assert.equal(readFileSync(keyPath, "utf8"), rightHex);
+  const backups = readdirSync(path.dirname(keyPath)).filter((name) => name.startsWith("wrong-file-site.hex.wrong-"));
+  assert.equal(backups.length, 1);
+  assert.equal(readFileSync(path.join(path.dirname(keyPath), backups[0]!), "utf8"), wrongHex);
 });
 
 test("generate with a working legacy key whose fingerprint differs from the stamp, on a site with sealed data → 409 KEY_MISMATCH, nothing shadows it", async (t) => {

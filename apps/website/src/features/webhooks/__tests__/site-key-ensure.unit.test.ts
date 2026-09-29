@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import Database from "better-sqlite3";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -568,4 +568,68 @@ test("ensureSiteKey: a malformed env key comes first but the legacy file holds t
 
   assert.equal(result.action, "adopt");
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), rightHex);
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-29 auto-fix of a wrong per-site key file: when `~/.tovu/site-keys/<id>.hex` holds a key
+// the stamp does not name (or is malformed), and another source holds the stamped key, the wrong
+// file is moved aside as a timestamped backup (never deleted) and the stamped key is adopted.
+// ---------------------------------------------------------------------------
+
+function writePerSiteKey(homeDir: string, siteKeyId: string, content: string): void {
+  mkdirSync(path.join(homeDir, ".tovu", "site-keys"), { recursive: true });
+  writeFileSync(perSiteFilePathIn(homeDir, siteKeyId), content, { mode: 0o600 });
+}
+
+function backupsOf(homeDir: string, siteKeyId: string): string[] {
+  return readdirSync(path.join(homeDir, ".tovu", "site-keys")).filter((name) => name.startsWith(`${siteKeyId}.hex.wrong-`));
+}
+
+test("ensureSiteKey: a per-site key the stamp does not name, with the stamped key in the legacy file → wrong file backed up, stamped key adopted", async () => {
+  const rightHex = validHex();
+  const wrongHex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  buildSealedCiphertextDb(path.join(siteDir, "content.db"));
+  writePerSiteKey(home, "site-1", wrongHex);
+  writeLegacySharedKey(home, rightHex);
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(result.fingerprint, fingerprintRootKeyHex(rightHex));
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), rightHex);
+  const backups = backupsOf(home, "site-1");
+  assert.equal(backups.length, 1, "the wrong key is kept as exactly one backup");
+  assert.equal(readFileSync(path.join(home, ".tovu", "site-keys", backups[0]!), "utf8"), wrongHex, "the backup holds the wrong key unchanged");
+  assert.equal(statSync(path.join(home, ".tovu", "site-keys", backups[0]!)).mode & 0o777, 0o600);
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(rightHex), "the stamp is unchanged");
+});
+
+test("ensureSiteKey: a malformed per-site key, with the stamped key in the env var → wrong file backed up, stamped key adopted", async () => {
+  const rightHex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  writePerSiteKey(home, "site-1", "not-a-key");
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: rightHex };
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), rightHex);
+  const backups = backupsOf(home, "site-1");
+  assert.equal(backups.length, 1);
+  assert.equal(readFileSync(path.join(home, ".tovu", "site-keys", backups[0]!), "utf8"), "not-a-key");
+});
+
+test("ensureSiteKey: a per-site key the stamp does not name, and NO source holds the stamped key → 'mismatch', nothing moved", async () => {
+  const wrongHex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
+  buildSealedCiphertextDb(path.join(siteDir, "content.db"));
+  writePerSiteKey(home, "site-1", wrongHex);
+  writeLegacySharedKey(home, validHex());
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "mismatch");
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), wrongHex, "the per-site file is left in place");
+  assert.deepEqual(backupsOf(home, "site-1"), [], "no backup is made when there is nothing better to adopt");
 });

@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { chmodSync, closeSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { chmodSync, closeSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
@@ -168,7 +168,9 @@ export interface EnsureSiteKeyResult {
 /**
  * The only writer of a site's key file (site-key plan §A.2). Safe to call on every boot: a valid
  * existing file is read, not rewritten, and the two write-producing outcomes (`"adopt"`, `"mint"`)
- * both go through {@link atomicCreateSiteKeyFile}'s race-safe create.
+ * both go through {@link atomicCreateSiteKeyFile}'s race-safe create. A per-site file the stamp does
+ * not name is replaced only when another source holds the stamped key, and is moved aside as a
+ * backup first ({@link moveSiteKeyFileAside}), never deleted.
  *
  * @throws whatever the underlying `fs` calls throw for a path that exists but cannot be read
  *   (permissions, a torn file) — this function never swallows those into a wrong decision. The
@@ -201,7 +203,20 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
   // A source holding exactly the key `.site-meta.json` names is the right one to adopt wherever it
   // sits in the order; only without such a source does the first-present rule apply.
   const stampedFingerprint = resolveSiteKeyFingerprint({ siteDir: input.siteDir });
-  const otherRaw = findStampedMaterial(otherSources, env, stampedFingerprint) ?? findFirstPresentMaterial(otherSources, env);
+  const stampedOtherRaw = findStampedMaterial(otherSources, env, stampedFingerprint);
+
+  // A per-site file the stamp does not name (a different key, or malformed) while another source
+  // holds the stamped key: the per-site file would otherwise outrank the right key forever. It is
+  // moved aside, never deleted, and the stamped key takes its place.
+  if (perSiteRaw !== undefined && stampedOtherRaw !== undefined && !matchesFingerprint(perSiteParsed, stampedFingerprint)) {
+    const stampedParsed = parseRootKeyHex(stampedOtherRaw);
+    if (!stampedParsed.ok) throw new Error("ensureSiteKey: stamped material implies a valid key");
+    moveSiteKeyFileAside(perSiteFilePath, perSiteRaw);
+    const written = atomicCreateSiteKeyFile(perSiteFilePath, stampedParsed.hex);
+    return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written), async () => false);
+  }
+
+  const otherRaw = stampedOtherRaw ?? findFirstPresentMaterial(otherSources, env);
   const otherParsed = otherRaw === undefined ? undefined : parseRootKeyHex(otherRaw);
 
   let hasKeyDataMemo: boolean | undefined;
@@ -446,7 +461,7 @@ function mintMinimalSiteMetaJson(siteDir: string): string | undefined {
     writeFileSync(metaPath, JSON.stringify({ siteKeyId }, null, 2), { flag: "wx", mode: 0o600 });
     return siteKeyId;
   } catch (err) {
-    if (!isEexistError(err)) throw err;
+    if (!isErrorCode(err, "EEXIST")) throw err;
     return resolveSiteKeyId({ siteDir });
   }
 }
@@ -475,6 +490,42 @@ function findStampedMaterial(
     if (parsed?.ok && fingerprintRootKeyHex(parsed.hex) === stampedFingerprint) return raw;
   }
   return undefined;
+}
+
+/** Whether `parsed` is a valid key whose fingerprint is `fingerprint`. @complexity O(1). */
+function matchesFingerprint(parsed: ReturnType<typeof parseRootKeyHex> | undefined, fingerprint: string | undefined): boolean {
+  return parsed?.ok === true && fingerprint !== undefined && fingerprintRootKeyHex(parsed.hex) === fingerprint;
+}
+
+/**
+ * Renames a wrong site key file to `<name>.wrong-<timestamp>` beside it (`0600`) so a key is never
+ * lost, even one that turned out to be the wrong one. Only moves the file when it still holds
+ * `expectedContent`: another instance that already replaced it must not have its fix moved aside.
+ * A file already gone (another instance moved it first) is not an error.
+ *
+ * @returns the backup path, or `undefined` when nothing was moved.
+ * @throws whatever `fs` throws other than `ENOENT`.
+ * @complexity O(1) — one read, one rename, one chmod.
+ */
+function moveSiteKeyFileAside(filePath: string, expectedContent: string): string | undefined {
+  let current: string;
+  try {
+    current = readFileSync(filePath, "utf8");
+  } catch (err) {
+    if (isErrorCode(err, "ENOENT")) return undefined;
+    throw err;
+  }
+  if (current !== expectedContent) return undefined;
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupPath = `${filePath}.wrong-${stamp}-${randomBytes(2).toString("hex")}`;
+  try {
+    renameSync(filePath, backupPath);
+  } catch (err) {
+    if (isErrorCode(err, "ENOENT")) return undefined;
+    throw err;
+  }
+  chmodSync(backupPath, 0o600);
+  return backupPath;
 }
 
 /** The first source in `sources` that has ANY material — present-but-invalid still counts and
@@ -519,7 +570,7 @@ function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
   try {
     linkSync(tmpPath, filePath);
   } catch (err) {
-    if (!isEexistError(err)) throw err;
+    if (!isErrorCode(err, "EEXIST")) throw err;
     // Lost the race — another process's file is now canonical; fall through to read it back.
   } finally {
     try {
@@ -531,12 +582,12 @@ function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
   return readFileSync(filePath, "utf8").trim();
 }
 
-/** Whether a failed exclusive-create/link failed BECAUSE the target path was already taken (`EEXIST`),
- *  as opposed to a genuine I/O or permission fault that must keep propagating. Shared by
+/** Whether a failed fs call failed with exactly `code` (e.g. `EEXIST`: the target path was already
+ *  taken), as opposed to a genuine I/O or permission fault that must keep propagating. Shared by
  *  {@link atomicCreateSiteKeyFile}'s `linkSync` and {@link mintMinimalSiteMetaJson}'s `writeFileSync(…,
  *  {flag:"wx"})` — both are "only the FIRST writer wins, everyone else reads the result back"
- *  primitives, and the raced-away branch is identical for either syscall. */
-function isEexistError(err: unknown): boolean {
+ *  primitives — and by {@link moveSiteKeyFileAside}'s `ENOENT` (another instance moved it first). */
+function isErrorCode(err: unknown, code: "EEXIST" | "ENOENT"): boolean {
   if (typeof err !== "object" || err === null || !("code" in err)) return false;
-  return (err as { code?: unknown }).code === "EEXIST";
+  return (err as { code?: unknown }).code === code;
 }
