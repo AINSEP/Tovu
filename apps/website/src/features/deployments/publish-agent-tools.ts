@@ -117,7 +117,7 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_P
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
-import type { DeployTargetRegistry } from "./deploy-targets/types.js";
+import type { DeployTargetFieldSpec, DeployTargetRegistry } from "./deploy-targets/types.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
 // file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
@@ -588,19 +588,26 @@ async function planToolPublish(
   deps: StaticPublishToolDeps,
   raw: Record<string, unknown>,
   targetId: StaticPublishTargetId
-): Promise<{ readonly config: StaticPublishConfig; readonly plan: ReturnType<typeof planStaticPublish> }> {
+): Promise<{ readonly config: StaticPublishConfig; readonly plan: ReturnType<typeof planStaticPublish>; readonly detailRows: DetailRow[] }> {
   const registry = await deployTargetsLoader(deps)(deps.workspaceId);
   const target = registry.get(targetId);
   if (target === undefined) throw new ToolInputError(unknownTargetMessage(registry, targetId));
   const read = readStaticPublishConfig(target, raw, { blankAsAbsent: true });
   if (!read.ok) throw new ToolInputError(read.message);
-  return { config: read.config, plan: planStaticPublish(registry, read.config) };
+  return { config: read.config, plan: planStaticPublish(registry, read.config), detailRows: configDetailRows(read.config, target.descriptor.configFields) };
 }
 
-/** One confirmation/outcome card row per config field the publish carries, target excluded. Generic
- *  on purpose: which fields exist is the target descriptor's business. @complexity O(f). */
-function configDetailRows(config: StaticPublishConfig): { label: string; value: string }[] {
-  return Object.entries(config).flatMap(([name, value]) => (name !== "target" && typeof value === "string" ? [{ label: name, value }] : []));
+/** One labelled row on a publish confirmation/outcome card. */
+type DetailRow = { label: string; value: string };
+
+/** One card row per declared config field the publish carries, in declaration order and under the
+ *  label the target's plugin declares for it. Which fields exist is the descriptor's business, so
+ *  nothing here names a host. @complexity O(f) declared fields. */
+function configDetailRows(config: StaticPublishConfig, fields: readonly DeployTargetFieldSpec[]): DetailRow[] {
+  return fields.flatMap((field) => {
+    const value = config[field.name];
+    return typeof value === "string" ? [{ label: field.label, value }] : [];
+  });
 }
 
 const EXECUTE_STATIC_PUBLISH_TOOL_ID = "deployment_execute_static_publish";
@@ -628,11 +635,12 @@ function publishConfirmationUri(exchangeId: string): UIResourceUri {
  */
 function buildPublishConfirmationResource(spec: {
   config: StaticPublishConfig;
+  detailRows: readonly DetailRow[];
   projectName: string;
   basePath: string | undefined;
   exchangeId: string;
 }): UIResource {
-  const { config, projectName, basePath, exchangeId } = spec;
+  const { config, detailRows, projectName, basePath, exchangeId } = spec;
 
   return buildConfirmationSurface({
     uri: publishConfirmationUri(exchangeId),
@@ -641,7 +649,7 @@ function buildPublishConfirmationResource(spec: {
     details: [
       { label: "Target", value: config.target },
       { label: "Project name", value: projectName },
-      ...configDetailRows(config),
+      ...detailRows,
       ...(basePath !== undefined ? [{ label: "Base path", value: basePath }] : []),
     ],
     warning:
@@ -688,12 +696,13 @@ function buildPublishConfirmationResource(spec: {
 function buildPublishOutcomeResource(spec: {
   exchangeId: string;
   config: StaticPublishConfig;
+  detailRows: readonly DetailRow[];
   projectName: string;
   state: "success" | "partial" | "failure";
   message: string;
   url?: string;
 }): UIResource {
-  const { exchangeId, config, projectName, state, message, url } = spec;
+  const { exchangeId, config, detailRows, projectName, state, message, url } = spec;
   const title = state === "success" ? "Published" : state === "partial" ? "Uploaded, not live yet" : "Publish failed";
   return buildOutcomeSurface({
     uri: publishConfirmationUri(exchangeId),
@@ -701,7 +710,7 @@ function buildPublishOutcomeResource(spec: {
     details: [
       { label: "Target", value: config.target },
       { label: "Project name", value: projectName },
-      ...configDetailRows(config),
+      ...detailRows,
     ],
     state,
     message,
@@ -1064,6 +1073,8 @@ interface PublishConfirmationContext {
   readonly historyStore: PublishHistoryStore;
   readonly exchange: SurfaceExchange;
   readonly config: StaticPublishConfig;
+  /** The card's config rows, labelled from the target descriptor (see `configDetailRows`). */
+  readonly detailRows: readonly DetailRow[];
   readonly target: StaticPublishTargetId;
   readonly projectName: string;
 }
@@ -1098,14 +1109,19 @@ function buildNoAnswerToolResult(status: "expired" | "abandoned"): { published: 
  * resolve, and nothing published. Corrected the same way a real publish failure is, not left to the
  * confirmation script's generic "Done.".
  */
-function buildAlreadyRunningResult(exchange: SurfaceExchange, config: StaticPublishConfig, projectName: string): { result: unknown; outcome: SurfaceEmission } {
+function buildAlreadyRunningResult(
+  exchange: SurfaceExchange,
+  config: StaticPublishConfig,
+  detailRows: readonly DetailRow[],
+  projectName: string
+): { result: unknown; outcome: SurfaceEmission } {
   const message =
     "A publish is already running in this server (started via the admin UI or another agent call). Wait for it to finish, or check deployment_get_static_publish_capabilities/the Static Site tab for its status, then retry. This will not resolve on retry while it is still running.";
   return {
     result: { published: false, cancelled: false, reason: "already-running", message },
     outcome: {
       channel: "mcp-ui",
-      payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message }) },
+      payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "failure", message }) },
     },
   };
 }
@@ -1134,6 +1150,7 @@ function mapPublishOutcomeToToolResult(
   outcome: StaticPublishOutcome,
   exchange: SurfaceExchange,
   config: StaticPublishConfig,
+  detailRows: readonly DetailRow[],
   projectName: string
 ): { result: unknown; outcome: SurfaceEmission } {
   if (outcome.ok === "partial") {
@@ -1151,7 +1168,7 @@ function mapPublishOutcomeToToolResult(
       outcome: {
         channel: "mcp-ui",
         payload: {
-          resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "partial", message: outcome.message, url: outcome.url }),
+          resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "partial", message: outcome.message, url: outcome.url }),
         },
       },
     };
@@ -1161,7 +1178,7 @@ function mapPublishOutcomeToToolResult(
       result: { published: false, cancelled: false, code: outcome.code, message: outcome.message },
       outcome: {
         channel: "mcp-ui",
-        payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message: outcome.message }) },
+        payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "failure", message: outcome.message }) },
       },
     };
   }
@@ -1181,6 +1198,7 @@ function mapPublishOutcomeToToolResult(
         resource: buildPublishOutcomeResource({
           exchangeId: exchange.id,
           config,
+          detailRows,
           projectName,
           state: "success",
           message: `Published live at ${outcome.url}.`,
@@ -1227,7 +1245,7 @@ async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: Publ
   }
 
   if (getPublishRunSnapshot().status === "running") {
-    return buildAlreadyRunningResult(ctx.exchange, ctx.config, ctx.projectName);
+    return buildAlreadyRunningResult(ctx.exchange, ctx.config, ctx.detailRows, ctx.projectName);
   }
 
   const outcome = await runPublishAndAwait(
@@ -1248,7 +1266,7 @@ async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: Publ
     ctx.historyStore
   );
 
-  return mapPublishOutcomeToToolResult(outcome, ctx.exchange, ctx.config, ctx.projectName);
+  return mapPublishOutcomeToToolResult(outcome, ctx.exchange, ctx.config, ctx.detailRows, ctx.projectName);
 }
 
 /** Shared `protocol` field validation for `deployment_propose_custom_provider_credential` and
@@ -1516,7 +1534,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.publish", entityType: "site-publish" });
 
-      const { config, plan } = await planToolPublish(deps, raw, target);
+      const { config, plan, detailRows } = await planToolPublish(deps, raw, target);
       if (!plan.ok) {
         throw new ToolInputError(`deployment_execute_static_publish: ${plan.message}`);
       }
@@ -1546,7 +1564,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         { toolId: EXECUTE_STATIC_PUBLISH_TOOL_ID, principalId: ctx.principal.id },
         ctx.emitSurface
       );
-      const ui = buildPublishConfirmationResource({ config, projectName, basePath, exchangeId: exchange.id });
+      const ui = buildPublishConfirmationResource({ config, detailRows, projectName, basePath, exchangeId: exchange.id });
 
       // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
       // handler open until the idle deadline — mirrors `content_post_delete`'s identical guard.
@@ -1556,7 +1574,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         // `askThenReport`, not `askOnce` (`assistant/surface-exchanges.ts`) — see
         // `handlePublishConfirmationAnswer`'s own header for the full defect this closes and why the
         // handler is a separate top-level function rather than inlined here.
-        const confirmationContext: PublishConfirmationContext = { deps, credentialSource, historyStore, exchange, config, target, projectName };
+        const confirmationContext: PublishConfirmationContext = { deps, credentialSource, historyStore, exchange, config, detailRows, target, projectName };
         // `<unknown>`, not left to infer: `handlePublishConfirmationAnswer`'s return type is a real
         // union across its several `return` statements (a no-answer result looks nothing like a
         // success result), and TypeScript's generic inference does not distribute a callback's union
