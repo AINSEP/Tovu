@@ -9,7 +9,7 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { assertContainedOnDisk, PackagePathViolation } from "#src/features/agent-plugins/package-paths";
 import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
 
-import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
+import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
 /**
  * @file Loads deploy targets that Agent Plugins contribute — the generic seam that lets the `deploy`
@@ -195,7 +195,36 @@ function parseDescriptor(entry: unknown, at: string): DeployTargetDescriptor | s
   if (typeof env === "string") return env;
   const credential = parseCredentialSpec(entry.credential, `${at}.credential`);
   if (typeof credential === "string") return credential;
-  return { id, label, module, configFields, ...(env !== undefined ? { env } : {}), ...(credential !== undefined ? { credential } : {}) };
+  const projectName = parseProjectNameCopy(entry.projectName, `${at}.projectName`);
+  if (typeof projectName === "string") return projectName;
+  return {
+    id,
+    label,
+    module,
+    configFields,
+    ...(projectName !== undefined ? { projectName } : {}),
+    ...(env !== undefined ? { env } : {}),
+    ...(credential !== undefined ? { credential } : {}),
+  };
+}
+
+/** A target's `projectName` copy (absent = the generic "Project name"), or the reason it is invalid. @complexity O(1). */
+function parseProjectNameCopy(value: unknown, at: string): DeployTargetProjectNameCopy | undefined | string {
+  if (value === undefined) return undefined;
+  if (!isPlainObject(value) || !isLabel(value.label)) return `${at}.label must be a non-empty string`;
+  const { label, help } = value;
+  if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  return { label, ...(help !== undefined ? { help } : {}) };
+}
+
+/** An absolute https URL, the only kind a credential form links out to. @complexity O(n) in its length. */
+function isHttpsUrl(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > 500) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 /** A saved connection's own discriminant, so a credential field of that name would be ambiguous. */
@@ -205,11 +234,12 @@ const RESERVED_CREDENTIAL_FIELD_NAMES: ReadonlySet<string> = new Set(["providerI
 function parseCredentialSpec(value: unknown, at: string): DeployTargetCredentialSpec | undefined | string {
   if (value === undefined) return undefined;
   if (!isPlainObject(value)) return `${at} must be an object`;
-  const { vendorId, vendorLabel, yieldsAccountLabel, help, tokenField = "token" } = value;
+  const { vendorId, vendorLabel, yieldsAccountLabel, help, tokenPageUrl, tokenField = "token" } = value;
   if (typeof vendorId !== "string" || vendorId.length > MAX_TARGET_ID_LENGTH || !TARGET_ID_PATTERN.test(vendorId)) return `${at}.vendorId must be a lowercase hyphenated id`;
   if (vendorLabel !== undefined && !isLabel(vendorLabel)) return `${at}.vendorLabel must be a non-empty string`;
   if (yieldsAccountLabel !== undefined && typeof yieldsAccountLabel !== "boolean") return `${at}.yieldsAccountLabel must be a boolean`;
   if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  if (tokenPageUrl !== undefined && !isHttpsUrl(tokenPageUrl)) return `${at}.tokenPageUrl must be an https URL`;
   const fields = parseFieldList(value.fields, `${at}.fields`, RESERVED_CREDENTIAL_FIELD_NAMES);
   if (typeof fields === "string") return fields;
   if (typeof tokenField !== "string" || !fields.some((field) => field.name === tokenField && field.required)) return `${at}.tokenField '${String(tokenField)}' must name a required field`;
@@ -218,6 +248,7 @@ function parseCredentialSpec(value: unknown, at: string): DeployTargetCredential
     ...(vendorLabel !== undefined ? { vendorLabel } : {}),
     ...(yieldsAccountLabel === true ? { yieldsAccountLabel: true as const } : {}),
     ...(help !== undefined ? { help } : {}),
+    ...(tokenPageUrl !== undefined ? { tokenPageUrl } : {}),
     tokenField,
     fields,
   };

@@ -150,13 +150,19 @@ async function readTargetConfig(
 }
 
 /** A target's saved-credential form, as the admin renders it: the field specs (secret fields flagged,
- *  never a value), the form's help and which field is the token. @complexity O(1). */
+ *  never a value), the form's help and token page, and which field is the token. @complexity O(1). */
 function publicCredentialSpec(spec: DeployTargetCredentialSpec): {
   help?: string;
+  tokenPageUrl?: string;
   tokenField: string;
   fields: DeployTargetCredentialSpec["fields"];
 } {
-  return { ...(spec.help !== undefined ? { help: spec.help } : {}), tokenField: spec.tokenField, fields: spec.fields };
+  return {
+    ...(spec.help !== undefined ? { help: spec.help } : {}),
+    ...(spec.tokenPageUrl !== undefined ? { tokenPageUrl: spec.tokenPageUrl } : {}),
+    tokenField: spec.tokenField,
+    fields: spec.fields,
+  };
 }
 
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
@@ -360,6 +366,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
           id: descriptor.id,
           label: descriptor.label,
           configFields: descriptor.configFields,
+          ...(descriptor.projectName !== undefined ? { projectName: descriptor.projectName } : {}),
           ...(descriptor.credential !== undefined ? { credential: publicCredentialSpec(descriptor.credential) } : {}),
         })),
       });

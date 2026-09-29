@@ -2,111 +2,13 @@
   "schemaVersion": 1,
   "targets": [
     {
-      "id": "netlify",
-      "label": "Netlify",
-      "module": "targets/netlify.mjs",
-      "env": {
-        "tokenVars": [
-          "NETLIFY_TOKEN",
-          "NETLIFY_ACCESS_TOKEN",
-          "NETLIFY_AUTH_TOKEN"
-        ]
-      },
-      "credential": {
-        "vendorId": "netlify",
-        "fields": [
-          {
-            "name": "token",
-            "label": "Personal access token",
-            "required": true,
-            "secret": true,
-            "help": "Netlify: User settings > Applications > Personal access tokens."
-          },
-          {
-            "name": "siteId",
-            "label": "Site ID",
-            "help": "Optional. Netlify finds or creates the site from the project name."
-          }
-        ]
-      }
-    },
-    {
-      "id": "cloudflare-pages",
-      "label": "Cloudflare Pages",
-      "module": "targets/cloudflare-pages.mjs",
-      "env": {
-        "tokenVars": [
-          "CLOUDFLARE_TOKEN",
-          "CLOUDFLARE_API_TOKEN"
-        ],
-        "fields": {
-          "accountId": "CLOUDFLARE_ACCOUNT_ID"
-        }
-      },
-      "credential": {
-        "vendorId": "cloudflare",
-        "vendorLabel": "Cloudflare",
-        "fields": [
-          {
-            "name": "token",
-            "label": "API token",
-            "required": true,
-            "secret": true,
-            "help": "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission."
-          },
-          {
-            "name": "accountId",
-            "label": "Account ID",
-            "required": true,
-            "help": "Shown on the Cloudflare dashboard's account home page."
-          },
-          {
-            "name": "projectName",
-            "label": "Project name"
-          }
-        ]
-      }
-    },
-    {
-      "id": "vercel",
-      "label": "Vercel",
-      "module": "targets/vercel.mjs",
-      "config": [
-        {
-          "name": "teamId",
-          "label": "Team ID",
-          "help": "Only for a team account. Leave blank for a personal account."
-        }
-      ],
-      "env": {
-        "tokenVars": [
-          "VERCEL_TOKEN",
-          "VERCEL_ACCESS_TOKEN"
-        ]
-      },
-      "credential": {
-        "vendorId": "vercel",
-        "yieldsAccountLabel": true,
-        "fields": [
-          {
-            "name": "token",
-            "label": "Access token",
-            "required": true,
-            "secret": true,
-            "help": "Vercel: Account settings > Tokens."
-          },
-          {
-            "name": "teamId",
-            "label": "Team ID",
-            "help": "Only for a team account."
-          }
-        ]
-      }
-    },
-    {
       "id": "github-pages",
       "label": "GitHub Pages",
       "module": "targets/github-pages.mjs",
+      "projectName": {
+        "label": "Commit message",
+        "help": "Used as the commit message when Tovu pushes the export to the gh-pages branch."
+      },
       "config": [
         {
           "name": "owner",
@@ -137,6 +39,8 @@
         "vendorId": "github",
         "vendorLabel": "GitHub",
         "yieldsAccountLabel": true,
+        "help": "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.",
+        "tokenPageUrl": "https://github.com/settings/tokens",
         "fields": [
           {
             "name": "token",
@@ -144,6 +48,126 @@
             "required": true,
             "secret": true,
             "help": "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents."
+          }
+        ]
+      }
+    },
+    {
+      "id": "vercel",
+      "label": "Vercel",
+      "module": "targets/vercel.mjs",
+      "projectName": {
+        "label": "Vercel project name",
+        "help": "Vercel finds or creates a project with this name on every publish."
+      },
+      "config": [
+        {
+          "name": "teamId",
+          "label": "Team ID",
+          "help": "Only for a team account. Leave blank for a personal account."
+        }
+      ],
+      "env": {
+        "tokenVars": [
+          "VERCEL_TOKEN",
+          "VERCEL_ACCESS_TOKEN"
+        ]
+      },
+      "credential": {
+        "vendorId": "vercel",
+        "yieldsAccountLabel": true,
+        "help": "An access token from your Vercel account.",
+        "tokenPageUrl": "https://vercel.com/account/tokens",
+        "fields": [
+          {
+            "name": "token",
+            "label": "Access token",
+            "required": true,
+            "secret": true,
+            "help": "Vercel: Account settings > Tokens."
+          },
+          {
+            "name": "teamId",
+            "label": "Team ID",
+            "help": "Only for a team account."
+          }
+        ]
+      }
+    },
+    {
+      "id": "netlify",
+      "label": "Netlify",
+      "module": "targets/netlify.mjs",
+      "projectName": {
+        "label": "Site name",
+        "help": "Netlify finds or creates a site with this name on every publish."
+      },
+      "env": {
+        "tokenVars": [
+          "NETLIFY_TOKEN",
+          "NETLIFY_ACCESS_TOKEN",
+          "NETLIFY_AUTH_TOKEN"
+        ]
+      },
+      "credential": {
+        "vendorId": "netlify",
+        "help": "A personal access token from your Netlify account.",
+        "tokenPageUrl": "https://app.netlify.com/user/applications#personal-access-tokens",
+        "fields": [
+          {
+            "name": "token",
+            "label": "Personal access token",
+            "required": true,
+            "secret": true,
+            "help": "Netlify: User settings > Applications > Personal access tokens."
+          },
+          {
+            "name": "siteId",
+            "label": "Site ID",
+            "help": "Optional. Netlify finds or creates the site from the project name."
+          }
+        ]
+      }
+    },
+    {
+      "id": "cloudflare-pages",
+      "label": "Cloudflare Pages",
+      "module": "targets/cloudflare-pages.mjs",
+      "projectName": {
+        "label": "Project name",
+        "help": "Cloudflare Pages finds or creates a project with this name on every publish."
+      },
+      "env": {
+        "tokenVars": [
+          "CLOUDFLARE_TOKEN",
+          "CLOUDFLARE_API_TOKEN"
+        ],
+        "fields": {
+          "accountId": "CLOUDFLARE_ACCOUNT_ID"
+        }
+      },
+      "credential": {
+        "vendorId": "cloudflare",
+        "vendorLabel": "Cloudflare",
+        "help": "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.",
+        "tokenPageUrl": "https://dash.cloudflare.com/profile/api-tokens",
+        "fields": [
+          {
+            "name": "token",
+            "label": "API token",
+            "required": true,
+            "secret": true,
+            "help": "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission."
+          },
+          {
+            "name": "accountId",
+            "label": "Account ID",
+            "required": true,
+            "help": "Shown on the Cloudflare dashboard's account home page."
+          },
+          {
+            "name": "projectName",
+            "label": "Project name"
           }
         ]
       }

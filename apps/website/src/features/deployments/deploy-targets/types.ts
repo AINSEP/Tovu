@@ -151,6 +151,9 @@ export interface DeployTargetDescriptor {
   /** Per-publish settings the person supplies (a repository, a team), in display order. Read from a
    *  publish request under the same names; values are strings. Empty when the host needs none. */
   readonly configFields: readonly DeployTargetFieldSpec[];
+  /** What the publish form calls the per-publish project name for this host (a commit message, a
+   *  site name). Absent: the generic "Project name". */
+  readonly projectName?: DeployTargetProjectNameCopy;
   /** The server-environment credential fallback. Absent when the host has none. */
   readonly env?: DeployTargetEnvFallback;
   /** What a saved connection for this host holds. Absent when the host takes no saved credential. */
@@ -173,8 +176,16 @@ export interface DeployTargetCredentialSpec {
   readonly yieldsAccountLabel?: true;
   /** Shown above the credential form's fields (what to have ready before filling it in). */
   readonly help?: string;
+  /** The host's own page for creating the credential (https), linked from the credential form. */
+  readonly tokenPageUrl?: string;
   readonly tokenField: string;
   readonly fields: readonly DeployTargetFieldSpec[];
+}
+
+/** What the publish form's project-name field means for one host. */
+export interface DeployTargetProjectNameCopy {
+  readonly label: string;
+  readonly help?: string;
 }
 
 /** One named string field a person fills in. */
