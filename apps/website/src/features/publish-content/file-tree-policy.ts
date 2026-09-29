@@ -142,7 +142,8 @@ export function isIgnoredTreeFileName(name: string): boolean {
  * `.env`/`.env.*` (any suffix), `.npmrc`/`.netrc` (package manager credentials), `.mcp.*.json`
  * (MCP server env — never THIS shape; an agent-plugin's own `mcp.json`/`.mcp.json` is a different,
  * unprefixed name and is checked by {@link checkMcpJsonSecretPlaceholders} instead),
- * `.fs-custom-root.json` (a local absolute path), and any `id_rsa`/`id_ed25519` private key file
+ * `.fs-custom-root.json` (a local absolute path), `.storage-secret.json` (a Postgres site's sealed
+ * connection string, `storage-secret.ts`), and any `id_rsa`/`id_ed25519` private key file
  * (with or without an extension, e.g. `id_rsa.bak`). macOS's `.DS_Store` and its siblings are NOT
  * here — see {@link isIgnoredTreeFileName}: they are silently excluded, never a whole-tree DENY.
  *
@@ -153,6 +154,7 @@ function deniedFileNameReason(name: string): string | null {
   if (name === ".npmrc" || name === ".netrc") return "is a package-manager credential file";
   if (MCP_CONFIG_NAME_PATTERN.test(name)) return "is an MCP server configuration file, which can hold secrets";
   if (name === ".fs-custom-root.json") return "holds a local filesystem path, never portable across machines";
+  if (name.includes(".storage-secret.json")) return "is a site's sealed database connection string";
   if (name === "id_rsa" || name.startsWith("id_rsa.") || name === "id_ed25519" || name.startsWith("id_ed25519.")) {
     return "looks like a private SSH key";
   }

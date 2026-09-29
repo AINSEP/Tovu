@@ -9,6 +9,7 @@ import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/ports
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import type { SealedSecret } from "#src/features/webhooks/types";
+import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 
 /**
@@ -22,8 +23,8 @@ import type { SiteStorage } from "#src/platform/site-dir/types";
  * Errors never carry the connection string or the sealer's own message.
  */
 
-/** The sealed connection string, in the site folder (mode 0600). */
-export const STORAGE_SECRET_FILENAME = ".storage-secret.json";
+/** The sealed connection string, in the site folder (mode 0600); named in `site-dir/layout.ts`. */
+export { STORAGE_SECRET_FILENAME };
 
 /** Bound into the ciphertext: a sealed value from any other store never opens as this one. */
 const STORAGE_SECRET_AAD = "tovu:site-storage:postgres-connection:v1";

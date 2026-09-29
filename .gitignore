@@ -101,6 +101,12 @@ sites/*/ops/*.db-shm
 # key file itself, in case this directory ever grows a second file.
 sites/.tovu/
 
+# R1f (ADR-067, owner decision O3): a Postgres site's connection string, sealed with the site key
+# in its own folder (`storage-secret.ts`). Ciphertext, but it is the database password and names the
+# site's database: never committed, whatever folder the site lives in (the pattern also covers the
+# `..storage-secret.json.<pid>.<uuid>.tmp` a crashed write could leave behind).
+**/*.storage-secret.json*
+
 # `tovu theme migrate`'s scratch output (migrate-theme.ts's createStagingDir) — deliberately left on
 # disk as a sibling of the real theme folder for dry-run/failure inspection, never meant to be
 # committed. ARCH-001 (2026-08-19): two of these were swept into a commit by a broad `git add` and

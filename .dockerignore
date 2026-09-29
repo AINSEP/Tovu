@@ -27,6 +27,8 @@ sites/*/content.db-wal
 sites/*/content.db-shm
 sites/*/content.db.bak-*
 sites/*/restore-point-*.db
+# A Postgres site's sealed connection string (storage-secret.ts): never in an image.
+**/*.storage-secret.json*
 chat.db
 chat.db-wal
 chat.db-shm

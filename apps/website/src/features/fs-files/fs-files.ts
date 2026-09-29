@@ -198,6 +198,10 @@ export const FS_FILES_DENYLIST = {
    *   `desktop_notarization_already_set_up` in the owner's own memory for a concrete example of what a
    *   `.bash_profile` on this machine carries. Exact basenames, not a suffix family: a project file
    *   that merely contains "profile" in its name (`profile.ts`) must not match.
+   * - `.storage-secret.json` (exact basename, R1f) — a Postgres site's connection string, sealed with
+   *   the site key in the site folder (`server/runtime/composition/storage-secret.ts`). Ciphertext,
+   *   but no agent file tool reads, lists or copies it: it is the database's password. The pattern
+   *   also covers the `..storage-secret.json.<pid>.<uuid>.tmp` a crashed write could leave behind.
    */
   filenamePatterns: [
     /^\.env(?:\..*)?$/i,
@@ -218,6 +222,7 @@ export const FS_FILES_DENYLIST = {
     /root-key.*\.hex$/i,
     /^\.credentials\.json$/i,
     /^\.(?:bash_profile|bashrc|bash_login|zshrc|zprofile|zshenv|zlogin|profile)$/i,
+    /^\.?\.storage-secret\.json(?:\..*)?$/i,
   ] as readonly RegExp[],
 } as const;
 

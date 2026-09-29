@@ -8,6 +8,7 @@ import { after, before, test, type TestContext } from "node:test";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
+import { exportSite } from "#src/features/site-export/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { psql } from "#src/platform/db/migration/pg-fixture";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
@@ -230,6 +231,21 @@ test("second boot (sealed .storage-secret.json): same database, no migration re-
     200
   );
   assert.ok(pages.posts.some((p) => p.post.title === "About Postgres"), "the first boot's page is still there");
+
+  // The sealed secret never leaves the folder: not served, not in a static export (`tovu export`,
+  // static publish and source-control commits all run this exporter).
+  const ciphertext = (JSON.parse(fs.readFileSync(secretPath, "utf8")) as { sealed: { ciphertext: string } }).sealed.ciphertext;
+  const served = await fetch(`${baseUrl}/${STORAGE_SECRET_FILENAME}`);
+  assert.equal((await served.text()).includes(ciphertext), false, "the live site never serves the secret");
+  const outputDir = path.join(parent, "export-out");
+  const report = await exportSite({ routeDeps: deps, outputDir });
+  assert.ok(report.routes.succeeded.length > 0, "the postgres site exported its routes");
+  for (const rel of fs.readdirSync(outputDir, { recursive: true }) as string[]) {
+    const full = path.join(outputDir, rel);
+    if (!fs.statSync(full).isFile()) continue;
+    assert.notEqual(path.basename(rel), STORAGE_SECRET_FILENAME, `${rel}: the export holds no secret file`);
+    assert.equal(fs.readFileSync(full).includes(ciphertext), false, `${rel}: no exported file carries the sealed secret`);
+  }
 });
 
 test("a sealed secret that does not open with the site key refuses to boot, naming the file, never the value", async () => {

@@ -97,8 +97,10 @@ export interface CollectedSiteBackupFiles {
 
 /** Names never backed up wherever they appear. `.publish-staging`/`.publish-previous` are
  *  theme-files publish's own scratch and replaced-tree copies (`features/theme/publish-content.ts`) —
- *  a backup must never capture a half-staged tree. */
-const IGNORED_NAMES = new Set([".DS_Store", ".git", ".publish-staging", ".publish-previous"]);
+ *  a backup must never capture a half-staged tree. `.storage-secret.json` is a Postgres site's sealed
+ *  connection string (`storage-secret.ts`): it lives in the site root, which no scope walks, and is
+ *  named here too so a stray copy inside a walked folder never rides along. */
+const IGNORED_NAMES = new Set([".DS_Store", ".git", ".publish-staging", ".publish-previous", ".storage-secret.json"]);
 
 const SYMLINK_REASON = "a symbolic link — never followed, so nothing outside the site can ride along";
 

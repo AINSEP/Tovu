@@ -5,7 +5,7 @@ import path from "node:path";
 import { duplicateContentDb } from "./duplicate-content-db.js";
 import { InternalError, SiteDirInvalidError, ValidationError } from "./errors.js";
 import { cleanupAndRethrow, resolveSiteName, validateInitTarget } from "./init-site.js";
-import { CHAT_ATTACHMENTS_ENTRY_NAME, CONTENT_DB_FILENAME, isPortableSiteEntry, UPLOADS_ENTRY_NAME } from "./layout.js";
+import { CHAT_ATTACHMENTS_ENTRY_NAME, CONTENT_DB_FILENAME, isPortableSiteEntry, STORAGE_SECRET_FILENAME, UPLOADS_ENTRY_NAME } from "./layout.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { parseSiteStorage } from "./site-storage.js";
@@ -121,10 +121,11 @@ function copyPortableEntries(source: string, target: string, onBeforeFirstWrite:
     // {@link CHAT_ATTACHMENTS_ENTRY_NAME}. `fs.cpSync`'s `filter` receives absolute SOURCE paths and
     // does not descend into a directory it rejects, so excluding the staging directory itself is
     // enough; nothing below it is ever visited.
+    // A sealed storage secret is skipped at any depth ({@link STORAGE_SECRET_FILENAME}).
     const excluded = entry.name === UPLOADS_ENTRY_NAME ? path.join(from, CHAT_ATTACHMENTS_ENTRY_NAME) : null;
     fs.cpSync(from, path.join(target, entry.name), {
       recursive: true,
-      ...(excluded === null ? {} : { filter: (src: string) => src !== excluded }),
+      filter: (src: string) => src !== excluded && !path.basename(src).includes(STORAGE_SECRET_FILENAME),
     });
   }
 }
@@ -189,7 +190,10 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
   validateInitTarget(target); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.
   const { meta: sourceMeta } = readSiteDir({ dir: source }); // pre-write SITE_DIR_INVALID — nothing created yet.
   // The copy keeps the source's storage. Only SQLite is copied here (a whole-file copy); the other
-  // kinds copy row by row through their kernels, which the R1 plan's slice R1g adds.
+  // kinds copy row by row through their kernels, which the R1 plan's slice R1g adds. Refusing is
+  // also the secret rule: a postgres source's `.storage-secret.json` (or its env var) names the
+  // SOURCE's database, so a duplicate must never inherit it — when R1g lands it takes a new
+  // connection string for the copy's own database, and the allowlist copy never carries the file.
   const storage = parseSiteStorage(sourceMeta.storage);
   if (storage.kind !== "sqlite") {
     throw new ValidationError(`duplicating a site stored on ${storage.kind} is not supported yet (R1 plan slice R1g)`);
