@@ -23,6 +23,37 @@ export interface ShutdownProcess {
 const DEFAULT_CLOSE_TIMEOUT_MS = 4_000;
 
 /**
+ * Runs `close` and resolves when it settles or after `timeoutMs` (default 4 s), whichever is first.
+ * Never rejects: a failed or hung close is logged (`label` names what was closing), so a caller can
+ * always exit afterwards. Shared with `tovu serve`'s shutdown.
+ */
+export function closeWithinBound(
+  close: () => Promise<void>,
+  options: { label: string; timeoutMs?: number; log?: (message: string) => void }
+): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
+  const log = options.log ?? ((message: string) => console.error(message));
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(() => {
+      log(`[shutdown] ${options.label} did not close within ${timeoutMs} ms; exiting anyway`);
+      resolve();
+    }, timeoutMs);
+    timer.unref();
+    close().then(
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        log(`[shutdown] closing ${options.label} failed: ${error instanceof Error ? error.message : String(error)}`);
+        resolve();
+      }
+    );
+  });
+}
+
+/**
  * On a PGlite/Postgres site, closes the store on SIGINT/SIGTERM/SIGHUP (then exits 0) and when the
  * event loop drains (`beforeExit`). `onShutdown` (the daemon supervisor's `shutdownAssistantDaemon`)
  * runs first on a signal and again, synchronously, on `exit`, which covers an explicit
@@ -43,24 +74,7 @@ export function closeStoreOnShutdown(
 
   let closing: Promise<void> | undefined;
   const closeBounded = (): Promise<void> => {
-    closing ??= new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        log(`[shutdown] the ${store.storage.kind} store did not close within ${timeoutMs} ms; exiting anyway`);
-        resolve();
-      }, timeoutMs);
-      timer.unref();
-      store.close().then(
-        () => {
-          clearTimeout(timer);
-          resolve();
-        },
-        (error: unknown) => {
-          clearTimeout(timer);
-          log(`[shutdown] closing the ${store.storage.kind} store failed: ${error instanceof Error ? error.message : String(error)}`);
-          resolve();
-        }
-      );
-    });
+    closing ??= closeWithinBound(() => store.close(), { label: `the ${store.storage.kind} store`, timeoutMs, log });
     return closing;
   };
 

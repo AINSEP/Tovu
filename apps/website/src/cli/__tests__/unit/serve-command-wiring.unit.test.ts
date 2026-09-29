@@ -127,3 +127,14 @@ test("program.ts registers --host and threads it into runServeCommand's input", 
       "would be parsed but silently ignored."
   );
 });
+
+test("the BR-07 shutdown awaits the bounded store close before process.exit(0)", () => {
+  const body = readRunServeCommandBody(fs.readFileSync(SERVE_TS_PATH, "utf8"));
+  const start = body.indexOf("const finish = async (): Promise<void> => {");
+  assert.notEqual(start, -1, "the shutdown's finish is no longer an async function");
+  const finish = body.slice(start);
+  const close = finish.indexOf("await closeWithinBound(");
+  const exit = finish.indexOf("process.exit(0)");
+  assert.ok(close !== -1 && exit !== -1 && close < exit, "finish must await closeWithinBound(...) before process.exit(0), or PGlite's flush and lock release are cut short");
+  assert.ok(finish.slice(close, exit).includes("closeSiteDirBoot(bootResult, owned.composedStore)"), "the bounded close must close the composition's store");
+});

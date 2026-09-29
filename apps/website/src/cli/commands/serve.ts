@@ -5,7 +5,9 @@ import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
-import { bootSiteDir, closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
+import { bootSiteDir, closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
+import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
+import { closeWithinBound } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
@@ -292,6 +294,40 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   pinServedSiteDirIntoEnv(target);
   pinPlainHttpIntoEnv();
   const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
+  // From here on this command owns what `bootSiteDir` opened: any failure before the listener is
+  // bound (bad port/host, a composition or lifecycle failure, the daemon port, `EADDRINUSE`) stops
+  // the workers already started and closes the store before the error reaches `cli/main.ts`, so a
+  // refused boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
+  const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [] };
+  try {
+    await serveBootedSite(input, target, owned);
+  } catch (err) {
+    await releaseServeOwnership(owned);
+    throw err;
+  }
+}
+
+/** What a `tovu serve` run holds open once `bootSiteDir` has succeeded. */
+interface ServeOwnership {
+  readonly bootResult: BootSiteDirResult;
+  /** The composition's store (`onStoreOpened`); closing it stops the guest-chat sweep first. */
+  composedStore: SiteStore | undefined;
+  /** Background loops started by `createServingApp`. */
+  readonly workers: Array<{ stop(): Promise<void> }>;
+}
+
+/** Stops every started worker, then closes the store (the composition's, or `bootSiteDir`'s). */
+async function releaseServeOwnership(owned: ServeOwnership): Promise<void> {
+  await Promise.allSettled(owned.workers.map((worker) => worker.stop()));
+  await closeSiteDirBoot(owned.bootResult, owned.composedStore);
+}
+
+/**
+ * {@link runServeCommand} after `bootSiteDir`: compose, run the boot lifecycle, bind the listener and
+ * install the BR-07 shutdown. Records what it starts in `owned`, so a rejection can be cleaned up.
+ */
+async function serveBootedSite(input: RunServeCommandInput, target: string, owned: ServeOwnership): Promise<void> {
+  const { bootResult } = owned;
   const port = resolveServePort(input, bootResult.config);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
@@ -313,6 +349,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
     db: bootResult.db,
     store: bootResult.store,
     workspaceId: bootResult.workspaceId,
+    onStoreOpened: (store) => (owned.composedStore = store),
     uploadsDir: path.join(target, "uploads"),
     // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
     // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
@@ -356,8 +393,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   setReadinessSnapshot(lifecycleResult);
   if (!lifecycleResult.ok) {
     logCriticalBootFailures(lifecycleResult);
-    await closeSiteDirBoot(bootResult);
-    // Never `process.exit()` here (unlike `index.ts`): this file's own header records the
+    // The store is closed by `runServeCommand`'s catch. Never `process.exit()` here (unlike `index.ts`): this file's own header records the
     // established contract — `cli` layer errors propagate uncaught to `cli/main.ts`, which maps
     // them to an exit code via `errors.ts`. An unrecognized plain `Error` falls through to
     // `mapErrorToCliOutcome`'s `INTERNAL` (exit 1) bucket, matching `index.ts`'s own `process.exit(1)`
@@ -374,6 +410,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // `createApp` has attached every subscriber) and the Trash auto-purge sweeper. Both are stopped
   // in `shutdown` below.
   const { app, outboxDrainer, trashSweeper } = createServingApp(deps);
+  owned.workers.push(outboxDrainer, trashSweeper);
 
   await new Promise<void>((resolve, reject) => {
     // Express's own `.listen()` overloads type `hostname` as a required `string`, not
@@ -471,17 +508,24 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
         // First, so no new outbox drain or trash sweep starts while the grace window below runs
         // toward the db close. A sweep caught mid-batch leaves its rows leased, and the next boot
         // re-claims them once the lease expires.
-        void outboxDrainer.stop();
-        void trashSweeper.stop();
+        const workersStopped = Promise.allSettled([outboxDrainer.stop(), trashSweeper.stop()]);
         let exited = false;
-        const finish = (): void => {
+        // Awaits the store close (PGlite flushes, removes its socket and releases its owner lock),
+        // bounded like the default boot's (`closeWithinBound`, 4 s) so a hung close still exits.
+        const finish = async (): Promise<void> => {
           if (exited) return;
           exited = true;
           shutdownAssistantDaemon();
-          void closeSiteDirBoot(bootResult);
+          await closeWithinBound(
+            async () => {
+              await workersStopped;
+              await closeSiteDirBoot(bootResult, owned.composedStore);
+            },
+            { label: "the site store" }
+          );
           process.exit(0);
         };
-        server.close(finish);
+        server.close(() => void finish());
         // Idle keep-alive sockets don't block in-flight requests, but a client-pooled connection
         // that never sends another request WOULD block `server.close()`'s callback indefinitely
         // otherwise — better-sqlite3 is synchronous, so any genuinely in-flight request completes
@@ -491,7 +535,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
         server.closeIdleConnections?.();
         setTimeout(() => {
           server.closeAllConnections?.();
-          finish();
+          void finish();
         }, 500).unref();
       };
       process.once("SIGINT", shutdown);

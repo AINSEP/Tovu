@@ -3,6 +3,7 @@ import path from "node:path";
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { exportSite, type ExportReport } from "../../features/site-export/index.js";
 import { bootSiteDir, closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
+import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
@@ -131,21 +132,26 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
 
   const target = resolveInstallDirTarget(input.dir);
   const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
+  // The composition's store (`onStoreOpened`): closing it stops its guest-chat sweep, then the store.
+  let composedStore: SiteStore | undefined;
 
-  const dbPath = path.join(target, "content.db");
-  const routeDeps = await createSiteRouteDeps(dbPath, {
-    db: bootResult.db,
-    store: bootResult.store,
-    workspaceId: bootResult.workspaceId,
-    uploadsDir: path.join(target, "uploads"),
-    // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
-    // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
-    // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
-    themesDir: path.join(target, "themes"),
-  });
-  const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
-
+  // Opened right after `bootSiteDir`, so a composition failure closes the store too (a PGlite owner
+  // socket left open would keep this process from exiting).
   try {
+    const dbPath = path.join(target, "content.db");
+    const routeDeps = await createSiteRouteDeps(dbPath, {
+      db: bootResult.db,
+      store: bootResult.store,
+      workspaceId: bootResult.workspaceId,
+      uploadsDir: path.join(target, "uploads"),
+      // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
+      // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
+      // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
+      themesDir: path.join(target, "themes"),
+      onStoreOpened: (store) => (composedStore = store),
+    });
+    const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
+
     // See this file's header. The same CRITICAL check `tovu serve`'s boot lifecycle runs first,
     // before this command ever crawls a route — a site left mid-migration by a crash must never be
     // exported from possibly-inconsistent data.
@@ -169,6 +175,6 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
       );
     }
   } finally {
-    await closeSiteDirBoot(bootResult);
+    await closeSiteDirBoot(bootResult, composedStore);
   }
 }
