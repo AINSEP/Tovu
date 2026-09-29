@@ -10,7 +10,7 @@ export interface SiteTokenPort {
   status(): Promise<AdminSiteTokenStatus>;
   /** The raw key value, on demand — see `lib/api.ts`'s `revealSiteToken` doc. */
   reveal(): Promise<AdminRevealedSiteToken>;
-  /** Throws (an `ApiError`) rather than resolving when a key is already active — see
-   *  `lib/api.ts`'s `generateSiteToken` doc for the two markers this can throw with. */
+  /** Throws (an `ApiError`) on a 409 refusal — see `lib/api.ts`'s `generateSiteToken` doc for the
+   *  outcomes and codes. */
   generate(): Promise<AdminGeneratedSiteToken>;
 }

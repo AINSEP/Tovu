@@ -269,11 +269,11 @@ function SiteTokenGenerateAction({ controller }: { controller: SiteTokenControll
 function SiteTokenGenerateErrorNote({ failure, t: translate }: { failure: SiteTokenGenerateFailure; t: Translate }) {
   const locale = useAdminLocale();
   const text =
-    failure.kind === "env-active"
-      ? translate("A key is already set up directly on the server for this install, and that one always wins. Generating one here wouldn't actually take effect.")
-      : failure.kind === "already-exists"
-        ? translate("A key file already exists. This tab only creates a new key — it never overwrites one.")
-        : siteTokenGenerateErrorMessage(locale, failure.detail);
+    failure.kind === "already-exists"
+      ? translate("A key file already exists. This tab only creates a new key — it never overwrites one.")
+      : failure.kind === "generic"
+        ? siteTokenGenerateErrorMessage(locale, failure.detail)
+        : failure.detail;
   return (
     <p className="notice error" role="status" {...agentHandle("security-site-token-generate-error", { role: "status", label: "Shows the error when generating a Site Token file failed" })}>
       {text}

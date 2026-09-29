@@ -39,11 +39,10 @@ export interface SiteTokenController {
   reveal: () => Promise<void>;
   hideRevealed: () => void;
   generating: boolean;
-  /** The classified failure (see {@link SiteTokenGenerateFailure}) — `SiteTokenTab.tsx` renders
-   *  fixed, kind-specific copy for `"env-active"`/`"already-exists"` and only falls back to
-   *  `detail`'s free text for `"generic"`. Kept as the classification itself, not a pre-rendered
-   *  string, so the two known cases never get the generic "Couldn't generate a key: …" wrapper —
-   *  that copy is about a genuine failure, and neither known case is one. */
+  /** The classified failure (see {@link SiteTokenGenerateFailure}) — `SiteTokenTab.tsx` renders the
+   *  server's own sentence for `"locked"`/`"refused"`, fixed copy for `"already-exists"`, and wraps
+   *  `detail` in "Couldn't generate a key: …" only for `"generic"`. Kept as the classification
+   *  itself, not a pre-rendered string, so a known refusal never reads as a genuine failure. */
   generateError: SiteTokenGenerateFailure | null;
   /** No-op (and leaves `generateError` alone) unless `status.source === "none"` — the tab's own
    *  Generate control is hidden outside that state (sol packet-3 finding 3-1), this is a second,
@@ -52,17 +51,28 @@ export interface SiteTokenController {
   t: Translate;
 }
 
-/** Classifies a rejected generate call against the two markers `POST .../generate` can send
+/** Classifies a rejected generate call against the 409 codes `POST .../generate` sends
  *  (`lib/api.ts`'s `generateSiteToken` doc) — same "check `e.code ?? e.message`" shape
  *  `rules.ts`'s `classifyAccessTokenSubmitError` documents for Tier 1, reimplemented locally
  *  rather than imported: this tab has no other reason to depend on that file's provider-catalog
- *  tables. @complexity O(1). */
-export type SiteTokenGenerateFailure = { kind: "env-active" } | { kind: "already-exists" } | { kind: "generic"; detail: string };
+ *  tables.
+ *  - `locked`: saved credentials need a key that is not here (`KEY_DEPENDENT_DATA`, `KEY_MISMATCH`)
+ *    — the tab offers the recovery screen.
+ *  - `refused`: nothing was changed for another reason (`KEY_INVALID`, `SITE_META_UNREADABLE`).
+ *  - `already-exists`: production only, a key file appeared mid-request.
+ *  `detail` is the server's own plain-words sentence (`body.detail`). @complexity O(1). */
+export type SiteTokenGenerateFailure =
+  | { kind: "locked"; code: "KEY_DEPENDENT_DATA" | "KEY_MISMATCH"; detail: string }
+  | { kind: "refused"; code: "KEY_INVALID" | "SITE_META_UNREADABLE"; detail: string }
+  | { kind: "already-exists" }
+  | { kind: "generic"; detail: string };
 
 export function classifySiteTokenGenerateError(e: unknown, t: Translate): SiteTokenGenerateFailure {
   if (!(e instanceof ApiError)) return { kind: "generic", detail: describeApiError(e, t("unknown error")) };
   const marker = e.code ?? e.message;
-  if (marker === "ENV_VAR_ACTIVE") return { kind: "env-active" };
+  const detail = typeof e.body?.detail === "string" ? e.body.detail : describeApiError(e, t("unknown error"));
+  if (marker === "KEY_DEPENDENT_DATA" || marker === "KEY_MISMATCH") return { kind: "locked", code: marker, detail };
+  if (marker === "KEY_INVALID" || marker === "SITE_META_UNREADABLE") return { kind: "refused", code: marker, detail };
   if (marker === "ALREADY_EXISTS") return { kind: "already-exists" };
   return { kind: "generic", detail: describeApiError(e, t("unknown error")) };
 }
@@ -111,9 +121,8 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
     setGenerateError(null);
     try {
       const result = await port.generate();
-      // A freshly-created key is always `"active"` with nothing to mismatch yet — the server
-      // stamps `.site-meta.json`'s fingerprint to match in the same request (site-key plan §A.6,
-      // `stampSiteKeyFingerprint` in `routes/system/site-token.ts`).
+      // Every success (`already-active`, `recovered`, `created`) leaves a key that matches the
+      // `.site-meta.json` stamp — the server refuses with a 409 rather than leave a mismatch.
       setStatus({ active: true, source: "file", fingerprint: result.fingerprint, keyFilePath: result.keyFilePath, runtimeMode: result.runtimeMode, state: "active" });
     } catch (err) {
       setGenerateError(classifySiteTokenGenerateError(err, t));

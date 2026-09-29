@@ -1242,9 +1242,9 @@ export function siteTokenLoadErrorMessage(locale: string, error: string): string
   return interpolate(SITE_TOKEN_LOAD_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_LOAD_ERROR_TEMPLATE.en!, { error });
 }
 
-/** Site Token tab's generic generate-error banner — used when the failure is neither of the two
- *  known markers (`ENV_VAR_ACTIVE`/`ALREADY_EXISTS`, both handled with their own fixed copy in
- *  `SiteTokenTab.tsx` rather than this template, since neither needs an `{error}` slot). */
+/** Site Token tab's generic generate-error banner — used only for a `"generic"` failure; a known
+ *  409 (`KEY_DEPENDENT_DATA`/`KEY_MISMATCH`/`KEY_INVALID`/`SITE_META_UNREADABLE`/`ALREADY_EXISTS`)
+ *  is shown with its own words in `SiteTokenTab.tsx`, not wrapped in this template. */
 const SITE_TOKEN_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't generate a key: {error}",
 };

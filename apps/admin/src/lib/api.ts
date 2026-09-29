@@ -794,13 +794,19 @@ export interface AdminSiteTokenStatus {
   state: AdminSiteTokenState;
 }
 
-/** Mirrors `POST .../system/site-token/generate`'s `201` response shape. Deliberately has NO
+/** `POST .../system/site-token/generate`'s success outcomes: `already-active` (200, a key matching
+ *  the site's stamp was already in place, nothing written), `recovered` (200, the stamped key was
+ *  found in another source and adopted), `created` (201, no sealed data, a new key minted). */
+export type AdminSiteTokenGenerateOutcome = "already-active" | "recovered" | "created";
+
+/** Mirrors `POST .../system/site-token/generate`'s `200`/`201` response shape. Deliberately has NO
  *  `hex` field (sol finding 3-2, 2026-09-16 fix): `useSiteToken`'s `generate()` only ever reads
  *  `fingerprint`/`keyFilePath`/`runtimeMode` from this response, so the server stopped sending the
  *  raw key value here — it had no consumer and was pure exposure. `api.revealSiteToken()` (below)
  *  stays the one, explicit, on-purpose call that returns the value; `AdminSiteTokenStatus` (the
  *  plain `GET`) never carries it either. */
 export interface AdminGeneratedSiteToken {
+  outcome: AdminSiteTokenGenerateOutcome;
   fingerprint: string;
   keyFilePath: string;
   runtimeMode: AdminSiteTokenRuntimeMode;
@@ -4003,12 +4009,14 @@ export const api = {
    *  general-purpose sensitive-read audit mechanism to hook into (checked; not built here). */
   revealSiteToken: () =>
     request<AdminRevealedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/reveal`, { method: "POST" }),
-  /** `409 ENV_VAR_ACTIVE` if the env var is already set (it always wins over a file, so writing
-   *  one would be silently inert), `409 ALREADY_EXISTS` if a key file is already present — both
-   *  surfaced as a thrown `ApiError` with that marker on `.code` (or, absent a `code`, on
-   *  `.message` — see `rules.ts`'s `classifyAccessTokenSubmitError` for the precedent this
-   *  mirrors). Only ever CREATES; there is no rotate/replace call in this file. Works in
-   *  production now too (2026-09-09 durability fix) — this is no longer local-only. */
+  /** Makes sure this site has the RIGHT key, never a second one (2026-09-29): resolves `200`
+   *  `already-active`/`recovered` or `201` `created` ({@link AdminSiteTokenGenerateOutcome}).
+   *  Refusals are `409 {error, detail}`, nothing written, thrown as an `ApiError` whose `.message`
+   *  is the code and whose `.body.detail` is a plain-words sentence: `KEY_DEPENDENT_DATA` (saved
+   *  credentials need a key that is not here), `KEY_MISMATCH` (the key here is not the one they
+   *  were locked with), `KEY_INVALID` (a key is set but malformed), `SITE_META_UNREADABLE`, and in
+   *  production `ALREADY_EXISTS` (a key file appeared mid-request). See `use-site-token.hooks.ts`'s
+   *  `classifySiteTokenGenerateError`. Never overwrites or rotates a key. */
   generateSiteToken: () =>
     request<AdminGeneratedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/generate`, { method: "POST" }),
 
