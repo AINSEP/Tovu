@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 
 import Database from "better-sqlite3";
@@ -106,8 +105,6 @@ export function sqliteKernel<DB>(source: SqliteConnectionSource): SqliteKernel<D
     lockKey: async () => {},
     foreignTransactionOpen: () => client.inTransaction,
     backup: async (destPath) => {
-      // The folder is made only when a copy is taken, so a run with nothing to copy leaves no empty `ops/`.
-      fs.mkdirSync(path.dirname(path.resolve(destPath)), { recursive: true });
       await client.backup(destPath);
     },
     close: async () => {},

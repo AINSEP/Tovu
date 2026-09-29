@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { type Kysely, sql } from "kysely";
 
 import { listTables, tableExists } from "../kernel/dialect.js";
@@ -171,6 +174,8 @@ export async function runMigrations(
 async function backUpBeforeChange(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void> {
   const target = context.backupPath;
   if (target === undefined || !kernel.capabilities.backup || (await listTables(kernel)).length === 0) return;
+  // The folder is made only when a copy is taken, so a run with nothing to copy leaves none behind.
+  fs.mkdirSync(path.dirname(path.resolve(target)), { recursive: true });
   await kernel.backupTo(target);
   context.note(`backed up the database to ${target} before migrating it`);
 }
