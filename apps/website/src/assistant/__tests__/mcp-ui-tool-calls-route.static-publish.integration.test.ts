@@ -11,7 +11,7 @@ import { buildStaticPublishRegistrations, type StaticPublishToolDeps } from "#sr
 // Real implementation of `StaticPublishToolDeps.vendorCredentials` — production wiring for this lives
 // in `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations`, which this test bypasses
 // (it calls `buildStaticPublishRegistrations` directly, same as `publish-agent-tools.unit.test.ts`).
-import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VENDOR, updateVendorCredential } from "#src/features/vendor-credentials/index";
+import { createVendorCredential, listVendorCredentials, updateVendorCredential } from "#src/features/vendor-credentials/index";
 import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
 import type { PublishCredentialSource } from "#src/features/deployments/static-publish/index";
 
@@ -81,7 +81,7 @@ function buildRealStaticPublishToolExecutor(
     credentialSource: options.credentialSource ?? CONFIGURED_CREDENTIAL_SOURCE,
     buildTarget: () => fakeDeployTarget(captured),
     loadDeployTargets: loadBundledDeployTargets,
-    vendorCredentials: { list: listVendorCredentials, create: createVendorCredential, update: updateVendorCredential, providerToVendor: PUBLISH_PROVIDER_TO_VENDOR },
+    vendorCredentials: { list: listVendorCredentials, create: createVendorCredential, update: updateVendorCredential },
   };
 
   const registry = createToolRegistry();

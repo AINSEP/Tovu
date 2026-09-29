@@ -183,7 +183,6 @@ import type { ExternalMcpToolDeps } from "../features/external-mcp/deps.js";
 import {
   createVendorCredential,
   listVendorCredentials,
-  PUBLISH_PROVIDER_TO_VENDOR,
   updateVendorCredential,
 } from "../features/vendor-credentials/index.js";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
@@ -666,14 +665,12 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * The real `VendorCredentialPort` implementation — `publish-agent-tools.ts`'s own narrow port,
  * satisfied structurally by `vendor-credentials/store.ts`'s actual exports without either file
  * naming the other's type. Declared once, module-scope (not per-call), since these are stateless
- * functions and a plain `Record<PublishProviderId, VendorId>` — nothing here needs to be rebuilt per
- * request. See the import block above for why this is the one file allowed to construct it.
+ * functions — nothing here needs to be rebuilt per request. See the import block above for why this is the one file allowed to construct it.
  */
 const REAL_VENDOR_CREDENTIAL_PORT: VendorCredentialPort = {
   list: listVendorCredentials,
   create: createVendorCredential,
   update: updateVendorCredential,
-  providerToVendor: PUBLISH_PROVIDER_TO_VENDOR,
 };
 
 export function buildAssistantToolRegistrations(

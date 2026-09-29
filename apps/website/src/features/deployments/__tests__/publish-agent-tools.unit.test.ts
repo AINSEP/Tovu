@@ -16,8 +16,10 @@ import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore
 // NOT go through (it calls `buildStaticPublishRegistrations` directly, same as every other test here).
 // Test files are excluded from `check:architecture`'s graph, so importing directly here carries none
 // of the cross-feature-edge cost `publish-agent-tools.ts` itself now avoids.
-import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VENDOR, updateVendorCredential } from "../../vendor-credentials/index.js";
+import { createVendorCredential, listVendorCredentials, updateVendorCredential } from "../../vendor-credentials/index.js";
 
+import type { LoadedDeployTarget } from "../deploy-targets/types.js";
+import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
 
 /**
@@ -70,7 +72,8 @@ function fakeDeps(
     // wiring, which this test file bypasses by calling `buildStaticPublishRegistrations` directly.
     // Every capabilities/propose-credential test relies on this being present; a test that wants to
     // exercise the "not injected" wiring-bug throw itself overrides it back to `undefined` explicitly.
-    vendorCredentials: { list: listVendorCredentials, create: createVendorCredential, update: updateVendorCredential, providerToVendor: PUBLISH_PROVIDER_TO_VENDOR },
+    vendorCredentials: { list: listVendorCredentials, create: createVendorCredential, update: updateVendorCredential },
+    loadDeployTargets: loadBundledDeployTargets,
     ...(options.credentialSource ? { credentialSource: options.credentialSource } : {}),
     ...(options.buildTarget ? { buildTarget: options.buildTarget } : {}),
   };
@@ -316,6 +319,39 @@ test("deployment_get_static_publish_capabilities's description forbids ever aski
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
   assert.match(entry.description, /do not ask the user to paste/i);
   assert.match(entry.description, /Static Site tab/);
+});
+
+test("deployment_get_static_publish_capabilities lists exactly the registry's hosts, each with its label, config fields and vendor group from the descriptor", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: false, reason: "none saved" }; } },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
+  const acme: LoadedDeployTarget = {
+    pluginId: "deploy",
+    module: { create: () => assert.fail("capabilities never builds a target") },
+    descriptor: {
+      id: "acme-host",
+      label: "Acme Hosting",
+      module: "targets/acme.mjs",
+      configFields: [{ name: "site", label: "Site", required: true, help: "Your Acme site name." }],
+      // Shares the s3-compatible vendor group, so the vendor-table row below must count for it.
+      credential: { vendorId: "s3-compatible", tokenField: "token", fields: [{ name: "token", label: "Token", required: true, secret: true }] },
+    },
+  };
+  deps.loadDeployTargets = async () => ({ get: (id) => (id === "acme-host" ? acme : undefined), list: () => [acme], refusals: [] });
+  await createVendorCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: "bucket", connection: { vendorId: "s3-compatible", region: "us-east-1", bucket: "b", accessKeyId: "AKIA", secretAccessKey: "topsecret", publicUrl: "https://example.test" } }
+  );
+
+  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; label: string; configFields: unknown[]; credentialConfigured: boolean }[] };
+
+  assert.deepEqual(
+    result.providers.map(({ providerId, label, configFields, credentialConfigured }) => ({ providerId, label, configFields, credentialConfigured })),
+    [{ providerId: "acme-host", label: "Acme Hosting", configFields: [{ name: "site", label: "Site", required: true, help: "Your Acme site name." }], credentialConfigured: true }]
+  );
 });
 
 test("deployment_get_static_publish_capabilities reports per-provider readiness and saved credentials by id/label only, scoped to this workspace, and NEVER calls resolve()", async () => {
@@ -1489,7 +1525,9 @@ test("deployment_preview_static_publish: an unrecognized target throws before an
   const surfaceExchanges = createSurfaceExchangeStore();
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
-  await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), /'target' must be one of/);
+  await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), {
+    message: "publish target 'bogus-provider' is not available; choose one of: netlify, cloudflare-pages, vercel, github-pages, s3-compatible",
+  });
 });
 
 // 500-redact defect (RED->GREEN): `requireStaticPublishTarget` (shared by this tool and

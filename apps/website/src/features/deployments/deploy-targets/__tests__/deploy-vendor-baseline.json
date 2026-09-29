@@ -37,11 +37,11 @@
     "netlify": 1
   },
   "apps/website/src/features/deployments/publish-agent-tools.ts": {
-    "cloudflare": 26,
-    "github-pages": 19,
-    "netlify": 11,
-    "s3-compatible": 70,
-    "vercel": 14
+    "cloudflare": 23,
+    "github-pages": 16,
+    "netlify": 8,
+    "s3-compatible": 67,
+    "vercel": 11
   },
   "apps/website/src/features/deployments/publish-credentials/s3-compatible-field-guidance.ts": {
     "cloudflare": 5,

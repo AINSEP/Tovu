@@ -117,7 +117,7 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_P
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
-import type { DeployTargetFieldSpec, DeployTargetRegistry } from "./deploy-targets/types.js";
+import type { DeployTargetDescriptor, DeployTargetFieldSpec, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
 // file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
@@ -213,12 +213,6 @@ function buildCapabilityGuidance(
   }
   return undefined;
 }
-
-/** Every provider this feature can publish to or save a credential for — the fixed iteration order
- *  `deployment_get_static_publish_capabilities` reports in. Sourced from `StaticPublishTargetId`'s own
- *  4-member union (`static-publish/types.ts`) rather than re-declared, so a fifth target added there
- *  cannot silently go unreported here without a compile error at this array's own type annotation. */
-const PROVIDER_IDS: readonly StaticPublishTargetId[] = ["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"];
 
 /** `deployment_preview_static_publish`'s input — the same target-discriminated shape
  *  `publish-site.ts`'s trigger route body uses, minus `projectName` (a preview never runs a real
@@ -462,15 +456,6 @@ export interface VendorCredentialPort {
   list(deps: VendorCredentialReadDepsLike, input: { workspaceId: string }): Promise<VendorCredentialSummaryLike[]>;
   create(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; label: unknown; connection: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
   update(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; id: string; label?: unknown; connection?: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
-  /** `publish_credential_sets.provider_id` -> `VendorId` (loosened to `string`, same reasoning
-   *  {@link VendorCredentialSummaryLike} gives for its own `vendorId` field). Exhaustive over every
-   *  `StaticPublishTargetId` in production (`vendor-credentials/types.ts`'s own `PUBLISH_PROVIDER_TO_
-   *  VENDOR`, wired in at the composition root) — not enforced at this narrowed type's own level,
-   *  since doing so would require importing `StaticPublishTargetId`'s full union here, which this
-   *  file already does for other reasons (see below), so `Record<StaticPublishTargetId, string>` IS
-   *  exhaustive after all with no extra import cost.
-   */
-  providerToVendor: Readonly<Record<StaticPublishTargetId, string>>;
 }
 
 /**
@@ -577,21 +562,18 @@ function deployTargetsLoader(deps: StaticPublishToolDeps): (workspaceId: string)
 }
 
 /**
- * Reads a tool input into a publish config through this workspace's deploy registry and plans it
- * (`planStaticPublish`, the same call `publishStaticSite` makes). A blank optional field means "not
+ * Reads a tool input into a publish config for `target` (already looked up in `registry`) and plans
+ * it (`planStaticPublish`, the same call `publishStaticSite` makes). A blank optional field means "not
  * set", matching the old per-target builders.
  *
- * @throws {ToolInputError} `target` is not a target the registry knows, or a declared field is not a string.
- * @complexity One registry load plus O(f) declared fields.
+ * @throws {ToolInputError} A declared field is not a string.
+ * @complexity O(f) declared fields.
  */
-async function planToolPublish(
-  deps: StaticPublishToolDeps,
+function planToolPublish(
+  registry: DeployTargetRegistry,
   raw: Record<string, unknown>,
-  targetId: StaticPublishTargetId
-): Promise<{ readonly config: StaticPublishConfig; readonly plan: ReturnType<typeof planStaticPublish>; readonly detailRows: DetailRow[] }> {
-  const registry = await deployTargetsLoader(deps)(deps.workspaceId);
-  const target = registry.get(targetId);
-  if (target === undefined) throw new ToolInputError(unknownTargetMessage(registry, targetId));
+  target: LoadedDeployTarget
+): { readonly config: StaticPublishConfig; readonly plan: ReturnType<typeof planStaticPublish>; readonly detailRows: DetailRow[] } {
   const read = readStaticPublishConfig(target, raw, { blankAsAbsent: true });
   if (!read.ok) throw new ToolInputError(read.message);
   return { config: read.config, plan: planStaticPublish(registry, read.config), detailRows: configDetailRows(read.config, target.descriptor.configFields) };
@@ -891,21 +873,16 @@ function buildHostingSetupContent(provider: HostingSetupProvider, bucket: string
   };
 }
 
-/** The closed `StaticPublishTargetId` set both `deployment_preview_static_publish` and
- *  `deployment_execute_static_publish` validate their `target` input against — kept as one list so
- *  the two handlers' error messages can never drift apart. */
-const VALID_STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetId[] = ["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"];
-
-/** Shared `target` field validation for `deployment_preview_static_publish` and
- *  `deployment_execute_static_publish` — extracted so neither handler's own complexity carries this
- *  fixed 5-way check inline.
- *  @throws {ToolInputError} `raw.target` is not one of {@link VALID_STATIC_PUBLISH_TARGETS}. */
-function requireStaticPublishTarget(raw: Record<string, unknown>): StaticPublishTargetId {
-  const target = requireString(raw, "target");
-  if (!VALID_STATIC_PUBLISH_TARGETS.includes(target as StaticPublishTargetId)) {
-    throw new ToolInputError("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
-  }
-  return target as StaticPublishTargetId;
+/** Shared `target` lookup for `deployment_preview_static_publish` and
+ *  `deployment_execute_static_publish`: the input's `target` must be a host this workspace's deploy
+ *  registry has loaded.
+ *  @throws {ToolInputError} `raw.target` is missing, or no loaded plugin provides it.
+ *  @complexity O(1) — one registry lookup. */
+function requireStaticPublishTarget(raw: Record<string, unknown>, registry: DeployTargetRegistry): LoadedDeployTarget {
+  const targetId = requireString(raw, "target");
+  const target = registry.get(targetId);
+  if (target === undefined) throw new ToolInputError(unknownTargetMessage(registry, targetId));
+  return target;
 }
 
 /** `deployment_preview_static_publish`'s result shape — extracted purely to keep that handler's
@@ -933,7 +910,6 @@ interface ProviderCapabilityContext {
   readonly deps: StaticPublishToolDeps;
   readonly credentialSource: PublishCredentialSource;
   readonly historyStore: PublishHistoryStore;
-  readonly vendorCredentials: VendorCredentialPort;
   readonly saved: Awaited<ReturnType<typeof listPublishCredentials>>;
   readonly savedVendor: VendorCredentialSummaryLike[];
 }
@@ -985,7 +961,7 @@ function mapSavedCredentials(
  * is told to use it.
  */
 function buildProviderCapabilityResult(spec: {
-  readonly providerId: StaticPublishTargetId;
+  readonly descriptor: DeployTargetDescriptor;
   readonly ready: boolean;
   readonly readiness: { configured: true } | { configured: false; reason: string };
   readonly verified: "valid" | "invalid" | "unreachable" | null;
@@ -995,9 +971,13 @@ function buildProviderCapabilityResult(spec: {
   readonly savedCredentials: ReturnType<typeof mapSavedCredentials>;
   readonly guidance: string | undefined;
 }) {
-  const { providerId, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance } = spec;
+  const { descriptor, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance } = spec;
   return {
-    providerId,
+    providerId: descriptor.id,
+    label: descriptor.label,
+    // What a publish to this host takes, besides `target` and `projectName`: pass each as a
+    // top-level string property of the same name.
+    configFields: descriptor.configFields.map(({ name, label, required, help }) => ({ name, label, required, ...(help !== undefined ? { help } : {}) })),
     ready,
     credentialConfigured: readiness.configured,
     verified,
@@ -1043,9 +1023,10 @@ function buildProviderCapabilityResult(spec: {
  * (that decrypts and makes a real provider call; see `static-publish/verify.ts`'s own header for why
  * this handler must never be its caller).
  */
-async function buildProviderCapability(providerId: StaticPublishTargetId, ctx: ProviderCapabilityContext) {
-  const vendorId = ctx.vendorCredentials.providerToVendor[providerId];
-  const savedForVendor = ctx.savedVendor.filter((credential) => credential.vendorId === vendorId);
+async function buildProviderCapability(loaded: LoadedDeployTarget, ctx: ProviderCapabilityContext) {
+  const providerId = loaded.descriptor.id;
+  const vendorId = loaded.descriptor.credential?.vendorId;
+  const savedForVendor = vendorId === undefined ? [] : ctx.savedVendor.filter((credential) => credential.vendorId === vendorId);
   const savedForProvider = ctx.saved.filter((credential) => credential.providerId === providerId);
   const usingVendorTable = savedForVendor.length > 0;
   const savedCredentials = mapSavedCredentials(usingVendorTable, savedForVendor, savedForProvider);
@@ -1061,7 +1042,7 @@ async function buildProviderCapability(providerId: StaticPublishTargetId, ctx: P
   const ready = readiness.configured && verified === "valid";
   const guidance = buildCapabilityGuidance(providerId, readiness, verification);
 
-  return buildProviderCapabilityResult({ providerId, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance });
+  return buildProviderCapabilityResult({ descriptor: loaded.descriptor, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance });
 }
 
 /** Every dependency {@link handlePublishConfirmationAnswer} needs to run the confirmed publish and
@@ -1444,11 +1425,13 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
   const handlers: Record<string, ToolHandler> = {
     deployment_preview_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      const target = requireStaticPublishTarget(raw);
+      const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+      const loaded = requireStaticPublishTarget(raw, registry);
+      const target = loaded.descriptor.id;
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
 
-      const { plan } = await planToolPublish(deps, raw, target);
+      const { plan } = planToolPublish(registry, raw, loaded);
       const validationError = plan.ok ? null : plan.message;
       const basePath = plan.ok ? plan.basePath : undefined;
       // `isConfigured()`, NOT `resolve()` — this is an agent-facing read; per this file's own header
@@ -1496,8 +1479,9 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // read (never a decrypting resolve) rather than a call into `vendor-credentials/dual-read.ts`.
       const savedVendor = await vendorCredentials.list({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId });
 
-      const providerCapabilityContext: ProviderCapabilityContext = { deps, credentialSource, historyStore, vendorCredentials, saved, savedVendor };
-      const providers = await Promise.all(PROVIDER_IDS.map((providerId) => buildProviderCapability(providerId, providerCapabilityContext)));
+      const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+      const providerCapabilityContext: ProviderCapabilityContext = { deps, credentialSource, historyStore, saved, savedVendor };
+      const providers = await Promise.all(registry.list().map((loaded) => buildProviderCapability(loaded, providerCapabilityContext)));
 
       return { executionMode: deps.publishExecutionMode, providers };
     },
@@ -1529,12 +1513,14 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      */
     deployment_execute_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      const target = requireStaticPublishTarget(raw);
+      const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+      const loaded = requireStaticPublishTarget(raw, registry);
+      const target = loaded.descriptor.id;
       const projectName = requireString(raw, "projectName");
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.publish", entityType: "site-publish" });
 
-      const { config, plan, detailRows } = await planToolPublish(deps, raw, target);
+      const { config, plan, detailRows } = planToolPublish(registry, raw, loaded);
       if (!plan.ok) {
         throw new ToolInputError(`deployment_execute_static_publish: ${plan.message}`);
       }
