@@ -102,7 +102,6 @@ export async function migrateSqliteContentFile(db: ContentDb, filePath: string):
 
 function migrationBackupPath(filePath: string): string {
   const opsDir = path.join(path.dirname(path.resolve(filePath)), "ops");
-  fs.mkdirSync(opsDir, { recursive: true });
   return path.join(opsDir, `${MIGRATION_BACKUP_PREFIX}${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
 }
 

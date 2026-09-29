@@ -3,9 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { contentKernel } from "../db/content-kernel.js";
-import { closeSqliteConnection } from "../db/kernel/index.js";
+import { closeSqliteConnection, sqliteKernel } from "../db/kernel/index.js";
+import { migrateContentDatabase } from "../db/migrations/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
-import { openContentDb } from "../db/sqlite/content-db.js";
+import { openSqliteContentConnection } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { seedSiteThemes } from "./seed-site-themes.js";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
@@ -225,11 +226,16 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
     // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
     // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
     // fault-isolable at the fs level).
+    // SQLite: built through the migration runner (ADR-066), so the file is born with the
+    // `tovu_migrations` ledger at head and its first boot has nothing to adopt or back up; a new,
+    // empty file has nothing to copy, so no backup path. chat.db is created by the first boot's
+    // chat runner (`openSiteChatDb`), which takes no copy either.
     // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
     if (storage.kind === "sqlite") {
       const dbPath = path.join(target, "content.db");
-      const db = openContentDb(dbPath);
+      const db = openSqliteContentConnection(dbPath);
       try {
+        await migrateContentDatabase(sqliteKernel<unknown>(db));
         await prepareContentStore(contentKernel(db), { seed });
       } finally {
         closeSqliteConnection(db);

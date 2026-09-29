@@ -4,6 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import Database from "better-sqlite3";
+
+import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
+import { openSiteContentDb } from "#src/server/runtime/composition/open-site-content-db";
+
 import { initSite } from "../../init-site.js";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
 
@@ -81,6 +87,31 @@ test("site-key plan §A.4: a freshly initialized site gets its own siteKeyId, eq
     assert.equal(meta.siteKeyId, result.siteId, "a brand-new site's siteKeyId must be stamped explicitly, equal to its own siteId");
     assert.equal(typeof meta.siteKeyId, "string");
     assert.deepEqual(meta.storage, { kind: "sqlite" }, "R1d: a new site records its storage choice explicitly");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("R1h: a new SQLite site is built through the migration runner, so its first boot adopts nothing and takes no backup", async () => {
+  const parent = mkTempParent();
+  const target = path.join(parent, "demo-ledger");
+  try {
+    await initSite({ dir: target, name: "Demo Ledger" });
+    const dbPath = path.join(target, "content.db");
+
+    const file = new Database(dbPath, { readonly: true });
+    const ledger = file.prepare("SELECT id FROM tovu_migrations ORDER BY id").all() as { id: string }[];
+    file.close();
+    assert.deepEqual(
+      ledger.map((row) => row.id),
+      CONTENT_MIGRATIONS.map((step) => step.id),
+      "init writes the tovu_migrations ledger at head, so boot has nothing to adopt",
+    );
+
+    const bytesBefore = fs.readFileSync(dbPath);
+    closeSqliteConnection(await openSiteContentDb(dbPath));
+    assert.equal(fs.existsSync(path.join(target, "ops")), false, "the first boot takes no pre-migrations copy of a site init just built");
+    assert.ok(fs.readFileSync(dbPath).equals(bytesBefore), "the first boot migrates nothing");
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
