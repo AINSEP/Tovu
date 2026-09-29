@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { stripComments } from "../../kernel/__tests__/raw-sqlite-scan.js";
 import { LEGACY_BASELINE_ID, legacyBaselineChecksum } from "../0000_legacy_baseline.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
-import { CONTENT_MIGRATIONS } from "../index.js";
+import { CHAT_MIGRATIONS, CONTENT_MIGRATIONS } from "../index.js";
 import { FROZEN_CHAIN, LEGACY_DRIZZLE_DIR } from "../legacy-sqlite.js";
 
 /**
@@ -31,17 +31,20 @@ function sourceChecksum(id: string): string {
 
 const derive = (id: string) => (id === LEGACY_BASELINE_ID ? legacyBaselineChecksum() : sourceChecksum(id));
 
+/** Every pinned history as `[pin key, step]`: content ids as they are, chat ids under `chat/`. */
+const PINNED = [...CONTENT_MIGRATIONS.map((step) => [step.id, step] as const), ...CHAT_MIGRATIONS.map((step) => [`chat/${step.id}`, step] as const)];
+
 test("every step's pinned checksum matches its sources", () => {
-  const unpinned = CONTENT_MIGRATIONS.map((step) => step.id).filter((id) => MIGRATION_CHECKSUMS[id] === undefined);
+  const unpinned = PINNED.map(([id]) => id).filter((id) => MIGRATION_CHECKSUMS[id] === undefined);
   if (process.env.UPDATE_MIGRATION_CHECKSUMS === "1" && unpinned.length > 0) {
     const lines = unpinned.map((id) => `  "${id}": "${derive(id)}",\n`).join("");
     fs.writeFileSync(CHECKSUMS_FILE, fs.readFileSync(CHECKSUMS_FILE, "utf8").replace(/\n};\n$/, `\n${lines}};\n`));
     return;
   }
   assert.deepEqual(unpinned, [], "pin new steps with UPDATE_MIGRATION_CHECKSUMS=1");
-  for (const step of CONTENT_MIGRATIONS) {
-    assert.equal(derive(step.id), MIGRATION_CHECKSUMS[step.id], `${step.id} changed after it was pinned; add a new step instead`);
-    assert.equal(step.checksum, MIGRATION_CHECKSUMS[step.id]);
+  for (const [id, step] of PINNED) {
+    assert.equal(derive(id), MIGRATION_CHECKSUMS[id], `${id} changed after it was pinned; add a new step instead`);
+    assert.equal(step.checksum, MIGRATION_CHECKSUMS[id]);
   }
 });
 

@@ -2,21 +2,23 @@ import { after, describe } from "node:test";
 
 import { sql } from "kysely";
 
-import type { ChatDatabase, ChatKernel } from "#src/platform/db/chat-kernel";
+import { type ChatDatabase, type ChatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
 import { heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { openPgliteKernel, type StorageDialect, sqliteKernel } from "#src/platform/db/kernel/index";
-import { ensurePgChatSchema } from "#src/platform/db/pglite/chat-schema";
+import { openPgliteKernel, type StorageDialect, sqliteKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { migrateChatDatabase } from "#src/platform/db/migrations/index";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 
 /**
  * @file `kernel/__tests__/dialect-matrix.ts`'s `describeEachDialect` for the CHAT database: one suite
  * on SQLite (a fresh `:memory:` `chat.db` per make, opened by `openChatDb` itself: every chat table,
- * foreign keys on) and PGlite (one instance per file, `pglite/chat-schema.ts`, every chat table
+ * foreign keys on) and PGlite (one instance per file, migrated by `migrateChatDatabase` into the
+ * `ai_chat` schema and reached through `pgChatKernel`, as a site's store does; every chat table
  * emptied per make). Same rules as the content matrix: make before use, tests in
  * sequence.
  */
 
-let sharedPg: ChatKernel | undefined;
+let sharedPg: StorageKernel<unknown> | undefined;
+let migrated: Promise<unknown> | undefined;
 
 /** A fresh in-memory SQLite `chat.db` behind its kernel. */
 export function freshSqliteChatKernel(): ChatKernel {
@@ -25,10 +27,16 @@ export function freshSqliteChatKernel(): ChatKernel {
 
 /** The file's shared PGlite chat kernel, with every chat table emptied before its first call. */
 export function emptiedPgChatKernel(): ChatKernel {
-  sharedPg ??= openPgliteKernel<ChatDatabase>({ prepare: ensurePgChatSchema });
-  const pending = sharedPg.execute(sql`TRUNCATE ai_chats, ai_chat_messages, assistant_agent_sessions, assistant_conversation_tool_approvals CASCADE`);
+  if (sharedPg === undefined) {
+    sharedPg = openPgliteKernel<unknown>();
+    migrated = migrateChatDatabase(sharedPg);
+  }
+  const base = sharedPg;
+  const pending = (migrated as Promise<unknown>).then(() =>
+    base.execute(sql`TRUNCATE ai_chat.ai_chats, ai_chat.ai_chat_messages, ai_chat.assistant_agent_sessions, ai_chat.assistant_conversation_tool_approvals CASCADE`)
+  );
   pending.catch(() => {});
-  return heldUntil(sharedPg, pending);
+  return heldUntil(pgChatKernel(base), pending);
 }
 
 export function describeEachChatDialect<R>(
@@ -41,6 +49,7 @@ export function describeEachChatDialect<R>(
     after(async () => {
       await sharedPg?.close();
       sharedPg = undefined;
+      migrated = undefined;
     });
     body(() => make(emptiedPgChatKernel()), "postgres");
   });

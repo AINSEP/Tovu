@@ -6,7 +6,7 @@ import type { ContentDatabase } from "../../content-database.generated.js";
 import { openPgliteKernel, type PgKernel } from "../drivers/pglite.js";
 import { type SqliteKernel, sqliteKernel } from "../drivers/sqlite.js";
 import type { StorageDialect, StorageKernel } from "../port.js";
-import { ensurePgContentSchema } from "../../pglite/content-schema.js";
+import { migrateContentDatabase } from "../../migrations/index.js";
 import { openContentDb } from "../../sqlite/content-db.js";
 
 /**
@@ -29,7 +29,7 @@ import { openContentDb } from "../../sqlite/content-db.js";
  *
  * - SQLite: every `make()` opens a fresh in-memory `content.db` (all migrations applied), as the
  *   existing suites do.
- * - PGlite: ONE in-memory instance per test file (instance + schema cost seconds), with `tables`
+ * - PGlite: ONE in-memory instance per test file (instance + migrations cost seconds), with `tables`
  *   emptied before the repo's first call. Suites must make their repo before using it and run
  *   their tests one after another (node:test's default inside a file). Closed after the file.
  */
@@ -59,9 +59,15 @@ after(async () => {
   await sharedPg?.close();
 });
 
-/** The file's shared in-memory PGlite content kernel (schema created on first use). */
+/** The file's shared in-memory PGlite content kernel, migrated to head (as a site's store is)
+ *  before its first call. */
 export function sharedPgContentKernel(): PgContentKernel {
-  sharedPg ??= openPgliteKernel<ContentDatabase>({ prepare: ensurePgContentSchema });
+  if (sharedPg === undefined) {
+    const base = openPgliteKernel<ContentDatabase>();
+    const migrated = migrateContentDatabase(base as StorageKernel<unknown>).then(() => undefined);
+    migrated.catch(() => {});
+    sharedPg = heldUntil(base, migrated);
+  }
   return sharedPg;
 }
 

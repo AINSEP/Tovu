@@ -62,7 +62,7 @@ export {
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";
 export { InMemoryPostSearchIndex } from "./search-index.memory.js";
-export { backfillPostSearchIndex, PostSearchIndex, postSearchFor } from "./search-index.js";
+export { backfillPostSearchIndex, PostSearchIndex, postSearchFor, postSearchIndexFor } from "./search-index.js";
 export { SqlitePostSearchIndex } from "./search-index.sqlite.js";
 export { CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui.js";
 export { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "./reverters.js";

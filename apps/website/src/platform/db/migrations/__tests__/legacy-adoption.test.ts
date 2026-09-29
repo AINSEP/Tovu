@@ -67,7 +67,7 @@ describe("0000_legacy_baseline on SQLite", () => {
   test("a brand-new database gets the whole chain, the same schema drizzle's migrator builds", async () => {
     const kernel = memory();
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search"]);
     assert.equal(await drizzleRows(kernel), 78);
     const viaDrizzle = sqliteKernel<unknown>(openContentDb(":memory:"));
     // openContentDb drops the three empty legacy chat tables after migrating; compare the rest.
@@ -80,7 +80,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const kernel = sqliteKernel<unknown>(db);
     const before = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search"]);
     assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before);
     assert.equal(await drizzleRows(kernel), 78);
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
@@ -91,7 +91,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const report = await migrateContentDatabase(kernel);
     assert.equal(await drizzleRows(kernel), 78);
     assert.ok(report.notes.some((note) => note.includes("0058_keen_mauler") && note.includes("0077_external_mcp_tool_approvals") && note.includes("(20)")));
-    assert.deepEqual(await ledgerIds(kernel), ["0000_legacy_baseline"]);
+    assert.deepEqual(await ledgerIds(kernel), ["0000_legacy_baseline", "0001_post_search"]);
   });
 
   test("a recorded hash that is not in the chain stops adoption, nothing recorded", async () => {

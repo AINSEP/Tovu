@@ -1,6 +1,10 @@
 import type { Generated } from "kysely";
 
-import { type SqliteConnectionSource, sqliteKernel, type StorageKernel } from "./kernel/index.js";
+// The driver and port directly, not `kernel/index.js` (as `content-kernel.ts`): the migration list
+// imports this module and must not pull the Postgres drivers into a build script's graph.
+import { type SqliteConnectionSource, sqliteKernel } from "./kernel/drivers/sqlite.js";
+import type { StorageKernel } from "./kernel/port.js";
+import { scopeToSchema } from "./kernel/schema-scope.js";
 
 /**
  * @file The chat database (`chat.db`, see `sqlite/chat-db.ts`) as a storage kernel:
@@ -9,7 +13,7 @@ import { type SqliteConnectionSource, sqliteKernel, type StorageKernel } from ".
  *
  * `content-database.generated.ts` covers `content.db` only, so the chat tables are typed here by
  * hand, snake_case, exactly as `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` plus `sqlite/chat-db.ts`
- * (SQLite) and `pglite/chat-schema.ts` (Postgres) create them. Type aliases, not interfaces: Kysely's table
+ * (SQLite) and chat migration `0000_chat_baseline` (Postgres, schema {@link AI_CHAT_SCHEMA}) create them. Type aliases, not interfaces: Kysely's table
  * typing needs them (see `features/comments/repo.rows.ts`). Times are epoch milliseconds.
  */
 
@@ -77,4 +81,16 @@ export function chatKernel(store: ChatKernel | SqliteConnectionSource): ChatKern
   return typeof (store as Partial<ChatKernel>).lockKey === "function"
     ? (store as ChatKernel)
     : sqliteKernel<ChatDatabase>(store as SqliteConnectionSource);
+}
+
+/** The Postgres schema of the AI chat tables and their ledger (ADR-067): never `public`, never `chat`. */
+export const AI_CHAT_SCHEMA = "ai_chat";
+
+/**
+ * The chat kernel over a Postgres/PGlite content database: the same connection, every chat
+ * statement addressed to {@link AI_CHAT_SCHEMA} (`kernel/schema-scope.ts`). The tables come from
+ * `migrateChatDatabase`.
+ */
+export function pgChatKernel(kernel: StorageKernel<unknown>): ChatKernel {
+  return scopeToSchema(kernel as ChatKernel, AI_CHAT_SCHEMA);
 }

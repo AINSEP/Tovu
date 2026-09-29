@@ -48,7 +48,7 @@ export interface AgentSessionStore {
 /**
  * `AgentSessionStore` over the chat kernel (`platform/db/chat-kernel.ts`): one Kysely body for
  * every dialect, on `chat.db`'s `assistant_agent_sessions` table (`sqlite/chat-db.ts`; Postgres:
- * `pglite/chat-schema.ts`). The name predates the kernel; kept so the composition roots need no edit.
+ * chat migration `0000_chat_baseline`, schema `ai_chat`). The name predates the kernel; kept so the composition roots need no edit.
  *
  * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
  * @complexity O(1); each method is a single statement on the table's primary key.

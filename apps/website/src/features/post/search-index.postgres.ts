@@ -25,8 +25,8 @@ import { type PostSearchDialect, type PostSearchRow, toPostSearchHit } from "./s
  *    (8:4:1, as BM25's column weights).
  *
  * Schema: `post_search_document` with a stored `search` tsvector, written by the repo's `save()`
- * in its own transaction. Created idempotently by {@link ensurePgPostSearch} until the migration
- * runner is wired for Postgres (hand-off to plan slice R1, which moves this DDL into a step).
+ * in its own transaction. Built by migration step `0001_post_search`
+ * (`platform/db/migrations/0001_post_search.ts`), with the `tovu_search` configuration.
  */
 
 /** The text-search configuration the index and the queries share. */
@@ -42,48 +42,6 @@ const RANK_NORMALIZATION = 1;
 
 /** `ts_headline` options: plain text (no highlight markers) and about the SQLite snippet's 20 tokens. */
 const HEADLINE_OPTIONS = 'StartSel="", StopSel="", MaxWords=20, MinWords=10';
-
-const DDL = [
-  sql`DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_ts_dict WHERE dictname = 'tovu_search_stem' AND dictnamespace = current_schema()::regnamespace) THEN
-      CREATE TEXT SEARCH DICTIONARY tovu_search_stem (TEMPLATE = snowball, Language = english);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_ts_config WHERE cfgname = 'tovu_search' AND cfgnamespace = current_schema()::regnamespace) THEN
-      CREATE TEXT SEARCH CONFIGURATION tovu_search (COPY = simple);
-      ALTER TEXT SEARCH CONFIGURATION tovu_search ALTER MAPPING FOR asciiword, word, numword, asciihword, hword, numhword, hword_part, hword_asciipart, hword_numpart WITH tovu_search_stem;
-    END IF;
-  END $$`,
-  sql`CREATE TABLE IF NOT EXISTS post_search_document (
-    post_id text PRIMARY KEY REFERENCES posts (id) ON DELETE CASCADE,
-    title text NOT NULL,
-    slug text NOT NULL,
-    body_text text NOT NULL,
-    search tsvector NOT NULL
-  )`,
-  sql`CREATE INDEX IF NOT EXISTS post_search_document_search_idx ON post_search_document USING GIN (search)`,
-];
-
-/** One `ensure` per kernel; dropped on failure so the next call retries. */
-const ensured = new WeakMap<ContentKernel, Promise<void>>();
-
-/**
- * Creates the search configuration, table and GIN index if missing. Serialized with `lockKey` (two
- * concurrent `CREATE ... IF NOT EXISTS` can still collide in the catalog). Joins the caller's
- * transaction when there is one: if that transaction rolls back on a first-ever write, the next
- * call finds the memo stale — acceptable only until R1 moves this into a migration step.
- */
-export function ensurePgPostSearch(kernel: ContentKernel): Promise<void> {
-  let pending = ensured.get(kernel);
-  if (!pending) {
-    pending = kernel.transaction(async () => {
-      await kernel.lockKey("post_search_document");
-      for (const statement of DDL) await kernel.execute(statement);
-    });
-    pending.catch(() => ensured.delete(kernel));
-    ensured.set(kernel, pending);
-  }
-  return pending;
-}
 
 /**
  * Folds text the way FTS5's `unicode61` tokenizer sees it: diacritics removed, every run of
@@ -104,10 +62,7 @@ function searchVector(document: PostSearchDocument) {
 }
 
 export const pgPostSearch: PostSearchDialect = {
-  ensure: ensurePgPostSearch,
-
   async upsert(kernel, document) {
-    await ensurePgPostSearch(kernel);
     await kernel.execute(
       sql`INSERT INTO post_search_document (post_id, title, slug, body_text, search)
           VALUES (${document.postId}, ${document.title}, ${document.slug}, ${document.bodyText}, ${searchVector(document)})
@@ -117,7 +72,6 @@ export const pgPostSearch: PostSearchDialect = {
   },
 
   async remove(kernel, postId) {
-    await ensurePgPostSearch(kernel);
     await kernel.execute(sql`DELETE FROM post_search_document WHERE post_id = ${postId}`);
   },
 
@@ -126,7 +80,6 @@ export const pgPostSearch: PostSearchDialect = {
    * `ts_headline` runs only on the `LIMIT`ed page (the outer select).
    */
   async search(kernel: ContentKernel, query: PostSearchQuery) {
-    await ensurePgPostSearch(kernel);
     // Terms are ASCII alphanumeric (`toSearchTerms`), so ` | ` is the only operator in the string.
     const tsquery = sql`to_tsquery(${sql.lit(SEARCH_CONFIG)}::regconfig, ${query.terms.join(" | ")})`;
     const filters = [sql`d.search @@ q.query`, sql`p.workspace_id = ${query.workspaceId}`, sql`p.deleted_at IS NULL`];

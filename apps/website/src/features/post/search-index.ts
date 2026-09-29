@@ -21,14 +21,12 @@ import { sqlitePostSearch } from "./search-index.sqlite.js";
 
 /** One dialect's post search: the repo's projection writes plus the ranked query. */
 export interface PostSearchDialect extends PostSearchProjection {
-  /** Creates what the dialect's index needs if it is missing (no-op where a migration owns it). */
-  ensure(kernel: ContentKernel): Promise<void>;
   search(kernel: ContentKernel, query: PostSearchQuery): Promise<PostSearchHit[]>;
 }
 
 /** `post_search_document` as both dialects share it (the Postgres one adds a `search` tsvector). It
- *  is not in the generated `ContentDatabase` types: SQLite builds it in migration 0022, Postgres in
- *  {@link PostSearchDialect.ensure}. */
+ *  is not in the generated `ContentDatabase` types: SQLite builds it in drizzle migration 0022,
+ *  Postgres in migration step `0001_post_search`. */
 export type SearchProjectionTables = {
   post_search_document: { post_id: string; title: string; slug: string; body_text: string };
 };
@@ -95,6 +93,19 @@ export class PostSearchIndex implements PostSearchPort {
 export class SqlitePostSearchIndex extends PostSearchIndex {}
 
 /**
+ * The composition root's post search on `kernel`, whichever dialect: FTS5 on SQLite, the
+ * `tsvector` index on Postgres/PGlite ({@link postSearchFor} picks per call).
+ *
+ * @param optional.ready - Settles when the boot backfill is done; every search waits for it.
+ */
+export function postSearchIndexFor(kernel: ContentKernel, optional: { ready?: Promise<unknown> } = {}): PostSearchPort {
+  return new PostSearchIndex(kernel, optional);
+}
+
+/** Posts indexed per backfill transaction: one PGlite transaction blocks every other client. */
+export const BACKFILL_BATCH_SIZE = 50;
+
+/**
  * Indexes every post that has no projection yet, and returns how many it wrote.
  *
  * This is the answer to "existing posts must be searchable without an edit" — both for a database
@@ -106,36 +117,47 @@ export class SqlitePostSearchIndex extends PostSearchIndex {}
  * the only thing that could make an existing projection wrong is a change to `extractPostPlainText`
  * itself — a code change, which is a migration's job to follow up, not a boot step's.
  *
- * Runs in one transaction so a crash midway leaves the table either fully caught up or untouched.
+ * Runs in small transactions of {@link BACKFILL_BATCH_SIZE} posts, each re-reading what is still
+ * missing: a long single transaction would hold PGlite's one connection (every other client, the
+ * agent daemon included, waits). A crash midway leaves whole batches indexed and the rest for the
+ * next boot, which is what the anti-join already handles.
  *
  * @param store - The content kernel, or the SQLite content db handle it is derived from.
+ * @param optional.batchSize - Posts per transaction (tests).
  * @returns The number of posts newly indexed.
- * @complexity O(m) in the number of UNINDEXED posts, plus one O(n) anti-join over `posts`.
+ * @complexity O(m) in the number of UNINDEXED posts, plus one O(n) anti-join over `posts` per batch.
  * @overallScore 100
  */
-export async function backfillPostSearchIndex(store: ContentKernel | ContentDb): Promise<number> {
+export async function backfillPostSearchIndex(store: ContentKernel | ContentDb, optional: { batchSize?: number } = {}): Promise<number> {
   const kernel = contentKernel(store);
   const search = postSearchFor(kernel);
-  await search.ensure(kernel);
-  return kernel.transaction(async () => {
-    const missing = await kernel.run((db) =>
-      db
-        .withTables<SearchProjectionTables>()
-        .selectFrom("posts as p")
-        .select(["p.id", "p.title", "p.slug", "p.body_json"])
-        .where(({ not, exists, selectFrom }) =>
-          not(exists(selectFrom("post_search_document as d").select("d.post_id").whereRef("d.post_id", "=", "p.id")))
-        )
-        .execute()
-    );
-    for (const row of missing) {
-      await search.upsert(
-        kernel,
-        toPostSearchDocument({ id: row.id as UUID, title: row.title, slug: row.slug, bodyJson: parseBodyJson(row.body_json) })
+  const batchSize = optional.batchSize ?? BACKFILL_BATCH_SIZE;
+  let indexed = 0;
+  for (;;) {
+    const written = await kernel.transaction(async () => {
+      const missing = await kernel.run((db) =>
+        db
+          .withTables<SearchProjectionTables>()
+          .selectFrom("posts as p")
+          .select(["p.id", "p.title", "p.slug", "p.body_json"])
+          .where(({ not, exists, selectFrom }) =>
+            not(exists(selectFrom("post_search_document as d").select("d.post_id").whereRef("d.post_id", "=", "p.id")))
+          )
+          .orderBy("p.id")
+          .limit(batchSize)
+          .execute()
       );
-    }
-    return missing.length;
-  });
+      for (const row of missing) {
+        await search.upsert(
+          kernel,
+          toPostSearchDocument({ id: row.id as UUID, title: row.title, slug: row.slug, bodyJson: parseBodyJson(row.body_json) })
+        );
+      }
+      return missing.length;
+    });
+    indexed += written;
+    if (written < batchSize) return indexed;
+  }
 }
 
 /**

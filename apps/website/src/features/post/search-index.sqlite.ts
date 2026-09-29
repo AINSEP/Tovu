@@ -80,8 +80,6 @@ const SNIPPET_COLUMN_BODY_TEXT = 2;
  */
 export const sqlitePostSearch: PostSearchDialect = {
   // Migration 0022 owns the table, the index and the triggers.
-  async ensure() {},
-
   async upsert(kernel, document) {
     await kernel.run((db) =>
       db
