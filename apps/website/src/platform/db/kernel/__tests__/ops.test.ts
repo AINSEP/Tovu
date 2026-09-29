@@ -9,11 +9,15 @@ import { sql } from "kysely";
 
 import { closeSqliteConnection, openSqliteFileKernel, sqliteKernel } from "../drivers/sqlite.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
-import { StorageOpNotSupportedError, storageOps } from "../ops.js";
+import { OWNER_LOCK_FILE, startPgliteOwner } from "../drivers/pglite-owner.js";
+import { openPgliteSocketKernel } from "../drivers/pglite-socket.js";
+import { StorageOpError, StorageOpNotSupportedError, storageOps } from "../ops.js";
+import type { StorageKernel } from "../port.js";
 
 /**
  * @file The storage ops port (`ops.ts`) and the SQLite file helpers it leans on: a WAL-safe copy
- * from a read-only open, compact + seal + verify, and the not-yet-supported error on PGlite.
+ * from a read-only open, compact + seal + verify; PGlite in process and through its owner (a
+ * data-dir dump restored into a new dir). Real Postgres: `ops.postgres.test.ts`.
  */
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-kernel-ops-"));
@@ -92,17 +96,79 @@ test("openSqliteFileKernel readOnly requires the file to exist", () => {
   assert.throws(() => openSqliteFileKernel<unknown>(path.join(tmp, "missing.db"), { readOnly: true }), /unable to open/i);
 });
 
-test("PGlite ops are not supported yet (R1)", async () => {
-  const kernel = openPgliteKernel<unknown>();
+async function seedPg(kernel: StorageKernel<unknown>, rows: number): Promise<void> {
+  await kernel.execute(sql`CREATE TABLE tovu_migrations (id text PRIMARY KEY)`);
+  await kernel.execute(sql`INSERT INTO tovu_migrations VALUES ('0000_test')`);
+  await kernel.execute(sql`CREATE TABLE t (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v text)`);
+  await kernel.execute(sql`INSERT INTO t (v) SELECT 'row ' || g FROM generate_series(1, ${rows}) g`);
+}
+
+async function countT(dataDir: string): Promise<number> {
+  const copy = openPgliteKernel<unknown>({ dataDir });
   try {
-    const ops = storageOps(kernel);
-    await assert.rejects(ops.copyTo(path.join(tmp, "never")), (err: unknown) => {
-      assert.ok(err instanceof StorageOpNotSupportedError);
-      assert.equal(err.message, "storage op copyTo is not supported yet on the pglite driver (storage plan R1)");
-      return true;
-    });
-    await assert.rejects(ops.compactAndVerify(), StorageOpNotSupportedError);
+    const [row] = await copy.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM t`);
+    return row.n;
+  } finally {
+    await copy.close();
+  }
+}
+
+test("PGlite in process: copyTo restores the whole data dir into a new one; compactAndVerify reads the ledger back", async () => {
+  const kernel = openPgliteKernel<unknown>({ dataDir: path.join(tmp, "pglite-src") });
+  const target = path.join(tmp, "pglite-copy");
+  try {
+    await seedPg(kernel, 250);
+    await storageOps(kernel).copyTo(target);
+    await assert.rejects(storageOps(kernel).copyTo(target), /already exists/);
+    await storageOps(kernel).compactAndVerify();
+    await assert.rejects(
+      kernel.transaction(async () => storageOps(kernel).compactAndVerify()),
+      /must be called outside a transaction/
+    );
   } finally {
     await kernel.close();
   }
+  assert.equal(await countT(target), 250);
+  assert.equal(fs.existsSync(path.join(target, OWNER_LOCK_FILE)), false);
+});
+
+test("PGlite compactAndVerify refuses an empty migration ledger", async () => {
+  const kernel = openPgliteKernel<unknown>();
+  try {
+    await kernel.execute(sql`CREATE TABLE tovu_migrations (id text PRIMARY KEY)`);
+    await assert.rejects(storageOps(kernel).compactAndVerify(), (err: unknown) => {
+      assert.ok(err instanceof StorageOpError);
+      assert.equal(err.message, "the migration ledger tovu_migrations is empty after compacting");
+      return true;
+    });
+  } finally {
+    await kernel.close();
+  }
+});
+
+test("PGlite socket client: copyTo goes through the owner's exclusive window, and is refused without it", async () => {
+  const dataDir = path.join(tmp, "owned");
+  const owner = await startPgliteOwner({ dataDir }, { socketDir: fs.mkdtempSync(path.join(os.tmpdir(), "tovu-ops-")) });
+  const client = openPgliteSocketKernel<unknown>({ socketPath: owner.socketPath });
+  const target = path.join(tmp, "owned-copy");
+  try {
+    await seedPg(client, 30);
+    await assert.rejects(storageOps(client).copyTo(path.join(tmp, "never")), (err: unknown) => {
+      assert.ok(err instanceof StorageOpNotSupportedError);
+      assert.match(err.message, /a Postgres site is backed up by its provider; use the move\/transfer tools to copy it$/);
+      return true;
+    });
+    const ops = storageOps(client, { pgliteOwner: owner });
+    await ops.copyTo(target);
+    await ops.compactAndVerify();
+    // The owner still serves after its exclusive window.
+    const [row] = await client.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM t`);
+    assert.equal(row.n, 30);
+  } finally {
+    await client.close();
+    await owner.close();
+  }
+  assert.equal(fs.existsSync(path.join(dataDir, OWNER_LOCK_FILE)), false);
+  assert.equal(await countT(target), 30);
+  assert.equal(fs.existsSync(path.join(target, OWNER_LOCK_FILE)), false);
 });
