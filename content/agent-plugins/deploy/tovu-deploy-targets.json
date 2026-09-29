@@ -85,11 +85,6 @@
             "required": true,
             "secret": true,
             "help": "Vercel: Account settings > Tokens."
-          },
-          {
-            "name": "teamId",
-            "label": "Team ID",
-            "help": "Only for a team account."
           }
         ]
       }
@@ -120,11 +115,6 @@
             "required": true,
             "secret": true,
             "help": "Netlify: User settings > Applications > Personal access tokens."
-          },
-          {
-            "name": "siteId",
-            "label": "Site ID",
-            "help": "Optional. Netlify finds or creates the site from the project name."
           }
         ]
       }
@@ -164,10 +154,6 @@
             "label": "Account ID",
             "required": true,
             "help": "Shown on the Cloudflare dashboard's account home page."
-          },
-          {
-            "name": "projectName",
-            "label": "Project name"
           }
         ]
       }

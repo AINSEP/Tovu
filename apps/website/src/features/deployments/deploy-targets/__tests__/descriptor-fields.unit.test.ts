@@ -141,9 +141,9 @@ test("the shipped deploy plugin declares the credential fields and vendors core 
     return spec && { vendorId: spec.vendorId, tokenField: spec.tokenField, fields: spec.fields.map((field) => `${field.name}${field.required ? "*" : ""}${field.secret ? "!" : ""}`) };
   };
   assert.deepEqual(credential("github-pages"), { vendorId: "github", tokenField: "token", fields: ["token*!"] });
-  assert.deepEqual(credential("vercel"), { vendorId: "vercel", tokenField: "token", fields: ["token*!", "teamId"] });
-  assert.deepEqual(credential("netlify"), { vendorId: "netlify", tokenField: "token", fields: ["token*!", "siteId"] });
-  assert.deepEqual(credential("cloudflare-pages"), { vendorId: "cloudflare", tokenField: "token", fields: ["token*!", "accountId*", "projectName"] });
+  assert.deepEqual(credential("vercel"), { vendorId: "vercel", tokenField: "token", fields: ["token*!"] });
+  assert.deepEqual(credential("netlify"), { vendorId: "netlify", tokenField: "token", fields: ["token*!"] });
+  assert.deepEqual(credential("cloudflare-pages"), { vendorId: "cloudflare", tokenField: "token", fields: ["token*!", "accountId*"] });
   assert.deepEqual(credential("s3-compatible"), {
     vendorId: "s3-compatible",
     tokenField: "secretAccessKey",

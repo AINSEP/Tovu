@@ -1195,7 +1195,7 @@ test("propose-credential works for any host with a credential spec: a netlify fo
   const tokenInput = html.match(/<input[^>]*id="mcpui-field-token"[^>]*>/);
   assert.ok(tokenInput, "the token <input> must be present");
   assert.match(tokenInput![0], /type="password"/);
-  assert.match(html, /id="mcpui-field-siteId"/);
+  assert.doesNotMatch(html, /id="mcpui-field-siteId"/, "the netlify module never reads a site id, so the form does not ask for one");
 
   surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { token: "nfp_realtoken9876" } });
   assert.deepEqual(await pending, { saved: true, providerId: "netlify", connected: true });
