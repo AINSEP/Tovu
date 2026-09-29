@@ -1,16 +1,19 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   chmodSync,
   closeSync,
   existsSync,
+  fstatSync,
+  linkSync,
   lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   unlinkSync,
-  writeSync,
+  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -70,10 +73,11 @@ export interface PgliteOwner {
 export class PgliteOwnerLockedError extends Error {
   constructor(
     readonly dataDir: string,
-    readonly pid: number
+    /** Undefined while the other starter's lock has no pid in it yet. */
+    readonly pid: number | undefined
   ) {
     super(
-      `the PGlite data dir ${dataDir} is already open by process ${pid}; only one process may own it (connect to its socket instead)`
+      `the PGlite data dir ${dataDir} is already open by ${pid === undefined ? "another process" : `process ${pid}`}; only one process may own it (connect to its socket instead)`
     );
     this.name = "PgliteOwnerLockedError";
   }
@@ -138,37 +142,107 @@ function pidAlive(pid: number): boolean {
   }
 }
 
+function parsePid(text: string): number | undefined {
+  const pid = Number.parseInt(text.trim(), 10);
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
+}
+
 function readLockPid(lockPath: string): number | undefined {
   try {
-    const pid = Number.parseInt(readFileSync(lockPath, "utf8").trim(), 10);
-    return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
+    return parsePid(readFileSync(lockPath, "utf8"));
   } catch {
     return undefined;
   }
 }
 
+/** A lock with no pid in it (left by an older build between create and write) is stale only after this long. */
+const EMPTY_LOCK_STALE_MS = 10_000;
+
+interface LockSeen {
+  ino: number;
+  pid: number | undefined;
+  mtimeMs: number;
+}
+
+/** The lock file's inode, pid and age, read through one descriptor; undefined when there is none. */
+function inspectLock(lockPath: string): LockSeen | undefined {
+  let fd: number;
+  try {
+    fd = openSync(lockPath, "r");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+  try {
+    const { ino, mtimeMs } = fstatSync(fd);
+    return { ino, mtimeMs, pid: parsePid(readFileSync(fd, "utf8")) };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Creates the lock with our pid already in it (write a temp file, hard-link it in): never visible empty. */
+function tryCreateLock(lockPath: string): boolean {
+  const temp = `${lockPath}.${process.pid}.${randomBytes(4).toString("hex")}`;
+  writeFileSync(temp, `${process.pid}\n`, { flag: "wx", mode: 0o600 });
+  try {
+    linkSync(temp, lockPath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw error;
+  } finally {
+    rmSync(temp, { force: true });
+  }
+}
+
 /**
- * Takes the data dir's owner lock (O_EXCL create). A lock whose pid is dead is removed and taken
- * once more; a live one — including this process's own — refuses. Returns the release function.
+ * Removes the stale lock `seen`, and only it: the lock is renamed aside (atomic) and checked by
+ * inode, so a lock another starter took over in the meantime is put back, not deleted.
+ * @throws PgliteOwnerLockedError when the lock moved aside was a newer one.
+ */
+function removeStaleLock(dataDir: string, lockPath: string, seen: LockSeen): void {
+  const aside = `${lockPath}.stale.${process.pid}.${randomBytes(4).toString("hex")}`;
+  try {
+    renameSync(lockPath, aside);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return; // another starter removed it
+    throw error;
+  }
+  const moved = inspectLock(aside);
+  if (moved?.ino === seen.ino) {
+    rmSync(aside, { force: true });
+    return;
+  }
+  try {
+    linkSync(aside, lockPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  } finally {
+    rmSync(aside, { force: true });
+  }
+  throw new PgliteOwnerLockedError(dataDir, moved?.pid);
+}
+
+/**
+ * Takes the data dir's owner lock: created atomically with our pid in it. A lock whose pid is dead
+ * (or that has had no pid for {@link EMPTY_LOCK_STALE_MS}) is taken over; a live one — including
+ * this process's own — or a fresh one with no pid yet refuses. Returns the release function.
  */
 export function acquireOwnerLock(dataDir: string): () => void {
   const lockPath = join(dataDir, OWNER_LOCK_FILE);
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const fd = openSync(lockPath, "wx", 0o600);
-      writeSync(fd, `${process.pid}\n`);
-      closeSync(fd);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (tryCreateLock(lockPath)) {
       return () => {
         if (readLockPid(lockPath) === process.pid) rmSync(lockPath, { force: true });
       };
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const pid = readLockPid(lockPath);
-      if (pid !== undefined && pidAlive(pid)) throw new PgliteOwnerLockedError(dataDir, pid);
-      // Dead or unreadable: stale. Re-read right before removing so a lock another starter has
-      // just written is not deleted.
-      if (readLockPid(lockPath) === pid) rmSync(lockPath, { force: true });
     }
+    const seen = inspectLock(lockPath);
+    if (seen === undefined) continue; // released in between
+    const stale =
+      seen.pid === undefined ? Date.now() - seen.mtimeMs > EMPTY_LOCK_STALE_MS : !pidAlive(seen.pid);
+    if (!stale) throw new PgliteOwnerLockedError(dataDir, seen.pid);
+    removeStaleLock(dataDir, lockPath, seen);
   }
   throw new Error(`could not take the PGlite owner lock ${lockPath}`);
 }

@@ -87,7 +87,7 @@ export async function moveSiteStorage(required: MoveSiteStorageRequired, optiona
     release = acquireOwnerLock(dataDir);
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError(`storage move: the site is running (process ${err.pid}); stop it, then move it`);
+      throw new ValidationError(`storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it`);
     }
     throw err;
   }

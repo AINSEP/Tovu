@@ -48,7 +48,7 @@ async function copySource(sourceDataDir: string, targetDataDir: string): Promise
     release = acquireOwnerLock(sourceDataDir);
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError(`the site being duplicated is running (process ${err.pid}); stop it, or duplicate it from inside that site, then retry`);
+      throw new ValidationError(`the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry`);
     }
     throw err;
   }

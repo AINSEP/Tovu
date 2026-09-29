@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -89,6 +89,41 @@ describe("owner lock", () => {
     const takeover = acquireOwnerLock(dir);
     assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.pid}\n`);
     takeover();
+  });
+
+  test("a fresh lock with no pid yet is contended, not removed; an empty one older than the grace period is taken over", () => {
+    const dir = mkdtempSync(join(scratch, "lock-"));
+    const lockPath = join(dir, OWNER_LOCK_FILE);
+    writeFileSync(lockPath, "");
+    assert.throws(() => acquireOwnerLock(dir), (error: PgliteOwnerLockedError) => error instanceof PgliteOwnerLockedError && error.pid === undefined);
+    assert.equal(readFileSync(lockPath, "utf8"), "", "the starter's lock is left alone");
+
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(lockPath, old, old);
+    const release = acquireOwnerLock(dir);
+    assert.equal(readFileSync(lockPath, "utf8"), `${process.pid}\n`);
+    release();
+  });
+
+  test("starters racing for one data dir (over a dead pid's lock): exactly one becomes owner", async () => {
+    const dir = mkdtempSync(join(scratch, "lock-"));
+    writeFileSync(join(dir, OWNER_LOCK_FILE), `${deadPid()}\n`);
+    const startAt = Date.now() + 4_000;
+    const results = await Promise.all(
+      Array.from({ length: 8 }, async () => {
+        const child = spawn(process.execPath, ["--import", "tsx", join(here, "fixtures/owner-lock-race-child.ts"), dir, String(startAt)], {
+          stdio: ["ignore", "pipe", "inherit"],
+        });
+        let out = "";
+        child.stdout!.on("data", (chunk: Buffer) => (out += chunk.toString()));
+        const code = await new Promise<number | null>((resolve) => child.once("exit", resolve));
+        assert.equal(code, 0, `child output: ${out}`);
+        return (JSON.parse(out.trim()) as { owner: boolean }).owner;
+      })
+    );
+    assert.equal(results.filter(Boolean).length, 1, `owners: ${JSON.stringify(results)}`);
+    assert.equal(existsSync(join(dir, OWNER_LOCK_FILE)), false, "the owner released on exit");
+    assert.deepEqual(readdirSync(dir), [], "no temp or stale-aside files are left behind");
   });
 
   test("release never deletes a lock that another owner has taken since", () => {
