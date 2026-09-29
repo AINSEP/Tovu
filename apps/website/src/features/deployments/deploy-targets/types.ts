@@ -122,6 +122,20 @@ export interface DeployTargetModule {
   /** ONE bounded, read-only authenticated request against the host's own API. May throw: the host
    *  folds any throw into `unreachable`. Never returns the credential or a response body. */
   verifyCredential?(context: DeployCredentialCheckContext): Promise<DeployCredentialCheck>;
+  /** Steps the person applies in their own host console before the site is reachable (making a
+   *  storage bucket public, for example). Pure: no request, no credential. `fields` are the non-secret
+   *  credential fields the agent passed. Throws a plain `Error` with a person-facing message for a
+   *  missing field. */
+  hostingSetup?(input: { readonly fields: Readonly<Record<string, string>> }): DeployHostingSetup;
+}
+
+/** A module's hosting-setup answer, relayed to the person as prose plus copyable `consoleJson`. */
+export interface DeployHostingSetup {
+  /** Which flavour of the host the steps are for, when the module tells them apart. */
+  readonly provider?: string;
+  readonly steps: readonly { readonly title: string; readonly description: string; readonly consoleJson?: string }[];
+  /** Relayed verbatim when non-empty. */
+  readonly warning: string;
 }
 
 /** One entry of a plugin's `tovu-deploy-targets.json`. `id` is byte-identical to the legacy provider
@@ -154,6 +168,8 @@ export interface DeployTargetCredentialSpec {
   /** The module's `verifyCredential` can return an `accountLabel`, so a saved row without one is
    *  worth re-checking in the background. */
   readonly yieldsAccountLabel?: true;
+  /** Shown above the credential form's fields (what to have ready before filling it in). */
+  readonly help?: string;
   readonly tokenField: string;
   readonly fields: readonly DeployTargetFieldSpec[];
 }

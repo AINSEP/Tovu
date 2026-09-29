@@ -205,10 +205,11 @@ const RESERVED_CREDENTIAL_FIELD_NAMES: ReadonlySet<string> = new Set(["providerI
 function parseCredentialSpec(value: unknown, at: string): DeployTargetCredentialSpec | undefined | string {
   if (value === undefined) return undefined;
   if (!isPlainObject(value)) return `${at} must be an object`;
-  const { vendorId, vendorLabel, yieldsAccountLabel, tokenField = "token" } = value;
+  const { vendorId, vendorLabel, yieldsAccountLabel, help, tokenField = "token" } = value;
   if (typeof vendorId !== "string" || vendorId.length > MAX_TARGET_ID_LENGTH || !TARGET_ID_PATTERN.test(vendorId)) return `${at}.vendorId must be a lowercase hyphenated id`;
   if (vendorLabel !== undefined && !isLabel(vendorLabel)) return `${at}.vendorLabel must be a non-empty string`;
   if (yieldsAccountLabel !== undefined && typeof yieldsAccountLabel !== "boolean") return `${at}.yieldsAccountLabel must be a boolean`;
+  if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
   const fields = parseFieldList(value.fields, `${at}.fields`, RESERVED_CREDENTIAL_FIELD_NAMES);
   if (typeof fields === "string") return fields;
   if (typeof tokenField !== "string" || !fields.some((field) => field.name === tokenField && field.required)) return `${at}.tokenField '${String(tokenField)}' must name a required field`;
@@ -216,6 +217,7 @@ function parseCredentialSpec(value: unknown, at: string): DeployTargetCredential
     vendorId,
     ...(vendorLabel !== undefined ? { vendorLabel } : {}),
     ...(yieldsAccountLabel === true ? { yieldsAccountLabel: true as const } : {}),
+    ...(help !== undefined ? { help } : {}),
     tokenField,
     fields,
   };

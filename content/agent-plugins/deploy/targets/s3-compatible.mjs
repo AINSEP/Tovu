@@ -794,6 +794,163 @@ function classifyCredentialResponse(response) {
   return { ok: false, reason: response.status === 401 || response.status === 403 ? "rejected" : "unreachable", statusCode: response.status };
 }
 
+// ---------------------------------------------------------------------------
+// Hosting setup: the steps that make a bucket servable, which the person applies in their own
+// console. Moved from Tovu core `publish-agent-tools.ts` (`inferHostingSetupProvider` /
+// `buildHostingSetupContent`), types stripped, same text.
+// ---------------------------------------------------------------------------
+
+/**
+ * Which provider's steps to return, inferred from the credential's `endpoint` only. Blank reads as
+ * plain AWS S3, matching the credential form's "leave this blank" convention.
+ * @param {string | undefined} endpoint
+ * @returns {"aws" | "backblaze-b2" | "cloudflare-r2" | "digitalocean-spaces" | "wasabi" | "minio" | "generic"}
+ */
+function inferHostingSetupProvider(endpoint) {
+  const host = (endpoint ?? "").trim().toLowerCase();
+  if (host === "") return "aws";
+  if (host.includes("r2.cloudflarestorage.com")) return "cloudflare-r2";
+  if (host.includes("backblazeb2.com")) return "backblaze-b2";
+  if (host.includes("digitaloceanspaces.com")) return "digitalocean-spaces";
+  if (host.includes("wasabisys.com")) return "wasabi";
+  if (host.includes("amazonaws.com")) return "aws";
+  if (host.includes("minio")) return "minio";
+  return "generic";
+}
+
+/**
+ * The steps for one provider, with `bucket` substituted into any policy JSON. `wasabi`/`minio` are not
+ * independently verified against their vendors' docs; their `warning` says so.
+ * @param {string} provider
+ * @param {string} bucket
+ * @param {string} region
+ * @returns {{ steps: { title: string, description: string, consoleJson?: string }[], warning: string }}
+ */
+function buildHostingSetupContent(provider, bucket, region) {
+  if (provider === "aws") {
+    const policy = JSON.stringify(
+      {
+        Version: "2012-10-17",
+        Statement: [{ Sid: "PublicReadGetObject", Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: `arn:aws:s3:::${bucket}/*` }],
+      },
+      null,
+      2
+    );
+    return {
+      steps: [
+        {
+          title: "Turn off Block Public Access for this bucket",
+          description:
+            `AWS turns this on for every new bucket by default, and it overrides any bucket policy while it's on — a public-read policy alone will not work until this is off. ` +
+            `S3 console → bucket '${bucket}' → Permissions → Block public access (bucket settings) → Edit → uncheck all four boxes → confirm.`,
+        },
+        {
+          title: "Enable static website hosting",
+          description: `S3 console → bucket '${bucket}' → Properties → Static website hosting → Enable → set the index document to 'index.html'.`,
+        },
+        {
+          title: "Allow public reads (bucket policy)",
+          description: `S3 console → bucket '${bucket}' → Permissions → Bucket policy → paste the JSON below exactly (it already has your bucket name in it) → Save.`,
+          consoleJson: policy,
+        },
+      ],
+      warning: "",
+    };
+  }
+  if (provider === "cloudflare-r2") {
+    return {
+      steps: [
+        {
+          title: "Enable a public URL for this bucket",
+          description: `Cloudflare dashboard → R2 → bucket '${bucket}' → Settings → either turn on the free 'r2.dev' subdomain, or connect a custom domain you own.`,
+        },
+      ],
+      warning:
+        "This step needs a DIFFERENT credential than the S3-compatible key you saved on the Custom tab — your Cloudflare account login (or a separate Cloudflare API token), not the R2 access key/secret pair. " +
+        "R2's S3-compatible keys work only with S3-compatible SDKs/APIs; enabling public access is a Cloudflare-dashboard/API operation with no overlap in permissions.",
+    };
+  }
+  if (provider === "backblaze-b2") {
+    return {
+      steps: [
+        {
+          title: "Make the bucket public",
+          description: `Backblaze B2 dashboard → Buckets → '${bucket}' → change the bucket's Files setting from 'Private' to 'Public'.`,
+        },
+      ],
+      warning:
+        "Changing bucket visibility needs the 'writeBuckets' capability, a DIFFERENT capability than the object-write key saved on the Custom tab (which typically only has 'writeFiles'). " +
+        "If your saved key doesn't have it, do this step in the B2 web dashboard with your regular B2 login instead of trying to script it with the saved key.",
+    };
+  }
+  if (provider === "digitalocean-spaces") {
+    return {
+      steps: [
+        {
+          title: "Enable the CDN endpoint for this Space",
+          description: `DigitalOcean control panel → Spaces → '${bucket}' → Settings → enable the CDN (or 'doctl' / the DigitalOcean API v2 with a personal access token).`,
+        },
+      ],
+      warning:
+        "This step needs a DIFFERENT credential than the S3-compatible key you saved on the Custom tab — a DigitalOcean personal access token (from your account login), not the Spaces access key/secret pair. " +
+        "Basic object-level public-read via the S3-compatible API's own ACL mechanism may be reachable with the saved key without the CDN, but this has not been independently verified — treat it as worth trying, not guaranteed.",
+    };
+  }
+  if (provider === "wasabi") {
+    return {
+      steps: [
+        {
+          title: "Set a public-read bucket policy",
+          description: `Wasabi markets itself as closely AWS-S3-API-compatible, including bucket-policy support through the same signed-request surface your saved key already uses — try the AWS-shaped policy below in your Wasabi console (bucket '${bucket}', region '${region}').`,
+          consoleJson: JSON.stringify(
+            { Version: "2012-10-17", Statement: [{ Sid: "PublicReadGetObject", Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: `arn:aws:s3:::${bucket}/*` }] },
+            null,
+            2
+          ),
+        },
+      ],
+      warning: "Wasabi's compatibility with this exact flow has not been independently verified against Wasabi's own documentation — this is inferred from Wasabi's own compatibility claims, not confirmed. Double-check against Wasabi's current docs before relying on it.",
+    };
+  }
+  if (provider === "minio") {
+    return {
+      steps: [
+        {
+          title: "Set an anonymous download policy",
+          description: `Self-hosted MinIO — use the MinIO Console's bucket Access Policy setting, or the 'mc' CLI: 'mc anonymous set download <alias>/${bucket}'.`,
+        },
+      ],
+      warning:
+        "A self-hosted MinIO instance often has no public DNS name at all — 'Public URL' on the credential form only makes sense once you've set one up yourself (a reverse proxy, a load balancer, a domain pointed at this server). If you haven't, the site will not be reachable from the public internet no matter what is configured here.",
+    };
+  }
+  // provider === "generic" — endpoint didn't match any known provider's host pattern.
+  return {
+    steps: [
+      {
+        title: "Check your provider's own documentation for making a bucket publicly readable",
+        description:
+          `Your storage endpoint wasn't recognized as one of the providers Tovu has specific guidance for (bucket '${bucket}', region '${region}'). ` +
+          "Most S3-compatible providers support a public-read bucket policy similar to AWS's own — search your provider's docs for 'bucket policy' or 'public access'.",
+      },
+    ],
+    warning: "This provider is not one Tovu has specific hosting-setup guidance for yet — the steps above are generic, not verified against your provider's own documentation.",
+  };
+}
+
+/**
+ * @param {Readonly<Record<string, string>>} fields
+ * @param {string} name
+ * @param {string} what
+ * @returns {string}
+ * @throws {Error} The field is missing or blank.
+ */
+function requireSetupField(fields, name, what) {
+  const value = fields[name]?.trim();
+  if (!value) throw new Error(`'${name}' (${what}) is required for the hosting setup steps.`);
+  return value;
+}
+
 /** The module contract Tovu's deploy-target registry loads (`DeployTargetModule`). Every identifying
  *  field lives on the saved credential; the publish config has none. */
 export default {
@@ -833,5 +990,15 @@ export default {
   },
   basePath() {
     return undefined;
+  },
+  /**
+   * @param {{ fields: Readonly<Record<string, string>> }} input The non-secret credential fields the agent passed.
+   * @throws {Error} `bucket` or `region` is missing.
+   */
+  hostingSetup({ fields }) {
+    const bucket = requireSetupField(fields, "bucket", "the exact bucket name");
+    const region = requireSetupField(fields, "region", "the bucket's region");
+    const provider = inferHostingSetupProvider(fields.endpoint);
+    return { provider, ...buildHostingSetupContent(provider, bucket, region) };
   },
 };

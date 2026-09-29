@@ -155,39 +155,44 @@
       "credential": {
         "vendorId": "s3-compatible",
         "vendorLabel": "the storage provider",
+        "help": "S3-compatible storage needs three things, not just these fields: a bucket you've already created, public access or hosting set up in front of it — ask me to generate the exact steps and the exact policy for your bucket, then apply them yourself in your provider's console — and an access key scoped to just that bucket. If you haven't done the first two yet, do that before filling this in.",
         "tokenField": "secretAccessKey",
         "fields": [
           {
             "name": "endpoint",
             "label": "Endpoint",
-            "help": "Leave blank for AWS S3. Required for R2, B2, Spaces, Wasabi and MinIO."
+            "help": "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank."
           },
           {
             "name": "region",
             "label": "Region",
-            "required": true
+            "required": true,
+            "help": "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions."
           },
           {
             "name": "bucket",
             "label": "Bucket",
-            "required": true
+            "required": true,
+            "help": "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first."
           },
           {
             "name": "accessKeyId",
             "label": "Access key ID",
-            "required": true
+            "required": true,
+            "help": "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key."
           },
           {
             "name": "secretAccessKey",
             "label": "Secret access key",
             "required": true,
-            "secret": true
+            "secret": true,
+            "help": "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save."
           },
           {
             "name": "publicUrl",
             "label": "Public URL",
             "required": true,
-            "help": "The address the bucket's files are served from."
+            "help": "The web address people will actually visit once this is live, e.g. https://my-site.pages.dev, a custom domain pointed at this bucket, or your provider's public bucket URL. Not sure how to set this up? Ask me to generate the exact steps for your bucket, then apply them yourself in your provider's console. Once it's live, paste the address here; Tovu checks it after every publish and will tell you plainly if it isn't reachable, rather than reporting success anyway."
           }
         ]
       }
