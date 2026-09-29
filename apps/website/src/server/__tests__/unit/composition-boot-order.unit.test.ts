@@ -9,7 +9,7 @@ import test from "node:test";
  * would let a step run early or late without any behavioural test noticing.
  *
  * Pinned order:
- *  - `src/index.ts` `main()`: schema guard → site key → `await createSiteRouteDeps()`, so a
+ *  - `src/index.ts` `main()`: schema guard → site key → `await createSiteRouteDeps(defaultContentDbPath(), …)`, so a
  *    newer-schema `content.db` is refused before anything opens it.
  *  - `deps.ts` `openCompositionStore` (R1d): storage choice → hydrate → `openSiteStore` (content.db via
  *    the recovering `openSiteContentDb`, then chat.db) → the guest-chat expiry sweep on the chat kernel.
@@ -51,7 +51,7 @@ test("index.ts main(): the content.db schema guard and site key run before the c
   const main = functionBody(readCode("index.ts"), "async function main(");
   const guard = indexOfAnchor(main, "guardContentDbSchemaOrExit(defaultContentDbPath())");
   const siteKey = indexOfAnchor(main, "await ensureSiteKeyForBoot(");
-  const compose = indexOfAnchor(main, "await createSiteRouteDeps()");
+  const compose = indexOfAnchor(main, "await createSiteRouteDeps(defaultContentDbPath(),");
   assert.ok(guard < siteKey, "the schema guard must run before the site-key step");
   assert.ok(siteKey < compose, "the site key must be resolved before createSiteRouteDeps reads it");
 });
