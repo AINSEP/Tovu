@@ -68,7 +68,7 @@ describe("0000_legacy_baseline on SQLite", () => {
   test("a brand-new database gets the whole chain, the same schema drizzle's migrator builds", async () => {
     const kernel = memory();
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
     assert.equal(await drizzleRows(kernel), 78);
     const viaDrizzle = sqliteKernel<unknown>(openContentDb(":memory:"));
     // Step 0002 drops the three empty legacy chat tables drizzle's chain creates; compare the rest.
@@ -81,7 +81,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const kernel = sqliteKernel<unknown>(db);
     const before = await readSchemaShape(kernel, { exclude: [...BOOKKEEPING, ...LEGACY_CHAT_TABLES] });
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
     assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before, "only the empty legacy chat tables are gone");
     assert.equal(await drizzleRows(kernel), 78);
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
@@ -92,7 +92,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const report = await migrateContentDatabase(kernel);
     assert.equal(await drizzleRows(kernel), 78);
     assert.ok(report.notes.some((note) => note.includes("0058_keen_mauler") && note.includes("0077_external_mcp_tool_approvals") && note.includes("(20)")));
-    assert.deepEqual(await ledgerIds(kernel), ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables"]);
+    assert.deepEqual(await ledgerIds(kernel), ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
   });
 
   test("a recorded hash that is not in the chain stops adoption, nothing recorded", async () => {

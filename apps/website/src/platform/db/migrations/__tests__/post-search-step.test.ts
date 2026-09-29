@@ -35,7 +35,7 @@ describe("0001_post_search", () => {
     // Step 0002 drops the empty legacy chat tables; nothing else changes.
     const before = (await listTables(kernel)).filter((name) => !["ai_chats", "ai_chat_messages", "assistant_agent_sessions"].includes(name));
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
     assert.deepEqual((await listTables(kernel)).filter((name) => name !== "tovu_migrations"), before);
   });
 

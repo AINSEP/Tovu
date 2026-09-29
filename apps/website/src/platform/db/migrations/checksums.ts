@@ -18,4 +18,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "chat/0000_chat_baseline": "d7673b2b2ac8af992a396b375fa38da8ffbf852285c772016dc47c82d66d17a9",
   "0002_drop_empty_legacy_chat_tables": "1e33d7ab4ba950fcfa5c8fdb86d312a571f5e88c2d043e603970ad2914a7583b",
   "chat/0001_sqlite_chat_tables": "6ab892750dcd9201f17bd05df3f3f69f84a6342d54647984d6c834dd7d5d164f",
+  "0003_coercion_json_as_json": "1135e06ed42097731f6ef16c2c4d826b0b23a171640e50df96517136876e99cf",
 };

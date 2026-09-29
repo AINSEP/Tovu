@@ -48,6 +48,15 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     assert.equal(found?.settingId, def.settingId);
   });
 
+  test(`[${adapterName}] a retyped definition's coercionTag round-trips as the bare tag`, async () => {
+    // Every retype carries a coercer tag; `coercion_json` is jsonb on Postgres, so a bare tag
+    // written raw is rejected there ("invalid input syntax for type json").
+    const repo = makeRepo();
+    await repo.saveDefinition({ ...def, version: 2, coercionTag: "identity" });
+    const found = await repo.findDefinitionBySettingId({ settingId: def.settingId, version: 2 });
+    assert.equal(found?.coercionTag, "identity");
+  });
+
   test(`[${adapterName}] findActiveDefinition returns null for an unknown key`, async () => {
     const repo = makeRepo();
     const found = await repo.findActiveDefinition({ namespace: "core.nope", key: "x", workspaceId: null });

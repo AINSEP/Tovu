@@ -36,6 +36,21 @@ type ValueRow = Pick<
   "setting_id" | "value_json" | "state" | "def_version" | "seq" | "updated_by" | "updated_at" | "origin_plugin_id"
 >;
 
+/**
+ * `coercion_json` holds the coercer tag as a JSON string (`"identity"`): the column is jsonb on
+ * Postgres, which rejects a bare tag. A SQLite row written before that holds the bare tag itself;
+ * migration `0003_coercion_json_as_json` rewrites those, and this still reads one as-is.
+ */
+function decodeCoercionTag(text: string | null): string | null {
+  if (text == null) return null;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return typeof parsed === "string" ? parsed : text;
+  } catch {
+    return text;
+  }
+}
+
 function toDefinitionRecord(row: Selectable<SettingDefinitionsTable>): SettingDefinitionRecord {
   return {
     settingId: row.setting_id,
@@ -52,7 +67,7 @@ function toDefinitionRecord(row: Selectable<SettingDefinitionsTable>): SettingDe
     status: row.status as DefinitionStatus,
     aliasOfNamespace: row.alias_of_ns,
     aliasOfKey: row.alias_of_key,
-    coercionTag: row.coercion_json,
+    coercionTag: decodeCoercionTag(row.coercion_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -74,7 +89,7 @@ function toDefinitionRow(record: SettingDefinitionRecord): Insertable<SettingDef
     status: record.status,
     alias_of_key: record.aliasOfKey,
     alias_of_ns: record.aliasOfNamespace,
-    coercion_json: record.coercionTag,
+    coercion_json: record.coercionTag == null ? null : JSON.stringify(record.coercionTag),
     created_at: record.createdAt,
     updated_at: record.updatedAt,
   };

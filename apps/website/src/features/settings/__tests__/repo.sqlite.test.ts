@@ -198,3 +198,17 @@ test("SqliteSettingsRepo: workspace-scoped value from one workspace never leaks 
     "a-value"
   );
 });
+
+test("SqliteSettingsRepo: a legacy row holding a bare coercer tag still reads back as that tag", async () => {
+  // Before `coercion_json` was JSON-encoded the repo wrote the bare tag; migration 0003 quotes those
+  // rows, but a row written after it by an older build must still read correctly.
+  const db = openTestDb();
+  db.$client
+    .prepare(
+      `INSERT INTO setting_definitions (setting_id, version, namespace, key, owner_kind, schema_json, scopes, status, coercion_json, created_at, updated_at)
+       VALUES ('legacy-tag', 2, 'core.test', 'legacyTag', 'core', '{"type":"string"}', 1, 'active', 'identity', 'now', 'now')`
+    )
+    .run();
+  const repo = new SqliteSettingsRepo(db);
+  assert.equal((await repo.findDefinitionBySettingId({ settingId: "legacy-tag" }))?.coercionTag, "identity");
+});
