@@ -9,6 +9,7 @@ import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src
 import type { WidgetRenderIR } from "#src/features/widgets/types";
 import {
   injectExtraHeadIntoStaticPage,
+  injectSiteAssistantIntoStaticPage,
   renderBlockSeam,
   renderDocNode,
   renderHtmlPageBody,
@@ -2952,6 +2953,48 @@ test("injectExtraHeadIntoStaticPage: extraHead without a title leaves the theme'
 
   assert.ok(out.includes("<title>Theme Title</title>"), "nothing to suppress it, so it stays");
   assert.equal((out.match(/-->/g) ?? []).length, 1, "and the comment is untouched");
+});
+
+// A head comment that names `</head>` and `</body>` literally (kUInetic's pre-JS cloak note did) must
+// not be taken for the document's closing tags: the splice used to insert before the FIRST match, so
+// the chat mount and its script landed inside the comment and the site FAB never loaded.
+const HEAD_COMMENT_MENTIONING_CLOSING_TAGS = [
+  "<!doctype html>",
+  '<html lang="en"><head>',
+  "<!-- cloak: armed before </head> runs, then at the end of <body> rather than at </body>. -->",
+  "<title>Home</title>",
+  "</head><body><h1>Hi</h1></body></html>",
+].join("\n");
+
+test("injectSiteAssistantIntoStaticPage: closing tags named inside a head comment are skipped (regression)", () => {
+  const out = injectSiteAssistantIntoStaticPage(HEAD_COMMENT_MENTIONING_CLOSING_TAGS, true);
+
+  assert.equal(
+    out,
+    [
+      "<!doctype html>",
+      '<html lang="en"><head>',
+      "<!-- cloak: armed before </head> runs, then at the end of <body> rather than at </body>. -->",
+      "<title>Home</title>",
+      '<link rel="stylesheet" href="/site-chat/site-assistant.css"/></head><body><h1>Hi</h1>' +
+        '<div id="tovu-site-assistant-root"></div><script defer src="/site-chat/site-assistant.js"></script></body></html>',
+    ].join("\n")
+  );
+});
+
+test("injectExtraHeadIntoStaticPage: a </head> named inside a head comment is skipped (regression)", () => {
+  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_CLOSING_TAGS, '<link rel="canonical" href="/"/>');
+
+  assert.equal(
+    out,
+    [
+      "<!doctype html>",
+      '<html lang="en"><head>',
+      "<!-- cloak: armed before </head> runs, then at the end of <body> rather than at </body>. -->",
+      "<title>Home</title>",
+      '<link rel="canonical" href="/"/></head><body><h1>Hi</h1></body></html>',
+    ].join("\n")
+  );
 });
 
 // ---------------------------------------------------------------------------

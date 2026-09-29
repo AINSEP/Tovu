@@ -3024,7 +3024,7 @@ function siteAssistantMarkup(enabled: boolean): { head: string; body: string } {
 export function injectExtraHeadIntoStaticPage(html: string, extraHead: string | undefined): string {
   if (!extraHead) return html;
   const withoutOwnTitle = extraHead.includes("<title>") ? removeThemeOwnTitleElement(html) : html;
-  return /<\/head>/i.test(withoutOwnTitle) ? withoutOwnTitle.replace(/<\/head>/i, `${extraHead}</head>`) : withoutOwnTitle;
+  return insertBeforeUncommentedTag(withoutOwnTitle, /<\/head>/gi, extraHead);
 }
 
 /**
@@ -3045,8 +3045,28 @@ export function injectExtraHeadIntoStaticPage(html: string, extraHead: string | 
 export function injectSiteAssistantIntoStaticPage(html: string, enabled: boolean): string {
   const { head, body } = siteAssistantMarkup(enabled);
   if (!head && !body) return html;
-  const withHead = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${head}</head>`) : html;
-  return /<\/body>/i.test(withHead) ? withHead.replace(/<\/body>/i, `${body}</body>`) : withHead;
+  const withHead = insertBeforeUncommentedTag(html, /<\/head>/gi, head);
+  return insertBeforeUncommentedTag(withHead, /<\/body>/gi, body);
+}
+
+/**
+ * Insert `markup` immediately before the first `tag` match that is real markup rather than a mention
+ * inside an HTML comment; returns `html` unchanged when there is none. `tag` must be global so its
+ * `lastIndex` walks the candidates.
+ *
+ * A plain `html.replace(/<\/body>/i, ...)` was a live bug: kUInetic's pre-JS cloak comment in the
+ * tovu-theme head said `</body>` literally, so the visitor-chat mount and script were spliced into
+ * that comment and the site chat FAB never loaded. Same lesson as {@link removeThemeOwnTitleElement}.
+ *
+ * @complexity O(n·k) over `html`'s length and the number of `tag` occurrences — k is 1 or 2 for any
+ * real template.
+ */
+function insertBeforeUncommentedTag(html: string, tag: RegExp, markup: string): string {
+  for (let match = tag.exec(html); match !== null; match = tag.exec(html)) {
+    if (isInsideHtmlComment(html, match.index)) continue;
+    return html.slice(0, match.index) + markup + html.slice(match.index);
+  }
+  return html;
 }
 
 /**
