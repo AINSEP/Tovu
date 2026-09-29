@@ -12,6 +12,7 @@ import { prepareContentStore } from "#src/platform/db/prepare-content-store";
 import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
+import { PGLITE_DATA_DIR_NAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { seededPosts, seededPresentation, seededWorkspace } from "../configuration/seed.js";
 import { openSiteContentDb } from "./open-site-content-db.js";
@@ -40,8 +41,8 @@ import { resolvePostgresConnectionString } from "./storage-secret.js";
 /** Which process opens the store. The API process owns it; the agent daemon is a client (PGlite: R1f). */
 export type SiteStoreRole = "owner" | "client";
 
-/** A PGlite site's data dir, inside the site folder. */
-export const PGLITE_DATA_DIR_NAME = "pglite";
+/** A PGlite site's data dir, inside the site folder (owned by `site-dir/layout.ts`). */
+export { PGLITE_DATA_DIR_NAME };
 
 /** The PGlite owner's socket file; the daemon supervisor hands the owner's to the daemon. */
 export const PG_SOCKET_ENV = "TOVU_PG_SOCKET";

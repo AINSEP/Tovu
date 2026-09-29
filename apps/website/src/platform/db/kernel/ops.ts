@@ -113,6 +113,29 @@ function outsideTransactionOf(kernel: StorageKernel<unknown>): (op: keyof Storag
 }
 
 /**
+ * `copyTo` for a PGlite data dir served by `owner` (in this process): the dump is taken inside the
+ * owner's exclusive window, then restored into `targetPath` (which must not exist).
+ */
+export async function copyServedPgliteTo(owner: PgliteExclusive, targetPath: string): Promise<void> {
+  await restoreDataDir(targetPath, () => owner.runExclusive((db) => db.dumpDataDir("none")));
+}
+
+/** Restores `dump()` into a new PGlite data dir at `targetPath`; removes a partial dir on failure. */
+async function restoreDataDir(targetPath: string, dump: () => Promise<Blob>): Promise<void> {
+  if (existsSync(targetPath)) throw new Error(`storage op copyTo: ${targetPath} already exists`);
+  const data = await dump();
+  try {
+    const restored = await PGlite.create({ dataDir: targetPath, loadDataDir: data });
+    await restored.close();
+    // The dump carries the source owner's pid lock; the copy has no owner yet.
+    rmSync(join(targetPath, OWNER_LOCK_FILE), { force: true });
+  } catch (err) {
+    rmSync(targetPath, { recursive: true, force: true });
+    throw err;
+  }
+}
+
+/**
  * PGlite and Postgres. The copy is a PGlite data dir at `targetPath`: dumped (in process through the
  * kernel's own backup, served through the owner's exclusive window) and restored by a fresh PGlite.
  */
@@ -123,28 +146,16 @@ function postgresOps<DB>(kernel: StorageKernel<DB>, owner: PgliteExclusive | und
     async copyTo(targetPath) {
       outsideTransaction("copyTo");
       if (!embedded) throw new StorageOpNotSupportedError("copyTo", kernel.transport, POSTGRES_COPY_REASON);
-      if (existsSync(targetPath)) throw new Error(`storage op copyTo: ${targetPath} already exists`);
-      let dump: Blob;
-      if (owner !== undefined) {
-        dump = await owner.runExclusive((db) => db.dumpDataDir("none"));
-      } else {
+      if (owner !== undefined) return copyServedPgliteTo(owner, targetPath);
+      await restoreDataDir(targetPath, async () => {
         const tarball = `${targetPath}.${randomUUID()}.tar`;
         try {
           await kernel.backupTo(tarball);
-          dump = new Blob([await readFile(tarball)]);
+          return new Blob([await readFile(tarball)]);
         } finally {
           rmSync(tarball, { force: true });
         }
-      }
-      try {
-        const restored = await PGlite.create({ dataDir: targetPath, loadDataDir: dump });
-        await restored.close();
-        // The dump carries the source owner's pid lock; the copy has no owner yet.
-        rmSync(join(targetPath, OWNER_LOCK_FILE), { force: true });
-      } catch (err) {
-        rmSync(targetPath, { recursive: true, force: true });
-        throw err;
-      }
+      });
     },
     async compactAndVerify() {
       outsideTransaction("compactAndVerify");

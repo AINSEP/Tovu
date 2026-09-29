@@ -3,9 +3,17 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { duplicateContentDb } from "./duplicate-content-db.js";
+import { duplicatePgliteStore } from "./duplicate-pglite-store.js";
 import { InternalError, SiteDirInvalidError, ValidationError } from "./errors.js";
 import { cleanupAndRethrow, resolveSiteName, validateInitTarget } from "./init-site.js";
-import { CHAT_ATTACHMENTS_ENTRY_NAME, CONTENT_DB_FILENAME, isPortableSiteEntry, STORAGE_SECRET_FILENAME, UPLOADS_ENTRY_NAME } from "./layout.js";
+import {
+  CHAT_ATTACHMENTS_ENTRY_NAME,
+  CONTENT_DB_FILENAME,
+  isPortableSiteEntry,
+  PGLITE_DATA_DIR_NAME,
+  STORAGE_SECRET_FILENAME,
+  UPLOADS_ENTRY_NAME,
+} from "./layout.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { parseSiteStorage } from "./site-storage.js";
@@ -189,14 +197,15 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
   const resolvedName = resolveSiteName(target, name); // pre-write VALIDATION, mirrors initSite step 1.
   validateInitTarget(target); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.
   const { meta: sourceMeta } = readSiteDir({ dir: source }); // pre-write SITE_DIR_INVALID — nothing created yet.
-  // The copy keeps the source's storage. Only SQLite is copied here (a whole-file copy); the other
-  // kinds copy row by row through their kernels, which the R1 plan's slice R1g adds. Refusing is
-  // also the secret rule: a postgres source's `.storage-secret.json` (or its env var) names the
-  // SOURCE's database, so a duplicate must never inherit it — when R1g lands it takes a new
-  // connection string for the copy's own database, and the allowlist copy never carries the file.
+  // The copy keeps the source's storage: SQLite copies `content.db`, PGlite its data dir (both
+  // through the storage ops port). Postgres is refused, which is also the secret rule: a postgres
+  // source's `.storage-secret.json` (or its env var) names the SOURCE's database, so a duplicate
+  // must never inherit it, and the allowlist copy never carries the file.
   const storage = parseSiteStorage(sourceMeta.storage);
-  if (storage.kind !== "sqlite") {
-    throw new ValidationError(`duplicating a site stored on ${storage.kind} is not supported yet (R1 plan slice R1g)`);
+  if (storage.kind === "postgres") {
+    throw new ValidationError(
+      "a site stored on postgres cannot be duplicated here: its data lives on the Postgres server; copy that database with your provider, then create the new site on it"
+    );
   }
 
   const siteId = randomUUID(); // NEW identity — never copied from sourceMeta.siteId.
@@ -239,10 +248,18 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
     // the source's legacy site-title pin and marker reset (SPEC-050 REQ-12), so the duplicate renders
     // its own `config.json` name. Chat history's own file, `chat.db`, is left behind by the allowlist
     // copy above, not here.
-    await duplicateContentDb({
-      sourceDbPath: path.join(source, CONTENT_DB_FILENAME),
-      targetDbPath: path.join(target, CONTENT_DB_FILENAME),
-    });
+    if (storage.kind === "pglite") {
+      // Same outcome on PGlite: a consistent dump of the data dir, AI chat emptied, title pin reset.
+      await duplicatePgliteStore({
+        sourceDataDir: path.join(source, PGLITE_DATA_DIR_NAME),
+        targetDataDir: path.join(target, PGLITE_DATA_DIR_NAME),
+      });
+    } else {
+      await duplicateContentDb({
+        sourceDbPath: path.join(source, CONTENT_DB_FILENAME),
+        targetDbPath: path.join(target, CONTENT_DB_FILENAME),
+      });
+    }
 
     // .site-meta.json — the commit marker, written LAST on success (mirrors initSite's own
     // CIC U-003-ORD1), carrying the SOURCE's own schema stamp verbatim (see this file's header's

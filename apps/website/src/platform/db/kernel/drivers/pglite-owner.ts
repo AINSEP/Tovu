@@ -79,6 +79,17 @@ export class PgliteOwnerLockedError extends Error {
   }
 }
 
+/** The owners this process runs, by resolved data dir (a second owner in-process is refused by the lock). */
+const runningOwners = new Map<string, PgliteOwner>();
+
+/**
+ * The owner THIS process runs for `dataDir`, if any: how an in-process caller (duplicating the site
+ * it serves) reaches {@link PgliteOwner.runExclusive} without a second open.
+ */
+export function runningPgliteOwner(dataDir: string): PgliteOwner | undefined {
+  return runningOwners.get(resolve(dataDir));
+}
+
 /** 8 hex characters naming a data dir, stable across runs so clients can find its socket. */
 function dirKey(dataDir: string): string {
   return createHash("sha256").update(resolve(dataDir)).digest("hex").slice(0, 8);
@@ -214,12 +225,13 @@ export async function startPgliteOwner(
   const serving = server;
   const open = db;
   let closing: Promise<void> | undefined;
-  return {
+  const owner: PgliteOwner = {
     socketPath,
     socketDir,
     runExclusive: (fn) => serving.runExclusive(fn),
     close() {
       closing ??= (async () => {
+        runningOwners.delete(dataDir);
         try {
           await serving.stop();
           await open.close();
@@ -231,4 +243,6 @@ export async function startPgliteOwner(
       return closing;
     },
   };
+  runningOwners.set(dataDir, owner);
+  return owner;
 }

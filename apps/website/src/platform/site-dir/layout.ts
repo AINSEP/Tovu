@@ -126,6 +126,12 @@ export const CHAT_ATTACHMENTS_ENTRY_NAME = "chat-attachments";
  */
 export const STORAGE_SECRET_FILENAME = ".storage-secret.json";
 
+/**
+ * A PGlite site's data dir (`open-site-store.ts`). Not portable: `duplicateSite` copies the database
+ * through the storage ops port (a consistent dump, chat left out), never as files.
+ */
+export const PGLITE_DATA_DIR_NAME = "pglite";
+
 /** The portable entry {@link CHAT_ATTACHMENTS_ENTRY_NAME} sits under. Named so the one call site
  *  that has to special-case it cannot drift from the allowlist entry it refers to. */
 export const UPLOADS_ENTRY_NAME = "uploads";

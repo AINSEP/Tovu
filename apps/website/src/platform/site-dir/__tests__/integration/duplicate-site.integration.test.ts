@@ -281,7 +281,7 @@ test("the schema stamp is carried from the SOURCE verbatim, never re-derived fro
   }
 });
 
-test("R1d: the duplicate keeps the source's storage; a source on another engine is refused before anything is written", async () => {
+test("R1d: the duplicate keeps the source's storage; a postgres source is refused before anything is written", async () => {
   const parent = mkTempParent();
   try {
     const source = await initSite({ dir: path.join(parent, "source"), name: "Storage Source" });
@@ -291,12 +291,15 @@ test("R1d: the duplicate keeps the source's storage; a source on another engine 
     assert.deepEqual(targetMeta.storage, { kind: "sqlite" });
 
     const metaPath = path.join(source.dir, ".site-meta.json");
-    const pgliteMeta = { ...JSON.parse(fs.readFileSync(metaPath, "utf8")), storage: { kind: "pglite" } };
-    fs.writeFileSync(metaPath, JSON.stringify(pgliteMeta, null, 2));
+    const postgresMeta = { ...JSON.parse(fs.readFileSync(metaPath, "utf8")), storage: { kind: "postgres", secretRef: "site" } };
+    fs.writeFileSync(metaPath, JSON.stringify(postgresMeta, null, 2));
     const refusedTarget = path.join(parent, "refused");
     await assert.rejects(duplicateSite({ sourceDir: source.dir, targetDir: refusedTarget }), (err: unknown) => {
       assert.ok(err instanceof ValidationError);
-      assert.match(err.message, /duplicating a site stored on pglite is not supported yet/);
+      assert.equal(
+        err.message,
+        "a site stored on postgres cannot be duplicated here: its data lives on the Postgres server; copy that database with your provider, then create the new site on it"
+      );
       return true;
     });
     assert.equal(fs.existsSync(refusedTarget), false, "nothing is created for a refused duplicate");
