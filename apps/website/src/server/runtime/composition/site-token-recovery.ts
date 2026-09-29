@@ -4,12 +4,12 @@ import { join } from "node:path";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
-import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening } from "#src/platform/db/sealed-credential-discard";
+import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening, resealCredentialsOpeningUnder } from "#src/platform/db/sealed-credential-discard";
 import { CONTENT_DB_FILENAME, STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import { FixedRootKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { installSiteKey, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
-import { readSealedConnectionString } from "./storage-secret.js";
+import { readSealedConnectionString, writeSealedConnectionString } from "./storage-secret.js";
 import { SEALED_COLUMN_DESCRIPTORS } from "./sealed-credential-descriptors.js";
 
 /**
@@ -56,6 +56,35 @@ async function discardNotOpening(input: SiteTokenRecoveryInput): Promise<{ disca
   return withSiteKernel(input, (kernel) => discardSealedCredentialsNotOpening({ kernel, sealer, descriptors: SEALED_COLUMN_DESCRIPTORS }), { discarded: 0, kept: 0 });
 }
 
+export interface SiteTokenResealInput extends SiteTokenRecoveryInput {
+  /** The key currently in place, which values saved since the switch were sealed under. */
+  readonly previousHex: string;
+}
+
+/** Moves every sealed value (and `.storage-secret.json`) that opens under `previousHex` but not
+ *  under `hex` onto `hex`, so switching to `hex` strands nothing. The caller takes a restore point
+ *  first. @complexity {@link resealCredentialsOpeningUnder}'s cost plus one small file rewrite. */
+async function resealFrom(input: SiteTokenResealInput): Promise<{ resealed: number; unreadable: number }> {
+  const keyring = new FixedRootKeyKeyring(input.hex);
+  const sealer = new AesGcmSecretSealer(keyring);
+  const previous = new AesGcmSecretSealer(new FixedRootKeyKeyring(input.previousHex));
+  const key = await keyring.activeKey();
+  const counts = await withSiteKernel(
+    input,
+    (kernel) => resealCredentialsOpeningUnder({ kernel, sealer, key, previous, descriptors: SEALED_COLUMN_DESCRIPTORS }),
+    { resealed: 0, unreadable: 0 }
+  );
+  if ((await checkStorageSecret(input.siteDir, sealer)) !== "locked") return counts;
+  let connectionString: string;
+  try {
+    connectionString = await readSealedConnectionString({ siteDir: input.siteDir }, { sealer: previous });
+  } catch {
+    return { ...counts, unreadable: counts.unreadable + 1 };
+  }
+  await writeSealedConnectionString({ siteDir: input.siteDir, connectionString }, { sealer, keyring });
+  return { ...counts, resealed: counts.resealed + 1 };
+}
+
 async function checkStorageSecret(siteDir: string, sealer: AesGcmSecretSealer): Promise<StorageSecretCheck> {
   if (!existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return "absent";
   try {
@@ -81,4 +110,4 @@ async function withSiteKernel<R>(input: SiteTokenRecoveryInput, use: (kernel: Co
 }
 
 /** The recovery half of the route's `SiteTokenServices`. */
-export const siteTokenRecovery = { checkKey, discardNotOpening, installSiteKey, mintSiteKeyHex };
+export const siteTokenRecovery = { checkKey, discardNotOpening, resealFrom, installSiteKey, mintSiteKeyHex };

@@ -4,10 +4,14 @@ import { join } from "node:path";
 
 import type { Express, Request, Response } from "express";
 
+import type { UUID } from "@jini-ai/cms/core";
+
 import {
   defaultRootKeyFilePath,
+  fingerprintRootKeyHex,
   generateFileRootKey,
   inspectRootKeyMaterial,
+  parseRootKeyHex,
   revealRootKeyMaterial,
   RootKeyFileAlreadyExistsError,
   type RootKeyStatus,
@@ -84,6 +88,15 @@ import type { RouteDeps } from "#src/server/routes/types";
  * site-token-permission.ts`) — a narrower trust boundary than ordinary content admin, since this
  * is the one screen that can both mint AND reveal the key protecting every other credential.
  *
+ * ## Last-resort recovery (2026-09-29, design 2026-09-14 §4.3/§4.6)
+ *
+ * For a locked site (`missing-with-data`, `mismatch`): `POST .../import` ("Paste your old token")
+ * installs a pasted token only after it opens a real sealed value (or `.storage-secret.json`, or
+ * matches the stamp), and first moves anything saved under the key in place meanwhile onto it, so
+ * nothing is stranded. `GET .../start-fresh` previews "Start fresh" (what goes, which webhooks get a
+ * new signing secret); `POST .../start-fresh` with `{confirm: "START FRESH"}` takes a restore point,
+ * removes only what the kept (or new) key cannot open, and installs that key. Neither echoes the key.
+ *
  * `POST .../generate` never overwrites or rotates, and never mints over sealed data (2026-09-29): it
  * runs the site-key writer boot runs (`site-key-ensure.ts`'s `ensureSiteKeyForSite`, injected by the
  * composition root so this file never imports it). A working key is reported as `already-active`; a
@@ -118,7 +131,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  * could reveal the value that decrypts every other stored credential. Reveal and generate responses
  * also now set `Cache-Control: no-store`, since both carry the raw key value.
  */
-export type AdminSiteTokenDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding" | "contentKernel">;
+export type AdminSiteTokenDeps = Pick<
+  RouteDeps,
+  "workspaceId" | "authorize" | "siteBinding" | "contentKernel" | "dbOps" | "restorePointsRepo" | "idGen" | "clock" | "webhookSubscriptionRepo"
+>;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-token";
 
@@ -132,7 +148,7 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-token";
  * @complexity O(1) `.site-meta.json` read plus `siteKeySources`' fixed-size ordering.
  */
 export function resolveSiteTokenSources(
-  deps: AdminSiteTokenDeps,
+  deps: Pick<AdminSiteTokenDeps, "siteBinding">,
   env: NodeJS.ProcessEnv = process.env
 ): { sources: SiteKeySource[]; keyFilePath: string } {
   const mode = resolveRuntimeMode({ env });
@@ -286,6 +302,34 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });
+
+  app.post(`${BASE_PATH}/import`, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    await respondWithRecovery(res, () => importSiteToken(deps, siteKey, { token: (req.body as { token?: unknown } | undefined)?.token, actorId: getAuthedPrincipal(res).id }));
+  });
+
+  app.get(`${BASE_PATH}/start-fresh`, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    await respondWithRecovery(res, () => previewStartFresh(deps, siteKey));
+  });
+
+  app.post(`${BASE_PATH}/start-fresh`, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    const confirm = (req.body as { confirm?: unknown } | undefined)?.confirm;
+    await respondWithRecovery(res, () => startFresh(deps, siteKey, { confirm, actorId: getAuthedPrincipal(res).id }));
+  });
+}
+
+/** Sends a recovery result `no-store` (the request carried a token; never let a cache keep either). */
+async function respondWithRecovery(res: Response, run: () => Promise<RouteResult>): Promise<void> {
+  res.set("Cache-Control", "no-store");
+  try {
+    const result = await run();
+    res.status(result.status).json({ ...result.body, runtimeMode: resolveRuntimeMode() });
+  } catch (err) {
+    console.error("[site-token] recovery failed", err);
+    res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  }
 }
 
 /** The site-key writer's result, as far as `generate` reads it — `site-key-ensure.ts`'s
@@ -297,23 +341,50 @@ export interface SiteKeyEnsureOutcome {
   readonly fingerprint?: string;
 }
 
-/** What `generate` needs from the composition root: `site-key-ensure.ts`'s `ensureSiteKeyForSite`,
- *  the same writer boot runs. `undefined` means no `siteKeyId` resolves for the site. */
+/** How many of the site's sealed values open under a key held in memory, and whether its
+ *  `.storage-secret.json` does — `composition/site-token-recovery.ts`'s `checkKey`, restated. */
+export interface SiteTokenKeyCheck {
+  readonly sealed: number;
+  readonly opens: number;
+  readonly storageSecret: "absent" | "opens" | "locked";
+}
+
+/** The site's store plus a candidate key, as the recovery helpers take it. */
+export interface SiteTokenStoreInput {
+  readonly siteDir: string;
+  readonly contentKernel?: AdminSiteTokenDeps["contentKernel"];
+  readonly hex: string;
+}
+
+/** `site-key-ensure.ts`'s `installSiteKey` result, restated structurally (see {@link SiteKeyEnsureOutcome}). */
+export type SiteKeyInstallOutcome =
+  | { readonly outcome: "installed"; readonly keyFilePath: string; readonly fingerprint: string }
+  | { readonly outcome: "env-key-set" };
+
+/** What the key verbs need from the composition root: `site-key-ensure.ts`'s writers (boot's
+ *  `ensureSiteKeyForSite`, recovery's `installSiteKey`/`mintSiteKeyHex`) and the sealed-value checks
+ *  in `composition/site-token-recovery.ts`. `undefined` from the writers means no `siteKeyId`
+ *  resolves for the site. */
 export interface SiteTokenKeyWriter {
   readonly ensureSiteKeyForSite: (input: {
     siteDir: string;
     findSiteKeyDependentData: (siteDir: string) => Promise<boolean>;
   }) => Promise<SiteKeyEnsureOutcome | undefined>;
+  readonly checkKey: (input: SiteTokenStoreInput) => Promise<SiteTokenKeyCheck>;
+  readonly discardNotOpening: (input: SiteTokenStoreInput) => Promise<{ discarded: number; kept: number }>;
+  readonly resealFrom: (input: SiteTokenStoreInput & { previousHex: string }) => Promise<{ resealed: number; unreadable: number }>;
+  readonly installSiteKey: (input: { siteDir: string; hex: string }) => SiteKeyInstallOutcome | undefined;
+  readonly mintSiteKeyHex: () => string;
 }
 
 type GenerateOutcome = "already-active" | "recovered" | "created";
 
-interface GenerateResult {
-  readonly status: 200 | 201 | 409;
-  readonly body:
-    | { outcome: GenerateOutcome; fingerprint: string; keyFilePath: string }
-    | { error: string; detail: string };
+interface RouteResult {
+  readonly status: number;
+  readonly body: Record<string, unknown>;
 }
+
+type GenerateResult = RouteResult;
 
 /** Plain-words refusals — the key the site's data needs is not here, so nothing is written. */
 const REFUSALS = {
@@ -323,10 +394,17 @@ const REFUSALS = {
     "The site token on this computer is not the one this site's saved credentials were locked with, so nothing was changed. Put the original site token back to unlock them.",
   KEY_INVALID: "A site token is set on this computer but is not a valid key, so nothing was changed. Fix or remove it, then try again.",
   SITE_META_UNREADABLE: "This site's .site-meta.json cannot be read, so its site token cannot be set up. Nothing was changed.",
+  TOKEN_INVALID: "That is not a site token. A site token is 64 characters of 0-9 and a-f.",
+  TOKEN_DOES_NOT_OPEN: "That token does not open this site's saved credentials. Nothing was changed.",
+  ENV_KEY_SET: "A different site token is set in this server's environment and overrides the key file, so nothing was changed. Change it there instead.",
+  RESTORE_POINT_UNAVAILABLE: "A restore point can't be made for this site's database right now, so nothing was changed.",
+  STORAGE_SECRET_LOCKED:
+    "This site's database connection is locked with the old token, and starting fresh can't replace it. Paste your old token instead. Nothing was changed.",
+  CONFIRMATION_REQUIRED: "Type START FRESH to confirm. Nothing was changed.",
 } as const;
 
-function refusal(code: keyof typeof REFUSALS): GenerateResult {
-  return { status: 409, body: { error: code, detail: REFUSALS[code] } };
+function refusal(code: keyof typeof REFUSALS, status = 409): RouteResult {
+  return { status, body: { error: code, detail: REFUSALS[code] } };
 }
 
 function success(outcome: GenerateOutcome, fingerprint: string, keyFilePath: string): GenerateResult {
@@ -381,4 +459,133 @@ async function generateProductionSiteToken(deps: AdminSiteTokenDeps, hasData: ()
   const generated = generateFileRootKey({ keyFilePath });
   stampSiteKeyFingerprint(deps.siteBinding.dir, generated.fingerprint);
   return success("created", generated.fingerprint, generated.keyFilePath);
+}
+
+/** Takes and records a restore point before recovery changes the database (pattern:
+ *  `features/database/gated-hooks.ts`'s migrate-forward). `undefined` when this site's database
+ *  cannot take one. @complexity O(1) plus one capture and one save. */
+async function takeRestorePoint(deps: AdminSiteTokenDeps, actorId: string, trigger: string): Promise<string | undefined> {
+  const capabilities = await deps.dbOps.getCapabilities();
+  if (capabilities.restorePoint.costClass === "unavailable") return undefined;
+  const captured = await deps.dbOps.captureRestorePoint({ scopeId: deps.workspaceId });
+  const restorePointId = deps.idGen.newId();
+  await deps.restorePointsRepo.save({
+    restorePointId,
+    idempotencyKey: restorePointId,
+    trigger,
+    createdAt: deps.clock.nowIso(),
+    createdBy: actorId,
+    costClass: capabilities.restorePoint.costClass,
+    kind: capabilities.restorePoint.kind,
+    watermarkAtCapture: captured.watermarkAtCapture,
+    artifactRef: captured.artifactRef,
+  });
+  return restorePointId;
+}
+
+/**
+ * `POST .../import` — "Paste your old token". The token is installed only once it is proven to be
+ * this site's: it opens at least one sealed value or the sealed connection string, or it is the key
+ * `.site-meta.json` is stamped with. Values saved meanwhile under the key currently in place are
+ * moved onto the token first (after a restore point), so switching strands nothing. When no other
+ * key is in place nothing in the database changes, so no restore point is needed.
+ *
+ * @complexity one sealed-value scan, plus one re-seal pass when another key is in place.
+ */
+async function importSiteToken(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter, input: { token: unknown; actorId: string }): Promise<RouteResult> {
+  const parsed = parseRootKeyHex(typeof input.token === "string" ? input.token : "");
+  if (!parsed.ok) return refusal("TOKEN_INVALID", 400);
+  const siteDir = deps.siteBinding.dir;
+  const fingerprint = fingerprintRootKeyHex(parsed.hex);
+  const current = revealRootKeyMaterial({ sources: resolveSiteTokenSources(deps).sources });
+  if (current.source === "env" && current.fingerprint !== fingerprint) return refusal("ENV_KEY_SET");
+  const store = { siteDir, contentKernel: deps.contentKernel, hex: parsed.hex };
+  const check = await siteKey.checkKey(store);
+  const proven = check.opens > 0 || check.storageSecret === "opens" || resolveSiteKeyFingerprint({ siteDir }) === fingerprint;
+  if (!proven) return refusal("TOKEN_DOES_NOT_OPEN");
+
+  let restorePointId: string | undefined;
+  let resealed = 0;
+  if (current.hex !== undefined && current.fingerprint !== fingerprint) {
+    restorePointId = await takeRestorePoint(deps, input.actorId, "site-token-import");
+    if (restorePointId === undefined) return refusal("RESTORE_POINT_UNAVAILABLE");
+    resealed = (await siteKey.resealFrom({ ...store, previousHex: current.hex })).resealed;
+  }
+  const installed = siteKey.installSiteKey({ siteDir, hex: parsed.hex });
+  if (installed === undefined) return refusal("SITE_META_UNREADABLE");
+  if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
+  return { status: 200, body: { outcome: "unlocked", fingerprint, keyFilePath: installed.keyFilePath, resealed, restorePointId } };
+}
+
+interface AffectedWebhook {
+  readonly label: string;
+  readonly targetUrl: string;
+}
+
+interface StartFreshPlan {
+  readonly hex: string;
+  readonly check: SiteTokenKeyCheck;
+  readonly affectedWebhooks: readonly AffectedWebhook[];
+}
+
+/** The key "Start fresh" ends with (the working key in place, else a new one), what it opens, and
+ *  which webhooks' signing secrets change (all of them unless that key is the stamped one). A
+ *  refusal when an env var holds an unusable key (it would outrank anything written).
+ *  @complexity one sealed-value scan plus one webhook list. */
+async function planStartFresh(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter): Promise<StartFreshPlan | RouteResult> {
+  const current = revealRootKeyMaterial({ sources: resolveSiteTokenSources(deps).sources });
+  if (current.source === "env" && current.hex === undefined) return refusal("ENV_KEY_SET");
+  const hex = current.hex ?? siteKey.mintSiteKeyHex();
+  const check = await siteKey.checkKey({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex });
+  if (check.storageSecret === "locked") return refusal("STORAGE_SECRET_LOCKED");
+  const keepsSecrets = resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) === fingerprintRootKeyHex(hex);
+  const webhooks = keepsSecrets ? [] : await deps.webhookSubscriptionRepo.listByWorkspace({ workspaceId: deps.workspaceId as UUID });
+  return { hex, check, affectedWebhooks: webhooks.map((webhook) => ({ label: webhook.label, targetUrl: webhook.targetUrl })) };
+}
+
+function isRouteResult(value: StartFreshPlan | RouteResult): value is RouteResult {
+  return "status" in value;
+}
+
+/** The confirm step's plain sentence. @complexity O(W) in the affected webhooks. */
+export function startFreshDetail(removes: number, affectedWebhooks: readonly AffectedWebhook[]): string {
+  const removal =
+    removes === 0
+      ? "Every saved credential can be unlocked; nothing will be removed."
+      : `${removes} saved ${removes === 1 ? "credential" : "credentials"} can't be unlocked and will be removed.`;
+  if (affectedWebhooks.length === 0) return removal;
+  const names = affectedWebhooks.map((webhook) => `${webhook.label} (${webhook.targetUrl})`).join(", ");
+  return `${removal} These webhooks get a new signing secret, so update their receivers: ${names}.`;
+}
+
+/** `GET .../start-fresh` — what confirming would do. Changes nothing. */
+async function previewStartFresh(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter): Promise<RouteResult> {
+  const plan = await planStartFresh(deps, siteKey);
+  if (isRouteResult(plan)) return plan;
+  const removes = plan.check.sealed - plan.check.opens;
+  return { status: 200, body: { removes, affectedWebhooks: plan.affectedWebhooks, detail: startFreshDetail(removes, plan.affectedWebhooks) } };
+}
+
+/**
+ * `POST .../start-fresh` with `{confirm: "START FRESH"}` — the last resort when the old token is
+ * gone. Keeps the working key in place (or mints one), takes a restore point, removes only the
+ * sealed values that key cannot open, and installs it as this site's key. The response names the
+ * webhooks whose signing secrets changed.
+ *
+ * @complexity one sealed-value scan for the plan, one for the discard.
+ */
+async function startFresh(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter, input: { confirm: unknown; actorId: string }): Promise<RouteResult> {
+  if (input.confirm !== "START FRESH") return refusal("CONFIRMATION_REQUIRED", 400);
+  const plan = await planStartFresh(deps, siteKey);
+  if (isRouteResult(plan)) return plan;
+  const restorePointId = await takeRestorePoint(deps, input.actorId, "site-token-start-fresh");
+  if (restorePointId === undefined) return refusal("RESTORE_POINT_UNAVAILABLE");
+  const { discarded, kept } = await siteKey.discardNotOpening({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex: plan.hex });
+  const installed = siteKey.installSiteKey({ siteDir: deps.siteBinding.dir, hex: plan.hex });
+  if (installed === undefined) return refusal("SITE_META_UNREADABLE");
+  if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
+  return {
+    status: 200,
+    body: { outcome: "started-fresh", fingerprint: installed.fingerprint, keyFilePath: installed.keyFilePath, discarded, kept, restorePointId, affectedWebhooks: plan.affectedWebhooks },
+  };
 }

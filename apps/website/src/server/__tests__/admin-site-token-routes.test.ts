@@ -12,7 +12,10 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
-import { fingerprintRootKeyHex } from "#src/features/webhooks/keyring.env";
+import { FixedRootKeyKeyring, fingerprintRootKeyHex } from "#src/features/webhooks/keyring.env";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { buildCustomCredentialAad } from "#src/features/custom-credentials/aad";
+import { readSealedConnectionString, writeSealedConnectionString } from "../runtime/composition/storage-secret.js";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
@@ -150,6 +153,9 @@ test("an api_key holding admin.security.tokens.manage is refused 403 on GET stat
     { method: "GET", url: BASE },
     { method: "POST", url: `${BASE}/reveal` },
     { method: "POST", url: `${BASE}/generate` },
+    { method: "POST", url: `${BASE}/import` },
+    { method: "GET", url: `${BASE}/start-fresh` },
+    { method: "POST", url: `${BASE}/start-fresh` },
   ];
   for (const attempt of attempts) {
     const res = await fetch(`${baseUrl}${attempt.url}`, { method: attempt.method, headers: bearer });
@@ -610,8 +616,242 @@ test("all three verbs stay 401 without a credential and 403 for a session lackin
     { method: "GET" as const, url: BASE },
     { method: "POST" as const, url: `${BASE}/reveal` },
     { method: "POST" as const, url: `${BASE}/generate` },
+    { method: "POST" as const, url: `${BASE}/import` },
+    { method: "GET" as const, url: `${BASE}/start-fresh` },
+    { method: "POST" as const, url: `${BASE}/start-fresh` },
   ]) {
     const anonymous = await fetch(`${baseUrl}${attempt.url}`, { method: attempt.method });
     assert.equal(anonymous.status, 401, `401 without a credential: ${attempt.method} ${attempt.url}`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Last-resort recovery (design 2026-09-14 §4.3/§4.6): "Paste your old token" (`POST .../import`)
+// and "Start fresh" (`GET`/`POST .../start-fresh`). Fixtures seal real rows in the site's own
+// content.db, so the routes prove a token by opening them, not by trusting a fingerprint.
+// ---------------------------------------------------------------------------
+
+/** A minimal `custom_credential_sets` table: the columns its sealed-column descriptor needs. */
+function createCredentialTable(siteDir: string): void {
+  const db = new Database(path.join(siteDir, CONTENT_DB_FILENAME));
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS custom_credential_sets (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, label TEXT NOT NULL, category TEXT NOT NULL, sealed_key_id TEXT NOT NULL, sealed_ciphertext TEXT NOT NULL, sealed_nonce TEXT NOT NULL, sealed_alg TEXT NOT NULL)"
+  );
+  db.close();
+}
+
+async function sealCredentialRow(siteDir: string, id: string, hex: string): Promise<void> {
+  createCredentialTable(siteDir);
+  const keyring = new FixedRootKeyKeyring(hex);
+  const sealed = await new AesGcmSecretSealer(keyring).seal({
+    plaintext: `secret-${id}`,
+    key: await keyring.activeKey(),
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE as never, id: id as never }),
+  });
+  const db = new Database(path.join(siteDir, CONTENT_DB_FILENAME));
+  db.prepare("INSERT INTO custom_credential_sets VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(id, WORKSPACE, id, "email", sealed.keyId, sealed.ciphertext, sealed.nonce, sealed.alg);
+  db.close();
+}
+
+/** The plaintext of a sealed row under `hex`, or `undefined` if it does not open. */
+async function openCredentialRow(siteDir: string, id: string, hex: string): Promise<string | undefined> {
+  const db = new Database(path.join(siteDir, CONTENT_DB_FILENAME));
+  const row = db.prepare("SELECT sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg FROM custom_credential_sets WHERE id = ?").get(id) as
+    | { sealed_key_id: string; sealed_ciphertext: string; sealed_nonce: string; sealed_alg: string }
+    | undefined;
+  db.close();
+  if (row === undefined) return undefined;
+  try {
+    return await new AesGcmSecretSealer(new FixedRootKeyKeyring(hex)).open({
+      sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg },
+      aad: buildCustomCredentialAad({ workspaceId: WORKSPACE as never, id: id as never }),
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+function writePerSiteKey(siteKeyId: string, hex: string): string {
+  const keyPath = perSiteKeyPath(siteKeyId);
+  mkdirSync(path.dirname(keyPath), { recursive: true });
+  writeFileSync(keyPath, hex, { mode: 0o600 });
+  return keyPath;
+}
+
+function postJson(baseUrl: string, url: string, cookie: string, body: unknown): Promise<Response> {
+  return fetch(`${baseUrl}${url}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body) });
+}
+
+test("import: a value that is not a site token → 400 TOKEN_INVALID, nothing written", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "bad-token-site" }));
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await postJson(baseUrl, `${BASE}/import`, cookie, { token: "not-a-key" });
+
+  assert.equal(res.status, 400);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  const body = (await res.json()) as { error: string; detail: string };
+  assert.equal(body.error, "TOKEN_INVALID");
+  assert.equal(body.detail, "That is not a site token. A site token is 64 characters of 0-9 and a-f.");
+  assert.equal(JSON.stringify(body).includes("not-a-key"), false, "the pasted value is never echoed");
+  assert.equal(existsSync(perSiteKeyPath("bad-token-site")), false);
+});
+
+test("import: a valid token that opens none of this site's credentials → 409 TOKEN_DOES_NOT_OPEN, nothing written", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const originalHex = randomBytes(32).toString("hex");
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "wrong-paste-site", siteKeyFingerprint: fingerprintRootKeyHex(originalHex) }));
+  await sealCredentialRow(deps.siteBinding.dir, "cred-1", originalHex);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const pasted = randomBytes(32).toString("hex");
+
+  const res = await postJson(baseUrl, `${BASE}/import`, cookie, { token: pasted });
+
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: string; detail: string };
+  assert.equal(body.error, "TOKEN_DOES_NOT_OPEN");
+  assert.equal(body.detail, "That token does not open this site's saved credentials. Nothing was changed.");
+  assert.equal(JSON.stringify(body).includes(pasted), false);
+  assert.equal(existsSync(perSiteKeyPath("wrong-paste-site")), false, "a token that opens nothing is never written");
+  assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, fingerprintRootKeyHex(originalHex));
+});
+
+test("import: the original token unlocks a mismatched site and credentials saved under the wrong key are moved over, not stranded", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const originalHex = randomBytes(32).toString("hex");
+  const wrongHex = randomBytes(32).toString("hex");
+  const keyPath = writePerSiteKey("unlock-site", wrongHex);
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "unlock-site", siteKeyFingerprint: fingerprintRootKeyHex(originalHex) }));
+  await sealCredentialRow(deps.siteBinding.dir, "cred-original", originalHex);
+  await sealCredentialRow(deps.siteBinding.dir, "cred-saved-since", wrongHex);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await postJson(baseUrl, `${BASE}/import`, cookie, { token: originalHex });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  const text = await res.text();
+  assert.equal(text.includes(originalHex), false, "the token is never echoed");
+  const body = JSON.parse(text) as { outcome: string; fingerprint: string; keyFilePath: string; resealed: number; restorePointId: string };
+  assert.equal(body.outcome, "unlocked");
+  assert.equal(body.fingerprint, fingerprintRootKeyHex(originalHex));
+  assert.equal(body.keyFilePath, keyPath);
+  assert.equal(body.resealed, 1);
+  assert.equal(typeof body.restorePointId, "string");
+  assert.equal(readFileSync(keyPath, "utf8"), originalHex, "the site's key file now holds the original token");
+  assert.equal(await openCredentialRow(deps.siteBinding.dir, "cred-original", originalHex), "secret-cred-original");
+  assert.equal(await openCredentialRow(deps.siteBinding.dir, "cred-saved-since", originalHex), "secret-cred-saved-since", "saved under the wrong key, now opens under the original");
+  const backups = readdirSync(path.dirname(keyPath)).filter((name) => name.startsWith("unlock-site.hex.wrong-"));
+  assert.equal(backups.length, 1, "the wrong key file is kept as a backup");
+
+  const status = (await (await fetch(`${baseUrl}${BASE}`, { headers: { cookie } })).json()) as { state: string };
+  assert.equal(status.state, "active");
+});
+
+test("import: a database connection sealed under the wrong key meanwhile is moved onto the pasted token too", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const originalHex = randomBytes(32).toString("hex");
+  const wrongHex = randomBytes(32).toString("hex");
+  writePerSiteKey("pg-unlock-site", wrongHex);
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "pg-unlock-site", siteKeyFingerprint: fingerprintRootKeyHex(originalHex) }));
+  const wrongKeyring = new FixedRootKeyKeyring(wrongHex);
+  await writeSealedConnectionString({ siteDir: deps.siteBinding.dir, connectionString: "postgres://site" }, { sealer: new AesGcmSecretSealer(wrongKeyring), keyring: wrongKeyring });
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await postJson(baseUrl, `${BASE}/import`, cookie, { token: originalHex });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { outcome: string; resealed: number };
+  assert.equal(body.outcome, "unlocked");
+  assert.equal(body.resealed, 1);
+  const opened = await readSealedConnectionString({ siteDir: deps.siteBinding.dir }, { sealer: new AesGcmSecretSealer(new FixedRootKeyKeyring(originalHex)) });
+  assert.equal(opened, "postgres://site");
+});
+
+test("start fresh: without the typed confirmation → 400 CONFIRMATION_REQUIRED, nothing changed", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "unconfirmed-site", siteKeyFingerprint: fingerprintRootKeyHex(randomBytes(32).toString("hex")) }));
+  await sealCredentialRow(deps.siteBinding.dir, "cred-1", randomBytes(32).toString("hex"));
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await postJson(baseUrl, `${BASE}/start-fresh`, cookie, { confirm: "start fresh" });
+
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; detail: string };
+  assert.equal(body.error, "CONFIRMATION_REQUIRED");
+  assert.equal(body.detail, 'Type START FRESH to confirm. Nothing was changed.');
+  assert.equal(existsSync(perSiteKeyPath("unconfirmed-site")), false);
+  const db = new Database(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM custom_credential_sets").get() as { n: number }).n, 1, "the locked credential is still there");
+  db.close();
+});
+
+test("start fresh: the preview names what goes and which webhooks get a new signing secret; confirming does it after a restore point", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const lostHex = randomBytes(32).toString("hex");
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "fresh-start-site", siteKeyFingerprint: fingerprintRootKeyHex(lostHex) }));
+  await sealCredentialRow(deps.siteBinding.dir, "cred-locked", lostHex);
+  const now = new Date().toISOString();
+  await deps.webhookSubscriptionRepo.insert({
+    id: "wh-1" as never, workspaceId: WORKSPACE as never, ownerPrincipalId: "principal-1" as never, label: "Order sync", targetUrl: "https://hooks.example.test/orders",
+    topics: [], secretVersion: 1 as never, previousSecretVersion: null, status: "active" as never, createdByPrincipalId: "principal-1" as never, createdByPluginId: null,
+    createdAt: now as never, updatedAt: now as never, disabledAt: null,
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const preview = await fetch(`${baseUrl}${BASE}/start-fresh`, { headers: { cookie } });
+  assert.equal(preview.status, 200);
+  assert.deepEqual(await preview.json(), {
+    removes: 1,
+    affectedWebhooks: [{ label: "Order sync", targetUrl: "https://hooks.example.test/orders" }],
+    detail: "1 saved credential can't be unlocked and will be removed. These webhooks get a new signing secret, so update their receivers: Order sync (https://hooks.example.test/orders).",
+    runtimeMode: "local",
+  });
+
+  const res = await postJson(baseUrl, `${BASE}/start-fresh`, cookie, { confirm: "START FRESH" });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  const body = (await res.json()) as { outcome: string; fingerprint: string; keyFilePath: string; discarded: number; kept: number; restorePointId: string; affectedWebhooks: unknown; hex?: string };
+  assert.equal(body.outcome, "started-fresh");
+  assert.equal(body.discarded, 1);
+  assert.equal(body.kept, 0);
+  assert.equal(typeof body.restorePointId, "string");
+  assert.deepEqual(body.affectedWebhooks, [{ label: "Order sync", targetUrl: "https://hooks.example.test/orders" }]);
+  assert.equal("hex" in body, false, "the new key is never in the body; Reveal shows it");
+  assert.equal(body.keyFilePath, perSiteKeyPath("fresh-start-site"));
+  const installed = readFileSync(body.keyFilePath, "utf8");
+  assert.equal(fingerprintRootKeyHex(installed), body.fingerprint);
+  assert.notEqual(body.fingerprint, fingerprintRootKeyHex(lostHex));
+  assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, body.fingerprint);
+  const db = new Database(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM custom_credential_sets").get() as { n: number }).n, 0, "the credential nothing could open is gone");
+  db.close();
+  const restorePoints = await deps.restorePointsRepo.list();
+  assert.ok(restorePoints.some((row) => row.id === body.restorePointId && row.trigger === "site-token-start-fresh"), "a restore point was saved first");
+
+  const status = (await (await fetch(`${baseUrl}${BASE}`, { headers: { cookie } })).json()) as { state: string };
+  assert.equal(status.state, "active");
 });
