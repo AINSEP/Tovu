@@ -217,7 +217,13 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  down, at which point the save/verify response the caller already has is still honest. */
   async function verifyAfterSave(id: string): Promise<PublishCredentialVerificationResult | undefined> {
     const result = await verifyPublishCredentialById(
-      { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, cache: deps.publishCredentialVerificationCache, clock: deps.clock },
+      {
+        repo: deps.publishCredentialSetRepo,
+        sealer: deps.siteAssistantSecretSealer,
+        cache: deps.publishCredentialVerificationCache,
+        clock: deps.clock,
+        loadDeployTargets: deps.loadDeployTargets,
+      },
       { workspaceId: deps.workspaceId, id }
     );
     if (result?.accountLabel !== undefined) {
@@ -232,6 +238,18 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  parallel code path that could drift from it. See this file's own header ("second pass") and
    *  `account-label-heal-scheduler.ts`'s header for the full reasoning. */
   const accountLabelHealScheduler = createAccountLabelHealScheduler({ heal: verifyAfterSave });
+
+  /** Hands the scheduler every listed row still missing an account label whose host can produce one
+   *  (the host's declared `yieldsAccountLabel`). Runs after the response is sent, so a registry load
+   *  failure is logged and swallowed: it must never reach the request that triggered it. */
+  async function triggerAccountLabelHeal(credentials: readonly PublishCredentialSummary[]): Promise<void> {
+    try {
+      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal(credentials, (providerId) => canYieldAccountLabel(registry, providerId)));
+    } catch (err) {
+      console.error("[publish-credentials] account-label heal skipped: deploy targets could not be loaded", err);
+    }
+  }
 
   /**
    * TEMPORARY STUB (2026-08-17) — `GET .../:id/repos` below is the thin HTTP adapter half of the
@@ -297,7 +315,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // misbehaves (`account-label-heal-scheduler.ts`'s own tests cover that directly) — see this
       // file's header for why this is the one new trigger point and why it must stay exactly this
       // narrow.
-      accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal(credentials, canYieldAccountLabel));
+      void triggerAccountLabelHeal(credentials);
     } catch (err) {
       sendStoreError(res, err);
     }

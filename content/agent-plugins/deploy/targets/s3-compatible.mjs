@@ -782,6 +782,18 @@ export function bindS3Compatible(kit) {
   return { S3CompatibleDeployTarget, toDeployLinkStatus };
 }
 
+/**
+ * Reads one credential-check response WITHOUT touching its body: 401/403 means the host refused the
+ * credential, any other failure says nothing about it (a 5xx, a rate limit).
+ *
+ * @param {Response} response
+ * @returns {{ ok: true } | { ok: false, reason: "rejected" | "unreachable", statusCode: number }}
+ */
+function classifyCredentialResponse(response) {
+  if (response.ok) return { ok: true };
+  return { ok: false, reason: response.status === 401 || response.status === 403 ? "rejected" : "unreachable", statusCode: response.status };
+}
+
 /** The module contract Tovu's deploy-target registry loads (`DeployTargetModule`). Every identifying
  *  field lives on the saved credential; the publish config has none. */
 export default {
@@ -801,6 +813,20 @@ export default {
       publicUrl: credential.publicUrl,
       ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
     });
+  },
+  /**
+   * A SigV4-signed `HEAD` on the bucket (`HeadBucket`, the standard S3-API access check), sent through
+   * `kit.fetch`. A blank endpoint means plain AWS S3, derived from the region; the endpoint is trimmed
+   * first so a pasted trailing space cannot turn into an unsignable URL. Reads nothing back.
+   * @param {{ credential: Record<string, string | undefined> & { token: string }, kit: any }} context
+   * @throws {TypeError} The URL cannot be signed (a malformed endpoint); the host reports it as unreachable.
+   */
+  async verifyCredential({ credential, kit }) {
+    const client = kit.createSigV4Client({ accessKeyId: credential.accessKeyId ?? "", secretAccessKey: credential.token, service: "s3", region: credential.region ?? "" });
+    const endpoint = credential.endpoint?.trim();
+    const host = (endpoint ? endpoint : `https://s3.${credential.region}.amazonaws.com`).replace(/\/+$/, "");
+    const signed = await client.sign(`${host}/${encodeURIComponent(credential.bucket ?? "")}`, { method: "HEAD" });
+    return classifyCredentialResponse(await kit.fetch(signed.url, { method: "HEAD", headers: signed.headers }, { timeoutMs: kit.timeouts.QUICK }));
   },
   validateConfig() {
     return null;

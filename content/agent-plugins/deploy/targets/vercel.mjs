@@ -308,6 +308,29 @@ export function bindVercel(kit) {
   return { VercelDeployTarget, isVercelProtectedResponse };
 }
 
+/**
+ * Reads one credential-check response WITHOUT touching its body: 401/403 means the host refused the
+ * credential, any other failure says nothing about it (a 5xx, a rate limit).
+ *
+ * @param {Response} response
+ * @returns {{ ok: true } | { ok: false, reason: "rejected" | "unreachable", statusCode: number }}
+ */
+function classifyCredentialResponse(response) {
+  if (response.ok) return { ok: true };
+  return { ok: false, reason: response.status === 401 || response.status === 403 ? "rejected" : "unreachable", statusCode: response.status };
+}
+
+/**
+ * The token's account `user.username` from a `GET /v2/user` body, or `undefined`. Reads no other field.
+ * @param {unknown} body
+ * @returns {string | undefined}
+ */
+function readVercelUsername(body) {
+  const user = typeof body === "object" && body !== null ? /** @type {Record<string, unknown>} */ (body).user : undefined;
+  const username = typeof user === "object" && user !== null ? /** @type {Record<string, unknown>} */ (user).username : undefined;
+  return typeof username === "string" && username !== "" ? username : undefined;
+}
+
 /** The module contract Tovu's deploy-target registry loads (`DeployTargetModule`). The one config
  *  field is the optional Vercel `teamId`. */
 export default {
@@ -315,6 +338,18 @@ export default {
   create({ credential, config, kit }) {
     const { VercelDeployTarget } = bindVercel(kit);
     return new VercelDeployTarget({ token: credential.token, ...(typeof config.teamId === "string" ? { teamId: config.teamId } : {}) });
+  },
+  /**
+   * `GET /v2/user`: 401/403 for a bad token. Reads back only `user.username`, required on both body
+   * shapes Vercel's OpenAPI schema declares and public (`vercel.com/<username>`), never email,
+   * billing or `defaultTeamId`.
+   * @param {{ credential: { token: string }, kit: any }} context
+   */
+  async verifyCredential({ credential, kit }) {
+    const response = await kit.fetch("https://api.vercel.com/v2/user", { headers: { Authorization: `Bearer ${credential.token}` } }, { timeoutMs: kit.timeouts.QUICK });
+    const check = classifyCredentialResponse(response);
+    if (!check.ok) return check;
+    return { ok: true, accountLabel: readVercelUsername(await response.json().catch(() => undefined)) };
   },
   /** @param {{ teamId?: unknown }} config */
   validateConfig(config) {

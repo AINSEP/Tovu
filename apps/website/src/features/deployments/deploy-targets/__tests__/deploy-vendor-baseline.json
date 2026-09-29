@@ -51,11 +51,7 @@
     "s3-compatible": 20
   },
   "apps/website/src/features/deployments/static-publish/verify.ts": {
-    "cloudflare": 6,
-    "github-pages": 8,
-    "netlify": 4,
-    "s3-compatible": 5,
-    "vercel": 7
+    "github-pages": 2
   },
   "apps/website/src/features/site-export/static-security-headers.ts": {
     "vercel": 3

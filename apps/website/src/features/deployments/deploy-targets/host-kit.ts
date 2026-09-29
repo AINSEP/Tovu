@@ -32,22 +32,31 @@ export const DEPLOY_FETCH_TIMEOUTS: DeployFetchTimeouts = Object.freeze({ QUICK:
  * `fetch` rejected with (the caller's abort reason, a network error).
  * @complexity One request.
  */
-async function fetchWithTimeout(url: string, init: RequestInit, options: { readonly timeoutMs: number }): Promise<Response> {
+async function fetchWithTimeout(fetchFn: typeof fetch, url: string, init: RequestInit, options: { readonly timeoutMs: number }): Promise<Response> {
   const timeoutSignal = AbortSignal.timeout(options.timeoutMs);
   const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
   try {
-    return await fetch(url, { ...init, signal });
+    return await fetchFn(url, { ...init, signal });
   } catch (error) {
     if (timeoutSignal.aborted && !init.signal?.aborted) throw new Error(`fetch timed out after ${options.timeoutMs}ms: ${url}`);
     throw error;
   }
 }
 
-/** The kit handed to `DeployTargetModule.create`. @complexity O(1). */
-export function createDeployHostKit(): DeployHostKit {
+/**
+ * The kit handed to a deploy module.
+ *
+ * @param options.fetchFn - What `kit.fetch` sends through (default: global `fetch`); tests inject one.
+ * @param options.timeouts - Overrides the timeout classes, e.g. a shorter `QUICK` while a person waits.
+ * @complexity O(1).
+ */
+export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; readonly timeouts?: DeployFetchTimeouts } = {}): DeployHostKit {
+  // The global is read per call, not captured here, so a test that swaps `globalThis.fetch` after
+  // building a kit is still the one called.
+  const fetchFn: typeof fetch = options.fetchFn ?? ((input, init) => fetch(input, init));
   return {
-    fetch: fetchWithTimeout,
-    timeouts: DEPLOY_FETCH_TIMEOUTS,
+    fetch: (url, init, fetchOptions) => fetchWithTimeout(fetchFn, url, init, fetchOptions),
+    timeouts: options.timeouts ?? DEPLOY_FETCH_TIMEOUTS,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     checkDeploymentUrl,
     waitForReachableDeploymentUrl,

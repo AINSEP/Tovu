@@ -998,6 +998,18 @@ export function bindCloudflarePages(kit) {
   return { CloudflarePagesDeployTarget, cloudflarePagesAssetHash, chunkCloudflarePagesAssetUploads, listCloudflarePagesZones };
 }
 
+/**
+ * Reads one credential-check response WITHOUT touching its body: 401/403 means the host refused the
+ * credential, any other failure says nothing about it (a 5xx, a rate limit).
+ *
+ * @param {Response} response
+ * @returns {{ ok: true } | { ok: false, reason: "rejected" | "unreachable", statusCode: number }}
+ */
+function classifyCredentialResponse(response) {
+  if (response.ok) return { ok: true };
+  return { ok: false, reason: response.status === 401 || response.status === 403 ? "rejected" : "unreachable", statusCode: response.status };
+}
+
 /** The module contract Tovu's deploy-target registry loads (`DeployTargetModule`). The account id
  *  lives on the saved credential, not the publish config, so there are no config fields. */
 export default {
@@ -1005,6 +1017,16 @@ export default {
   create({ credential, kit }) {
     const { CloudflarePagesDeployTarget } = bindCloudflarePages(kit);
     return new CloudflarePagesDeployTarget({ token: credential.token, accountId: credential.accountId ?? "" });
+  },
+  /**
+   * `GET /user/tokens/verify`, Cloudflare's own check for a scoped API token (a broader `/user` read
+   * can need account scopes a Pages-only token lacks, misreporting a good token as rejected). It
+   * returns no account identity, so nothing is read back.
+   * @param {{ credential: { token: string }, kit: any }} context
+   */
+  async verifyCredential({ credential, kit }) {
+    const response = await kit.fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", { headers: { Authorization: `Bearer ${credential.token}` } }, { timeoutMs: kit.timeouts.QUICK });
+    return classifyCredentialResponse(response);
   },
   validateConfig() {
     return null;

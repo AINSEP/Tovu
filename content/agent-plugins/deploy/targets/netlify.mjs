@@ -310,12 +310,33 @@ function netlifyUrlCandidates(kit, ...responses) {
   return [...new Set(urls.map((url) => kit.normalizeDeploymentUrl(url)).filter(Boolean))];
 }
 
+/**
+ * Reads one credential-check response WITHOUT touching its body: 401/403 means the host refused the
+ * credential, any other failure says nothing about it (a 5xx, a rate limit).
+ *
+ * @param {Response} response
+ * @returns {{ ok: true } | { ok: false, reason: "rejected" | "unreachable", statusCode: number }}
+ */
+function classifyCredentialResponse(response) {
+  if (response.ok) return { ok: true };
+  return { ok: false, reason: response.status === 401 || response.status === 403 ? "rejected" : "unreachable", statusCode: response.status };
+}
+
 /** The module contract Tovu's deploy-target registry loads (`DeployTargetModule`). Netlify needs no
  *  config fields: the site is found or created from the publish's project name. */
 export default {
   /** @param {{ credential: { token: string }, kit: DeployHostKit }} context */
   create({ credential, kit }) {
     return new NetlifyDeployTarget({ token: credential.token }, kit);
+  },
+  /**
+   * `GET /api/v1/user`: 401 for a bad token. Reads nothing back: the body's only identity fields are
+   * `email` and `full_name`, neither of them a public handle.
+   * @param {{ credential: { token: string }, kit: any }} context
+   */
+  async verifyCredential({ credential, kit }) {
+    const response = await kit.fetch("https://api.netlify.com/api/v1/user", { headers: { Authorization: `Bearer ${credential.token}` } }, { timeoutMs: kit.timeouts.QUICK });
+    return classifyCredentialResponse(response);
   },
   validateConfig() {
     return null;

@@ -61,6 +61,8 @@ export interface SigV4ClientOptions {
  *  the global `fetch`, retrying a 5xx/429 with backoff the way `aws4fetch`'s `AwsClient` does. */
 export interface SigV4Client {
   fetch(input: string, init?: RequestInit): Promise<Response>;
+  /** Signs a request without sending it, so the caller can send it through `DeployHostKit.fetch`. */
+  sign(input: string, init?: RequestInit): Promise<Request>;
 }
 
 /**
@@ -94,9 +96,22 @@ export interface DeployTargetCreateContext {
   readonly kit: DeployHostKit;
 }
 
+/** One credential check's raw outcome. `rejected`: the host answered and refused the credential (the
+ *  person must replace it). `unreachable`: a transport failure, timeout or unexpected status that
+ *  says nothing about the credential itself. `accountLabel` is the account's PUBLIC handle only
+ *  (never an email, plan or org), and only from a host whose descriptor sets `yieldsAccountLabel`. */
+export type DeployCredentialCheck =
+  | { readonly ok: true; readonly accountLabel?: string }
+  | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number };
+
+export interface DeployCredentialCheckContext {
+  readonly credential: DeployTargetCredential;
+  readonly kit: DeployHostKit;
+}
+
 /**
  * A deploy-target module's default export. Only `create` is required; the rest have host defaults
- * (no config errors, no base path, no summary rows).
+ * (no config errors, no base path, no summary rows, no credential check).
  */
 export interface DeployTargetModule {
   create(context: DeployTargetCreateContext): DeployTarget;
@@ -104,6 +119,9 @@ export interface DeployTargetModule {
   validateConfig?(config: JsonObject): string | null;
   /** The path prefix the host serves the site from, when it is not the root. */
   basePath?(config: JsonObject): string | undefined;
+  /** ONE bounded, read-only authenticated request against the host's own API. May throw: the host
+   *  folds any throw into `unreachable`. Never returns the credential or a response body. */
+  verifyCredential?(context: DeployCredentialCheckContext): Promise<DeployCredentialCheck>;
 }
 
 /** One entry of a plugin's `tovu-deploy-targets.json`. `id` is byte-identical to the legacy provider
@@ -130,6 +148,12 @@ export interface DeployTargetDescriptor {
 export interface DeployTargetCredentialSpec {
   /** The account/company the credential authenticates to (`vendor_credential_sets.vendor_id`). */
   readonly vendorId: string;
+  /** The name a credential-check message uses ("GitHub accepted this credential."). Defaults to the
+   *  target's `label`. */
+  readonly vendorLabel?: string;
+  /** The module's `verifyCredential` can return an `accountLabel`, so a saved row without one is
+   *  worth re-checking in the background. */
+  readonly yieldsAccountLabel?: true;
   readonly tokenField: string;
   readonly fields: readonly DeployTargetFieldSpec[];
 }

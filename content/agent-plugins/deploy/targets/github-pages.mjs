@@ -424,6 +424,28 @@ function asText(value) {
   return typeof value === "string" ? value : "";
 }
 
+/**
+ * Reads one credential-check response WITHOUT touching its body: 401/403 means the host refused the
+ * credential, any other failure says nothing about it (a 5xx, a rate limit).
+ *
+ * @param {Response} response
+ * @returns {{ ok: true } | { ok: false, reason: "rejected" | "unreachable", statusCode: number }}
+ */
+function classifyCredentialResponse(response) {
+  if (response.ok) return { ok: true };
+  return { ok: false, reason: response.status === 401 || response.status === 403 ? "rejected" : "unreachable", statusCode: response.status };
+}
+
+/**
+ * The token's account `login` from a `GET /user` body, or `undefined`. Reads no other field.
+ * @param {unknown} body
+ * @returns {string | undefined}
+ */
+function readGitHubLogin(body) {
+  const login = typeof body === "object" && body !== null ? /** @type {Record<string, unknown>} */ (body).login : undefined;
+  return typeof login === "string" && login !== "" ? login : undefined;
+}
+
 /** The module contract Tovu's deploy-target registry loads (`DeployTargetModule`). Config fields:
  *  `owner`, `repo`, optional `branch` (the class defaults it to `gh-pages`). */
 export default {
@@ -442,6 +464,18 @@ export default {
       repo: asText(config.repo),
       ...(typeof config.branch === "string" ? { branch: config.branch } : {}),
     });
+  },
+  /**
+   * `GET /user`, GitHub's own "who am I" endpoint: 401 for a bad or revoked token. Reads back only
+   * `login`, the public handle GitHub prints in every profile and repo URL (a publish is about to
+   * print it in `https://<login>.github.io/<repo>/`), never email, plan or orgs.
+   * @param {{ credential: { token: string }, kit: any }} context
+   */
+  async verifyCredential({ credential, kit }) {
+    const response = await kit.fetch("https://api.github.com/user", { headers: { Authorization: `Bearer ${credential.token}`, Accept: "application/vnd.github+json" } }, { timeoutMs: kit.timeouts.QUICK });
+    const check = classifyCredentialResponse(response);
+    if (!check.ok) return check;
+    return { ok: true, accountLabel: readGitHubLogin(await response.json().catch(() => undefined)) };
   },
   /**
    * Shape check at the boundary before any value reaches a URL (the class still escapes each

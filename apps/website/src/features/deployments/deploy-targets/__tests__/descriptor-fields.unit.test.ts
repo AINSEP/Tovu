@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { parseDeployTargetsFile } from "../registry.js";
+import { loadBundledDeployTargets } from "./bundled-deploy-targets.fixture.js";
 
 /**
  * @file The descriptor fields that let core stay vendor-free (deploy plan T7 slice a): per-target
@@ -102,10 +103,25 @@ test("malformed credential blocks are refused with the exact reason", () => {
     [{ vendorId: "v", tokenField: "key", fields: [{ name: "token", label: "T", required: true }] }, "targets[0].credential.tokenField 'key' must name a required field"],
     [{ vendorId: "v", fields: [{ name: "providerId", label: "T", required: true }] }, "targets[0].credential.fields[0].name 'providerId' is reserved"],
     [{ vendorId: "v", fields: [{ name: "token", label: "T", required: true, secret: "yes" }] }, "targets[0].credential.fields[0].secret must be a boolean"],
+    [{ vendorId: "v", vendorLabel: " ", fields: [{ name: "token", label: "T", required: true }] }, "targets[0].credential.vendorLabel must be a non-empty string"],
+    [{ vendorId: "v", yieldsAccountLabel: "yes", fields: [{ name: "token", label: "T", required: true }] }, "targets[0].credential.yieldsAccountLabel must be a boolean"],
   ];
   for (const [credential, reason] of cases) {
     assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, credential }])), { ok: false, reason });
   }
+});
+
+test("the shipped deploy plugin names each credential check's vendor and which hosts return an account label", async () => {
+  const registry = await loadBundledDeployTargets();
+  const check = (id: string) => {
+    const spec = registry.get(id)?.descriptor.credential;
+    return [spec?.vendorLabel, spec?.yieldsAccountLabel === true];
+  };
+  assert.deepEqual(check("github-pages"), ["GitHub", true]);
+  assert.deepEqual(check("vercel"), [undefined, true]);
+  assert.deepEqual(check("netlify"), [undefined, false]);
+  assert.deepEqual(check("cloudflare-pages"), ["Cloudflare", false]);
+  assert.deepEqual(check("s3-compatible"), ["the storage provider", false]);
 });
 
 test("the shipped deploy plugin declares the credential fields and vendors core used to hard-code", () => {

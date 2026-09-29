@@ -1,16 +1,17 @@
-import { AwsClient } from "aws4fetch";
-
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
+import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
+import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetRegistry } from "../deploy-targets/types.js";
 import { resolveForPublish } from "../publish-credentials/store.js";
-import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
+import type { PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
+import { projectConnectionForPublish } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
 /**
- * @file Verifies a static-publish credential against its REAL provider — the fix for "ready means a
- * row exists, not a working credential" (2026-08-16, live-publish finding: a saved GitHub token that
- * GitHub rejected outright with 401 still reported `ready: true`/`credentialsConfigured: true`).
+ * @file Verifies a static-publish credential against its REAL host — the fix for "ready means a
+ * row exists, not a working credential" (2026-08-16, live-publish finding: a saved token the host
+ * rejected outright with 401 still reported `ready: true`/`credentialsConfigured: true`).
  *
  * Purpose:
  * `PublishCredentialSource.isConfigured()` (`./types.ts`) only ever answers "does a row/env-var
@@ -19,45 +20,25 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js"
  * alongside a real publish attempt — never the agent-facing capabilities/preview tools
  * (`publish-agent-tools.ts`), which only ever read this module's CACHED, already-non-secret result.
  * See `ADS-memory/reports/2026-08-16-publish-correctness-findings.md`'s Defect B section for the
- * full design reasoning, including why this caches in-memory rather than adding a DB column/migration
- * (recommended trade-offs recorded there before this file was written).
+ * full design reasoning, including why this caches in-memory rather than adding a DB column/migration.
  *
- * `verifyPublishCredential` resolves whichever credential a REAL publish would actually use (the
- * composed DB-first/env-fallback source — the same one `static-publish/credentials.ts`'s
- * `composePublishCredentialSource` builds), makes ONE lightweight, read-only, authenticated request
- * against that provider's own API, and caches only the outcome (`status`/`message`/`checkedAt`) —
- * never the credential itself, and never the provider's raw response body (the same "never return
- * the response body/error text" discipline the since-removed Composio key probe followed).
+ * The request itself belongs to the host: each deploy module (shipped in the `deploy` Agent Plugin,
+ * loaded through the workspace's deploy registry) exports `verifyCredential`, which makes ONE
+ * lightweight, read-only, authenticated request against its own API and returns a
+ * {@link DeployCredentialCheck}. This module resolves whichever credential a REAL publish would use,
+ * hands it to that check, and caches only the outcome (`status`/`message`/`checkedAt`, plus a public
+ * `accountLabel`) — never the credential itself, and never the host's raw response body.
  *
  * `PublishCredentialVerificationResult.status` is a closed THREE-way enum
- * (`"valid" | "invalid" | "unreachable"`), never a plain boolean — this is a hard requirement from
- * code review, not a style choice: `"unreachable"` (a network failure, timeout, or provider 5xx) must
- * never collapse into the same shape as `"invalid"` (the provider affirmatively rejected the
- * credential), because the two demand opposite guidance. A human told "unreachable" should try again
- * later; a human told "invalid" should replace the credential. Collapsing them would risk sending
- * someone to regenerate a perfectly good token over a transient network blip — the same class of
- * false-negative Defect A (this same finding session) was filed for, just at a different layer.
+ * (`"valid" | "invalid" | "unreachable"`), never a plain boolean — a hard requirement from code
+ * review: `"unreachable"` (a network failure, timeout, or host 5xx) must never collapse into the same
+ * shape as `"invalid"` (the host affirmatively rejected the credential), because the two demand
+ * opposite guidance: try again later vs. replace the credential.
  *
- * Two providers' checkers now read ONE named field off their success response body — GitHub's
- * `login`, Vercel's `user.username` (2026-08-16, Defect 1: "the assistant has to guess the GitHub
- * owner" — a live publish went to `leonaburime/tovu-demo1`, a 404, because nothing in this feature
- * ever told the agent which account its own verified token belongs to, so it guessed one from the
- * human's email address instead). This is a deliberate, reviewed NARROWING of the rule above, not a
- * reversal of it: the reasoning is that this exact value is about to be interpolated into a PUBLIC
- * URL a real publish already prints (`https://<login>.github.io/<repo>/`), so withholding it from the
- * agent performing the publish protects nothing while forcing it to guess. `extractGitHubLogin`/
- * `extractVercelUsername` each read exactly the one named field off a parsed body and discard
- * everything else — not a general passthrough, and neither is reachable for `"invalid"`/
- * `"unreachable"` results (see {@link probe}'s own doc: the body is only ever touched after
- * `classifyProviderResponse` has already returned `ok: true`). GitHub's `login` and Vercel's
- * `user.username` are both public by construction — the exact strings each provider prints in its own
- * profile/project URLs — never `email`, `plan`, `billing`, or org/team membership, none of which this
- * module reads before or after this change. Netlify's `/api/v1/user` (checked against Netlify's own
- * published OpenAPI schema, 2026-08-16) has no field of this kind — only `email`/`full_name`, both
- * excluded by this same rule — so its checker still reads nothing back. Cloudflare's
- * `/user/tokens/verify` endpoint verifies a token without returning any account identity at all, and a
- * second request purely to obtain one is not "equally cheap" per this narrowing's own scope, so its
- * checker is unchanged too. S3-compatible has no login concept for a bucket-scoped access key.
+ * `accountLabel` (2026-08-16, Defect 1: "the assistant has to guess the owner") is the ONE body field
+ * a check may read back, and only a host whose descriptor sets `yieldsAccountLabel`: the account's
+ * public handle, which a real publish is about to print in a public URL anyway. Never an email,
+ * plan, billing or org membership.
  *
  * Architectural role:
  * `features/deployments/static-publish` domain logic. `publish-agent-tools.ts`'s capabilities
@@ -66,29 +47,13 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js"
  * callers (the admin credential-CRUD route) may call `verifyPublishCredential`.
  */
 
-/** One bounded probe per provider. Short because a human is waiting on a form submit or an explicit
- *  "Verify" click, not a background job. */
+/** One bounded probe per host. Short because a human is waiting on a form submit or an explicit
+ *  "Verify" click, not a background job. Handed to modules as their kit's `QUICK` timeout. */
 const VERIFY_TIMEOUT_MS = 10_000;
 
-/**
- * One provider check's raw outcome, before this module turns it into a human-facing message.
- * Two failure kinds (`"rejected"` — the
- * provider answered and refused the credential, actionable by the human — vs `"unreachable"` — a
- * transport failure, timeout, or unexpected status that says nothing about whether the credential
- * itself is good), extended with the optional HTTP status so the human-facing message can be
- * specific ("HTTP 401") without this module needing to re-derive it from a discarded response.
- */
-type ProviderCredentialCheckResult =
-  | { readonly ok: true; readonly accountLabel?: string }
-  | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number };
-
-/** Shared "did the provider authenticate this request" classifier — every checker below ends with
- *  this same three-way read of a `Response` it must not otherwise inspect (no body read — the
- *  response body is discarded entirely, because an authenticated
- *  provider's error body can carry request/account detail that has no business in a cached,
- *  potentially agent-visible message). Never reads the body on EITHER branch — {@link probe} is the
- *  one place a success body is ever opened, and only for the two providers with a reviewed field to
- *  read (see this file's header). */
+/** Shared "did the host authenticate this request" classifier for the GitHub repo-list probe below.
+ *  Never reads the body on EITHER branch: an authenticated host's error body can carry
+ *  request/account detail that has no business in a cached, potentially agent-visible message. */
 function classifyProviderResponse(resp: Response): { readonly ok: true } | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number } {
   if (resp.ok) return { ok: true };
   if (resp.status === 401 || resp.status === 403) return { ok: false, reason: "rejected", statusCode: resp.status };
@@ -99,200 +64,24 @@ function classifyProviderResponse(resp: Response): { readonly ok: true } | { rea
  *  construction, the exact string GitHub itself prints in every profile/repo URL. Never `email`,
  *  `plan`, or org/team membership, none of which this function reads.
  *
- *  Exported (2026-08-16) for `features/source-control/store.ts`'s own inline account-label probe to
- *  reuse verbatim rather than re-declaring an identical extractor: a source-control `"github"`
- *  connection's token hits the exact same `/user` endpoint and the exact same reviewed `login` field
- *  this function already reads for a github-pages PUBLISH credential — see that file's own doc comment
- *  for why its probe lives in `store.ts` rather than here (no shared "never agent-facing" boundary to
- *  protect on that side, and no existing verify concept to extend). */
+ *  Exported for `features/source-control/store.ts`'s own account-label probe and the vendor-credential
+ *  store: a source-control `"github"` connection's token hits the same `/user` endpoint. Source
+ *  control, not publishing, is why this stays in core (the publish check lives in the plugin). */
 export function extractGitHubLogin(body: unknown): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const login = (body as Record<string, unknown>).login;
   return typeof login === "string" && login !== "" ? login : undefined;
 }
 
-/** Vercel's `/v2/user` nests the account under `user` and requires `username` on BOTH response
- *  shapes its own OpenAPI schema declares (the full shape and the token-scope-limited "limited"
- *  shape; checked 2026-08-16) — public by construction, the exact string Vercel uses in
- *  `vercel.com/<username>` URLs. Never `email`, `billing`, or `defaultTeamId`, none of which this
- *  function reads. */
-function extractVercelUsername(body: unknown): string | undefined {
-  if (typeof body !== "object" || body === null) return undefined;
-  const user = (body as Record<string, unknown>).user;
-  if (typeof user !== "object" || user === null) return undefined;
-  const username = (user as Record<string, unknown>).username;
-  return typeof username === "string" && username !== "" ? username : undefined;
-}
-
 /**
- * Providers whose success response carries a reviewed account-identity field this module knows how to
- * extract — see {@link extractGitHubLogin}/`extractVercelUsername` above and this file's own header
- * ("Two providers' checkers now read ONE named field…") for exactly which field, and why Netlify/
- * Cloudflare Pages/S3-compatible do not. MUST be kept in sync with {@link checkProviderCredential}'s
- * own per-provider extractor wiring below BY HAND — a provider belongs here iff its branch there
- * actually passes an `extractAccountLabel` argument to {@link probe}. Not derived structurally from
- * that dispatch chain on purpose: doing so would mean restructuring `checkProviderCredential` into a
- * data-driven table, and this pass's own scope is additive-only (an export, not a change to the
- * tested, reviewed verification path itself) — see this export's addition history for the "why not
- * refactor" call.
+ * Whether a saved credential for `target` can ever produce an `accountLabel`, per the host's declared
+ * `yieldsAccountLabel`. Lets `publish-credentials/account-label-heal-scheduler.ts`'s background
+ * backfill skip a host that never can, instead of probing it on every list.
  *
- * Exported (2026-08-16) so a caller deciding whether an unhealed row is even WORTH probing
- * (`publish-credentials/account-label-heal-scheduler.ts`'s background backfill for pre-existing
- * `account_label: null` rows) can skip a provider that can never produce a label, instead of
- * re-deriving or duplicating this set.
+ * @complexity O(1) — one registry lookup.
  */
-const PROVIDERS_WITH_ACCOUNT_LABEL: ReadonlySet<StaticPublishTargetId> = new Set<StaticPublishTargetId>(["github-pages", "vercel"]);
-
-/** @complexity O(1) — one Set membership check. */
-export function canYieldAccountLabel(target: StaticPublishTargetId): boolean {
-  return PROVIDERS_WITH_ACCOUNT_LABEL.has(target);
-}
-
-/**
- * Runs one bounded, injectable-`fetchFn` request and folds a network-layer failure (DNS, TLS,
- * timeout, connection reset) into the same `"unreachable"` bucket a bad-but-answered response
- * would produce — never throws, matching every checker's own "never throws" contract below.
- *
- * @param extractAccountLabel - When supplied AND the response classifies as `ok`, the ONE place this
- *   module opens a success body: parses it as JSON and runs this extractor over it. Best-effort only
- *   — a body that fails to parse, or does not carry the expected field, degrades to no account label
- *   rather than failing the whole verification (a provider's exact success-body shape is not this
- *   module's contract to enforce). Omitted entirely for a provider with no reviewed field to read
- *   (Netlify, Cloudflare Pages — see this file's header), so those checkers never open the body at
- *   all, matching the pre-2026-08-16 behavior exactly.
- */
-async function probe(fetchFn: typeof fetch, url: string, init: RequestInit, extractAccountLabel?: (body: unknown) => string | undefined): Promise<ProviderCredentialCheckResult> {
-  let resp: Response;
-  try {
-    resp = await fetchFn(url, { ...init, signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS) });
-  } catch {
-    return { ok: false, reason: "unreachable" };
-  }
-  const classified = classifyProviderResponse(resp);
-  if (!classified.ok || extractAccountLabel === undefined) return classified;
-  try {
-    const body: unknown = await resp.json();
-    return { ok: true, accountLabel: extractAccountLabel(body) };
-  } catch {
-    return { ok: true };
-  }
-}
-
-/** `GET /user` — the cheapest authenticated read; GitHub's `/user` is its own documented "who am I"
- *  endpoint and returns 401 for a bad/revoked token, exactly the shape the live-reported bug needs
- *  distinguished from "unreachable". */
-async function verifyGitHubPagesCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {
-  return probe(fetchFn, "https://api.github.com/user", { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } }, extractGitHubLogin);
-}
-
-async function verifyVercelCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {
-  return probe(fetchFn, "https://api.vercel.com/v2/user", { headers: { Authorization: `Bearer ${token}` } }, extractVercelUsername);
-}
-
-async function verifyNetlifyCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {
-  // No extractor: Netlify's own OpenAPI schema for this endpoint (checked 2026-08-16) carries no
-  // public handle/slug field — only `email`/`full_name`, both excluded by this file's own privacy
-  // rule — so there is nothing safe here to read.
-  return probe(fetchFn, "https://api.netlify.com/api/v1/user", { headers: { Authorization: `Bearer ${token}` } });
-}
-
-/** Cloudflare's own purpose-built token-verify endpoint (`/user/tokens/verify`) rather than a generic
- *  `/user` read — chosen because it is documented to work for a scoped API token specifically (the
- *  credential type this form actually collects), where a broader `/user` read can require account-
- *  level scopes a narrowly-scoped Pages token may not carry, which would misreport a perfectly good
- *  token as "rejected". */
-async function verifyCloudflarePagesCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {
-  return probe(fetchFn, "https://api.cloudflare.com/client/v4/user/tokens/verify", { headers: { Authorization: `Bearer ${token}` } });
-}
-
-/**
- * SigV4-signed `HEAD` on the bucket root (`HeadBucket`, the standard S3-API bucket-access check) —
- * signed via `aws4fetch`'s `AwsClient`, the SAME dependency `static-publish/s3-compatible-target.ts`
- * already uses for real uploads (no new dependency). Uses `client.sign()` rather than `client.fetch()`
- * so the actual network call still goes through this module's own injectable `fetchFn` — `AwsClient`
- * has no `fetchFn` injection point of its own (verified: `aws4fetch`'s type declarations expose no
- * such option), so signing and fetching are deliberately split here to keep this checker as testable
- * as its four siblings.
- *
- * `deriveS3Endpoint` below is a deliberate small duplicate of `s3-compatible-target.ts`'s own
- * (unexported) `deriveEndpoint` helper of the same shape — that file has exactly one real consumer
- * today (a real publish) and this is a second, structurally distinct one (a HEAD probe, not a signed
- * PUT); mirroring three lines here reads more honestly than exporting a helper across a module
- * boundary neither file otherwise needs, the same "no second consumer yet" reasoning this codebase's
- * own package-boundary decisions already apply elsewhere.
- */
-function deriveS3Endpoint(region: string): string {
-  return `https://s3.${region}.amazonaws.com`;
-}
-
-async function verifyS3CompatibleCredential(
-  fetchFn: typeof fetch,
-  credential: { accessKeyId: string; secretAccessKey: string; bucket: string; region: string; endpoint?: string }
-): Promise<ProviderCredentialCheckResult> {
-  const client = new AwsClient({ accessKeyId: credential.accessKeyId, secretAccessKey: credential.secretAccessKey, service: "s3", region: credential.region });
-  // Use the TRIMMED endpoint, not the raw one the truthiness check tested — `publish-credentials/
-  // store.ts`'s own `optionalString` now persists a trimmed value going forward, but this defends
-  // against whatever is already stored: a stray trailing space here survives `/\/+$/` (that strips
-  // slashes, not whitespace) straight into `client.sign(url, ...)`, where it makes `new URL(...)`
-  // throw and the human sees a misleading "could not reach" instead of "there's a space in your URL."
-  const trimmedEndpoint = credential.endpoint?.trim();
-  const host = (trimmedEndpoint ? trimmedEndpoint : deriveS3Endpoint(credential.region)).replace(/\/+$/, "");
-  const url = `${host}/${encodeURIComponent(credential.bucket)}`;
-
-  let signed: Request;
-  try {
-    signed = await client.sign(url, { method: "HEAD", signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS) });
-  } catch {
-    // Signing itself only fails on a malformed input (never a network call) — folded into the same
-    // "could not verify" bucket a transport failure would produce, since neither says anything about
-    // whether the access key/secret pair itself is good.
-    return { ok: false, reason: "unreachable" };
-  }
-
-  let resp: Response;
-  try {
-    resp = await fetchFn(signed);
-  } catch {
-    return { ok: false, reason: "unreachable" };
-  }
-  return classifyProviderResponse(resp);
-}
-
-/** Dispatches to the matching per-provider checker above. `credential` is exactly
- *  `PublishCredentialSource['resolve']`'s own `ok: true` success shape (`./types.ts`) — this
- *  function never re-derives or re-validates those fields, since `resolve()` already guarantees them
- *  for a given `target` (e.g. `s3-compatible` always carries `accessKeyId`/`bucket`/`region`). */
-async function checkProviderCredential(
-  fetchFn: typeof fetch,
-  target: StaticPublishTargetId,
-  credential: { readonly token: string; readonly accessKeyId?: string; readonly bucket?: string; readonly region?: string; readonly endpoint?: string }
-): Promise<ProviderCredentialCheckResult> {
-  if (target === "github-pages") return verifyGitHubPagesCredential(fetchFn, credential.token);
-  if (target === "vercel") return verifyVercelCredential(fetchFn, credential.token);
-  if (target === "netlify") return verifyNetlifyCredential(fetchFn, credential.token);
-  if (target === "cloudflare-pages") return verifyCloudflarePagesCredential(fetchFn, credential.token);
-  // target === "s3-compatible" — `resolve()`'s own contract guarantees these three fields for this
-  // target (`static-publish/types.ts`'s `PublishCredentialSource.resolve()` doc); `token` carries
-  // `secretAccessKey` for this target specifically, per that same doc.
-  return verifyS3CompatibleCredential(fetchFn, {
-    accessKeyId: credential.accessKeyId ?? "",
-    secretAccessKey: credential.token,
-    bucket: credential.bucket ?? "",
-    region: credential.region ?? "",
-    ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
-  });
-}
-
-/** The 3 providers with a name that isn't just their target id capitalized — every other target
- *  (`vercel`, `netlify`) falls through to the capitalized-id default in {@link providerLabel}. */
-const PROVIDER_DISPLAY_LABELS: Partial<Record<StaticPublishTargetId, string>> = {
-  "github-pages": "GitHub",
-  "cloudflare-pages": "Cloudflare",
-  "s3-compatible": "the storage provider",
-};
-
-function providerLabel(target: StaticPublishTargetId): string {
-  return PROVIDER_DISPLAY_LABELS[target] ?? target[0]!.toUpperCase() + target.slice(1);
+export function canYieldAccountLabel(registry: DeployTargetRegistry, target: StaticPublishTargetId): boolean {
+  return registry.get(target)?.descriptor.credential?.yieldsAccountLabel === true;
 }
 
 /** The optional `(HTTP <code>)` suffix shared by both failure messages in {@link buildVerificationMessage}. */
@@ -300,12 +89,10 @@ function statusCodeSuffix(statusCode: number | undefined): string {
   return statusCode ? ` (HTTP ${statusCode})` : "";
 }
 
-/** Human-facing text for one check outcome — built centrally (not per-checker) so every provider's
- *  wording stays consistent, and so no checker needs to know how its own result will be phrased.
- *  Never includes the credential, a raw response body, or any request/account detail beyond a bare
- *  HTTP status — see this file's header for why that boundary matters even for a CACHED result. */
-function buildVerificationMessage(target: StaticPublishTargetId, check: ProviderCredentialCheckResult): string {
-  const label = providerLabel(target);
+/** Human-facing text for one check outcome — built centrally (not per module) so every host's
+ *  wording stays consistent. Never includes the credential, a raw response body, or any
+ *  request/account detail beyond a bare HTTP status. */
+function buildVerificationMessage(label: string, check: DeployCredentialCheck): string {
   if (check.ok) return `${label} accepted this credential.`;
   if (check.reason === "rejected") {
     return `${label} rejected this credential${statusCodeSuffix(check.statusCode)} — it is invalid, expired, or missing the required permissions.`;
@@ -376,40 +163,63 @@ export class InMemoryPublishCredentialVerificationCache implements PublishCreden
   }
 }
 
-/** Shared tail of both entry points below: runs the provider check and stamps `checkedAt` — kept as
- *  one function so a THIRD entry point can never accidentally build this result shape differently. */
+/** What {@link computeVerificationResult} needs to run one host's check. */
+interface VerificationContext {
+  readonly registry: DeployTargetRegistry;
+  readonly kit: DeployHostKit;
+  readonly clock: { nowIso(): string };
+}
+
+/** The kit a check runs with: `fetchFn` (tests) and a `QUICK` timeout sized for a waiting human. */
+function verificationKit(deps: { readonly fetchFn?: typeof fetch; readonly hostKit?: DeployHostKit }): DeployHostKit {
+  return deps.hostKit ?? createDeployHostKit({ ...(deps.fetchFn !== undefined ? { fetchFn: deps.fetchFn } : {}), timeouts: { ...DEPLOY_FETCH_TIMEOUTS, QUICK: VERIFY_TIMEOUT_MS } });
+}
+
+function noCheckReason(target: StaticPublishTargetId): string {
+  return `no turned-on deploy plugin can check '${target}' credentials`;
+}
+
+/** An `unreachable` result for a credential nothing here could check (no module, no check, or a saved
+ *  row missing its token field): not `invalid`, since no host said so. */
+function cannotVerify(reason: string, clock: { nowIso(): string }): PublishCredentialVerificationResult {
+  return { status: "unreachable", message: `Could not verify this credential: ${reason}.`, checkedAt: clock.nowIso() };
+}
+
+/** A resolved credential without its `ok` discriminant: the shape a module is handed. */
+function withoutOk<T extends { readonly ok: true }>(resolved: T): Omit<T, "ok"> {
+  const { ok: _ok, ...credential } = resolved;
+  return credential;
+}
+
+/**
+ * Shared tail of both entry points below: runs the host's own check and stamps `checkedAt` — kept as
+ * one function so a THIRD entry point can never build this result shape differently. A target with
+ * no loaded module (its plugin is off or missing) or a module with no `verifyCredential` is
+ * `unreachable` with a hint, since nothing here can say whether the credential is good. A check that
+ * throws is `unreachable` too: a check never propagates an error.
+ *
+ * @complexity O(1) — one registry lookup plus the module's one bounded request.
+ */
 async function computeVerificationResult(
-  fetchFn: typeof fetch,
+  context: VerificationContext,
   target: StaticPublishTargetId,
-  credential: { readonly token: string; readonly accessKeyId?: string; readonly bucket?: string; readonly region?: string; readonly endpoint?: string },
-  clock: { nowIso(): string }
+  credential: DeployTargetCredential
 ): Promise<PublishCredentialVerificationResult> {
-  const check = await checkProviderCredential(fetchFn, target, credential);
+  const loaded = context.registry.get(target);
+  if (loaded?.module.verifyCredential === undefined) return cannotVerify(noCheckReason(target), context.clock);
+  let check: DeployCredentialCheck;
+  try {
+    check = await loaded.module.verifyCredential({ credential, kit: context.kit });
+  } catch {
+    check = { ok: false, reason: "unreachable" };
+  }
   const status = check.ok ? "valid" : check.reason === "rejected" ? "invalid" : "unreachable";
   return {
     status,
-    message: buildVerificationMessage(target, check),
-    checkedAt: clock.nowIso(),
+    message: buildVerificationMessage(loaded.descriptor.credential?.vendorLabel ?? loaded.descriptor.label, check),
+    checkedAt: context.clock.nowIso(),
     ...(check.ok && check.accountLabel !== undefined ? { accountLabel: check.accountLabel } : {}),
   };
-}
-
-/** Maps a decrypted `PublishConnectionInput` (`publish-credentials/types.ts`) to the plain shape
- *  {@link computeVerificationResult} needs — the s3-compatible branch reuses the SAME "`token` field
- *  carries `secretAccessKey`" convention `static-publish/credentials.ts`'s
- *  `createDbPublishCredentialSource.resolve()` already establishes for the identical reason (see that
- *  function's own doc comment), so both resolution paths hand this module the exact same shape. */
-function toCheckableCredential(connection: PublishConnectionInput): { token: string; accessKeyId?: string; bucket?: string; region?: string; endpoint?: string } {
-  if (connection.providerId === "s3-compatible") {
-    return {
-      token: connection.secretAccessKey,
-      accessKeyId: connection.accessKeyId,
-      bucket: connection.bucket,
-      region: connection.region,
-      ...(connection.endpoint !== undefined ? { endpoint: connection.endpoint } : {}),
-    };
-  }
-  return { token: connection.token };
 }
 
 export interface VerifyPublishCredentialDeps {
@@ -419,40 +229,42 @@ export interface VerifyPublishCredentialDeps {
   readonly credentialSource: PublishCredentialSource;
   readonly cache: PublishCredentialVerificationCache;
   readonly clock: { nowIso(): string };
+  /** This workspace's deploy registry: whose module checks the credential. */
+  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
   /** Injected by tests; defaults to global `fetch`. Never the DB-scoped `fetchFn` itself. */
   readonly fetchFn?: typeof fetch;
+  /** Replaces the whole kit (tests); `fetchFn` is ignored when set. */
+  readonly hostKit?: DeployHostKit;
 }
 
 /**
- * Resolves whichever credential a real publish to `input.target` would use, makes one bounded,
- * read-only authenticated request against that provider, and caches the outcome under `(workspaceId,
- * target)` — this is what `deployment_get_static_publish_capabilities`'s `ready`/`verified` fields
- * read. The ONE non-test caller of this module allowed to trigger it is a human action (the admin
- * credential-CRUD route, after a save, or via an explicit "Verify" trigger) — never an agent tool.
+ * Resolves whichever credential a real publish to `input.target` would use, has that host's module
+ * check it with one bounded, read-only authenticated request, and caches the outcome under
+ * `(workspaceId, target)` — this is what `deployment_get_static_publish_capabilities`'s
+ * `ready`/`verified` fields read. The ONE non-test caller of this module allowed to trigger it is a
+ * human action (the admin credential-CRUD route, after a save, or via an explicit "Verify" trigger)
+ * — never an agent tool.
  *
  * @returns The freshly-computed result (also now cached). `null` when no credential is configured at
  *   all — clears any stale cached entry and makes NO network call, matching
  *   {@link verifyPublishCredentialById}'s own "nothing to verify" contract for a missing row.
  *   Deliberately not folded into `status: "invalid"`/`"unreachable"`: neither word honestly describes
- *   "there was nothing here to check" (see this file's header on why the three real states must stay
- *   distinct from each other — the same discipline extends to not inventing a fourth, misleading one
- *   for this case).
+ *   "there was nothing here to check".
  * @complexity O(1) — one `resolve()` call (one repo read plus, for a DB-backed credential, one
- *   decrypt) plus one bounded outbound HTTP request.
- * @overallScore 100
+ *   decrypt), one registry load, plus one bounded outbound HTTP request.
  */
 export async function verifyPublishCredential(
   deps: VerifyPublishCredentialDeps,
   input: { workspaceId: UUID; target: StaticPublishTargetId }
 ): Promise<PublishCredentialVerificationResult | null> {
-  const fetchFn = deps.fetchFn ?? fetch;
   const resolved = await deps.credentialSource.resolve(input);
   if (!resolved.ok) {
     deps.cache.delete(input);
     return null;
   }
 
-  const result = await computeVerificationResult(fetchFn, input.target, resolved, deps.clock);
+  const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
+  const result = await computeVerificationResult(context, input.target, withoutOk(resolved));
   deps.cache.set(input, result);
   return result;
 }
@@ -462,7 +274,10 @@ export interface VerifyPublishCredentialByIdDeps {
   readonly sealer: SecretSealerPort;
   readonly cache: PublishCredentialVerificationCache;
   readonly clock: { nowIso(): string };
+  /** This workspace's deploy registry: which saved field is the token, and whose module checks it. */
+  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
   readonly fetchFn?: typeof fetch;
+  readonly hostKit?: DeployHostKit;
 }
 
 /**
@@ -476,25 +291,32 @@ export interface VerifyPublishCredentialByIdDeps {
  * capabilities` reads — when `id` IS its provider's current default. A non-default row's result is
  * still computed and returned (so the human sees an honest answer for the row they actually asked
  * about), but never overwrites the `ready` signal for a DIFFERENT, unrelated row sharing the same
- * provider — verifying a second, non-default GitHub Pages connection must never make an unrelated
- * default connection's `ready` state flip based on the wrong row's outcome.
+ * provider.
+ *
+ * The decrypted connection is projected through the host's declared credential spec, the same
+ * projection a real publish uses (`credentials.ts`'s `projectConnectionForPublish`), so the check sees
+ * exactly what the module's `create` would.
  *
  * @returns `null` if no row exists for `(workspaceId, id)` — the caller (the admin route) is
  *   expected to have already checked existence and map this to its own 404, matching
  *   `resolveForPublish`'s own "no such row is `null`, not thrown" contract.
  * @complexity O(1) — two independent repo reads (`findById` for the `isDefault` flag,
- *   `resolveForPublish` for the decrypt) run concurrently, plus one bounded outbound HTTP request.
- * @overallScore 100
+ *   `resolveForPublish` for the decrypt) run concurrently, one registry load, plus one bounded
+ *   outbound HTTP request.
  */
 export async function verifyPublishCredentialById(
   deps: VerifyPublishCredentialByIdDeps,
   input: { workspaceId: UUID; id: UUID }
 ): Promise<PublishCredentialVerificationResult | null> {
-  const fetchFn = deps.fetchFn ?? fetch;
   const [record, resolved] = await Promise.all([deps.repo.findById(input), resolveForPublish({ repo: deps.repo, sealer: deps.sealer }, input)]);
   if (!record || !resolved) return null;
 
-  const result = await computeVerificationResult(fetchFn, resolved.providerId, toCheckableCredential(resolved.connection), deps.clock);
+  const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
+  const spec = context.registry.get(resolved.providerId)?.descriptor.credential;
+  const projected = spec === undefined ? undefined : projectConnectionForPublish(resolved.connection, spec);
+  const result = projected?.ok
+    ? await computeVerificationResult(context, resolved.providerId, withoutOk(projected))
+    : cannotVerify(projected?.reason ?? noCheckReason(resolved.providerId), deps.clock);
   if (record.isDefault) {
     deps.cache.set({ workspaceId: input.workspaceId, target: resolved.providerId }, result);
   }
@@ -624,7 +446,7 @@ async function fetchGitHubRepos(fetchFn: typeof fetch, token: string): Promise<L
   if (!classified.ok) {
     return {
       status: classified.reason === "rejected" ? "invalid" : "unreachable",
-      message: buildVerificationMessage("github-pages", classified),
+      message: buildVerificationMessage("GitHub", classified),
       repos: [],
       truncated: false,
     };

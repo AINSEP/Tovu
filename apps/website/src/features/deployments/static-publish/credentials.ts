@@ -169,7 +169,7 @@ export function createEnvPublishCredentialSource(
  *
  * @complexity O(f) declared credential fields, no I/O.
  */
-function projectConnectionForPublish(
+export function projectConnectionForPublish(
   connection: PublishConnectionInput,
   spec: DeployTargetCredentialSpec
 ): Awaited<ReturnType<PublishCredentialSource["resolve"]>> {
