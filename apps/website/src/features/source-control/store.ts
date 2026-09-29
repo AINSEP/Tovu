@@ -53,7 +53,7 @@ const PROVIDER_IDS: ReadonlySet<SourceControlProviderId> = new Set(["github", "g
 /** Type-predicate wrapper around `PROVIDER_IDS.has()` — `Set<T>.has()` alone does not narrow its
  *  argument's static type, so `validateConnection` below would otherwise see `providerId` as a
  *  plain `string` even after the runtime membership check. */
-function isSourceControlProviderId(value: string): value is SourceControlProviderId {
+export function isSourceControlProviderId(value: string): value is SourceControlProviderId {
   return PROVIDER_IDS.has(value as SourceControlProviderId);
 }
 

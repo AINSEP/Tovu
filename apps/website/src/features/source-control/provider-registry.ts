@@ -12,7 +12,7 @@ import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-
 import type { HttpClientPort } from "#src/platform/http/index";
 
 import { createSourceControlProviderKit } from "./provider-kit.js";
-import type { SourceControlProvider, SourceControlProviderModule } from "./provider-module.js";
+import type { SourceControlHostFacts, SourceControlProvider, SourceControlProviderKit, SourceControlProviderModule } from "./provider-module.js";
 
 /**
  * @file Loads the git-host providers Agent Plugins contribute — the generic seam that lets a plugin
@@ -21,8 +21,9 @@ import type { SourceControlProvider, SourceControlProviderModule } from "./provi
  * credential form.
  *
  * A plugin opts in by shipping {@link SOURCE_CONTROL_PROVIDERS_FILENAME} at its root: a data-only list
- * of `{ id, label, module }`. `id` is the `source_control_credential_sets.provider_id` the provider
- * serves; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
+ * of `{ id, label, apiOrigin, maxFileBytes?, module }`. `id` is the `source_control_credential_sets.provider_id`
+ * the provider serves; `label`, `apiOrigin` and `maxFileBytes` are the host facts core copy and checks
+ * name (`SourceControlHostFacts`), so no tool text hard-codes a host; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
  * `SourceControlProviderModule` (`features/source-control/provider-module.ts`).
  *
  * TRUST RULE (fail closed), the same one `features/agent-plugins/mail-adapter-registry.ts` and the
@@ -39,9 +40,7 @@ const PROVIDER_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_ID_LENGTH = 64;
 const MAX_LABEL_LENGTH = 100;
 
-export interface SourceControlProviderDescriptor {
-  readonly id: string;
-  readonly label: string;
+export interface SourceControlProviderDescriptor extends SourceControlHostFacts {
   /** Plugin-relative path of the `.mjs` module. */
   readonly module: string;
 }
@@ -206,11 +205,29 @@ export function parseSourceControlProvidersFile(raw: string): ParseResult {
 /** One descriptor entry, or the reason it is invalid. @complexity O(1). */
 function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { id, label, module } = entry;
+  const { id, label, apiOrigin, maxFileBytes, module } = entry;
   if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
   if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
+  if (typeof apiOrigin !== "string" || !isHttpsOrigin(apiOrigin)) return `${at}.apiOrigin must be an https origin with no path`;
+  if (maxFileBytes !== undefined && !(Number.isSafeInteger(maxFileBytes) && (maxFileBytes as number) > 0)) return `${at}.maxFileBytes must be a positive integer`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
-  return { id, label, module };
+  return { id, label, apiOrigin, ...(maxFileBytes !== undefined ? { maxFileBytes: maxFileBytes as number } : {}), module };
+}
+
+/** True for `https://host[:port]` exactly — what `new URL(x).origin` gives back. @complexity O(1). */
+function isHttpsOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.origin === value;
+  } catch {
+    return false;
+  }
+}
+
+/** A loaded provider built over `kit`, carrying its plugin's declared host facts. @complexity O(1). */
+export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProvider, kit: SourceControlProviderKit): SourceControlProvider {
+  const { id, label, apiOrigin, maxFileBytes } = loaded.descriptor;
+  return { ...loaded.module.create({ kit }), id, label, apiOrigin, ...(maxFileBytes !== undefined ? { maxFileBytes } : {}) };
 }
 
 function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -246,7 +263,7 @@ export async function buildSourceControlProvider(
   const loaded = registry.get(input.providerId);
   if (!loaded) return { ok: false, message: noSourceControlProviderMessage(registry, input.providerId), refusals: registry.refusals };
   const kit = createSourceControlProviderKit({ ...(input.httpClient ? { httpClient: input.httpClient } : {}), ...(input.fetchFn ? { fetchFn: input.fetchFn } : {}) });
-  return { ok: true, provider: loaded.module.create({ kit }) };
+  return { ok: true, provider: buildLoadedSourceControlProvider(loaded, kit) };
 }
 
 /**
@@ -261,7 +278,7 @@ export async function buildSourceControlProviders(input: {
 }): Promise<{ readonly providers: readonly SourceControlProvider[]; readonly refusals: readonly string[]; readonly noProviderMessage: string }> {
   const registry = await (input.load ?? loadInstalledSourceControlProviders)(input.workspaceId);
   const kit = createSourceControlProviderKit({ httpClient: input.httpClient });
-  return { providers: registry.list().map((loaded) => loaded.module.create({ kit })), refusals: registry.refusals, noProviderMessage: noSourceControlProviderMessage(registry) };
+  return { providers: registry.list().map((loaded) => buildLoadedSourceControlProvider(loaded, kit)), refusals: registry.refusals, noProviderMessage: noSourceControlProviderMessage(registry) };
 }
 
 /** Where an operator switches an Agent Plugin on or off, as the admin navigation names it. */

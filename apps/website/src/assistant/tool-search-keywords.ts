@@ -395,7 +395,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
 
   // --- source control --------------------------------------------------------------------------------------
   source_control_get_capabilities: "git source control connected ready can I commit repository credentials setup github gitlab bitbucket",
-  source_control_execute_commit: "push code git repository export to repo commit changes github",
+  source_control_execute_commit: "commit my site to a git repository push the site code export to repo commit changes github gitlab",
 
   // --- site backup ------------------------------------------------------------------------------------------
   site_backup_plan: "backup back up save copy snapshot archive keep safe my site database content github repository private repo",

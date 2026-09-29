@@ -30,7 +30,15 @@ import {
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "./commit-site.js";
-import { buildSourceControlProvider, loadInstalledSourceControlProviders, switchedOffPluginSentence, type LoadSourceControlProviders } from "./provider-registry.js";
+import {
+  buildSourceControlProvider,
+  loadInstalledSourceControlProviders,
+  switchedOffPluginSentence,
+  type LoadSourceControlProviders,
+  type SourceControlProviderDescriptor,
+  type SourceControlProviderRegistry,
+} from "./provider-registry.js";
+import { isSourceControlProviderId } from "./store.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
@@ -55,7 +63,7 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  *   `deployment_execute_static_publish`: one call opens an exchange, raises a confirmation dialog,
  *   and parks on `ctx.emitSurface` until a human answers. The model's call carries no token field —
  *   the real credential is resolved server-side, only after confirm, by `commit-site.ts`'s
- *   `commitSiteToSourceControl`. Github-only this pass (schema enum has one value) — see
+ *   `commitSiteToSourceControl`. The host is any providerId the registry lists (no schema enum); see
  *   `commit-site.ts`'s header and the committed proposal
  *   (`ADS-memory/reports/2026-08-16-source-control-tools.md`) for why gitlab/bitbucket are deferred
  *   rather than guessed at with no test credentials to verify against.
@@ -95,12 +103,22 @@ const NO_INPUT_SCHEMA = {
   properties: {},
 } as const;
 
-/** Every provider this feature can save a credential for — the fixed iteration order
- *  `source_control_get_capabilities` reports in. Sourced from `SourceControlProviderId`'s own
- *  3-member union (`types.ts`) rather than re-declared as a plain string array, so a fourth provider
- *  added there cannot silently go unreported here without a compile error at this array's own type
- *  annotation. */
-const PROVIDER_IDS: readonly SourceControlProviderId[] = ["github", "gitlab", "bitbucket"];
+/** A declared host's facts as `source_control_get_capabilities` reports them. @complexity O(1). */
+function hostFacts(descriptor: SourceControlProviderDescriptor): { label: string; apiOrigin: string; maxFileBytes?: number } {
+  return { label: descriptor.label, apiOrigin: descriptor.apiOrigin, ...(descriptor.maxFileBytes !== undefined ? { maxFileBytes: descriptor.maxFileBytes } : {}) };
+}
+
+/**
+ * The hosts `source_control_get_capabilities` reports, in order: the ones an enabled plugin provides
+ * (registry order), then ones a switched-off plugin declares, then any other host a credential is
+ * saved for. No host id is hard-coded here; the registry and the saved rows are the whole list.
+ *
+ * @complexity O(p + s) providers plus saved credentials.
+ */
+function reportedProviderIds(registry: SourceControlProviderRegistry, savedProviderIds: readonly string[]): readonly string[] {
+  const ids = [...registry.list().map((loaded) => loaded.descriptor.id), ...(registry.switchedOff?.keys() ?? []), ...savedProviderIds];
+  return [...new Set(ids)];
+}
 
 /** The workspace's plugin-provided hosts ({@link SourceControlToolDeps.loadSourceControlProviders}). */
 function loadProviders(deps: SourceControlToolDeps): ReturnType<LoadSourceControlProviders> {
@@ -108,10 +126,35 @@ function loadProviders(deps: SourceControlToolDeps): ReturnType<LoadSourceContro
 }
 
 /** The injected adapter, or the plugin provider's for `providerId`; a caller-safe refusal otherwise. */
-async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: SourceControlProviderId): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
+async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: string): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
   if (deps.gitAdapter) return { ok: true, adapter: deps.gitAdapter };
   const built = await buildSourceControlProvider({ ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}), workspaceId: deps.workspaceId, providerId });
   return built.ok ? { ok: true, adapter: { commit: built.provider.commitSite } } : { ok: false, message: built.message };
+}
+
+/**
+ * The host's display name for `providerId`, refusing an id no plugin declares and no credential can be
+ * saved for (a typo, or a host that does not exist) before anything else runs.
+ *
+ * @throws {ToolInputError} naming the hosts that do exist.
+ * @complexity One registry load.
+ */
+async function requireKnownHost(deps: SourceControlToolDeps, providerId: string): Promise<string> {
+  const registry = await loadProviders(deps);
+  const label = registry.get(providerId)?.descriptor.label;
+  if (label !== undefined) return label;
+  if (registry.switchedOff?.has(providerId) || isSourceControlProviderId(providerId)) return providerId;
+  const hosts = registry.list().map((loaded) => `'${loaded.descriptor.id}'`);
+  throw new ToolInputError(
+    `source_control_execute_commit: '${providerId}' is not a source control host. ${hosts.length > 0 ? `Hosts: ${hosts.join(", ")}` : "No turned-on Agent Plugin provides one"} (see source_control_get_capabilities).`,
+  );
+}
+
+/** The saved default credential for `providerId`, never decrypted; `null` for a host the credential
+ *  store cannot hold. @complexity One repo read. */
+async function findSavedDefault(deps: SourceControlToolDeps, providerId: string) {
+  if (!isSourceControlProviderId(providerId)) return null;
+  return deps.sourceControlCredentialSetRepo.findDefaultByProvider({ workspaceId: deps.workspaceId, providerId });
 }
 
 const EXECUTE_COMMIT_SCHEMA = {
@@ -121,12 +164,11 @@ const EXECUTE_COMMIT_SCHEMA = {
   properties: {
     provider: {
       type: "string",
-      enum: ["github"],
       description:
-        "Which connected source control provider to commit to. Only 'github' is supported for commits today — call source_control_get_capabilities first: a gitlab/bitbucket credential can be saved and reported there, but committing to either is not implemented yet.",
+        "Which source control host to commit to: a providerId source_control_get_capabilities lists with commitSupported: true. Call that first; a host listed with commitSupported: false is refused.",
     },
-    owner: { type: "string", description: "GitHub owner or organization login that owns the target repository." },
-    repo: { type: "string", description: "GitHub repository name to commit to." },
+    owner: { type: "string", description: "Owner or organization login that owns the target repository on the host." },
+    repo: { type: "string", description: "Repository name to commit to." },
     branch: {
       type: "string",
       description:
@@ -136,7 +178,7 @@ const EXECUTE_COMMIT_SCHEMA = {
     dryRun: {
       type: "boolean",
       description:
-        "Pass dryRun: true first to see how many files the export would commit, without contacting GitHub. Optional; defaults to false.",
+        "Pass dryRun: true first to see how many files the export would commit, without contacting the host. Optional; defaults to false.",
     },
   },
 } as const;
@@ -150,7 +192,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_get_capabilities",
     description:
-      "Reports which source control providers (github, gitlab, bitbucket) have a saved connection for this workspace, WITHOUT decrypting or exposing any credential: for each provider, whether a credential is configured (a row exists — this is presence only, NOT a live verification that the token still works; a saved credential that GitHub has since revoked still reports configured:true here and would only be discovered as invalid by an actual commit attempt), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token or any part of one), and whether committing to that provider is supported yet (commitSupported: true only when an enabled Agent Plugin provides committing to that host — GitHub, through the bundled github plugin; a credential for any other host can be saved and is reported honestly here, but source_control_execute_commit will refuse it; do not imply to the user that saving such a credential enables committing). Call this before telling a human what committing would do, before calling source_control_execute_commit, or whenever asked something like 'can I commit, and where'. Do NOT ask the user to paste a token into this chat — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid; tell them to connect a provider in the admin's Source Control page instead, which saves it encrypted server-side and never shows it to you.",
+      "Reports the source control hosts for this workspace — every host a turned-on Agent Plugin provides, every host a plugin declares but is switched off, and every host that has a saved connection — WITHOUT decrypting or exposing any credential. For each provider: providerId; label, apiOrigin (the API base URL a saved custom credential for that host points at) and maxFileBytes (the largest single file the host accepts in a push; absent when it declares none), when a plugin declares the host; whether a credential is configured (a row exists — this is presence only, NOT a live verification that the token still works; a saved credential that the host has since revoked still reports configured:true here and would only be discovered as invalid by an actual commit attempt), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token or any part of one), and whether committing to that provider is supported yet (commitSupported: true only when an enabled Agent Plugin provides committing to that host; a credential for any other host can be saved and is reported honestly here, but source_control_execute_commit will refuse it; do not imply to the user that saving such a credential enables committing). Call this before telling a human what committing would do, before calling source_control_execute_commit, or whenever asked something like 'can I commit, and where'. Do NOT ask the user to paste a token into this chat — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid; tell them to connect a provider in the admin's Source Control page instead, which saves it encrypted server-side and never shows it to you.",
     sideEffects: "none",
     authorization: { permission: "source-control.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -158,7 +200,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_execute_commit",
     description:
-      "Commits the current site as a FRESH export to a GitHub repository, using the workspace's own SAVED github source control credential (configured by a human in the admin's Source Control page — this tool takes no token field of any kind; do not attempt to supply one). Only 'provider': 'github' is accepted today. HUMAN-GATED: call it with just { provider: 'github', owner, repo, commitMessage, branch? }. Pass dryRun: true first to see how many files the export would commit, without contacting GitHub. This ONE call shows an interactive confirmation dialog naming the repository, the branch, and the commit message, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make. If the human clicks Commit, THIS SAME CALL runs the export and commit and returns { committed: true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths } on success — filesChanged is how many files the current export wrote, filesDeleted is how many paths this same tool previously committed to this repo that are no longer part of the export and were explicitly removed from the target tree (report both to the human; a nonzero filesDeleted means real content was removed from their repository, not merely added). Only paths this tool itself previously wrote, AND whose live content still exactly matches what it wrote, are ever deleted — an existing README, workflow file, any other content already on the branch, or a page this tool once wrote that someone has since hand-edited, is never touched. divergedPaths lists any paths that fell into that last case: no longer part of the export, but preserved because their content no longer matches this tool's own record (or pre-dates this tool's ability to verify that) — tell the human these need their own manual review/cleanup if removal is still wanted. If they click Cancel, it returns { committed: false, cancelled: true, owner, repo }. If nobody answers before the dialog expires (or the run ends first), it returns { committed: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no github credential is configured yet, this returns { committed: false, reason: 'no-credential', message } — pointing to the Source Control page — WITHOUT ever raising a dialog (call source_control_get_capabilities first to check readiness and avoid this). If a credential is saved but no enabled Agent Plugin provides GitHub committing (the github plugin is turned off), it returns { committed: false, reason: 'no-provider', message } — also without a dialog; tell the human to turn the plugin on in Agent Plugins. Every other failure — discovered only AFTER the human confirms, since committing needs the real credential and the export needs to run first — is returned as { committed: false, cancelled: false, code, message }: code 'REPOSITORY_NOT_FOUND' means the token cannot see that owner/repo; 'NO_CHANGES' means nothing changed since the branch's last commit, so nothing was written (this is not a failure to report as one — just tell the human nothing needed to commit); 'DIVERGED_BRANCH' means the branch moved (someone else pushed to it) since this call started — the commit was refused rather than overwriting that history, and the human needs to resolve this themselves, the same as any git push rejected for not being a fast-forward; 'NETWORK_UNREACHABLE' means the request could not reach GitHub at all (DNS/connection failure) — this says NOTHING about whether the credential is good, so do not tell the user to replace it, suggest trying again; 'PROVIDER_ERROR' means GitHub's API rejected the request (e.g. an expired or insufficient-scope token, a permission error) — the message names what went wrong, never a raw response body or the credential; 'EXPORT_FAILED' means the site itself failed to export cleanly, before any commit was attempted. Simply wait for the result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
+      "Commits the current site as a FRESH export to a repository on a source control host, using the workspace's own SAVED source control credential for that host (configured by a human in the admin's Source Control page — this tool takes no token field of any kind; do not attempt to supply one). 'provider' is a providerId source_control_get_capabilities lists with commitSupported: true. HUMAN-GATED: call it with just { provider, owner, repo, commitMessage, branch? }. Pass dryRun: true first to see how many files the export would commit, without contacting the host. This ONE call shows an interactive confirmation dialog naming the repository, the branch, and the commit message, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make. If the human clicks Commit, THIS SAME CALL runs the export and commit and returns { committed: true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths } on success — filesChanged is how many files the current export wrote, filesDeleted is how many paths this same tool previously committed to this repo that are no longer part of the export and were explicitly removed from the target tree (report both to the human; a nonzero filesDeleted means real content was removed from their repository, not merely added). Only paths this tool itself previously wrote, AND whose live content still exactly matches what it wrote, are ever deleted — an existing README, workflow file, any other content already on the branch, or a page this tool once wrote that someone has since hand-edited, is never touched. divergedPaths lists any paths that fell into that last case: no longer part of the export, but preserved because their content no longer matches this tool's own record (or pre-dates this tool's ability to verify that) — tell the human these need their own manual review/cleanup if removal is still wanted. If they click Cancel, it returns { committed: false, cancelled: true, owner, repo }. If nobody answers before the dialog expires (or the run ends first), it returns { committed: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no credential for that host is configured yet, this returns { committed: false, reason: 'no-credential', message } — pointing to the Source Control page — WITHOUT ever raising a dialog (call source_control_get_capabilities first to check readiness and avoid this). If a credential is saved but no enabled Agent Plugin provides committing to that host (its plugin is switched off), it returns { committed: false, reason: 'no-provider', message } — also without a dialog; the message names the plugin and the Agent Plugins screen that turns it back on, so pass that on to the human. Every other failure — discovered only AFTER the human confirms, since committing needs the real credential and the export needs to run first — is returned as { committed: false, cancelled: false, code, message }: code 'REPOSITORY_NOT_FOUND' means the token cannot see that owner/repo; 'NO_CHANGES' means nothing changed since the branch's last commit, so nothing was written (this is not a failure to report as one — just tell the human nothing needed to commit); 'DIVERGED_BRANCH' means the branch moved (someone else pushed to it) since this call started — the commit was refused rather than overwriting that history, and the human needs to resolve this themselves, the same as any git push rejected for not being a fast-forward; 'NETWORK_UNREACHABLE' means the request could not reach the host at all (DNS/connection failure) — this says NOTHING about whether the credential is good, so do not tell the user to replace it, suggest trying again; 'PROVIDER_ERROR' means the host's API rejected the request (e.g. an expired or insufficient-scope token, a permission error) — the message names what went wrong, never a raw response body or the credential; 'EXPORT_FAILED' means the site itself failed to export cleanly, before any commit was attempted. Simply wait for the result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
     // Genuinely consequential (pushes a real commit into someone's actual git history using a
     // write-scoped external credential) — classified accordingly, cross-checked against
     // `sourceControlDerivedRisk` below at build time. Deliberately carries NO `actorClassRule` — see
@@ -234,13 +276,13 @@ function commitConfirmationUri(exchangeId: string): UIResourceUri {
  *
  * @complexity O(1) — a handful of fixed-size field reads.
  */
-function buildCommitConfirmationResource(spec: { owner: string; repo: string; branch: string | undefined; commitMessage: string; exchangeId: string }): UIResource {
-  const { owner, repo, branch, commitMessage, exchangeId } = spec;
+function buildCommitConfirmationResource(spec: { hostLabel: string; owner: string; repo: string; branch: string | undefined; commitMessage: string; exchangeId: string }): UIResource {
+  const { hostLabel, owner, repo, branch, commitMessage, exchangeId } = spec;
 
   return buildConfirmationSurface({
     uri: commitConfirmationUri(exchangeId),
     title: `Commit the site to ${owner}/${repo}?`,
-    description: "The current site content will be exported fresh and committed, using this workspace's saved GitHub source control credential.",
+    description: `The current site content will be exported fresh and committed, using this workspace's saved ${hostLabel} source control credential.`,
     details: [
       { label: "Repository", value: `${owner}/${repo}` },
       { label: "Branch", value: branch ?? "repository's default branch" },
@@ -266,6 +308,7 @@ function buildCommitConfirmationResource(spec: { owner: string; repo: string; br
 
 /** The validated, typed shape of `source_control_execute_commit`'s input, once parsed. */
 interface ParsedCommitCommand {
+  provider: string;
   owner: string;
   repo: string;
   commitMessage: string;
@@ -281,11 +324,6 @@ interface ParsedCommitCommand {
  */
 function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
   const provider = requireString(raw, "provider");
-  if (provider !== "github") {
-    throw new ToolInputError(
-      "source_control_execute_commit: 'provider' must be 'github' — gitlab/bitbucket commits are not supported yet (see source_control_get_capabilities)."
-    );
-  }
   const owner = requireString(raw, "owner");
   const repo = requireString(raw, "repo");
   const commitMessage = requireString(raw, "commitMessage");
@@ -297,7 +335,7 @@ function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
     throw new ToolInputError(`source_control_execute_commit: ${configError}`);
   }
 
-  return { owner, repo, commitMessage, branch, dryRun };
+  return { provider, owner, repo, commitMessage, branch, dryRun };
 }
 
 /**
@@ -366,7 +404,7 @@ function buildCommitOutcomeResult(outcome: SourceControlCommitOutcome): unknown 
  *
  * @complexity O(1) — fixed string interpolation, no iteration.
  */
-function buildCapabilityGuidance(providerId: SourceControlProviderId, configured: boolean, commitReady: boolean, switchedOffPluginId: string | undefined): string | undefined {
+function buildCapabilityGuidance(providerId: string, configured: boolean, commitReady: boolean, switchedOffPluginId: string | undefined): string | undefined {
   const switchOn = switchedOffPluginId === undefined ? "" : `: ${switchedOffPluginSentence(switchedOffPluginId)}`;
   if (!configured && !commitReady) {
     return `No ${providerId} credential is saved, and no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
@@ -400,16 +438,18 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       const saved = await listSourceControlCredentials({ repo: deps.sourceControlCredentialSetRepo }, { workspaceId: deps.workspaceId });
       const registry = await loadProviders(deps);
 
-      const providers = PROVIDER_IDS.map((providerId) => {
+      const providers = reportedProviderIds(registry, saved.map((credential) => credential.providerId)).map((providerId) => {
         const savedCredentials = saved
           .filter((credential) => credential.providerId === providerId)
           .map((credential) => ({ id: credential.id, label: credential.label, isDefault: credential.isDefault, createdAt: credential.createdAt, updatedAt: credential.updatedAt }));
         const configured = savedCredentials.length > 0;
-        const ready = registry.get(providerId) !== undefined;
+        const loaded = registry.get(providerId);
+        const ready = loaded !== undefined;
         const guidance = buildCapabilityGuidance(providerId, configured, ready, registry.switchedOff?.get(providerId));
 
         return {
           providerId,
+          ...(loaded ? hostFacts(loaded.descriptor) : {}),
           configured,
           commitSupported: ready,
           savedCredentials,
@@ -443,13 +483,14 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       const raw = requireInputRecord(ctx.input);
       const command = parseCommitCommand(raw);
 
+      const hostLabel = await requireKnownHost(deps, command.provider);
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "source-control.commit", entityType: "source-control" });
 
       if (command.dryRun) {
         // Same "presence only" read `source_control_get_capabilities` and the real-commit path
         // below both rely on — never decrypts. No dialog: a dry run only previews what a real
         // commit would export, so it never opens the confirmation surface or touches `emitSurface`.
-        const existing = await deps.sourceControlCredentialSetRepo.findDefaultByProvider({ workspaceId: deps.workspaceId, providerId: "github" });
+        const existing = await findSavedDefault(deps, command.provider);
         const preview = await previewCommitExport({
           workspaceId: deps.workspaceId,
           sourceControlExportRootDir: deps.sourceControlExportRootDir,
@@ -497,19 +538,21 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       // Never decrypts — a plain repo read, same "presence only" contract `source_control_get_capabilities`
       // relies on. Checked before raising any dialog so a guaranteed-fail call never wastes a human's
       // attention.
-      const existing = await deps.sourceControlCredentialSetRepo.findDefaultByProvider({ workspaceId: deps.workspaceId, providerId: "github" });
+      const existing = await findSavedDefault(deps, command.provider);
       if (!existing) {
         return {
           committed: false,
           reason: "no-credential",
-          message: "No GitHub source control credential is configured for this workspace. Connect one in the admin's Source Control page before committing.",
+          message: `No ${hostLabel} source control credential is configured for this workspace. Connect one in the admin's Source Control page before committing.`,
         };
       }
-      const commitAdapter = await resolveCommitAdapter(deps, "github");
+      const commitAdapter = await resolveCommitAdapter(deps, command.provider);
       if (!commitAdapter.ok) return { committed: false, reason: "no-provider", message: commitAdapter.message };
 
+      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+      if (ctx.signal.aborted) return { committed: false, cancelled: false, reason: "abandoned" };
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: EXECUTE_COMMIT_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
-      const ui = buildCommitConfirmationResource({ ...command, exchangeId: exchange.id });
+      const ui = buildCommitConfirmationResource({ ...command, hostLabel, exchangeId: exchange.id });
 
       // A cancelled run must not leave a dialog holding a call nobody is listening to — mirrors
       // `deployment_execute_static_publish`'s identical guard.
@@ -520,7 +563,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
         if (!decision.confirmed) return decision.result;
 
         const outcome = await commitSiteToSourceControl(
-          { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: commitAdapter.adapter },
+          { providerId: existing.providerId, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: commitAdapter.adapter },
           {
             workspaceId: deps.workspaceId,
             sourceControlExportRootDir: deps.sourceControlExportRootDir,

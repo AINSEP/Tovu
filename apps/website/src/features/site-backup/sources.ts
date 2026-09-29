@@ -42,14 +42,19 @@ export type SiteBackupInclude = Record<SiteBackupScope, boolean>;
 
 const MIB = 1024 * 1024;
 
-/** The caps every backup is checked against before anything is uploaded.
- *  - `maxFileBytes`: GitHub's own hard per-file limit (a push with a larger blob is rejected).
- *  - `maxTotalBytes`, `maxFiles`: this tool's bounds, so one call cannot hold an unbounded number of
- *    blob uploads open against the site's own request budget. */
-export const SITE_BACKUP_LIMITS = { maxFileBytes: 100 * MIB, maxTotalBytes: 1024 * MIB, maxFiles: 3000 } as const;
+/** This tool's own caps, checked before anything is uploaded, so one call cannot hold an unbounded
+ *  number of blob uploads open against the site's own request budget. The host's per-file limit is
+ *  not here: the host's plugin declares it ({@link SiteBackupHostLimit}). */
+export const SITE_BACKUP_LIMITS = { maxTotalBytes: 1024 * MIB, maxFiles: 3000 } as const;
+
+/** The repository host a backup goes to, as its plugin declares it (`SourceControlHostFacts`): its
+ *  name, and the largest single file it accepts in a push (a push with a larger blob is rejected). */
+export interface SiteBackupHostLimit {
+  readonly label: string;
+  readonly maxFileBytes?: number;
+}
 
 export interface SiteBackupLimits {
-  readonly maxFileBytes: number;
   readonly maxTotalBytes: number;
   readonly maxFiles: number;
 }
@@ -299,20 +304,25 @@ export function formatByteSize(bytes: number): string {
 export type SiteBackupLimitsResult = { ok: true; totalBytes: number } | { ok: false; message: string };
 
 /**
- * Checks a backup against {@link SITE_BACKUP_LIMITS} before anything is uploaded. A file over the
- * per-file limit is refused, never truncated or split — and EVERY such file is named, so one retry
+ * Checks a backup against {@link SITE_BACKUP_LIMITS} and the host's own per-file limit (when its
+ * plugin declares one) before anything is uploaded. A file over the per-file limit is refused, never truncated or split — and EVERY such file is named, so one retry
  * after removing them is enough.
  *
  * @complexity O(n) in the file count.
  */
-export function checkSiteBackupLimits(files: readonly { path: string; bytes: number }[], limits: SiteBackupLimits = SITE_BACKUP_LIMITS): SiteBackupLimitsResult {
-  const oversized = files.filter((file) => file.bytes > limits.maxFileBytes);
-  if (oversized.length > 0) {
+export function checkSiteBackupLimits(
+  files: readonly { path: string; bytes: number }[],
+  host: SiteBackupHostLimit,
+  limits: SiteBackupLimits = SITE_BACKUP_LIMITS,
+): SiteBackupLimitsResult {
+  const maxFileBytes = host.maxFileBytes;
+  const oversized = maxFileBytes === undefined ? [] : files.filter((file) => file.bytes > maxFileBytes);
+  if (maxFileBytes !== undefined && oversized.length > 0) {
     // The exact byte count too: a file 1 byte over rounds to the limit's own size.
     const named = oversized.map((file) => `${file.path} (${formatByteSize(file.bytes)}, ${file.bytes} bytes)`).join(", ");
     return {
       ok: false,
-      message: `${oversized.length} file(s) exceed GitHub's ${formatByteSize(limits.maxFileBytes)} per-file limit and cannot be backed up: ${named}. Nothing is truncated or split; remove or shrink these, or turn off the scope that holds them.`,
+      message: `${oversized.length} file(s) exceed ${host.label}'s ${formatByteSize(maxFileBytes)} per-file limit and cannot be backed up: ${named}. Nothing is truncated or split; remove or shrink these, or turn off the scope that holds them.`,
     };
   }
   if (files.length > limits.maxFiles) {

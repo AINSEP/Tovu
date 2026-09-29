@@ -117,11 +117,22 @@ export interface CommitBackupTreeInput extends CredentialedRepositoryTarget {
   readonly blobs: readonly UploadedBackupBlob[];
 }
 
-/** What a built provider does. */
-export interface SourceControlProvider {
+/** The host facts a plugin DECLARES in `tovu-source-control.json` (`provider-registry.ts`), carried
+ *  on every built provider so core copy and checks can name the host without hard-coding one. */
+export interface SourceControlHostFacts {
+  /** The `source_control_credential_sets.provider_id` this host serves. */
+  readonly id: string;
+  /** The host's display name ("GitHub"). */
+  readonly label: string;
   /** The API origin a saved custom credential for this host points at (used to pick one when the
    *  caller named none). */
   readonly apiOrigin: string;
+  /** The largest single file the host accepts in a push, when it has such a limit. */
+  readonly maxFileBytes?: number;
+}
+
+/** What a provider module's `create()` returns: the operations only. */
+export interface SourceControlProviderOperations {
   commitSite(input: CommitSiteInput): Promise<SourceControlCommitResult>;
   /** The account name a token belongs to, or `null` when it cannot be learned. Never throws. */
   readAccountLabel(token: string): Promise<string | null>;
@@ -134,6 +145,9 @@ export interface SourceControlProvider {
   uploadBackupBlob(target: CredentialedRepositoryTarget, file: { readonly path: string; readonly content: Uint8Array }): Promise<{ ok: true; blob: UploadedBackupBlob } | ProviderCallFailure>;
   commitBackupTree(input: CommitBackupTreeInput): Promise<CommitFilesResult>;
 }
+
+/** A built provider: the module's operations plus the host facts its plugin declares. */
+export type SourceControlProvider = SourceControlProviderOperations & SourceControlHostFacts;
 
 /** A transport error, described without leaking it: `refusal` is set (caller-safe text) only when the
  *  egress policy refused the request; `logDetail` is for the server log. */
@@ -159,5 +173,5 @@ export interface SourceControlProviderKit {
 
 /** A provider module's default export. */
 export interface SourceControlProviderModule {
-  create(context: { readonly kit: SourceControlProviderKit }): SourceControlProvider;
+  create(context: { readonly kit: SourceControlProviderKit }): SourceControlProviderOperations;
 }

@@ -18,7 +18,7 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { SiteBackupPlanStore } from "../plan-store.js";
 import type { SiteBackupSources } from "../sources.js";
-import { buildSiteBackupRegistrations, type SiteBackupToolDeps } from "../tool-registrations.js";
+import { buildSiteBackupRegistrations, siteBackupAgentToolCatalog, type SiteBackupToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 
 /**
@@ -801,4 +801,10 @@ test("a credential that becomes unreadable between plan and confirm is CREDENTIA
   assert.equal(result.code, "CREDENTIAL_UNREADABLE");
   assert.doesNotMatch(JSON.stringify(result), /LEAK-SENTINEL/);
   assert.deepEqual(h.github.writes(), []);
+});
+
+test("the site_backup_* tool copy names no host: the host's name, API origin and file limit come from its plugin via source_control_get_capabilities", () => {
+  const copy = JSON.stringify(siteBackupAgentToolCatalog);
+  assert.doesNotMatch(copy, /github|100 MiB/i);
+  assert.match(copy, /source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes/);
 });

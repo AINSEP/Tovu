@@ -1388,6 +1388,8 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         throw new Error(`custom_credential_write_files: ${planResult.message}`);
       }
 
+      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+      if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: WRITE_FILES_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
       const ui = buildWriteFilesConfirmationResource({
         label,

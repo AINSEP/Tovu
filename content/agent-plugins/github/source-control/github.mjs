@@ -35,7 +35,6 @@ export default {
     const writer = createFileWriter(git);
     const backup = createBackupPusher(git);
     return {
-      apiOrigin: GITHUB_API,
       commitSite: createSiteCommitter(kit),
 
       /**

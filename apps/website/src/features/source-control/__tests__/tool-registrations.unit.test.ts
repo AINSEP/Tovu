@@ -151,38 +151,38 @@ test("the catalog's risk map has an entry for every wired tool, matching its dec
   assert.equal(sourceControlDerivedRisk.get("source_control_execute_commit"), "mutates-durable-state");
 });
 
-test("source_control_execute_commit's schema carries no token/credential field of any kind, and 'provider' only accepts 'github'", () => {
+test("source_control_execute_commit's schema carries no token/credential field of any kind, and 'provider' names no host (the registry decides)", () => {
   const entry = sourceControlAgentToolCatalog.find((t) => t.name === "source_control_execute_commit")!;
   const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: boolean; required: string[] };
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(Object.keys(schema.properties).sort(), ["branch", "commitMessage", "dryRun", "owner", "provider", "repo"]);
   assert.deepEqual(schema.required.sort(), ["commitMessage", "owner", "provider", "repo"]);
-  assert.deepEqual((schema.properties.provider as { enum: string[] }).enum, ["github"]);
+  assert.equal((schema.properties.provider as { type: string; enum?: unknown }).type, "string");
+  assert.equal((schema.properties.provider as { enum?: unknown }).enum, undefined);
+  assert.doesNotMatch(JSON.stringify(entry), /github/i, "tool copy names no host; source_control_get_capabilities lists them");
 });
 
 // ---------------------------------------------------------------------------
 // 2. source_control_get_capabilities
 // ---------------------------------------------------------------------------
 
-test("source_control_get_capabilities reports all three providers, honestly distinguishing configured from commitSupported", async () => {
+test("source_control_get_capabilities reports the hosts the registry provides, with their declared facts, honestly distinguishing configured from commitSupported", async () => {
   const { deps } = fakeDeps();
   await seedGithubCredential(deps);
   const surfaceExchanges = createSurfaceExchangeStore();
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "source_control_get_capabilities");
 
-  const result = (await call(capabilities)) as { providers: { providerId: string; configured: boolean; commitSupported: boolean; guidance?: string }[] };
-  const byId = new Map(result.providers.map((p) => [p.providerId, p]));
+  const result = (await call(capabilities)) as { providers: { providerId: string; label?: string; apiOrigin?: string; maxFileBytes?: number; configured: boolean; commitSupported: boolean; guidance?: string }[] };
 
-  assert.equal(byId.get("github")?.configured, true);
-  assert.equal(byId.get("github")?.commitSupported, true);
-  assert.equal(byId.get("github")?.guidance, undefined, "configured AND commit-supported has nothing to tell the human");
-
-  assert.equal(byId.get("gitlab")?.configured, false);
-  assert.equal(byId.get("gitlab")?.commitSupported, false);
-  assert.match(byId.get("gitlab")?.guidance ?? "", /no enabled Agent Plugin supports committing to gitlab/);
-
-  assert.equal(byId.get("bitbucket")?.configured, false);
-  assert.equal(byId.get("bitbucket")?.commitSupported, false);
+  // Only what the registry provides (the github plugin, from source) plus saved hosts: no fixed list.
+  assert.deepEqual(result.providers.map((p) => p.providerId), ["github"]);
+  const github = result.providers[0]!;
+  assert.equal(github.label, "GitHub");
+  assert.equal(github.apiOrigin, "https://api.github.com");
+  assert.equal(github.maxFileBytes, 100 * 1024 * 1024);
+  assert.equal(github.configured, true);
+  assert.equal(github.commitSupported, true);
+  assert.equal(github.guidance, undefined, "configured AND commit-supported has nothing to tell the human");
 });
 
 test("source_control_get_capabilities: a SAVED gitlab credential is still honestly reported as commitSupported:false — never silently omitted, never implied as ready", async () => {
@@ -244,14 +244,14 @@ test("with no emitSurface, the commit is refused outright — no exchange is eve
   assert.equal(surfaceExchanges.size(), 0);
 });
 
-test("an unsupported provider throws before any permission check, dialog, or credential lookup", async () => {
+test("a provider no plugin declares and no credential can be saved for throws before any permission check, dialog, or credential lookup", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
-    () => call(executeTool, { input: { provider: "gitlab", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }),
-    /'provider' must be 'github'/
+    () => call(executeTool, { input: { provider: "not-a-host", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }),
+    { message: "source_control_execute_commit: 'not-a-host' is not a source control host. Hosts: 'github' (see source_control_get_capabilities)." },
   );
   assert.equal(surfaceExchanges.size(), 0);
 });
@@ -269,12 +269,28 @@ test("an unsupported provider is a ToolInputError (400), not a bare Error (redac
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
-    () => call(executeTool, { input: { provider: "gitlab", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }),
+    () => call(executeTool, { input: { provider: "not-a-host", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }),
     (err: unknown) => {
       assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
       return true;
     },
   );
+});
+
+test("a saved gitlab credential with no plugin providing gitlab is refused as 'no-provider' before any dialog", async () => {
+  const { deps } = fakeDeps({ gitAdapter: undefined });
+  await createSourceControlCredential(
+    { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: "GL", connection: { providerId: "gitlab", token: "glpat_secret" } }
+  );
+  const emitted: unknown[] = [];
+  const result = await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit"), { input: { provider: "gitlab", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async (s) => void emitted.push(s) });
+  assert.deepEqual(result, {
+    committed: false,
+    reason: "no-provider",
+    message: "No enabled Agent Plugin provides 'gitlab' source control, and no installed one declares it. Open the admin's Add-Ons > Agent Plugins screen to install or turn on a plugin that provides it.",
+  });
+  assert.equal(emitted.length, 0);
 });
 
 test("an invalid target (bad owner) is a ToolInputError (400), not a bare Error (redacted 500)", async () => {

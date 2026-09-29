@@ -54,6 +54,7 @@ import {
   SITE_BACKUP_DATABASE_PATH,
   SITE_BACKUP_MANIFEST_PATH,
   SITE_BACKUP_SCOPES,
+  type SiteBackupHostLimit,
   type SiteBackupInclude,
   type SiteBackupSources,
 } from "./sources.js";
@@ -61,13 +62,13 @@ import {
 /**
  * @file The two site-backup agent tools: `site_backup_plan` (read-only) and `site_backup_push`
  * (human-confirmed). Together they put the site's content — the database, media, themes, plugins
- * and settings — into ONE folder of a private GitHub repository, in one commit, through a saved
+ * and settings — into ONE folder of a private repository on a plugin-provided git host, in one commit, through a saved
  * custom credential (the same credentials `custom_credential_write_files` uses).
  *
  * Why two calls: the plan does every check that can fail (credential, repository visibility and
  * permissions, branch, folder, database snapshot, sizes) and returns what WOULD be written, so the
  * model can show the human before anything is asked of them. The push then raises the same held-open
- * in-chat confirmation every external GitHub write here uses (`custom_credential_write_files`,
+ * in-chat confirmation every external repository write here uses (`custom_credential_write_files`,
  * `source_control_execute_commit`) and uploads exactly what was planned: the database snapshot is
  * held in memory with the plan (`plan-store.ts`), and each disk file is re-read and refused if it
  * changed since (`readPlannedFile`).
@@ -77,7 +78,7 @@ import {
  *   members, form submissions and admin accounts. Re-checked after the human confirms.
  * - Never a force push, and never a surprise overwrite: the push commits on the PLAN's tip, and a
  *   branch that moved since is refused (`DIVERGED_BRANCH`) before a single blob is uploaded, and
- *   again by GitHub itself on the non-force ref update.
+ *   again by the host itself on the non-force ref update.
  * - The token never leaves the server: not in any result, dialog or log line.
  *
  * Credential errors are split so an operator can act on them: a label with no saved row is
@@ -131,9 +132,9 @@ const PLAN_SCHEMA = {
   properties: {
     credential: {
       type: "string",
-      description: "Label of the saved custom credential to push with. Optional when exactly one saved credential points at https://api.github.com.",
+      description: "Label of the saved custom credential to push with. Optional when exactly one saved credential points at a host's apiOrigin (source_control_get_capabilities lists each host's apiOrigin).",
     },
-    owner: { type: "string", description: "GitHub owner or organization of the target repository." },
+    owner: { type: "string", description: "Owner or organization (the account) of the target repository on the host." },
     repo: { type: "string", description: "Target repository name. It must be PRIVATE and already have at least one commit." },
     branch: { type: "string", description: "Branch to commit to. Optional; defaults to the repository's default branch. Must already exist." },
     folder: {
@@ -156,7 +157,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: PLAN_TOOL_ID,
     description:
-      "Plans a BACKUP OF THIS SITE to a private GitHub repository — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through a saved custom credential (Access Tokens page -> 'Add custom provider', base URL https://api.github.com). Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (no file over GitHub's 100 MiB, at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
+      "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (no file over the host's maxFileBytes, at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
     sideEffects: "none",
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PLAN_SCHEMA,
@@ -164,7 +165,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: SITE_BACKUP_PUSH_TOOL_ID,
     description:
-      "Pushes a backup planned by site_backup_plan to GitHub, in ONE commit. HUMAN-GATED: this one call shows an in-chat confirmation naming the repository, branch, folder, what is included and every file, and WAITS for the human; there is no second call to make. The backup folder is REPLACED as a whole (files no longer on the site disappear from it); nothing outside the folder changes; never a force push. On confirm it re-checks the repository is still private and the branch has not moved, uploads exactly what was planned, and returns {pushed: true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes}. Cancel returns {pushed: false, cancelled: true}; no answer returns {pushed: false, cancelled: false, reason: 'expired' | 'abandoned'}. Failures return {pushed: false, cancelled: false, code, message}: PLAN_NOT_FOUND or PLAN_EXPIRED (a planId works once, for 10 minutes — call site_backup_plan again), DIVERGED_BRANCH (someone pushed to the branch since the plan; nothing was written — plan again), PLAN_STALE (a file changed since the plan — plan again), REPOSITORY_NOT_PRIVATE, CREDENTIAL_NOT_FOUND, CREDENTIAL_UNREADABLE, PROVIDER_ERROR, NETWORK_UNREACHABLE. Do not re-call while a call is pending.",
+      "Pushes a backup planned by site_backup_plan to its repository host, in ONE commit. HUMAN-GATED: this one call shows an in-chat confirmation naming the repository, branch, folder, what is included and every file, and WAITS for the human; there is no second call to make. The backup folder is REPLACED as a whole (files no longer on the site disappear from it); nothing outside the folder changes; never a force push. On confirm it re-checks the repository is still private and the branch has not moved, uploads exactly what was planned, and returns {pushed: true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes}. Cancel returns {pushed: false, cancelled: true}; no answer returns {pushed: false, cancelled: false, reason: 'expired' | 'abandoned'}. Failures return {pushed: false, cancelled: false, code, message}: PLAN_NOT_FOUND or PLAN_EXPIRED (a planId works once, for 10 minutes — call site_backup_plan again), DIVERGED_BRANCH (someone pushed to the branch since the plan; nothing was written — plan again), PLAN_STALE (a file changed since the plan — plan again), REPOSITORY_NOT_PRIVATE, CREDENTIAL_NOT_FOUND, CREDENTIAL_UNREADABLE, PROVIDER_ERROR, NETWORK_UNREACHABLE. Do not re-call while a call is pending.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PUSH_SCHEMA,
@@ -175,7 +176,7 @@ const CATALOG_BY_ID = indexCatalogById(siteBackupAgentToolCatalog);
 
 /** This wiring layer's own risk classification, cross-checked against the catalog's `sideEffects`. */
 export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> a non-decrypting credential list, one decrypting resolve, four read-only GitHub GETs, a
+  // -> a non-decrypting credential list, one decrypting resolve, four read-only host GETs, a
   // database snapshot held in memory (its restore-point file deleted at once), a disk walk, and an
   // in-memory plan. Nothing durable is written anywhere.
   [PLAN_TOOL_ID, "none"],
@@ -271,7 +272,7 @@ function labelList(labels: readonly string[]): string {
 
 /**
  * Picks the credential's label: the one named, or — when none is — the single saved credential
- * pointing at github.com. A pure list read; nothing is decrypted here.
+ * pointing at a provider's API origin. A pure list read; nothing is decrypted here.
  *
  * @complexity O(saved credentials).
  */
@@ -290,7 +291,7 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
     return {
       ok: false,
       code: "CREDENTIAL_NOT_FOUND",
-      message: `no saved credential points at ${where} (${labelList(labels)}). Save a GitHub token on the Access Tokens page ('Add custom provider'), or name one with 'credential'.`,
+      message: `no saved credential points at ${where} (${labelList(labels)}). Save a ${providers.map((provider) => provider.label).join(" or ")} token on the Access Tokens page ('Add custom provider', base URL ${where}), or name one with 'credential'.`,
     };
   }
   return { ok: false, code: "CREDENTIAL_AMBIGUOUS", message: `${matching.length} saved credentials point at ${where} (${labelList(matching)}); name one with 'credential'.` };
@@ -382,7 +383,7 @@ const INSPECT_CODES: Record<string, string> = {
 };
 
 /** A provider failure as this tool's `{code, message}`, logging any server-only detail. */
-function githubRefusal(deps: SiteBackupToolDeps, toolId: string, failure: { readonly code: string; readonly message: string; readonly logDetail?: string }): Refusal {
+function providerRefusal(deps: SiteBackupToolDeps, toolId: string, failure: { readonly code: string; readonly message: string; readonly logDetail?: string }): Refusal {
   logFailureDetail(deps, toolId, failure);
   return { ok: false, code: INSPECT_CODES[failure.code] ?? "PROVIDER_ERROR", message: failure.message };
 }
@@ -394,7 +395,7 @@ async function inspect(
   input: CredentialedRepositoryTarget & { branch?: string; folder: string }
 ): Promise<Extract<InspectBackupRepositoryResult, { ok: true }> | Refusal> {
   const result = await provider.inspectBackupRepository(input);
-  return result.ok ? result : githubRefusal(deps, toolId, result);
+  return result.ok ? result : providerRefusal(deps, toolId, result);
 }
 
 // ---------------------------------------------------------------------------
@@ -528,7 +529,7 @@ async function handlePlan(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): 
   const repo = await inspect(deps, credential.provider, PLAN_TOOL_ID, { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder });
   if (!repo.ok) return { planned: false, code: repo.code, message: repo.message };
 
-  const prepared = await prepareContent(deps, sources, input.include);
+  const prepared = await prepareContent(deps, sources, input.include, credential.provider);
   if (!prepared.ok) return { planned: false, code: prepared.code, message: prepared.message };
 
   const createdAt = (deps.siteBackupNow?.() ?? new Date()).toISOString();
@@ -562,7 +563,7 @@ type PreparedContent = Pick<SiteBackupPlan, "database" | "files" | "skipped" | "
  *
  * @complexity O(database size + site files).
  */
-async function prepareContent(deps: SiteBackupToolDeps, sources: SiteBackupSources, include: SiteBackupInclude): Promise<{ ok: true; content: PreparedContent } | Refusal> {
+async function prepareContent(deps: SiteBackupToolDeps, sources: SiteBackupSources, include: SiteBackupInclude, host: SiteBackupHostLimit): Promise<{ ok: true; content: PreparedContent } | Refusal> {
   let database: PreparedContent["database"] = null;
   if (include.database) {
     const snapshot = await captureDatabaseSnapshot({ dbOps: deps.dbOps, scopeId: SNAPSHOT_SCOPE_ID });
@@ -573,7 +574,7 @@ async function prepareContent(deps: SiteBackupToolDeps, sources: SiteBackupSourc
     database = { bytes: snapshot.bytes, watermarkAtCapture: snapshot.watermarkAtCapture };
   }
   const collected = await collectSiteBackupFiles({ sources, include });
-  const limits = checkSiteBackupLimits([...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...collected.files]);
+  const limits = checkSiteBackupLimits([...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...collected.files], host);
   if (!limits.ok) return { ok: false, code: "LIMIT_EXCEEDED", message: limits.message };
   return { ok: true, content: { database, files: collected.files, skipped: collected.skipped, scopeNotes: collected.scopeNotes, totalBytes: limits.totalBytes } };
 }
@@ -597,6 +598,8 @@ function pushRefusal(refusal: Refusal): PushResult {
  * left waiting on nobody.
  */
 async function askToConfirm(ctx: ToolExecutionContext, surfaces: AssistantSurfaceDeps, plan: SiteBackupPlan, emitSurface: NonNullable<ToolExecutionContext["emitSurface"]>): Promise<{ confirmed: true } | { confirmed: false; result: PushResult }> {
+  // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+  if (ctx.signal.aborted) return { confirmed: false, result: { pushed: false, cancelled: false, reason: "abandoned" } };
   const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: SITE_BACKUP_PUSH_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
   const ui: UIResource = buildConfirmationSurface({ plan, exchangeId: exchange.id });
   const closeOnAbort = () => exchange.close();
@@ -630,7 +633,7 @@ class BlobUploader {
       return { ok: true };
     }
     const uploaded = await this.provider.uploadBackupBlob(this.target, file);
-    if (!uploaded.ok) return githubRefusal(this.deps, SITE_BACKUP_PUSH_TOOL_ID, uploaded);
+    if (!uploaded.ok) return providerRefusal(this.deps, SITE_BACKUP_PUSH_TOOL_ID, uploaded);
     this.shaByHash.set(sha256, uploaded.blob.blobSha);
     this.blobs.push(uploaded.blob);
     return { ok: true };
@@ -709,7 +712,7 @@ async function pushConfirmedPlan(deps: SiteBackupToolDeps, plan: SiteBackupPlan)
     htmlUrl: plan.repository.htmlUrl,
     blobs: uploaded.blobs,
   });
-  if (!committed.ok) return pushRefusal(githubRefusal(deps, SITE_BACKUP_PUSH_TOOL_ID, committed));
+  if (!committed.ok) return pushRefusal(providerRefusal(deps, SITE_BACKUP_PUSH_TOOL_ID, committed));
   return {
     pushed: true,
     commitSha: committed.commitSha,
@@ -728,7 +731,7 @@ const PLAN_TAKE_MESSAGES = {
 } as const;
 
 /**
- * The push: take the plan (single-use), raise the dialog, and only on confirm touch GitHub.
+ * The push: take the plan (single-use), raise the dialog, and only on confirm touch the host.
  *
  * @complexity O(1) until confirmed; then see {@link pushConfirmedPlan}.
  */

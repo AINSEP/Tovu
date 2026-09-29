@@ -215,35 +215,49 @@ test("a database whose restore mechanism is not a cheap file snapshot is refused
 });
 
 // ---------------------------------------------------------------------------
-// Limits — GitHub's 100 MiB per-file ceiling, plus count/total bounds
+// Limits — the host's declared per-file ceiling (GitHub: 100 MiB), plus count/total bounds
 // ---------------------------------------------------------------------------
 
-test("a file over GitHub's 100 MiB limit is refused, naming the file and its size — never truncated", () => {
-  const result = checkSiteBackupLimits([
-    { path: "database/content.db", bytes: SITE_BACKUP_LIMITS.maxFileBytes + 1 },
-    { path: "uploads/small.png", bytes: 10 },
-  ]);
+/** What the bundled github plugin declares in tovu-source-control.json. */
+const GITHUB_HOST = { label: "GitHub", maxFileBytes: 100 * 1024 * 1024 };
+
+test("a file over GitHub's 100 MiB limit is refused, naming the host, the file and its size — never truncated", () => {
+  const result = checkSiteBackupLimits(
+    [
+      { path: "database/content.db", bytes: GITHUB_HOST.maxFileBytes + 1 },
+      { path: "uploads/small.png", bytes: 10 },
+    ],
+    GITHUB_HOST,
+  );
   assert.equal(result.ok, false);
   if (result.ok) return;
   assert.match(result.message, /database\/content\.db/);
-  assert.match(result.message, /100 MiB/);
+  assert.match(result.message, /GitHub's 100 MiB per-file limit/);
   assert.doesNotMatch(result.message, /small\.png/);
 });
 
 test("exactly 100 MiB is allowed; the total is summed", () => {
-  const result = checkSiteBackupLimits([
-    { path: "a", bytes: SITE_BACKUP_LIMITS.maxFileBytes },
-    { path: "b", bytes: 5 },
-  ]);
-  assert.deepEqual(result, { ok: true, totalBytes: SITE_BACKUP_LIMITS.maxFileBytes + 5 });
+  const result = checkSiteBackupLimits(
+    [
+      { path: "a", bytes: GITHUB_HOST.maxFileBytes },
+      { path: "b", bytes: 5 },
+    ],
+    GITHUB_HOST,
+  );
+  assert.deepEqual(result, { ok: true, totalBytes: GITHUB_HOST.maxFileBytes + 5 });
+});
+
+test("a host that declares no per-file limit gets no per-file check, only this tool's own caps", () => {
+  const result = checkSiteBackupLimits([{ path: "big", bytes: 200 * 1024 * 1024 }], { label: "Other Host" });
+  assert.deepEqual(result, { ok: true, totalBytes: 200 * 1024 * 1024 });
 });
 
 test("too many files, or too many bytes in total, is refused with the cap named", () => {
   const many = Array.from({ length: 4 }, (_, i) => ({ path: `f${i}`, bytes: 1 }));
-  const countResult = checkSiteBackupLimits(many, { ...SITE_BACKUP_LIMITS, maxFiles: 3 });
+  const countResult = checkSiteBackupLimits(many, GITHUB_HOST, { ...SITE_BACKUP_LIMITS, maxFiles: 3 });
   assert.equal(countResult.ok, false);
   if (!countResult.ok) assert.match(countResult.message, /4 files/);
-  const totalResult = checkSiteBackupLimits(many, { ...SITE_BACKUP_LIMITS, maxTotalBytes: 3 });
+  const totalResult = checkSiteBackupLimits(many, GITHUB_HOST, { ...SITE_BACKUP_LIMITS, maxTotalBytes: 3 });
   assert.equal(totalResult.ok, false);
 });
 

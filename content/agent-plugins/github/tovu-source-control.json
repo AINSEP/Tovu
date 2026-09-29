@@ -4,6 +4,8 @@
     {
       "id": "github",
       "label": "GitHub",
+      "apiOrigin": "https://api.github.com",
+      "maxFileBytes": 104857600,
       "module": "source-control/github.mjs"
     }
   ]

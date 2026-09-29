@@ -8,7 +8,7 @@ import { firstExportFailure, type ExportReport } from "#src/features/site-export
 
 import type { CommitFile, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";
-import type { SourceControlCredentialSetRepoPort } from "./types.js";
+import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
 /**
  * @file The `source-control` domain's "business" layer — everything `source_control_execute_commit`
@@ -144,6 +144,9 @@ export type SourceControlCommitOutcome =
     };
 
 export interface CommitSiteDeps {
+  /** The host committed to: whose saved default credential is resolved, and whose plugin provider
+   *  {@link gitAdapter} is. */
+  readonly providerId: SourceControlProviderId;
   readonly credentialDeps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort; keyring?: KeyringPort };
   /** The plugin provider's `commitSite` (`tool-registrations.ts` resolves it) — tests inject a fake
    *  here instead of touching `fetch`. Omitted, the commit fails loudly as a wiring bug. */
@@ -276,11 +279,12 @@ type CommitCredentialResult =
  */
 async function resolveCommitCredential(
   credentialDeps: CommitSiteDeps["credentialDeps"],
-  workspaceId: UUID
+  workspaceId: UUID,
+  providerId: SourceControlProviderId,
 ): Promise<CommitCredentialResult> {
   let credential: Awaited<ReturnType<typeof resolveDefaultForSourceControl>>;
   try {
-    credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId, providerId: "github" });
+    credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId, providerId });
   } catch (err) {
     // `resolveDefaultForSourceControl`'s own doc documents this as a real, deliberate possibility
     // (`store.ts`'s `decryptRecord`: a decrypt failure throws rather than degrading to `null`) — this
@@ -300,16 +304,16 @@ async function resolveCommitCredential(
     return {
       ok: false,
       code: "NO_CREDENTIALS_CONFIGURED",
-      message: "No source control credential is configured for 'github'. Connect one in the admin's Source Control page first.",
+      message: `No source control credential is configured for '${providerId}'. Connect one in the admin's Source Control page first.`,
     };
   }
-  if (credential.connection.providerId !== "github") {
-    // Unreachable in practice — `resolveDefaultForSourceControl` was called with `providerId: "github"`,
+  if (credential.connection.providerId !== providerId) {
+    // Unreachable in practice — `resolveDefaultForSourceControl` was called with this `providerId`,
     // so `findDefaultByProvider` can only ever return a row already stored under that same provider
     // (the write path never lets `record.providerId` disagree with the group it was inserted into).
     // Kept as an explicit, typed guard rather than a cast, so a future bug in that invariant fails
-    // loudly here instead of forwarding a GitLab/Bitbucket token to a GitHub API call.
-    return { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "The resolved default credential is not a 'github' connection." };
+    // loudly here instead of forwarding one host's token to another host's API.
+    return { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `The resolved default credential is not a '${providerId}' connection.` };
   }
   return { ok: true, credential: { token: credential.connection.token } };
 }
@@ -408,7 +412,7 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   const configError = validateCommitTarget(input);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
 
-  const credentialResult = await resolveCommitCredential(deps.credentialDeps, input.workspaceId);
+  const credentialResult = await resolveCommitCredential(deps.credentialDeps, input.workspaceId, deps.providerId);
   if (!credentialResult.ok) return credentialResult;
 
   const exportResult = await exportForCommit(input);

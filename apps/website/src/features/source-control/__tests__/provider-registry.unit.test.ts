@@ -11,7 +11,7 @@ import { recordBundledAgentPluginDigests } from "#src/features/agent-plugins/bun
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
-import { loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
+import { buildLoadedSourceControlProvider, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
 import type { SourceControlProvider } from "../provider-module.js";
 
 /**
@@ -26,7 +26,7 @@ const WORKSPACE_ID = "workspace-local";
 
 const FIXTURE_MODULE = `export default {
   create() {
-    return { id: "fixture-git", apiOrigin: "https://git.fixture.test" };
+    return { readAccountLabel: async () => "fixture-account" };
   },
 };
 `;
@@ -49,7 +49,7 @@ function descriptorJson(providers: readonly Record<string, unknown>[]): string {
 }
 
 const FIXTURE_FILES = {
-  [SOURCE_CONTROL_PROVIDERS_FILENAME]: descriptorJson([{ id: "fixture-git", label: "Fixture Git", module: "source-control/fixture.mjs" }]),
+  [SOURCE_CONTROL_PROVIDERS_FILENAME]: descriptorJson([{ id: "fixture-git", label: "Fixture Git", apiOrigin: "https://git.fixture.test", maxFileBytes: 1024, module: "source-control/fixture.mjs" }]),
   "source-control/fixture.mjs": FIXTURE_MODULE,
 };
 
@@ -100,7 +100,10 @@ test("lists a provider from an enabled, Tovu-bundled plugin and builds it from i
 
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(registry.list().map((loaded) => [loaded.descriptor.id, loaded.descriptor.label, loaded.pluginId]), [["fixture-git", "Fixture Git", "fixture-git"]]);
-    assert.equal(registry.get("fixture-git")?.module.create({ kit: {} as never }).apiOrigin, "https://git.fixture.test");
+    const provider = buildLoadedSourceControlProvider(registry.get("fixture-git")!, {} as never);
+    // The host facts come from the plugin's DECLARED descriptor, the operations from its module.
+    assert.deepEqual([provider.id, provider.label, provider.apiOrigin, provider.maxFileBytes], ["fixture-git", "Fixture Git", "https://git.fixture.test", 1024]);
+    assert.equal(await provider.readAccountLabel("t"), "fixture-account");
     assert.deepEqual([...(registry.switchedOff ?? [])], []);
   });
 });
@@ -140,8 +143,8 @@ test("a module without create() is refused, and a module path escaping the plugi
   await withWorkspace(async (workspaceRoot) => {
     const digest = await installPackage("fixture-git", {
       [SOURCE_CONTROL_PROVIDERS_FILENAME]: descriptorJson([
-        { id: "no-create", label: "No Create", module: "source-control/empty.mjs" },
-        { id: "escapes", label: "Escapes", module: "../x.mjs" },
+        { id: "no-create", label: "No Create", apiOrigin: "https://a.test", module: "source-control/empty.mjs" },
+        { id: "escapes", label: "Escapes", apiOrigin: "https://b.test", module: "../x.mjs" },
       ]),
       "source-control/empty.mjs": "export default {};\n",
     });
@@ -157,13 +160,19 @@ test("a module without create() is refused, and a module path escaping the plugi
   });
 });
 
-test("parseSourceControlProvidersFile rejects bad JSON, a bad schema version, a non-.mjs module, an empty label and a duplicate id", () => {
+test("parseSourceControlProvidersFile rejects bad JSON, a bad schema version, a non-.mjs module, an empty label, a duplicate id, a bad apiOrigin and a bad maxFileBytes", () => {
   assert.deepEqual(parseSourceControlProvidersFile("{"), { ok: false, reason: "not valid JSON" });
   assert.deepEqual(parseSourceControlProvidersFile(JSON.stringify({ schemaVersion: 2, providers: [] })), { ok: false, reason: "schemaVersion must be 1" });
-  const entry = { id: "a", label: "A", module: "a.mjs" };
+  const entry = { id: "a", label: "A", apiOrigin: "https://a.test", module: "a.mjs" };
   assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, module: "a.js" }])), { ok: false, reason: "providers[0].module must be a relative path ending in .mjs" });
   assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, label: "" }])), { ok: false, reason: "providers[0].label must be a non-empty string" });
   assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([entry, entry])), { ok: false, reason: "providers[1].id 'a' is declared twice" });
+  for (const apiOrigin of ["http://a.test", "https://a.test/api", "not a url", undefined]) {
+    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, apiOrigin }])), { ok: false, reason: "providers[0].apiOrigin must be an https origin with no path" });
+  }
+  for (const maxFileBytes of [0, -1, 1.5, "100"]) {
+    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, maxFileBytes }])), { ok: false, reason: "providers[0].maxFileBytes must be a positive integer" });
+  }
 });
 
 test("pickSourceControlProviderForApi matches by API origin, falls back to a sole provider, and otherwise says why", () => {

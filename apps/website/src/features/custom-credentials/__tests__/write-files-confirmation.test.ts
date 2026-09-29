@@ -454,9 +454,8 @@ test("a cancelled run abandons the dialog and reports {executed:false, cancelled
   const controller = new AbortController();
 
   const pending = call(writeTool, { emitSurface: async () => undefined, signal: controller.signal });
-  for (let tick = 0; tick < 1000 && surfaceExchanges.size() === 0; tick += 1) await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(surfaceExchanges.size(), 1);
-
+  // One tick only, deliberately: the abort can land before the exchange opens, and must still resolve.
+  await new Promise((resolve) => setImmediate(resolve));
   controller.abort();
 
   const result = await pending;
