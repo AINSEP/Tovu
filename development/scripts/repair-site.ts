@@ -70,11 +70,11 @@ function parseArgs(argv: readonly string[]): Args {
   };
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
   if (!args.apply) {
-    const plan = planRepairSite({ dir: args.dir, name: args.name });
+    const plan = await planRepairSite({ dir: args.dir, name: args.name });
     console.log(`DRY RUN — repairSite would write into ${plan.dir}:`);
     console.log(`  config.json      -> ${JSON.stringify(plan.config)}`);
     console.log(`  .site-meta.json  -> ${JSON.stringify(plan.meta)}`);
@@ -82,14 +82,14 @@ function main(): void {
     return;
   }
 
-  const result = repairSite({ dir: args.dir, name: args.name });
+  const result = await repairSite({ dir: args.dir, name: args.name });
   console.log(`Repaired site at ${result.dir}`);
   console.log(`  siteId=${result.siteId} schemaVersion=${result.schemaVersion} schemaTag=${result.schemaTag}`);
   console.log("config.json and .site-meta.json are now written — listSites()/tovu serve will recognize this directory.");
 }
 
 try {
-  main();
+  await main();
 } catch (err) {
   if (err instanceof SiteRepairRefusedError) {
     console.error(`REFUSED (${err.reason}): ${err.message}`);

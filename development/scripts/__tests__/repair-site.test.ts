@@ -53,6 +53,8 @@ test("repair-site.ts: dry run (no --apply) prints the plan and writes NOTHING", 
 
   assert.equal(status, 0);
   assert.match(output, /DRY RUN/);
+  assert.ok(output.includes(`would write into ${dir}:`), `the plan must be awaited, got output:\n${output}`);
+  assert.match(output, /\.site-meta\.json {2}-> \{"/);
   assert.match(output, /Nothing was written/);
   assert.equal(fs.existsSync(path.join(dir, "config.json")), false, "a dry run must never write config.json");
   assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false, "a dry run must never write .site-meta.json");
@@ -64,7 +66,7 @@ test("repair-site.ts: --apply writes real, readable marker files", () => {
   const { status, output } = run(["--dir", dir, "--name", "Script Test Site", "--apply"]);
 
   assert.equal(status, 0, `expected exit 0, got output:\n${output}`);
-  assert.match(output, /Repaired site at/);
+  assert.ok(output.includes(`Repaired site at ${dir}`), `the repair must be awaited, got output:\n${output}`);
 
   const config = JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8"));
   assert.equal(config.name, "Script Test Site");
