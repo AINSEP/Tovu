@@ -12,7 +12,7 @@ import { type RawBuilder, sql } from "kysely";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
-import { PgliteOwnerLockedError } from "#src/platform/db/kernel/drivers/pglite-owner";
+import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE, PgliteOwnerLockedError } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { bootSiteDir, closeSiteDirBoot, type BootSiteDirResult } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
@@ -27,8 +27,8 @@ import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, type SiteStore } fr
  * the data dir, it connects to the owner's socket and sees the API's writes.
  *
  * Booted the `tovu serve <dir>` way: `bootSiteDir` opens the store (owner), `createSiteRouteDeps`
- * runs on it (`overrides.store`), `closeSiteDirBoot` stops serving. The socket lives in a short temp
- * dir named by `TOVU_PG_SOCKET` (what the daemon supervisor passes).
+ * runs on it (`overrides.store`), `closeSiteDirBoot` stops serving. The owner serves the socket derived
+ * from its data dir; clients read it from `TOVU_PG_SOCKET` (what the daemon supervisor passes).
  */
 
 const execFileAsync = promisify(execFile);
@@ -44,8 +44,8 @@ const savedSocketEnv = process.env[PG_SOCKET_ENV];
 before(async () => {
   parent = fs.mkdtempSync(path.join(os.tmpdir(), "r1f-pglite-site-"));
   siteDir = path.join(parent, "site");
-  socketDir = fs.mkdtempSync("/tmp/r1f-");
-  socketPath = path.join(socketDir, ".s.PGSQL.5432");
+  socketDir = defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME));
+  socketPath = path.join(socketDir, PGLITE_SOCKET_FILE);
   process.env[PG_SOCKET_ENV] = socketPath;
   // `tovu init --storage pglite`: the data dir at head with the starter template, store closed.
   await initSite({ dir: siteDir, name: SITE_NAME, storage: { kind: "pglite" } });
@@ -159,7 +159,7 @@ test("owner boot: PGlite data dir in the site folder, no SQLite store, routes re
   assert.ok(fs.existsSync(path.join(siteDir, PGLITE_DATA_DIR_NAME)), "the data dir is <site>/pglite");
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), false, "no content.db");
   assert.equal(fs.existsSync(path.join(siteDir, "chat.db")), false, "no chat.db");
-  assert.ok(fs.existsSync(socketPath), "the owner serves the socket TOVU_PG_SOCKET names");
+  assert.ok(fs.existsSync(socketPath), "the owner serves the socket derived from its data dir");
 
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const ws = `/api/admin/v1/workspaces/${deps.workspaceId}`;

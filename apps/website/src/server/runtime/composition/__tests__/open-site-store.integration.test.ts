@@ -4,10 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { createSiteRouteDeps } from "../deps.js";
-import { openSiteStore, PG_SOCKET_ENV, StorageNotAvailableError } from "../open-site-store.js";
+import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, StorageNotAvailableError } from "../open-site-store.js";
 import { StorageSecretError } from "../storage-secret.js";
 
 /**
@@ -16,6 +17,8 @@ import { StorageSecretError } from "../storage-secret.js";
  * Outcome Matrix:
  *   Given sqlite storage                         -> content + chat kernels over content.db / chat.db
  *   Given pglite, client role, no owner serving   -> StorageNotAvailableError naming the socket, nothing created
+ *   Given pglite, owner role, TOVU_PG_SOCKET set  -> the owner ignores it, serves its data dir's own socket,
+ *                                                    and leaves the named (another site's) socket alone
  *   Given postgres storage with no secret         -> StorageSecretError naming where to look, nothing created
  *   (Postgres opening for real: `create-site-route-deps.postgres.test.ts`.)
  *   (PGlite opening for real: `create-site-route-deps.pglite.integration.test.ts`.)
@@ -94,6 +97,29 @@ test("a pglite client (the agent daemon) with no owner serving is refused after 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(socketDir, { recursive: true, force: true });
+  }
+});
+
+test("a pglite owner ignores an inherited TOVU_PG_SOCKET: it serves its own data dir's socket and never unlinks the one named", async () => {
+  const dir = mkSiteDir();
+  const foreignDir = fs.mkdtempSync(path.join(os.tmpdir(), "r1f-foreign-sock-"));
+  const foreignSocket = path.join(foreignDir, ".s.PGSQL.5432");
+  fs.writeFileSync(foreignSocket, "another site's live socket");
+  try {
+    const store = await openSiteStore(
+      { storage: { kind: "pglite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" },
+      { env: { [PG_SOCKET_ENV]: foreignSocket } }
+    );
+    try {
+      const expected = path.join(defaultPgliteSocketDir(path.join(dir, PGLITE_DATA_DIR_NAME)), PGLITE_SOCKET_FILE);
+      assert.equal(store.pgliteSocketPath, expected);
+      assert.equal(fs.readFileSync(foreignSocket, "utf8"), "another site's live socket");
+    } finally {
+      await store.close();
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(foreignDir, { recursive: true, force: true });
   }
 });
 

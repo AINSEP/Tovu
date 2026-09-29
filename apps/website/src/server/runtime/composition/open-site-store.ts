@@ -33,8 +33,9 @@ import { resolvePostgresConnectionString } from "./storage-secret.js";
  *   (`owner`) opens it and serves it on a private Unix socket (`startPgliteOwner`); every query,
  *   the owner's own included, goes through that socket with one connection
  *   (`openPgliteSocketKernel`). The agent daemon (`client`) never opens the data dir: it waits for
- *   the owner's socket, then connects the same way. The socket path is {@link PG_SOCKET_ENV} when
- *   set (the daemon supervisor passes the owner's), else derived from the data dir.
+ *   the owner's socket, then connects the same way. The owner's socket path is always derived from
+ *   the data dir; a client uses {@link PG_SOCKET_ENV} when set (the daemon supervisor passes the
+ *   owner's), else the same derived path.
  * The journal (`ops/database-journal.db`) is not part of the store: it is SQLite on every kind.
  */
 
@@ -81,7 +82,7 @@ export interface OpenSiteStoreRequired {
 export interface OpenSiteStoreOptional {
   /** An already opened, migrated and prepared content.db (the install-dir `serve` path). SQLite only. */
   db?: ContentDb;
-  /** Postgres: where `secretRef: { env }` is read; PGlite: where {@link PG_SOCKET_ENV} is (default `process.env`). */
+  /** Postgres: where `secretRef: { env }` is read; PGlite: where a client reads {@link PG_SOCKET_ENV} (default `process.env`). */
   env?: NodeJS.ProcessEnv;
   /** PGlite client: how long to wait for the owner's socket (default 60 s). */
   pgliteClientWaitMs?: number;
@@ -152,11 +153,12 @@ async function openPgliteSiteStore(
 ): Promise<SiteStore> {
   if (optional.db !== undefined) throw new Error("openSiteStore: a caller-supplied SQLite db cannot back a pglite site");
   const dataDir = join(dirname(required.dbPath), PGLITE_DATA_DIR_NAME);
+  // The env is a client-only input. The owner always serves the socket derived from its own data
+  // dir: it unlinks whatever sits at its socket path, which is only safe when that path is its own.
   const fromEnv = (optional.env ?? process.env)[PG_SOCKET_ENV]?.trim();
-  const socketDir = fromEnv ? dirname(fromEnv) : defaultPgliteSocketDir(dataDir);
   let owner: PgliteOwner | undefined;
-  if (required.role === "owner") owner = await startPgliteOwner({ dataDir }, { socketDir });
-  const socketPath = owner?.socketPath ?? join(socketDir, PGLITE_SOCKET_FILE);
+  if (required.role === "owner") owner = await startPgliteOwner({ dataDir }, { socketDir: defaultPgliteSocketDir(dataDir) });
+  const socketPath = owner?.socketPath ?? (fromEnv || join(defaultPgliteSocketDir(dataDir), PGLITE_SOCKET_FILE));
   const stopOwner = async () => {
     await owner?.close();
   };

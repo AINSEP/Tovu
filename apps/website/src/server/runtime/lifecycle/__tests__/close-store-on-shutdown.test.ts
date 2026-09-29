@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { OWNER_LOCK_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
 import type { SiteStorage } from "#src/platform/site-dir/types";
-import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME } from "#src/server/runtime/composition/open-site-store";
+import { openSiteStore, PGLITE_DATA_DIR_NAME } from "#src/server/runtime/composition/open-site-store";
 import { closeStoreOnShutdown, type ShutdownProcess } from "../close-store-on-shutdown.js";
 
 /**
@@ -117,13 +117,14 @@ test("a normal exit (the event loop drains) closes the store without calling exi
 
 test("a real PGlite owner: SIGINT releases the socket file and the owner lock before the process exits", async () => {
   const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "r1f2-shutdown-"));
-  const socketDir = fs.mkdtempSync("/tmp/r1f2-");
-  const socketPath = path.join(socketDir, ".s.PGSQL.5432");
   try {
-    const store = await openSiteStore(
-      { storage: { kind: "pglite" }, dbPath: path.join(siteDir, "content.db"), chatDbPath: path.join(siteDir, "chat.db"), role: "owner" },
-      { env: { [PG_SOCKET_ENV]: socketPath } }
-    );
+    const store = await openSiteStore({
+      storage: { kind: "pglite" },
+      dbPath: path.join(siteDir, "content.db"),
+      chatDbPath: path.join(siteDir, "chat.db"),
+      role: "owner",
+    });
+    const socketPath = store.pgliteSocketPath!;
     const lockPath = path.join(siteDir, PGLITE_DATA_DIR_NAME, OWNER_LOCK_FILE);
     assert.ok(fs.existsSync(socketPath) && fs.existsSync(lockPath), "the owner serves and holds the lock");
 
@@ -137,6 +138,5 @@ test("a real PGlite owner: SIGINT releases the socket file and the owner lock be
     assert.deepEqual(seenAtExit, [false, false], "socket and lock are gone by the time exit is called");
   } finally {
     fs.rmSync(siteDir, { recursive: true, force: true });
-    fs.rmSync(socketDir, { recursive: true, force: true });
   }
 });
