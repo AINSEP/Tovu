@@ -8,6 +8,7 @@ import {
   validateStaticPublishConfig,
   type StaticPublishConfig,
 } from "#src/features/deployments/static-publish/index";
+import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -273,7 +274,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // settles, so a poller can never observe a stale "running" snapshot after the promise has
       // actually settled.
       const snapshot = startPublishRun(
-        { credentialSource },
+        { credentialSource, loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }) },
         {
           workspaceId: deps.workspaceId,
           publishOutputRootDir: deps.publishOutputRootDir,

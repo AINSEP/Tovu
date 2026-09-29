@@ -10,7 +10,12 @@ import {
   type DeployFile,
   type DeployPublishResult,
   type DeployTarget,
+  type JsonObject,
 } from "@jini-ai/devops/deploy";
+
+import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import type { DeployHostKit, DeployTargetRegistry, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 import type { ExportReport } from "#src/features/site-export/index";
 /**
@@ -342,6 +347,13 @@ export interface StaticPublishDeps {
    *  (the real Jini adapters) when omitted — tests inject a fake here instead of touching
    *  GitHub/Vercel or global `fetch`. */
   readonly buildTarget?: (config: StaticPublishConfig, credential: ResolvedPublishCredential) => DeployTarget;
+  /** This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`). A target id
+   *  the registry knows is built by its plugin module; every other id keeps the legacy branches in
+   *  {@link buildJiniTarget} (deploy plan T2, strangler). Omitted: legacy only. Ignored when
+   *  {@link buildTarget} is supplied, which stays the whole target-construction test seam. */
+  readonly loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  /** The kit handed to a plugin module. Defaults to {@link createDeployHostKit}; tests inject one. */
+  readonly hostKit?: DeployHostKit;
 }
 
 /**
@@ -490,8 +502,10 @@ const SECURITY_HEADER_FILES: Partial<Record<StaticPublishTargetId, () => DeployF
 /** Maps a successful export `report` to the `DeployFile[]` a Jini target's `publish()` takes,
  *  injecting `.nojekyll` for the github-pages target only — see this file's header for why — and
  *  the target's security-header file where its host has one. */
-function buildDeployFilesForPublish(report: ExportReport, target: StaticPublishTargetId): DeployFile[] {
+function buildDeployFilesForPublish(report: ExportReport, target: StaticPublishTargetId, pluginTarget: boolean): DeployFile[] {
   const files: DeployFile[] = [...report.routes.succeeded.map(toDeployFile), ...report.assets.succeeded.map(toDeployFile)];
+  // A plugin module owns its host's extra files; it gets the headers as `responseHeaders` instead.
+  if (pluginTarget) return files;
   if (target === "github-pages") {
     files.push(NOJEKYLL_FILE);
   }
@@ -589,12 +603,12 @@ function buildSuccessPublishOutcome(targetId: StaticPublishTargetId, result: Dep
  */
 async function publishAndMapOutcome(
   jiniTarget: DeployTarget,
-  files: DeployFile[],
+  publishInput: HostDeployPublishInput,
   input: StaticPublishInput,
   basePath: string | undefined
 ): Promise<StaticPublishOutcome> {
   try {
-    const result = await jiniTarget.publish({ files, projectName: input.projectName });
+    const result = await jiniTarget.publish(publishInput);
     if (result.status !== "ready") {
       return buildPartialPublishOutcome(input.config.target, result, basePath);
     }
@@ -644,12 +658,18 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     return { ok: false, code: "INVALID_CONFIG", message: `projectName must be 1-${MAX_PROJECT_NAME_LENGTH} characters` };
   }
 
+  const pluginTarget = await resolvePluginTarget(deps, input);
+  const pluginConfigError = pluginTarget?.module.validateConfig?.(input.config as unknown as JsonObject);
+  if (pluginConfigError) {
+    return { ok: false, code: "INVALID_CONFIG", message: pluginConfigError };
+  }
+
   const credentialResult = await resolvePublishCredentialForSite(deps, input);
   if (!credentialResult.ok) {
     return credentialResult.outcome;
   }
 
-  const basePath = computeBasePath(input.config);
+  const basePath = pluginTarget ? pluginTarget.module.basePath?.(input.config as unknown as JsonObject) : computeBasePath(input.config);
   const outputDir = publishOutputDir(input.publishOutputRootDir, input.config.target, input.idGen.newId());
 
   const exportResult = await runExportForPublish(input, outputDir, basePath);
@@ -657,13 +677,58 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     return exportResult.outcome;
   }
 
-  const files = buildDeployFilesForPublish(exportResult.report, input.config.target);
+  const files = buildDeployFilesForPublish(exportResult.report, input.config.target, pluginTarget !== undefined);
   const resolvedCredential = buildResolvedPublishCredential(credentialResult.credential);
 
-  const targetResult = constructJiniTargetForPublish(deps, input.config, resolvedCredential);
+  const targetResult = pluginTarget
+    ? constructPluginTargetForPublish(deps, pluginTarget, input.config, resolvedCredential)
+    : constructJiniTargetForPublish(deps, input.config, resolvedCredential);
   if (!targetResult.ok) {
     return targetResult.outcome;
   }
 
-  return publishAndMapOutcome(targetResult.target, files, input, basePath);
+  const publishInput: HostDeployPublishInput = pluginTarget
+    ? { files, projectName: input.projectName, responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS }
+    : { files, projectName: input.projectName };
+  return publishAndMapOutcome(targetResult.target, publishInput, input, basePath);
+}
+
+/**
+ * The plugin-contributed target for this publish, or `undefined` for the legacy branches: when no
+ * registry loader is wired, when {@link StaticPublishDeps.buildTarget} (the test seam) is supplied,
+ * when the registry does not know this id, or when the registry itself fails to load. A load
+ * failure and every registry refusal are logged, never returned: a broken plugin must not stop a
+ * publish the legacy path can still make, while those paths exist.
+ *
+ * @complexity One registry load (see `loadDeployTargetRegistry`).
+ */
+async function resolvePluginTarget(deps: StaticPublishDeps, input: StaticPublishInput): Promise<LoadedDeployTarget | undefined> {
+  if (deps.buildTarget !== undefined || deps.loadDeployTargets === undefined) return undefined;
+  let registry: DeployTargetRegistry;
+  try {
+    registry = await deps.loadDeployTargets(input.workspaceId);
+  } catch (err) {
+    console.warn(`[static-publish] deploy-target registry failed to load, using the built-in targets: ${err instanceof Error ? err.message : String(err)}`);
+    return undefined;
+  }
+  for (const refusal of registry.refusals) console.warn(`[static-publish] ${refusal}`);
+  return registry.get(input.config.target);
+}
+
+/** {@link constructJiniTargetForPublish}'s plugin twin: builds the target from the plugin module,
+ *  with a thrown error mapped to the same `NO_CREDENTIALS_CONFIGURED` outcome the legacy builders
+ *  use for an unusable credential. @complexity O(1) plus the module's own `create`. */
+function constructPluginTargetForPublish(
+  deps: StaticPublishDeps,
+  pluginTarget: LoadedDeployTarget,
+  config: StaticPublishConfig,
+  credential: ResolvedPublishCredential
+): { ok: true; target: DeployTarget } | { ok: false; outcome: StaticPublishOutcome } {
+  try {
+    const kit = deps.hostKit ?? createDeployHostKit();
+    return { ok: true, target: pluginTarget.module.create({ credential, config: config as unknown as JsonObject, kit }) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${config.target}: ${message}` } };
+  }
 }

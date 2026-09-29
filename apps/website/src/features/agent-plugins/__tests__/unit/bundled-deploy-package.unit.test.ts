@@ -1,0 +1,90 @@
+import assert from "node:assert/strict";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { forceRemove } from "../fixtures/force-remove.js";
+import { setAgentPluginActivation } from "../../activation.js";
+import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
+
+/**
+ * @file The bundled `deploy` Agent Plugin's package: valid, installable, and — the part no other
+ * bundled plugin has — its deploy-target modules actually load from the installed, frozen digest
+ * directory through the real seeder and the real registry. That last test is the dev-path check for
+ * the plan's packaging risk (a module imported from `packages/sha256/<digest>/`).
+ */
+
+const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+const PACKAGE_ROOT = path.join(CONTENT_ROOT, "deploy");
+const WORKSPACE_ID = "workspace-local";
+
+async function readPackageJson(relativePath: string): Promise<unknown> {
+  return JSON.parse(await readFile(path.join(PACKAGE_ROOT, relativePath), "utf8"));
+}
+
+test("plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings", async () => {
+  const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.ok && parsed.manifest.name, "deploy");
+  assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
+});
+
+test("mcp.json declares ZERO servers — hosts run in-process through the deploy-target registry", async () => {
+  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.ok ? parsed.config.serverIds : ["unreachable"], []);
+});
+
+test("the eponymous skill exists and names the host it can publish to", async () => {
+  const skill = await readFile(path.join(PACKAGE_ROOT, "skills", "deploy", "SKILL.md"), "utf8");
+  assert.match(skill, /^---\nname: deploy\n/);
+  assert.match(skill, /Netlify/);
+});
+
+test("target ids are byte-identical to the legacy provider ids (sealed credentials bind to them)", async () => {
+  const descriptor = (await readPackageJson(DEPLOY_TARGETS_FILENAME)) as { targets: { id: string; module: string }[] };
+  const legacyIds = new Set(["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"]);
+  for (const target of descriptor.targets) assert.ok(legacyIds.has(target.id), `'${target.id}' is not a legacy provider id`);
+  assert.deepEqual(
+    descriptor.targets.map((target) => [target.id, target.module]),
+    [["netlify", "targets/netlify.mjs"]],
+  );
+});
+
+test("the package packs through the real packer with its descriptor and modules", async () => {
+  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  for (const file of ["plugin.json", "mcp.json", DEPLOY_TARGETS_FILENAME, "targets/netlify.mjs", "skills/deploy/SKILL.md"]) {
+    assert.ok(packed.files.includes(file), `${file} must survive packing`);
+  }
+});
+
+test("seeded by the real seeder and enabled, the registry loads Netlify from the installed digest", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-deploy-plugin-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  try {
+    const layout = resolveAgentPluginLayout();
+    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "deploy")?.status, "seeded");
+
+    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    assert.equal((await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID })).get("netlify"), undefined, "bundled plugins seed disabled");
+
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: true, actor: "test" });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual(registry.refusals, []);
+    const netlify = registry.get("netlify");
+    assert.equal(netlify?.pluginId, "deploy");
+    assert.equal(netlify?.descriptor.label, "Netlify");
+    assert.equal(typeof netlify?.module.create, "function");
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+});

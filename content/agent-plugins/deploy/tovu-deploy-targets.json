@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "targets": [
+    { "id": "netlify", "label": "Netlify", "module": "targets/netlify.mjs" }
+  ]
+}

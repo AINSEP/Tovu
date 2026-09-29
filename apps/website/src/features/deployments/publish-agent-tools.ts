@@ -116,6 +116,7 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_P
 // redacting it into a message-stripped 500.
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
+import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
 // file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
@@ -1227,7 +1228,11 @@ async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: Publ
   }
 
   const outcome = await runPublishAndAwait(
-    { credentialSource: ctx.credentialSource, ...(ctx.deps.buildTarget !== undefined ? { buildTarget: ctx.deps.buildTarget } : {}) },
+    {
+      credentialSource: ctx.credentialSource,
+      loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }),
+      ...(ctx.deps.buildTarget !== undefined ? { buildTarget: ctx.deps.buildTarget } : {}),
+    },
     {
       workspaceId: ctx.deps.workspaceId,
       publishOutputRootDir: ctx.deps.publishOutputRootDir,
