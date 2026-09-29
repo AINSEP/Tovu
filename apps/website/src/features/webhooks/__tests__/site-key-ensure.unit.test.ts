@@ -6,8 +6,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { sql } from "kysely";
+
 import { fingerprintRootKeyHex } from "../keyring.env.js";
-import { findKeyDependentData } from "#src/platform/db/key-dependent-data";
+import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
+import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { ensureSiteKey, ensureSiteKeyForBoot, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
 
 /** Site-key plan §A.4 additions to this suite start at "ensureSiteKey: fingerprint stamp" below —
@@ -109,7 +112,7 @@ function buildSealedCiphertextDb(dbPath: string): void {
 }
 
 test("ensureSiteKey: production mode is a no-op — never touches the filesystem", async () => {
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "production", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "production", env: bareEnv(), home, findSiteKeyDependentData });
   assert.deepEqual(result, { action: "production-noop" });
   assert.equal(existsSync(path.join(home, ".tovu")), false);
 });
@@ -120,7 +123,7 @@ test("ensureSiteKey: an existing valid per-site file is a no-op — never rewrit
   const hex = validHex();
   writeFileSync(perSiteFilePath, hex, { mode: 0o600 });
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "noop");
   assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
@@ -132,7 +135,7 @@ test("ensureSiteKey: an existing but malformed per-site file is 'invalid' — re
   mkdirSync(path.dirname(perSiteFilePath), { recursive: true });
   writeFileSync(perSiteFilePath, "not-hex-at-all", { mode: 0o600 });
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "invalid");
   assert.equal(result.reason, "not-hex");
@@ -143,7 +146,7 @@ test("ensureSiteKey: per-site absent, env var active → 'adopt' — the per-sit
   const hex = validHex();
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: hex };
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
   assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
@@ -157,7 +160,7 @@ test("ensureSiteKey: per-site absent, legacy shared file active → 'adopt' from
   mkdirSync(path.dirname(legacySharedFilePath), { recursive: true });
   writeFileSync(legacySharedFilePath, hex, { mode: 0o600 });
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
   assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
@@ -170,7 +173,7 @@ test("ensureSiteKey: per-site absent, legacy shared file active → 'adopt' from
 test("ensureSiteKey: per-site absent, env var present but malformed → 'invalid' — nothing is written", async () => {
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: "not-hex-at-all" };
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "invalid");
   assert.equal(result.reason, "not-hex");
@@ -180,7 +183,7 @@ test("ensureSiteKey: per-site absent, env var present but malformed → 'invalid
 test("ensureSiteKey: env var present but blank → treated as ABSENT, not invalid — falls through to mint when nothing else exists", async () => {
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: "" };
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mint");
   const perSiteFilePath = perSiteFilePathIn(home, "site-1");
@@ -194,7 +197,7 @@ test("ensureSiteKey: env var present but whitespace-only, legacy shared file act
   writeFileSync(legacySharedFilePath, hex, { mode: 0o600 });
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: "   " };
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
   assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
@@ -204,7 +207,7 @@ test("ensureSiteKey: nothing anywhere, this site's content.db holds a sealed row
   const contentDbPath = path.join(siteDir, "content.db");
   buildSealedCiphertextDb(contentDbPath);
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "refuse");
   assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false);
@@ -212,7 +215,7 @@ test("ensureSiteKey: nothing anywhere, this site's content.db holds a sealed row
 
 test("ensureSiteKey: nothing anywhere, no content.db yet (brand new site) → 'mint' — a missing DB is not 'unreadable'", async () => {
   // Deliberately no content.db written at all.
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mint");
   const perSiteFilePath = perSiteFilePathIn(home, "site-1");
@@ -222,7 +225,7 @@ test("ensureSiteKey: nothing anywhere, no content.db yet (brand new site) → 'm
 });
 
 test("ensureSiteKey: mint writes the per-site file at mode 0600 and the site-keys dir at mode 0700", async () => {
-  await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   const perSiteFilePath = perSiteFilePathIn(home, "site-1");
   const fileMode = statSync(perSiteFilePath).mode & 0o777;
@@ -232,8 +235,8 @@ test("ensureSiteKey: mint writes the per-site file at mode 0600 and the site-key
 });
 
 test("ensureSiteKey: two different siteKeyIds under the same home get two independent files", async () => {
-  const first = await ensureSiteKey({ siteDir, siteKeyId: "site-a", mode: "local", env: bareEnv(), home, findKeyDependentData });
-  const second = await ensureSiteKey({ siteDir, siteKeyId: "site-b", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const first = await ensureSiteKey({ siteDir, siteKeyId: "site-a", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
+  const second = await ensureSiteKey({ siteDir, siteKeyId: "site-b", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(first.action, "mint");
   assert.equal(second.action, "mint");
@@ -250,7 +253,7 @@ test("ensureSiteKey: two different siteKeyIds under the same home get two indepe
 test("ensureSiteKeyForBoot: siteDir has a .site-meta.json siteId → resolves it and mints the per-site file", async () => {
   writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "meta-site-1" }));
 
-  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.ok(result, "a resolvable siteKeyId must produce a real ensureSiteKey result, not undefined");
   assert.equal(result?.action, "mint");
@@ -268,7 +271,7 @@ test("ensureSiteKeyForBoot: siteDir has a .site-meta.json siteId → resolves it
 // ---------------------------------------------------------------------------
 
 test("ensureSiteKeyForBoot: siteDir has no .site-meta.json, LOCAL mode → mints a minimal one and mints the per-site key file — no silent gap", async () => {
-  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.ok(result, "a site with no meta file must still end up with a usable key in local mode");
   assert.equal(result?.action, "mint");
@@ -279,7 +282,7 @@ test("ensureSiteKeyForBoot: siteDir has no .site-meta.json, LOCAL mode → mints
 });
 
 test("ensureSiteKeyForBoot: siteDir has no .site-meta.json, PRODUCTION mode → still undefined, nothing written anywhere — production never mints", async () => {
-  const result = await ensureSiteKeyForBoot({ siteDir, mode: "production", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKeyForBoot({ siteDir, mode: "production", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result, undefined);
   assert.equal(existsSync(path.join(siteDir, ".site-meta.json")), false);
@@ -290,7 +293,7 @@ test("ensureSiteKeyForBoot: a .site-meta.json that exists but is corrupt (unread
   const metaPath = path.join(siteDir, ".site-meta.json");
   writeFileSync(metaPath, "{ not valid json");
 
-  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result, undefined, "a corrupt meta file must never be silently replaced with a fresh one");
   assert.equal(readFileSync(metaPath, "utf8"), "{ not valid json", "the corrupt file's own bytes must survive untouched");
@@ -300,7 +303,7 @@ test("ensureSiteKeyForBoot: a .site-meta.json that exists but is corrupt (unread
 test("ensureSiteKeyForBoot: a .site-meta.json that already exists with real fields is preserved verbatim — only a genuinely ABSENT file is ever minted", async () => {
   writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "meta-site-1", templateId: "starter" }));
 
-  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result?.action, "mint");
   const meta = JSON.parse(readFileSync(path.join(siteDir, ".site-meta.json"), "utf8")) as Record<string, unknown>;
@@ -325,7 +328,7 @@ test("ensureSiteKeyForBoot: the per-site key file's own directory cannot be crea
   writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "meta-site-1" }));
 
   await assert.doesNotReject(async () => {
-    const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findKeyDependentData });
+    const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
     assert.equal(result, undefined);
   });
 });
@@ -347,7 +350,7 @@ function readSiteMeta(dir: string): Record<string, unknown> {
 
 test("ensureSiteKey: no .site-meta.json at siteDir → mint still succeeds, nothing to stamp against (pre-A4 caller shape, unchanged)", async () => {
   // Deliberately no .site-meta.json written — mirrors every ensureSiteKey test above this section.
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mint");
   assert.equal(existsSync(path.join(siteDir, ".site-meta.json")), false, "ensureSiteKey never CREATES a .site-meta.json, only stamps an existing one");
@@ -356,7 +359,7 @@ test("ensureSiteKey: no .site-meta.json at siteDir → mint still succeeds, noth
 test("ensureSiteKey: mint with a fresh site stamps siteKeyFingerprint into .site-meta.json, preserving every other field", async () => {
   writeSiteMeta(siteDir, { siteId: "meta-site-1", templateId: "starter", schemaVersion: 3 });
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mint");
   const meta = readSiteMeta(siteDir);
@@ -375,7 +378,7 @@ test("ensureSiteKey: noop with a stamp that already matches the key's real finge
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprint });
   const metaPathStatBefore = statSync(path.join(siteDir, ".site-meta.json"));
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "noop");
   assert.equal(result.fingerprint, fingerprint);
@@ -395,7 +398,7 @@ test("ensureSiteKey: noop with a TAMPERED (mismatched) stamped fingerprint → '
   assert.notEqual(tamperedFingerprint, realFingerprint, "test precondition: the two fingerprints must actually differ");
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: tamperedFingerprint });
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mismatch", "a stamp that names a different key must be surfaced, not silently trusted");
   assert.equal(result.fingerprint, realFingerprint, "the result must report the key file's REAL fingerprint, not the stale stamp");
@@ -408,7 +411,7 @@ test("ensureSiteKey: adopt into a fresh per-site file also stamps the fingerprin
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: hex };
   writeSiteMeta(siteDir, { siteId: "meta-site-1" });
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
   assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(hex));
@@ -430,7 +433,7 @@ test("ensureSiteKey: adopt of a key whose fingerprint differs from the stamp, on
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: wrongHex };
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mismatch");
   assert.equal(result.fingerprint, fingerprintRootKeyHex(wrongHex), "reports the candidate's own fingerprint");
@@ -443,7 +446,7 @@ test("ensureSiteKey: adopt with a stale stamp on a site with NO key-dependent da
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: hex };
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), hex);
@@ -453,7 +456,7 @@ test("ensureSiteKey: adopt with a stale stamp on a site with NO key-dependent da
 test("ensureSiteKey: mint on a site carrying a stale stamp (moved/copied site, no sealed data) → 'mint', and the stamp is updated — no permanent false mismatch", async () => {
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mint");
   assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, result.fingerprint);
@@ -463,7 +466,7 @@ test("ensureSiteKeyForBoot: a traversal siteKeyId in .site-meta.json writes noth
   writeSiteMeta(siteDir, { siteId: "ok", siteKeyId: "../../escaped" });
   const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: validHex() };
 
-  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result, undefined);
   assert.equal(existsSync(path.join(home, "escaped.hex")), false);
@@ -474,8 +477,56 @@ test("ensureSiteKey: TOVU_SITE_KEY set but blank does not hide a valid TOVU_INTE
   const hex = validHex();
   const env = { ...bareEnv(), TOVU_SITE_KEY: "", TOVU_INTEGRATIONS_ROOT_KEY: hex };
 
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findKeyDependentData });
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), hex);
+});
+
+// ---------------------------------------------------------------------------
+// Key-dependent data on every storage kind (ADR-067): a PGlite or Postgres site has no content.db,
+// so a scan of content.db alone saw "no data" and minted/adopted over sealed rows.
+// ---------------------------------------------------------------------------
+
+/** A PGlite site folder whose `pglite/` data dir holds one sealed row, and no `content.db`. */
+async function buildPgliteSiteWithSealedRow(dir: string): Promise<void> {
+  writeSiteMeta(dir, { siteKeyId: "site-1", siteKeyFingerprint: "stamped-fingerprint", storage: { kind: "pglite" } });
+  const kernel = openPgliteKernel<unknown>({ dataDir: path.join(dir, "pglite") });
+  try {
+    await kernel.execute(sql`CREATE TABLE publish_credential_sets (id serial PRIMARY KEY, sealed_ciphertext text)`);
+    await kernel.execute(sql`INSERT INTO publish_credential_sets (sealed_ciphertext) VALUES ('cipher-bytes')`);
+  } finally {
+    await kernel.close();
+  }
+}
+
+test("ensureSiteKey: a PGlite site holding sealed rows and no key anywhere → 'refuse', nothing written, stamp kept", async () => {
+  await buildPgliteSiteWithSealedRow(siteDir);
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "refuse");
+  assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false, "no key may be minted over sealed PGlite rows");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, "stamped-fingerprint", "the fingerprint guard must survive");
+});
+
+test("ensureSiteKey: a PGlite site holding sealed rows, a different env key and a stamp → 'mismatch', never adopted", async () => {
+  await buildPgliteSiteWithSealedRow(siteDir);
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: validHex() };
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "mismatch");
+  assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false, "the wrong key must not become this site's key file");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, "stamped-fingerprint");
+});
+
+test("ensureSiteKey: a Postgres site whose connection string is sealed (.storage-secret.json) and no key anywhere → 'refuse'", async () => {
+  writeSiteMeta(siteDir, { siteKeyId: "site-1", storage: { kind: "postgres", secretRef: "site" } });
+  writeFileSync(path.join(siteDir, ".storage-secret.json"), JSON.stringify({ version: 1, sealed: { ciphertext: "c", nonce: "n" } }));
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "refuse");
+  assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false);
 });

@@ -5,6 +5,10 @@ import path from "node:path";
 import test from "node:test";
 
 import Database from "better-sqlite3";
+import { sql } from "kysely";
+
+import type { ContentDatabase } from "#src/platform/db/content-database.generated";
+import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 
@@ -285,6 +289,38 @@ test("GET status: state is 'missing-with-data' when nothing resolves but this si
   assert.equal(status.status, 200);
   const statusBody = (await status.json()) as { state: string; active: boolean };
   assert.equal(statusBody.active, false, "nothing was ever generated in this isolated site/home pair");
+  assert.equal(statusBody.state, "missing-with-data");
+});
+
+test("GET status: state is 'missing-with-data' for a Postgres site whose connection string is sealed with the missing key (.storage-secret.json, no content.db)", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ storage: { kind: "postgres", secretRef: "site" } }));
+  writeFileSync(path.join(deps.siteBinding.dir, ".storage-secret.json"), JSON.stringify({ version: 1, sealed: { ciphertext: "c", nonce: "n" } }));
+
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const statusBody = (await (await fetch(`${baseUrl}${BASE}`, { headers: { cookie } })).json()) as { state: string };
+  assert.equal(statusBody.state, "missing-with-data");
+});
+
+test("GET status: state is 'missing-with-data' when the site's open store (PGlite, no content.db) holds key-dependent rows", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const kernel = openPgliteKernel<ContentDatabase>();
+  t.after(() => kernel.close());
+  await kernel.execute(sql`CREATE TABLE webhook_subscriptions (id serial PRIMARY KEY)`);
+  await kernel.execute(sql`INSERT INTO webhook_subscriptions DEFAULT VALUES`);
+  const deps = { ...createRouteDeps(), contentKernel: kernel };
+  assertSiteDirIsolated(deps);
+
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const statusBody = (await (await fetch(`${baseUrl}${BASE}`, { headers: { cookie } })).json()) as { state: string };
   assert.equal(statusBody.state, "missing-with-data");
 });
 

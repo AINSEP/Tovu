@@ -11,7 +11,9 @@ import type { StorageKernel } from "./kernel/port.js";
  * Two callers need it: `features/webhooks/site-key-ensure.ts`'s `ensureSiteKey` (refuse to mint a
  * fresh key over sealed data) and the admin Site Token route's `"missing-with-data"` state. The
  * feature side never imports this module (`platform/db` is composition-built); the boot callers
- * (`src/index.ts`, `cli/commands/serve.ts`) inject {@link findKeyDependentData} into it.
+ * (`src/index.ts`, `cli/commands/serve.ts`) inject `platform/site-dir/site-key-dependent-data.ts`'s
+ * `findSiteKeyDependentData` into it, which picks the store to scan by the site's storage kind
+ * (ADR-067) and runs {@link hasKeyDependentData} on it.
  *
  * Sealed columns come from the catalog (`listTables` + `listColumns`), every column whose name ends
  * in `sealed_ciphertext` — the same discovery `sealed-credential-inventory.ts` uses, so
@@ -62,10 +64,20 @@ export async function findKeyDependentData(dbPaths: readonly string[]): Promise<
 }
 
 /** One file's answer, with open/query failures turned into "has data" without aborting the others. */
-async function databaseHasKeyDependentData(dbPath: string): Promise<boolean> {
+function databaseHasKeyDependentData(dbPath: string): Promise<boolean> {
+  return scanOpenedKernel(() => openSqliteFileKernel<unknown>(dbPath, { readOnly: true }));
+}
+
+/**
+ * {@link hasKeyDependentData} on a kernel this call opens and closes. Fails closed: an open or
+ * query failure is "has data".
+ *
+ * @complexity {@link hasKeyDependentData}'s cost plus one open/close.
+ */
+export async function scanOpenedKernel(open: () => StorageKernel<unknown>): Promise<boolean> {
   let kernel: StorageKernel<unknown>;
   try {
-    kernel = openSqliteFileKernel<unknown>(dbPath, { readOnly: true });
+    kernel = open();
   } catch {
     return true;
   }
@@ -74,6 +86,6 @@ async function databaseHasKeyDependentData(dbPath: string): Promise<boolean> {
   } catch {
     return true;
   } finally {
-    await kernel.close();
+    await kernel.close().catch(() => {});
   }
 }

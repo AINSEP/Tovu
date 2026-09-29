@@ -19,11 +19,12 @@ import {
   siteKeySourcesForSiteDir,
   type SiteKeySource,
 } from "#src/features/webhooks/site-key-sources";
-import { findKeyDependentData } from "#src/platform/db/key-dependent-data";
+import { hasKeyDependentData } from "#src/platform/db/key-dependent-data";
+import { findSiteKeyDependentData } from "#src/platform/site-dir/index";
 import { SITE_TOKEN_MANAGE_PERMISSION } from "#src/features/identity/site-token-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { SiteTokenState } from "#src/contracts/core/site-token-state";
-import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
+import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
@@ -116,7 +117,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * could reveal the value that decrypts every other stored credential. Reveal and generate responses
  * also now set `Cache-Control: no-store`, since both carry the raw key value.
  */
-export type AdminSiteTokenDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding">;
+export type AdminSiteTokenDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding" | "contentKernel">;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-token";
 
@@ -146,8 +147,8 @@ export interface SiteTokenStateInput {
   /** `.site-meta.json`'s stamped `siteKeyFingerprint` ({@link resolveSiteKeyFingerprint}) —
    *  `undefined` when nothing has been stamped yet (never treated as a mismatch). */
   readonly metaFingerprint?: string;
-  /** Whether this site's `content.db` holds data only a site key could decrypt or verify
-   *  ({@link findKeyDependentData}) — only meaningful when neither `active` nor `invalid`. */
+  /** Whether this site's store holds data only a site key could decrypt or verify
+   *  ({@link siteHasKeyDependentData}) — only meaningful when neither `active` nor `invalid`. */
   readonly hasKeyDependentData: boolean;
 }
 
@@ -161,7 +162,7 @@ export interface SiteTokenStateInput {
  * with a stamped fingerprint that disagrees with the resolved key's own fingerprint is `mismatch`
  * (the physical key file was substituted after the stamp was written); `active` with no stamp yet,
  * or a stamp that agrees, is plain `active`. Not active: `missing-with-data` when this site's
- * `content.db` holds key-dependent data (a materially more urgent banner — something the operator
+ * store holds key-dependent data (a materially more urgent banner — something the operator
  * saved is stuck behind a key that no longer resolves), otherwise plain `missing`.
  *
  * @complexity O(1) — a fixed sequence of comparisons over already-computed inputs; no I/O.
@@ -176,18 +177,23 @@ export function siteTokenState(input: SiteTokenStateInput): SiteTokenState {
   return input.hasKeyDependentData ? "missing-with-data" : "missing";
 }
 
-/** {@link siteTokenState}'s `hasKeyDependentData` input for the GET handler: whether THIS site's
- *  `content.db` exists at all, and if so whether it holds key-dependent data
- *  ({@link findKeyDependentData}). A site directory with no `content.db` yet is "nothing to scan
- *  yet" (`false`), not "unreadable" — mirrors `ensureSiteKey`'s own `existsSync` guard
- *  (`site-key-ensure.ts`) so the two callers of `findKeyDependentData` agree about when a missing
- *  database counts as "no data" versus the function's own fail-closed "could not open" case.
+/** {@link siteTokenState}'s `hasKeyDependentData` input for the GET handler, on every storage kind
+ *  (ADR-067). A sealed `.storage-secret.json` counts. Otherwise the running site's own open store
+ *  (`deps.contentKernel`) is scanned — a PGlite data dir this process owns cannot be opened a second
+ *  time — and only without one does this fall back to `findSiteKeyDependentData`, the same scan
+ *  `ensureSiteKey` runs at boot. A failed scan counts as "has data", as that function's does.
  *
- * @complexity O(1) `existsSync` plus {@link findKeyDependentData}'s own cost when the file exists.
+ * @complexity O(1) `existsSync` plus one {@link hasKeyDependentData} scan.
  */
-async function siteHasKeyDependentData(siteDir: string): Promise<boolean> {
-  const contentDbPath = join(siteDir, CONTENT_DB_FILENAME);
-  return existsSync(contentDbPath) ? await findKeyDependentData([contentDbPath]) : false;
+async function siteHasKeyDependentData(deps: AdminSiteTokenDeps): Promise<boolean> {
+  const siteDir = deps.siteBinding.dir;
+  if (existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return true;
+  if (deps.contentKernel === undefined) return findSiteKeyDependentData(siteDir);
+  try {
+    return await hasKeyDependentData(deps.contentKernel);
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -247,7 +253,7 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
       fingerprint: status.fingerprint,
       metaFingerprint: status.active ? resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) : undefined,
       hasKeyDependentData:
-        !status.active && !status.invalid ? await siteHasKeyDependentData(deps.siteBinding.dir) : false,
+        !status.active && !status.invalid ? await siteHasKeyDependentData(deps) : false,
     });
     res.status(200).json({ ...status, state, runtimeMode: resolveRuntimeMode() });
   });

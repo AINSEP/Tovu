@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 
 import { ensureSiteKey } from "../../site-key-ensure.js";
-import { findKeyDependentData } from "#src/platform/db/key-dependent-data";
+import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
 
 /**
  * @file Cross-process half of the A2 race test (site-key plan §A.2: "a race test with 2 child
@@ -27,5 +27,5 @@ delete env.TOVU_SITE_KEY;
 delete env.TOVU_INTEGRATIONS_ROOT_KEY;
 delete env.TOVU_RUNTIME_MODE;
 
-const result = await ensureSiteKey({ siteDir, siteKeyId, mode: "local", env, home, findKeyDependentData });
+const result = await ensureSiteKey({ siteDir, siteKeyId, mode: "local", env, home, findSiteKeyDependentData });
 writeFileSync(outputFilePath, JSON.stringify(result), "utf8");

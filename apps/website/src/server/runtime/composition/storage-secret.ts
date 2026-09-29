@@ -99,7 +99,7 @@ export async function sealConnectionStringForNewSite(required: {
 }): Promise<SiteSecretSealer> {
   const { siteDir, siteKeyId, connectionString } = required;
   // A site being created holds no key-dependent data yet.
-  const ensured = await ensureSiteKey({ siteDir, siteKeyId, findKeyDependentData: async () => false });
+  const ensured = await ensureSiteKey({ siteDir, siteKeyId, findSiteKeyDependentData: async () => false });
   if (ensured.action === "invalid" || ensured.action === "refuse") {
     throw new StorageSecretError(`could not prepare this site's key to seal its Postgres connection string (${ensured.action}); fix the site key, then retry`);
   }

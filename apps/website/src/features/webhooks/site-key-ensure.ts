@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { chmodSync, closeSync, existsSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { chmodSync, closeSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
@@ -14,7 +14,6 @@ import {
 } from "./site-key-sources.js";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
-import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md`) §A.2 — the ONE
@@ -22,10 +21,10 @@ import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
  * (`cli/commands/root-key.ts`) was absorbed into {@link ensureSiteKeyForBoot} and deleted outright
  * (Stage A3b, `abc4807d5`) — `planRootKeyEnsure`/`RootKeyEnsurePlan` (that command's own pure
  * decision table) went with it as dead code (site-key plan §A.6: zero callers once the CLI command
- * was gone). `findKeyDependentData` (the content.db scan `ensureSiteKey` uses) lives in
- * `platform/db/key-dependent-data.ts` on the storage kernel; the admin Site Token route imports it
- * there, and the boot callers inject it here ({@link KeyDependentDataScan}), so this feature never
- * value-imports `platform/db`.
+ * was gone). `findSiteKeyDependentData` (the per-site scan `ensureSiteKey` uses, on every storage
+ * kind) lives in `platform/db/key-dependent-data.ts` on the storage kernel; the admin Site Token
+ * route imports it there, and the boot callers inject it here ({@link KeyDependentDataScan}), so
+ * this feature never value-imports `platform/db`.
  *
  * Purpose:
  * `ensureSiteKey` runs once per server boot, local mode only (A.2): a per-site file already there
@@ -124,9 +123,8 @@ export function planSiteKeyEnsure(input: PlanSiteKeyEnsureInput): SiteKeyEnsureP
 }
 
 export interface EnsureSiteKeyInput {
-  /** This site's own directory — only its `content.db` is scanned for key-dependent data (A.2:
-   *  "its dependency-data check scans only this site's content.db (per-site keys)"), never every
-   *  sibling site the way the CLI's `tovu root-key ensure` did. */
+  /** This site's own directory — only this site's store is scanned for key-dependent data (A.2:
+   *  per-site keys), never every sibling site the way the CLI's `tovu root-key ensure` did. */
   readonly siteDir: string;
   /** `.site-meta.json`'s `siteKeyId` (A.1/A.4). */
   readonly siteKeyId: string;
@@ -142,13 +140,14 @@ export interface EnsureSiteKeyInput {
    *  with {@link siteKeySources}'s own input shape and so a future caller has a real seam if that
    *  ever changes. */
   readonly cwd?: string;
-  /** The content.db scan ({@link KeyDependentDataScan}). */
-  readonly findKeyDependentData: KeyDependentDataScan;
+  /** The per-site scan ({@link KeyDependentDataScan}). */
+  readonly findSiteKeyDependentData: KeyDependentDataScan;
 }
 
-/** `platform/db/key-dependent-data.ts`'s `findKeyDependentData`: whether any `content.db` in
- *  `dbPaths` holds data only the current key can open, failing closed. Injected by the boot callers. */
-export type KeyDependentDataScan = (dbPaths: readonly string[]) => Promise<boolean>;
+/** `platform/db/key-dependent-data.ts`'s `findSiteKeyDependentData`: whether the site in `siteDir`
+ *  holds data only the current key can open, on whichever storage it runs (SQLite, PGlite,
+ *  Postgres, or a sealed `.storage-secret.json`), failing closed. Injected by the boot callers. */
+export type KeyDependentDataScan = (siteDir: string) => Promise<boolean>;
 
 export interface EnsureSiteKeyResult {
   readonly action: SiteKeyEnsureAction;
@@ -199,10 +198,9 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
   const otherRaw = findFirstPresentMaterial(otherSources, env);
   const otherParsed = otherRaw === undefined ? undefined : parseRootKeyHex(otherRaw);
 
-  const contentDbPath = join(input.siteDir, CONTENT_DB_FILENAME);
   let hasKeyDataMemo: boolean | undefined;
   const siteHasKeyData = async (): Promise<boolean> => {
-    hasKeyDataMemo ??= existsSync(contentDbPath) ? await input.findKeyDependentData([contentDbPath]) : false;
+    hasKeyDataMemo ??= await input.findSiteKeyDependentData(input.siteDir);
     return hasKeyDataMemo;
   };
   const needsDataCheck = perSiteParsed === undefined && otherParsed === undefined;
@@ -316,8 +314,8 @@ export interface EnsureSiteKeyForBootInput {
   readonly env?: NodeJS.ProcessEnv;
   readonly home?: string;
   readonly cwd?: string;
-  /** The content.db scan ({@link KeyDependentDataScan}). */
-  readonly findKeyDependentData: KeyDependentDataScan;
+  /** The per-site scan ({@link KeyDependentDataScan}). */
+  readonly findSiteKeyDependentData: KeyDependentDataScan;
 }
 
 /**
@@ -370,7 +368,7 @@ export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Pr
       env,
       home: input.home,
       cwd: input.cwd,
-      findKeyDependentData: input.findKeyDependentData,
+      findSiteKeyDependentData: input.findSiteKeyDependentData,
     });
   } catch (err) {
     // Boot must never go down over this — see this function's own header. `console.error` (not the

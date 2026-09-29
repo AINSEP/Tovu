@@ -7,7 +7,7 @@ import type { SiteStore } from "./server/runtime/composition/open-site-store.js"
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoRootKeyAtBoot } from "./server/runtime/boot/root-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
-import { findKeyDependentData } from "./platform/db/key-dependent-data.js";
+import { findSiteKeyDependentData } from "./platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "./server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js";
@@ -277,7 +277,7 @@ async function main(): Promise<void> {
   // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
   // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
   // adopted or minted.
-  if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findKeyDependentData });
+  if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findSiteKeyDependentData });
 
   // The store the composition opens: a PGlite owner's socket goes to the agent daemon below.
   let siteStore: SiteStore | undefined;

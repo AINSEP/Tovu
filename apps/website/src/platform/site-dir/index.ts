@@ -85,3 +85,9 @@ export { isSiteSwitcherEnabled } from "./site-switcher-enabled.js";
  * is `error`-severity).
  */
 export { runtimeSchemaVersion, type RuntimeSchemaVersion } from "./schema-guard.js";
+/**
+ * `findSiteKeyDependentData` joined 2026-09-29: the admin Site Token route (`server/inbound/**`)
+ * reads it to report `"missing-with-data"` on every storage kind, and the boot callers inject it
+ * into `ensureSiteKey`.
+ */
+export { findSiteKeyDependentData } from "./site-key-dependent-data.js";

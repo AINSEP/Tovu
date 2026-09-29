@@ -22,10 +22,11 @@
  *
  * - `"active"` — a valid key resolves, and either nothing is stamped in `.site-meta.json` yet or the
  *   stamped `siteKeyFingerprint` matches the resolved key's own fingerprint.
- * - `"missing"` — no source resolves to usable material, and this site's `content.db` holds no
- *   data that only a site key could decrypt or verify.
- * - `"missing-with-data"` — no source resolves, but this site's `content.db` DOES hold such data
- *   (`findKeyDependentData`, `site-key-sources.ts`) — a materially more urgent banner than plain
+ * - `"missing"` — no source resolves to usable material, and this site's store holds no data
+ *   that only a site key could decrypt or verify.
+ * - `"missing-with-data"` — no source resolves, but this site's store (any storage kind, or its
+ *   sealed `.storage-secret.json`) DOES hold such data (`platform/db/key-dependent-data.ts`) — a
+ *   materially more urgent banner than plain
  *   `"missing"`: something the operator saved is stuck behind a key that no longer resolves.
  * - `"mismatch"` — a valid key resolves, but its fingerprint differs from `.site-meta.json`'s own
  *   stamped `siteKeyFingerprint` — the physical key file was substituted for a different one after

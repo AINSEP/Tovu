@@ -19,7 +19,7 @@ import { ensureAgentDaemonToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoRootKeyAtBoot } from "../../server/runtime/boot/root-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";
-import { findKeyDependentData } from "../../platform/db/key-dependent-data.js";
+import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
@@ -342,7 +342,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // `.site-meta.json`, and a boot those refuse must leave the directory untouched — a refused
   // marker-less dir that gained a `.site-meta.json` here is one `tovu adopt` then refuses as
   // partially adopted.
-  await ensureSiteKeyForBoot({ siteDir: target, findKeyDependentData });
+  await ensureSiteKeyForBoot({ siteDir: target, findSiteKeyDependentData });
 
   const dbPath = path.join(target, "content.db");
   const deps = await createSiteRouteDeps(dbPath, {
