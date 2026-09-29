@@ -434,3 +434,24 @@ test("a cancelled run abandons the form and reports {saved:false, reason:'abando
   assert.equal(surfaceExchanges.size(), 0);
   assert.equal(sealer.sealCalls, 0);
 });
+
+// A run already cancelled before the dialog would open: without the pre-dialog abort check the form
+// opens after the abort (whose listener then never fires) and the call waits out the whole expiry.
+// The short TTL makes that regression an 'expired' result instead of a hang.
+test("a run cancelled before the form opens returns {saved:false, reason:'abandoned'} at once — no form is emitted, nothing seals", async () => {
+  const { deps, sealer, writeDeps } = fakeRouteDeps();
+  await seedNameCom(writeDeps);
+  sealer.sealCalls = 0;
+  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 50 });
+  const setTokenTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+  const controller = new AbortController();
+  controller.abort();
+  const emitted: unknown[] = [];
+
+  const result = await call(setTokenTool, { emitSurface: async (surface) => void emitted.push(surface), signal: controller.signal });
+
+  assert.deepEqual(result, { saved: false, reason: "abandoned" });
+  assert.equal(emitted.length, 0);
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.equal(sealer.sealCalls, 0);
+});

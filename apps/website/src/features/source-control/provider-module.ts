@@ -129,6 +129,10 @@ export interface SourceControlHostFacts {
   readonly apiOrigin: string;
   /** The largest single file the host accepts in a push, when it has such a limit. */
   readonly maxFileBytes?: number;
+  /** Repository folders the host gives a meaning of its own (GitHub runs whatever is under
+   *  `.github/workflows`), so a site backup is never written into or under one. Compared
+   *  case-insensitively. */
+  readonly reservedPaths?: readonly string[];
 }
 
 /** What a provider module's `create()` returns: the operations only. */
@@ -171,7 +175,20 @@ export interface SourceControlProviderKit {
   describeTransportError(error: unknown): DescribedTransportError;
 }
 
+/** A repository named by owner and name, before anything is sent. */
+export interface RepositoryTarget {
+  readonly owner: string;
+  readonly repo: string;
+}
+
+/** The host's own owner/repo rules: `null` when valid, else a caller-safe reason naming the field
+ *  (e.g. "invalid GitHub owner 'x'"). Pure, never throws. */
+export type RepositoryTargetValidator = (target: RepositoryTarget) => string | null;
+
 /** A provider module's default export. */
 export interface SourceControlProviderModule {
   create(context: { readonly kit: SourceControlProviderKit }): SourceControlProviderOperations;
+  /** Optional, needs no kit, so core can refuse a malformed target before building anything or
+   *  raising a dialog. Core still applies its own generic one-path-segment rule afterwards. */
+  validateTarget?: RepositoryTargetValidator;
 }

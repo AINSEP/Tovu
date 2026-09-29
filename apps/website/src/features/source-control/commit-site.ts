@@ -6,7 +6,7 @@ import type { UUID } from "@jini-ai/cms/core";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
 
-import type { CommitFile, SourceControlProvider } from "./provider-module.js";
+import type { CommitFile, RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
@@ -51,17 +51,18 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  * redundant).
  */
 
-/** GitHub owner/org name: alphanumeric, may contain single hyphens, cannot start with one, capped at
- *  GitHub's own 39-character username limit. Byte-identical to `static-publish/adapter.ts`'s
- *  `OWNER_PATTERN` — copied, not imported, per this file's header (no dependency on
- *  `features/deployments/**`). */
-const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-/** GitHub repo name: letters, digits, `.`/`-`/`_`, capped at GitHub's own 100-character limit. */
-const REPO_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
+/** Owner and repo, whatever the host: one URL path segment each, so never empty, never `.`/`..`,
+ *  never a slash, whitespace or control character. The host's own, stricter rules are its plugin's
+ *  (`SourceControlProviderModule.validateTarget`). */
+const GENERIC_SEGMENT_PATTERN = /^[^\s/\\\x00-\x1f\x7f]{1,100}$/;
 /** Git branch name — permissive (real branch names allow far more), but refuses whitespace/control
  *  characters before the value reaches a URL path segment. */
 const BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,250}$/;
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
+
+function isGenericSegment(value: string): boolean {
+  return GENERIC_SEGMENT_PATTERN.test(value) && value !== "." && value !== "..";
+}
 
 /**
  * Validates a commit target's shape. Called twice by design: once by `tool-registrations.ts`'s handler
@@ -70,13 +71,22 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  * `validateStaticPublishConfig` call), and again here, defense-in-depth, for any future caller of
  * {@link commitSiteToSourceControl} that skips the tool layer's own check.
  *
+ * Owner/repo rules belong to the host: `validateTarget` is the plugin module's own check (GitHub's
+ * name patterns and its "invalid GitHub owner" text live in the `github` plugin), run first. The
+ * generic one-safe-path-segment rule then applies to every host, with or without its own check.
+ *
  * @returns `null` when valid, else a human-readable reason safe to return over a tool-result boundary
  *   (never echoes more than the offending field, capped, never a token — there is none in scope here).
  * @complexity O(1) — a handful of fixed-size regex tests.
  */
-export function validateCommitTarget(input: { owner: string; repo: string; branch?: string; commitMessage: string }): string | null {
-  if (!OWNER_PATTERN.test(input.owner)) return `invalid GitHub owner '${input.owner.slice(0, 60)}'`;
-  if (!REPO_PATTERN.test(input.repo) || input.repo === "." || input.repo === "..") return `invalid GitHub repo '${input.repo.slice(0, 100)}'`;
+export function validateCommitTarget(
+  input: { owner: string; repo: string; branch?: string; commitMessage: string },
+  validateTarget?: RepositoryTargetValidator,
+): string | null {
+  const hostError = validateTarget?.({ owner: input.owner, repo: input.repo }) ?? null;
+  if (hostError !== null) return hostError;
+  if (!isGenericSegment(input.owner)) return `invalid owner '${input.owner.slice(0, 60)}'`;
+  if (!isGenericSegment(input.repo)) return `invalid repo '${input.repo.slice(0, 100)}'`;
   if (input.branch !== undefined && !BRANCH_PATTERN.test(input.branch)) return `invalid branch name '${input.branch.slice(0, 60)}'`;
   if (input.commitMessage.trim() === "" || input.commitMessage.length > MAX_COMMIT_MESSAGE_LENGTH) {
     return `commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`;
@@ -151,6 +161,8 @@ export interface CommitSiteDeps {
   /** The plugin provider's `commitSite` (`tool-registrations.ts` resolves it) — tests inject a fake
    *  here instead of touching `fetch`. Omitted, the commit fails loudly as a wiring bug. */
   readonly gitAdapter?: SourceControlCommitAdapter;
+  /** The host plugin's own owner/repo check ({@link validateCommitTarget}), when it ships one. */
+  readonly validateTarget?: RepositoryTargetValidator;
 }
 
 /**
@@ -167,7 +179,7 @@ export interface CommitSiteDeps {
  * still type-check — see this domain's own `tool-registrations.ts` for where that exact class of bug
  * was caught during this fix. Declared locally, never imported from `RouteDeps` or from
  * `features/deployments/static-publish/adapter.ts`'s identical copy — same "duplicate the tiny type,
- * never share across features" convention this file already follows for `OWNER_PATTERN`/
+ * never share across features" convention this file already follows for
  * `exportSiteLazily`'s own former copy.
  */
 export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
@@ -371,8 +383,8 @@ export type PreviewCommitExportResult =
  * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) —
  *   no credential resolution, no `SourceControlCommitAdapter.commit()` call, ever.
  */
-export async function previewCommitExport(input: CommitSiteInput): Promise<PreviewCommitExportResult> {
-  const configError = validateCommitTarget(input);
+export async function previewCommitExport(input: CommitSiteInput, validateTarget?: RepositoryTargetValidator): Promise<PreviewCommitExportResult> {
+  const configError = validateCommitTarget(input, validateTarget);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
 
   const exportResult = await exportForCommit(input);
@@ -409,7 +421,7 @@ export async function previewCommitExport(input: CommitSiteInput): Promise<Previ
  *   the provider module).
  */
 export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: CommitSiteInput): Promise<SourceControlCommitOutcome> {
-  const configError = validateCommitTarget(input);
+  const configError = validateCommitTarget(input, deps.validateTarget);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
 
   const credentialResult = await resolveCommitCredential(deps.credentialDeps, input.workspaceId, deps.providerId);

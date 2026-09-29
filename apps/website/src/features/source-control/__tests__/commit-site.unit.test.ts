@@ -22,6 +22,9 @@ import {
   type SourceControlCommitAdapter,
   type SourceControlCommitResult,
 } from "../commit-site.js";
+import { githubValidateTarget } from "./fixtures/github-from-source.js";
+
+const github = await githubValidateTarget();
 
 /**
  * @file `commit-site.ts`'s business-logic proof — mirrors
@@ -114,8 +117,8 @@ test("validateCommitTarget accepts a well-formed target", () => {
 });
 
 test("validateCommitTarget rejects an invalid owner, repo, branch, or commit message", () => {
-  assert.match(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }) ?? "", /invalid GitHub owner/);
-  assert.match(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }) ?? "", /invalid GitHub repo/);
+  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, github), "invalid GitHub owner 'not valid!!'");
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, github), "invalid GitHub repo '..'");
   assert.match(validateCommitTarget({ owner: "octo", repo: "my-site", branch: "not a branch", commitMessage: "x" }) ?? "", /invalid branch name/);
   assert.match(validateCommitTarget({ owner: "octo", repo: "my-site", commitMessage: "" }) ?? "", /commitMessage must be/);
 });
@@ -127,11 +130,31 @@ test("validateCommitTarget rejects an invalid owner, repo, branch, or commit mes
  * literal-equality check, never via the regex). Both remaining arms are proven here, distinctly.
  */
 test("validateCommitTarget rejects a repo with characters REPO_PATTERN itself refuses (not merely '.' or '..')", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }) ?? "", /invalid GitHub repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }, github) ?? "", /invalid GitHub repo/);
 });
 
 test("validateCommitTarget rejects a repo that is the single-character literal '.', distinctly from the '..' case", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }) ?? "", /invalid GitHub repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }, github) ?? "", /invalid GitHub repo/);
+});
+
+test("validateCommitTarget without a host check applies only the generic one-path-segment rule, naming no host", () => {
+  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }), "invalid owner 'not valid!!'");
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "a/b", commitMessage: "x" }), "invalid repo 'a/b'");
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }), "invalid repo '..'");
+  assert.equal(validateCommitTarget({ owner: "", repo: "my-site", commitMessage: "x" }), "invalid owner ''");
+  // A name GitHub would refuse but another host may allow passes the generic rule.
+  assert.equal(validateCommitTarget({ owner: "group_name", repo: "my-site", commitMessage: "x" }), null);
+});
+
+test("validateCommitTarget: the host's own check runs first and its message is returned as-is", () => {
+  const calls: unknown[] = [];
+  const host = (target: { owner: string; repo: string }) => {
+    calls.push(target);
+    return target.owner === "bad" ? "invalid Example owner 'bad'" : null;
+  };
+  assert.equal(validateCommitTarget({ owner: "bad", repo: "a/b", commitMessage: "" }, host), "invalid Example owner 'bad'");
+  assert.equal(validateCommitTarget({ owner: "ok", repo: "a/b", commitMessage: "x" }, host), "invalid repo 'a/b'", "the generic rule still applies after the host's check");
+  assert.deepEqual(calls, [{ owner: "bad", repo: "a/b" }, { owner: "ok", repo: "a/b" }]);
 });
 
 /**
@@ -158,7 +181,7 @@ test("toCommitFile normalizes to forward slashes and drops no field static-publi
 test("commitSiteToSourceControl: an invalid target is rejected before credentials or the git adapter are ever touched", async () => {
   const deps = testRouteDeps();
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter(), validateTarget: github },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
   );
   assert.equal(result.ok, false);

@@ -391,6 +391,27 @@ test("a cancelled run abandons the dialog and reports {executed:false, cancelled
   assert.equal(httpClient.calls.length, 0);
 });
 
+// A run already cancelled before the dialog would open: without the pre-dialog abort check the dialog
+// opens after the abort (whose listener then never fires) and the call waits out the whole expiry.
+// The short TTL makes that regression an 'expired' result instead of a hang.
+test("a run cancelled before the DELETE dialog opens returns {executed:false, cancelled:false, reason:'abandoned'} at once — no dialog, no decrypt, no send", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedFlyIo(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 50 });
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+  const controller = new AbortController();
+  controller.abort();
+  const emitted: unknown[] = [];
+
+  const result = await call(deleteTool, { emitSurface: async (surface) => void emitted.push(surface), signal: controller.signal });
+
+  assert.deepEqual(result, { executed: false, cancelled: false, reason: "abandoned" });
+  assert.equal(emitted.length, 0);
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.equal(sealer.openCalls, 0);
+  assert.equal(httpClient.calls.length, 0);
+});
+
 // ---------------------------------------------------------------------------
 // 4. No emit seam: fail closed rather than degrade — no dialog, no decrypt, no send
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ import { recordBundledAgentPluginDigests } from "#src/features/agent-plugins/bun
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
-import { buildLoadedSourceControlProvider, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
+import { buildLoadedSourceControlProvider, findReservedPath, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
 import type { SourceControlProvider } from "../provider-module.js";
 
 /**
@@ -173,6 +173,47 @@ test("parseSourceControlProvidersFile rejects bad JSON, a bad schema version, a 
   for (const maxFileBytes of [0, -1, 1.5, "100"]) {
     assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, maxFileBytes }])), { ok: false, reason: "providers[0].maxFileBytes must be a positive integer" });
   }
+});
+
+test("reservedPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file", () => {
+  const entry = { id: "a", label: "A", apiOrigin: "https://a.test", module: "a.mjs" };
+  const parsed = parseSourceControlProvidersFile(descriptorJson([{ ...entry, reservedPaths: [".github", "ci/hooks"] }]));
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.descriptors[0]?.reservedPaths, [".github", "ci/hooks"]);
+  const provider = buildLoadedSourceControlProvider({ descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, {} as never);
+  assert.deepEqual(provider.reservedPaths, [".github", "ci/hooks"]);
+
+  const noneDeclared = parseSourceControlProvidersFile(descriptorJson([entry]));
+  assert.ok(noneDeclared.ok);
+  assert.equal("reservedPaths" in noneDeclared.descriptors[0]!, false);
+
+  const reason = "providers[0].reservedPaths must be a list of at most 20 relative folder paths";
+  for (const reservedPaths of ["x", [""], ["/abs"], ["a/../b"], ["./a"], [1], Array.from({ length: 21 }, (_, i) => `d${i}`)]) {
+    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, reservedPaths }])), { ok: false, reason });
+  }
+});
+
+test("findReservedPath matches the folder itself or anything under it, case-insensitively, and nothing that merely shares a prefix", () => {
+  assert.equal(findReservedPath(".github", [".github"]), ".github");
+  assert.equal(findReservedPath(".GitHub/workflows", [".github"]), ".github");
+  assert.equal(findReservedPath(".github-backup", [".github"]), undefined);
+  assert.equal(findReservedPath("site/.github", [".github"]), undefined);
+  assert.equal(findReservedPath(".github", undefined), undefined);
+});
+
+test("a module whose validateTarget is not a function is refused", async () => {
+  await withWorkspace(async (workspaceRoot) => {
+    const digest = await installPackage("fixture-git", {
+      [SOURCE_CONTROL_PROVIDERS_FILENAME]: descriptorJson([{ id: "bad-validate", label: "Bad", apiOrigin: "https://a.test", module: "source-control/bad.mjs" }]),
+      "source-control/bad.mjs": "export default { create() { return {}; }, validateTarget: 'no' };\n",
+    });
+    await markBundled(workspaceRoot, "fixture-git", digest);
+
+    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID });
+
+    assert.deepEqual(registry.list(), []);
+    assert.deepEqual(registry.refusals, ["source-control provider 'bad-validate' from 'fixture-git' was not loaded: its module's validateTarget is not a function"]);
+  });
 });
 
 test("pickSourceControlProviderForApi matches by API origin, falls back to a sole provider, and otherwise says why", () => {

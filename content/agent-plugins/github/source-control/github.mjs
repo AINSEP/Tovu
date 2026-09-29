@@ -28,7 +28,25 @@ const GITHUB_API = "https://api.github.com";
 /** Bounds the account-name probe: a human is waiting on the credential form. */
 const ACCOUNT_LABEL_PROBE_TIMEOUT_MS = 10_000;
 
+/** GitHub owner/org name: alphanumeric, may contain single hyphens, cannot start with one, capped at
+ *  GitHub's own 39-character username limit. */
+const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+/** GitHub repo name: letters, digits, `.`/`-`/`_`, capped at GitHub's own 100-character limit. */
+const REPO_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
+
 export default {
+  /**
+   * GitHub's own owner/repo rules, checked before anything is built or sent. Core applies its
+   * generic one-path-segment rule after this.
+   * @param {{ owner: string, repo: string }} target
+   * @returns {string | null}
+   */
+  validateTarget({ owner, repo }) {
+    if (!OWNER_PATTERN.test(owner)) return `invalid GitHub owner '${owner.slice(0, 60)}'`;
+    if (!REPO_PATTERN.test(repo) || repo === "." || repo === "..") return `invalid GitHub repo '${repo.slice(0, 100)}'`;
+    return null;
+  },
+
   /** @param {{ kit: Kit }} context */
   create({ kit }) {
     const git = createGitDataClient(kit);

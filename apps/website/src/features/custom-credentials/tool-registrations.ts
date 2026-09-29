@@ -1224,6 +1224,8 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         );
       }
 
+      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+      if (ctx.signal.aborted) return { saved: false, reason: "abandoned" };
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: SET_TOKEN_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
       const ui = buildSetTokenFormResource({ label, exchangeId: exchange.id });
 
@@ -1265,6 +1267,8 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         );
       }
 
+      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+      if (ctx.signal.aborted) return { created: false, reason: "abandoned" };
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: CREATE_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
       const ui = buildCreateFormResource({ exchangeId: exchange.id, prefill });
 
@@ -1314,6 +1318,8 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         );
       }
 
+      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+      if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
       const ui = buildDeleteRequestConfirmationResource({
         label: target.label,

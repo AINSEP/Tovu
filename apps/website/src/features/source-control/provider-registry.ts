@@ -21,7 +21,7 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
  * credential form.
  *
  * A plugin opts in by shipping {@link SOURCE_CONTROL_PROVIDERS_FILENAME} at its root: a data-only list
- * of `{ id, label, apiOrigin, maxFileBytes?, module }`. `id` is the `source_control_credential_sets.provider_id`
+ * of `{ id, label, apiOrigin, maxFileBytes?, reservedPaths?, module }`. `id` is the `source_control_credential_sets.provider_id`
  * the provider serves; `label`, `apiOrigin` and `maxFileBytes` are the host facts core copy and checks
  * name (`SourceControlHostFacts`), so no tool text hard-codes a host; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
  * `SourceControlProviderModule` (`features/source-control/provider-module.ts`).
@@ -174,6 +174,7 @@ async function loadProviderModule(plugin: ProviderPackage, descriptor: SourceCon
   }
   const candidate = imported.default;
   if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
+  if (candidate.validateTarget !== undefined && typeof candidate.validateTarget !== "function") return "its module's validateTarget is not a function";
   return candidate as unknown as SourceControlProviderModule;
 }
 
@@ -205,13 +206,45 @@ export function parseSourceControlProvidersFile(raw: string): ParseResult {
 /** One descriptor entry, or the reason it is invalid. @complexity O(1). */
 function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { id, label, apiOrigin, maxFileBytes, module } = entry;
+  const { id, label, apiOrigin, maxFileBytes, reservedPaths, module } = entry;
   if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
   if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
   if (typeof apiOrigin !== "string" || !isHttpsOrigin(apiOrigin)) return `${at}.apiOrigin must be an https origin with no path`;
   if (maxFileBytes !== undefined && !(Number.isSafeInteger(maxFileBytes) && (maxFileBytes as number) > 0)) return `${at}.maxFileBytes must be a positive integer`;
+  if (reservedPaths !== undefined && !isReservedPathList(reservedPaths)) return `${at}.reservedPaths must be a list of at most ${MAX_RESERVED_PATHS} relative folder paths`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
-  return { id, label, apiOrigin, ...(maxFileBytes !== undefined ? { maxFileBytes: maxFileBytes as number } : {}), module };
+  return {
+    id,
+    label,
+    apiOrigin,
+    ...(maxFileBytes !== undefined ? { maxFileBytes: maxFileBytes as number } : {}),
+    ...(reservedPaths !== undefined ? { reservedPaths } : {}),
+    module,
+  };
+}
+
+const MAX_RESERVED_PATHS = 20;
+
+/** Relative, slash-separated folder paths: no empty, `.` or `..` segment, no leading slash. @complexity O(n). */
+function isReservedPathList(value: unknown): value is readonly string[] {
+  if (!Array.isArray(value) || value.length > MAX_RESERVED_PATHS) return false;
+  return value.every(
+    (entry) => typeof entry === "string" && entry.length <= 200 && entry.split("/").every((segment) => segment !== "" && segment !== "." && segment !== ".."),
+  );
+}
+
+/**
+ * The reserved path (`SourceControlHostFacts.reservedPaths`) that `folder` is, or sits under, if any.
+ * Case-insensitive, so `.GitHub` is refused as well as `.github`.
+ *
+ * @complexity O(r) reserved paths.
+ */
+export function findReservedPath(folder: string, reservedPaths: readonly string[] | undefined): string | undefined {
+  const lower = folder.toLowerCase();
+  return reservedPaths?.find((reserved) => {
+    const reservedLower = reserved.toLowerCase();
+    return lower === reservedLower || lower.startsWith(`${reservedLower}/`);
+  });
 }
 
 /** True for `https://host[:port]` exactly — what `new URL(x).origin` gives back. @complexity O(1). */
@@ -226,8 +259,15 @@ function isHttpsOrigin(value: string): boolean {
 
 /** A loaded provider built over `kit`, carrying its plugin's declared host facts. @complexity O(1). */
 export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProvider, kit: SourceControlProviderKit): SourceControlProvider {
-  const { id, label, apiOrigin, maxFileBytes } = loaded.descriptor;
-  return { ...loaded.module.create({ kit }), id, label, apiOrigin, ...(maxFileBytes !== undefined ? { maxFileBytes } : {}) };
+  const { id, label, apiOrigin, maxFileBytes, reservedPaths } = loaded.descriptor;
+  return {
+    ...loaded.module.create({ kit }),
+    id,
+    label,
+    apiOrigin,
+    ...(maxFileBytes !== undefined ? { maxFileBytes } : {}),
+    ...(reservedPaths !== undefined ? { reservedPaths } : {}),
+  };
 }
 
 function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {

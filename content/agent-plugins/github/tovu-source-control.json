@@ -6,6 +6,7 @@
       "label": "GitHub",
       "apiOrigin": "https://api.github.com",
       "maxFileBytes": 104857600,
+      "reservedPaths": [".github"],
       "module": "source-control/github.mjs"
     }
   ]

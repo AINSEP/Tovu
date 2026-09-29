@@ -42,7 +42,7 @@ import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import { buildConfirmationSurface, SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider, UploadedBackupBlob } from "../source-control/provider-module.js";
-import { buildSourceControlProviders, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
+import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
 import {
   buildSiteBackupManifest,
@@ -436,13 +436,23 @@ function parseInclude(value: unknown): SiteBackupInclude {
   return include;
 }
 
-/** The backup folder: repository-relative, never `.git`/`.github` (GitHub reads workflows there). */
+/** The backup folder: repository-relative, never `.git`. The host's own reserved folders
+ *  ({@link requireUnreservedFolder}) are checked once the credential names the host. */
 function parseFolder(raw: string | undefined): string | undefined {
   if (raw === undefined) return undefined;
-  const folder = normalizeWriteFilePath(raw);
-  const lower = folder.toLowerCase();
-  if (lower === ".github" || lower.startsWith(".github/")) throw new CustomCredentialValidationError(`the backup folder must not be inside '.github': '${raw}'`);
-  return folder;
+  return normalizeWriteFilePath(raw);
+}
+
+/**
+ * Refuses a backup folder inside one the host reserves (`SourceControlHostFacts.reservedPaths`; the
+ * `github` plugin declares `.github`, where GitHub runs workflows from). Before any network call.
+ *
+ * @throws {CustomCredentialValidationError} naming the reserved folder.
+ * @complexity O(r) reserved paths.
+ */
+function requireUnreservedFolder(folder: string, provider: SourceControlProvider): void {
+  const reserved = findReservedPath(folder, provider.reservedPaths);
+  if (reserved !== undefined) throw new CustomCredentialValidationError(`the backup folder must not be inside '${reserved}': '${folder}'`);
 }
 
 /** @throws {CustomCredentialValidationError} Any malformed field — before any permission check,
@@ -525,6 +535,7 @@ async function handlePlan(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): 
 
   const folderName = path.basename(sources.siteDir);
   const folder = input.folder ?? normalizeWriteFilePath(folderName);
+  requireUnreservedFolder(folder, credential.provider);
   const target = backupTarget(credential, input.owner, input.repo);
   const repo = await inspect(deps, credential.provider, PLAN_TOOL_ID, { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder });
   if (!repo.ok) return { planned: false, code: repo.code, message: repo.message };

@@ -405,6 +405,25 @@ test("an unanswered form expires and reports {created:false, reason:'expired'} â
   assert.equal(sealer.sealCalls, 0);
 });
 
+// A run already cancelled before the dialog would open: without the pre-dialog abort check the form
+// opens after the abort (whose listener then never fires) and the call waits out the whole expiry.
+// The short TTL makes that regression an 'expired' result instead of a hang.
+test("a run cancelled before the form opens returns {created:false, reason:'abandoned'} at once â€” no form is emitted, nothing seals", async () => {
+  const { deps, sealer } = fakeRouteDeps();
+  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 50 });
+  const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+  const controller = new AbortController();
+  controller.abort();
+  const emitted: unknown[] = [];
+
+  const result = await call(createTool, { emitSurface: async (surface) => void emitted.push(surface), signal: controller.signal });
+
+  assert.deepEqual(result, { created: false, reason: "abandoned" });
+  assert.equal(emitted.length, 0);
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.equal(sealer.sealCalls, 0);
+});
+
 // ---------------------------------------------------------------------------
 // 6. Optional non-secret prefill hints reach the form
 // ---------------------------------------------------------------------------

@@ -38,6 +38,7 @@ import {
   type SourceControlProviderDescriptor,
   type SourceControlProviderRegistry,
 } from "./provider-registry.js";
+import type { RepositoryTargetValidator } from "./provider-module.js";
 import { isSourceControlProviderId } from "./store.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
@@ -133,17 +134,19 @@ async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: str
 }
 
 /**
- * The host's display name for `providerId`, refusing an id no plugin declares and no credential can be
- * saved for (a typo, or a host that does not exist) before anything else runs.
+ * The host's display name for `providerId` and its plugin's own owner/repo check, refusing an id no
+ * plugin declares and no credential can be saved for (a typo, or a host that does not exist) before
+ * anything else runs. A switched-off or saved-only host has no check of its own; the generic rule in
+ * `validateCommitTarget` still applies.
  *
  * @throws {ToolInputError} naming the hosts that do exist.
  * @complexity One registry load.
  */
-async function requireKnownHost(deps: SourceControlToolDeps, providerId: string): Promise<string> {
+async function requireKnownHost(deps: SourceControlToolDeps, providerId: string): Promise<{ label: string; validateTarget?: RepositoryTargetValidator }> {
   const registry = await loadProviders(deps);
-  const label = registry.get(providerId)?.descriptor.label;
-  if (label !== undefined) return label;
-  if (registry.switchedOff?.has(providerId) || isSourceControlProviderId(providerId)) return providerId;
+  const loaded = registry.get(providerId);
+  if (loaded !== undefined) return { label: loaded.descriptor.label, ...(loaded.module.validateTarget ? { validateTarget: loaded.module.validateTarget } : {}) };
+  if (registry.switchedOff?.has(providerId) || isSourceControlProviderId(providerId)) return { label: providerId };
   const hosts = registry.list().map((loaded) => `'${loaded.descriptor.id}'`);
   throw new ToolInputError(
     `source_control_execute_commit: '${providerId}' is not a source control host. ${hosts.length > 0 ? `Hosts: ${hosts.join(", ")}` : "No turned-on Agent Plugin provides one"} (see source_control_get_capabilities).`,
@@ -316,12 +319,8 @@ interface ParsedCommitCommand {
   dryRun: boolean;
 }
 
-/**
- * Reads and validates `source_control_execute_commit`'s raw input — provider enum, then
- * owner/repo/branch/commitMessage shape via `validateCommitTarget`. Throws on any invalid field,
- * same as the inline checks this replaces; extracted so the handler itself reads as "parse, then
- * gate, then commit" instead of one long guard-clause chain.
- */
+/** Reads `source_control_execute_commit`'s raw input; {@link requireValidTarget} checks it once the
+ *  host is known. @throws {ToolInputError} on a missing or non-string required field. */
 function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
   const provider = requireString(raw, "provider");
   const owner = requireString(raw, "owner");
@@ -329,13 +328,22 @@ function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
   const commitMessage = requireString(raw, "commitMessage");
   const branch = typeof raw.branch === "string" ? raw.branch : undefined;
   const dryRun = optionalBoolean(raw, "dryRun") ?? false;
+  return { provider, owner, repo, commitMessage, branch, dryRun };
+}
 
-  const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage });
+/**
+ * The owner/repo/branch/commitMessage shape via `validateCommitTarget`, with the host plugin's own
+ * owner/repo rules first. Runs before any permission check or dialog.
+ *
+ * @throws {ToolInputError} on any invalid field.
+ * @complexity O(1).
+ */
+function requireValidTarget(command: ParsedCommitCommand, validateTarget: RepositoryTargetValidator | undefined): void {
+  const { owner, repo, branch, commitMessage } = command;
+  const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage }, validateTarget);
   if (configError !== null) {
     throw new ToolInputError(`source_control_execute_commit: ${configError}`);
   }
-
-  return { provider, owner, repo, commitMessage, branch, dryRun };
 }
 
 /**
@@ -466,7 +474,8 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
      * `descriptor.requiresConfirmation`/an `ExecutionDelegate`.
      *
      * One call, blocking:
-     *  1. Validate input shape (provider enum, owner/repo/branch/commitMessage char classes) — an
+     *  1. Validate input shape (a known host, then the host plugin's owner/repo rules and the
+     *     generic owner/repo/branch/commitMessage char classes) — an
      *     explicit early check means a caller with an invalid target never causes a dialog to be
      *     raised at all, mirroring `deployment_execute_static_publish`'s own early-validation
      *     discipline.
@@ -483,7 +492,9 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       const raw = requireInputRecord(ctx.input);
       const command = parseCommitCommand(raw);
 
-      const hostLabel = await requireKnownHost(deps, command.provider);
+      const host = await requireKnownHost(deps, command.provider);
+      const hostLabel = host.label;
+      requireValidTarget(command, host.validateTarget);
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "source-control.commit", entityType: "source-control" });
 
       if (command.dryRun) {
@@ -500,7 +511,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
           repo: command.repo,
           ...(command.branch !== undefined ? { branch: command.branch } : {}),
           commitMessage: command.commitMessage,
-        });
+        }, host.validateTarget);
         if (!preview.ok) {
           return {
             dryRun: true,
@@ -563,7 +574,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
         if (!decision.confirmed) return decision.result;
 
         const outcome = await commitSiteToSourceControl(
-          { providerId: existing.providerId, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: commitAdapter.adapter },
+          { providerId: existing.providerId, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: commitAdapter.adapter, ...(host.validateTarget ? { validateTarget: host.validateTarget } : {}) },
           {
             workspaceId: deps.workspaceId,
             sourceControlExportRootDir: deps.sourceControlExportRootDir,

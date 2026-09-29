@@ -566,6 +566,39 @@ test("with no gitAdapter override, a confirmed commit reaches the real GitHub ad
   }
 });
 
+// 2026-09-29: GitHub's owner/repo rules live in the plugin module (validateTarget). With no plugin
+// providing the host, only core's generic rule applies and its text names no host.
+test("with no plugin providing github, a malformed owner gets core's generic refusal, not GitHub's", async () => {
+  const { deps } = fakeDeps({ loadSourceControlProviders: noProviders, gitAdapter: neverCalledGitAdapter() });
+  await seedGithubCredential(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  await assert.rejects(
+    () => call(executeTool, { input: { provider: "github", owner: "has space", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError);
+      assert.equal(err.message, "source_control_execute_commit: invalid owner 'has space'");
+      return true;
+    },
+  );
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("a dry run with a malformed owner is refused with the plugin's GitHub text before any export", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit");
+
+  await assert.rejects(
+    () => call(executeTool, { input: { provider: "github", owner: "-leading-hyphen", repo: "demo", commitMessage: "x", dryRun: true } }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError);
+      assert.equal(err.message, "source_control_execute_commit: invalid GitHub owner '-leading-hyphen'");
+      return true;
+    },
+  );
+});
+
 // 2026-09-29: GitHub committing moved into the bundled `github` Agent Plugin. With that plugin off,
 // the host is reported as not commit-ready and a commit is refused BEFORE any dialog opens.
 test("with no plugin providing github, capabilities report commitSupported:false and say how to turn it on", async () => {

@@ -434,6 +434,16 @@ test("a folder inside '.github' is refused (GitHub reads workflows there)", asyn
   assert.equal(h.github.calls.length, 0);
 });
 
+// 2026-09-29: '.github' is no longer a core rule; the github plugin declares it in
+// tovu-source-control.json (reservedPaths), checked once the credential names the host.
+test("the github plugin's reserved '.github' folder is refused case-insensitively, naming the reserved folder, before any GitHub call", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const err = await rejection(call(h.planTool, { ...PLAN_INPUT, folder: ".GitHub" }));
+  assert.match(err.message, /^SITE_BACKUP_INVALID_INPUT: the backup folder must not be inside '\.github': '\.GitHub'$/);
+  assert.equal(h.github.calls.length, 0);
+});
+
 test("a runtime without a site folder answers UNAVAILABLE", async (t) => {
   const h = harness(t, { withoutSources: true });
   await h.seed();
