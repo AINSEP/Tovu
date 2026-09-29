@@ -1235,7 +1235,8 @@ button { font: inherit; color: inherit; }
 @keyframes pulse { 50% { opacity: 0.3; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .card.is-starting .state__dot { animation: none; }
+  .card.is-starting .state__dot,
+  .card.is-stopping .state__dot { animation: none; }
 }
 
 /* ---------- add project ---------- */

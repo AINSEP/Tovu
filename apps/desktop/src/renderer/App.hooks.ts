@@ -46,6 +46,7 @@ import { runnerInventoryBridge } from './runner-api.js';
 import { createWorkspaceChatTransport, type WorkspaceChatTransport } from './workspace-chat-transport.js';
 import { createLocalAttachmentUploader } from './chat-attachments.js';
 import { persistableMessages } from './persistable-messages.js';
+import { startVisibleInterval } from './visible-interval.js';
 import {
   expandedAfterKeyDown,
   expandedAfterWorkspaceChange,
@@ -61,7 +62,9 @@ import type { WorkspaceConversationSummary } from '../contracts/workspace-conver
  *
  * Runner supervises OS processes that change state on their own — a site can crash, or finish
  * booting, with no user action in this window. A mount-only fetch would leave the grid showing a
- * state that stopped being true minutes ago, so re-poll on an interval.
+ * state that stopped being true minutes ago, so re-poll on an interval — only while the window is
+ * visible (`startVisibleInterval`): a hidden window does not poll, and polls once the moment it is
+ * shown again.
  */
 export function useSitesPolling(): {
   projects: readonly SiteRecord[];
@@ -97,10 +100,10 @@ export function useSitesPolling(): {
         });
 
     void load();
-    const timer = setInterval(() => void load(), 4000);
+    const stop = startVisibleInterval(() => void load(), 4000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stop();
     };
   }, []);
 
