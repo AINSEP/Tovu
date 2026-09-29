@@ -8,4 +8,7 @@ export const defaultSiteTokenPort: SiteTokenPort = {
   status: () => api.getSiteTokenStatus(),
   reveal: () => api.revealSiteToken(),
   generate: () => api.generateSiteToken(),
+  importToken: (token) => api.importSiteToken(token),
+  previewStartFresh: () => api.previewSiteTokenStartFresh(),
+  startFresh: (confirm) => api.startFreshSiteToken(confirm),
 };

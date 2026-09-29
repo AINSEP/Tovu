@@ -5,6 +5,8 @@ import { siteTokenGenerateErrorMessage } from "./security-i18n";
 import { useWiredSiteToken } from "./hooks/use-site-token.hooks";
 import type { SiteTokenController, SiteTokenGenerateFailure } from "./hooks/use-site-token.hooks";
 import { useRevealedKeyCopy } from "./SiteTokenTab.hooks";
+import { isSiteTokenLocked, useWiredSiteTokenRecovery, type SiteTokenRecoveryController } from "./hooks/use-site-token-recovery.hooks";
+import { SiteTokenRecoveryCard } from "./SiteTokenRecoveryCard";
 import type { Translate } from "../../lib/dictionary-translator";
 
 /**
@@ -46,6 +48,8 @@ import type { Translate } from "../../lib/dictionary-translator";
 export interface SiteTokenTabProps {
   /** DI seam for tests — same convention as every other wired-hook prop in this app. */
   useSiteTokenHook?: typeof useWiredSiteToken;
+  /** DI seam for the locked site's recovery card. */
+  useSiteTokenRecoveryHook?: typeof useWiredSiteTokenRecovery;
 }
 
 function resolveSiteTokenHook(override: typeof useWiredSiteToken | undefined): typeof useWiredSiteToken {
@@ -54,7 +58,9 @@ function resolveSiteTokenHook(override: typeof useWiredSiteToken | undefined): t
 
 export function SiteTokenTab(props: SiteTokenTabProps) {
   const useSiteTokenHook = resolveSiteTokenHook(props.useSiteTokenHook);
+  const useRecoveryHook = props.useSiteTokenRecoveryHook ?? useWiredSiteTokenRecovery;
   const controller = useSiteTokenHook();
+  const recovery = useRecoveryHook(controller.refresh);
   return (
     <div
       className="site-token-tab"
@@ -63,14 +69,14 @@ export function SiteTokenTab(props: SiteTokenTabProps) {
         label: "View, reveal, and generate the Site Token that protects every credential this install holds",
       })}
     >
-      <SiteTokenBody controller={controller} />
+      <SiteTokenBody controller={controller} recovery={recovery} />
     </div>
   );
 }
 
 /** Loading/error/loaded split — pulled out purely for the complexity gate, same reasoning
  *  `AccessTokensBody` documents in `AccessTokensTab.tsx`. */
-function SiteTokenBody({ controller }: { controller: SiteTokenController }) {
+function SiteTokenBody({ controller, recovery }: { controller: SiteTokenController; recovery: SiteTokenRecoveryController }) {
   const translate = controller.t;
   if (controller.loadError) {
     return (
@@ -85,6 +91,7 @@ function SiteTokenBody({ controller }: { controller: SiteTokenController }) {
   return (
     <>
       <SiteTokenScopeNotice runtimeMode={controller.status.runtimeMode} t={translate} />
+      {isSiteTokenLocked(controller.status, controller.generateError) || recovery.resultMessage ? <SiteTokenRecoveryCard recovery={recovery} /> : null}
       <SiteTokenStatusCard controller={controller} />
     </>
   );

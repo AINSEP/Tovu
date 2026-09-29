@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { SiteTokenTab } from "../SiteTokenTab";
 import type { SiteTokenController } from "../hooks/use-site-token.hooks";
+import type { SiteTokenRecoveryController } from "../hooks/use-site-token-recovery.hooks";
+import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/agentic";
 import type { AdminSiteTokenStatus } from "@/lib/api";
 
 /**
@@ -37,6 +39,7 @@ function makeSiteToken(overrides: Partial<SiteTokenController> = {}): SiteTokenC
     generating: false,
     generateError: null,
     generate: async () => {},
+    refresh: async () => {},
     t: (key: string) => key,
     ...overrides,
   };
@@ -148,5 +151,91 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     // The sentence sits alongside "The key file at <code>…</code>" in the same <p>, so it is
     // matched by substring (not full-node exact text) against that paragraph's combined content.
     expect(screen.getByText(/It will need to be replaced by hand on the server — this tab can't do that yet\./)).toBeInTheDocument();
+  });
+});
+
+/** The locked site's recovery card (design 2026-09-14 §4.3/§4.6): two actions, terse copy, one
+ *  typed confirmation for Start fresh. The card only renders; `useSiteTokenRecovery` owns state. */
+describe("SiteTokenTab — recovery card for a locked site", () => {
+  const MISMATCH_STATUS: AdminSiteTokenStatus = {
+    active: true,
+    source: "file",
+    fingerprint: "ffff00001111",
+    keyFilePath: "/home/me/.tovu/site-keys/site.hex",
+    runtimeMode: "local",
+    state: "mismatch",
+  };
+
+  function makeRecovery(overrides: Partial<SiteTokenRecoveryController> = {}): SiteTokenRecoveryController {
+    return {
+      token: "",
+      setToken: () => {},
+      unlocking: false,
+      unlockError: null,
+      unlock: async () => {},
+      startFreshStep: "closed",
+      preview: null,
+      openStartFresh: async () => {},
+      cancelStartFresh: () => {},
+      confirmText: "",
+      setConfirmText: () => {},
+      canConfirmStartFresh: false,
+      startingFresh: false,
+      startFreshError: null,
+      startFresh: async () => {},
+      resultMessage: null,
+      t: (key: string) => key,
+      ...overrides,
+    };
+  }
+
+  function renderLocked(status: AdminSiteTokenStatus, recovery: Partial<SiteTokenRecoveryController> = {}) {
+    return render(
+      <SiteTokenTab useSiteTokenHook={() => makeSiteToken({ status })} useSiteTokenRecoveryHook={() => makeRecovery(recovery)} />
+    );
+  }
+
+  it("offers both actions when the site's credentials are locked", () => {
+    renderLocked(MISMATCH_STATUS);
+
+    expect(screen.getByRole("heading", { name: "Your saved credentials are locked" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Paste your old token")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start fresh…" })).toBeInTheDocument();
+    expect(screen.getByText("Lost it? A restore point is saved first, then only the credentials that can't be unlocked are removed.")).toBeInTheDocument();
+  });
+
+  it("does not show the card when the key is fine", () => {
+    renderLocked(ACTIVE_FILE_STATUS);
+
+    expect(screen.queryByRole("heading", { name: "Your saved credentials are locked" })).not.toBeInTheDocument();
+  });
+
+  it("the confirm step shows the preview sentence and keeps Start fresh disabled until the phrase is typed", () => {
+    renderLocked(MISMATCH_STATUS, {
+      startFreshStep: "confirm",
+      preview: { removes: 1, affectedWebhooks: [], detail: "1 saved credential can't be unlocked and will be removed.", runtimeMode: "local" },
+      confirmText: "START",
+    });
+
+    expect(screen.getByText("1 saved credential can't be unlocked and will be removed.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Type START FRESH to confirm")).toHaveValue("START");
+    expect(screen.getByRole("button", { name: "Start fresh" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("the pasted token field is a password field hidden from the assistant", () => {
+    renderLocked(MISMATCH_STATUS, { token: "abc" });
+
+    const input = screen.getByLabelText("Paste your old token");
+    expect(input).toHaveAttribute("type", "password");
+    expect(input).toHaveAttribute(AGENT_PRIVATE_ATTRIBUTE);
+  });
+
+  it("keeps the card up with the result sentence after recovery, even once the status is active again", () => {
+    renderLocked(ACTIVE_FILE_STATUS, { resultMessage: "Unlocked. Your saved credentials work again." });
+
+    expect(screen.getByText("Unlocked. Your saved credentials work again.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Unlock" })).not.toBeInTheDocument();
   });
 });

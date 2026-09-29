@@ -48,6 +48,8 @@ export interface SiteTokenController {
    *  Generate control is hidden outside that state (sol packet-3 finding 3-1), this is a second,
    *  defensive guard against a stale click. */
   generate: () => Promise<void>;
+  /** Re-reads the status (after a recovery); clears a stale generate refusal. */
+  refresh: () => Promise<void>;
   t: Translate;
 }
 
@@ -131,7 +133,17 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
     }
   }
 
-  return { status, loadError, revealing, revealError, revealedHex, reveal, hideRevealed, generating, generateError, generate, t };
+  async function refresh(): Promise<void> {
+    try {
+      setStatus(await port.status());
+      setGenerateError(null);
+      setRevealedHex(null);
+    } catch (err) {
+      setLoadError(siteTokenLoadErrorMessage(locale, describeApiError(err, t("unknown error"))));
+    }
+  }
+
+  return { status, loadError, revealing, revealError, revealedHex, reveal, hideRevealed, generating, generateError, generate, refresh, t };
 }
 
 /**

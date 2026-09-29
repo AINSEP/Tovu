@@ -812,6 +812,43 @@ export interface AdminGeneratedSiteToken {
   runtimeMode: AdminSiteTokenRuntimeMode;
 }
 
+/** `POST .../system/site-token/import`'s 200: the pasted token is now this site's key. `resealed`
+ *  counts credentials saved under the key that was in place and moved onto the token. */
+export interface AdminImportedSiteToken {
+  outcome: "unlocked";
+  fingerprint: string;
+  keyFilePath: string;
+  resealed: number;
+  restorePointId?: string;
+  runtimeMode: AdminSiteTokenRuntimeMode;
+}
+
+/** A webhook whose signing secret changes when the site starts fresh. */
+export interface AdminSiteTokenAffectedWebhook {
+  label: string;
+  targetUrl: string;
+}
+
+/** `GET .../system/site-token/start-fresh`: what confirming would do, in one plain sentence. */
+export interface AdminSiteTokenStartFreshPreview {
+  removes: number;
+  affectedWebhooks: AdminSiteTokenAffectedWebhook[];
+  detail: string;
+  runtimeMode: AdminSiteTokenRuntimeMode;
+}
+
+/** `POST .../system/site-token/start-fresh`'s 200. The new key is never in the body. */
+export interface AdminStartedFreshSiteToken {
+  outcome: "started-fresh";
+  fingerprint: string;
+  keyFilePath: string;
+  discarded: number;
+  kept: number;
+  restorePointId: string;
+  affectedWebhooks: AdminSiteTokenAffectedWebhook[];
+  runtimeMode: AdminSiteTokenRuntimeMode;
+}
+
 /** Mirrors `POST .../system/site-token/reveal`'s response shape — {@link AdminSiteTokenStatus}
  *  plus the raw value when one is active. `hex` is absent when `active` is `false` (nothing to
  *  reveal). */
@@ -4019,6 +4056,20 @@ export const api = {
    *  `classifySiteTokenGenerateError`. Never overwrites or rotates a key. */
   generateSiteToken: () =>
     request<AdminGeneratedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/generate`, { method: "POST" }),
+  /** "Paste your old token": installs `token` only once it opens this site's saved credentials,
+   *  moving anything saved under the key in place onto it first. Refusals throw an `ApiError` with
+   *  a plain `.body.detail`: `TOKEN_INVALID` (400), `TOKEN_DOES_NOT_OPEN`, `ENV_KEY_SET`,
+   *  `RESTORE_POINT_UNAVAILABLE`, `SITE_META_UNREADABLE` (409). */
+  importSiteToken: (token: string) =>
+    request<AdminImportedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/import`, { method: "POST", body: JSON.stringify({ token }) }),
+  /** What "Start fresh" would remove and which webhooks get a new signing secret. Changes nothing. */
+  previewSiteTokenStartFresh: () =>
+    request<AdminSiteTokenStartFreshPreview>(`/workspaces/${WORKSPACE_ID}/system/site-token/start-fresh`),
+  /** "Start fresh": restore point, remove what can't be unlocked, install the key. `confirm` must be
+   *  `START FRESH` (else 400 `CONFIRMATION_REQUIRED`); other refusals as {@link importSiteToken}'s
+   *  plus `STORAGE_SECRET_LOCKED`. */
+  startFreshSiteToken: (confirm: string) =>
+    request<AdminStartedFreshSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/start-fresh`, { method: "POST", body: JSON.stringify({ confirm }) }),
 
   // Source Control page → credential management (`src/server/routes/admin/system/
   // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per

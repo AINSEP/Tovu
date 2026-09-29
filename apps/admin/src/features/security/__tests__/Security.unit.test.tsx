@@ -64,6 +64,7 @@ function makeSiteToken(overrides: Partial<SiteTokenController> = {}): SiteTokenC
     generating: false,
     generateError: null,
     generate: async () => {},
+    refresh: async () => {},
     t: (key: string) => key,
     ...overrides,
   };

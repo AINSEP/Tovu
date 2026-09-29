@@ -32,3 +32,11 @@
   font-family: var(--font-mono); font-size: var(--text-sm); word-break: break-all; user-select: all;
 }
 .site-token-revealed-actions { display: flex; gap: var(--space-2); }
+
+/* Recovery card for a locked site (`SiteTokenRecoveryCard.tsx`). */
+.site-token-recovery-card { display: flex; flex-direction: column; gap: var(--space-3); border-color: var(--warning, var(--border-strong)); }
+.site-token-recovery-unlock, .site-token-recovery-start-fresh { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; margin: 0; }
+.site-token-recovery-unlock label, .site-token-recovery-confirm label { font-weight: 600; font-size: var(--text-sm); }
+.site-token-recovery-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; width: 100%; }
+.site-token-recovery-row input { flex: 1 1 18rem; min-width: 0; font-family: var(--font-mono); }
+.site-token-recovery-start-fresh p { margin: 0; }
