@@ -55,22 +55,8 @@ export type VendorId = "github" | "gitlab" | "bitbucket" | "vercel" | "netlify" 
 
 export const VENDOR_IDS: readonly VendorId[] = ["github", "gitlab", "bitbucket", "vercel", "netlify", "cloudflare", "s3-compatible"];
 
-/**
- * `publish_credential_sets.provider_id` -> `VendorId`. A `Record` (not a `Map`/`Set`-based lookup)
- * so this mapping is exhaustively checked against `PublishProviderId` at compile time — a new
- * publish provider added to that union without a corresponding entry here is a `tsc` error, not a
- * runtime surprise the backfill script would otherwise discover only by throwing on an unmapped row.
- */
-export const PUBLISH_PROVIDER_TO_VENDOR: Record<"github-pages" | "vercel" | "netlify" | "cloudflare-pages" | "s3-compatible", VendorId> = {
-  "github-pages": "github",
-  vercel: "vercel",
-  netlify: "netlify",
-  "cloudflare-pages": "cloudflare",
-  "s3-compatible": "s3-compatible",
-};
-
-/** `source_control_credential_sets.provider_id` -> `VendorId`. Same exhaustiveness reasoning as
- *  {@link PUBLISH_PROVIDER_TO_VENDOR}. */
+/** `source_control_credential_sets.provider_id` -> `VendorId`. A `Record` so a new source-control
+ *  provider without an entry here is a `tsc` error, not a runtime surprise in the backfill script. */
 export const SOURCE_CONTROL_PROVIDER_TO_VENDOR: Record<"github" | "gitlab" | "bitbucket", VendorId> = {
   github: "github",
   gitlab: "gitlab",

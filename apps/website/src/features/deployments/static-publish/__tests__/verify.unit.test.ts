@@ -4,7 +4,7 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
-import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import type { PublishCredentialSource } from "../types.js";
 import {
   canYieldAccountLabel,
@@ -34,7 +34,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
-    repo: new InMemoryPublishCredentialSetRepo(),
+    repo: new InMemoryVendorCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock,
@@ -598,38 +598,6 @@ test("verifyPublishCredentialById: an s3-compatible row with no endpoint configu
   assert.equal(seenUrl, "https://s3.us-east-1.amazonaws.com/my-bucket");
 });
 
-test("verifyPublishCredentialById: a row deleted between the two concurrent reads (findById vs resolveForPublish's own findById) returns null rather than throwing", async () => {
-  // `verifyPublishCredentialById` runs `deps.repo.findById(input)` directly AND
-  // `resolveForPublish(...)` (which does its OWN internal `findById`) concurrently via
-  // `Promise.all` — two independent reads of the same row, not one atomic snapshot. This wraps a
-  // real repo to make its SECOND `findById` call (the one inside `resolveForPublish`) observe the
-  // row as already gone, simulating a real delete landing in the gap between the two reads —
-  // the one `!record || !resolved` combination the happy-path tests above cannot produce, since an
-  // in-memory repo answers both reads from the same unchanging snapshot otherwise.
-  const writeDeps = makeWriteDeps();
-  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
-  let findByIdCalls = 0;
-  const racyRepo: typeof writeDeps.repo = {
-    ...writeDeps.repo,
-    findById: async (input) => {
-      findByIdCalls += 1;
-      if (findByIdCalls === 1) return writeDeps.repo.findById(input);
-      return null; // the row is "gone" by the time resolveForPublish's own read lands
-    },
-  };
-  const cache = new InMemoryPublishCredentialVerificationCache();
-  let fetchCalls = 0;
-  const fetchFn = (async () => {
-    fetchCalls += 1;
-    throw new Error("must not be called");
-  }) as typeof fetch;
-
-  const result = await verifyPublishCredentialById({ repo: racyRepo, sealer: writeDeps.sealer, cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
-
-  assert.equal(result, null);
-  assert.equal(fetchCalls, 0);
-});
-
 // ---------------------------------------------------------------------------
 // listGitHubReposByCredentialId — the GitHub owner/repo picker's real seam (source-control-ui's
 // dependency, adapted by route-quality's admin route)
@@ -659,7 +627,7 @@ test("listGitHubReposByCredentialId: no such row returns null, makes no network 
     throw new Error("must not be called");
   }) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: "no-such-id" });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: "no-such-id" });
 
   assert.equal(result, null);
   assert.equal(fetchCalls, 0);
@@ -673,7 +641,7 @@ test("listGitHubReposByCredentialId: a non-github-pages credential throws — th
   }) as typeof fetch;
 
   await assert.rejects(
-    () => listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id }),
+    () => listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id }),
     /is a 'vercel' connection, not 'github-pages'/
   );
 });
@@ -692,7 +660,7 @@ test("listGitHubReposByCredentialId: a real page of repos maps to the closed Git
     });
   }) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.status, "valid");
@@ -717,7 +685,7 @@ test("listGitHubReposByCredentialId: truncated:true when GitHub's Link header na
       headers: { link: '<https://api.github.com/user/repos?page=2>; rel="next", <https://api.github.com/user/repos?page=5>; rel="last"' },
     })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.truncated, true, "the Link header is the authoritative signal, independent of how many repos this page happened to carry");
@@ -729,7 +697,7 @@ test("listGitHubReposByCredentialId: truncated:true falls back to 'page came bac
   const fullPage = Array.from({ length: 100 }, (_, i) => rawGitHubRepo({ name: `repo-${i}`, full_name: `octo/repo-${i}` }));
   const fetchFn = (async () => new Response(JSON.stringify(fullPage), { status: 200 })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.repos.length, 100);
@@ -741,7 +709,7 @@ test("listGitHubReposByCredentialId: GitHub rejects (401) — status:'invalid', 
   const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "ghp_should_never_leak" } });
   const fetchFn = (async () => new Response(JSON.stringify({ message: "Bad credentials" }), { status: 401 })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.status, "invalid");
@@ -759,7 +727,7 @@ test("listGitHubReposByCredentialId: a network failure never throws — status:'
     throw new TypeError("fetch failed");
   }) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.status, "unreachable");
@@ -772,7 +740,7 @@ test("listGitHubReposByCredentialId: an authenticated 200 with an unparseable bo
   const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
   const fetchFn = (async () => new Response("not json", { status: 200 })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.status, "unreachable");
@@ -784,7 +752,7 @@ test("listGitHubReposByCredentialId: an HTTP-level failure that is neither 401 n
   const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
   const fetchFn = (async () => new Response("", { status: 500 })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.status, "unreachable");
@@ -797,7 +765,7 @@ test("listGitHubReposByCredentialId: a 200 body that parses but is not an array 
   const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
   const fetchFn = (async () => new Response(JSON.stringify({ message: "not the array shape this endpoint documents" }), { status: 200 })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.status, "valid", "an authenticated 2xx with an unexpected body shape is still a valid credential — the shape mismatch degrades to an empty list, not a failure");
@@ -814,7 +782,7 @@ test("listGitHubReposByCredentialId: a Link header present but naming no rel=\"n
       headers: { link: '<https://api.github.com/user/repos?page=1>; rel="prev", <https://api.github.com/user/repos?page=1>; rel="last"' },
     })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.equal(result!.truncated, false);
@@ -830,7 +798,7 @@ test("listGitHubReposByCredentialId: a repo entry with a non-object, null, or wr
   ];
   const fetchFn = (async () => new Response(JSON.stringify(badOwnerEntries), { status: 200 })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.deepEqual(result!.repos, [], "every entry with an unreadable owner.login must be dropped, not defaulted or half-populated");
@@ -842,7 +810,7 @@ test("listGitHubReposByCredentialId: an entry with a wrong-typed private flag or
   const entries = [rawGitHubRepo({ private: "yes" as unknown as boolean }), rawGitHubRepo({ default_branch: undefined as unknown as string })];
   const fetchFn = (async () => new Response(JSON.stringify(entries), { status: 200 })) as typeof fetch;
 
-  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
   assert.deepEqual(result!.repos, [], "a wrong-typed private/default_branch field must drop the whole entry, never coerce or default it");

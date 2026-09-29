@@ -6,7 +6,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { KeyringPort } from "#src/features/webhooks/index";
 import { createPublishCredential } from "#src/features/deployments/publish-credentials/index";
-import type { PublishCredentialSetRepoPort } from "#src/features/deployments/publish-credentials/index";
+import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
 import { registerAdminPublishCredentialsRoutes } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
 import {
   bootAuthenticated,
@@ -546,7 +546,7 @@ test("publish-credentials: a network failure during POST .../:id/verify reports 
  *
  * Two apps sharing ONE repo simulate "the row already exists, THIS process just has no root key" —
  * app1 (a normal, working sealer) creates and saves the row; app2 (a `BrokenKeyring`) is a second,
- * independent server instance pointed at the SAME `publishCredentialSetRepo`, standing in for a
+ * independent server instance pointed at the SAME `vendorCredentialSetRepo`, standing in for a
  * later, differently-configured boot. This is deliberately not "swap the sealer mid-request" — a
  * single request cannot both succeed at sealing and fail at opening with the same key, so two
  * separate app instances are the only way to reproduce the real shape of the bug.
@@ -595,7 +595,7 @@ test("publish-credentials: a root key missing at verify time (present at save ti
   const brokenKeyring = new BrokenKeyring();
   const deps2: RouteDeps = {
     ...createRouteDeps(),
-    publishCredentialSetRepo: deps1.publishCredentialSetRepo,
+    vendorCredentialSetRepo: deps1.vendorCredentialSetRepo,
     siteAssistantSecretKeyring: brokenKeyring,
     siteAssistantSecretSealer: new AesGcmSecretSealer(brokenKeyring),
   };
@@ -730,7 +730,7 @@ async function resolveSeededOwnerPrincipal(deps: RouteDeps) {
  *  request. Same `Proxy`-over-the-real-repo shape `route-async-guards.test.ts`'s own
  *  `withThrowingMethods` uses for a sibling class of problem (only `findById` is touched; every
  *  other method keeps its real, working behavior). */
-function repoThatVanishesRowOnSecondRead(real: PublishCredentialSetRepoPort): PublishCredentialSetRepoPort {
+function repoThatVanishesRowOnSecondRead(real: VendorCredentialSetRepoPort): VendorCredentialSetRepoPort {
   let findByIdCalls = 0;
   return new Proxy(real, {
     get(target, prop, receiver) {
@@ -817,7 +817,7 @@ test("publish-credentials: PUT's `req.body ?? {}` fallback, forced via a direct 
   const ownerPrincipal = await resolveSeededOwnerPrincipal(deps);
   const credential = await createPublishCredential(
     {
-      repo: deps.publishCredentialSetRepo,
+      repo: deps.vendorCredentialSetRepo,
       sealer: deps.siteAssistantSecretSealer,
       keyring: deps.siteAssistantSecretKeyring,
       clock: deps.clock,
@@ -860,7 +860,7 @@ test("publish-credentials: verifyAfterSave's `result ?? undefined` fallback, for
   const deps: RouteDeps = { ...createRouteDeps() };
   const credential = await createPublishCredential(
     {
-      repo: deps.publishCredentialSetRepo,
+      repo: deps.vendorCredentialSetRepo,
       sealer: deps.siteAssistantSecretSealer,
       keyring: deps.siteAssistantSecretKeyring,
       clock: deps.clock,
@@ -870,7 +870,7 @@ test("publish-credentials: verifyAfterSave's `result ?? undefined` fallback, for
     { workspaceId: deps.workspaceId, label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }
   );
 
-  deps.publishCredentialSetRepo = repoThatVanishesRowOnSecondRead(deps.publishCredentialSetRepo as PublishCredentialSetRepoPort);
+  deps.vendorCredentialSetRepo = repoThatVanishesRowOnSecondRead(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

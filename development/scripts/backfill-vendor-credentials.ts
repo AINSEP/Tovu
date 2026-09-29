@@ -120,7 +120,17 @@ import type { PublishProviderId } from "../../apps/website/src/features/deployme
 import { buildSourceControlCredentialAad } from "../../apps/website/src/features/source-control/aad.js";
 import type { SourceControlProviderId } from "../../apps/website/src/features/source-control/types.js";
 import { buildVendorCredentialAad } from "../../apps/website/src/features/vendor-credentials/aad.js";
-import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR, type VendorId } from "../../apps/website/src/features/vendor-credentials/types.js";
+import { SOURCE_CONTROL_PROVIDER_TO_VENDOR, type VendorId } from "../../apps/website/src/features/vendor-credentials/types.js";
+
+/** The legacy `publish_credential_sets.provider_id` values and their vendor. Frozen: that table takes
+ *  no new rows (the app copies it into `vendor_credential_sets` at boot), so this set never grows. */
+const PUBLISH_PROVIDER_TO_VENDOR: Record<"github-pages" | "vercel" | "netlify" | "cloudflare-pages" | "s3-compatible", VendorId> = {
+  "github-pages": "github",
+  vercel: "vercel",
+  netlify: "netlify",
+  "cloudflare-pages": "cloudflare",
+  "s3-compatible": "s3-compatible",
+};
 import { resolveLabel, type GroupState, type Origin } from "./backfill-vendor-credentials-helpers.js";
 
 // Re-exported so every caller keeps importing from this one file — see

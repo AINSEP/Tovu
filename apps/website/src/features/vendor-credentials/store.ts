@@ -53,28 +53,16 @@ import type {
  *
  * This module used to value-import `extractGitHubLogin` (`../deployments/static-publish/index`) and
  * call it by name from {@link probeAccountLabel}. That closed a real cycle once `deployments`/
- * `static-publish` tried to convert to the tool-contribution registry: `assistant`'s own
- * `REAL_VENDOR_CREDENTIAL_PORT` wiring reaches `features/vendor-credentials` unconditionally (for
- * `list`/`create`/`update`/`providerToVendor` — genuinely load-bearing), which reached (via THIS
- * file, not `dual-read.ts`) back into `features/deployments` — see
- * `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md` for the
- * sibling edge this same session already cut in `dual-read.ts` (Option B); this file's own
- * `extractGitHubLogin` import was a second, previously-undocumented edge closing the identical class
- * of cycle one file over, found only once `deployments`/`static-publish` actually attempted
- * conversion on top of the `dual-read.ts` fix (see `features/deployments/tool-registrations.ts`'s and
- * `publish-agent-tools.ts`'s own trailing comments for the confirmed `check:architecture --list`
- * traces). `extractGitHubLogin` below is typed with a LOCALLY-declared structural signature
- * ({@link ExtractGitHubLogin}), not the imported function's own type — the exact same technique
- * `dual-read.ts` uses for `resolveLegacyPublish`/`resolveLegacySourceControl` and
- * `features/deployments/publish-agent-tools.ts` uses for its own `VendorCredentialPort`, both one hop
- * away on this same chain. Unlike `dual-read.ts`'s two functions (zero real callers at the time of
- * that fix), `createVendorCredential`/`updateVendorCredential` DO have a real production caller
- * today — `server/routes/admin/system/vendor-credentials.ts`'s `registerAdminVendorCredentialsRoutes`
- * — so this deps field is REQUIRED (no `?`), not left for a future wiring pass: a composition root
- * that forgets it gets a compile error, not a silent `probeAccountLabel` no-op. That route file wires
- * the real `extractGitHubLogin` in from `server/`, which — same reasoning `dual-read.ts`'s header
- * gives for its own deferred wiring — does not sit downstream of `deployments`'s/`static-publish`'s
- * own `registerToolContributor` edge. Wiring the real function back in from `assistant` instead would
+ * `static-publish` converted to the tool-contribution registry: `assistant`'s own
+ * `REAL_VENDOR_CREDENTIAL_PORT` wiring reaches `features/vendor-credentials` unconditionally, which
+ * reached (via this file) back into `features/deployments` — see
+ * `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`.
+ * `extractGitHubLogin` below is typed with a LOCALLY-declared structural signature
+ * ({@link ExtractGitHubLogin}), the same technique `features/deployments/publish-agent-tools.ts` uses
+ * for its own `VendorCredentialPort`. `createVendorCredential`/`updateVendorCredential` have a real
+ * production caller (`server/routes/admin/system/vendor-credentials.ts`), so this deps field is
+ * REQUIRED (no `?`): a composition root that forgets it gets a compile error, not a silent
+ * `probeAccountLabel` no-op. Wiring the real function back in from `assistant` instead would
  * silently reintroduce the exact cycle this cut removes.
  */
 
@@ -157,8 +145,7 @@ export interface VendorCredentialWriteDeps extends VendorCredentialReadDeps {
   fetchFn?: typeof fetch;
   /** Injected rather than imported — see this file's header ("Why `probeAccountLabel`'s GitHub-login
    *  extractor is INJECTED, not imported"). A real caller passes `static-publish/verify.ts`'s own
-   *  `extractGitHubLogin` unchanged; this module never imports it by name. Required (no `?`): unlike
-   *  `dual-read.ts`'s injected legacy resolvers, this one has a real production caller today, so a
+   *  `extractGitHubLogin` unchanged; this module never imports it by name. Required (no `?`), so a
    *  composition root that forgets it fails to compile rather than silently degrading the github
    *  account-label probe to always-null. */
   extractGitHubLogin: ExtractGitHubLogin;

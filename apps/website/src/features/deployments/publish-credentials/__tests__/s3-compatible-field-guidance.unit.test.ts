@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "../s3-compatible-field-guidance.js";
 import { createPublishCredential, PublishCredentialValidationError, type PublishCredentialWriteDeps } from "../store.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
@@ -22,7 +22,7 @@ function makeDeps(): PublishCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
-    repo: new InMemoryPublishCredentialSetRepo(),
+    repo: new InMemoryVendorCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: { nowIso: () => "2026-08-15T00:00:00.000Z" },

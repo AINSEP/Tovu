@@ -56,13 +56,6 @@
   "apps/website/src/features/site-export/static-security-headers.ts": {
     "vercel": 3
   },
-  "apps/website/src/features/vendor-credentials/dual-read.ts": {
-    "cloudflare": 2,
-    "github-pages": 1,
-    "netlify": 2,
-    "s3-compatible": 2,
-    "vercel": 2
-  },
   "apps/website/src/features/vendor-credentials/index.ts": {
     "cloudflare": 1,
     "netlify": 1,
@@ -76,11 +69,10 @@
     "vercel": 6
   },
   "apps/website/src/features/vendor-credentials/types.ts": {
-    "cloudflare": 8,
-    "github-pages": 2,
-    "netlify": 8,
-    "s3-compatible": 8,
-    "vercel": 8
+    "cloudflare": 5,
+    "netlify": 5,
+    "s3-compatible": 5,
+    "vercel": 5
   },
   "apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts": {
     "vercel": 1

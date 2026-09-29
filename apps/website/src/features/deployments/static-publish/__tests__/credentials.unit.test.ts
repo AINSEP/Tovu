@@ -4,7 +4,7 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
-import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
@@ -26,7 +26,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
-    repo: new InMemoryPublishCredentialSetRepo(),
+    repo: new InMemoryVendorCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: { nowIso: () => NOW },

@@ -9,7 +9,7 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from "../publish-credentials/index.js";
+import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Real implementation of `StaticPublishToolDeps.vendorCredentials` — production wiring for this lives
 // in `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations`, which this test file does
@@ -186,18 +186,24 @@ function failingDeployTarget(message: string): DeployTarget {
   };
 }
 
-/** A `PublishCredentialSetRepoPort` whose only implemented method is `listByWorkspace` — every other
+/** A saved `vendor_credential_sets` row for the capabilities tests; the sealed blob is never opened. */
+function vendorRow(fields: Pick<VendorCredentialSetRecord, "workspaceId" | "id" | "vendorId" | "label" | "isDefault"> & Partial<VendorCredentialSetRecord>): VendorCredentialSetRecord {
+  return { sealed: {} as never, tokenTail: "", accountLabel: null, createdAt: NOW, updatedAt: NOW, ...fields };
+}
+
+/** A `VendorCredentialSetRepoPort` whose only implemented method is `listByWorkspace` — every other
  *  method throws if ever called, so a test using it also proves the capabilities handler never reaches
  *  for anything beyond the read model (`describeCredential`/`listPublishCredentials`'s own contract). */
-function fakeCredentialRepo(records: readonly PublishCredentialSetRecord[]): PublishCredentialSetRepoPort {
+function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[]): VendorCredentialSetRepoPort {
   return {
     async insert() { throw new Error("not used by this test"); },
     async update() { throw new Error("not used by this test"); },
     async findById() { throw new Error("not used by this test"); },
-    async findDefaultByProvider() { throw new Error("not used by this test"); },
-    async listByProvider() { throw new Error("not used by this test"); },
+    async findDefaultByVendor() { throw new Error("not used by this test"); },
+    async listByVendor() { throw new Error("not used by this test"); },
     async listByWorkspace(input) { return records.filter((r) => r.workspaceId === input.workspaceId); },
     async delete() { throw new Error("not used by this test"); },
+    async updateAccountLabel() { throw new Error("not used by this test"); },
   };
 }
 
@@ -207,16 +213,6 @@ function fakeCredentialRepo(records: readonly PublishCredentialSetRecord[]): Pub
 // the real implementation is wired by assistant/tool-registrations.ts's
 // buildAssistantToolRegistrations, which this test file's fakeDeps() mirrors above).
 // ---------------------------------------------------------------------------
-
-test("deployment_get_static_publish_capabilities: an unwired vendorCredentials port fails LOUDLY with a named wiring-bug error, never a silent legacy-only degrade", async () => {
-  const { deps } = fakeDeps({
-    credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: false, reason: "n/a" }; } },
-  });
-  deps.vendorCredentials = undefined;
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
-  await assert.rejects(() => call(capabilities), /vendorCredentials was not injected — this is a wiring bug/);
-});
 
 test("deployment_propose_custom_provider_credential: an unwired vendorCredentials port fails LOUDLY at the write step, after the human already confirmed — the form having been shown is not itself proof anything was saved", async () => {
   const { deps } = fakeDeps();
@@ -322,11 +318,9 @@ test("deployment_get_static_publish_capabilities's description forbids ever aski
 });
 
 test("deployment_get_static_publish_capabilities lists exactly the registry's hosts, each with its label, config fields and vendor group from the descriptor", async () => {
-  const { deps } = fakeDeps({
-    credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: false, reason: "none saved" }; } },
-  });
+  // No credentialSource override: the real DB-backed source must find the vendor-group row below.
+  const { deps } = fakeDeps();
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
   const acme: LoadedDeployTarget = {
     pluginId: "deploy",
     module: { create: () => assert.fail("capabilities never builds a target") },
@@ -356,10 +350,10 @@ test("deployment_get_static_publish_capabilities lists exactly the registry's ho
 
 test("deployment_get_static_publish_capabilities reports per-provider readiness and saved credentials by id/label only, scoped to this workspace, and NEVER calls resolve()", async () => {
   let resolveCallCount = 0;
-  const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-2", providerId: "github-pages", label: "personal", sealed: {} as never, isDefault: false, accountLabel: null, createdAt: NOW, updatedAt: NOW },
-    { workspaceId: "some-other-workspace", id: "cred-x", providerId: "vercel", label: "not-mine", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  const records: VendorCredentialSetRecord[] = [
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-2", vendorId: "github", label: "personal", isDefault: false }),
+    vendorRow({ workspaceId: "some-other-workspace", id: "cred-x", vendorId: "vercel", label: "not-mine", isDefault: true }),
   ];
   const { deps } = fakeDeps({
     credentialSource: {
@@ -375,7 +369,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   // 2026-08-16: `ready` now additionally requires a CACHED `verified: "valid"` — a saved-but-never-
   // verified credential is no longer `ready` (that is exactly this defect's fix; see the dedicated
   // tests below for the unverified/invalid/unreachable cases). Seeding this here keeps this test's
@@ -424,26 +418,16 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   assert.doesNotMatch(JSON.stringify(result), /should-never-appear/);
 });
 
-// Phase 3 cutover (vendor-credentials dual-read) — this dispatch. See `vendor-credentials/dual-read.ts`'s
-// own header for the "new table first, legacy table only when the new group is empty" precedence this
-// handler reimplements at the non-decrypting list level (it cannot call that module directly — that
-// function DECRYPTS, and this handler's own "never decrypts" contract, proven above, must stay true).
-
-test("deployment_get_static_publish_capabilities: a credential saved on the NEW vendor_credential_sets table surfaces a real tokenTail; a legacy-table-only credential reports tokenTail: null", async () => {
+test("deployment_get_static_publish_capabilities: a saved credential surfaces its stored tokenTail and nothing more of the secret", async () => {
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured() { return { configured: false, reason: "not configured" }; },
+      async isConfigured() { return { configured: true }; },
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  // netlify: legacy-table-only, exactly today's pre-migration shape — no tokenTail column exists there.
-  deps.publishCredentialSetRepo = fakeCredentialRepo([
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "legacy-1", providerId: "netlify", label: "legacy", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
-  ]);
-  // github-pages: saved through the NEW table (mirrors a real save via `deployment_propose_custom_
-  // provider_credential`'s Phase 3 cutover, or a post-migration row) — real `createVendorCredential`,
-  // not a hand-built record, so this exercises the exact same seal/tokenTail derivation production uses.
+  // Real `createVendorCredential`, not a hand-built record, so this exercises the exact seal/tokenTail
+  // derivation production uses.
   await createVendorCredential(
     { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
     { workspaceId: deps.workspaceId, label: "work", connection: { vendorId: "github", token: "ghp_aVeryRealLookingToken1234" } }
@@ -457,25 +441,15 @@ test("deployment_get_static_publish_capabilities: a credential saved on the NEW 
 
   const github = result.providers.find((p) => p.providerId === "github-pages")!;
   assert.equal(github.savedCredentials.length, 1);
-  assert.equal(github.savedCredentials[0]!.tokenTail, "1234", "a vendor-table-sourced entry must carry the real last-4 tail");
+  assert.equal(github.savedCredentials[0]!.tokenTail, "1234", "the entry must carry the stored last-4 tail");
   assert.doesNotMatch(JSON.stringify(result), /ghp_aVeryRealLookingToken/, "must NEVER surface anything beyond the last 4 characters");
-
-  const netlify = result.providers.find((p) => p.providerId === "netlify")!;
-  assert.equal(netlify.savedCredentials.length, 1);
-  assert.equal(netlify.savedCredentials[0]!.tokenTail, null, "a legacy-table-only entry has no token_tail column and this tool never decrypts to derive one");
 });
 
-test("deployment_get_static_publish_capabilities: credentialConfigured/ready are TRUE for a provider saved ONLY on the new vendor table, even though the old-table-backed credentialSource reports not-configured", async () => {
-  const { deps } = fakeDeps({
-    credentialSource: {
-      async resolve() { throw new Error("must not be called by this handler"); },
-      // Old-table/env mechanism sees nothing for ANY provider — proves `credentialConfigured` below
-      // is genuinely driven by the new table, not merely echoing this fake.
-      async isConfigured() { return { configured: false, reason: "no default credential is saved for this workspace yet" }; },
-    },
-  });
+test("deployment_get_static_publish_capabilities: a freshly saved s3-compatible credential reads as configured but not yet verified, through the real DB-backed credential source", async () => {
+  // No credentialSource override: the production DB-backed source (`hasDefaultForPublish`, never
+  // decrypts) reads the same vendor_credential_sets row the save below writes.
+  const { deps } = fakeDeps();
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
   await createVendorCredential(
     { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
     { workspaceId: deps.workspaceId, label: "custom bucket", connection: { vendorId: "s3-compatible", region: "us-east-1", bucket: "b", accessKeyId: "AKIA", secretAccessKey: "topsecret", publicUrl: "https://example.test" } }
@@ -486,42 +460,11 @@ test("deployment_get_static_publish_capabilities: credentialConfigured/ready are
   const result = (await call(capabilities)) as { providers: { providerId: string; credentialConfigured: boolean; savedCredentials: unknown[]; guidance?: string }[] };
 
   const s3 = result.providers.find((p) => p.providerId === "s3-compatible")!;
-  // Before this cutover this was the exact self-contradiction the handler's own header warns about:
-  // `savedCredentials` non-empty while `credentialConfigured` still read `false` off the old-table-only
-  // mechanism, because `deployment_propose_custom_provider_credential`'s Phase 3 write (this same
-  // dispatch) now lands in a table this handler previously never looked at.
-  assert.equal(s3.credentialConfigured, true, "a fresh vendor-table-only save must be reported as configured");
+  assert.equal(s3.credentialConfigured, true, "a fresh save must be reported as configured");
   assert.equal(s3.savedCredentials.length, 1);
-  // Correctly "configured but not yet verified" — NOT the old-table-driven "nothing is saved" guidance
-  // this provider would have shown before this cutover (there is no verify endpoint for the new table
-  // yet — settled decision, see this dispatch's own report — so "never verified" is the honest,
-  // permanent state for a vendor-table-only s3-compatible credential today, not a transient gap).
   assert.match(s3.guidance!, /has not been verified/);
   assert.doesNotMatch(s3.guidance!, /no credential|nothing is saved|is not configured/i);
-});
-
-test("deployment_get_static_publish_capabilities: when a provider has rows on BOTH tables, the new vendor table wins outright and the stale legacy row is not reported", async () => {
-  const { deps } = fakeDeps({
-    credentialSource: {
-      async resolve() { throw new Error("must not be called by this handler"); },
-      async isConfigured() { return { configured: true }; },
-    },
-  });
-  deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo([
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "legacy-stale", providerId: "vercel", label: "stale", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
-  ]);
-  await createVendorCredential(
-    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "fresh", connection: { vendorId: "vercel", token: "vercel-token-9999" } }
-  );
-
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
-  const result = (await call(capabilities)) as { providers: { providerId: string; savedCredentials: { label: string }[] }[] };
-
-  const vercel = result.providers.find((p) => p.providerId === "vercel")!;
-  assert.deepEqual(vercel.savedCredentials.map((c) => c.label), ["fresh"], "the new table's row must win outright — the stale legacy row must not also appear");
+  assert.doesNotMatch(JSON.stringify(result), /topsecret/);
 });
 
 // 2026-08-16 — Defect fix: the assistant had no way to learn which GitHub account its own verified
@@ -538,7 +481,6 @@ test("deployment_get_static_publish_capabilities: a verified credential's accoun
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
@@ -568,8 +510,8 @@ test("deployment_get_static_publish_capabilities: a verified credential's accoun
 // does not touch.
 
 test("deployment_get_static_publish_capabilities: accountLabel is read from the default credential's DB column even when the in-memory verification cache is completely empty (Defect B — the cache is wiped by every process restart, the DB column is not)", async () => {
-  const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: "leonaburime-ucla", createdAt: NOW, updatedAt: NOW },
+  const records: VendorCredentialSetRecord[] = [
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true, accountLabel: "leonaburime-ucla" }),
   ];
   const { deps } = fakeDeps({
     credentialSource: {
@@ -578,7 +520,7 @@ test("deployment_get_static_publish_capabilities: accountLabel is read from the 
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   // Deliberately empty — simulates the process having restarted since the credential was last
   // verified (this is exactly the "InMemoryPublishCredentialVerificationCache wiped, DB row intact"
   // scenario the fix is for).
@@ -593,8 +535,8 @@ test("deployment_get_static_publish_capabilities: accountLabel is read from the 
 });
 
 test("deployment_get_static_publish_capabilities: accountLabel falls back to the cached verification result when the DEFAULT credential's DB column is null (an older row that has not healed yet)", async () => {
-  const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  const records: VendorCredentialSetRecord[] = [
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
   ];
   const { deps } = fakeDeps({
     credentialSource: {
@@ -603,7 +545,7 @@ test("deployment_get_static_publish_capabilities: accountLabel falls back to the
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
@@ -619,8 +561,8 @@ test("deployment_get_static_publish_capabilities: accountLabel falls back to the
 });
 
 test("deployment_get_static_publish_capabilities: the DB column wins over a stale/different cached value — the column is the healed, durable answer", async () => {
-  const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: "leonaburime-ucla", createdAt: NOW, updatedAt: NOW },
+  const records: VendorCredentialSetRecord[] = [
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true, accountLabel: "leonaburime-ucla" }),
   ];
   const { deps } = fakeDeps({
     credentialSource: {
@@ -629,7 +571,7 @@ test("deployment_get_static_publish_capabilities: the DB column wins over a stal
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   // A deliberately different, stale cached value — the column must win.
   deps.publishCredentialVerificationCache.set(
@@ -668,7 +610,6 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
   const history = new InMemoryPublishHistoryStore();
   await history.recordSuccess({
     workspaceId: WORKSPACE_ID_FALLBACK,
@@ -734,14 +675,14 @@ test("deployment_get_static_publish_capabilities's description tells the model t
 // explicit constraint on this fix).
 
 test("deployment_get_static_publish_capabilities: a saved credential that has NEVER been verified is reported as configured but NOT ready", async () => {
-  const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  const records: VendorCredentialSetRecord[] = [
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
   ];
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache(); // nothing cached — never verified
 
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -758,14 +699,14 @@ test("deployment_get_static_publish_capabilities: a saved credential that has NE
 });
 
 test("deployment_get_static_publish_capabilities: a saved credential the provider REJECTED is reported as configured but NOT ready, with the rejection reason", async () => {
-  const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  const records: VendorCredentialSetRecord[] = [
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
   ];
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
@@ -788,14 +729,14 @@ test("deployment_get_static_publish_capabilities: a saved credential the provide
 });
 
 test("deployment_get_static_publish_capabilities: a saved credential whose last check could not reach the provider is NOT ready, but the guidance must NOT read as 'your credential is bad'", async () => {
-  const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  const records: VendorCredentialSetRecord[] = [
+    vendorRow({ workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", vendorId: "github", label: "work", isDefault: true }),
   ];
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
@@ -1288,13 +1229,6 @@ test("submit: a first-time save creates exactly one s3-compatible row, auto-defa
   const result = await pending;
   assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
   assert.doesNotMatch(JSON.stringify(result), /s3cr3t|AKIAEXAMPLE/, "the secret/access key must never appear in the tool's own return value");
-
-  // Phase 3 cutover: this write now lands in `vendor_credential_sets`
-  // (`deps.vendorCredentialSetRepo`), not the legacy `publish_credential_sets` table — assert against
-  // BOTH, so a regression that silently reverted to the old table (or wrote to neither) fails loudly
-  // rather than passing on a row this handler no longer produces.
-  const legacyRows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  assert.equal(legacyRows.filter((r) => r.providerId === "s3-compatible").length, 0, "must no longer write to the legacy publish_credential_sets table");
 
   const rows = await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
   const s3Rows = rows.filter((r) => r.vendorId === "s3-compatible");
