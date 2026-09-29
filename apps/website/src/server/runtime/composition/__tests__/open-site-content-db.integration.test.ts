@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
 
 import Database from "better-sqlite3";
 
 import { beginJournalEntry, ensureMigrationJournal } from "#src/features/plugins/migration-journal";
 import { snapshotDb } from "#src/features/plugins/snapshot";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
-import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
+import { CONTENT_MIGRATIONS, MigrationChecksumError } from "#src/platform/db/migrations/index";
 import { MIGRATION_BACKUP_PREFIX, openContentDb } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "../open-site-content-db.js";
 
@@ -101,5 +101,28 @@ test("openSiteContentDb copies an existing unadopted file to ops/ first and keep
     copies,
     "an adopted file at head: no new copy"
   );
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("openSiteContentDb closes its connection when a boot step rejects (a checksum mismatch here)", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-fail-"));
+  const dbPath = path.join(dir, "content.db");
+  closeSqliteConnection(await openSiteContentDb(dbPath));
+  const raw = new Database(dbPath);
+  raw.prepare(`UPDATE tovu_migrations SET checksum = ? WHERE id = ?`).run("0".repeat(64), CONTENT_MIGRATIONS[0]!.id);
+  raw.close();
+
+  // Every connection opened on the file, caught at its first pragma.
+  const opened = new Set<Database.Database>();
+  const pragma = Database.prototype.pragma;
+  mock.method(Database.prototype, "pragma", function (this: Database.Database, ...args: Parameters<typeof pragma>) {
+    if (this.name === dbPath) opened.add(this);
+    return pragma.apply(this, args);
+  });
+  t.after(() => mock.restoreAll());
+
+  await assert.rejects(openSiteContentDb(dbPath), MigrationChecksumError);
+  assert.ok(opened.size > 0, "the opener's connection was seen");
+  assert.deepEqual([...opened].map((db) => db.open), [...opened].map(() => false), "no connection is left open");
   fs.rmSync(dir, { recursive: true, force: true });
 });

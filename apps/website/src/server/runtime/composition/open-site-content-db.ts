@@ -26,22 +26,28 @@ import { seededPosts, seededPresentation, seededWorkspace } from "../configurati
  */
 export async function openSiteContentDb(dbPath: string): Promise<ContentDb> {
   let db = openSqliteContentConnection(dbPath);
-  const recovery = await recoverIncompleteDataModuleMigrations({
-    store: db,
-    restoreSnapshots: (entries) => {
-      closeSqliteConnection(db);
-      restoreSqliteSnapshots(dbPath, entries);
-    },
-  });
-  if (recovery.recovered > 0) {
-    db = openSqliteContentConnection(dbPath);
-    for (const entry of recovery.entries) {
-      console.error(`[migration-recovery] restored ${dbPath} from ${entry.snapshotPath} (interrupted dataModule migration of plugin '${entry.pluginId}')`);
+  try {
+    const recovery = await recoverIncompleteDataModuleMigrations({
+      store: db,
+      restoreSnapshots: (entries) => {
+        closeSqliteConnection(db);
+        restoreSqliteSnapshots(dbPath, entries);
+      },
+    });
+    if (recovery.recovered > 0) {
+      db = openSqliteContentConnection(dbPath);
+      for (const entry of recovery.entries) {
+        console.error(`[migration-recovery] restored ${dbPath} from ${entry.snapshotPath} (interrupted dataModule migration of plugin '${entry.pluginId}')`);
+      }
     }
+    await migrateSqliteContentFile(db, dbPath);
+    await prepareContentStore(contentKernel(db), {
+      seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
+    });
+    return db;
+  } catch (error) {
+    // A failed boot must not hold the file open: a retry or a file replacement follows.
+    if (db.$client.open) closeSqliteConnection(db);
+    throw error;
   }
-  await migrateSqliteContentFile(db, dbPath);
-  await prepareContentStore(contentKernel(db), {
-    seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
-  });
-  return db;
 }
