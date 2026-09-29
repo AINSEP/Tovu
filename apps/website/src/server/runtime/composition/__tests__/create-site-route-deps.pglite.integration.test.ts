@@ -179,10 +179,11 @@ test("owner boot: PGlite data dir in the site folder, no SQLite store, routes re
 test("a daemon composition started before the owner serves waits for the socket, then connects and sees the owner's rows", async () => {
   const dbPath = path.join(siteDir, "content.db");
   // The agent daemon's composition (`createAgentDaemonRouteDeps` → role "client"), socket from TOVU_PG_SOCKET.
-  let clientStore: SiteStore | undefined;
-  const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => (clientStore = store) });
+  const opened: { client?: SiteStore } = {};
+  const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => (opened.client = store) });
+  const openedClient = (): SiteStore | undefined => opened.client;
   await new Promise((resolve) => setTimeout(resolve, 500));
-  assert.equal(clientStore, undefined, "the client is still waiting: nobody serves the socket yet");
+  assert.equal(openedClient(), undefined, "the client is still waiting: nobody serves the socket yet");
 
   const owner = await openSiteStore({ storage: { kind: "pglite" }, dbPath, chatDbPath: path.join(siteDir, "chat.db"), role: "owner" });
   try {
@@ -191,13 +192,14 @@ test("a daemon composition started before the owner serves waits for the socket,
     );
     const deps = await clientDeps;
     try {
+      const clientStore = openedClient();
       assert.ok(clientStore, "the daemon's store opened once the owner served");
       assert.equal(clientStore.pgliteSocketPath, socketPath, "the client used the socket TOVU_PG_SOCKET names");
       const titles = (await clientStore.content.run((db) => db.selectFrom("posts").select("title").execute())).map((r) => r.title);
       assert.ok(titles.includes("Renamed while the daemon waited"), JSON.stringify(titles));
     } finally {
       await drainBootReadiness(deps).catch(() => undefined);
-      await clientStore?.close();
+      await openedClient()?.close();
     }
   } finally {
     await owner.close();

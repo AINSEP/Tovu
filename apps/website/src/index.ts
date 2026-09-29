@@ -15,7 +15,8 @@ import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-gu
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
-import { startAssistantDaemon } from "./server/inbound/assistant/index.js";
+import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
+import { closeStoreOnShutdown } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
@@ -283,6 +284,8 @@ async function main(): Promise<void> {
   const deps = useMemory
     ? createRouteDeps()
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
+  // PGlite/Postgres: close the store on shutdown (releases the PGlite lock and socket); SQLite: no-op.
+  const storeOwnsShutdown = siteStore !== undefined && closeStoreOnShutdown({ store: siteStore, onShutdown: shutdownAssistantDaemon });
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
   // `server/runtime/boot/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
@@ -397,7 +400,10 @@ async function main(): Promise<void> {
     ])
       .then(async () => {
         if (!(await agentDaemonWanted(deps))) return;
-        startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath });
+        startAssistantDaemon(
+          { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath },
+          { registerProcessSignalHandlers: !storeOwnsShutdown }
+        );
       })
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
