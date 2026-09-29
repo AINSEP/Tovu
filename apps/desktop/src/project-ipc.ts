@@ -731,9 +731,27 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
-    await markTransition(deps.transitions, id, "starting", () => deps.openSiteServer(id, deps.ctx));
+    await markTransition(deps.transitions, id, "starting", () => explainMissingSiteDir(id, deps.openSiteServer(id, deps.ctx)));
     return buildSiteRecord(row, deps);
   });
+}
+
+/**
+ * Rewrites `tovu serve`'s `SITE_DIR_INVALID` into "folder not found" when the tracked folder itself
+ * is gone. A folder renamed or moved on disk (`sites/tovu-com` → `sites/tovu-dev`, 2026-09-28) is
+ * still tracked by its old path, and serve's own "config.json is missing at …" sent the operator
+ * looking for a config file rather than for the folder. Checked only after serve has refused, so a
+ * start that succeeds pays nothing, and every other failure passes through untouched.
+ */
+async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>): Promise<void> {
+  try {
+    await starting;
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("SITE_DIR_INVALID")) throw error;
+    const folderExists = await fsp.stat(siteDir).then(() => true, () => false);
+    if (folderExists) throw error;
+    throw new Error(`Site folder not found: ${siteDir}. It was moved, renamed or deleted — remove this site from the list, then use Add Site on its new location.`);
+  }
 }
 
 /**

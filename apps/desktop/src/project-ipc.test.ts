@@ -513,6 +513,30 @@ test("handleStart serializes on the site dir, calls openSiteServer with ctx, and
   assert.equal(record.port, 4321);
 });
 
+test("handleStart reports a tracked folder that no longer exists as not found, not as a config.json error", async () => {
+  // 2026-09-28: `sites/tovu-com` was renamed on disk while the desktop still tracked it, and Start
+  // surfaced `tovu serve`'s own `SITE_DIR_INVALID: config.json is missing at …` — true, but it sent
+  // the operator hunting for a config file in a folder that was simply gone.
+  const siteDir = path.join(tempDir(), "renamed-away");
+  const reason = `tovu serve failed: SITE_DIR_INVALID: config.json is missing at ${siteDir}`;
+  const deps = baseDeps({ openSiteServer: async () => { throw new Error(reason); } });
+  trackSite(deps.projectsPath, siteDir);
+
+  await assert.rejects(
+    () => handleStart(siteDir, deps),
+    new Error(`Site folder not found: ${siteDir}. It was moved, renamed or deleted — remove this site from the list, then use Add Site on its new location.`),
+  );
+});
+
+test("handleStart passes SITE_DIR_INVALID through unchanged when the folder is still there", async () => {
+  const siteDir = tempDir();
+  const reason = `tovu serve failed: SITE_DIR_INVALID: config.json is missing at ${siteDir}`;
+  const deps = baseDeps({ openSiteServer: async () => { throw new Error(reason); } });
+  trackSite(deps.projectsPath, siteDir);
+
+  await assert.rejects(() => handleStart(siteDir, deps), new Error(reason));
+});
+
 // --- stop (2026-09-18) ---------------------------------------------------------------------
 //
 // The site card's own Stop, and the first way this app has ever had to take ONE site down from
