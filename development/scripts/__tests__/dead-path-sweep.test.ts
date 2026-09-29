@@ -256,7 +256,6 @@ test("the sweep actually looks at something — target enumeration is not silent
   const targets = collectSweepTargets(REPO_ROOT);
   assert.ok(targets.length > 40, `expected the sweep to cover the script tree, got ${targets.length} files`);
   assert.ok(targets.includes("development/scripts/list-server-test-files.ts"));
-  assert.ok(targets.includes("apps/website/src/platform/db/drizzle.config.ts"));
   assert.ok(targets.includes("apps/website/src/platform/db/drizzle.database-journal.config.ts"));
   for (const t of targets) assert.ok(fs.existsSync(path.join(REPO_ROOT, t)), `${t} does not exist`);
 });
@@ -366,12 +365,14 @@ test("historical: the pre-7fb47f55 drizzle.config.ts path strings are flagged as
   }
 });
 
-test("historical: the current drizzle.config.ts path strings resolve, so the check above is not trivially true", () => {
+// `drizzle.config.ts` itself is gone (R1h: the content chain is frozen, schema changes are TS migration
+// steps); its sibling for the journal database carries the same repo-root-relative convention.
+test("historical: a current drizzle config's path strings resolve, so the check above is not trivially true", () => {
   const segments = collectRepoSegments(REPO_ROOT);
-  const source = fs.readFileSync(path.join(REPO_ROOT, "apps/website/src/platform/db/drizzle.config.ts"), "utf8");
+  const source = fs.readFileSync(path.join(REPO_ROOT, "apps/website/src/platform/db/drizzle.database-journal.config.ts"), "utf8");
   const paths = repoRelativePathsIn(source, segments);
 
-  assert.deepEqual(paths, ["apps/website/src/platform/db/schema.sqlite.ts", "apps/website/src/platform/db/drizzle"]);
+  assert.deepEqual(paths, ["apps/website/src/platform/db/sqlite/database-journal-schema.ts", "apps/website/src/platform/db/drizzle-database-journal"]);
   for (const p of paths) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), `${p} should exist after 7fb47f55`);
   }

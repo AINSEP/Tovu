@@ -246,7 +246,7 @@ const OUTAGE_REMINDER =
   "Drizzle builds an EXPLICIT column list for every query (never SELECT *), so a column declared in schema.sqlite.ts " +
   "with no migration behind it breaks EVERY query against that table the moment schema.sqlite.ts is saved — not when " +
   "the new field is first read. On 2026-09-02 one such column (posts.member_access_json) 500'd the entire " +
-  "public site in 3ms. Generate the migration: npm run db:generate (see drizzle.config.ts).";
+  "public site in 3ms. Add the column with a TS migration step in platform/db/migrations (ADR-066; the drizzle chain is frozen).";
 
 // ---------------------------------------------------------------------------
 // End-to-end gates against the real schema and the real migrations

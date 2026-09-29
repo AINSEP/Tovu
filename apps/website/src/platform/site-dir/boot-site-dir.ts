@@ -4,7 +4,7 @@ import path from "node:path";
 import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
-import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
+import { type ContentDb, migrateSqliteContentFile, openSqliteContentConnection } from "../db/sqlite/content-db.js";
 import { openSiteStore, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
@@ -112,21 +112,24 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   // content.db must never be written (AC-06), so this must not be reordered after the open below.
   const decision = compareSchemaVersion({ schemaVersion: meta.schemaVersion, schemaTag: meta.schemaTag });
 
-  // BR-05 step 3 (continued): open + migrate. A locked/corrupt db surfaces here (EC-05, RT-002).
+  // BR-05 step 3 (continued): open + migrate (the runner; a copy in `ops/` first when a step is
+  // pending). A locked/corrupt db surfaces here (EC-05, RT-002).
   let db: ContentDb;
   try {
-    db = openContentDb(dbPath);
+    db = openSqliteContentConnection(dbPath);
   } catch (err) {
     throw new SiteCorruptError(`bootSiteDir: content.db at ${dbPath} could not be opened: ${(err as Error).message}`);
   }
 
   try {
-    // The watermark singleton row every content store carries (was part of `openContentDb`).
+    await migrateSqliteContentFile(db, dbPath);
+
+    // The watermark singleton row every content store carries.
     await prepareContentStore(contentKernel(db));
 
     // BR-05 step 5 / BR-06 / CIC U-002-B2/ORD1: the stamp rewrite happens ONLY when a migration
     // was actually needed, both fields together, in one atomic operation, and only AFTER
-    // `migrate()` (already run inside `openContentDb` above) has returned successfully.
+    // `migrateSqliteContentFile` above has returned successfully.
     if (decision === "migrate") {
       const runtime = runtimeSchemaVersion();
       const updatedMeta: SiteMetaJson = { ...meta, schemaVersion: runtime.index, schemaTag: runtime.tag };

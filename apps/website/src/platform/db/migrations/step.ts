@@ -10,7 +10,7 @@ import type { StorageKernel } from "../kernel/port.js";
 export const MIGRATION_ID = /^\d{4}_[a-z0-9_]+$/;
 
 export interface MigrationContext {
-  /** Where to write a backup before a step changes an existing database (the runner's caller decides). */
+  /** Where the runner copied (or would copy) the database before the first pending step; the caller decides. */
   readonly backupPath?: string;
   /** Something worth telling the operator (a backup taken, a legacy tail applied). */
   note(message: string): void;

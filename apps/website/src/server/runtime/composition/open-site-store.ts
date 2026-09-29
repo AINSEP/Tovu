@@ -10,7 +10,7 @@ import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-s
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
 import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
-import { openChatDb } from "#src/platform/db/sqlite/chat-db";
+import { openSiteChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { PGLITE_DATA_DIR_NAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
@@ -105,7 +105,13 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
   if (storage.kind === "postgres") return openPostgresSiteStore(storage, required, optional);
   const ownsDb = optional.db === undefined;
   const db = optional.db ?? (await openSiteContentDb(required.dbPath));
-  const chatDb = openChatDb(required.chatDbPath);
+  let chatDb: Awaited<ReturnType<typeof openSiteChatDb>>;
+  try {
+    chatDb = await openSiteChatDb(required.chatDbPath);
+  } catch (err) {
+    if (ownsDb) closeSqliteConnection(db);
+    throw err;
+  }
   return {
     storage,
     content: contentKernel(db),

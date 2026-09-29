@@ -11,7 +11,8 @@ import { seededPosts, seededPresentation, seededWorkspace } from "../configurati
 
 /**
  * @file The site's content.db, opened the way every boot path of the composition root needs it:
- * open → crash recovery → migrate → watermark row + first-run demo seed.
+ * open → crash recovery → migrate (the runner; a pre-change copy in `<site>/ops/` when a step is
+ * pending, `migrateSqliteContentFile`) → watermark row + first-run demo seed.
  *
  * ADR-023 §2 recovery is mandatory and blocking, and runs on the freshly opened connection BEFORE
  * the migrations touch the schema: an interrupted dataModule attempt is undone from its snapshot
@@ -38,7 +39,7 @@ export async function openSiteContentDb(dbPath: string): Promise<ContentDb> {
       console.error(`[migration-recovery] restored ${dbPath} from ${entry.snapshotPath} (interrupted dataModule migration of plugin '${entry.pluginId}')`);
     }
   }
-  migrateSqliteContentFile(db);
+  await migrateSqliteContentFile(db, dbPath);
   await prepareContentStore(contentKernel(db), {
     seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
   });

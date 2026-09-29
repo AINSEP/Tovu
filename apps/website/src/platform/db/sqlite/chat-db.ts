@@ -1,5 +1,8 @@
 import Database from "better-sqlite3";
-import { ensureChatHistoryTables } from "@jini-ai/sqlite";
+
+import { sqliteKernel } from "../kernel/drivers/sqlite.js";
+import { SQLITE_CHAT_STATEMENTS } from "../migrations/chat/0001_sqlite_chat_tables.js";
+import { migrateChatDatabase } from "../migrations/index.js";
 
 /**
  * @file Sidecar `chat.db` bootstrap — mirrors `database-journal-db.ts`'s reasoning
@@ -10,84 +13,53 @@ import { ensureChatHistoryTables } from "@jini-ai/sqlite";
  * the only way to keep a restore point from sweeping up chat data is to keep chat data in a
  * different file to begin with.
  *
- * Unlike `content-db.ts`/`database-journal-db.ts`, this file does NOT run a Drizzle migration.
- * `ai_chats`/`ai_chat_messages` are owned by `@jini-ai/sqlite`'s own `ensureChatHistoryTables` —
- * the exact call `createInMemoryChatStoreFactory` already makes against a private `:memory:`
- * handle (`assistant/persistence/store-factory.ts`); migration `0023`'s own header explains why
- * Tovu mirrors that DDL into `content.db` instead of calling the function there ("a second
- * migrator against content.db would write DDL behind Tovu's snapshot/backup tooling... One
- * database, one migrator") — an objection that is specifically about *sharing* `content.db` and
- * does not apply to a dedicated chat file. `assistant_agent_sessions` is Tovu-owned (migration
- * `0051`) but is a single `CREATE TABLE IF NOT EXISTS` statement, small enough to bootstrap the
- * same way rather than stand up a second Drizzle schema/migrations pair for three tables that
- * never join into content (`ADS-memory/reports/2026-09-05-db-split-scoping.md` §1/§3).
+ * Its schema is the AI chat history of the migration runner (`CHAT_MIGRATIONS`, ADR-066/067): the
+ * same history a Postgres/PGlite site applies to its `ai_chat` schema, with its own ledger. The
+ * tables are `@jini-ai/sqlite`'s `CHAT_HISTORY_DDL` plus two Tovu-owned tables, frozen in chat step
+ * `0001_sqlite_chat_tables` (`ADS-memory/reports/2026-09-05-db-split-scoping.md` §1/§3).
  *
- * The composition root (`server/runtime/composition/deps.ts`) opens this once, alongside
+ * The composition root (`server/runtime/composition/open-site-store.ts`) opens this once, alongside
  * `content.db` and `ops/database-journal.db`, and points `createChatStoreFactory`/
  * `createSqliteAgentSessionStore` at its raw handle instead of `content.db`'s.
  */
 
-/**
- * `assistant_agent_sessions` DDL, copied verbatim from migration
- * `0051_assistant_agent_sessions.sql` — see that migration's own header for why this table is
- * Tovu-owned rather than part of `@jini-ai/sqlite`'s chat-history DDL. `IF NOT EXISTS` keeps this
- * idempotent across repeated opens of an already-initialized file, matching
- * `ensureChatHistoryTables`' own idempotency contract.
- */
-const ASSISTANT_AGENT_SESSIONS_DDL = `
-CREATE TABLE IF NOT EXISTS assistant_agent_sessions (
-  conversation_id TEXT NOT NULL REFERENCES ai_chats(id) ON DELETE CASCADE,
-  agent_id        TEXT NOT NULL,
-  session_id      TEXT NOT NULL,
-  updated_at      INTEGER NOT NULL,
-  PRIMARY KEY (conversation_id, agent_id)
-);
-`;
+/** Opens (or creates) `chat.db` with the pragmas `content-db.ts` sets — no schema, no write. */
+function openChatConnection(filePath: string): Database.Database {
+  const sqlite = new Database(filePath);
+  sqlite.pragma("journal_mode = WAL");
+  // Required for `ai_chat_messages`' and `assistant_agent_sessions`' `ON DELETE CASCADE` to fire.
+  sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma("busy_timeout = 5000");
+  return sqlite;
+}
 
 /**
- * G3 "Allow for this chat" approvals (`assistant/persistence/conversation-tool-approval-store.ts`):
- * kept with the conversation so they survive a daemon/API restart, and deleted with it. Keyed by the
- * person as well as the conversation, so naming another person's conversation id reuses nothing.
- * `fingerprint` ties the approval to the tool's server, name and hints at the time
- * (`assistant/external-mcp-tool-approvals.ts`). Additive and `IF NOT EXISTS`, like the table above.
+ * A site's `chat.db` on boot: open, then the AI chat history to head through the migration runner
+ * (`CHAT_MIGRATIONS`, ledger `tovu_chat_migrations` in the file; an existing file is adopted as it
+ * is, every chat DDL statement being `IF NOT EXISTS`). Returns the raw handle
+ * `createChatStoreFactory`/`createSqliteAgentSessionStore` take (none of the chat tables has a
+ * `sqliteTable` declaration, by design: `RAW_SQL_MANAGED_TABLES` in `schema-migration-drift.test.ts`).
  */
-const ASSISTANT_CONVERSATION_TOOL_APPROVALS_DDL = `
-CREATE TABLE IF NOT EXISTS assistant_conversation_tool_approvals (
-  conversation_id TEXT NOT NULL REFERENCES ai_chats(id) ON DELETE CASCADE,
-  principal_id    TEXT NOT NULL,
-  connection_id   TEXT NOT NULL,
-  tool_name       TEXT NOT NULL,
-  fingerprint     TEXT NOT NULL,
-  granted_at      TEXT NOT NULL,
-  PRIMARY KEY (conversation_id, principal_id, connection_id, tool_name)
-);
-`;
+export async function openSiteChatDb(filePath: string): Promise<Database.Database> {
+  const sqlite = openChatConnection(filePath);
+  try {
+    await migrateChatDatabase(sqliteKernel<unknown>(sqlite));
+  } catch (err) {
+    sqlite.close();
+    throw err;
+  }
+  return sqlite;
+}
 
 /**
- * Opens (or creates) `chat.db`: sets the same pragmas `content-db.ts`'s `openContentDb` sets
- * (`journal_mode = WAL`, `foreign_keys = ON` — required for `ai_chat_messages`' and
- * `assistant_agent_sessions`' `ON DELETE CASCADE` to actually fire — and `busy_timeout = 5000`),
- * then ensures all three chat tables exist. Returns the raw `better-sqlite3` handle, not a
- * Drizzle wrapper: none of `ai_chats`/`ai_chat_messages`/`assistant_agent_sessions` has a
- * `sqliteTable` declaration in `schema.sqlite.ts` (by design, `RAW_SQL_MANAGED_TABLES` in
- * `schema-migration-drift.test.ts`), and both consumers (`createChatStoreFactory`,
- * `createSqliteAgentSessionStore`) already take a raw handle, not a typed one.
+ * Opens (or creates) a `chat.db` and creates the chat tables synchronously (the same statements as
+ * chat step `0001_sqlite_chat_tables`, no ledger): for `:memory:` stores (`store-factory.ts`) and
+ * tests. A site's boot uses {@link openSiteChatDb}.
  *
- * Idempotent: every DDL statement is `CREATE ... IF NOT EXISTS`, so calling this again against an
- * already-initialized file is a no-op that preserves existing rows.
- *
- * @param filePath Absolute path to the chat database file (created if it does not exist).
- * @returns The opened `better-sqlite3` handle, ready to pass to `createChatStoreFactory`/
- *   `createSqliteAgentSessionStore`.
  * @complexity O(1) — one connection open plus a fixed number of DDL statements.
  */
 export function openChatDb(filePath: string): Database.Database {
-  const sqlite = new Database(filePath);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  sqlite.pragma("busy_timeout = 5000");
-  ensureChatHistoryTables(sqlite);
-  sqlite.exec(ASSISTANT_AGENT_SESSIONS_DDL);
-  sqlite.exec(ASSISTANT_CONVERSATION_TOOL_APPROVALS_DDL);
+  const sqlite = openChatConnection(filePath);
+  for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);
   return sqlite;
 }

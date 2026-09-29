@@ -1,6 +1,6 @@
 import { type Kysely, sql } from "kysely";
 
-import { tableExists } from "../kernel/dialect.js";
+import { listTables, tableExists } from "../kernel/dialect.js";
 import type { StorageKernel } from "../kernel/port.js";
 import {
   MIGRATION_ID,
@@ -23,6 +23,9 @@ import {
  *   `lockKey("tovu_migrations")` (Postgres advisory lock; SQLite's `BEGIN IMMEDIATE` write lock) and
  *   re-reads its ledger row, so two processes starting at once apply a step exactly once.
  * - A kernel without interactive transactions is refused (`require`), never downgraded.
+ * - Given {@link MigrationOptions.backupPath}, a database that already holds tables is copied there
+ *   once, outside any transaction, before the first pending step (ledger absent or behind). Nothing
+ *   pending, an empty database or a driver without `backup` (Postgres): no copy.
  * - One runner, several histories: a history other than the content one names its own ledger
  *   ({@link MigrationOptions.ledgerTable}) and, on Postgres, the schema that ledger lives in
  *   ({@link MigrationOptions.schema}; the AI chat history's `ai_chat`, ADR-067). Ledger statements
@@ -40,7 +43,7 @@ interface LedgerRow {
 type LedgerDb = Record<string, LedgerRow>;
 
 export interface MigrationOptions {
-  /** Handed to steps that back up an existing database before changing it. */
+  /** Where to copy an existing database before the first pending step changes it (see the file header). */
   backupPath?: string;
   /** The ledger table (default {@link LEDGER_TABLE}); also the migration lock's key. */
   ledgerTable?: string;
@@ -121,7 +124,7 @@ function verifyRecorded(rows: readonly LedgerRow[], steps: readonly MigrationSte
 /**
  * Applies every pending step of `steps`, in order, to `kernel`'s database.
  *
- * @param optional.backupPath handed to steps that back up an existing database before changing it.
+ * @param optional.backupPath where an existing database is copied before the first pending step.
  * @throws UnknownAppliedMigrationError / MigrationChecksumError before applying anything; whatever a
  *   step throws (its transaction is rolled back, later steps are not attempted).
  */
@@ -139,8 +142,11 @@ export async function runMigrations(
   const report: MigrationReport = { applied: [], alreadyApplied: recorded.map((row) => row.id), notes: [] };
   const context: MigrationContext = { backupPath: optional.backupPath, note: (message) => report.notes.push(message) };
   const done = new Set(report.alreadyApplied);
+  let backedUp = false;
   for (const step of steps) {
     if (done.has(step.id)) continue;
+    if (!backedUp) await backUpBeforeChange(kernel, context);
+    backedUp = true;
     await step.prepare?.(kernel, context);
     const applied = await kernel.transaction(async () => {
       await kernel.lockKey(ledger.lockKey);
@@ -159,6 +165,14 @@ export async function runMigrations(
     (applied ? report.applied : report.alreadyApplied).push(step.id);
   }
   return report;
+}
+
+/** The pre-change copy (see the file header). Outside any transaction: a backup cannot run inside one. */
+async function backUpBeforeChange(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void> {
+  const target = context.backupPath;
+  if (target === undefined || !kernel.capabilities.backup || (await listTables(kernel)).length === 0) return;
+  await kernel.backupTo(target);
+  context.note(`backed up the database to ${target} before migrating it`);
 }
 
 async function ledgerExists(kernel: StorageKernel<unknown>, ledger: Ledger): Promise<boolean> {

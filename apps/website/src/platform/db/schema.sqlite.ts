@@ -17,11 +17,9 @@ import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqu
  * table + its three sync triggers) lives only in migration
  * `drizzle/0022_posts_fts_search_index.sql`, because drizzle-orm's sqlite-core has no builder for a
  * virtual table or a trigger. That migration was produced with
- * `drizzle-kit generate --custom`, which wrote its own `_journal.json` entry and
- * `0022_snapshot.json` baseline, so `npm run db:generate` still diffs against a consistent snapshot
- * and will neither re-propose earlier migrations nor try to drop objects it cannot see. If those
- * objects ever need to change, hand-write another `--custom` migration; do not attempt to express
- * them here. See `features/post/search-index.sqlite.ts` for how they are maintained at runtime.
+ * `drizzle-kit generate --custom`. The drizzle chain is frozen since R1h (no `db:generate`): if
+ * those objects ever need to change, write a TS migration step in `platform/db/migrations`
+ * (ADR-066); do not attempt to express them here. See `features/post/search-index.sqlite.ts` for how they are maintained at runtime.
  */
 export const workspaces = sqliteTable("workspaces", {
   id: text("id").primaryKey(),

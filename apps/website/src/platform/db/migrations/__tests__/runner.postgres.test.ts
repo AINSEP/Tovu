@@ -54,9 +54,9 @@ test("two connections migrating at once apply a step exactly once", async () => 
   assert.deepEqual([...a.alreadyApplied, ...b.alreadyApplied], ["0001_slow"]);
 });
 
-test("the content history (frozen baseline + 0001_post_search) applies on real Postgres", async () => {
+test("the content history (frozen baseline + 0001_post_search + 0002) applies on real Postgres", async () => {
   const report = await migrateContentDatabase(baseline);
-  assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search"]);
+  assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables"]);
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'`
   );
@@ -68,7 +68,7 @@ test("the content history (frozen baseline + 0001_post_search) applies on real P
 
 test("the chat history lands in ai_chat with its own ledger there; public gets no chat table", async () => {
   const report = await migrateChatDatabase(baseline);
-  assert.deepEqual(report.applied, ["0000_chat_baseline"]);
+  assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables"]);
   const rows = await baseline.query<{ schema: string; name: string }>(
     sql`SELECT table_schema AS schema, table_name AS name FROM information_schema.tables
         WHERE table_name IN ('ai_chats', 'ai_chat_messages', 'assistant_agent_sessions', 'assistant_conversation_tool_approvals', 'tovu_chat_migrations')
@@ -82,6 +82,6 @@ test("the chat history lands in ai_chat with its own ledger there; public gets n
     { schema: "ai_chat", name: "tovu_chat_migrations" },
   ]);
   const [{ n }] = await baseline.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM tovu_migrations`);
-  assert.equal(n, 2, "the content ledger holds only content steps");
+  assert.equal(n, 3, "the content ledger holds only content steps");
   assert.deepEqual((await migrateChatDatabase(baseline)).applied, [], "a rerun applies nothing");
 });

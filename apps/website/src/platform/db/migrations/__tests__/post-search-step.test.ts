@@ -4,16 +4,18 @@ import { after, describe, test } from "node:test";
 import { sql } from "kysely";
 
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
-import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
+import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listTables } from "../../kernel/dialect.js";
 import type { StorageKernel } from "../../kernel/port.js";
+import { readSchemaShape } from "../../kernel/schema-shape.js";
+import { openChatDb } from "../../sqlite/chat-db.js";
 import { openContentDb } from "../../sqlite/content-db.js";
 import { CHAT_MIGRATIONS, migrateChatDatabase, migrateContentDatabase } from "../index.js";
 
 /**
  * @file Step `0001_post_search` on SQLite (recorded, changes nothing: FTS5 is in the legacy chain)
  * and PGlite (the `tovu_search` configuration, `post_search_document` and its GIN index), and the
- * chat history on both (SQLite: not run by any boot; its step is a no-op). Real Postgres:
+ * chat history on both (SQLite: a site's `chat.db`). Real Postgres:
  * `runner.postgres.test.ts`.
  */
 
@@ -30,9 +32,10 @@ function open<K extends StorageKernel<unknown>>(kernel: K): K {
 describe("0001_post_search", () => {
   test("SQLite: recorded, the schema is unchanged", async () => {
     const kernel = sqliteKernel<unknown>(openContentDb(":memory:"));
-    const before = await listTables(kernel);
+    // Step 0002 drops the empty legacy chat tables; nothing else changes.
+    const before = (await listTables(kernel)).filter((name) => !["ai_chats", "ai_chat_messages", "assistant_agent_sessions"].includes(name));
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables"]);
     assert.deepEqual((await listTables(kernel)).filter((name) => name !== "tovu_migrations"), before);
   });
 
@@ -55,13 +58,33 @@ describe("chat history", () => {
     const kernel = open(openPgliteKernel<unknown>());
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, CHAT_MIGRATIONS.map((step) => step.id));
     const [{ n }] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ai_chat.tovu_chat_migrations`);
-    assert.equal(n, 1);
+    assert.equal(n, 2);
     assert.deepEqual(await listTables(kernel), [], "nothing in public");
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, []);
   });
 
-  test("SQLite: a ledger schema is refused (chat.db keeps its own bootstrap)", async () => {
-    const kernel = sqliteKernel<unknown>(openContentDb(":memory:"));
-    await assert.rejects(migrateChatDatabase(kernel), /needs Postgres, not sqlite/);
+  test("SQLite (chat.db): the chat tables and their own ledger in the file, second run is a no-op", async () => {
+    const kernel = open(openMemorySqliteKernel<unknown>());
+    assert.deepEqual((await migrateChatDatabase(kernel)).applied, CHAT_MIGRATIONS.map((step) => step.id));
+    assert.deepEqual(await listTables(kernel), [
+      "ai_chat_messages",
+      "ai_chats",
+      "assistant_agent_sessions",
+      "assistant_conversation_tool_approvals",
+      "tovu_chat_migrations",
+    ]);
+    assert.deepEqual((await migrateChatDatabase(kernel)).applied, []);
+  });
+
+  test("SQLite (chat.db): an existing file made by the old bootstrap is adopted as it is", async () => {
+    const db = openChatDb(":memory:");
+    db.prepare("INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('c1', 'ws', 'user', 'u', 1, 1)").run();
+    const kernel = sqliteKernel<unknown>(db);
+    const before = await readSchemaShape(kernel, { exclude: ["tovu_chat_migrations"] });
+    await migrateChatDatabase(kernel);
+    assert.deepEqual(await readSchemaShape(kernel, { exclude: ["tovu_chat_migrations"] }), before);
+    const [{ n }] = await kernel.query<{ n: number }>(sql`SELECT count(*) AS n FROM ai_chats`);
+    assert.equal(n, 1);
+    db.close();
   });
 });

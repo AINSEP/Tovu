@@ -37,11 +37,10 @@ function mkTempParent(): string {
  *  `uploads/`. Mirrors `duplicate-content-db.integration.test.ts`'s own fixture-building approach. */
 function seedSourceExtras(siteDir: string): void {
   const dbPath = path.join(siteDir, "content.db");
-  // `initSite` opens content.db through `openContentDb`, which now drops the ai_chats/
-  // ai_chat_messages/assistant_agent_sessions tables the moment they're empty (the two-db split's
-  // forward migration, `drop-empty-legacy-chat-tables.ts`), so by the time this fixture runs they
-  // no longer exist. Reopen via `openChatDb` first to recreate them (byte-identical DDL to
-  // migrations 0023/0051), modeling a PRE-split install whose content.db still holds real rows.
+  // A site's boot drops the ai_chats/ai_chat_messages/assistant_agent_sessions tables from
+  // content.db while they are empty (migration step `0002_drop_empty_legacy_chat_tables`). Open the
+  // file through `openChatDb`, which creates them when absent (the same DDL as legacy migrations
+  // 0023/0051), to model a PRE-split install whose content.db still holds real rows.
   const raw = openChatDb(dbPath);
   try {
     const now = Date.now();

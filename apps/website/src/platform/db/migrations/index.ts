@@ -2,7 +2,9 @@ import { AI_CHAT_SCHEMA } from "../chat-kernel.js";
 import type { StorageKernel } from "../kernel/port.js";
 import { legacyBaseline } from "./0000_legacy_baseline.js";
 import { postSearch } from "./0001_post_search.js";
+import { dropEmptyLegacyChatTables } from "./0002_drop_empty_legacy_chat_tables.js";
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
+import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
@@ -13,8 +15,8 @@ import type { MigrationStep } from "./step.js";
  * checksum with `UPDATE_MIGRATION_CHECKSUMS=1` + `__tests__/checksums.test.ts` (new ids only).
  *
  * The AI chat tables have their own history ({@link CHAT_MIGRATIONS}, files under `chat/`, pinned
- * as `chat/NNNN_name`), applied on Postgres/PGlite only: there they live in the `ai_chat` schema of
- * the content database with their own ledger (ADR-067); SQLite keeps `chat.db`'s bootstrap.
+ * as `chat/NNNN_name`) and its own ledger. On Postgres/PGlite they live in the `ai_chat` schema of
+ * the content database, ledger included (ADR-067); on SQLite in the site's `chat.db` file.
  */
 
 export const CHAT_LEDGER_TABLE = "tovu_chat_migrations";
@@ -25,9 +27,16 @@ function pinned(id: string): string {
   return checksum;
 }
 
-export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [legacyBaseline(pinned("0000_legacy_baseline")), postSearch(pinned("0001_post_search"))];
+export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
+  legacyBaseline(pinned("0000_legacy_baseline")),
+  postSearch(pinned("0001_post_search")),
+  dropEmptyLegacyChatTables(pinned("0002_drop_empty_legacy_chat_tables")),
+];
 
-export const CHAT_MIGRATIONS: readonly MigrationStep[] = [chatBaseline(pinned("chat/0000_chat_baseline"))];
+export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
+  chatBaseline(pinned("chat/0000_chat_baseline")),
+  sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
+];
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
 export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional: { backupPath?: string } = {}): Promise<MigrationReport> {
@@ -35,11 +44,13 @@ export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional:
 }
 
 /**
- * Brings the AI chat tables of a Postgres/PGlite database to head: `ai_chat` schema, ledger
- * `ai_chat.tovu_chat_migrations`. `kernel` is the database's plain (unscoped) kernel.
+ * Brings the AI chat tables to head. Postgres/PGlite: `kernel` is the database's plain (unscoped)
+ * kernel; tables and ledger `tovu_chat_migrations` in the `ai_chat` schema. SQLite: `kernel` is the
+ * site's `chat.db`; same ledger, no schema.
  */
 export function migrateChatDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {
-  return runMigrations(kernel, CHAT_MIGRATIONS, { ledgerTable: CHAT_LEDGER_TABLE, schema: AI_CHAT_SCHEMA });
+  const schema = kernel.dialect === "postgres" ? AI_CHAT_SCHEMA : undefined;
+  return runMigrations(kernel, CHAT_MIGRATIONS, { ledgerTable: CHAT_LEDGER_TABLE, schema });
 }
 
 export { type MigrationOptions, type MigrationReport, runMigrations } from "./runner.js";

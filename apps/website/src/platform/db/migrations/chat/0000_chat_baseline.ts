@@ -11,7 +11,7 @@ import type { MigrationStep } from "../step.js";
  * Postgres spelling; the time columns are `BIGINT` because epoch milliseconds overflow `INTEGER`
  * (read back as numbers through `kernel/drivers/pg-types.ts`).
  *
- * SQLite: nothing. `chat.db` is its own file and keeps its bootstrap (`openChatDb`) until R1h.
+ * SQLite: nothing. `chat.db` is its own file; its tables are chat step `0001_sqlite_chat_tables`.
  * Names are written out, not built from `AI_CHAT_SCHEMA`: the pinned checksum hashes this file.
  */
 

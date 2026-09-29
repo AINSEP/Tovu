@@ -260,15 +260,16 @@ test("deps.ts wires the check into createSiteRouteDeps right where chat.db is op
   assert.ok(fs.existsSync(DEPS_PATH), `guard: the composition root must be at ${DEPS_PATH}`);
   const source = fs.readFileSync(DEPS_PATH, "utf8");
 
-  // Prove the pattern CAN match before trusting a zero: `openChatDb(` is known to be there today.
-  assert.ok(source.includes("openChatDb("), "guard: deps.ts must still open chat.db at all");
+  // Prove the pattern CAN match before trusting a zero: the store (content.db + chat.db, R1d
+  // `openSiteStore`) is opened through `openCompositionStore(` today.
+  assert.ok(source.includes("openCompositionStore("), "guard: deps.ts must still open the store at all");
 
   assert.ok(
     source.includes("warnOnOrphanedChatRows("),
     "createSiteRouteDeps must call warnOnOrphanedChatRows; the detector is useless unwired"
   );
-  const openIndex = source.indexOf("const chatDb = openChatDb(");
-  const warnIndex = source.indexOf("warnOnOrphanedChatRows({");
-  assert.ok(openIndex !== -1, "guard: the chatDb binding must still exist");
+  const openIndex = source.indexOf("await openCompositionStore(dbPath, overrides)");
+  const warnIndex = source.indexOf("warnOnOrphanedChatRows(");
+  assert.ok(openIndex !== -1, "guard: the store open must still exist");
   assert.ok(warnIndex > openIndex, "the check must run after chat.db is opened, per its own contract");
 });

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -5,24 +6,24 @@ import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import { sqliteClientOf } from "../kernel/drivers/sqlite.js";
+import { sqliteKernel } from "../kernel/drivers/sqlite.js";
+import { migrateContentDatabase, type MigrationReport } from "../migrations/index.js";
 import * as schema from "../schema.sqlite.js";
-import { dropEmptyLegacyChatTables } from "./drop-empty-legacy-chat-tables.js";
 
 /**
  * @file Per-site content.db bootstrap (Drizzle over better-sqlite3).
  *
  * Purpose:
- * Opens the SQLite file that backs one site's content, applies pragmas and runs the
- * generated Drizzle migrations. Seeding and the watermark row are kernel work
- * (`../prepare-content-store.ts`).
+ * Opens the SQLite file that backs one site's content and applies pragmas. A site's boot brings it
+ * to head through the migration runner ({@link migrateSqliteContentFile}, ADR-066); the sync
+ * {@link openContentDb} is for fresh throwaway databases, tests and scripts. Seeding and the
+ * watermark row are kernel work (`../prepare-content-store.ts`).
  *
  * How it relates to the project:
  * - The composition root opens the db here and injects the typed Drizzle handle into
  *   the per-feature `repo.sqlite.ts` adapters.
- * - Schema is code-first (`db/schema.sqlite.ts`) → `db/drizzle/` migrations, so
- *   same schema maps cleanly to a future Postgres adapter (ADR-006 rule-of-two,
- *   Payload's shared-schema shape).
+ * - Schema changes are TS steps in `db/migrations/`; the drizzle chain in `db/drizzle/` is frozen
+ *   (ADR-066) and is the SQLite half of step `0000_legacy_baseline`.
  * - ADR-042 item 3: this file previously imported `seededWorkspace`/`seededPosts`/
  *   `seededPresentation` directly from `server/seed.ts` — infra depending on
  *   server, a layer-direction violation with no discovered justification. Seed
@@ -42,7 +43,7 @@ import { dropEmptyLegacyChatTables } from "./drop-empty-legacy-chat-tables.js";
  */
 export type ContentDb = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
-/** Generated migrations live at `src/platform/db/drizzle/` (resolved from this file). */
+/** The frozen legacy chain, `src/platform/db/drizzle/` (resolved from this file). */
 const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
 
 /** First-run demo content a caller may supply to `prepareContentStore` (`../prepare-content-store.ts`). */
@@ -61,7 +62,7 @@ export interface ContentDbSeedData {
 
 /**
  * Open (or create) the content.db file with its pragmas — no migration, no write. The site opener
- * uses this on its own so crash recovery (ADR-023 §2) can read the plugin migration journal before
+ * uses this so crash recovery (ADR-023 §2) can read the plugin migration journal before
  * {@link migrateSqliteContentFile} touches the schema.
  */
 export function openSqliteContentConnection(filePath: string): ContentDb {
@@ -75,23 +76,58 @@ export function openSqliteContentConnection(filePath: string): ContentDb {
   return drizzle(sqlite, { schema }) as ContentDb;
 }
 
-/** Apply the bundled Drizzle migrations to an open content.db, then drop the empty legacy chat tables. */
-export function migrateSqliteContentFile(db: ContentDb): void {
-  migrate(db, { migrationsFolder: MIGRATIONS_DIR });
-  // Two-db split (`0fb84ae0`) forward migration, §"why this can't be a plain .sql migration" in
-  // drop-empty-legacy-chat-tables.ts: drops the three vestigial chat tables migrations 0023/0051
-  // still create, but only the ones with no rows, so a pre-split install's real history is never
-  // touched (chat-orphan-check.ts keeps flagging those for a human).
-  dropEmptyLegacyChatTables(sqliteClientOf(db));
+/** A site's pre-migration copies live in `<site>/ops/` under this prefix + an ISO timestamp + `.db`. */
+export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
+
+/**
+ * Brings an open content.db to head through the migration runner (ADR-066). When the file already
+ * holds a database and a step is pending (no ledger yet, or it is behind), the runner first copies
+ * it to `<dir>/ops/pre-migrations-<timestamp>.db`; once that run succeeds, older copies are removed
+ * (the last one per site is kept). Nothing pending: nothing is written.
+ *
+ * @param filePath - the file `db` was opened on (`:memory:`: no copy).
+ * @throws LegacyHistoryError when the file's drizzle history cannot be matched to the frozen chain;
+ *   the database is left as it was (the copy is kept).
+ */
+export async function migrateSqliteContentFile(db: ContentDb, filePath: string): Promise<MigrationReport> {
+  const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath(filePath);
+  const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath });
+  if (backupPath !== undefined && fs.existsSync(backupPath)) removeOlderMigrationBackups(backupPath);
+  if (report.applied.length > 0) {
+    console.log(`[migrations] ${filePath}: applied ${report.applied.join(", ")}`);
+    for (const note of report.notes) console.log(`[migrations]   ${note}`);
+  }
+  return report;
+}
+
+function migrationBackupPath(filePath: string): string {
+  const opsDir = path.join(path.dirname(path.resolve(filePath)), "ops");
+  fs.mkdirSync(opsDir, { recursive: true });
+  return path.join(opsDir, `${MIGRATION_BACKUP_PREFIX}${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
+}
+
+/** Keeps `kept` and removes every earlier-named copy beside it, with any `-wal`/`-shm` a reader left (ISO stamps sort by time). */
+function removeOlderMigrationBackups(kept: string): void {
+  const dir = path.dirname(kept);
+  const keptName = path.basename(kept);
+  for (const name of fs.readdirSync(dir)) {
+    const copy = name.replace(/-(?:wal|shm)$/, "");
+    if (copy.startsWith(MIGRATION_BACKUP_PREFIX) && copy.endsWith(".db") && copy < keptName) fs.rmSync(path.join(dir, name), { force: true });
+  }
 }
 
 /**
- * Open (or create) the content.db, apply pragmas and migrate. The rows a store needs on top (the
- * watermark singleton, first-run seed) come from `prepareContentStore` on the kernel.
+ * Open (or create) a content.db and apply the frozen chain with drizzle's migrator, synchronously:
+ * for fresh throwaway databases (`:memory:`, the hermetic composition), tests and dev scripts. A
+ * site's boot never uses it (`server/runtime/composition/open-site-content-db.ts`,
+ * `site-dir/boot-site-dir.ts` run the migration runner). Drizzle decides "applied" by the journal
+ * stamps, which is sound for a new file or one at the chain's head (every adopted site), not for a
+ * partial legacy history; it writes no `tovu_migrations` ledger and keeps the legacy chat tables
+ * (the site's first boot adopts the file and drops the empty ones, step `0002`).
  */
 export function openContentDb(filePath: string): ContentDb {
   const db = openSqliteContentConnection(filePath);
-  migrateSqliteContentFile(db);
+  migrate(db, { migrationsFolder: MIGRATIONS_DIR });
   return db;
 }
 

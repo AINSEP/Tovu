@@ -9,13 +9,15 @@ import Database from "better-sqlite3";
 import { beginJournalEntry, ensureMigrationJournal } from "#src/features/plugins/migration-journal";
 import { snapshotDb } from "#src/features/plugins/snapshot";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
+import { MIGRATION_BACKUP_PREFIX, openContentDb } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "../open-site-content-db.js";
 
 /**
  * @file SPEC-032 AC / ADR-023 §2 — the site opener (`openSiteContentDb`, what `createSiteRouteDeps`
- * opens content.db with) runs boot-time recovery on its fresh connection BEFORE the Drizzle
- * migrations, end to end through the real seam, then leaves a migrated, prepared db.
+ * opens content.db with) runs boot-time recovery on its fresh connection BEFORE the migration
+ * runner, end to end through the real seam, then leaves a migrated, prepared db; the runner's
+ * pre-change copy in `ops/` and its retention (R1h).
  */
 
 function tableNames(dbPath: string): string[] {
@@ -62,8 +64,42 @@ test("openSiteContentDb on a fresh path creates, migrates, seeds once and writes
   try {
     assert.deepEqual(db.$client.prepare(`SELECT count(*) AS n FROM workspaces`).get(), { n: 1 });
     assert.deepEqual(db.$client.prepare(`SELECT id, value FROM database_write_watermark`).all(), [{ id: 1, value: 0 }]);
+    const ids = (db.$client.prepare(`SELECT id FROM tovu_migrations ORDER BY id`).all() as Array<{ id: string }>).map((row) => row.id);
+    assert.deepEqual(ids, CONTENT_MIGRATIONS.map((step) => step.id), "the runner's ledger");
   } finally {
     closeSqliteConnection(db);
   }
+  const ops = path.join(dir, "ops");
+  assert.deepEqual(fs.existsSync(ops) ? fs.readdirSync(ops) : [], [], "a new, empty file needs no pre-migration copy");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest copy", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-backup-"));
+  const dbPath = path.join(dir, "content.db");
+  closeSqliteConnection(openContentDb(dbPath)); // the legacy chain, no ledger: what every site had before R1h
+  const ops = path.join(dir, "ops");
+  fs.mkdirSync(ops);
+  const older = `${MIGRATION_BACKUP_PREFIX}2000-01-01T00-00-00-000Z.db`;
+  for (const name of [older, `${older}-wal`, `${older}-shm`, "database-journal.db"]) fs.writeFileSync(path.join(ops, name), "");
+
+  closeSqliteConnection(await openSiteContentDb(dbPath));
+  const copies = fs.readdirSync(ops).filter((name) => name.startsWith(MIGRATION_BACKUP_PREFIX));
+  assert.equal(copies.length, 1, `one copy left, got ${copies.join(", ")}`);
+  assert.notEqual(copies[0], older);
+  assert.ok(fs.existsSync(path.join(ops, "database-journal.db")), "nothing else in ops/ is touched");
+  const copy = new Database(path.join(ops, copies[0]), { readonly: true });
+  try {
+    assert.deepEqual(copy.prepare(`SELECT count(*) AS n FROM sqlite_master WHERE name = 'tovu_migrations'`).get(), { n: 0 }, "the file as it was");
+  } finally {
+    copy.close();
+  }
+
+  closeSqliteConnection(await openSiteContentDb(dbPath));
+  assert.deepEqual(
+    fs.readdirSync(ops).filter((name) => name.startsWith(MIGRATION_BACKUP_PREFIX) && name.endsWith(".db")),
+    copies,
+    "an adopted file at head: no new copy"
+  );
   fs.rmSync(dir, { recursive: true, force: true });
 });
