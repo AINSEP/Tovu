@@ -129,11 +129,32 @@ function assetCopies(buildScript: string): { from: string; to: string; at: numbe
   return copies;
 }
 
+/**
+ * The root `build` script with every root-level `npm run <script>` it delegates to inlined in place,
+ * i.e. the command chain `npm run build` actually executes. Since 505f46df7 `build` is only the
+ * linked-Jini guard plus `npm run build:server`; the asset copies live in `build:server`. Reading
+ * `scripts.build` alone would see no copies at all. `--workspace=` runs are left as-is: they execute
+ * another package's script, not a root one.
+ *
+ * @complexity O(n) over the total length of the inlined scripts.
+ */
+function expandedBuildScript(): string {
+  const scripts = (JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+  }).scripts;
+  const expand = (name: string, seen: Set<string>): string => {
+    assert.ok(!seen.has(name), `package.json script "${name}" delegates to itself`);
+    const body = scripts[name];
+    assert.equal(typeof body, "string", `package.json has no "${name}" script`);
+    return body.replace(/npm run ([\w:-]+)(?![^&|]*--workspace)/g, (_, next: string) =>
+      expand(next, new Set([...seen, name])),
+    );
+  };
+  return expand("build", new Set());
+}
+
 test("the build script copies stock data to dist/content, not dist/src", () => {
-  const buildScript = String(
-    (JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as { scripts: Record<string, string> })
-      .scripts.build,
-  );
+  const buildScript = expandedBuildScript();
 
   const stock = assetCopies(buildScript).filter((c) => c.from.startsWith("content/"));
   assert.deepEqual(
@@ -149,10 +170,7 @@ test("the build script copies stock data to dist/content, not dist/src", () => {
 });
 
 test("every asset copy in the build script cleans its destination first", () => {
-  const buildScript = String(
-    (JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as { scripts: Record<string, string> })
-      .scripts.build,
-  );
+  const buildScript = expandedBuildScript();
 
   for (const copy of assetCopies(buildScript)) {
     // Any `rm -rf` BEFORE this copy that names the destination or one of its ancestors. Ancestors
