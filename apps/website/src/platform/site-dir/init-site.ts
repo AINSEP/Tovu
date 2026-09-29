@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { contentKernel } from "../db/content-kernel.js";
-import { closeSqliteConnection, sqliteKernel } from "../db/kernel/index.js";
+import { closeSqliteConnection, openPostgresKernel, sqliteKernel } from "../db/kernel/index.js";
 import { migrateContentDatabase } from "../db/migrations/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
 import { openSqliteContentConnection } from "../db/sqlite/content-db.js";
@@ -16,6 +16,7 @@ import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "./schema-guard.js";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
 import type { ContentDbSeedData } from "../db/sqlite/content-db.js";
+import { nonEmptyTables } from "#src/features/database-transfer/pg-store-copy";
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { sealConnectionStringForNewSite } from "#src/server/runtime/composition/storage-secret";
 
@@ -203,6 +204,9 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
   let wroteAnything = false;
 
   try {
+    // Step 3b: a Postgres database must be empty, checked before anything is created or sealed.
+    await assertPostgresTargetEmpty(storage, required.connectionString);
+
     // Step 4: directory + subdirectory creation.
     if (!fs.existsSync(target)) {
       fs.mkdirSync(target);
@@ -286,6 +290,33 @@ function validateStorageInput(storage: SiteStorage, connectionString: string | u
     if (value === undefined || value.trim() === "") {
       throw new ValidationError(`initSite: the environment variable ${storage.secretRef.env} (the site's Postgres connection string) is not set`);
     }
+  }
+}
+
+/**
+ * A new Postgres site needs an empty database: refuses one where any non-ledger table in `public`
+ * or `ai_chat` holds a row (`nonEmptyTables`, the storage move's own target check). Otherwise a
+ * second `tovu init` against another site's database would mint a new site identity and key that
+ * silently shares that site's content and cannot decrypt its credentials. Taking over an existing
+ * database is a separate, explicit adopt step (not built yet). A PGlite site's data dir is new with
+ * the folder, so it has nothing to check.
+ *
+ * @throws {ValidationError} naming up to five occupied tables (never the connection string).
+ */
+async function assertPostgresTargetEmpty(storage: SiteStorage, connectionString: string | undefined): Promise<void> {
+  if (storage.kind !== "postgres") return;
+  const url = storage.secretRef === "site" ? connectionString : process.env[storage.secretRef.env];
+  const kernel = openPostgresKernel<unknown>({ connectionString: (url ?? "").trim(), max: 1 });
+  try {
+    const occupied = await nonEmptyTables(kernel);
+    if (occupied.length === 0) return;
+    const named = occupied.slice(0, 5).join(", ") + (occupied.length > 5 ? `, and ${occupied.length - 5} more` : "");
+    throw new ValidationError(
+      `initSite: the Postgres database already holds data (${named}); a new site needs an empty database. ` +
+        "Adopting an existing Tovu database into a new site folder is a separate step that is not available yet."
+    );
+  } finally {
+    await kernel.close();
   }
 }
 

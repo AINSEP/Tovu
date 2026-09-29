@@ -19,10 +19,12 @@ import { runInitCommand } from "../../commands/init.js";
  *   Given --storage-env NAME (set)          -> meta names the variable, no sealed file, database at head + template seed
  *   Given a connection string (sealed)      -> 0600 sealed file without the plaintext, meta secretRef "site",
  *                                              the site's key made in (temp) HOME, the store reopens from the meta alone
+ *   Given a database already holding a site -> VALIDATION, env or sealed; no site folder, no sealed secret, no key file
  */
 
 const ENV_DB = "tovu_r1f2_init_env";
 const SEALED_DB = "tovu_r1f2_init_sealed";
+const TAKEN_DB = "tovu_r1f2_init_taken";
 const URL_ENV = "TOVU_R1F2_INIT_URL";
 
 let parent: string;
@@ -43,7 +45,7 @@ after(() => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
-  for (const db of [ENV_DB, SEALED_DB]) psql("postgres", `DROP DATABASE IF EXISTS ${db} WITH (FORCE);`);
+  for (const db of [ENV_DB, SEALED_DB, TAKEN_DB]) psql("postgres", `DROP DATABASE IF EXISTS ${db} WITH (FORCE);`);
   fs.rmSync(parent, { recursive: true, force: true });
   fs.rmSync(home, { recursive: true, force: true });
 });
@@ -98,4 +100,27 @@ test("sealed: the connection string is sealed in the site folder (0600, no plain
   const rows = await templateRows(dir, { kind: "postgres", secretRef: "site" });
   assert.deepEqual(rows.workspaces, ["local-tovu"]);
   assert.ok(rows.posts.includes("about"), JSON.stringify(rows.posts));
+});
+
+test("a database that already holds a Tovu site is refused, before any folder, secret or key is made", async () => {
+  const connectionString = freshPostgresDatabase(TAKEN_DB);
+  process.env[URL_ENV] = connectionString;
+  await runInitCommand({ dir: path.join(parent, "first-site"), storage: "postgres", storageEnv: URL_ENV });
+  const keyFiles = () => (fs.existsSync(path.join(home, ".tovu")) ? fs.readdirSync(path.join(home, ".tovu"), { recursive: true }).map(String).sort() : []);
+  const keysBefore = keyFiles();
+
+  const envDir = path.join(parent, "second-env-site");
+  await assert.rejects(runInitCommand({ dir: envDir, storage: "postgres", storageEnv: URL_ENV }), (err: Error) => {
+    assert.equal(err.name, "ValidationError");
+    assert.match(err.message, /already holds data \(.*public\.workspaces/);
+    assert.match(err.message, /empty database/);
+    assert.equal(err.message.includes(connectionString), false, "the connection string is never echoed");
+    return true;
+  });
+  assert.equal(fs.existsSync(envDir), false, "no site folder is created");
+
+  const sealedDir = path.join(parent, "second-sealed-site");
+  await assert.rejects(runInitCommand({ dir: sealedDir, storage: "postgres", readConnectionString: async () => connectionString }), { name: "ValidationError" });
+  assert.equal(fs.existsSync(sealedDir), false, "no site folder or sealed secret is created");
+  assert.deepEqual(keyFiles(), keysBefore, "no site key is made");
 });
