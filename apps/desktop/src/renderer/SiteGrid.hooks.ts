@@ -15,12 +15,13 @@ import type { SiteRecord } from '../contracts/project.js';
  *
  * Nothing to open yet mid-provision — `tovu init` hasn't produced a workspace to serve. A card
  * asking whether to delete itself is not an open target either: the click that dismisses the
- * wrong answer must not also open the project.
+ * wrong answer must not also open the project. Nor is a card whose folder is gone
+ * (`SiteRecord.folderMissing`): opening it could only fail, and its Locate / Remove are the way on.
  *
  * @complexity O(1) time, O(1) space.
  */
 export function isCardOpenable(project: SiteRecord, confirming: boolean): boolean {
-  return project.status !== 'provisioning' && project.status !== 'blocked' && !confirming;
+  return project.status !== 'provisioning' && project.status !== 'blocked' && !project.folderMissing && !confirming;
 }
 
 /**

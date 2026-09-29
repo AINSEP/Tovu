@@ -83,12 +83,15 @@ type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
  *  `"unreadable"` is `classifySiteDirSafely`'s extra verdict, which every caller here treats as "not a site". */
 type ClassifySiteDirFn = (dir: string) => SiteClassification | "unreadable";
 
-/** One row as {@link readTrackedSites} returns it. `siteId` is set only per {@link buildTrackedRow}'s doc. */
+/** One row as {@link readTrackedSites} returns it. `siteId` is set only per {@link buildTrackedRow}'s doc.
+ *  `relocationId` is how the row finds its folder again after a move — `site-relocation.ts` owns it,
+ *  and it grants nothing: the delete guard reads `siteId` alone. */
 interface TrackedSiteRow {
   siteDir: string;
   createdAt: string;
   origin: SiteOrigin;
   siteId?: string;
+  relocationId?: string;
 }
 
 /** The raw shape parsed off disk, before {@link readProjectsFile} validates it. */
@@ -255,6 +258,7 @@ interface WritableTrackedRow {
   createdAt: string;
   origin?: SiteOrigin;
   siteId?: string;
+  relocationId?: string;
 }
 
 /**
@@ -616,4 +620,7 @@ export {
   isDiscoverableSite,
   classifiesAsSite,
   adoptDiscoveredSites,
+  updateProjectsFile,
+  readProjectsFile,
 };
+export type { TrackedSiteRow, WritableTrackedRow, ProjectsFile, ProjectsUpdate };

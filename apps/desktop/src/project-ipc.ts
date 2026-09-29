@@ -19,12 +19,14 @@
  * module-level variable, so every handler here is callable from plain `node --test` against fakes —
  * no real Electron, no real `tovu serve` child, no real filesystem beyond what a test points it at.
  */
+import fs from "node:fs";
 import path from "node:path";
 import fsp from "node:fs/promises";
 
 import { SITE_ORIGIN, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
 import { sitePartition } from "./desktop-auth.ts";
+import { relocateMovedSites, repointTrackedSite } from "./site-relocation.ts";
 
 const SITE_IPC_CHANNELS = Object.freeze({
   list: "runner:sites:list",
@@ -37,6 +39,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   addSite: "runner:sites:add-site",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
+  locate: "runner:sites:locate",
 });
 
 /**
@@ -297,12 +300,57 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
     // which is every site's ordinary state until it has been opened once.
     previewVersion: deps.readPreviewVersion(row.siteDir),
+    // Asked of the disk on every poll, never stored: a folder renamed or deleted behind the app's
+    // back is exactly the case a stored flag would get wrong. `true` only for a row
+    // `site-relocation.ts` could not heal — the card then offers Locate / Remove.
+    folderMissing: !fs.existsSync(row.siteDir),
   };
 }
 
-/** @complexity O(n) in the tracked-project count. */
-function handleList(deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
+/**
+ * Every tracked project's record, after healing any whose folder was renamed or moved
+ * (`site-relocation.ts`). The heal is best-effort: a list that cannot be SAVED still has to render,
+ * so a failed write is logged and the rows are shown as they stand.
+ *
+ * @complexity O(n) in the tracked-project count, plus `relocateMovedSites`' scan for a missing row.
+ */
+function handleList(deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions"> & Partial<Pick<ProjectIpcDeps, "siteScanRoots">>) {
+  try {
+    relocateMovedSites(deps.projectsPath, { searchRoots: deps.siteScanRoots ?? [] });
+  } catch (error) {
+    console.warn(`tovu desktop: could not save moved site folders — ${(error as Error).message}`);
+  }
   return readTrackedSites(deps.projectsPath).map((row) => buildSiteRecord(row, deps));
+}
+
+/**
+ * A missing card's Locate: the operator picks where the site's folder is now, and the card is
+ * pointed there — keeping its place in the grid, and merging into the existing card when that
+ * folder is already tracked. Main owns the dialog, as with `handleAddSite`, so the renderer never
+ * names a path.
+ *
+ * @returns the record at its new folder.
+ * @throws {Error} operator-facing, when the dialog is cancelled, the picked folder is not a complete
+ *   Tovu site, or `id` is not tracked.
+ * @complexity O(n) in the tracked-project count, plus one classification.
+ */
+async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
+  const picked = await deps.dialog.showOpenDialog({
+    title: "Locate your Tovu website's folder",
+    message: `Pick the folder that now holds the website that was at ${id}. Nothing in it will be changed.`,
+    buttonLabel: "Use this folder",
+    properties: ["openDirectory"],
+  });
+  if (picked.canceled || picked.filePaths.length === 0) {
+    throw new Error("No folder was chosen.");
+  }
+  const siteDir = picked.filePaths[0]!; // just checked `filePaths.length === 0` above, so index 0 exists
+  const kind = deps.classifySiteDir(siteDir);
+  if (kind !== "site") {
+    throw new Error(`${siteDir} is not a complete Tovu site (${kind}). Pick the folder that holds this website.`);
+  }
+  const row = repointTrackedSite(deps.projectsPath, id, siteDir).find((entry) => entry.siteDir === siteDir)!; // repointed onto, or merged into, this exact siteDir above
+  return buildSiteRecord(row, deps);
 }
 
 /**
@@ -872,7 +920,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
 }
 
 /**
- * Registers the ten real `runner:sites:*` handlers above.
+ * Registers the eleven real `runner:sites:*` handlers above.
  *
  * @param deps
  * @param deps.openSites live open sites, keyed by site dir — `main.ts`'s own module-level
@@ -915,7 +963,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — ten registrations.
+ * @complexity O(1) — eleven registrations.
  */
 function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
@@ -928,6 +976,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, deps));
 }
 
 /**
@@ -989,6 +1038,7 @@ export {
   handleStop,
   handleRename,
   handleGetPreview,
+  handleLocate,
   rescanSites,
   registerSiteIpcHandlers,
 };

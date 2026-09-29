@@ -135,7 +135,8 @@ test('the power button calls power.toggle and renders the label powerControl dec
   assert.match(actions, /className="button button--create card__power"[\s\S]*?onClick=\{\(\) => void power\.toggle\(project\)\}/);
   assert.match(actions, /disabled=\{control\.action === null\}/, 'a busy control must be inert, not merely dimmed');
   assert.match(actions, /\{control\.label\}/, 'the label must come from the control, never from what was clicked');
-  assert.match(actions, /\{control && \(/, 'a status with no honest button renders none');
+  // `: control && (` since a missing-folder card renders Locate / Remove in this slot instead.
+  assert.match(actions, /: control && \(/, 'a status with no honest button renders none');
 });
 
 test('Start/Stop reuses the header\'s "Create website" class rather than a hand-copied look', () => {
@@ -227,4 +228,28 @@ test("main's refreshed record reaches the grid, rather than waiting on the 4s po
   assert.match(app, /const applySiteRecord = useApplySiteRecord\(setProjects\);/);
   assert.match(app, /<SiteGrid [^>]*onSiteUpdated=\{onSiteUpdated\}/);
   assert.match(grid, /const power = usePower\(onSiteUpdated\);/);
+});
+
+// ---- A card whose folder is gone (`SiteRecord.folderMissing`) ----
+
+test('a missing-folder card says so in its body', () => {
+  assert.match(cardBody(), /\{project\.folderMissing && <p className="card__missing">Folder moved or deleted<\/p>\}/);
+});
+
+test('a missing-folder card offers Locate and Remove in place of Start/Stop', () => {
+  const actions = actionsBody();
+  assert.match(actions, /project\.folderMissing \? \(/);
+  assert.match(actions, /onClick=\{\(\) => void locate\.locate\(project\.id\)\}/);
+  assert.match(actions, /onClick=\{\(\) => onRequestDelete\(project\.id\)\}/);
+  // Start is not offered: `tovu serve` on a folder that is not there can only fail.
+  assert.ok(actions.indexOf('project.folderMissing ? (') < actions.indexOf('card__power'), 'Locate must replace the power control, not sit beside it');
+});
+
+test('a located card replaces the missing one in the grid at once, not on the next poll', () => {
+  assert.match(grid, /const locate = useLocate\(onSiteUpdated\);/);
+  const hooks = fs.readFileSync(path.join(import.meta.dirname, 'App.hooks.ts'), 'utf8');
+  assert.match(hooks, /\(record: SiteRecord, previousId: string = record\.id\) =>/);
+  assert.match(hooks, /if \(project\.id === previousId\) return \[record\];/);
+  // A Locate onto a folder that already has a card merges into it: that card must not stay twice.
+  assert.match(hooks, /return project\.id === record\.id \? \[\] : \[project\];/);
 });

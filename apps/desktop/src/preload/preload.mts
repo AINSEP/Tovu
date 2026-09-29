@@ -99,6 +99,9 @@ contextBridge.exposeInMainWorld(
     /** A site's cached preview as a `data:` URL, or `null` when no capture exists yet. Fetched on
      *  demand rather than carried on `SiteRecord` — see that field's own doc. See `SITE_IPC_CHANNELS.preview`. */
     getSitePreview: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.preview, id),
+    /** A missing card's Locate — main opens the folder picker and points the card at the pick.
+     *  Rejects with an operator-facing reason; surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
+    locateSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.locate, id),
     startSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.start, id),
     stopSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.stop, id),
     deleteSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.delete, id),

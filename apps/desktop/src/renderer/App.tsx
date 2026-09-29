@@ -936,7 +936,7 @@ function MainArea({
   onOpenProject: (id: string) => void;
   onDeleteProject: (id: string) => Promise<void>;
   /** Applies main's refreshed record after a card's Start or Stop — see `useApplySiteRecord`. */
-  onSiteUpdated: (record: SiteRecord) => void;
+  onSiteUpdated: (record: SiteRecord, previousId?: string) => void;
   onRescan: () => Promise<void>;
   rescanning: boolean;
   rescanError: string | null;
@@ -1062,7 +1062,7 @@ function ProjectsBody({
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
-  onSiteUpdated: (record: SiteRecord) => void;
+  onSiteUpdated: (record: SiteRecord, previousId?: string) => void;
 }) {
   if (projectsLoading) {
     return (
@@ -1138,7 +1138,7 @@ function MainContent({
   onCreateWebsite: () => void;
   onOpenProject: (id: string) => void;
   onDeleteProject: (id: string) => Promise<void>;
-  onSiteUpdated: (record: SiteRecord) => void;
+  onSiteUpdated: (record: SiteRecord, previousId?: string) => void;
 }) {
   if (activeId !== 'projects') {
     return <NotBuilt label={activeLabel} description={activeDescription} />;

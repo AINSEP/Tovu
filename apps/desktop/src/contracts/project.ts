@@ -66,6 +66,13 @@ export interface SiteRecord {
    * forward, and a "did it grow" check would silently ignore that case. See `site-preview-store.ts`.
    */
   previewVersion: number | null;
+  /**
+   * The project's folder is not on disk any more — renamed, moved or deleted — and main could not
+   * find where it went (`site-relocation.ts` heals every rename it CAN prove before this is ever
+   * sent). The card says so and offers Locate (`SITE_IPC_CHANNELS.locate`) and Remove instead of
+   * Start, which could only fail.
+   */
+  folderMissing: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -203,6 +210,16 @@ export const SITE_IPC_CHANNELS = {
    *   never been opened, not an error to surface.
    */
   preview: 'runner:sites:preview',
+  /**
+   * A missing card's Locate (`SiteRecord.folderMissing`): main opens a folder picker, checks the
+   * pick is a complete Tovu site, and points the card at it. Carries the record's id, never a path.
+   * Real (`project-ipc.ts`'s `handleLocate`).
+   *
+   * @returns the record at its new folder — a DIFFERENT id, since a record's id is its folder.
+   * @throws when the dialog is cancelled or the folder is not a complete Tovu site; the message is
+   *   operator-facing, so surface it verbatim.
+   */
+  locate: 'runner:sites:locate',
 } as const;
 
 /** One step through a project tab's own history. */

@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
@@ -1241,4 +1241,86 @@ test("handleRename does not touch .site-meta.json — the marker repairSite refu
   handleRename({ id: dir, name: "Renamed" }, deps);
 
   assert.equal(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"), before, ".site-meta.json must be byte-identical");
+});
+
+// ---- Moved or renamed site folders (owner, 0.1.6 dmg: "tovu-com showed up but didn't exist") ----
+
+test("handleList heals a renamed site folder: the card follows the folder to its new name", () => {
+  const deps = baseDeps();
+  const parent = tempDir();
+  const oldDir = path.join(parent, "tovu-com");
+  writeTrackedSites(deps.projectsPath, [{ siteDir: oldDir, createdAt: "2026-01-01", relocationId: "id-1" }]);
+  const newDir = writeSite(path.join(parent, "tovu-dev"), "id-1");
+
+  const records = handleList(deps);
+
+  assert.deepEqual(records.map((record) => [record.id, record.folderMissing]), [[newDir, false]]);
+  assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [newDir]);
+});
+
+test("handleList keeps a folder it cannot find, and says so on the card", () => {
+  const deps = baseDeps();
+  const gone = path.join(tempDir(), "deleted-site");
+  trackSite(deps.projectsPath, gone);
+
+  assert.deepEqual(handleList(deps).map((record) => [record.id, record.folderMissing]), [[gone, true]]);
+});
+
+test("handleList still answers when the healed list cannot be saved", () => {
+  const deps = baseDeps();
+  const parent = tempDir();
+  const oldDir = path.join(parent, "tovu-com");
+  writeTrackedSites(deps.projectsPath, [{ siteDir: oldDir, createdAt: "2026-01-01", relocationId: "id-1" }]);
+  writeSite(path.join(parent, "tovu-dev"), "id-1");
+  const userData = path.dirname(deps.projectsPath);
+  fs.chmodSync(userData, 0o500);
+  try {
+    assert.deepEqual(handleList(deps).map((record) => record.id), [oldDir]);
+  } finally {
+    fs.chmodSync(userData, 0o700);
+  }
+});
+
+test("buildSiteRecord's folderMissing is false for a folder that exists", () => {
+  const deps = baseDeps();
+  assert.equal(buildSiteRecord({ siteDir: siteFixture(), createdAt: "2026-01-01" }, deps).folderMissing, false);
+});
+
+/** `baseDeps` plus the folder dialog {@link handleLocate} opens, answering with `pickedPath`. */
+function locateDeps(pickedPath: string | null) {
+  return baseDeps({
+    classifySiteDir: classifySiteDirSafely,
+    dialog: {
+      showOpenDialog: async () => (pickedPath === null ? { canceled: true, filePaths: [] } : { canceled: false, filePaths: [pickedPath] }),
+    },
+  });
+}
+
+test("handleLocate points a missing card at the folder the operator picked", async () => {
+  const picked = siteFixture("moved-here");
+  const deps = locateDeps(picked);
+  const gone = path.join(tempDir(), "gone");
+  trackSite(deps.projectsPath, gone);
+
+  const record = await handleLocate(gone, deps);
+
+  assert.equal(record.id, picked);
+  assert.equal(record.folderMissing, false);
+  assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [picked]);
+});
+
+test("handleLocate refuses a folder that is not a Tovu site, and changes nothing", async () => {
+  const deps = locateDeps(tempDir());
+  const gone = path.join(tempDir(), "gone");
+  trackSite(deps.projectsPath, gone);
+
+  await assert.rejects(() => handleLocate(gone, deps), {
+    message: /is not a complete Tovu site \(empty\)\. Pick the folder that holds this website\.$/,
+  });
+  assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [gone]);
+});
+
+test("handleLocate rejects a cancelled dialog", async () => {
+  const deps = locateDeps(null);
+  await assert.rejects(() => handleLocate("/whatever", deps), { message: "No folder was chosen." });
 });

@@ -46,6 +46,10 @@ export interface RunnerInventoryBridge {
    *  ordinary state for a site that has never been opened. Fetch again only when
    *  `SiteRecord.previewVersion` CHANGES; see that field's own doc and `use-site-preview.hooks.ts`. */
   getSitePreview: (id: string) => Promise<string | null>;
+  /** A missing card's Locate: main opens a folder picker and resolves the record at the picked
+   *  folder — a new id, since a record's id is its folder. Rejects with an operator-facing reason;
+   *  surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
+  locateSite: (id: string) => Promise<SiteRecord>;
   startSite: (id: string) => Promise<SiteRecord>;
   stopSite: (id: string) => Promise<SiteRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */

@@ -1106,6 +1106,15 @@ button { font: inherit; color: inherit; }
   font-size: 0.6875rem;
 }
 
+/* A card whose folder is gone (`SiteRecord.folderMissing`) — a warning, not a failure: Locate / Remove
+   beside it are the way on. */
+.card__missing {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 /* The ⋮ overflow menu — the only icon control in the action column now that delete lives inside it
    (see `SiteCardMenu`'s own doc). No `margin-left: auto` any more: it used to be what split a
    horizontal row, and in a column the parent's `align-items: flex-end` already holds the edge. */

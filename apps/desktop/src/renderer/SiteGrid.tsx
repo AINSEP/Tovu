@@ -40,6 +40,7 @@ import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { powerControl, useSitePower } from './use-site-power.hooks.js';
+import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
 import { cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
@@ -47,6 +48,7 @@ import type { SiteRecord } from '../contracts/project.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SiteActions } from './use-site-actions.hooks.js';
 import type { SitePower } from './use-site-power.hooks.js';
+import type { SiteLocate } from './use-site-locate.hooks.js';
 
 /**
  * `useDeleteState` is the delete-confirm hook itself, defaulted to the real one — the function,
@@ -73,6 +75,7 @@ export function SiteGrid({
   useRenameState = useSiteRename,
   useActions = useSiteActions,
   usePower = useSitePower,
+  useLocate = useSiteLocate,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
@@ -82,7 +85,7 @@ export function SiteGrid({
   /** Called with main's refreshed record after a start or a stop, for the same reason `onRenamed`
    *  exists: the 4s poll would get there eventually, and "eventually" is up to four seconds of a
    *  stopped site still reading `Running`. See `use-site-power.hooks.ts`. */
-  onSiteUpdated?: (record: SiteRecord) => void;
+  onSiteUpdated?: (record: SiteRecord, previousId?: string) => void;
   useDeleteState?: typeof useDeleteConfirmation;
   useRenameState?: typeof useSiteRename;
   /** The ⋮ menu's Open-in-browser implementation. Injectable for the same reason `useDeleteState`
@@ -92,12 +95,15 @@ export function SiteGrid({
   /** The card's Start/Stop. Injectable for the same reason, and the one a test reaches for to
    *  render a mid-transition card without driving a real site's boot. */
   usePower?: typeof useSitePower;
+  /** A missing-folder card's Locate. Injectable for the same reason as the others. */
+  useLocate?: typeof useSiteLocate;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
     useDeleteState(onDelete);
   const rename = useRenameState(onRenamed);
   const actions = useActions();
   const power = usePower(onSiteUpdated);
+  const locate = useLocate(onSiteUpdated);
 
   return (
     <div className="grid">
@@ -112,6 +118,7 @@ export function SiteGrid({
           onOpen={onOpen}
           actions={actions}
           power={power}
+          locate={locate}
           onRequestDelete={requestDelete}
           onCancelDelete={cancelDelete}
           onConfirmDelete={confirmDelete}
@@ -130,6 +137,7 @@ function SiteCard({
   onOpen,
   actions,
   power,
+  locate,
   onRequestDelete,
   onCancelDelete,
   onConfirmDelete,
@@ -142,6 +150,7 @@ function SiteCard({
   onOpen: (id: string) => void;
   actions: SiteActions;
   power: SitePower;
+  locate: SiteLocate;
   onRequestDelete: (id: string) => void;
   onCancelDelete: () => void;
   onConfirmDelete: (id: string) => Promise<void>;
@@ -204,6 +213,7 @@ function SiteCard({
               than an overlay: nothing is pending, the card is still openable, and the failure is one
               fact about it rather than a question to answer. */}
           {powerError && <p className="card__actionerror">{powerError}</p>}
+          <MissingFolderNotice project={project} locate={locate} />
         </div>
         <CardActions
           project={project}
@@ -212,6 +222,7 @@ function SiteCard({
           rename={rename}
           actions={actions}
           power={power}
+          locate={locate}
           onRequestDelete={onRequestDelete}
         />
       </div>
@@ -228,6 +239,21 @@ function SiteCard({
         />
       )}
     </article>
+  );
+}
+
+/**
+ * The body lines of a card whose folder is gone. Only for a folder main could not find on its own —
+ * every rename it can prove it has already healed (`site-relocation.ts`). Locate / Remove sit in the
+ * action column; a refused Locate's reason, main's own sentence, shows here.
+ */
+function MissingFolderNotice({ project, locate }: { project: SiteRecord; locate: SiteLocate }) {
+  const error = locate.errorOf(project.id);
+  return (
+    <>
+      {project.folderMissing && <p className="card__missing">Folder moved or deleted</p>}
+      {error && <p className="card__actionerror">{error}</p>}
+    </>
   );
 }
 
@@ -323,6 +349,7 @@ function CardActions({
   rename,
   actions,
   power,
+  locate,
   onRequestDelete,
 }: {
   project: SiteRecord;
@@ -331,6 +358,7 @@ function CardActions({
   rename: SiteRenameState;
   actions: SiteActions;
   power: SitePower;
+  locate: SiteLocate;
   onRequestDelete: (id: string) => void;
 }) {
   // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
@@ -356,7 +384,24 @@ function CardActions({
         onRequestDelete={onRequestDelete}
         actions={actions}
       />
-      {control && (
+      {/* A missing folder gets Locate / Remove INSTEAD of Start: `tovu serve` on a folder that is
+          not there can only fail. Remove goes through the same confirm overlay as the ⋮ entry. */}
+      {project.folderMissing ? (
+        <>
+          <button
+            type="button"
+            className="button button--create card__power"
+            disabled={locate.locatingId === project.id}
+            aria-label={`Locate the folder for ${project.displayName}`}
+            onClick={() => void locate.locate(project.id)}
+          >
+            {locate.locatingId === project.id ? 'Locating…' : 'Locate…'}
+          </button>
+          <button type="button" className="button button--quiet" onClick={() => onRequestDelete(project.id)}>
+            Remove
+          </button>
+        </>
+      ) : control && (
         <button
           type="button"
           className="button button--create card__power"

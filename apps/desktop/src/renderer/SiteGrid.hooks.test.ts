@@ -8,7 +8,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { closeMenuThen, isCardOpenKey } from "./SiteGrid.hooks.js";
+import { closeMenuThen, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
+import type { SiteRecord } from "../contracts/project.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
  *  objects are a truthful model of it and no DOM is needed. */
@@ -97,4 +98,10 @@ test("every entry built from one closeMenuThen runs only its own action", () => 
   start();
   rename();
   assert.deepEqual(calls, ["setOpen:false", "start", "setOpen:false", "rename"]);
+});
+
+test("a card whose folder is missing does not open — there is no site to start there", () => {
+  const record = (fields: Partial<SiteRecord>) => ({ status: "stopped", folderMissing: false, ...fields }) as SiteRecord;
+  assert.equal(isCardOpenable(record({}), false), true);
+  assert.equal(isCardOpenable(record({ folderMissing: true }), false), false);
 });

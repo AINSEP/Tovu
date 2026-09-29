@@ -347,14 +347,23 @@ export interface SiteMutationsState {
  * change to a project the grid is already showing, and a row that arrives here for an unknown id is
  * a stale id, not a new site (`rescan`/`create`/`add` are what add rows).
  *
+ * `previousId` is for a missing-folder card's Locate, whose record comes back under its NEW folder
+ * (a record's id is its folder): the card at `previousId` is replaced, and when the found folder
+ * already had a card of its own, that one is dropped so the merged site shows once.
+ *
  * @complexity O(n) in the project count, once per applied record.
  */
 export function useApplySiteRecord(
   setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>,
-): (record: SiteRecord) => void {
+): (record: SiteRecord, previousId?: string) => void {
   return useCallback(
-    (record: SiteRecord) => {
-      setProjects((current) => current.map((project) => (project.id === record.id ? record : project)));
+    (record: SiteRecord, previousId: string = record.id) => {
+      setProjects((current) =>
+        current.flatMap((project) => {
+          if (project.id === previousId) return [record];
+          return project.id === record.id ? [] : [project];
+        }),
+      );
     },
     [setProjects],
   );
