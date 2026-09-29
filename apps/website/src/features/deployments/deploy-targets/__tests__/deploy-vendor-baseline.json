@@ -37,11 +37,11 @@
     "netlify": 1
   },
   "apps/website/src/features/deployments/publish-agent-tools.ts": {
-    "cloudflare": 28,
-    "github-pages": 26,
-    "netlify": 12,
-    "s3-compatible": 71,
-    "vercel": 18
+    "cloudflare": 26,
+    "github-pages": 19,
+    "netlify": 11,
+    "s3-compatible": 70,
+    "vercel": 14
   },
   "apps/website/src/features/deployments/publish-credentials/index.ts": {
     "cloudflare": 1,
@@ -67,13 +67,6 @@
     "s3-compatible": 4,
     "vercel": 4
   },
-  "apps/website/src/features/deployments/static-publish/adapter.ts": {
-    "cloudflare": 7,
-    "github-pages": 13,
-    "netlify": 4,
-    "s3-compatible": 8,
-    "vercel": 16
-  },
   "apps/website/src/features/deployments/static-publish/credentials.ts": {
     "cloudflare": 12,
     "github-pages": 1,
@@ -82,23 +75,10 @@
     "vercel": 3
   },
   "apps/website/src/features/deployments/static-publish/index.ts": {
-    "cloudflare": 2,
-    "github-pages": 1,
-    "netlify": 1,
-    "vercel": 1
-  },
-  "apps/website/src/features/deployments/static-publish/publish-run.ts": {
-    "github-pages": 4
+    "cloudflare": 1
   },
   "apps/website/src/features/deployments/static-publish/s3-compatible-target.ts": {
     "s3-compatible": 20
-  },
-  "apps/website/src/features/deployments/static-publish/types.ts": {
-    "cloudflare": 3,
-    "github-pages": 3,
-    "netlify": 3,
-    "s3-compatible": 3,
-    "vercel": 3
   },
   "apps/website/src/features/deployments/static-publish/verify.ts": {
     "cloudflare": 6,
@@ -141,11 +121,5 @@
   },
   "apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts": {
     "github-pages": 2
-  },
-  "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts": {
-    "cloudflare": 6,
-    "github-pages": 11,
-    "netlify": 6,
-    "vercel": 6
   }
 }
