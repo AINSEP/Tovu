@@ -414,6 +414,83 @@ export async function ensureSiteKeyForSite(input: EnsureSiteKeyForBootInput): Pr
   });
 }
 
+/** A fresh 32-byte site key as 64 hex characters — the key "Start fresh" installs when no working
+ *  key is present. Lives here so this module stays the one place a site key is generated.
+ *  @complexity O(1). */
+export function mintSiteKeyHex(): string {
+  return randomBytes(32).toString("hex");
+}
+
+export interface InstallSiteKeyInput {
+  readonly siteDir: string;
+  /** The key to install — a pasted old token already proven to open this site's data, or the key
+   *  "Start fresh" keeps or mints. */
+  readonly hex: string;
+  readonly mode?: RuntimeMode;
+  readonly env?: NodeJS.ProcessEnv;
+  readonly home?: string;
+  readonly cwd?: string;
+}
+
+/** `installed`: the key file now holds `hex` and the stamp names it. `env-key-set`: an env var
+ *  holding a DIFFERENT key outranks every file (production), so nothing was written. */
+export type InstallSiteKeyResult =
+  | { readonly outcome: "installed"; readonly keyFilePath: string; readonly fingerprint: string }
+  | { readonly outcome: "env-key-set" };
+
+/**
+ * Makes `hex` this site's key — the Site Token tab's recovery writer (design §4.3/§4.6: "Unlock
+ * with token", "Start fresh"). The caller has already decided `hex` is right; this only writes it.
+ *
+ * The target is the first key file in this site's source order (the per-site file locally, the
+ * durable-volume file in production). An env var ahead of it that holds a different key would
+ * outrank any file, so that is refused (`env-key-set`); one holding `hex` already is fine. A target
+ * file holding a different key (or garbage) is moved aside as a backup, never deleted. Then
+ * `.site-meta.json`'s `siteKeyFingerprint` is set to `hex`'s (other fields kept; a missing meta
+ * file is minted locally, left alone in production).
+ *
+ * @returns `undefined` when no `siteKeyId` resolves in local mode (an unreadable meta file).
+ * @throws {Error} `hex` is not a valid key (nothing written), or the file ends up holding another
+ *   key (a concurrent writer won the race), or whatever `fs` throws.
+ * @complexity O(n) in the (fixed-size) source list, plus a few small file reads/writes.
+ */
+export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult | undefined {
+  const parsed = parseRootKeyHex(input.hex);
+  if (!parsed.ok) throw new Error(`installSiteKey: not a valid site key (${parsed.reason})`);
+  const env = input.env ?? process.env;
+  const mode = input.mode ?? resolveRuntimeMode({ env });
+  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
+  if (mode !== "production" && !siteKeyId) return undefined;
+  const sources = siteKeySources({ mode, env, home: input.home ?? homedir(), cwd: input.cwd ?? process.cwd(), siteKeyId });
+  const fingerprint = fingerprintRootKeyHex(parsed.hex);
+
+  for (const source of sources) {
+    if (source.kind === "env") {
+      const raw = readSiteKeySourceMaterial(source, env);
+      if (raw === undefined) continue;
+      if (!matchesFingerprint(parseRootKeyHex(raw), fingerprint)) return { outcome: "env-key-set" };
+      stampFingerprint(input.siteDir, fingerprint);
+      return { outcome: "installed", keyFilePath: `env:${source.envVarName}`, fingerprint };
+    }
+    if (source.path === undefined) continue;
+    const current = readSiteKeySourceMaterial(source, env);
+    if (current !== undefined && !matchesFingerprint(parseRootKeyHex(current), fingerprint)) moveSiteKeyFileAside(source.path, current);
+    const written = atomicCreateSiteKeyFile(source.path, parsed.hex);
+    if (fingerprintRootKeyHex(written) !== fingerprint) throw new Error("installSiteKey: another process wrote a different key at the same moment; nothing was stamped");
+    stampFingerprint(input.siteDir, fingerprint);
+    return { outcome: "installed", keyFilePath: source.path, fingerprint };
+  }
+  throw new Error("installSiteKey: this site has no key file to write");
+}
+
+/** Sets `.site-meta.json`'s `siteKeyFingerprint`, keeping every other field; no meta file is left
+ *  alone. @complexity O(1). */
+function stampFingerprint(siteDir: string, fingerprint: string): void {
+  const meta = readSiteMetaJson(siteDir);
+  if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
+  writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
+}
+
 /**
  * `.site-meta.json` has no `siteKeyId` (or `siteId`) to resolve at all — for local mode only, mints
  * a brand-new, minimal `.site-meta.json` carrying just a fresh `siteKeyId`, and returns it. Never

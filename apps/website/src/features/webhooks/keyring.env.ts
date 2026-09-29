@@ -159,19 +159,11 @@ export class EnvOrFileKeyring implements KeyringPort {
     subscriptionId: string;
     version: number;
   }): Promise<Uint8Array> {
-    const rootKey = this.resolveRootKey();
-    const info = `${input.workspaceId}:${input.subscriptionId}:v${input.version}`;
-    return new Uint8Array(hkdfSync("sha256", rootKey, HKDF_EXTRACTION_SALT, info, DERIVED_SECRET_LENGTH_BYTES));
+    return deriveSigningSecretFromRootKey(this.resolveRootKey(), input);
   }
 
   async derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
-    const rootKey = this.resolveRootKey();
-    // `purpose` is bound into the info string (not just a label) so it is a real domain-separation
-    // boundary from `deriveSigningSecret`'s derivation, not decorative (ports.ts KeyringPort doc).
-    const effectiveInfo = `${input.purpose}:${input.workspaceId}:${input.info}`;
-    return new Uint8Array(
-      hkdfSync("sha256", rootKey, HKDF_EXTRACTION_SALT, effectiveInfo, DERIVED_SECRET_LENGTH_BYTES)
-    );
+    return deriveFromRootKey(this.resolveRootKey(), input);
   }
 
   /**
@@ -191,10 +183,10 @@ export class EnvOrFileKeyring implements KeyringPort {
   private resolveRootKey(): Buffer {
     if (this.cachedRootKey) return this.cachedRootKey;
 
-    if (this.sources) {
-      this.cachedRootKey = this.resolveRootKeyFromSources(this.sources);
-      return this.cachedRootKey;
-    }
+    // Re-read on every call, never cached: the Site Token tab's recovery (paste the old token, start
+    // fresh) and boot's auto-fix replace the key file while this process runs, and a cached key
+    // would keep sealing under the wrong one until a restart. One small file read per seal/open.
+    if (this.sources) return this.resolveRootKeyFromSources(this.sources);
 
     const fromEnv = process.env[this.envVarName];
     if (fromEnv) {
@@ -294,6 +286,49 @@ export class EnvOrFileKeyring implements KeyringPort {
         sealedWarningSubject: "this file",
       }),
     });
+  }
+}
+
+/** HKDF(rootKey, info = `${workspaceId}:${subscriptionId}:v${version}`) — shared by every keyring
+ *  here so a key checked in memory derives exactly what the installed one will. */
+function deriveSigningSecretFromRootKey(rootKey: Buffer, input: { workspaceId: string; subscriptionId: string; version: number }): Uint8Array {
+  const info = `${input.workspaceId}:${input.subscriptionId}:v${input.version}`;
+  return new Uint8Array(hkdfSync("sha256", rootKey, HKDF_EXTRACTION_SALT, info, DERIVED_SECRET_LENGTH_BYTES));
+}
+
+/** `purpose` is bound into the info string (not just a label) so it is a real domain-separation
+ *  boundary from {@link deriveSigningSecretFromRootKey} (ports.ts KeyringPort doc). */
+function deriveFromRootKey(rootKey: Buffer, input: { workspaceId: string; purpose: string; info: string }): Uint8Array {
+  const effectiveInfo = `${input.purpose}:${input.workspaceId}:${input.info}`;
+  return new Uint8Array(hkdfSync("sha256", rootKey, HKDF_EXTRACTION_SALT, effectiveInfo, DERIVED_SECRET_LENGTH_BYTES));
+}
+
+/**
+ * A {@link KeyringPort} over one given root key, held only in memory — for checking a candidate
+ * (a pasted site token, or the key "Start fresh" keeps) against sealed rows BEFORE it is written
+ * anywhere. Derives exactly as {@link EnvOrFileKeyring} does.
+ *
+ * @throws {Error} `hex` is not a valid root key ({@link parseRootKeyHex}) — callers validate first.
+ */
+export class FixedRootKeyKeyring implements KeyringPort {
+  private readonly rootKey: Buffer;
+
+  constructor(hex: string, private readonly keyId = "v1") {
+    const parsed = parseRootKeyHex(hex);
+    if (!parsed.ok) throw new Error(`FixedRootKeyKeyring: not a valid root key (${parsed.reason})`);
+    this.rootKey = Buffer.from(parsed.hex, "hex");
+  }
+
+  async activeKey(): Promise<{ readonly keyId: string }> {
+    return { keyId: this.keyId };
+  }
+
+  async deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
+    return deriveSigningSecretFromRootKey(this.rootKey, input);
+  }
+
+  async derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
+    return deriveFromRootKey(this.rootKey, input);
   }
 }
 

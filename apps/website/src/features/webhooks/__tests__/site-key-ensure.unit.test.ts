@@ -11,7 +11,7 @@ import { sql } from "kysely";
 import { fingerprintRootKeyHex } from "../keyring.env.js";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import { ensureSiteKey, ensureSiteKeyForBoot, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
+import { ensureSiteKey, ensureSiteKeyForBoot, installSiteKey, mintSiteKeyHex, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
 
 /** Site-key plan §A.4 additions to this suite start at "ensureSiteKey: fingerprint stamp" below —
  *  everything above is unchanged from A2/A3a. */
@@ -632,4 +632,70 @@ test("ensureSiteKey: a per-site key the stamp does not name, and NO source holds
   assert.equal(result.action, "mismatch");
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), wrongHex, "the per-site file is left in place");
   assert.deepEqual(backupsOf(home, "site-1"), [], "no backup is made when there is nothing better to adopt");
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-29 installSiteKey: the Site Token tab's recovery (a pasted old token, or "Start fresh")
+// installs a chosen key as this site's key — a wrong per-site file is backed up, never deleted, and
+// the stamp names the installed key.
+// ---------------------------------------------------------------------------
+
+test("installSiteKey (local): writes the per-site file, backs up a different one, and stamps .site-meta.json", async () => {
+  const oldHex = validHex();
+  const newHex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyId: "site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()), keep: "me" });
+  writePerSiteKey(home, "site-1", oldHex);
+
+  const result = installSiteKey({ siteDir, hex: newHex, mode: "local", env: bareEnv(), home });
+
+  assert.deepEqual(result, { outcome: "installed", keyFilePath: perSiteFilePathIn(home, "site-1"), fingerprint: fingerprintRootKeyHex(newHex) });
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), newHex);
+  const backups = backupsOf(home, "site-1");
+  assert.equal(backups.length, 1);
+  assert.equal(readFileSync(path.join(home, ".tovu", "site-keys", backups[0]!), "utf8"), oldHex);
+  assert.deepEqual(readSiteMeta(siteDir), { siteId: "meta-site-1", siteKeyId: "site-1", siteKeyFingerprint: fingerprintRootKeyHex(newHex), keep: "me" });
+});
+
+test("installSiteKey (local): the same key already in place → nothing backed up", async () => {
+  const hex = validHex();
+  writeSiteMeta(siteDir, { siteKeyId: "site-1" });
+  writePerSiteKey(home, "site-1", hex);
+
+  const result = installSiteKey({ siteDir, hex, mode: "local", env: bareEnv(), home });
+
+  assert.equal(result?.outcome, "installed");
+  assert.deepEqual(backupsOf(home, "site-1"), []);
+});
+
+test("installSiteKey (production): an env key set to a different value → 'env-key-set', nothing written", async () => {
+  writeSiteMeta(siteDir, { siteKeyId: "site-1" });
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: validHex() };
+
+  const result = installSiteKey({ siteDir, hex: validHex(), mode: "production", env, home, cwd: siteDir });
+
+  assert.deepEqual(result, { outcome: "env-key-set" });
+  assert.equal(existsSync(path.join(siteDir, "sites", ".tovu", "integrations-root-key.hex")), false);
+});
+
+test("installSiteKey (production): no env key → the durable-volume file is written", async () => {
+  writeSiteMeta(siteDir, { siteKeyId: "site-1" });
+  const hex = validHex();
+
+  const result = installSiteKey({ siteDir, hex, mode: "production", env: bareEnv(), home, cwd: siteDir });
+
+  const volumeFile = path.join(siteDir, "sites", ".tovu", "integrations-root-key.hex");
+  assert.deepEqual(result, { outcome: "installed", keyFilePath: volumeFile, fingerprint: fingerprintRootKeyHex(hex) });
+  assert.equal(readFileSync(volumeFile, "utf8"), hex);
+});
+
+test("installSiteKey: a malformed key is refused before anything is written", () => {
+  writeSiteMeta(siteDir, { siteKeyId: "site-1" });
+  assert.throws(() => installSiteKey({ siteDir, hex: "abc", mode: "local", env: bareEnv(), home }), { message: "installSiteKey: not a valid site key (odd-length)" });
+  assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false);
+});
+
+test("mintSiteKeyHex: a fresh 64-hex-character key each call", () => {
+  const a = mintSiteKeyHex();
+  assert.match(a, /^[0-9a-f]{64}$/);
+  assert.notEqual(a, mintSiteKeyHex());
 });

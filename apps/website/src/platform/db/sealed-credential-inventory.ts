@@ -236,7 +236,7 @@ function column(name: string): RawBuilder<unknown> {
 }
 
 /** The key-id/nonce/alg columns that sit beside a `<prefix>sealed_ciphertext` column. */
-function siblingColumns(column: string): { keyId: string; nonce: string; alg: string } {
+export function siblingColumns(column: string): { keyId: string; nonce: string; alg: string } {
   const prefix = column.slice(0, column.length - SEALED_CIPHERTEXT_SUFFIX.length);
   return { keyId: `${prefix}sealed_key_id`, nonce: `${prefix}sealed_nonce`, alg: `${prefix}sealed_alg` };
 }
@@ -268,7 +268,7 @@ function descriptorKey(input: { table: string; column: string }): string {
 }
 
 /** The table has every column the descriptor needs, and no identity column is part of a sealed quad. */
-function descriptorFits(ref: DiscoveredSealedColumn, descriptor: SealedColumnDescriptor): boolean {
+export function descriptorFits(ref: DiscoveredSealedColumn, descriptor: SealedColumnDescriptor): boolean {
   if (descriptor.identityColumns.some((column) => column.includes("sealed_"))) return false;
   const siblings = siblingColumns(ref.column);
   const needed = [...descriptor.identityColumns, siblings.keyId, siblings.nonce, siblings.alg];
