@@ -62,6 +62,7 @@ import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
 import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
+import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
@@ -1794,6 +1795,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `server/app.ts`'s hermetic root reads the bundled plugin's source directory directly.
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  /**
+   * This workspace's plugin-contributed git-host providers (`source-control/provider-registry.ts`),
+   * read by `source_control_*`, `site_backup_*`, `custom_credential_write_files` and the Source
+   * Control credential route. Omitted by `server/deps.ts`, so those read the installed, activated
+   * Agent Plugins; `server/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
+   */
+  loadSourceControlProviders?: LoadSourceControlProviders;
   /**
    * 2026-08-16 — cached, non-secret provider-verification results for the saved publish credentials'
    * (or the env-var fallback's) credentials, keyed by `(workspaceId, target)`. Fixes "ready means a

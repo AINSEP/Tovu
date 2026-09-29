@@ -52,7 +52,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminSourceControlCredentialsDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
+  "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders"
 >;
 
 const PERMISSION = "source-control.credentials.write";
@@ -96,6 +96,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
+    ...(deps.loadSourceControlProviders ? { loadSourceControlProviders: deps.loadSourceControlProviders } : {}),
   };
 
   /** Shared workspace-path-param + `source-control.credentials.write` authorization check every
