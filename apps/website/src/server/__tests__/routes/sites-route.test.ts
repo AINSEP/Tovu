@@ -407,3 +407,25 @@ test("sites: Activate — an existing site, flag ON, persists via persistActiveS
   assert.match(body.restartInstructions, /npm run dev/);
   assert.deepEqual(persistCalls, [{ name: "second-site" }]);
 });
+
+test("sites: Create — a `storage` field in the body never reaches createSite (PGlite/Postgres creation is `tovu init --storage` only)", async (t) => {
+  const received: unknown[] = [];
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    createSite: async (required: { name: string }) => {
+      received.push(required);
+      return { name: required.name, dir: `/repo/sites/${required.name}`, siteId: "generated-id" };
+    },
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ name: "new-site", storage: { kind: "pglite" } }),
+  });
+  assert.equal(res.status, 201);
+  assert.deepEqual(received, [{ name: "new-site" }]);
+});

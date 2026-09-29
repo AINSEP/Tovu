@@ -7,6 +7,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/ports";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import type { SealedSecret } from "#src/features/webhooks/types";
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
@@ -47,12 +48,19 @@ export interface SiteSecretSealer {
   readonly keyring: KeyringPort;
 }
 
-/** The site key's sealer for `siteDir` (its `.site-meta.json` names the key). */
-export function siteSecretSealer(siteDir: string, env: NodeJS.ProcessEnv = process.env): SiteSecretSealer {
+/**
+ * The site key's sealer for `siteDir` (its `.site-meta.json` names the key; `siteKeyId` names it
+ * for a site whose meta file is not written yet).
+ */
+export function siteSecretSealer(
+  siteDir: string,
+  env: NodeJS.ProcessEnv = process.env,
+  siteKeyId: string | undefined = resolveSiteKeyId({ siteDir })
+): SiteSecretSealer {
   const keyring = new EnvOrFileKeyring({
     allowFileFallback: true,
     allowFileAutoGenerate: false,
-    sources: siteKeySources({ mode: resolveRuntimeMode(), env, home: homedir(), cwd: process.cwd(), siteKeyId: resolveSiteKeyId({ siteDir }) }),
+    sources: siteKeySources({ mode: resolveRuntimeMode(), env, home: homedir(), cwd: process.cwd(), siteKeyId }),
   });
   return { keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
@@ -74,6 +82,30 @@ export async function writeSealedConnectionString(
   const temp = path.join(required.siteDir, `.${STORAGE_SECRET_FILENAME}.${process.pid}.${randomUUID()}.tmp`);
   fs.writeFileSync(temp, JSON.stringify(file, null, 2), { mode: 0o600 });
   fs.renameSync(temp, target);
+}
+
+/**
+ * `tovu init --storage postgres` without `--storage-env`: makes sure the new site's key exists (the
+ * one place outside boot that may mint it, `ensureSiteKey`), then seals `connectionString` with it.
+ * The site's `.site-meta.json` is written last by init, so the key id is passed in.
+ *
+ * @returns the sealer, so init can open the store before the meta file names the key.
+ * @throws {StorageSecretError} when the site key cannot be made (an invalid key source, or a refusal).
+ */
+export async function sealConnectionStringForNewSite(required: {
+  siteDir: string;
+  siteKeyId: string;
+  connectionString: string;
+}): Promise<SiteSecretSealer> {
+  const { siteDir, siteKeyId, connectionString } = required;
+  // A site being created holds no key-dependent data yet.
+  const ensured = await ensureSiteKey({ siteDir, siteKeyId, findKeyDependentData: async () => false });
+  if (ensured.action === "invalid" || ensured.action === "refuse") {
+    throw new StorageSecretError(`could not prepare this site's key to seal its Postgres connection string (${ensured.action}); fix the site key, then retry`);
+  }
+  const sealing = siteSecretSealer(siteDir, process.env, siteKeyId);
+  await writeSealedConnectionString({ siteDir, connectionString }, sealing);
+  return sealing;
 }
 
 /**

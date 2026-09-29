@@ -45,8 +45,10 @@ export function createProgram(): Command {
     .description("instantiate the starter template into a new install dir")
     .argument("<dir>", "target install directory")
     .option("--name <name>", "site display name (defaults to the directory's basename)")
-    .action(async (dir: string, options: { name?: string }) => {
-      await runInitCommand({ dir, name: options.name });
+    .option("--storage <kind>", "where the site keeps its data: sqlite (default), pglite, or postgres")
+    .option("--storage-env <name>", "postgres: read the connection string from this environment variable (default: asked for once and sealed in the site folder)")
+    .action(async (dir: string, options: { name?: string; storage?: string; storageEnv?: string }) => {
+      await runInitCommand({ dir, name: options.name, storage: options.storage, storageEnv: options.storageEnv });
     });
 
   // Registered next to `init` deliberately: the two are the only ways a directory becomes servable,

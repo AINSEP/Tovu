@@ -9,6 +9,7 @@ import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE, startPgliteOwner, type Pgli
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
+import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import type { SiteStorage } from "#src/platform/site-dir/types";
@@ -85,6 +86,8 @@ export interface OpenSiteStoreOptional {
   pgliteClientWaitMs?: number;
   /** Postgres: opens `secretRef: "site"` (default: the site key's sealer, `siteSecretSealer`). */
   sealer?: SecretSealerPort;
+  /** Postgres/PGlite: the first-run seed (default: the demo seed; `tovu init` passes its template's). */
+  seed?: ContentDbSeedData;
 }
 
 /**
@@ -126,7 +129,7 @@ async function openPostgresSiteStore(
   if (optional.db !== undefined) throw new Error("openSiteStore: a caller-supplied SQLite db cannot back a postgres site");
   const connectionString = await resolvePostgresConnectionString(storage, { siteDir: dirname(required.dbPath) }, optional);
   const base = openPostgresKernel<unknown>({ connectionString });
-  return preparePgStore({ storage, base, close: () => base.close() });
+  return preparePgStore({ storage, base, close: () => base.close(), seed: optional.seed });
 }
 
 /**
@@ -160,6 +163,7 @@ async function openPgliteSiteStore(
   const store = await preparePgStore({
     storage,
     base,
+    seed: optional.seed,
     close: async () => {
       try {
         await base.close();
@@ -192,14 +196,16 @@ async function preparePgStore(required: {
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
   base: StorageKernel<unknown>;
   close: () => Promise<void>;
+  seed?: ContentDbSeedData;
 }): Promise<SiteStore> {
   const { storage, base, close } = required;
+  const seed = required.seed ?? { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation };
   // The same connection(s), typed per history: the content tables here, the chat tables via `pgChatKernel`.
   const content = base as ContentKernel;
   try {
     await migrateContentDatabase(base);
     await migrateChatDatabase(base);
-    await prepareContentStore(content, { seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation } });
+    await prepareContentStore(content, { seed });
   } catch (err) {
     await close();
     throw err;

@@ -13,7 +13,10 @@ import { resolveProductRoot } from "./product-root.js";
 import { readTemplate } from "./read-template.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "./schema-guard.js";
-import type { ConfigJson, SiteMetaJson } from "./types.js";
+import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
+import type { ContentDbSeedData } from "../db/sqlite/content-db.js";
+import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
+import { sealConnectionStringForNewSite } from "#src/server/runtime/composition/storage-secret";
 
 /**
  * @file SPEC-003 C-007 — `initSite`, `tovu init`'s full orchestration.
@@ -72,6 +75,13 @@ export interface InitSiteRequired {
    * justified by the certified Contract Map being the binding shape for this exported function.
    */
   name?: string;
+  /**
+   * Where the site keeps its data (R1f "hidden creation"): only `tovu init --storage` sets it; the
+   * admin's create-site flow and the sites MCP tools never do. Default SQLite.
+   */
+  storage?: SiteStorage;
+  /** A `postgres` site with `secretRef: "site"`: the connection string init seals into the site folder. */
+  connectionString?: string;
 }
 
 export interface InitSiteResult {
@@ -182,6 +192,8 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
   const target = resolveInstallDirTarget(dir);
 
   const resolvedName = resolveSiteName(target, name); // step 1 (VALIDATION) — before any target/fs check.
+  const storage = required.storage ?? { kind: "sqlite" };
+  validateStorageInput(storage, required.connectionString); // step 1 too.
   validateInitTarget(target); // step 2 (INIT_DIR_NOT_EMPTY).
   const { template, seed } = readTemplate({ templateId: "starter" }); // step 3 (INTERNAL) — nothing created yet.
 
@@ -213,12 +225,17 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
     // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
     // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
     // fault-isolable at the fs level).
-    const dbPath = path.join(target, "content.db");
-    const db = openContentDb(dbPath);
-    try {
-      await prepareContentStore(contentKernel(db), { seed });
-    } finally {
-      closeSqliteConnection(db);
+    // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
+    if (storage.kind === "sqlite") {
+      const dbPath = path.join(target, "content.db");
+      const db = openContentDb(dbPath);
+      try {
+        await prepareContentStore(contentKernel(db), { seed });
+      } finally {
+        closeSqliteConnection(db);
+      }
+    } else {
+      await createPgSiteStore({ target, storage, seed, siteKeyId: siteId, connectionString: required.connectionString });
     }
 
     // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
@@ -237,7 +254,7 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
       // forward (see that function's own `siteKeyId ?? siteId` carry-over).
       siteKeyId: siteId,
       // Written explicitly (absent also means SQLite) so the choice is visible in the file.
-      storage: { kind: "sqlite" },
+      storage,
     };
     writeJsonFileAtomic(path.join(target, ".site-meta.json"), meta);
 
@@ -245,4 +262,47 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
   } catch (err) {
     return cleanupAndRethrow(err, target, wroteAnything);
   }
+}
+
+/**
+ * `storage` + `connectionString` agree, checked before anything is created: a sealed Postgres site
+ * needs its connection string, an env-named one needs that variable set, and nothing else takes one.
+ *
+ * @throws {ValidationError} naming the missing or extra input (never the connection string).
+ */
+function validateStorageInput(storage: SiteStorage, connectionString: string | undefined): void {
+  const sealed = storage.kind === "postgres" && storage.secretRef === "site";
+  const given = connectionString !== undefined && connectionString.trim() !== "";
+  if (sealed && !given) throw new ValidationError("initSite: a postgres site sealed in its folder needs its connection string");
+  if (!sealed && connectionString !== undefined) throw new ValidationError(`initSite: a ${storage.kind} site takes no connection string here`);
+  if (storage.kind === "postgres" && storage.secretRef !== "site") {
+    const value = process.env[storage.secretRef.env];
+    if (value === undefined || value.trim() === "") {
+      throw new ValidationError(`initSite: the environment variable ${storage.secretRef.env} (the site's Postgres connection string) is not set`);
+    }
+  }
+}
+
+/**
+ * A PGlite/Postgres site's store at init: seal the connection string when the site keeps it, then
+ * open the store as its owner (PGlite: creates `<site>/pglite/`), which runs both migration
+ * histories to head and seeds the template, and close it.
+ */
+async function createPgSiteStore(required: {
+  target: string;
+  storage: Exclude<SiteStorage, { kind: "sqlite" }>;
+  seed: ContentDbSeedData;
+  siteKeyId: string;
+  connectionString: string | undefined;
+}): Promise<void> {
+  const { target, storage, seed, siteKeyId, connectionString } = required;
+  const sealed =
+    storage.kind === "postgres" && storage.secretRef === "site" && connectionString !== undefined
+      ? await sealConnectionStringForNewSite({ siteDir: target, siteKeyId, connectionString })
+      : undefined;
+  const store = await openSiteStore(
+    { storage, dbPath: path.join(target, "content.db"), chatDbPath: path.join(target, "chat.db"), role: "owner" },
+    { seed, sealer: sealed?.sealer }
+  );
+  await store.close();
 }
