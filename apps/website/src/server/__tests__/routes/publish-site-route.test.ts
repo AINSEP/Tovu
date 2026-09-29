@@ -840,6 +840,28 @@ test("publish-targets: lists every registry target with its label and declared c
   assert.equal(JSON.stringify(body).includes("module"), false, "a module path is server-internal and never crosses the response");
 });
 
+test("publish-targets: a target with a saved credential carries its form's field specs, secret flagged, no vendor id", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  type Field = { name: string; required: boolean; secret?: true };
+  const body = (await res.json()) as { targets: { id: string; credential?: { help?: string; tokenField: string; fields: Field[] } }[] };
+  const cloudflare = body.targets.find((target) => target.id === "cloudflare-pages");
+  assert.ok(cloudflare?.credential, "cloudflare-pages declares a saved credential");
+  assert.equal(cloudflare.credential.tokenField, "token");
+  assert.deepEqual(
+    cloudflare.credential.fields.map((field) => [field.name, field.required, field.secret === true]),
+    [["token", true, true], ["accountId", true, false], ["projectName", false, false]],
+  );
+  const s3 = body.targets.find((target) => target.id === "s3-compatible");
+  assert.equal(s3?.credential?.tokenField, "secretAccessKey");
+  assert.equal(typeof s3?.credential?.help, "string");
+  assert.equal(JSON.stringify(body).includes("vendorId"), false, "a vendor id is server-internal");
+});
+
 test("publish-targets: an unauthorized principal gets 403 and a mismatched workspaceId 404s", async (t) => {
   const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);

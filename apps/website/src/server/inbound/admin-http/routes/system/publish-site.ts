@@ -10,7 +10,11 @@ import {
   unknownTargetMessage,
   type StaticPublishConfig,
 } from "#src/features/deployments/static-publish/index";
-import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type {
+  DeployTargetCredentialSpec,
+  DeployTargetRegistry,
+  LoadedDeployTarget,
+} from "#src/features/deployments/deploy-targets/types";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -143,6 +147,16 @@ async function readTargetConfig(
   const read = readStaticPublishConfig(target, raw, { blankAsAbsent });
   if (!read.ok) return { ok: false, error: read.message };
   return { ok: true, registry, target, config: read.config };
+}
+
+/** A target's saved-credential form, as the admin renders it: the field specs (secret fields flagged,
+ *  never a value), the form's help and which field is the token. @complexity O(1). */
+function publicCredentialSpec(spec: DeployTargetCredentialSpec): {
+  help?: string;
+  tokenField: string;
+  fields: DeployTargetCredentialSpec["fields"];
+} {
+  return { ...(spec.help !== undefined ? { help: spec.help } : {}), tokenField: spec.tokenField, fields: spec.fields };
 }
 
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
@@ -321,7 +335,8 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   });
 
   // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
-  // Ids, labels and config field specs only: a module path or a refusal reason stays server-side.
+  // Ids, labels, config field specs and the saved-credential form's field specs only: a module path,
+  // a vendor id or a refusal reason stays server-side.
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish-targets", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -341,7 +356,12 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       const registry = await deps.loadDeployTargets(deps.workspaceId);
       for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
       res.status(200).json({
-        targets: registry.list().map(({ descriptor }) => ({ id: descriptor.id, label: descriptor.label, configFields: descriptor.configFields })),
+        targets: registry.list().map(({ descriptor }) => ({
+          id: descriptor.id,
+          label: descriptor.label,
+          configFields: descriptor.configFields,
+          ...(descriptor.credential !== undefined ? { credential: publicCredentialSpec(descriptor.credential) } : {}),
+        })),
       });
     } catch (err) {
       console.error("[publish-site] unexpected error listing publish targets", err);
