@@ -593,12 +593,18 @@ export interface CreateSiteRouteDepsOverrides {
   /**
    * An already opened Postgres/PGlite store, supplied with `workspaceId` by the install-dir boot
    * path (`bootSiteDir` opened, migrated and resolved it) — the non-SQLite form of `db`, so one
-   * boot never opens a second pool. The composition does not close it; its opener does.
+   * boot never opens a second pool. Its opener closes it, through the store `onStoreOpened` hands
+   * back (`closeSiteDirBoot`), so the composition's chat sweep stops first.
    */
   store: SiteStore;
   /**
-   * Called once with the store this call opened itself (not a supplied `db`/`store`), so the default
-   * boot (`index.ts`) can close it on shutdown and hand a PGlite owner's socket to the agent daemon.
+   * Called once, before the rest of the composition is built, with the composition's store: the one
+   * this call opened, or the supplied `store` (a supplied SQLite `db` is still wrapped with the
+   * `chat.db` this call opens). Its `close()` stops the guest-chat sweep, waiting for a pass in
+   * flight, then closes the underlying store, so the caller closes this one rather than its own
+   * reference. The default boot (`index.ts`) closes it on shutdown and hands a PGlite owner's socket
+   * to the agent daemon. When the composition fails after this, it has already closed what it opened
+   * (and stopped the sweep on a supplied store).
    */
   onStoreOpened: (store: SiteStore) => void;
 }
@@ -717,24 +723,38 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
  * `bootSiteDir` has already validated, migrated, and stamped it (BR-05/BR-06).
  *
  * The API process (`owner`) also starts the hourly guest-chat expiry sweep here, on the chat kernel
- * it just opened; the agent daemon (`client`) leaves retention to it. The sweep's timer is
- * `unref`'d and nothing tears a composition down today, so its stop function is not kept.
+ * of that store; the agent daemon (`client`) leaves retention to it. The returned store's `close()`
+ * stops the sweep (waiting for a pass in flight) before closing the underlying store, so no pass
+ * ever queries a closed store. `release` is what {@link createSiteRouteDeps} runs when the rest of
+ * the composition fails: close what this call opened, or only stop the sweep on a supplied store.
  */
-async function openCompositionStore(dbPath: string, overrides?: Partial<CreateSiteRouteDepsOverrides>): Promise<SiteStore> {
+async function openCompositionStore(
+  dbPath: string,
+  overrides?: Partial<CreateSiteRouteDepsOverrides>
+): Promise<{ store: SiteStore; release: () => Promise<void> }> {
   const storage = resolveSiteStorage(isInMemoryDbPath(dbPath) ? ":memory:" : dirname(dbPath));
   hydrateContentDbIfNeeded(dbPath, storage, overrides);
   const role = overrides?.storeRole ?? "owner";
-  if (overrides?.store !== undefined) {
-    if (role === "owner") startChatExpirySweep(overrides.store.chat);
-    return overrides.store;
-  }
+  const supplied = overrides?.store;
   // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
-  const store = await openSiteStore({ storage, dbPath, chatDbPath: defaultChatDbPath(dbPath), role }, { db: overrides?.db });
+  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: defaultChatDbPath(dbPath), role }, { db: overrides?.db }));
+  const stopSweep = startOwnerChatExpirySweep(role, opened.chat);
+  const store: SiteStore = {
+    ...opened,
+    close: async () => {
+      await stopSweep();
+      await opened.close();
+    },
+  };
   overrides?.onStoreOpened?.(store);
-  if (role === "owner") startChatExpirySweep(store.chat);
-  return store;
+  return { store, release: supplied === undefined ? store.close : stopSweep };
+}
+
+/** The guest-chat expiry sweep, on the owner only; its stop function (a no-op on a client). */
+function startOwnerChatExpirySweep(role: SiteStoreRole, chat: SiteStore["chat"]): () => Promise<void> {
+  return role === "owner" ? startChatExpirySweep(chat) : async () => {};
 }
 
 /**
@@ -830,16 +850,36 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
 }
 
 /**
- * The site composition root: builds every `RouteDeps` service over the site's content database.
- * Async so storage opening can await (R1 plan). Every `await` sits in the prelude (open → workspace →
- * deny store → orphaned-chat check), before the body starts any fire-and-forget boot promise, so the
- * body still runs to its return synchronously. Bad overrides reject rather than throw.
+ * The site composition root: opens the site's store ({@link openCompositionStore}), then builds every
+ * `RouteDeps` service over it ({@link composeSiteRouteDeps}). Async so storage opening can await (R1
+ * plan). Bad overrides reject rather than throw. When anything after the open fails, the store this
+ * call opened is closed (and the chat sweep stopped) before the rejection propagates, so a failed
+ * boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
  */
 export async function createSiteRouteDeps(
   dbPath: string = defaultContentDbPath(),
   overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): Promise<NewsletterRouteDeps> {
   assertOverridesPairedOrAbsent(overrides);
+  const opened = await openCompositionStore(dbPath, overrides);
+  try {
+    return await composeSiteRouteDeps(dbPath, opened.store, overrides);
+  } catch (err) {
+    await opened.release();
+    throw err;
+  }
+}
+
+/**
+ * {@link createSiteRouteDeps}'s body, over the store it opened. Every `await` sits in the prelude
+ * (workspace → deny store → orphaned-chat check), before the body starts any fire-and-forget boot
+ * promise, so the body still runs to its return synchronously.
+ */
+async function composeSiteRouteDeps(
+  dbPath: string,
+  store: SiteStore,
+  overrides?: Partial<CreateSiteRouteDepsOverrides>
+): Promise<NewsletterRouteDeps> {
 
   // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
   // follow (see `routes/types.ts`). Seeded before anything discovers themes off it: on a site's
@@ -851,7 +891,6 @@ export async function createSiteRouteDeps(
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
 
-  const store = await openCompositionStore(dbPath, overrides);
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;

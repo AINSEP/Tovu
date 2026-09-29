@@ -6,6 +6,7 @@ import type { ChatOwnerScope } from "@jini-ai/chat/core";
 import type { ChatKernel } from "#src/platform/db/chat-kernel";
 import { createChatHistoryStore } from "../chat-history-store.js";
 import { startChatExpirySweep, sweepExpiredChats } from "../chat-expiry-sweep.js";
+import { heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 
 /**
@@ -62,7 +63,47 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
       assert.equal(await guest.get("expired"), null);
       assert.deepEqual(errors, []);
     } finally {
-      stop();
+      await stop();
     }
+  });
+
+  test("stop() resolves only after the pass in flight has finished", async () => {
+    const { kernel, guest } = make();
+    await guest.create({ id: "expired", expiresAt: T0 - 1 });
+    let release!: () => void;
+    const held = heldUntil(kernel, new Promise<void>((r) => (release = r)));
+    const stop = startChatExpirySweep(held, { now: () => T0, intervalMs: 60_000 });
+    let stopped = false;
+    const stopping = stop().then(() => (stopped = true));
+    for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r));
+    assert.equal(stopped, false, "stop() must wait for the held pass");
+    release();
+    await stopping;
+    assert.equal(await guest.get("expired"), null, "the pass stop() waited for ran to completion");
+  });
+
+  test("a tick that fires while a pass is still running is skipped, never overlapped", async () => {
+    const { kernel } = make();
+    let release!: () => void;
+    const held = heldUntil(kernel, new Promise<void>((r) => (release = r)));
+    let active = 0;
+    let maxActive = 0;
+    const counting: typeof held = {
+      ...held,
+      run: async (fn) => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        try {
+          return await held.run(fn);
+        } finally {
+          active--;
+        }
+      },
+    };
+    const stop = startChatExpirySweep(counting, { now: () => T0, intervalMs: 5 });
+    await new Promise((r) => setTimeout(r, 60));
+    release();
+    await stop();
+    assert.equal(maxActive, 1);
   });
 });

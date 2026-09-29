@@ -13,7 +13,8 @@ import test from "node:test";
  *    newer-schema `content.db` is refused before anything opens it.
  *  - `deps.ts` `openCompositionStore` (R1d): storage choice → hydrate → `openSiteStore` (content.db via
  *    the recovering `openSiteContentDb`, then chat.db) → the guest-chat expiry sweep on the chat kernel.
- *  - `deps.ts` `createSiteRouteDeps` prelude (R1b/R1d): store open → `await` workspace → `await`
+ *  - `deps.ts` `createSiteRouteDeps`: store open → `composeSiteRouteDeps` → on failure, release the store.
+ *  - `deps.ts` `composeSiteRouteDeps` prelude (R1b/R1d): store open → `await` workspace → `await`
  *    deny-store probe → `await` orphaned-chat check, all before the body starts its first
  *    fire-and-forget boot promise (`backfillPostSearchIndex`), so no boot promise interleaves with a
  *    prelude await.
@@ -65,7 +66,7 @@ test("createSiteRouteDeps: storage choice, then hydration, then the store open (
   const storage = indexOfAnchor(prelude, "const storage = resolveSiteStorage(");
   const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded(dbPath, storage, overrides)");
   const open = indexOfAnchor(prelude, "await openSiteStore(");
-  const sweep = indexOfAnchor(prelude, "startChatExpirySweep(store.chat)");
+  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep(role, opened.chat)");
   assert.ok(storage < hydrate, "the storage choice decides whether a SQLite seed is hydrated");
   assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
   assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");
@@ -84,8 +85,14 @@ test("openSiteContentDb: crash recovery runs on the fresh connection before the 
 });
 
 test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise", () => {
-  const body = functionBody(readCode("server/runtime/composition/deps.ts"), "export async function createSiteRouteDeps(");
-  const open = indexOfAnchor(body, "await openCompositionStore(dbPath, overrides)");
+  const deps = readCode("server/runtime/composition/deps.ts");
+  const root = functionBody(deps, "export async function createSiteRouteDeps(");
+  const openStore = indexOfAnchor(root, "await openCompositionStore(dbPath, overrides)");
+  const compose = indexOfAnchor(root, "await composeSiteRouteDeps(dbPath, opened.store, overrides)");
+  const release = indexOfAnchor(root, "await opened.release()");
+  assert.ok(openStore < compose && compose < release, "the store opens first; a failed composition releases it");
+  const body = functionBody(deps, "async function composeSiteRouteDeps(");
+  const open = 0;
   const kernel = indexOfAnchor(body, "const kernel = store.content");
   const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
   const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
@@ -101,7 +108,7 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
 });
 
 test("createSiteRouteDeps body: every repo is built from the kernels; the engine-bound rest comes from storeBoundServicesFor", () => {
-  const body = functionBody(readCode("server/runtime/composition/deps.ts"), "export async function createSiteRouteDeps(");
+  const body = functionBody(readCode("server/runtime/composition/deps.ts"), "async function composeSiteRouteDeps(");
   // `db` used as a value (not a property key `db:`, not a member `x.db`).
   const uses = [...body.matchAll(/(?<![.\w$])db(?![\w$:])/g)].map((match) => body.slice(body.lastIndexOf("\n", match.index) + 1, body.indexOf("\n", match.index)).trim());
   assert.deepEqual(uses, [], "a Postgres/PGlite store has no SQLite `db`: anything reading it breaks there");

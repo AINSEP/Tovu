@@ -64,12 +64,16 @@ export interface StoreSiteDirBoot extends BootSiteDirResultBase {
 export type BootSiteDirResult = SqliteSiteDirBoot | StoreSiteDirBoot;
 
 /**
- * Closes what {@link bootSiteDir} opened. SQLite closes synchronously, before the returned promise
- * exists, so a caller that exits right after (`serve`'s shutdown) still closes `content.db`.
+ * Closes what {@link bootSiteDir} opened. SQLite closes `content.db` synchronously, before the
+ * returned promise exists. `composed` is the store `createSiteRouteDeps` handed to `onStoreOpened`
+ * when the composition got that far: closing it stops the composition's guest-chat sweep (waiting
+ * for a pass in flight) and then closes `boot.store` (Postgres/PGlite) or the `chat.db` the
+ * composition opened beside `content.db` (SQLite). Without it, `boot.store` is closed directly.
  */
-export async function closeSiteDirBoot(boot: BootSiteDirResult): Promise<void> {
+export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<SiteStore, "close">): Promise<void> {
   if (boot.db !== undefined) closeSqliteConnection(boot.db);
-  else await boot.store.close();
+  if (composed !== undefined) await composed.close();
+  else if (boot.store !== undefined) await boot.store.close();
 }
 
 /**

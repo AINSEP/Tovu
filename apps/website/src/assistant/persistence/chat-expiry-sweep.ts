@@ -31,7 +31,11 @@ export async function sweepExpiredChats(store: ChatKernel | SqliteConnectionSour
 /**
  * Runs {@link sweepExpiredChats} once now and then every `intervalMs`, until the returned stop
  * function is called. The timer is `unref`'d so it never keeps the process alive. A failed pass is
- * reported through `onError` and the next pass still runs.
+ * reported through `onError` and the next pass still runs. A tick that fires while a pass is still
+ * running is skipped, so passes never overlap.
+ *
+ * @returns `stop`: clears the timer and resolves once the pass in flight (if any) has finished, so
+ *   the store can be closed right after it. Safe to call more than once.
  */
 export function startChatExpirySweep(
   store: ChatKernel | SqliteConnectionSource,
@@ -40,7 +44,7 @@ export function startChatExpirySweep(
     readonly now?: () => number;
     readonly onError?: (error: unknown) => void;
   } = {}
-): () => void {
+): () => Promise<void> {
   const { intervalMs = CHAT_EXPIRY_SWEEP_INTERVAL_MS, now = Date.now } = options;
   const onError =
     options.onError ??
@@ -49,9 +53,20 @@ export function startChatExpirySweep(
       console.warn(`[chat-expiry-sweep] sweep failed: ${error instanceof Error ? error.message : String(error)}`);
     });
   const kernel = chatKernel(store);
-  const pass = () => void sweepExpiredChats(kernel, now()).catch(onError);
+  let active: Promise<void> | undefined;
+  const pass = (): void => {
+    if (active !== undefined) return;
+    active = sweepExpiredChats(kernel, now())
+      .then(() => undefined, onError)
+      .finally(() => {
+        active = undefined;
+      });
+  };
   pass();
   const timer = setInterval(pass, intervalMs);
   timer.unref();
-  return () => clearInterval(timer);
+  return async () => {
+    clearInterval(timer);
+    await active;
+  };
 }
