@@ -7,7 +7,7 @@ import test from "node:test";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { createSiteRouteDeps } from "../deps.js";
-import { openSiteStore, StorageNotAvailableError } from "../open-site-store.js";
+import { openSiteStore, PG_SOCKET_ENV, StorageNotAvailableError } from "../open-site-store.js";
 import { StorageSecretError } from "../storage-secret.js";
 
 /**
@@ -15,24 +15,16 @@ import { StorageSecretError } from "../storage-secret.js";
  *
  * Outcome Matrix:
  *   Given sqlite storage                         -> content + chat kernels over content.db / chat.db
- *   Given pglite storage                          -> StorageNotAvailableError, nothing created (R1f part 2)
+ *   Given pglite, client role, no owner serving   -> StorageNotAvailableError naming the socket, nothing created
  *   Given postgres storage with no secret         -> StorageSecretError naming where to look, nothing created
  *   (Postgres opening for real: `create-site-route-deps.postgres.test.ts`.)
- *   Given a site folder whose meta says pglite    -> createSiteRouteDeps rejects before opening content.db
+ *   (PGlite opening for real: `create-site-route-deps.pglite.integration.test.ts`.)
  *   Given an expired guest chat in chat.db         -> the API process's composition deletes it (sweep started)
  *   Given the agent daemon's composition (client)  -> no sweep; the expired chat stays
  */
 
 function mkSiteDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-store-"));
-}
-
-function isStorageNotAvailable(kind: string) {
-  return (err: unknown) => {
-    assert.ok(err instanceof StorageNotAvailableError, `expected StorageNotAvailableError, got ${String(err)}`);
-    assert.match(err.message, new RegExp(`stored on ${kind}, which lands in R1 plan slice R1f part 2`));
-    return true;
-  };
 }
 
 /** One expired and one unexpired guest chat, written straight into a fresh chat.db. */
@@ -82,16 +74,26 @@ test("sqlite: opens content.db and chat.db beside it and hands back both kernels
   }
 });
 
-test("pglite is refused before anything is opened or created", async () => {
+test("a pglite client (the agent daemon) with no owner serving is refused after its wait, naming the socket", async () => {
   const dir = mkSiteDir();
+  const socketDir = fs.mkdtempSync(path.join(os.tmpdir(), "r1f-sock-"));
+  const socketPath = path.join(socketDir, ".s.PGSQL.5432");
   try {
     await assert.rejects(
-      openSiteStore({ storage: { kind: "pglite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" }),
-      isStorageNotAvailable("pglite")
+      openSiteStore(
+        { storage: { kind: "pglite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "client" },
+        { env: { [PG_SOCKET_ENV]: socketPath }, pgliteClientWaitMs: 300 }
+      ),
+      (err: unknown) => {
+        assert.ok(err instanceof StorageNotAvailableError, `expected StorageNotAvailableError, got ${String(err)}`);
+        assert.ok(err.message.includes(socketPath), err.message);
+        return true;
+      }
     );
-    assert.deepEqual(fs.readdirSync(dir), [], "no file is created for a refused store");
+    assert.deepEqual(fs.readdirSync(dir), [], "a client never creates the data dir or any file");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(socketDir, { recursive: true, force: true });
   }
 });
 
@@ -107,17 +109,6 @@ test("postgres without its connection string is refused with where to look, befo
       );
     }
     assert.deepEqual(fs.readdirSync(dir), [], "no file is created for a refused store");
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("createSiteRouteDeps reads the site's storage choice: a pglite site is refused before content.db is opened", async () => {
-  const dir = mkSiteDir();
-  try {
-    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteKeyId: "k", storage: { kind: "pglite" } }));
-    await assert.rejects(createSiteRouteDeps(path.join(dir, "content.db")), isStorageNotAvailable("pglite"));
-    assert.equal(fs.existsSync(path.join(dir, "content.db")), false, "no SQLite file is created in a pglite site's folder");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

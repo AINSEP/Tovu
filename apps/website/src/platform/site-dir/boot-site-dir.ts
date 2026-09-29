@@ -156,8 +156,8 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
  * `.site-meta.json` stamp are skipped: they describe `content.db`'s legacy chain, and a Postgres
  * store's own history is its migration ledger, which the runner checks while it opens.
  *
- * @throws whatever `openSiteStore` throws (`StorageSecretError`, `StorageNotAvailableError` for
- *   PGlite until R1f part 2, a migration failure); `resolveWorkspace`'s errors. The store is
+ * @throws whatever `openSiteStore` throws (`StorageSecretError`, `PgliteOwnerLockedError` when the
+ *   PGlite data dir is already served, a migration failure); `resolveWorkspace`'s errors. The store is
  *   closed before any rejection.
  */
 async function bootStoreSiteDir(
