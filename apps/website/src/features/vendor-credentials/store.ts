@@ -2,6 +2,7 @@ import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import { buildSourceControlProvider, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { buildVendorCredentialAad } from "./aad.js";
 import type {
   VendorConnectionInput,
@@ -34,8 +35,9 @@ import type {
  * connection-changing update. See `../../db/schema.sqlite.ts`'s `vendorCredentialSets.tokenTail` doc for
  * which field is the "primary secret" per vendor.
  *
- * `accountLabel`: probed INLINE, at save time, for `github` only — the SAME choice
- * `source-control/store.ts` makes and the SAME reason: this table has no existing agent-facing
+ * `accountLabel`: probed INLINE, at save time, for a vendor an enabled source-control plugin
+ * provides (its `readAccountLabel`; `github` today) — the SAME choice `source-control/store.ts` makes
+ * and the SAME reason: this table has no existing agent-facing
  * write path to protect the way `publish-credentials/store.ts`'s create/update is shared with
  * `deployment_propose_custom_provider_credential` (that tool still writes through the OLD
  * `publish_credential_sets` table as of this pass — see this file's own module doc in `index.ts` for
@@ -48,22 +50,7 @@ import type {
  * stores had to learn this the hard way, live, on 2026-08-16 (`650b92f6`, `4cd31179`): a raw decrypt
  * failure with no route-level try/catch took down the WHOLE server/daemon process, not just the one
  * request. This store starts where those two ended up, not where they started.
- *
- * ## Why `probeAccountLabel`'s GitHub-login extractor is INJECTED, not imported (2026-08-17 SCC cut)
- *
- * This module used to value-import `extractGitHubLogin` (`../deployments/static-publish/index`) and
- * call it by name from {@link probeAccountLabel}. That closed a real cycle once `deployments`/
- * `static-publish` converted to the tool-contribution registry: `assistant`'s own
- * `REAL_VENDOR_CREDENTIAL_PORT` wiring reaches `features/vendor-credentials` unconditionally, which
- * reached (via this file) back into `features/deployments` — see
- * `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`.
- * `extractGitHubLogin` below is typed with a LOCALLY-declared structural signature
- * ({@link ExtractGitHubLogin}), the same technique `features/deployments/publish-agent-tools.ts` uses
- * for its own `VendorCredentialPort`. `createVendorCredential`/`updateVendorCredential` have a real
- * production caller (`server/routes/admin/system/vendor-credentials.ts`), so this deps field is
- * REQUIRED (no `?`): a composition root that forgets it gets a compile error, not a silent
- * `probeAccountLabel` no-op. Wiring the real function back in from `assistant` instead would
- * silently reintroduce the exact cycle this cut removes.
+
  */
 
 const MAX_LABEL_LENGTH = 200;
@@ -129,12 +116,6 @@ export async function listVendorCredentials(deps: VendorCredentialReadDeps, inpu
   return records.map(toSummary);
 }
 
-/** Locally-declared structural stand-in for `static-publish/verify.ts`'s `extractGitHubLogin` — same
- *  shape, deliberately NOT that function's own imported type (see this file's header, "Why
- *  `probeAccountLabel`'s GitHub-login extractor is INJECTED, not imported"). A caller passing the
- *  real `extractGitHubLogin` satisfies this structurally with no adapter needed. */
-type ExtractGitHubLogin = (body: unknown) => string | undefined;
-
 export interface VendorCredentialWriteDeps extends VendorCredentialReadDeps {
   sealer: SecretSealerPort;
   keyring: KeyringPort;
@@ -143,12 +124,9 @@ export interface VendorCredentialWriteDeps extends VendorCredentialReadDeps {
   /** Injected by tests (mirrors `source-control/store.ts`'s own `fetchFn`); defaults to global
    *  `fetch`. Used only by {@link probeAccountLabel}. */
   fetchFn?: typeof fetch;
-  /** Injected rather than imported — see this file's header ("Why `probeAccountLabel`'s GitHub-login
-   *  extractor is INJECTED, not imported"). A real caller passes `static-publish/verify.ts`'s own
-   *  `extractGitHubLogin` unchanged; this module never imports it by name. Required (no `?`), so a
-   *  composition root that forgets it fails to compile rather than silently degrading the github
-   *  account-label probe to always-null. */
-  extractGitHubLogin: ExtractGitHubLogin;
+  /** The source-control providers the account-label probe reads from; defaults to the installed,
+   *  enabled plugins. Injected by tests (mirrors `source-control/store.ts`). */
+  loadSourceControlProviders?: LoadSourceControlProviders;
 }
 
 function validateLabel(raw: unknown): string {
@@ -276,36 +254,28 @@ function deriveTokenTail(connection: VendorConnectionInput): string {
   return field.slice(-4);
 }
 
-/** Same order of magnitude as `static-publish/verify.ts`'s own `VERIFY_TIMEOUT_MS` — a human is
- *  waiting on a form submit, not a background job. */
-const ACCOUNT_LABEL_PROBE_TIMEOUT_MS = 10_000;
-
 /**
  * Best-effort "who does this token belong to" probe, run inline at save time — see this file's own
- * header for why THIS table's `create`/`update` may do this today. NEVER throws: a network failure,
- * timeout, or non-2xx response degrades to `null` rather than failing the save. `github` reuses
- * `static-publish/verify.ts`'s reviewed `extractGitHubLogin` against `GET /user` (injected as
- * `extractLogin` — see this file's header for why); every other vendor returns `null`
- * unconditionally, with no request made — no reviewed single-field identity extractor exists for
- * gitlab/bitbucket/vercel/netlify/cloudflare/s3-compatible (same "never guess an unreviewed response
- * shape" discipline both predecessor stores document).
+ * header for why THIS table's `create`/`update` may do this today. NEVER throws: no provider, a
+ * network failure, timeout, or non-2xx response degrades to `null` rather than failing the save.
  *
- * Takes the whole `connection` (not a bare token) so a vendor with no `token` field at all
- * (`s3-compatible`) never needs a placeholder value threaded through just to satisfy this
- * function's signature — the early return below makes that field access unreachable for it.
+ * The host-specific read lives in the source-control plugin that provides the vendor
+ * (`provider-module.ts`'s `readAccountLabel`; the bundled `github` plugin reads `GET /user` ->
+ * `login`). A vendor no enabled plugin provides, or one with no `token` field at all
+ * (`s3-compatible`), yields `null` with no request made.
  *
- * @complexity O(1) — one bounded HTTP request (skipped entirely for every vendor but github).
+ * @complexity One registry load plus at most one bounded HTTP request.
  */
-async function probeAccountLabel(connection: VendorConnectionInput, fetchFn: typeof fetch, extractLogin: ExtractGitHubLogin): Promise<string | null> {
-  if (connection.vendorId !== "github") return null;
+async function probeAccountLabel(deps: VendorCredentialWriteDeps, workspaceId: UUID, connection: VendorConnectionInput): Promise<string | null> {
+  if (!("token" in connection)) return null;
   try {
-    const resp = await fetchFn("https://api.github.com/user", {
-      headers: { Authorization: `Bearer ${connection.token}`, Accept: "application/vnd.github+json" },
-      signal: AbortSignal.timeout(ACCOUNT_LABEL_PROBE_TIMEOUT_MS),
+    const built = await buildSourceControlProvider({
+      ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
+      ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+      workspaceId,
+      providerId: connection.vendorId,
     });
-    if (!resp.ok) return null;
-    const body: unknown = await resp.json();
-    return extractLogin(body) ?? null;
+    return built.ok ? await built.provider.readAccountLabel(connection.token) : null;
   } catch {
     return null;
   }
@@ -357,7 +327,7 @@ function decideCreateDefault(existingForVendor: readonly unknown[], requested: b
  * @throws {VendorCredentialDuplicateLabelError} `(workspaceId, vendorId, label)` already exists.
  * @throws {VendorCredentialSecretStoreUnconfiguredError} The master secret is unavailable.
  * @complexity O(n) in the vendor's own (small) existing-connection count, plus one keyring
- *   derivation, one seal, one best-effort probe (github only), and one insert.
+ *   derivation, one seal, one best-effort account-label probe, and one insert.
  */
 export async function createVendorCredential(deps: VendorCredentialWriteDeps, input: CreateVendorCredentialInput): Promise<VendorCredentialSetSummary> {
   const label = validateLabel(input.label);
@@ -371,7 +341,7 @@ export async function createVendorCredential(deps: VendorCredentialWriteDeps, in
 
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, vendorId: connection.vendorId, id, connection });
   const tokenTail = deriveTokenTail(connection);
-  const accountLabel = await probeAccountLabel(connection, deps.fetchFn ?? fetch, deps.extractGitHubLogin);
+  const accountLabel = await probeAccountLabel(deps, input.workspaceId, connection);
 
   const record: VendorCredentialSetRecord = {
     workspaceId: input.workspaceId,
@@ -427,7 +397,7 @@ async function resolveConnectionUpdate(
   const vendorId = connection.vendorId;
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, vendorId, id: input.id, connection });
   const tokenTail = deriveTokenTail(connection);
-  const accountLabel = await probeAccountLabel(connection, deps.fetchFn ?? fetch, deps.extractGitHubLogin);
+  const accountLabel = await probeAccountLabel(deps, input.workspaceId, connection);
   return { vendorId, sealed, tokenTail, accountLabel };
 }
 

@@ -83,14 +83,14 @@ export function bindS3Compatible(kit) {
    * already-current one is a harmless no-op), and nothing not YET recorded as managed is ever deleted. A
    * bucket with no manifest yet (the first publish ever, or content a human uploaded before Tovu ever
    * touched this bucket) has nothing "known managed," so nothing is ever inferred safe to delete — the
-   * same "unknown means untouched" default `github-git-provider.ts`'s own manifest-based fix uses for the
+   * same "unknown means untouched" default the github plugin's `source-control/commit-site.mjs` manifest-based fix uses for the
    * identical class of finding in that adapter.
    *
    * SECOND-ROUND CRITICAL FIX (2026-08-19, three independent auditors — Claude Sonnet 5, Codex 5.6-sol,
    * Codex 5.6-terra, all three converging on overlapping findings with no communication between them): the
    * manifest layer above closed the "content silently never cleaned up" gap, but had three of its own
-   * defects, all now fixed together (mirroring `github-git-provider.ts`'s own SECOND-ROUND CRITICAL FIX
-   * note for its sibling adapter — see that file's header for the identical reasoning applied to git):
+   * defects, all now fixed together (mirroring the same round's fixes to its git sibling, now the github plugin's
+   * `source-control/commit-site.mjs`):
    *
    *  1. OWNERSHIP WAS TRUSTED BLINDLY. Any key the manifest LISTED was deleted, with no check that the
    *     key's LIVE object still matched what this target itself last wrote. A human (or another tool)
@@ -133,7 +133,7 @@ export function bindS3Compatible(kit) {
    *     mismatched. Fixed with a conditional write + bounded retry: {@link writeManagedManifestConditional}
    *     sends `If-Match` (keyed to the ETag this run observed reading the manifest) or `If-None-Match: *`
    *     (when no manifest existed yet) on the manifest `PUT` — a real compare-and-swap, the object-storage
-   *     equivalent of the non-force git ref update `github-git-provider.ts`'s own `writeRef` already relies
+   *     equivalent of the non-force git ref update `commit-site.mjs`'s own `writeRef` already relies
    *     on. A precondition failure (412, or 409 on providers that signal conflict that way) means a genuine
    *     racer won since
    *     this run's own read — {@link publish} re-reads the manifest, RE-VERIFIES and re-diffs the stale-key
@@ -185,7 +185,7 @@ export function bindS3Compatible(kit) {
    *  A hidden, Tovu-namespaced key deliberately: a real static export does not produce a dotfile
    *  directory, so collision with genuine site content is not a practical concern the way a plain
    *  `manifest.json` at the bucket root would be. Byte-identical NAMING PATTERN to
-   *  `github-git-provider.ts`'s `MANAGED_MANIFEST_PATH` — not shared code (this is an S3 object key, that
+   *  `commit-site.mjs`'s `MANAGED_MANIFEST_PATH` — not shared code (this is an S3 object key, that
    *  is a git tree path; the two adapters have no dependency on each other), just the same "small
    *  Tovu-owned tracking file, physically stored inside what this adapter manages" shape applied to two
    *  different storage systems. */

@@ -11,14 +11,6 @@ import {
   VendorCredentialValidationError,
   type VendorCredentialSetSummary,
 } from "#src/features/vendor-credentials/index";
-// `store.ts`'s own `createVendorCredential`/`updateVendorCredential` no longer value-import
-// `extractGitHubLogin` directly (2026-08-17 SCC cut — see `store.ts`'s header, "Why
-// `probeAccountLabel`'s GitHub-login extractor is INJECTED, not imported"); it is injected via
-// `VendorCredentialWriteDeps.extractGitHubLogin` instead. THIS file is the real production wiring
-// point: `server/` does not sit downstream of `deployments`'s/`static-publish`'s own
-// `registerToolContributor` edge, so importing the real function here (unlike from `assistant`)
-// cannot reopen the cycle that injection removed.
-import { extractGitHubLogin } from "#src/features/deployments/static-publish/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -83,7 +75,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminVendorCredentialsDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "idGen" | "vendorCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
+  "workspaceId" | "authorize" | "clock" | "idGen" | "vendorCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders"
 >;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/vendor-credentials";
@@ -124,7 +116,7 @@ export function registerAdminVendorCredentialsRoutes(app: Express, deps: AdminVe
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
-    extractGitHubLogin,
+    ...(deps.loadSourceControlProviders ? { loadSourceControlProviders: deps.loadSourceControlProviders } : {}),
   };
 
   /** Shared workspace-path-param + `vendor-credentials.write` authorization check every verb below
