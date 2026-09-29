@@ -645,12 +645,13 @@ test("publish-site: a github-pages trigger WITH a valid 'branch', and a vercel t
   assert.equal(afterTeamId.status, "errored", `teamId trigger did not settle in time: ${JSON.stringify(afterTeamId)}`);
 });
 
-test("publish-site: netlify and cloudflare-pages TRIGGER requests (not just their preview counterparts above) parse and start a real run (202)", async (t) => {
+test("publish-site: netlify, cloudflare-pages and s3-compatible TRIGGER requests (not just their preview counterparts above) parse and start a real run (202)", async (t) => {
   const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  for (const target of ["netlify", "cloudflare-pages"]) {
+  // s3-compatible was refused here until T7b: the route now accepts any target the registry knows.
+  for (const target of ["netlify", "cloudflare-pages", "s3-compatible"]) {
     const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
       method: "POST",
       headers: { cookie, "content-type": "application/json" },
@@ -814,4 +815,44 @@ test("publish-site: a non-string or blank 'credentialId' 400s and never starts a
   const poll = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
   const snapshot = await poll.json();
   assert.notEqual(snapshot.status, "running", "a 400 must never have started a run");
+});
+
+/**
+ * `GET .../system/publish-targets` — the registry's targets, for the admin UI to render its publish
+ * card from descriptors instead of a hard-coded vendor list (deploy plan T7b/T7f). `system.read`,
+ * like the preview.
+ */
+test("publish-targets: lists every registry target with its label and declared config fields", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { targets: { id: string; label: string; configFields: { name: string; label: string; required: boolean }[] }[] };
+  const expected = (await deps.loadDeployTargets(deps.workspaceId)).list();
+  assert.deepEqual(
+    body.targets.map((target) => target.id),
+    expected.map((target) => target.descriptor.id),
+  );
+  const github = body.targets.find((target) => target.id === "github-pages");
+  assert.ok(github, "the bundled plugin's github-pages target must be listed");
+  assert.deepEqual(
+    github.configFields.map((field) => [field.name, field.required]),
+    [["owner", true], ["repo", true], ["branch", false]],
+  );
+  assert.equal(JSON.stringify(body).includes("module"), false, "a module path is server-internal and never crosses the response");
+});
+
+test("publish-targets: an unauthorized principal gets 403 and a mismatched workspaceId 404s", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const mismatched = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-the-real-workspace/system/publish-targets`, { headers: { cookie } });
+  assert.equal(mismatched.status, 404);
+
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+  const forbidden = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie: bareCookie } });
+  assert.equal(forbidden.status, 403);
 });

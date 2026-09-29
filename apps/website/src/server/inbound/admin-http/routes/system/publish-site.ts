@@ -66,6 +66,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `credentialSource`, so a preview here and a preview from the assistant can never disagree.
  * `system.read`-gated, matching every other GET in this directory (`export-site.ts`,
  * `deployment-overview.ts`) — it performs zero writes and zero network calls.
+ *
+ * A FOURTH, `GET .../system/publish-targets` (`system.read`), lists the registry's targets (id,
+ * label, config field specs) so the admin UI can render the publish card from descriptors.
  */
 export type AdminPublishSiteDeps = RouteDeps;
 
@@ -313,6 +316,35 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // handler entirely (no `try`/`catch` at all; found by an AST scan over every `app.<verb>()`
       // handler in `src/server/routes/**`).
       console.error("[publish-site] unexpected error building a publish preview", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
+  });
+
+  // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
+  // Ids, labels and config field specs only: a module path or a refusal reason stays server-side.
+  app.get("/api/admin/v1/workspaces/:workspaceId/system/publish-targets", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
+        principalId: principal.id,
+        permission: "system.read",
+        workspaceId: deps.workspaceId,
+        entityType: "site-publish",
+      });
+      if (!authorized) return;
+
+      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
+      res.status(200).json({
+        targets: registry.list().map(({ descriptor }) => ({ id: descriptor.id, label: descriptor.label, configFields: descriptor.configFields })),
+      });
+    } catch (err) {
+      console.error("[publish-site] unexpected error listing publish targets", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });
