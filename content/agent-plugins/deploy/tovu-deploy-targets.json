@@ -1,10 +1,36 @@
 {
   "schemaVersion": 1,
   "targets": [
-    { "id": "netlify", "label": "Netlify", "module": "targets/netlify.mjs" },
-    { "id": "cloudflare-pages", "label": "Cloudflare Pages", "module": "targets/cloudflare-pages.mjs" },
-    { "id": "vercel", "label": "Vercel", "module": "targets/vercel.mjs" },
-    { "id": "github-pages", "label": "GitHub Pages", "module": "targets/github-pages.mjs" },
+    {
+      "id": "netlify",
+      "label": "Netlify",
+      "module": "targets/netlify.mjs",
+      "env": { "tokenVars": ["NETLIFY_TOKEN", "NETLIFY_ACCESS_TOKEN", "NETLIFY_AUTH_TOKEN"] }
+    },
+    {
+      "id": "cloudflare-pages",
+      "label": "Cloudflare Pages",
+      "module": "targets/cloudflare-pages.mjs",
+      "env": { "tokenVars": ["CLOUDFLARE_TOKEN", "CLOUDFLARE_API_TOKEN"], "fields": { "accountId": "CLOUDFLARE_ACCOUNT_ID" } }
+    },
+    {
+      "id": "vercel",
+      "label": "Vercel",
+      "module": "targets/vercel.mjs",
+      "config": [{ "name": "teamId", "label": "Team ID", "help": "Only for a team account. Leave blank for a personal account." }],
+      "env": { "tokenVars": ["VERCEL_TOKEN", "VERCEL_ACCESS_TOKEN"] }
+    },
+    {
+      "id": "github-pages",
+      "label": "GitHub Pages",
+      "module": "targets/github-pages.mjs",
+      "config": [
+        { "name": "owner", "label": "Owner", "required": true, "help": "The GitHub user or organization that owns the repository." },
+        { "name": "repo", "label": "Repository", "required": true, "help": "The repository to publish to. The site is served from /<repository>." },
+        { "name": "branch", "label": "Branch", "help": "Defaults to gh-pages." }
+      ],
+      "env": { "tokenVars": ["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ACCESS_TOKEN"] }
+    },
     { "id": "s3-compatible", "label": "S3-compatible storage", "module": "targets/s3-compatible.mjs" }
   ]
 }

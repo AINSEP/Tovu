@@ -9,7 +9,7 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { assertContainedOnDisk, PackagePathViolation } from "#src/features/agent-plugins/package-paths";
 import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
 
-import type { DeployTargetDescriptor, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
+import type { DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
 /**
  * @file Loads deploy targets that Agent Plugins contribute — the generic seam that lets the `deploy`
@@ -129,12 +129,12 @@ async function loadTargetModule(plugin: InstalledAgentPlugin, descriptor: Deploy
 }
 
 /**
- * Parses a plugin's {@link DEPLOY_TARGETS_FILENAME}. Pure. Unknown keys are ignored so later slices
+ * Parses a plugin's {@link DEPLOY_TARGETS_FILENAME}. Pure (exported for its own tests). Unknown keys are ignored so later slices
  * can add credential/config field specs without breaking an older host.
  *
  * @complexity O(t) in the declared target count.
  */
-function parseDeployTargetsFile(raw: string): ParseResult {
+export function parseDeployTargetsFile(raw: string): ParseResult {
   let value: unknown;
   try {
     value = JSON.parse(raw);
@@ -156,14 +156,75 @@ function parseDeployTargetsFile(raw: string): ParseResult {
   return { ok: true, descriptors };
 }
 
-/** One descriptor entry, or the reason it is invalid. @complexity O(1). */
+/** One descriptor entry, or the reason it is invalid. @complexity O(f) declared fields. */
 function parseDescriptor(entry: unknown, at: string): DeployTargetDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, label, module } = entry;
   if (typeof id !== "string" || id.length > MAX_TARGET_ID_LENGTH || !TARGET_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
-  if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
+  if (!isLabel(label)) return `${at}.label must be a non-empty string`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
-  return { id, label, module };
+  const configFields = parseConfigFields(entry.config, `${at}.config`);
+  if (typeof configFields === "string") return configFields;
+  const env = parseEnvFallback(entry.env, `${at}.env`);
+  if (typeof env === "string") return env;
+  return { id, label, module, configFields, ...(env !== undefined ? { env } : {}) };
+}
+
+/** Keys a publish request already uses for itself, so a config field of that name would be ambiguous. */
+const RESERVED_FIELD_NAMES: ReadonlySet<string> = new Set(["target", "projectName", "credentialId"]);
+const FIELD_NAME_PATTERN = /^[a-z][A-Za-z0-9]{0,63}$/;
+const ENV_VAR_PATTERN = /^[A-Z][A-Z0-9_]{0,127}$/;
+const MAX_FIELDS = 16;
+const MAX_HELP_LENGTH = 500;
+
+/** A target's `config` list (absent = none), or the reason it is invalid. @complexity O(f). */
+function parseConfigFields(value: unknown, at: string): DeployTargetFieldSpec[] | string {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_FIELDS) return `${at} must be an array of at most ${MAX_FIELDS} fields`;
+  const fields: DeployTargetFieldSpec[] = [];
+  for (const [index, entry] of value.entries()) {
+    const field = parseFieldSpec(entry, `${at}[${index}]`);
+    if (typeof field === "string") return field;
+    if (fields.some((seen) => seen.name === field.name)) return `${at}[${index}].name '${field.name}' is declared twice`;
+    fields.push(field);
+  }
+  return fields;
+}
+
+/** One field spec, or the reason it is invalid. @complexity O(1). */
+function parseFieldSpec(entry: unknown, at: string): DeployTargetFieldSpec | string {
+  if (!isPlainObject(entry)) return `${at} must be an object`;
+  const { name, label, required, help } = entry;
+  if (typeof name !== "string" || !FIELD_NAME_PATTERN.test(name)) return `${at}.name must be a camelCase identifier`;
+  if (RESERVED_FIELD_NAMES.has(name)) return `${at}.name '${name}' is reserved`;
+  if (!isLabel(label)) return `${at}.label must be a non-empty string`;
+  if (required !== undefined && typeof required !== "boolean") return `${at}.required must be a boolean`;
+  if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  return { name, label, required: required === true, ...(help !== undefined ? { help } : {}) };
+}
+
+/** A target's `env` block (absent = no env fallback), or the reason it is invalid. @complexity O(v). */
+function parseEnvFallback(value: unknown, at: string): DeployTargetEnvFallback | undefined | string {
+  if (value === undefined) return undefined;
+  if (!isPlainObject(value)) return `${at} must be an object`;
+  const { tokenVars, fields } = value;
+  if (!Array.isArray(tokenVars) || tokenVars.length === 0 || tokenVars.length > MAX_FIELDS || !tokenVars.every(isEnvVarName)) {
+    return `${at}.tokenVars must be a non-empty array of env var names`;
+  }
+  if (fields === undefined) return { tokenVars };
+  const entries = isPlainObject(fields) ? Object.entries(fields) : [];
+  if (!isPlainObject(fields) || entries.length > MAX_FIELDS || !entries.every(([name, envVar]) => FIELD_NAME_PATTERN.test(name) && isEnvVarName(envVar))) {
+    return `${at}.fields must map field names to env var names`;
+  }
+  return { tokenVars, fields: Object.fromEntries(entries) as Record<string, string> };
+}
+
+function isLabel(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "" && value.length <= MAX_LABEL_LENGTH;
+}
+
+function isEnvVarName(value: unknown): value is string {
+  return typeof value === "string" && ENV_VAR_PATTERN.test(value);
 }
 
 /** Indexes loaded targets by id, dropping every id more than one plugin declares.

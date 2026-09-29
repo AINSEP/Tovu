@@ -113,6 +113,27 @@ export interface DeployTargetDescriptor {
   readonly label: string;
   /** Plugin-relative path of the `.mjs` module. */
   readonly module: string;
+  /** Per-publish settings the person supplies (a repository, a team), in display order. Read from a
+   *  publish request under the same names; values are strings. Empty when the host needs none. */
+  readonly configFields: readonly DeployTargetFieldSpec[];
+  /** The server-environment credential fallback. Absent when the host has none. */
+  readonly env?: DeployTargetEnvFallback;
+}
+
+/** One named string field a person fills in. */
+export interface DeployTargetFieldSpec {
+  readonly name: string;
+  readonly label: string;
+  readonly required: boolean;
+  readonly help?: string;
+}
+
+/** Where an env-configured install finds a target's credential: the first set `tokenVars` entry
+ *  is the token, and each `fields` entry names the env var that supplies that extra credential field
+ *  (all required). */
+export interface DeployTargetEnvFallback {
+  readonly tokenVars: readonly string[];
+  readonly fields?: Readonly<Record<string, string>>;
 }
 
 export interface LoadedDeployTarget {

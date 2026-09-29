@@ -56,7 +56,7 @@ function registryOf(targets: readonly LoadedDeployTarget[]): DeployTargetRegistr
 }
 
 function loaded(id: string, module: DeployTargetModule): LoadedDeployTarget {
-  return { descriptor: { id, label: id, module: `targets/${id}.mjs` }, pluginId: "deploy", module };
+  return { descriptor: { id, label: id, module: `targets/${id}.mjs`, configFields: [] }, pluginId: "deploy", module };
 }
 
 async function publishWith(deps: Omit<StaticPublishDeps, "credentialSource"> & { credentialSource?: PublishCredentialSource }, config: StaticPublishConfig) {
