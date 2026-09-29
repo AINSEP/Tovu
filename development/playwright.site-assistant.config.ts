@@ -120,10 +120,15 @@ export default defineConfig({
      * 11th on a real `429`. Blanking the key here is what makes that guarantee independent of whoever
      * runs the suite. A trailing `=` with no value is an empty string, which `env.GEMINI_API_KEY
      * ?.trim()` treats as absent — the same branch as unset.
+     *
+     * `TOVU_DISABLE_DEV_TLS=1`: on a checkout with the repo root's `.certs/`, the server boots HTTPS
+     * while `url` above polls plain HTTP, so `webServer` timed out at 90s and this whole suite could
+     * not start (measured 2026-09-29) — which is how the FAB vanishing from every themed page went
+     * unnoticed. Same opt-out `playwright.theme-explore-file-switch.config.ts` uses.
      */
     command:
       `apps/site-chat/node_modules/.bin/vite build apps/site-chat --config apps/site-chat/vite.config.ts && ` +
-      `GEMINI_API_KEY= PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
+      `TOVU_DISABLE_DEV_TLS=1 GEMINI_API_KEY= PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 90_000,
