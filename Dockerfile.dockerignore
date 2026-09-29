@@ -42,6 +42,8 @@ sites/*/content.db.bak-*
 sites/*/restore-point-*.db
 # A Postgres site's sealed connection string (storage-secret.ts): never in an image.
 **/*.storage-secret.json*
+# A SQLite site's pre-migrations copy (content-db.ts, R1h): a full copy of content.db, never in an image.
+**/ops/pre-migrations-*.db*
 sites/*/out/
 
 .git

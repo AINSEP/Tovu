@@ -90,6 +90,10 @@ sites/*/content.seed.db-shm
 sites/*/ops/*.db
 sites/*/ops/*.db-wal
 sites/*/ops/*.db-shm
+# R1h: the migration runner's pre-change copy of a SQLite site (`content-db.ts`
+# migrateSqliteContentFile), about the size of content.db with every row in it: never committed,
+# whatever folder the site lives in (sidecars included).
+**/ops/pre-migrations-*.db*
 
 # 2026-09-09: `EnvOrFileKeyring`'s generated-file fallback for TOVU_INTEGRATIONS_ROOT_KEY
 # (`apps/website/src/features/webhooks/keyring.env.ts`) now defaults to `sites/.tovu/
