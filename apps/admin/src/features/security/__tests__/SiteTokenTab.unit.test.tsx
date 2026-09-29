@@ -239,3 +239,28 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
     expect(screen.queryByRole("button", { name: "Unlock" })).not.toBeInTheDocument();
   });
 });
+
+/** A locked site's status card must not promise a key will be made at startup — boot refuses to
+ *  mint over saved credentials. It points at the recovery card instead. */
+describe("SiteTokenTab — status note for a locked site", () => {
+  const LOCKED_NOTE = "Your credentials need their original token — use the card above.";
+
+  it("missing-with-data: says the credentials need their original token, not that a key is created at startup", () => {
+    renderTab({ active: false, source: "none", keyFilePath: "/k", runtimeMode: "local", state: "missing-with-data" });
+
+    expect(screen.getByText(LOCKED_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText("A key is created automatically when this site starts.")).not.toBeInTheDocument();
+  });
+
+  it("mismatch: shows the same line", () => {
+    renderTab({ active: true, source: "file", fingerprint: "ffff00001111", keyFilePath: "/k", runtimeMode: "local", state: "mismatch" });
+
+    expect(screen.getByText(LOCKED_NOTE)).toBeInTheDocument();
+  });
+
+  it("a plain missing key keeps the startup line", () => {
+    renderTab({ active: false, source: "none", keyFilePath: "/k", runtimeMode: "local", state: "missing" });
+
+    expect(screen.getByText("A key is created automatically when this site starts.")).toBeInTheDocument();
+  });
+});

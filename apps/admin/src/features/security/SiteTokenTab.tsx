@@ -5,7 +5,7 @@ import { siteTokenGenerateErrorMessage } from "./security-i18n";
 import { useWiredSiteToken } from "./hooks/use-site-token.hooks";
 import type { SiteTokenController, SiteTokenGenerateFailure } from "./hooks/use-site-token.hooks";
 import { useRevealedKeyCopy } from "./SiteTokenTab.hooks";
-import { isSiteTokenLocked, useWiredSiteTokenRecovery, type SiteTokenRecoveryController } from "./hooks/use-site-token-recovery.hooks";
+import { isSiteTokenLocked, siteTokenLockedNote, useWiredSiteTokenRecovery, type SiteTokenRecoveryController } from "./hooks/use-site-token-recovery.hooks";
 import { SiteTokenRecoveryCard } from "./SiteTokenRecoveryCard";
 import type { Translate } from "../../lib/dictionary-translator";
 
@@ -140,7 +140,7 @@ function SiteTokenStatusCard({ controller }: { controller: SiteTokenController }
           </span>
         ) : null}
       </p>
-      <p className="site-token-status-note">{siteTokenStatusNote(status, translate)}</p>
+      <p className="site-token-status-note">{siteTokenLockedNote(status, controller.generateError, translate) ?? siteTokenStatusNote(status, translate)}</p>
       <SiteTokenRevealAction controller={controller} />
       {/* Site-key plan (2026-09-24) §A.6: Generate is hidden by default, not deleted — the
           server route, `useSiteToken`'s `generate()`, and this tab's own `SiteTokenGenerateAction`
