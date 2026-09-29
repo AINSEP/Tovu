@@ -11,7 +11,7 @@ import {
   type SealedColumnDescriptor,
   type SealedRowIdentity,
 } from "./sealed-credential-inventory.js";
-import type { SecretSealerPort } from "#src/features/webhooks/index";
+import type { RootKeyHandle, SecretSealerPort } from "#src/features/webhooks/index";
 
 /**
  * @file The Site Token tab's last-resort recovery on sealed credentials (design
@@ -27,7 +27,8 @@ import type { SecretSealerPort } from "#src/features/webhooks/index";
  * Removal per column: a NOT NULL sealed column is the row's whole point (a credential set), so the
  * row is deleted; a nullable one (an MCP server's OAuth blob, a media key) is cleared together with
  * the columns its shape check ties to it (`masked`, `key_tail`, `token_tail`), and the row is kept.
- * Plaintext from a successful open is discarded unread; nothing here logs.
+ * Plaintext from a successful open is discarded unread, except in {@link resealCredentialsOpeningUnder},
+ * which passes it straight to `seal` under the new key; nothing here logs.
  */
 
 /** Columns a store's shape check requires to be NULL exactly when its sealed value is. */
@@ -42,8 +43,9 @@ export interface SealedCredentialKeyDeps {
 
 interface SealedValue {
   readonly ref: DiscoveredSealedColumn;
-  readonly ciphertext: string;
-  readonly nonce: unknown;
+  readonly quad: Quad;
+  /** The store's AAD for this row; `undefined` when no descriptor fits or its AAD version is unknown. */
+  readonly aad: string | undefined;
   readonly opens: boolean;
 }
 
@@ -82,11 +84,53 @@ export async function discardSealedCredentialsNotOpening(deps: SealedCredentialK
   return { discarded: unreadable.length, kept: values.length - unreadable.length };
 }
 
+export interface ResealCredentialsDeps extends SealedCredentialKeyDeps {
+  /** A sealer over the new key; `seal` writes the moved values. */
+  readonly sealer: Pick<SecretSealerPort, "open" | "seal">;
+  /** The new key's handle, as its keyring's `activeKey()` reports it. */
+  readonly key: RootKeyHandle;
+  /** A sealer over the key the values may have been sealed under instead. */
+  readonly previous: Pick<SecretSealerPort, "open">;
+}
+
+/**
+ * Moves every sealed value that does not open under `deps.sealer` but does open under
+ * `deps.previous` onto the new key: same plaintext, same AAD, a fresh nonce. "Paste your old token"
+ * runs this so credentials saved under the wrong key in the meantime are not stranded by the switch.
+ * A value neither key opens is left as it was. All writes in one transaction, matched on the old
+ * ciphertext + nonce so a value changed in between is left alone.
+ *
+ * @returns how many values were moved, and how many open under neither key.
+ * @throws whatever the driver throws; nothing is half-applied (one transaction).
+ * @complexity O(T·C + R) reads, up to two opens per value, one write per moved value.
+ */
+export async function resealCredentialsOpeningUnder(deps: ResealCredentialsDeps): Promise<{ resealed: number; unreadable: number }> {
+  const moves: Array<{ value: SealedValue; sealed: { keyId: string; ciphertext: string; nonce: string; alg: string } }> = [];
+  let unreadable = 0;
+  for (const value of await readSealedValues(deps)) {
+    if (value.opens) continue;
+    const plaintext = value.aad === undefined ? undefined : await openValue(deps.previous, value.quad, value.aad);
+    if (plaintext === undefined) {
+      unreadable += 1;
+      continue;
+    }
+    moves.push({ value, sealed: await deps.sealer.seal({ plaintext, key: deps.key, aad: value.aad }) });
+  }
+  await deps.kernel.transaction(async () => {
+    for (const { value, sealed } of moves) {
+      const { table, column } = value.ref;
+      const siblings = siblingColumns(column);
+      await deps.kernel.execute(sql`UPDATE ${sql.id(table)} SET ${sql.id(siblings.keyId)} = ${sealed.keyId}, ${sql.id(column)} = ${sealed.ciphertext}, ${sql.id(siblings.nonce)} = ${sealed.nonce}, ${sql.id(siblings.alg)} = ${sealed.alg} WHERE ${sql.id(column)} = ${value.quad.ciphertext} AND ${sql.id(siblings.nonce)} = ${value.quad.nonce}`);
+    }
+  });
+  return { resealed: moves.length, unreadable };
+}
+
 /** One DELETE (NOT NULL column) or UPDATE … SET NULL (nullable), matched on ciphertext + nonce. */
 async function removeSealedValue(kernel: ContentKernel, value: SealedValue, notNull: ReadonlyMap<string, boolean>): Promise<void> {
   const { table, column } = value.ref;
   const siblings = siblingColumns(column);
-  const match = sql`${sql.id(column)} = ${value.ciphertext} AND ${sql.id(siblings.nonce)} = ${value.nonce}`;
+  const match = sql`${sql.id(column)} = ${value.quad.ciphertext} AND ${sql.id(siblings.nonce)} = ${value.quad.nonce}`;
   if (notNull.get(column)) {
     await kernel.execute(sql`DELETE FROM ${sql.id(table)} WHERE ${match}`);
     return;
@@ -113,8 +157,9 @@ async function readSealedValues(deps: SealedCredentialKeyDeps): Promise<SealedVa
   });
   const values: SealedValue[] = [];
   for (const row of rows) {
-    const opens = row.descriptor === undefined ? false : await opensWith(deps.sealer, row.descriptor, row.identity, row.quad);
-    values.push({ ref: row.ref, ciphertext: row.quad.ciphertext, nonce: row.quad.nonce, opens });
+    const aad = row.descriptor === undefined ? undefined : aadOf(row.descriptor, row.identity);
+    const opens = aad !== undefined && (await openValue(deps.sealer, row.quad, aad)) !== undefined;
+    values.push({ ref: row.ref, quad: row.quad, aad, opens });
   }
   return values;
 }
@@ -151,17 +196,25 @@ async function readColumn(
   }));
 }
 
-/** One open through the store's own AAD. Any failure, or an AAD version this build does not know,
- *  is "does not open"; the plaintext is never bound. */
-async function opensWith(sealer: SealedCredentialKeyDeps["sealer"], descriptor: SealedColumnDescriptor, identity: SealedRowIdentity, quad: Quad): Promise<boolean> {
-  const { keyId, ciphertext, nonce, alg } = quad;
-  if (typeof keyId !== "string" || typeof nonce !== "string" || typeof alg !== "string") return false;
+/** The store's AAD for a row, or `undefined` when this build cannot compute it (an unknown AAD
+ *  version, or a descriptor that throws). */
+function aadOf(descriptor: SealedColumnDescriptor, identity: SealedRowIdentity): string | undefined {
   try {
     const selection = descriptor.aadFor(identity);
-    if (selection.kind !== "aad") return false;
-    await sealer.open({ sealed: { keyId, ciphertext, nonce, alg }, aad: selection.aad });
-    return true;
+    return selection.kind === "aad" ? selection.aad : undefined;
   } catch {
-    return false;
+    return undefined;
+  }
+}
+
+/** One open under `aad`; `undefined` on any failure. Callers that only need "does it open" drop the
+ *  plaintext unread. */
+async function openValue(sealer: Pick<SecretSealerPort, "open">, quad: Quad, aad: string): Promise<string | undefined> {
+  const { keyId, ciphertext, nonce, alg } = quad;
+  if (typeof keyId !== "string" || typeof nonce !== "string" || typeof alg !== "string") return undefined;
+  try {
+    return await sealer.open({ sealed: { keyId, ciphertext, nonce, alg }, aad });
+  } catch {
+    return undefined;
   }
 }

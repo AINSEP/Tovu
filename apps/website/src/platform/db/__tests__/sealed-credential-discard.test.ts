@@ -13,7 +13,7 @@ import { AesGcmSecretSealer } from "../../../features/webhooks/secret-sealer.aes
 import { seedPrincipals } from "../kernel/__tests__/content-seeds.js";
 import { type ContentKernel, eachDialect } from "../kernel/__tests__/dialect-matrix.js";
 import { SEALED_COLUMN_DESCRIPTORS } from "#src/server/runtime/composition/sealed-credential-descriptors";
-import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening } from "../sealed-credential-discard.js";
+import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening, resealCredentialsOpeningUnder } from "../sealed-credential-discard.js";
 
 /**
  * @file The Site Token tab's "Start fresh" discard and "Paste your old token" check
@@ -103,5 +103,36 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     assert.equal(server!.oauth_sealed_key_id, null);
 
     assert.deepEqual(await countSealedCredentialsOpening({ kernel, sealer: right.sealer, descriptors: SEALED_COLUMN_DESCRIPTORS }), { sealed: 3, opens: 3 }, "everything left opens");
+  });
+
+  test(`resealCredentialsOpeningUnder moves values sealed under the previous key onto the new one, leaves the rest alone [${each.name}]`, async () => {
+    const kernel = each.make();
+    const right = keyPair();
+    const previous = keyPair();
+    await seed(kernel, right, previous);
+    const other = keyPair();
+    const strandedAad = buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-other" as UUID });
+    await insertRow(kernel, "custom_credential_sets", {
+      id: "custom-other", workspace_id: WS, label: "custom-other", category: "email", base_url: "https://mail.example.test", created_at: NOW, updated_at: NOW,
+      ...(await sealedQuad(other.sealer, other.keyring, strandedAad)),
+    });
+    const [strandedBefore] = await kernel.query<{ sealed_ciphertext: string }>(sql`SELECT sealed_ciphertext FROM custom_credential_sets WHERE id = 'custom-other'`);
+
+    const result = await resealCredentialsOpeningUnder({
+      kernel, descriptors: SEALED_COLUMN_DESCRIPTORS, sealer: right.sealer, key: await right.keyring.activeKey(), previous: previous.sealer,
+    });
+
+    assert.deepEqual(result, { resealed: 3, unreadable: 1 });
+    assert.deepEqual(await countSealedCredentialsOpening({ kernel, sealer: right.sealer, descriptors: SEALED_COLUMN_DESCRIPTORS }), { sealed: 7, opens: 6 }, "every value the previous key opened now opens under the new one");
+    const [moved] = await kernel.query<{ sealed_key_id: string; sealed_ciphertext: string; sealed_nonce: string; sealed_alg: string }>(
+      sql`SELECT sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg FROM custom_credential_sets WHERE id = 'custom-wrong'`
+    );
+    const plaintext = await right.sealer.open({
+      sealed: { keyId: moved!.sealed_key_id, ciphertext: moved!.sealed_ciphertext, nonce: moved!.sealed_nonce, alg: moved!.sealed_alg },
+      aad: buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-wrong" as UUID }),
+    });
+    assert.equal(plaintext, "secret", "the same secret, under the same AAD, now under the new key");
+    const [strandedAfter] = await kernel.query<{ sealed_ciphertext: string }>(sql`SELECT sealed_ciphertext FROM custom_credential_sets WHERE id = 'custom-other'`);
+    assert.equal(strandedAfter!.sealed_ciphertext, strandedBefore!.sealed_ciphertext, "a value neither key opens is left as it was");
   });
 }
