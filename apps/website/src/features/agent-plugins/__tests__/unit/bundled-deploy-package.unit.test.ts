@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -126,4 +126,30 @@ test("seeded by the real seeder, deploy is ENABLED with no user action and the r
     assert.equal(registry.get("github-pages")?.descriptor.label, "GitHub Pages");
     assert.equal(registry.get("s3-compatible")?.descriptor.label, "S3-compatible storage");
   });
+});
+
+test("upgrade: a site holding an OLDER bundled deploy digest serves the new one after the next boot, with no user action", async () => {
+  const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-deploy-source-"));
+  try {
+    await cp(PACKAGE_ROOT, path.join(sourceRoot, "deploy"), { recursive: true });
+    await withAgentPluginsDir(async (layout) => {
+      await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+
+      // The next Tovu build ships a changed deploy plugin; its digest differs from the installed one.
+      const descriptorPath = path.join(sourceRoot, "deploy", DEPLOY_TARGETS_FILENAME);
+      const descriptor = JSON.parse(await readFile(descriptorPath, "utf8")) as { targets: { id: string; label: string }[] };
+      descriptor.targets.find((target) => target.id === "netlify")!.label = "Netlify (next build)";
+      await writeFile(descriptorPath, JSON.stringify(descriptor));
+
+      await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+      const packages = await readdir(layout.forWorkspace(WORKSPACE_ID).packages);
+      assert.equal(packages.length, 2, "the superseded digest stays on disk; the registry must still pick one");
+
+      const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+      assert.deepEqual(registry.refusals, []);
+      assert.equal(registry.get("netlify")?.descriptor.label, "Netlify (next build)");
+    });
+  } finally {
+    await forceRemove(sourceRoot);
+  }
 });
