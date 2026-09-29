@@ -155,9 +155,13 @@ test("PGlite socket client: copyTo goes through the owner's exclusive window, an
     await seedPg(client, 30);
     await assert.rejects(storageOps(client).copyTo(path.join(tmp, "never")), (err: unknown) => {
       assert.ok(err instanceof StorageOpNotSupportedError);
-      assert.match(err.message, /a Postgres site is backed up by its provider; use the move\/transfer tools to copy it$/);
+      assert.equal(
+        err.message,
+        "storage op copyTo is not supported on the pglite-socket driver: a PGlite socket client copies through its owner's exclusive window (pass pgliteOwner)"
+      );
       return true;
     });
+    await storageOps(client).compactAndVerify(); // as a plain client: VACUUM + CHECKPOINT over the socket
     const ops = storageOps(client, { pgliteOwner: owner });
     await ops.copyTo(target);
     await ops.compactAndVerify();

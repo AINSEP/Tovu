@@ -67,6 +67,8 @@ export interface PgliteExclusive {
 
 /** Why a Postgres server's database is never file-copied. */
 const POSTGRES_COPY_REASON = "a Postgres site is backed up by its provider; use the move/transfer tools to copy it";
+/** Why a PGlite socket client cannot copy on its own. */
+const SOCKET_COPY_REASON = "a PGlite socket client copies through its owner's exclusive window (pass pgliteOwner)";
 
 /**
  * The ops for `kernel`'s database. Must be used outside a transaction (neither SQLite nor Postgres
@@ -145,7 +147,10 @@ function postgresOps<DB>(kernel: StorageKernel<DB>, owner: PgliteExclusive | und
   return {
     async copyTo(targetPath) {
       outsideTransaction("copyTo");
-      if (!embedded) throw new StorageOpNotSupportedError("copyTo", kernel.transport, POSTGRES_COPY_REASON);
+      if (!embedded) {
+        const reason = kernel.transport === "pglite-socket" ? SOCKET_COPY_REASON : POSTGRES_COPY_REASON;
+        throw new StorageOpNotSupportedError("copyTo", kernel.transport, reason);
+      }
       if (owner !== undefined) return copyServedPgliteTo(owner, targetPath);
       await restoreDataDir(targetPath, async () => {
         const tarball = `${targetPath}.${randomUUID()}.tar`;
@@ -165,7 +170,7 @@ function postgresOps<DB>(kernel: StorageKernel<DB>, owner: PgliteExclusive | und
           await db.exec("VACUUM");
           await db.exec("CHECKPOINT");
         });
-      } else if (kernel.transport === "pglite") {
+      } else if (kernel.transport === "pglite" || kernel.transport === "pglite-socket") {
         await kernel.execute(sql`VACUUM`);
         await kernel.execute(sql`CHECKPOINT`);
       } else {
