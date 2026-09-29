@@ -91,3 +91,23 @@ export const SQLITE_BASELINE: Readonly<Record<string, readonly string[]>> = {
   q21: ["p10", "p14", "p05"],
   q22: ["p11", "p08"],
 };
+
+/**
+ * The Postgres/PGlite gate: top 3 contains SQLite's top 1 wherever SQLite finds anything, nothing
+ * wherever SQLite finds nothing. `report` gets one line per query whose results differ from SQLite's.
+ *
+ * @returns the ids of the queries that fail the gate.
+ */
+export function evalGateFailures(results: ReadonlyMap<string, readonly string[]>, report: (line: string) => void): string[] {
+  const failures: string[] = [];
+  for (const q of EVAL_QUERIES) {
+    const expected = SQLITE_BASELINE[q.id] ?? [];
+    const got = results.get(q.id) ?? [];
+    const pass = expected.length === 0 ? got.length === 0 : got.slice(0, 3).includes(expected[0]);
+    if (JSON.stringify(got) !== JSON.stringify(expected)) {
+      report(`${pass ? "differs" : "FAILS"} ${q.id} ${q.class} "${q.query}": sqlite=${expected.join(",")} pg=${got.join(",")}`);
+    }
+    if (!pass) failures.push(q.id);
+  }
+  return failures;
+}

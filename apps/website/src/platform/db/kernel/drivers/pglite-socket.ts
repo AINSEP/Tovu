@@ -18,9 +18,6 @@ import { postgresLockKey } from "./postgres-lock.js";
  * Kernel rules this transport makes hard: no `SET` (only `SET LOCAL`), no temp tables, no named
  * prepared statements, no session advisory locks — all clients share one session, so any of those
  * leaks into the other process. Backup is not offered here; it goes through the owner.
- *
- * TODO(R1f): report transport `"pglite-socket"` once `StorageTransport` (port.ts) has it; this
- * slice adds new files only, so it reports `"node-postgres"` for now.
  */
 
 const types = {
@@ -49,7 +46,7 @@ export function openPgliteSocketKernel<DB>(required: { socketPath: string }): St
   const base = new Kysely<DB>({ dialect: new PostgresDialect({ pool }) });
   return buildKernel<DB>({
     dialect: "postgres",
-    transport: "node-postgres",
+    transport: "pglite-socket",
     capabilities: { interactiveTransactions: true, atomicBatch: true, transactionalDdl: true, backup: false },
     ready: Promise.resolve(),
     base,

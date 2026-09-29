@@ -33,8 +33,8 @@ import type { Kysely, RawBuilder } from "kysely";
 /** SQL family: decides which dialect helper fragment applies. */
 export type StorageDialect = "sqlite" | "postgres";
 
-/** The connection underneath: an embedded engine or a network pool. */
-export type StorageTransport = "better-sqlite3" | "pglite" | "node-postgres";
+/** The connection underneath: an embedded engine, a network pool, or a PGlite owner's Unix socket. */
+export type StorageTransport = "better-sqlite3" | "pglite" | "node-postgres" | "pglite-socket";
 
 /** What this kernel instance can do. Checked per call; a missing one is an explicit error. */
 export interface StorageCapabilities {
