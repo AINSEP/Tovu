@@ -9,7 +9,7 @@ import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
 import { renderDatabaseTypes } from "../typegen.js";
 import { ensurePgContentSchema } from "../../pglite/content-schema.js";
-import { openContentDb } from "../../sqlite/content-db.js";
+import { migrateSqliteContentFile, openSqliteContentConnection } from "../../sqlite/content-db.js";
 
 /**
  * @file The content database's Kysely types are exactly what the reference database says, and a
@@ -30,6 +30,7 @@ const REGENERATE = "`UPDATE_DATABASE_TYPES=1` + `kernel/__tests__/database-types
 /** Tables only SQLite has, each with its reason. */
 const SQLITE_ONLY: ReadonlyMap<string, string> = new Map([
   ["__drizzle_migrations", "legacy Drizzle migration journal (frozen by M1)"],
+  ["tovu_migrations", "the migration runner's ledger; the reference database is built without the runner"],
   ["post_search_document", "SQLite FTS5 projection source; Postgres search is F1 (tsvector)"],
   ["post_search_fts", "FTS5 virtual table"],
 ]);
@@ -69,7 +70,10 @@ test("a migrated SQLite content.db has every generated table and column, with co
     }
     generated.set(block[1]!, columns);
   }
-  const sqlite = sqliteKernel(openContentDb(":memory:"));
+  // Built the way a site's boot builds it: the migration runner (R1h), not the sync Drizzle opener.
+  const db = openSqliteContentConnection(":memory:");
+  await migrateSqliteContentFile(db, ":memory:");
+  const sqlite = sqliteKernel(db);
   const tables = await listTables(sqlite);
   const problems: string[] = [];
   const pascal = (name: string) => name.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
