@@ -2474,9 +2474,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
   /* 3.2s -> 4.26s: ~33% slower, owner feedback same pass. */
-  animation: theme-card-border-beam 4.26s linear infinite;
+  /* Three sweeps, then still (idle-CPU audit, 2026-09-29): animating a registered custom property in
+     a conic gradient repaints the card on the main thread every frame, so an infinite beam kept the
+     renderer and GPU busy for as long as the Themes screen stayed open. Hover resumes it. */
+  animation: theme-card-border-beam 4.26s linear 3;
   pointer-events: none;
 }
+.theme-card.active:hover::before { animation-iteration-count: infinite; }
 @keyframes theme-card-border-beam { to { --border-beam-angle: 360deg; } }
 @media (prefers-reduced-motion: reduce) {
   .theme-card.active::before { animation: none; --border-beam-angle: 45deg; }

@@ -47,6 +47,7 @@ import { isSelectionNormalizationEcho } from "../local-cli-selection-echo";
 import { applyExecutionConfigChange, persistExecutionConfigWrite, withLocalCliSelection } from "../execution-config-write";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
+import { skipProbeWhileHidden } from "@/lib/hidden-probe-gate";
 
 /**
  * @file `AssistantDock`'s state/effects layer, split out of `AssistantDock.tsx` (2026-08-06
@@ -975,7 +976,14 @@ function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
  */
 let daemonOnlineInFlight: Promise<boolean> | null = null;
 
-async function daemonOnline(): Promise<boolean> {
+/**
+ * The probe `useRuntimeAccess` hands `ChatPane`: {@link probeDaemonOnline}, answered from the last
+ * result while the page is hidden so a minimized or backgrounded admin stops hitting `/api/agents`
+ * every 5s (idle-CPU audit, 2026-09-29) — see `@/lib/hidden-probe-gate`.
+ */
+const daemonOnline = skipProbeWhileHidden(probeDaemonOnline);
+
+async function probeDaemonOnline(): Promise<boolean> {
   if (daemonOnlineInFlight) return daemonOnlineInFlight;
   const attempt = (async () => {
     const response = await fetch(AGENTS_URL, {

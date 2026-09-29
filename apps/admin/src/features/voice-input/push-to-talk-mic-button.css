@@ -71,6 +71,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .tovu-push-to-talk__dot {
+    animation: none;
+  }
+}
+
 /* Visually hidden but still announced by assistive tech — the same pattern used for `role="status"`
    live regions throughout this codebase (see `SlowRunNoticeCard.tsx`'s own `role="status"` div,
    which stays visible; this one stays audible-only since the button's own visual state already
