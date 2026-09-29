@@ -119,6 +119,9 @@ export interface DeployTargetModule {
   validateConfig?(config: JsonObject): string | null;
   /** The path prefix the host serves the site from, when it is not the root. */
   basePath?(config: JsonObject): string | undefined;
+  /** The confirmation/outcome card rows for `config`, when the host reads better than one row per
+   *  config field (a repository as `owner/repo`, for example). */
+  summarize?(config: JsonObject): readonly { readonly label: string; readonly value: string }[];
   /** ONE bounded, read-only authenticated request against the host's own API. May throw: the host
    *  folds any throw into `unreachable`. Never returns the credential or a response body. */
   verifyCredential?(context: DeployCredentialCheckContext): Promise<DeployCredentialCheck>;

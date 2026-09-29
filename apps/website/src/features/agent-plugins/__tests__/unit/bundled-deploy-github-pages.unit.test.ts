@@ -100,6 +100,14 @@ describe("deploy plugin module contract (github-pages)", () => {
     expect(loaded.default.basePath?.({ target: "github-pages", owner: "octo", repo: "demo" })).toBe("/demo");
   });
 
+  it("summarize folds owner and repo into one Repository row, plus the branch when one is given", () => {
+    expect(loaded.default.summarize?.({ target: "github-pages", owner: "octo", repo: "demo" })).toEqual([{ label: "Repository", value: "octo/demo" }]);
+    expect(loaded.default.summarize?.({ target: "github-pages", owner: "octo", repo: "demo", branch: "main" })).toEqual([
+      { label: "Repository", value: "octo/demo" },
+      { label: "Branch", value: "main" },
+    ]);
+  });
+
   it("validateConfig keeps the legacy exact refusal texts", () => {
     const validate = (config: Record<string, unknown>) => loaded.default.validateConfig?.({ target: "github-pages", owner: "octo", repo: "demo", ...config });
     expect(validate({})).toBeNull();

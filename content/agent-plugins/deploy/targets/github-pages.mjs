@@ -496,4 +496,11 @@ export default {
   basePath(config) {
     return `/${asText(config.repo)}`;
   },
+  /** The confirmation card reads `owner/repo` as one row, the way GitHub prints a repository.
+   *  @param {{ owner?: unknown, repo?: unknown, branch?: unknown }} config */
+  summarize(config) {
+    const rows = [{ label: "Repository", value: `${asText(config.owner)}/${asText(config.repo)}` }];
+    if (typeof config.branch === "string") rows.push({ label: "Branch", value: config.branch });
+    return rows;
+  },
 };

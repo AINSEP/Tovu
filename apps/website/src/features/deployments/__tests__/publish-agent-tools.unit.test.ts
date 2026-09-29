@@ -1127,9 +1127,10 @@ test("the dialog names the target and project name, so the consent is informed",
   const { html, exchangeId, pending } = await raiseDialog(executeTool, { target: "github-pages", owner: "octo", repo: "my-site", projectName: "my-site-release" });
   assert.match(html, /github-pages/);
   assert.match(html, /my-site-release/);
-  // One row per config field the publish carries, labelled the way the target's plugin declares it.
-  assert.match(html, /<dt>Owner<\/dt><dd>octo<\/dd>/);
-  assert.match(html, /<dt>Repository<\/dt><dd>my-site<\/dd>/);
+  // The rows the target's plugin module summarizes the config into (github-pages: one combined
+  // repository row), not one row per raw field.
+  assert.match(html, /<dt>Repository<\/dt><dd>octo\/my-site<\/dd>/);
+  assert.doesNotMatch(html, /<dt>Owner<\/dt>/);
   assert.doesNotMatch(html, /<dt>(owner|repo)<\/dt>/, "a raw field name is not a label a person should read");
   assert.match(html, /public internet/i, "the human must be told the consequence is immediate and public");
 

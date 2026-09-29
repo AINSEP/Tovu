@@ -439,7 +439,7 @@ function planToolPublish(
   requireOnlyDeclaredFields(raw, target.descriptor);
   const read = readStaticPublishConfig(target, raw, { blankAsAbsent: true });
   if (!read.ok) throw new ToolInputError(read.message);
-  return { config: read.config, plan: planStaticPublish(registry, read.config), detailRows: configDetailRows(read.config, target.descriptor.configFields) };
+  return { config: read.config, plan: planStaticPublish(registry, read.config), detailRows: configDetailRows(read.config, target) };
 }
 
 /** The publish request's own keys; every other input key must be one of the host's config fields. */
@@ -461,11 +461,13 @@ function requireOnlyDeclaredFields(raw: Record<string, unknown>, descriptor: Dep
 /** One labelled row on a publish confirmation/outcome card. */
 type DetailRow = { label: string; value: string };
 
-/** One card row per declared config field the publish carries, in declaration order and under the
- *  label the target's plugin declares for it. Which fields exist is the descriptor's business, so
- *  nothing here names a host. @complexity O(f) declared fields. */
-function configDetailRows(config: StaticPublishConfig, fields: readonly DeployTargetFieldSpec[]): DetailRow[] {
-  return fields.flatMap((field) => {
+/** The card rows for a publish: the target module's own `summarize` when it has one, otherwise one
+ *  row per declared config field the publish carries, in declaration order and under its declared
+ *  label. Which fields exist is the plugin's business, so nothing here names a host.
+ *  @complexity O(f) declared fields. */
+function configDetailRows(config: StaticPublishConfig, target: LoadedDeployTarget): DetailRow[] {
+  if (target.module.summarize !== undefined) return target.module.summarize(config).map(({ label, value }) => ({ label, value }));
+  return target.descriptor.configFields.flatMap((field) => {
     const value = config[field.name];
     return typeof value === "string" ? [{ label: field.label, value }] : [];
   });
