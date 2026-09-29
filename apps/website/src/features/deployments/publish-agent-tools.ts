@@ -117,34 +117,10 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_P
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
-import type { DeployTargetDescriptor, DeployTargetFieldSpec, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
-import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
-// Publish credentials live in `vendor_credential_sets` (`publish-credentials/store.ts`, 2026-09-29).
-// `deployment_propose_custom_provider_credential` still writes through `vendor-credentials/store.ts`.
-// Deliberately NO VALUE import of any kind from `../vendor-credentials/**` here — an earlier revision
-// imported `createVendorCredential`/`updateVendorCredential`/
-// `PUBLISH_PROVIDER_TO_VENDOR` directly, which closed a real `features/deployments <->
-// features/vendor-credentials` module cycle (`vendor-credentials/dual-read.ts` already imports back
-// into `publish-credentials/store.ts` for its own temporary legacy-fallback — see that file's header).
-// `VendorCredentialPort` below is this domain's own narrow, LOCALLY-declared structural stand-in for
-// that store's read/write contract — same discipline this file's sibling `tool-registrations.ts`
-// documents for `RouteDeps` narrowing, extended to a cross-FEATURE edge instead of a cross-LAYER one.
-// The real implementations are wired in by `assistant/tool-registrations.ts`'s
-// `buildAssistantToolRegistrations` (the one file already documented as "the one place that
-// genuinely needs to see every domain at once") via `StaticPublishToolDeps.vendorCredentials` below —
-// never imported here.
-//
-// The `VendorCredentialSetRepoPort` TYPE-only import above (line ~105) is new (2026-08-20
-// RouteDeps-narrowing fix) and does NOT reopen that cycle — verified, not assumed: a type-only edge
-// is erased at compile time, so `development/scripts/check-architecture.ts`'s module-cycle/SCC metric
-// (which is explicitly computed on the runtime-only graph, dropping every `import type` edge — see
-// that script's own `Baseline.moduleCycles` doc) cannot see it at all. Confirmed empirically:
-// `check:architecture --list` reports 0 module cycles / largest SCC 0 with this import in place, same
-// as before it. This was tried in preference to hand-mirroring `VendorCredentialSetRepoPort`'s shape
-// locally (the way `VendorCredentialSummaryLike` below still does, since THAT type has no real
-// counterpart safe to import) — a hand-copied port with no compile-time link to the real one drifts
-// silently, and the real type was available at zero verified cost once the value-import cycle above
-// was already closed by a different fix.
+import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetFieldSpec, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
+// Credential saves go through `publish-credentials/store.ts`, the same store the admin's Static Site
+// tab writes, so a row saved from chat is the row a publish resolves.
+import { createPublishCredential, updatePublishCredential, type PublishCredentialWriteDeps } from "./publish-credentials/index.js";
 import {
   composePublishCredentialSource,
   getPublishRunSnapshot,
@@ -250,40 +226,34 @@ const EXECUTE_STATIC_PUBLISH_SCHEMA = {
   },
 } as const;
 
-/** Non-secret pre-fill fields `deployment_propose_custom_provider_credential` accepts — mirrors
- *  `deployment_execute_static_publish`'s own "no token/credential field of any kind" structural
- *  guarantee (this file's header, and spec §6c): there is no `accessKeyId`/`secretAccessKey` key in
- *  this schema for the model to fill in, correctly or otherwise. `protocol` is the only required
- *  field, and only one value exists today. */
+/** `deployment_propose_custom_provider_credential`'s input: the host, plus optional pre-fill hints
+ *  named after that host's non-secret credential fields. There is no secret property to fill in; the
+ *  handler refuses a secret or undeclared field before any form is raised. */
 const PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_SCHEMA = {
   type: "object",
-  additionalProperties: false,
-  required: ["protocol"],
+  additionalProperties: { type: "string" },
+  required: ["target"],
   properties: {
-    protocol: {
+    target: {
       type: "string",
-      enum: ["s3-compatible"],
-      description: "The 'Custom' tab protocol to save a connection for. Only 's3-compatible' exists today.",
+      description:
+        "Which host to save a connection for: one of the providerId values deployment_get_static_publish_capabilities lists. Optionally pass that host's NON-secret credential fields as top-level string pre-fill hints (the human can change them before submitting); a secret or undeclared field is refused.",
     },
-    endpoint: { type: "string", description: "Optional pre-fill hint for the form's Endpoint field, e.g. from earlier in the conversation. Non-secret. The human can change or clear it before submitting — this is a starting point, never a commitment." },
-    region: { type: "string", description: "Optional pre-fill hint for Region. Non-secret." },
-    bucket: { type: "string", description: "Optional pre-fill hint for Bucket. Non-secret." },
-    publicUrl: { type: "string", description: "Optional pre-fill hint for Public URL. Non-secret." },
   },
 } as const;
 
-/** `deployment_generate_bucket_hosting_setup`'s input — a plain read, same non-secret shape as the
- *  propose-credential tool's own pre-fill fields (spec §3a: "may be called before a credential is even
- *  saved... or after"). */
+/** `deployment_generate_bucket_hosting_setup`'s input: the host, plus the non-secret credential
+ *  fields its plugin module needs to compose the steps (a bucket and region, for example). */
 const GENERATE_BUCKET_HOSTING_SETUP_SCHEMA = {
   type: "object",
-  additionalProperties: false,
-  required: ["protocol", "bucket", "region"],
+  additionalProperties: { type: "string" },
+  required: ["target"],
   properties: {
-    protocol: { type: "string", enum: ["s3-compatible"], description: "The 'Custom' tab protocol to generate hosting-setup steps for. Only 's3-compatible' exists today." },
-    bucket: { type: "string", description: "The exact bucket name — substituted verbatim into the returned policy JSON, so it must match the real bucket." },
-    region: { type: "string", description: "The bucket's region, as entered on the credential form." },
-    endpoint: { type: "string", description: "Optional — the storage endpoint. Used ONLY to infer which provider's steps to return (Cloudflare R2 / Backblaze B2 / DigitalOcean Spaces / Wasabi / plain AWS S3); blank is read as plain AWS S3, matching the credential form's own convention." },
+    target: {
+      type: "string",
+      description:
+        "Which host to generate hosting-setup steps for: one of the providerId values deployment_get_static_publish_capabilities lists. Pass that host's non-secret credential fields as top-level strings (for object storage: bucket, region and, when not plain AWS, endpoint).",
+    },
   },
 } as const;
 
@@ -307,7 +277,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for every static-publish host the turned-on deploy plugin provides, WITHOUT decrypting or exposing any credential. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenTail: the LAST 4 CHARACTERS ONLY of that credential's token or secret key, held in the clear so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, and still confirm it with the human before publishing; when accountLabel is null, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. For s3-compatible specifically, you can instead offer to help right here in chat: call deployment_propose_custom_provider_credential, which shows the human an editable form to fill in (you never see or handle the secret fields).",
+      "Reports live publish readiness for every static-publish host the turned-on deploy plugin provides, WITHOUT decrypting or exposing any credential. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenTail: the LAST 4 CHARACTERS ONLY of that credential's token or secret key, held in the clear so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, and still confirm it with the human before publishing; when accountLabel is null, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. You can also offer to help right here in chat: deployment_propose_custom_provider_credential shows the human an editable form for any host that takes a saved credential (you never see or handle the secret fields).",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -328,7 +298,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_propose_custom_provider_credential",
     description:
-      "Saves a connection for the 'Custom' tab's S3-compatible protocol (AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, MinIO, ...). Before calling this, or while explaining it, tell the human up front that S3-compatible is meaningfully more setup than Vercel/Netlify/GitHub Pages/Cloudflare Pages — it is three real pieces of work, not one form: (1) create a bucket in their provider's console first, Tovu does not create it for them, (2) set up public access or hosting in front of it — call deployment_generate_bucket_hosting_setup to generate the exact steps and policy for their bucket, which they apply themselves in their own provider console, and (3) create an access key scoped to just that one bucket, not an account-wide key. HUMAN-GATED, same shape as deployment_execute_static_publish: call it with just { protocol: 's3-compatible', ...any non-secret pre-fill hints you already know from the conversation — endpoint/region/bucket/publicUrl, all optional }. This ONE call shows an editable form for the human to fill in (including the two secret fields, Access Key ID and Secret Access Key, which THIS SCHEMA HAS NO FIELD FOR — you cannot supply, see, or guess them, and must never ask the human to paste them into chat instead of the form) and WAITS: it does not return until the human submits or cancels, or the form times out. It returns { saved: true, providerId: 's3-compatible', connected: true } on a successful save, { saved: false, cancelled: true } if the human cancels, { saved: false, cancelled: false, reason: 'expired' | 'abandoned' } if nobody answered, or { saved: false, cancelled: false, reason: 'invalid', message } if the human submitted something incomplete (message names which field, never its value). It never echoes any field value, secret or otherwise, back to you. Do not re-call this tool while a call is already pending.",
+      "Saves a publish connection (the credential) for one host, through a form the human fills in. Some hosts need setup before the credential is useful (object storage needs a bucket, public hosting in front of it, and an access key scoped to that bucket): the form's own description says so, and deployment_generate_bucket_hosting_setup composes the hosting steps. HUMAN-GATED, same shape as deployment_execute_static_publish: call it with just { target, ...any NON-secret credential fields you already know from the conversation, as optional pre-fill hints }. This ONE call shows an editable form for the human to fill in, including the host's secret fields (a token, a secret key), which you cannot supply, see, or guess: a secret passed here is refused, and you must never ask the human to paste one into chat instead of the form. It WAITS: it does not return until the human submits or cancels, or the form times out. It returns { saved: true, providerId, connected: true } on a successful save, { saved: false, cancelled: true } if the human cancels, { saved: false, cancelled: false, reason: 'expired' | 'abandoned' } if nobody answered, or { saved: false, cancelled: false, reason: 'invalid', message } if the human submitted something incomplete (message names which field, never its value). It never echoes any field value, secret or otherwise, back to you. Do not re-call this tool while a call is already pending.",
     // Same category as `deployment_execute_static_publish`'s own write (real, external-account-scoped
     // consequence) but narrower in blast radius (one credential row, not a live publish) — see this
     // file's header for the full reasoning on why this is neither the excluded generic-settings-write
@@ -341,7 +311,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_generate_bucket_hosting_setup",
     description:
-      "Generates the exact steps (and, where applicable, the exact bucket policy JSON with the real bucket name substituted in) to make an S3-compatible bucket servable as a public website — Tovu composes this, but NEVER applies it: the human reviews and applies it themselves in their own already-privileged provider console. This is a PURE READ — it writes nothing, calls no write API, and does not require a saved credential to exist yet (call it before or after deployment_propose_custom_provider_credential). Relay the returned 'steps' as prose plus copyable code blocks for any 'consoleJson' present, and relay 'warning' verbatim if present — for Cloudflare R2 and DigitalOcean Spaces specifically, that warning states the human needs a DIFFERENT credential (their Cloudflare/DigitalOcean account login) for this particular step, not the S3-compatible access key they saved — say so plainly rather than letting them hunt for a field on the Custom tab that does not exist.",
+      "Generates the exact steps (and, where applicable, the exact policy JSON with the real names substituted in) a host needs in the human's own console before a published site is reachable, such as making a storage bucket publicly readable. Only some hosts have such steps; for the others this refuses with the reason. Tovu composes this but NEVER applies it: the human applies it themselves in their own provider console. This is a PURE READ: it writes nothing, calls no API, and does not need a saved credential (call it before or after deployment_propose_custom_provider_credential). Relay the returned 'steps' as prose plus copyable code blocks for any 'consoleJson' present, and relay 'warning' verbatim if present: it can say the step needs a DIFFERENT login than the saved credential, so say so plainly.",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: GENERATE_BUCKET_HOSTING_SETUP_SCHEMA,
@@ -368,74 +338,16 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // (GitHub/Vercel/Netlify/Cloudflare Pages) using a write-scoped credential — genuinely mutates
   // external durable state. See this file's header for the full risk story.
   ["deployment_execute_static_publish", "mutates-durable-state"],
-  // -> on submit, calls `createVendorCredential`/`updateVendorCredential` — a real encrypted write to
-  // `vendor_credential_sets` (Phase 3 cutover, this dispatch — previously `publish_credential_sets`).
+  // -> on submit, calls `createPublishCredential`/`updatePublishCredential` — a real encrypted write to
+  // `vendor_credential_sets`.
   // No secret ever transits the model (see this file's header/the catalog entry's own comment); the
   // write itself is still a genuine external-account-scoped mutation, same category (not merely "some
   // risk classification") as the publish tool above.
   ["deployment_propose_custom_provider_credential", "mutates-durable-state"],
-  // -> composes prose/JSON from fixed templates plus the caller-supplied bucket/region/endpoint
-  // (never a saved secret — this handler never reads a credential at all, saved or otherwise). No
-  // repo write, no command gateway, no outbox, no network call, no decrypt.
+  // -> the host plugin module's pure `hostingSetup` over the caller's non-secret fields (never a saved
+  // credential). No write, no network call, no decrypt.
   ["deployment_generate_bucket_hosting_setup", "none"],
 ]);
-
-/**
- * This domain's own read model for one `vendor_credential_sets` row — a hand-written structural
- * mirror of `vendor-credentials/store.ts`'s `VendorCredentialSetSummary`, loosened from that type's
- * own 7-member `VendorId` union to plain `string` (this file only ever compares it against its OWN
- * `StaticPublishTargetId`-derived vendor ids, never constructs one — narrowing costs nothing here and
- * buys the zero-import property below). See the module-level comment above this file's now-absent
- * `vendor-credentials` import for why this exists as a duplicate rather than an imported type.
- */
-interface VendorCredentialSummaryLike {
-  readonly id: string;
-  readonly vendorId: string;
-  readonly label: string;
-  readonly isDefault: boolean;
-  readonly tokenTail: string;
-  readonly accountLabel: string | null;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-
-/**
- * Structural stand-in for `vendor-credentials/store.ts`'s own `VendorCredentialWriteDeps`. 2026-08-20 RouteDeps-narrowing fix: these used to be an indexed-access
- * off `RouteDeps` itself (`RouteDeps["vendorCredentialSetRepo"]` etc.) — that still worked structurally
- * (an indexed-access type is not, by itself, a runtime edge), but it kept this file's `StaticPublishToolDeps`
- * from ever dropping its `extends RouteDeps`, since every field here was DERIVED from that name. Typed
- * directly against the underlying port types instead (`VendorCredentialSetRepoPort`/`SecretSealerPort`/
- * `KeyringPort`, all already imported by this file for other reasons — see the import block above), the
- * same "narrow domain ports, never the god type" discipline `comments/tool-registrations.ts`'s
- * `CommentsToolDeps` already establishes.
- */
-type VendorCredentialWriteDepsLike = {
-  repo: VendorCredentialSetRepoPort;
-  sealer: SecretSealerPort;
-  keyring?: KeyringPort;
-  clock: { nowIso(): string };
-  idGen: { newId(): string };
-};
-
-/**
- * This domain's narrow, LOCALLY-typed port onto `vendor-credentials/store.ts`'s CRUD contract —
- * carries no import from `features/vendor-credentials` (see the module-level comment above this
- * file's import block). `label`/`connection`/`isDefault` stay `unknown` deliberately, mirroring the
- * real functions' own deliberately-loose validate-at-the-boundary contract
- * (`CreateVendorCredentialInput`/`UpdateVendorCredentialInput`'s own doc) — this port does not
- * pre-validate, the real `createVendorCredential`/`updateVendorCredential` implementation wired in at
- * the composition root does.
- *
- * Injected via `StaticPublishToolDeps.vendorCredentials`, wired to the real implementation ONLY by
- * `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations` — never by this file. Unset
- * (`undefined`) is a wiring bug, not a "fall back to legacy-only" case: {@link requireVendorCredentialPort}
- * throws rather than silently degrading, matching `commit-site.ts`'s own "no adapter configured — this
- * is a wiring bug" precedent for the identical shape of problem.
- */
-export interface VendorCredentialPort {
-  create(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; label: unknown; connection: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
-  update(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; id: string; label?: unknown; connection?: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
-}
 
 /**
  * The composition-root-bound export call this domain takes instead of `RouteDeps` itself (2026-08-20
@@ -461,10 +373,7 @@ type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePat
  * satisfy this structurally by passing their existing `RouteDeps` object (which now also carries
  * `exportSiteBound`); nothing there changes.
  *
- * Every other field below is a direct port type (never an indexed-access off `RouteDeps`) — see
- * `VendorCredentialWriteDepsLike`'s own doc above for why that
- * distinction matters even though an indexed-access type alone was not itself a dependency-cruiser
- * edge.
+ * Every other field below is a direct port type (never an indexed-access off `RouteDeps`).
  */
 export interface StaticPublishToolDeps {
   readonly authorize: AuthorizeFn;
@@ -507,31 +416,6 @@ export interface StaticPublishToolDeps {
    *  `deps.publishHistoryStore`, so a real publish's history is visible to this tool with no wiring
    *  change outside this domain (see `publish-run.ts`'s header, "Publish history"). */
   historyStore?: PublishHistoryStore;
-  /** Injected implementation of `vendor-credentials/store.ts`'s CRUD contract — see
-   *  {@link VendorCredentialPort}'s own doc for why this is injected rather than imported, and why
-   *  `undefined` in production is a wiring bug caught by {@link requireVendorCredentialPort}, not a
-   *  silent legacy-only degrade. A test that does not exercise `deployment_get_static_publish_
-   *  capabilities`/`deployment_propose_custom_provider_credential` may safely omit this — every other
-   *  handler in this file never reads it. */
-  vendorCredentials?: VendorCredentialPort;
-}
-
-/** Resolves `deps.vendorCredentials`, or throws a named, actionable wiring-bug error — see
- *  {@link VendorCredentialPort}'s own doc for why "unset" must never silently degrade to a
- *  legacy-only read/write. Called once per handler that needs it, not eagerly at
- *  `buildStaticPublishRegistrations`'s own top level, so every OTHER test/handler in this file that
- *  never touches vendor credentials is unaffected by this dependency existing at all.
- *
- * @complexity O(1).
- */
-function requireVendorCredentialPort(deps: StaticPublishToolDeps): VendorCredentialPort {
-  if (!deps.vendorCredentials) {
-    throw new Error(
-      "StaticPublishToolDeps.vendorCredentials was not injected — this is a wiring bug, not a credential or network problem. " +
-        "Production wiring lives in assistant/tool-registrations.ts's buildAssistantToolRegistrations; see VendorCredentialPort's own doc."
-    );
-  }
-  return deps.vendorCredentials;
 }
 
 /** {@link StaticPublishToolDeps.loadDeployTargets}, or the installed deploy Agent Plugin. */
@@ -699,7 +583,7 @@ function buildPublishOutcomeResource(spec: {
 
 const PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID = "deployment_propose_custom_provider_credential";
 
-/** The one fixed label every s3-compatible credential row is saved under — mirrors
+/** The label a credential saved from chat is created under — mirrors
  *  `apps/admin/src/features/deployment/rules.ts`'s `PUBLISH_CREDENTIAL_ROW_LABEL` ("default"). Cannot
  *  be imported directly: `apps/admin` is a genuinely separate npm workspace with no import path into
  *  this server's `src/` (spec §5's own verified finding), so this is a deliberate, documented mirror
@@ -713,159 +597,6 @@ const CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL = "default";
  *  a fresh save against). */
 function customProviderCredentialFormUri(exchangeId: string): UIResourceUri {
   return `ui://tovu/deployment-propose-custom-provider-credential/${exchangeId}` as UIResourceUri;
-}
-
-/** Which provider's hosting-setup guidance to return, inferred from the credential's own `endpoint` —
- *  never guessed from anything else, since `endpoint` is the one field whose VALUE differs
- *  meaningfully per provider (spec §4c's own per-provider endpoint hint text). Blank/omitted reads as
- *  plain AWS S3, matching the credential form's own "leave this blank" convention for that case. */
-type HostingSetupProvider = "aws" | "backblaze-b2" | "cloudflare-r2" | "digitalocean-spaces" | "wasabi" | "minio" | "generic";
-
-/**
- * @complexity O(1) — a fixed sequence of substring checks against one already-short string.
- * @overallScore 100
- */
-function inferHostingSetupProvider(endpoint: string | undefined): HostingSetupProvider {
-  const host = (endpoint ?? "").trim().toLowerCase();
-  if (host === "") return "aws";
-  if (host.includes("r2.cloudflarestorage.com")) return "cloudflare-r2";
-  if (host.includes("backblazeb2.com")) return "backblaze-b2";
-  if (host.includes("digitaloceanspaces.com")) return "digitalocean-spaces";
-  if (host.includes("wasabisys.com")) return "wasabi";
-  if (host.includes("amazonaws.com")) return "aws";
-  if (host.includes("minio")) return "minio";
-  return "generic";
-}
-
-interface HostingSetupStep {
-  readonly title: string;
-  readonly description: string;
-  readonly consoleJson?: string;
-}
-
-/**
- * Composes the hosting-setup steps for one provider, with `bucket` substituted into any policy JSON.
- * Explicitly OUT OF SCOPE for this dispatch to author as final, reviewed, provider-verified prose
- * (spec §3a/§10.11 — "real implementation work informed by the citations in the table, not something
- * to invent here") — this is a real, working first pass grounded in that same citation table (AWS's
- * own Service Authorization Reference + Block Public Access docs, R2's API-token + public-buckets
- * docs, B2's key-creation API docs, DigitalOcean's CDN docs — all cited in the spec's §3a table), not a
- * stub. `wasabi`/`minio` are the two the spec's own table flags as "not independently verified this
- * pass" (S3-API-compatible by the vendors' own claims, not confirmed against their docs directly the
- * way the other four were) — their `warning` says so.
- *
- * @complexity O(1) — a fixed per-provider template, one string substitution.
- */
-function buildHostingSetupContent(provider: HostingSetupProvider, bucket: string, region: string): { steps: HostingSetupStep[]; warning: string } {
-  if (provider === "aws") {
-    const policy = JSON.stringify(
-      {
-        Version: "2012-10-17",
-        Statement: [{ Sid: "PublicReadGetObject", Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: `arn:aws:s3:::${bucket}/*` }],
-      },
-      null,
-      2
-    );
-    return {
-      steps: [
-        {
-          title: "Turn off Block Public Access for this bucket",
-          description:
-            `AWS turns this on for every new bucket by default, and it overrides any bucket policy while it's on — a public-read policy alone will not work until this is off. ` +
-            `S3 console → bucket '${bucket}' → Permissions → Block public access (bucket settings) → Edit → uncheck all four boxes → confirm.`,
-        },
-        {
-          title: "Enable static website hosting",
-          description: `S3 console → bucket '${bucket}' → Properties → Static website hosting → Enable → set the index document to 'index.html'.`,
-        },
-        {
-          title: "Allow public reads (bucket policy)",
-          description: `S3 console → bucket '${bucket}' → Permissions → Bucket policy → paste the JSON below exactly (it already has your bucket name in it) → Save.`,
-          consoleJson: policy,
-        },
-      ],
-      warning: "",
-    };
-  }
-  if (provider === "cloudflare-r2") {
-    return {
-      steps: [
-        {
-          title: "Enable a public URL for this bucket",
-          description: `Cloudflare dashboard → R2 → bucket '${bucket}' → Settings → either turn on the free 'r2.dev' subdomain, or connect a custom domain you own.`,
-        },
-      ],
-      warning:
-        "This step needs a DIFFERENT credential than the S3-compatible key you saved on the Custom tab — your Cloudflare account login (or a separate Cloudflare API token), not the R2 access key/secret pair. " +
-        "R2's S3-compatible keys work only with S3-compatible SDKs/APIs; enabling public access is a Cloudflare-dashboard/API operation with no overlap in permissions.",
-    };
-  }
-  if (provider === "backblaze-b2") {
-    return {
-      steps: [
-        {
-          title: "Make the bucket public",
-          description: `Backblaze B2 dashboard → Buckets → '${bucket}' → change the bucket's Files setting from 'Private' to 'Public'.`,
-        },
-      ],
-      warning:
-        "Changing bucket visibility needs the 'writeBuckets' capability, a DIFFERENT capability than the object-write key saved on the Custom tab (which typically only has 'writeFiles'). " +
-        "If your saved key doesn't have it, do this step in the B2 web dashboard with your regular B2 login instead of trying to script it with the saved key.",
-    };
-  }
-  if (provider === "digitalocean-spaces") {
-    return {
-      steps: [
-        {
-          title: "Enable the CDN endpoint for this Space",
-          description: `DigitalOcean control panel → Spaces → '${bucket}' → Settings → enable the CDN (or 'doctl' / the DigitalOcean API v2 with a personal access token).`,
-        },
-      ],
-      warning:
-        "This step needs a DIFFERENT credential than the S3-compatible key you saved on the Custom tab — a DigitalOcean personal access token (from your account login), not the Spaces access key/secret pair. " +
-        "Basic object-level public-read via the S3-compatible API's own ACL mechanism may be reachable with the saved key without the CDN, but this has not been independently verified — treat it as worth trying, not guaranteed.",
-    };
-  }
-  if (provider === "wasabi") {
-    return {
-      steps: [
-        {
-          title: "Set a public-read bucket policy",
-          description: `Wasabi markets itself as closely AWS-S3-API-compatible, including bucket-policy support through the same signed-request surface your saved key already uses — try the AWS-shaped policy below in your Wasabi console (bucket '${bucket}', region '${region}').`,
-          consoleJson: JSON.stringify(
-            { Version: "2012-10-17", Statement: [{ Sid: "PublicReadGetObject", Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: `arn:aws:s3:::${bucket}/*` }] },
-            null,
-            2
-          ),
-        },
-      ],
-      warning: "Wasabi's compatibility with this exact flow has not been independently verified against Wasabi's own documentation — this is inferred from Wasabi's own compatibility claims, not confirmed. Double-check against Wasabi's current docs before relying on it.",
-    };
-  }
-  if (provider === "minio") {
-    return {
-      steps: [
-        {
-          title: "Set an anonymous download policy",
-          description: `Self-hosted MinIO — use the MinIO Console's bucket Access Policy setting, or the 'mc' CLI: 'mc anonymous set download <alias>/${bucket}'.`,
-        },
-      ],
-      warning:
-        "A self-hosted MinIO instance often has no public DNS name at all — 'Public URL' on the credential form only makes sense once you've set one up yourself (a reverse proxy, a load balancer, a domain pointed at this server). If you haven't, the site will not be reachable from the public internet no matter what is configured here.",
-    };
-  }
-  // provider === "generic" — endpoint didn't match any known provider's host pattern.
-  return {
-    steps: [
-      {
-        title: "Check your provider's own documentation for making a bucket publicly readable",
-        description:
-          `Your storage endpoint wasn't recognized as one of the providers Tovu has specific guidance for (bucket '${bucket}', region '${region}'). ` +
-          "Most S3-compatible providers support a public-read bucket policy similar to AWS's own — search your provider's docs for 'bucket policy' or 'public access'.",
-      },
-    ],
-    warning: "This provider is not one Tovu has specific hosting-setup guidance for yet — the steps above are generic, not verified against your provider's own documentation.",
-  };
 }
 
 /** Shared `target` lookup for `deployment_preview_static_publish` and
@@ -1204,52 +935,59 @@ async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: Publ
   return mapPublishOutcomeToToolResult(outcome, ctx.exchange, ctx.config, ctx.detailRows, ctx.projectName);
 }
 
-/** Shared `protocol` field validation for `deployment_propose_custom_provider_credential` and
- *  `deployment_generate_bucket_hosting_setup` — both currently support only `'s3-compatible'`.
- *  @param toolId - Named explicitly (not inferred) so each tool's error message still names itself.
- *  @throws {ToolInputError} `raw.protocol` is not `'s3-compatible'`. */
-function requireS3CompatibleProtocol(raw: Record<string, unknown>, toolId: string): void {
-  const protocol = requireString(raw, "protocol");
-  if (protocol !== "s3-compatible") {
-    throw new ToolInputError(`${toolId}: 'protocol' must be 's3-compatible' — no other Custom-tab protocol exists yet.`);
-  }
+/** The host whose credential the propose-credential tool saves: it must be loaded and declare one.
+ *  @throws {ToolInputError} unknown host, or a host that takes no saved credential.
+ *  @complexity O(1) — one registry lookup. */
+function requireCredentialTarget(raw: Record<string, unknown>, registry: DeployTargetRegistry): { readonly descriptor: DeployTargetDescriptor; readonly credential: DeployTargetCredentialSpec } {
+  const { descriptor } = requireStaticPublishTarget(raw, registry);
+  if (descriptor.credential === undefined) throw new ToolInputError(`${descriptor.id} takes no saved credential.`);
+  return { descriptor, credential: descriptor.credential };
 }
 
-/** `deployment_propose_custom_provider_credential`'s prefill — the caller's own non-secret hints
- *  (`endpoint`/`region`/`bucket`/`publicUrl`), forwarded into the form as pre-filled `value`s. Blank
- *  strings are treated as absent, same as every other optional-string field this file reads from raw
- *  tool input. */
-function buildS3CompatiblePrefill(raw: Record<string, unknown>): Partial<Record<"endpoint" | "region" | "bucket" | "publicUrl", string>> {
-  const prefill: Partial<Record<"endpoint" | "region" | "bucket" | "publicUrl", string>> = {};
-  for (const field of ["endpoint", "region", "bucket", "publicUrl"] as const) {
-    if (typeof raw[field] === "string" && (raw[field] as string).trim() !== "") {
-      prefill[field] = raw[field] as string;
+/**
+ * The agent's non-secret credential-field values (form pre-fill, or hosting-setup input). Refuses a
+ * secret field, so a secret can never come from the chat, and a field the host does not declare. A
+ * blank value is left out.
+ *
+ * @throws {ToolInputError} naming the first refused key.
+ * @complexity O(k·f) input keys by credential fields.
+ */
+function readCredentialHints(raw: Record<string, unknown>, descriptor: DeployTargetDescriptor): Record<string, string> {
+  const fields = descriptor.credential?.fields ?? [];
+  const hints: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === "target") continue;
+    const field = fields.find((candidate) => candidate.name === key);
+    if (field === undefined) {
+      const takes = fields.length > 0 ? `It takes: ${fields.map((candidate) => candidate.name).join(", ")}.` : "It takes none.";
+      throw new ToolInputError(`'${key}' is not a credential field of ${descriptor.id}. ${takes}`);
     }
+    if (field.secret === true) throw new ToolInputError(`'${key}' is secret: the person types it into the form, never into the chat.`);
+    if (typeof value !== "string") throw new ToolInputError(`'${key}' must be a string.`);
+    if (value.trim() !== "") hints[key] = value;
   }
-  return prefill;
+  return hints;
 }
 
-/** Builds `deployment_propose_custom_provider_credential`'s form surface — extracted purely to keep
- *  that handler's own body a flat sequence of steps. Posts back on cancel rather than a silent close
- *  — same reasoning `demo-choices-tool.ts`'s own form cancel action documents: with the call parked, a
- *  silent close would strand the handler for the full TTL staring at a form the human already walked
- *  away from. */
-function buildProposeCredentialForm(exchange: SurfaceExchange, prefill: Partial<Record<"endpoint" | "region" | "bucket" | "publicUrl", string>>): UIResource {
+/** The propose-credential form, built from the host's credential spec. Posts back on cancel rather
+ *  than closing silently: with the call parked, a silent close would strand the handler for the full
+ *  TTL. */
+function buildProposeCredentialForm(exchange: SurfaceExchange, descriptor: DeployTargetDescriptor, credential: DeployTargetCredentialSpec, prefill: Record<string, string>): UIResource {
   return buildFormSurface({
     uri: customProviderCredentialFormUri(exchange.id),
-    title: "Connect S3-compatible storage",
-    description: S3_COMPATIBLE_FORM_DESCRIPTION,
+    title: `Connect ${descriptor.label}`,
+    ...(credential.help !== undefined ? { description: credential.help } : {}),
     submitLabel: "Save connection",
     toolName: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID,
     baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
-    fields: S3_COMPATIBLE_FIELD_GUIDANCE.map((field) => ({
+    fields: credential.fields.map((field) => ({
       kind: "string",
       name: field.name,
       label: field.label,
-      hint: field.hint,
+      ...(field.help !== undefined ? { hint: field.help } : {}),
       required: field.required,
-      ...(field.secret ? { secret: true } : {}),
-      ...(prefill[field.name as keyof typeof prefill] !== undefined ? { value: prefill[field.name as keyof typeof prefill] } : {}),
+      ...(field.secret === true ? { secret: true } : {}),
+      ...(prefill[field.name] !== undefined ? { value: prefill[field.name] } : {}),
     })),
     cancel: {
       label: "Cancel",
@@ -1261,55 +999,40 @@ function buildProposeCredentialForm(exchange: SurfaceExchange, prefill: Partial<
   });
 }
 
-/** Maps the submitted form's raw params to `createVendorCredential`/`updateVendorCredential`'s own
- *  `connection` input shape. Passes the raw params straight through (rather than hand-building a
- *  typed object with fallback empty strings) so there is exactly ONE place (`vendor-credentials/
- *  store.ts`'s `validateConnection`) that decides what "valid" means — this function only decides
- *  which fields are even candidates to forward. Never trusts the client-side `required` attribute:
- *  `form.ts` ships `novalidate` on purpose (its own doc: the browser's bubble UI is unusable in the
- *  surface's small iframe), so server-side validation is the ACTUAL enforcement point. */
-function buildS3CompatibleConnectionInput(params: Record<string, unknown>): Record<string, unknown> {
-  const connectionInput: Record<string, unknown> = { vendorId: "s3-compatible" };
-  for (const field of ["region", "bucket", "accessKeyId", "secretAccessKey", "publicUrl", "endpoint"] as const) {
-    if (typeof params[field] === "string") connectionInput[field] = params[field];
-  }
-  return connectionInput;
-}
-
 /**
- * "One flat row per vendor" (spec §9's label-UX resolution, restated at §4c, now applied to the
- * unified table's own `(workspaceId, vendorId)` grouping): finds this workspace's existing
- * `s3-compatible` VENDOR row (a non-decrypting repo read) and UPDATEs it if one exists, otherwise
- * CREATEs. A workspace whose only existing s3-compatible credential still sits in the OLD
- * `publish_credential_sets` table (not yet migrated, or saved before Phase 3's cutover) is NOT found
- * here — `findDefaultByVendor` only ever looks at the new table — so this creates a fresh vendor-table
- * row rather than updating the stale legacy one. That legacy row is simply left behind, unread from
- * now on: `deployment_get_static_publish_capabilities`'s own Phase 3 cutover reports the new table's
- * row exclusively the moment it has ANY row for a vendor, so this never produces two
- * simultaneously-authoritative credentials from the model's point of view — only one harmless
- * orphaned row, the same temporary cost `vendor-credentials/dual-read.ts`'s own header already
- * accepts for the read side.
+ * Saves the submitted form as the host's connection: updates the host's default row when it has one
+ * (one row per host, as the admin tab shows it), otherwise creates one. Only the host's declared
+ * fields are forwarded; `publish-credentials/store.ts` is the one place that decides what is valid
+ * (the form ships `novalidate`, so this is the real enforcement point). Its messages name fields,
+ * never values.
  *
- * `PublishCredentialValidationError`'s own messages never carry a field VALUE, only field NAMES and
- * the provider id (`store.ts`'s `requireNonEmptyString`/`optionalString`) — safe to relay. Any other
- * store error (e.g. the secret store being unconfigured) still gets `err.message` only, matching
- * `deployment_execute_static_publish`'s own "message, never the raw error" boundary discipline.
+ * @complexity O(n) in the workspace's saved credential count.
  */
-async function saveS3CompatibleCredential(deps: StaticPublishToolDeps, connectionInput: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }> {
-  const vendorCredentials = requireVendorCredentialPort(deps);
-  const writeDeps: VendorCredentialWriteDepsLike = {
+async function saveProposedCredential(
+  deps: StaticPublishToolDeps,
+  targetId: string,
+  credential: DeployTargetCredentialSpec,
+  params: Record<string, unknown>
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const connection: Record<string, unknown> = { providerId: targetId };
+  for (const field of credential.fields) {
+    if (typeof params[field.name] === "string") connection[field.name] = params[field.name];
+  }
+  const writeDeps: PublishCredentialWriteDeps = {
     repo: deps.vendorCredentialSetRepo,
+    loadDeployTargets: deployTargetsLoader(deps),
     sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
   };
   try {
-    const existing = await deps.vendorCredentialSetRepo.findDefaultByVendor({ workspaceId: deps.workspaceId, vendorId: "s3-compatible" });
+    const saved = await listPublishCredentials(writeDeps, { workspaceId: deps.workspaceId });
+    const existing = saved.find((row) => row.providerId === targetId && row.isDefault);
     if (existing) {
-      await vendorCredentials.update(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection: connectionInput });
+      await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection });
     } else {
-      await vendorCredentials.create(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection: connectionInput });
+      await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection });
     }
     return { ok: true };
   } catch (err) {
@@ -1322,7 +1045,7 @@ async function saveS3CompatibleCredential(deps: StaticPublishToolDeps, connectio
  * top-level function so its own complexity is measured independently of the handler that opens the
  * exchange and builds the form.
  */
-async function handleProposeCredentialAnswer(answer: SurfaceMessage, deps: StaticPublishToolDeps) {
+async function handleProposeCredentialAnswer(answer: SurfaceMessage, deps: StaticPublishToolDeps, targetId: string, credential: DeployTargetCredentialSpec) {
   if (answer.status !== "received") {
     return {
       saved: false,
@@ -1335,15 +1058,13 @@ async function handleProposeCredentialAnswer(answer: SurfaceMessage, deps: Stati
     return { saved: false, cancelled: true };
   }
 
-  const connectionInput = buildS3CompatibleConnectionInput(answer.params);
-  const saveResult = await saveS3CompatibleCredential(deps, connectionInput);
+  const saveResult = await saveProposedCredential(deps, targetId, credential, answer.params);
   if (!saveResult.ok) {
     return { saved: false, cancelled: false, reason: "invalid", message: saveResult.message };
   }
 
-  // NEVER echoes a field value, secret or not — the structural guarantee this handler's own doc
-  // comment states up front.
-  return { saved: true, providerId: "s3-compatible", connected: true };
+  // NEVER echoes a field value, secret or not.
+  return { saved: true, providerId: targetId, connected: true };
 }
 
 /**
@@ -1511,23 +1232,19 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     },
 
     /**
-     * The MCP-UI form-gated credential save for the 'Custom' tab's S3-compatible protocol. Same
+     * The MCP-UI form-gated credential save for any host whose plugin declares a credential. Same
      * shape as `deployment_execute_static_publish` above (open an exchange, emit a surface, park on
-     * `askOnce`), but a FORM (`buildFormSurface`) rather than a confirmation dialog — spec §6b/§6c:
-     * the model is proposing STRUCTURE for a human to fill in, not a fact for them to agree to.
+     * `askOnce`), but a FORM: the model proposes structure for a human to fill in.
      *
-     * The structural guarantee this whole handler exists to uphold (spec §6c, restated here because
-     * it is the single most important property of this function): `PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_SCHEMA`
-     * has NO `accessKeyId`/`secretAccessKey` property. The model cannot supply, request, or leak the
-     * secret through this tool's call surface even in principle. The human's typed secret lands in
-     * `answer.params` inside this Node.js handler, server-side, and is sealed via
-     * `createVendorCredential`/`updateVendorCredential` (Phase 3 cutover, this dispatch — see this
-     * handler's own body for the storage-target change) — it never enters a prompt or a completion,
-     * and this handler's own return value never echoes any field, secret or not.
+     * The schema has no secret property, and a secret or undeclared field is refused before any form
+     * is raised. The human's typed secret lands in `answer.params` server-side and is sealed by
+     * `publish-credentials/store.ts`; it never enters a prompt or a completion, and the result never
+     * echoes any field.
      */
     deployment_propose_custom_provider_credential: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      requireS3CompatibleProtocol(raw, PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID);
+      const { descriptor, credential } = requireCredentialTarget(raw, await deployTargetsLoader(deps)(deps.workspaceId));
+      const prefill = readCredentialHints(raw, descriptor);
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.credentials.write", entityType: "site-publish" });
 
@@ -1540,41 +1257,40 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         );
       }
 
-      const prefill = buildS3CompatiblePrefill(raw);
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
         { toolId: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID, principalId: ctx.principal.id },
         ctx.emitSurface
       );
-      const ui = buildProposeCredentialForm(exchange, prefill);
+      const ui = buildProposeCredentialForm(exchange, descriptor, credential, prefill);
 
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
         const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-        return await handleProposeCredentialAnswer(answer, deps);
+        return await handleProposeCredentialAnswer(answer, deps, descriptor.id, credential);
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }
     },
 
     /**
-     * Pure read — composes hosting-setup guidance from a fixed per-provider template, the caller's own
-     * `bucket`/`region`, and a provider inferred from `endpoint` (never a saved credential; this
-     * handler never reads one). See {@link buildHostingSetupContent} for the actual per-provider
-     * content and spec §3a for the full reasoning on why this is a read tool with no MCP-UI gate.
+     * Pure read — the host plugin module's own `hostingSetup` over the caller's non-secret credential
+     * fields (never a saved credential). A host with no such steps is refused with the reason.
      */
     deployment_generate_bucket_hosting_setup: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      requireS3CompatibleProtocol(raw, "deployment_generate_bucket_hosting_setup");
-      const bucket = requireString(raw, "bucket");
-      const region = requireString(raw, "region");
-      const endpoint = typeof raw.endpoint === "string" ? raw.endpoint : undefined;
+      const loaded = requireStaticPublishTarget(raw, await deployTargetsLoader(deps)(deps.workspaceId));
+      const { descriptor, module } = loaded;
+      if (module.hostingSetup === undefined) throw new ToolInputError(`${descriptor.id} has no hosting-setup steps: publishing to it serves the site.`);
+      const fields = readCredentialHints(raw, descriptor);
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
 
-      const provider = inferHostingSetupProvider(endpoint);
-      const { steps, warning } = buildHostingSetupContent(provider, bucket, region);
-      return { provider, steps, warning };
+      try {
+        return module.hostingSetup({ fields });
+      } catch (err) {
+        throw new ToolInputError(err instanceof Error ? err.message : String(err));
+      }
     },
   };
 

@@ -168,22 +168,9 @@ import type { ContentTypesToolDeps } from "../features/content-types/tool-regist
 import type { CustomCredentialsToolDeps } from "../features/custom-credentials/tool-registrations.js";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
-import type { StaticPublishToolDeps, VendorCredentialPort } from "../features/deployments/publish-agent-tools.js";
+import type { StaticPublishToolDeps } from "../features/deployments/publish-agent-tools.js";
 import type { EntriesToolDeps } from "../features/entries/tool-registrations.js";
 import type { ExternalMcpToolDeps } from "../features/external-mcp/deps.js";
-// This file's own real wiring for `StaticPublishToolDeps.vendorCredentials` (`VendorCredentialPort`,
-// `publish-agent-tools.ts`) — that file deliberately carries NO import of any kind from
-// `features/vendor-credentials` (see its own header for why: doing so closed a real
-// `features/deployments <-> features/vendor-credentials` module cycle). This IS the one place
-// allowed to see both sides — the same reasoning {@link AssistantToolRegistryDeps}'s own doc gives
-// for being the sole place that sees every domain's narrow type at once. `assistant ->
-// features/vendor-credentials` is a new, one-directional edge: nothing `vendor-credentials` depends
-// on (`features/deployments/publish-credentials/store.ts`, `features/source-control/store.ts`)
-// reaches back into `assistant`, so this cannot itself become a cycle.
-import {
-  createVendorCredential,
-  updateVendorCredential,
-} from "../features/vendor-credentials/index.js";
 import type { SourceControlToolDeps } from "../features/source-control/tool-registrations.js";
 import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";
@@ -196,8 +183,8 @@ import type { SettingsToolDeps } from "../features/settings/tool-registrations.j
 import type { SiteInspectionToolDeps } from "../features/site-inspection/index.js";
 import type { SitesToolDeps } from "../features/sites/index.js";
 // This file's own real wiring for `SitesToolDeps.isSiteSwitcherEnabled` — that field is deliberately
-// NOT defaulted inside `features/sites/deps.ts`; this file fills it into `enrichedRouteDeps`, the
-// same shape `StaticPublishToolDeps.vendorCredentials` below already uses. The flag lives in
+// NOT defaulted inside `features/sites/deps.ts`; this file fills it into `enrichedRouteDeps` (a
+// caller's own override wins). The flag lives in
 // `platform/site-dir` (it used to live under `server/runtime/composition/`, which made this import
 // an `assistant <-> server` module cycle).
 import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../platform/site-dir/index.js";
@@ -660,17 +647,6 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * @complexity O(t) in the total wired-tool count.
  * @overallScore 100
  */
-/**
- * The real `VendorCredentialPort` implementation — `publish-agent-tools.ts`'s own narrow port,
- * satisfied structurally by `vendor-credentials/store.ts`'s actual exports without either file
- * naming the other's type. Declared once, module-scope (not per-call), since these are stateless
- * functions — nothing here needs to be rebuilt per request. See the import block above for why this is the one file allowed to construct it.
- */
-const REAL_VENDOR_CREDENTIAL_PORT: VendorCredentialPort = {
-  create: createVendorCredential,
-  update: updateVendorCredential,
-};
-
 export function buildAssistantToolRegistrations(
   routeDeps: AssistantToolRegistryDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
@@ -687,14 +663,10 @@ export function buildAssistantToolRegistrations(
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
 
-  // Enriches (never mutates) the caller's own `routeDeps` with the one field `static-publish`'s
-  // `StaticPublishToolDeps.vendorCredentials` needs and cannot import for itself (see the import
-  // block above). `routeDeps.vendorCredentials ??` preserves a test's own injected fake — same
-  // "caller's own override wins, real default otherwise" shape `buildStaticPublishRegistrations`'
-  // own `credentialSource`/`historyStore` already use one layer down.
+  // Enriches (never mutates) the caller's own `routeDeps` with the site-switcher flag `sites` needs
+  // and cannot import for itself. `routeDeps.isSiteSwitcherEnabled ??` preserves a test's own fake.
   const enrichedRouteDeps: AssistantToolRegistryDeps = {
     ...routeDeps,
-    vendorCredentials: routeDeps.vendorCredentials ?? REAL_VENDOR_CREDENTIAL_PORT,
     isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
   };
 

@@ -11,12 +11,8 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
-// Real implementation of `StaticPublishToolDeps.vendorCredentials` — production wiring for this lives
-// in `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations`, which this test file does
-// NOT go through (it calls `buildStaticPublishRegistrations` directly, same as every other test here).
-// Test files are excluded from `check:architecture`'s graph, so importing directly here carries none
-// of the cross-feature-edge cost `publish-agent-tools.ts` itself now avoids.
-import { createVendorCredential, listVendorCredentials, updateVendorCredential } from "../../vendor-credentials/index.js";
+// Seeds vendor rows the way another feature (the vendor store) writes them.
+import { createVendorCredential } from "../../vendor-credentials/index.js";
 
 import type { LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
@@ -68,11 +64,6 @@ function fakeDeps(
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
-    // Real implementation by default — mirrors `assistant/tool-registrations.ts`'s own production
-    // wiring, which this test file bypasses by calling `buildStaticPublishRegistrations` directly.
-    // Every capabilities/propose-credential test relies on this being present; a test that wants to
-    // exercise the "not injected" wiring-bug throw itself overrides it back to `undefined` explicitly.
-    vendorCredentials: { list: listVendorCredentials, create: createVendorCredential, update: updateVendorCredential },
     loadDeployTargets: loadBundledDeployTargets,
     ...(options.credentialSource ? { credentialSource: options.credentialSource } : {}),
     ...(options.buildTarget ? { buildTarget: options.buildTarget } : {}),
@@ -206,24 +197,6 @@ function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[]): Vend
     async updateAccountLabel() { throw new Error("not used by this test"); },
   };
 }
-
-// ---------------------------------------------------------------------------
-// 0. StaticPublishToolDeps.vendorCredentials — injected, not imported (this dispatch's architecture
-// fix: publish-agent-tools.ts carries no import, type or value, from features/vendor-credentials;
-// the real implementation is wired by assistant/tool-registrations.ts's
-// buildAssistantToolRegistrations, which this test file's fakeDeps() mirrors above).
-// ---------------------------------------------------------------------------
-
-test("deployment_propose_custom_provider_credential: an unwired vendorCredentials port fails LOUDLY at the write step, after the human already confirmed — the form having been shown is not itself proof anything was saved", async () => {
-  const { deps } = fakeDeps();
-  deps.vendorCredentials = undefined;
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
-
-  const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION });
-  await assert.rejects(() => pending, /vendorCredentials was not injected — this is a wiring bug/);
-});
 
 // ---------------------------------------------------------------------------
 // 1. Wiring shape — all five tools
@@ -1170,7 +1143,7 @@ test("the dialog names the target and project name, so the consent is informed",
 
 /** Raises the propose-credential FORM and returns everything a test needs to answer it — same shape
  *  as `raiseDialog`, distinct name because it's a form, not a confirmation. */
-async function raiseCredentialForm(proposeTool: ToolRegistration, input: Record<string, unknown> = { protocol: "s3-compatible" }) {
+async function raiseCredentialForm(proposeTool: ToolRegistration, input: Record<string, unknown> = { target: "s3-compatible" }) {
   const emitted: unknown[] = [];
   const pending = call(proposeTool, { input, emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
@@ -1188,19 +1161,53 @@ const VALID_FORM_SUBMISSION = {
   publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
 };
 
-test("deployment_propose_custom_provider_credential's schema carries no accessKeyId/secretAccessKey field of any kind", () => {
+test("deployment_propose_custom_provider_credential's schema carries no credential field: only target, plus string pre-fill hints the handler checks against the host", () => {
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_propose_custom_provider_credential")!;
-  const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: boolean; required: string[] };
-  assert.equal(schema.additionalProperties, false);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["bucket", "endpoint", "protocol", "publicUrl", "region"]);
-  assert.deepEqual(schema.required, ["protocol"]);
+  const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: unknown; required: string[] };
+  assert.deepEqual(schema.additionalProperties, { type: "string" });
+  assert.deepEqual(Object.keys(schema.properties), ["target"]);
+  assert.deepEqual(schema.required, ["target"]);
+});
+
+test("propose-credential: a secret field is refused as a pre-fill hint, so a secret can never come from the chat", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  await assert.rejects(
+    () => call(proposeTool, { input: { target: "s3-compatible", secretAccessKey: "leaked" }, emitSurface: async () => {} }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'secretAccessKey' is secret: the person types it into the form, never into the chat."
+  );
+  await assert.rejects(
+    () => call(proposeTool, { input: { target: "s3-compatible", owner: "octo" }, emitSurface: async () => {} }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'owner' is not a credential field of s3-compatible. It takes: endpoint, region, bucket, accessKeyId, secretAccessKey, publicUrl."
+  );
+  assert.equal(surfaceExchanges.size(), 0, "nothing is raised for a refused call");
+});
+
+test("propose-credential works for any host with a credential spec: a netlify form masks the token and saves a netlify row", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const { html, exchangeId, pending } = await raiseCredentialForm(proposeTool, { target: "netlify" });
+  assert.match(html, /Netlify/);
+  const tokenInput = html.match(/<input[^>]*id="mcpui-field-token"[^>]*>/);
+  assert.ok(tokenInput, "the token <input> must be present");
+  assert.match(tokenInput![0], /type="password"/);
+  assert.match(html, /id="mcpui-field-siteId"/);
+
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { token: "nfp_realtoken9876" } });
+  assert.deepEqual(await pending, { saved: true, providerId: "netlify", connected: true });
+  const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "netlify");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.tokenTail, "9876");
 });
 
 test("with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved", async () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore();
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
-  await assert.rejects(() => call(proposeTool, { input: { protocol: "s3-compatible" } }));
+  await assert.rejects(() => call(proposeTool, { input: { target: "s3-compatible" } }));
   assert.equal(surfaceExchanges.size(), 0);
 });
 
@@ -1210,7 +1217,7 @@ test("requires deployments.credentials.write, checked before any form is raised"
   const surfaceExchanges = createSurfaceExchangeStore();
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
 
-  await assert.rejects(() => call(proposeTool, { input: { protocol: "s3-compatible" }, emitSurface: async () => {} }));
+  await assert.rejects(() => call(proposeTool, { input: { target: "s3-compatible" }, emitSurface: async () => {} }));
   assert.equal(surfaceExchanges.size(), 0, "no form may be raised before the permission check passes");
   assert.ok(authorizeCalls.some((c) => c.permission === "deployments.credentials.write"));
 });
@@ -1220,7 +1227,7 @@ test("the rendered form pre-fills non-secret hints and marks ONLY secretAccessKe
   const surfaceExchanges = createSurfaceExchangeStore();
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
 
-  const { html, exchangeId, pending } = await raiseCredentialForm(proposeTool, { protocol: "s3-compatible", bucket: "hinted-bucket", region: "us-east-1" });
+  const { html, exchangeId, pending } = await raiseCredentialForm(proposeTool, { target: "s3-compatible", bucket: "hinted-bucket", region: "us-east-1" });
   assert.match(html, /value="hinted-bucket"/, "a model-supplied bucket hint must pre-fill the form");
 
   // Each field renders as `<input class="mcpui-input" type="..." id="mcpui-field-<name>" name="<name>" ...>`
@@ -1349,16 +1356,16 @@ test("deployment_generate_bucket_hosting_setup requires deployments.read, checke
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   setAllow(false);
-  await assert.rejects(() => call(hostingSetupTool, { input: { protocol: "s3-compatible", bucket: "b", region: "us-east-1" } }), /is not authorized for 'deployments\.read'/);
+  await assert.rejects(() => call(hostingSetupTool, { input: { target: "s3-compatible", bucket: "b", region: "us-east-1" } }), /is not authorized for 'deployments\.read'/);
   assert.ok(authorizeCalls.some((c) => c.permission === "deployments.read"));
 });
 
-test("deployment_generate_bucket_hosting_setup rejects an unrecognized protocol rather than silently returning generic guidance", async () => {
+test("deployment_generate_bucket_hosting_setup rejects an unrecognized target rather than silently returning generic guidance", async () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore();
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
-  await assert.rejects(() => call(hostingSetupTool, { input: { protocol: "webhook", bucket: "b", region: "us-east-1" } }), /protocol/);
+  await assert.rejects(() => call(hostingSetupTool, { input: { target: "webhook", bucket: "b", region: "us-east-1" } }), /webhook/);
 });
 
 // 500-redact defect (RED->GREEN): `requireS3CompatibleProtocol` (shared by this tool and
@@ -1366,13 +1373,13 @@ test("deployment_generate_bucket_hosting_setup rejects an unrecognized protocol 
 // `@jini-ai/daemon`'s `ToolExecutor` tags `errorKind: 'internal'` — the classification
 // `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts into a message-stripped 500. It
 // now throws `ToolInputError`, mirroring `features/post/tool-registrations.ts`'s fix shape.
-test("deployment_generate_bucket_hosting_setup: an unrecognized protocol is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+test("deployment_generate_bucket_hosting_setup: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore();
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   await assert.rejects(
-    () => call(hostingSetupTool, { input: { protocol: "webhook", bucket: "b", region: "us-east-1" } }),
+    () => call(hostingSetupTool, { input: { target: "webhook", bucket: "b", region: "us-east-1" } }),
     (err: unknown) => {
       assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
       return true;
@@ -1380,17 +1387,26 @@ test("deployment_generate_bucket_hosting_setup: an unrecognized protocol is a To
   );
 });
 
-test("deployment_propose_custom_provider_credential: an unrecognized protocol is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+test("deployment_propose_custom_provider_credential: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore();
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
 
   await assert.rejects(
-    () => call(proposeTool, { input: { protocol: "webhook" } }),
+    () => call(proposeTool, { input: { target: "webhook" } }),
     (err: unknown) => {
       assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
       return true;
     },
+  );
+});
+
+test("deployment_generate_bucket_hosting_setup: a host whose plugin module has no hosting-setup steps is refused with the reason", async () => {
+  const { deps } = fakeDeps();
+  const hostingSetupTool = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_generate_bucket_hosting_setup");
+  await assert.rejects(
+    () => call(hostingSetupTool, { input: { target: "netlify" } }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "netlify has no hosting-setup steps: publishing to it serves the site."
   );
 });
 
@@ -1399,7 +1415,7 @@ test("blank/omitted endpoint infers plain AWS S3 and returns a bucket-substitute
   const surfaceExchanges = createSurfaceExchangeStore();
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
-  const result = (await call(hostingSetupTool, { input: { protocol: "s3-compatible", bucket: "my-bucket", region: "us-east-1" } })) as {
+  const result = (await call(hostingSetupTool, { input: { target: "s3-compatible", bucket: "my-bucket", region: "us-east-1" } })) as {
     provider: string;
     steps: { title: string; description: string; consoleJson?: string }[];
     warning: string;
@@ -1419,7 +1435,7 @@ test("a Cloudflare R2 endpoint infers cloudflare-r2 and warns about the differen
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   const result = (await call(hostingSetupTool, {
-    input: { protocol: "s3-compatible", bucket: "my-bucket", region: "auto", endpoint: "https://abc123.r2.cloudflarestorage.com" },
+    input: { target: "s3-compatible", bucket: "my-bucket", region: "auto", endpoint: "https://abc123.r2.cloudflarestorage.com" },
   })) as { provider: string; warning: string };
   assert.equal(result.provider, "cloudflare-r2");
   assert.match(result.warning, /different/i);
@@ -1432,7 +1448,7 @@ test("a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about 
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   const result = (await call(hostingSetupTool, {
-    input: { protocol: "s3-compatible", bucket: "my-bucket", region: "nyc3", endpoint: "https://nyc3.digitaloceanspaces.com" },
+    input: { target: "s3-compatible", bucket: "my-bucket", region: "nyc3", endpoint: "https://nyc3.digitaloceanspaces.com" },
   })) as { provider: string; warning: string };
   assert.equal(result.provider, "digitalocean-spaces");
   assert.match(result.warning, /different/i);
@@ -1702,7 +1718,7 @@ test("propose-credential form: an unanswered form expires and reports 'expired',
   const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
 
-  const result = (await call(proposeTool, { input: { protocol: "s3-compatible" }, emitSurface: async () => undefined })) as {
+  const result = (await call(proposeTool, { input: { target: "s3-compatible" }, emitSurface: async () => undefined })) as {
     saved: boolean;
     cancelled: boolean;
     reason: string;
@@ -1721,7 +1737,7 @@ test("propose-credential form: a cancelled run abandons the form and reports 'ab
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
   const controller = new AbortController();
 
-  const pending = call(proposeTool, { input: { protocol: "s3-compatible" }, emitSurface: async () => undefined, signal: controller.signal });
+  const pending = call(proposeTool, { input: { target: "s3-compatible" }, emitSurface: async () => undefined, signal: controller.signal });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(surfaceExchanges.size(), 1);
 
@@ -1736,12 +1752,14 @@ test("propose-credential form: a cancelled run abandons the form and reports 'ab
 
 test("submit: a non-Error thrown by the credential write step still returns a safe string message, never the raw thrown value", async () => {
   const { deps } = fakeDeps();
-  deps.vendorCredentials = {
-    ...deps.vendorCredentials!,
-    create: async () => {
-      throw "boom — not an Error instance";
+  const realRepo = deps.vendorCredentialSetRepo;
+  deps.vendorCredentialSetRepo = new Proxy(realRepo, {
+    get(target, prop) {
+      if (prop === "insert") return async () => { throw "boom — not an Error instance"; };
+      const value = Reflect.get(target, prop);
+      return typeof value === "function" ? value.bind(target) : value;
     },
-  };
+  });
   const surfaceExchanges = createSurfaceExchangeStore();
   const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
 
