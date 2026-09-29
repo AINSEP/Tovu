@@ -1,113 +1,40 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { PublishProviderId } from "../publish-credentials/types.js";
-
 /**
- * @file Domain types for one-shot static-site publishing to GitHub Pages / Vercel / Netlify /
- * Cloudflare Pages.
+ * @file Domain types for one-shot static-site publishing through a deploy target an Agent Plugin
+ * contributes (`../deploy-targets/`).
  *
  * Purpose:
  * Deliberately separate from this directory's sibling `../types.ts`/`../ports.ts`
  * (`DeploymentProviderPort`/`DeploymentTargetRecord`) — that machinery promotes an EXISTING git
  * commit through a GitHub App (`../providers/github.ts`), continuous-deployment-shaped. This
  * feature does the opposite: it takes Tovu's own static export (`src/features/site-export`'s `exportSite`, bytes
- * this process just rendered, never a pre-existing commit) and hands the file set to
- * `@jini-ai/devops/deploy`'s per-target `DeployTarget` — a one-shot "publish this exact file set"
- * operation with no polling-run/webhook lifecycle of its own (the Jini target itself blocks until the
- * provider's build/deploy finishes). Two genuinely different problems that happen to share the word
- * "deploy"; kept in their own subdirectory rather than folded into `DeploymentProviderPort` so
- * neither implementation has to pretend to be the other's shape.
+ * this process just rendered, never a pre-existing commit) and hands the file set to a devops
+ * `DeployTarget` — a one-shot "publish this exact file set" operation with no polling-run/webhook
+ * lifecycle of its own. Two genuinely different problems that happen to share the word "deploy".
  *
  * How it relates to the project:
- * `StaticPublishTargetId` is a type ALIAS of `../publish-credentials/types.ts`'s `PublishProviderId`
- * (2026-08-15, expanded from the original GitHub Pages + Vercel-only pass to all four Jini targets)
- * — declared ONCE there, reused here, so "what provider can this feature publish to" and "what
- * provider can a credential be saved for" can never drift into two different sets. Every existing
- * import of `StaticPublishTargetId` across this codebase (`adapter.ts`, `credentials.ts`,
- * `publish-agent-tools.ts`, `publish-site.ts`) is unaffected by the rename-to-alias — the type's own
- * name and value set are unchanged from this file's perspective.
- *
- * `StaticPublishConfig`'s four variants remain a CLOSED union (unlike `DeploymentProviderId`'s open
- * string) — a fifth target is still a deliberate, reviewed addition here, never a silently-accepted
- * string.
+ * Target ids are OPEN strings (deploy plan T7): the set of targets, and each target's config
+ * fields, come from the deploy-target registry at runtime, which validates them at every entry point
+ * (`adapter.ts`'s `planStaticPublish`). Ids stay byte-identical to the historical provider ids:
+ * sealed credentials and publish history rows are keyed by them.
  *
  * Architectural role:
- * Domain types only — no I/O. `adapter.ts` is the one place `@jini-ai/devops/deploy` types cross
- * into this feature; nothing here imports from that package, so callers of this module never see a
- * Jini type leak through (the brief's "keep Jini's types at the boundary" instruction).
+ * Domain types only — no I/O.
  */
 
-export type StaticPublishTargetId = PublishProviderId;
+/** A deploy target id the registry knows (`netlify`-style lowercase hyphenated). */
+export type StaticPublishTargetId = string;
 
 /**
- * GitHub Pages publish config. `basePath` is deliberately NOT a field here — see `adapter.ts`'s
- * `publishStaticSite` for why the base path is always DERIVED from `repo`, never caller-supplied:
- * that is what makes "export base path doesn't match the publish target" structurally impossible
- * rather than merely documented.
+ * One publish's target and its descriptor-declared config fields, all strings. `basePath` is
+ * deliberately NOT a field — the target module derives it, which is what makes "export base path
+ * doesn't match the publish target" structurally impossible rather than merely documented.
  */
-export interface GitHubPagesPublishConfig {
-  readonly target: "github-pages";
-  readonly owner: string;
-  readonly repo: string;
-  /** Defaults to `"gh-pages"` (`GitHubPagesDeployTarget`'s own default) when omitted. */
-  readonly branch?: string;
+export interface StaticPublishConfig {
+  readonly target: StaticPublishTargetId;
+  readonly [field: string]: string | undefined;
 }
-
-export interface VercelPublishConfig {
-  readonly target: "vercel";
-  readonly teamId?: string;
-}
-
-/** Netlify publish config. No companion field: unlike GitHub Pages/Cloudflare Pages, Jini's
- *  `NetlifyDeployTarget` (`@jini-ai/devops/deploy`'s `netlify.ts`) takes only `{token}` and always
- *  find-or-creates its site from the publish call's own `projectName` label — there is no
- *  constructor-level site selector to plumb a caller-supplied field into. See `adapter.ts`'s
- *  `buildJiniTarget` for where this is noted again at the one call site it would matter. */
-export interface NetlifyPublishConfig {
-  readonly target: "netlify";
-}
-
-/**
- * Cloudflare Pages publish config. Deliberately carries NO `accountId` field (Contract v2 Correction
- * A, 2026-08-15 — an earlier pass had one here) — `accountId` lives on the CREDENTIAL
- * (`publish-credentials/types.ts`'s `CloudflarePagesConnectionInput`), not the publish config,
- * because a Cloudflare API token is issued WITHIN one account: the two are inseparable at the secret
- * level the same way a token itself is a secret, not a per-run config choice. `owner`/`repo`
- * (GitHub Pages) and `teamId` (Vercel) stay on their own `*PublishConfig` because those genuinely are
- * per-run choices independent of which token is used; `accountId` is not. `PublishCredentialSource
- * .resolve()`'s success shape carries `accountId` for exactly this reason — see `./types.ts`'s own
- * doc on that interface.
- *
- * `basePath` is not a field here for the same reason it is not on `GitHubPagesPublishConfig` —
- * Cloudflare Pages serves from the domain root, so `computeBasePath` returns `undefined` for it.
- */
-export interface CloudflarePagesPublishConfig {
-  readonly target: "cloudflare-pages";
-}
-
-/**
- * S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, MinIO, ...)
- * publish config. Deliberately EMPTY — unlike the four sibling configs, this protocol has NO
- * per-run/per-publish field at all: all six identifying values (`endpoint`/`region`/`bucket`/
- * `accessKeyId`/`secretAccessKey`/`publicUrl`) live on the CREDENTIAL
- * (`publish-credentials/types.ts`'s `S3CompatibleConnectionInput`), the same "properties of the
- * secret's own scope, not a genuine per-run choice" reasoning `CloudflarePagesPublishConfig`'s own doc
- * gives for `accountId`, just carried further since an S3-compatible key is scoped to a bucket in its
- * entirety, not merely an account. Spec `custom-publish-provider-contract.md` §4b.
- *
- * `basePath` is not a field here for the same reason it is absent from `CloudflarePagesPublishConfig`
- * — a bucket serves from its own root; `computeBasePath` returns `undefined` for it (`adapter.ts`).
- */
-export interface S3CompatiblePublishConfig {
-  readonly target: "s3-compatible";
-}
-
-export type StaticPublishConfig =
-  | GitHubPagesPublishConfig
-  | VercelPublishConfig
-  | NetlifyPublishConfig
-  | CloudflarePagesPublishConfig
-  | S3CompatiblePublishConfig;
 
 /** Every outcome this feature returns to a caller (admin route JSON, agent tool result) — never a
  *  `DeployFile`, never a token, never a raw upstream error body.
@@ -136,6 +63,9 @@ export type StaticPublishOutcome =
        *  absent for Vercel. Echoed back so a caller can show "published at /repo" without having to
        *  re-derive the same computation this module already did. */
       readonly basePath?: string;
+      /** The host's own facts about this publish (`DeployPublishResult.providerMetadata`), e.g. the
+       *  repository and commit a git-backed host wrote. Carried into publish history. */
+      readonly providerMetadata?: Readonly<Record<string, unknown>>;
     }
   | {
       /** "Uploaded, not yet reachable" — see this type's own header. Every field below has the exact
@@ -149,6 +79,7 @@ export type StaticPublishOutcome =
       readonly message: string;
       readonly deploymentId?: string;
       readonly basePath?: string;
+      readonly providerMetadata?: Readonly<Record<string, unknown>>;
     }
   | {
       readonly ok: false;

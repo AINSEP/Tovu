@@ -43,6 +43,7 @@ import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/so
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
+import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
   createChatRunLedger,
@@ -2175,6 +2176,8 @@ async function composeSiteRouteDeps(
     // `resolvePublishOutputRootDir`'s own doc above and `routes/types.ts`'s `publishOutputRootDir`
     // doc.
     publishOutputRootDir: resolvePublishOutputRootDir(),
+    // See `routes/types.ts`'s `loadDeployTargets` doc: the installed, activated deploy Agent Plugin.
+    loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }),
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
     // in-memory, not DB-backed — one instance per process (this function runs once per boot, per
     // `index.ts`/`agent-daemon-server.ts`'s own call sites), same singleton lifetime

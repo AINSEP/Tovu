@@ -1,17 +1,7 @@
 import { rmSync } from "node:fs";
 import path from "node:path";
 
-import {
-  CloudflarePagesDeployTarget,
-  DeployError,
-  GitHubPagesDeployTarget,
-  NetlifyDeployTarget,
-  VercelDeployTarget,
-  type DeployFile,
-  type DeployPublishResult,
-  type DeployTarget,
-  type JsonObject,
-} from "@jini-ai/devops/deploy";
+import { DeployError, type DeployFile, type DeployPublishResult, type DeployTarget, type JsonObject } from "@jini-ai/devops/deploy";
 
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
@@ -40,132 +30,110 @@ import type { ExportReport } from "#src/features/site-export/index";
  * nothing at runtime at all, so it cannot participate in a cycle regardless.
  */
 import { firstExportFailure, type ExportFailureSummary } from "#src/features/site-export/export-failure-summary";
-import { HEADERS_FILE_NAME, VERCEL_CONFIG_FILE_NAME, renderHeadersFile, renderVercelConfig } from "#src/features/site-export/static-security-headers";
 
-import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target.js";
-import type {
-  GitHubPagesPublishConfig,
-  PublishCredentialSource,
-  StaticPublishConfig,
-  StaticPublishOutcome,
-  StaticPublishTargetId,
-  VercelPublishConfig,
-} from "./types.js";
+import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
 
 /**
- * @file Wraps `@jini-ai/devops/deploy`'s `GitHubPagesDeployTarget`/`VercelDeployTarget` to publish
- * Tovu's own static export. This is the one file in this feature that imports Jini's deploy
- * types — every caller (the admin route, `publish-agent-tools.ts`) sees only `./types.ts`'s
- * `StaticPublishConfig`/`StaticPublishOutcome`, never a `DeployFile`/`DeployTarget`/`DeployError`
- * (the brief's "keep Jini's types at the boundary" instruction).
+ * @file Publishes Tovu's own static export through a deploy target that an Agent Plugin contributes
+ * (`deploy-targets/registry.ts`). Core names no hosting vendor: which targets exist, which config
+ * fields each takes, how each validates them, which base path each serves from, and what extra files
+ * each host needs all come from the plugin's descriptor and module (deploy plan T7).
  *
  * Purpose:
- * "Wrap it, do not reimplement" — this module does no GitHub/Vercel HTTP itself. It (a) runs
- * Tovu's real static exporter (`src/features/site-export`'s `exportSite`, the same engine
- * `routes/admin/system/export-site.ts` already drives) with a base path computed FOR the publish
- * target, (b) maps the resulting `ExportReport` into `DeployFile[]` using the `data`/`outputFile`
- * fields `site-exporter.ts` added specifically for this ("reachable as DATA for a future
- * deploy-shaped caller" — see that file's own header), (c) injects `.nojekyll` for the GitHub
- * Pages target only, and (d) hands the file set to the matching Jini `DeployTarget`.
+ * "Wrap it, do not reimplement" — this module does no host HTTP itself. It (a) resolves the target
+ * and checks its config ({@link planStaticPublish}), (b) runs Tovu's real static exporter with the
+ * base path the target's module computes, (c) maps the resulting `ExportReport` into `DeployFile[]`,
+ * and (d) hands the file set, plus the live security headers as data (`responseHeaders`), to the
+ * `DeployTarget` the module builds.
  *
- * Base-path/target mismatch, made structurally impossible rather than merely documented
- * (brief item 5): `StaticPublishConfig` (`./types.ts`) has NO `basePath` field at all — a caller
- * can never supply one, correct or not. {@link computeBasePath} derives it deterministically from
- * `config.repo` for GitHub Pages (`/${repo}`, the exact prefix a GitHub Pages PROJECT site serves
- * from) and returns `undefined` for Vercel (which serves from the root and must never carry one).
- * {@link publishStaticSite} then always runs a FRESH `exportSite` call with that exact value,
- * immediately before publishing — there is no code path where a previously-produced export (built
- * with some other or no base path) can reach a Jini target under this module. The cost is a full
- * re-export on every publish rather than reusing a prior one; accepted deliberately, since a stale
- * base path silently 404ing every asset on a live site is a strictly worse failure mode than one
- * extra export pass on an already-slow, human-triggered, one-at-a-time operation.
+ * Base-path/target mismatch, made structurally impossible rather than merely documented:
+ * `StaticPublishConfig` has NO `basePath` field — a caller can never supply one. The target module
+ * derives it from the config, and {@link publishStaticSite} always runs a FRESH `exportSite` with
+ * that exact value immediately before publishing, so no previously-produced export (built with some
+ * other or no base path) can reach a target. The cost is a full re-export per publish, accepted
+ * deliberately: a stale base path silently 404ing every asset on a live site is strictly worse.
  *
- * How it relates to the project:
- * `.nojekyll`'s necessity is `@jini-ai/devops`'s own documented gap, not a Tovu invention — GitHub
- * Pages runs Jekyll over published content by default, which silently drops any path segment
- * starting with `_` (a real risk: Tovu's theme-asset/media-rendition URL shapes are not guaranteed
- * underscore-free), and `github-pages.ts` does not add this marker file itself (verified: zero
- * matches for "jekyll" anywhere in `@jini-ai/devops`).
- *
- * A refused export (any route failed) never reaches a Jini target at all — this module will not
- * publish a known-incomplete site, mirroring `cli/commands/export.ts`'s own
- * `ok = routes.failed.length === 0` honesty contract one layer up.
+ * A refused export (any route or asset failed) never reaches a target at all — this module will not
+ * publish a known-incomplete site, mirroring `cli/commands/export.ts`'s own honesty contract.
  *
  * Architectural role:
- * `features/deployments/static-publish` domain logic, this feature's one seam into
- * `@jini-ai/devops/deploy`. No dependency on `../ports.ts`/`../providers/github.ts` (the sibling
+ * `features/deployments/static-publish` domain logic. Depends on `deploy-targets/` for the target
+ * registry and host kit. No dependency on `../ports.ts`/`../providers/github.ts` (the sibling
  * continuous-deployment feature) — see `./types.ts`'s header for why these stay separate.
  */
 
-/** Empty marker file GitHub Pages checks for to skip its default Jekyll processing pass — see this
- *  file's header. Never varies per publish, so it is a fixed constant, not computed per call. */
-const NOJEKYLL_FILE: DeployFile = { file: ".nojekyll", data: "" };
-
-/** GitHub owner/org name: alphanumeric, may contain single hyphens, cannot start with one, capped
- *  at GitHub's own 39-character username limit — deliberately not the full GitHub validation
- *  surface, just enough to refuse control characters, path separators, and other injection-shaped
- *  values from a model- or form-supplied string before it reaches a URL. */
-const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-/** GitHub repo name: letters, digits, `.`/`-`/`_`, capped at GitHub's own 100-character limit. */
-const REPO_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
-/** Git branch name — deliberately permissive (Git branch names allow far more than this), but
- *  still refuses whitespace/control characters before the value reaches a URL path segment. */
-const BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,250}$/;
 const MAX_PROJECT_NAME_LENGTH = 200;
 
-/** {@link validateStaticPublishConfig}'s github-pages branch, extracted so each target's validation
- *  is independently under the repo's complexity ceiling. */
-function validateGitHubPagesConfig(config: GitHubPagesPublishConfig): string | null {
-  if (!OWNER_PATTERN.test(config.owner)) return `invalid GitHub owner '${config.owner.slice(0, 60)}'`;
-  if (!REPO_PATTERN.test(config.repo) || config.repo === "." || config.repo === "..") {
-    return `invalid GitHub repo '${config.repo.slice(0, 100)}'`;
-  }
-  if (config.branch !== undefined && !BRANCH_PATTERN.test(config.branch)) {
-    return `invalid branch name '${config.branch.slice(0, 60)}'`;
+/** {@link planStaticPublish}'s answer: the resolved target and the base path it serves from, or a
+ *  human-readable refusal safe to return over an HTTP/tool boundary. */
+export type StaticPublishPlan =
+  | { readonly ok: true; readonly target: LoadedDeployTarget; readonly basePath?: string }
+  | { readonly ok: false; readonly message: string };
+
+/**
+ * Resolves `config.target` in `registry` and checks `config` against it: every required descriptor
+ * field present and non-blank, then the module's own `validateConfig`. Pure given the registry, so
+ * the admin preview, the agent tools and a real publish all reach the SAME verdict and base path.
+ *
+ * @returns The plan, or the first refusal. Messages never echo more than the offending field.
+ * @complexity O(f) declared config fields plus the module's own (constant-size) checks.
+ */
+export function planStaticPublish(registry: DeployTargetRegistry, config: StaticPublishConfig): StaticPublishPlan {
+  const target = registry.get(config.target);
+  if (target === undefined) return { ok: false, message: unknownTargetMessage(registry, config.target) };
+  const missing = missingRequiredFieldMessage(target, config);
+  if (missing !== null) return { ok: false, message: missing };
+  const moduleConfig = config as unknown as JsonObject;
+  const configError = target.module.validateConfig?.(moduleConfig);
+  if (configError) return { ok: false, message: configError };
+  const basePath = target.module.basePath?.(moduleConfig);
+  return { ok: true, target, ...(basePath !== undefined ? { basePath } : {}) };
+}
+
+/** The refusal for the first descriptor-required field `config` leaves absent or blank, else `null`.
+ *  Exported so the admin preview can answer a missing field as a malformed request (400) while a
+ *  present-but-invalid value stays a 200 `valid:false`. @complexity O(f) declared config fields. */
+export function missingRequiredFieldMessage(target: LoadedDeployTarget, config: StaticPublishConfig): string | null {
+  for (const field of target.descriptor.configFields) {
+    const value = config[field.name];
+    if (field.required && (typeof value !== "string" || value.trim() === "")) {
+      return `'${field.name}' (non-empty string) is required for target '${config.target}'`;
+    }
   }
   return null;
 }
 
-/** {@link validateStaticPublishConfig}'s vercel branch — see that function's own doc. */
-function validateVercelConfig(config: VercelPublishConfig): string | null {
-  if (config.teamId !== undefined && config.teamId.trim() === "") {
-    return "teamId must not be blank when provided";
-  }
-  return null;
+/** The refusal for an id the registry does not know, naming what IS available. @complexity O(t). */
+export function unknownTargetMessage(registry: DeployTargetRegistry, targetId: string): string {
+  const ids = registry.list().map((target) => target.descriptor.id);
+  if (ids.length === 0) return `publish target '${targetId.slice(0, 64)}' is not available: no publish targets are installed (turn on the deploy Agent Plugin)`;
+  return `publish target '${targetId.slice(0, 64)}' is not available; choose one of: ${ids.join(", ")}`;
 }
 
 /**
- * Validates `config`'s target-specific fields. Every accepted field still passes through Jini's
- * OWN `encodeURIComponent`-based escaping (`github-pages.ts`'s `enc()`) before reaching a URL — this
- * is a defense-in-depth shape check at Tovu's own boundary, not a substitute for that escaping.
+ * Builds a publish config from loosely-typed input (a JSON body, a query string, a tool input):
+ * `target` plus every descriptor-declared field that arrived as a string. Unknown keys are dropped,
+ * so nothing a caller invents reaches a module. Whether required fields are present is judged once,
+ * by {@link planStaticPublish}.
  *
- * @returns `null` when valid, else a human-readable reason safe to return over an HTTP/tool
- *   boundary (never echoes more than the offending field, capped, never a token — there is none in
- *   scope here).
- * @complexity O(1) — a handful of fixed-size regex tests.
+ * @param blankAsAbsent - `true` for a query string or tool input, where an empty optional field
+ *   means "not set"; `false` for a JSON body, which keeps it so the module can refuse it by name.
+ * @returns The config, or the refusal for a declared field that arrived as a non-string.
+ * @complexity O(f) declared fields.
  */
-export function validateStaticPublishConfig(config: StaticPublishConfig): string | null {
-  if (config.target === "github-pages") {
-    return validateGitHubPagesConfig(config);
+export function readStaticPublishConfig(
+  target: LoadedDeployTarget,
+  raw: Readonly<Record<string, unknown>>,
+  options: { readonly blankAsAbsent: boolean },
+): { readonly ok: true; readonly config: StaticPublishConfig } | { readonly ok: false; readonly message: string } {
+  const config: Record<string, string> = { target: target.descriptor.id };
+  for (const field of target.descriptor.configFields) {
+    const value = raw[field.name];
+    if (value === undefined || (options.blankAsAbsent && (typeof value !== "string" || value.trim() === ""))) continue;
+    if (typeof value !== "string") return { ok: false, message: `'${field.name}' must be a string` };
+    config[field.name] = value;
   }
-  if (config.target === "vercel") {
-    return validateVercelConfig(config);
-  }
-  // config.target === "netlify" | "cloudflare-pages" | "s3-compatible" — none carries a
-  // target-specific field to validate here. Cloudflare Pages' `accountId` is HARD required, but it
-  // lives on the CREDENTIAL (`publish-credentials/types.ts`'s `CloudflarePagesConnectionInput`), not
-  // this config — see `types.ts`'s `CloudflarePagesPublishConfig` doc for why, and `store.ts`'s
-  // `validateConnection` for where that field is actually enforced (at credential-save time, not
-  // publish time). S3-compatible is the same story, all six fields on its CREDENTIAL — see
-  // `S3CompatiblePublishConfig`'s own doc.
-  return null;
-}
-
-/** See this file's header — the one place the base path is decided, and the one caller that ever
- *  passes a base path into `exportSite`. Exported so `publish-agent-tools.ts`'s preview tool can
- *  report the SAME computed value a real publish would use, without duplicating the derivation. */
-export function computeBasePath(config: StaticPublishConfig): string | undefined {
-  return config.target === "github-pages" ? `/${config.repo}` : undefined;
+  return { ok: true, config: config as StaticPublishConfig };
 }
 
 /**
@@ -247,111 +215,15 @@ export type ResolvedPublishCredential = {
   readonly publicUrl?: string;
 };
 
-/** The four fields `S3CompatibleTargetConfig` needs beyond `token`/`secretAccessKey` — checked as a
- *  group by {@link buildS3CompatibleTargetConfig}. */
-const REQUIRED_S3_CREDENTIAL_FIELDS = ["accessKeyId", "bucket", "region", "publicUrl"] as const;
-
-/**
- * Maps a resolved credential into `S3CompatibleTargetConfig`. Defense-in-depth, same reasoning
- * `buildJiniTarget`'s cloudflare-pages branch already documents for its own `accountId` guard:
- * `publish-credentials/store.ts`'s `validateConnection` already enforces every one of these fields is
- * non-blank at credential-save time, so a DB-backed credential that reaches this point always has
- * them — this guard is for a future `PublishCredentialSource` implementation that does not uphold that
- * contract. Exported so this mapping is directly testable without constructing a real
- * `S3CompatibleDeployTarget` (which would need a real `fetch`) — mirrors this file's own
- * `computeBasePath`/`toDeployFile` precedent of extracting a pure, directly-tested helper out of a
- * larger dispatch function.
- *
- * @throws {DeployError} Any of {@link REQUIRED_S3_CREDENTIAL_FIELDS} is missing from `credential`.
- * @complexity O(1) — a fixed-size field check plus a fixed-shape object literal.
- * @overallScore 100
- */
-export function buildS3CompatibleTargetConfig(credential: ResolvedPublishCredential): S3CompatibleTargetConfig {
-  const missing = REQUIRED_S3_CREDENTIAL_FIELDS.filter((field) => credential[field] === undefined);
-  if (missing.length > 0) {
-    throw new DeployError(`S3-compatible credential is missing required field(s): ${missing.join(", ")}.`, 400);
-  }
-  return {
-    accessKeyId: credential.accessKeyId!,
-    secretAccessKey: credential.token,
-    bucket: credential.bucket!,
-    region: credential.region!,
-    publicUrl: credential.publicUrl!,
-    ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
-  };
-}
-
-/** {@link buildJiniTarget}'s github-pages branch — see that function's own doc for the overall
- *  dispatch contract. */
-function buildGitHubPagesJiniTarget(config: GitHubPagesPublishConfig, token: string): DeployTarget {
-  return new GitHubPagesDeployTarget({
-    token,
-    owner: config.owner,
-    repo: config.repo,
-    ...(config.branch !== undefined ? { branch: config.branch } : {}),
-  });
-}
-
-/** {@link buildJiniTarget}'s vercel branch — see that function's own doc. */
-function buildVercelJiniTarget(config: VercelPublishConfig, token: string): DeployTarget {
-  return new VercelDeployTarget({ token, ...(config.teamId !== undefined ? { teamId: config.teamId } : {}) });
-}
-
-/** {@link buildJiniTarget}'s cloudflare-pages branch — see that function's own doc.
- *  `accountId` comes from the resolved CREDENTIAL, never the config (see `ResolvedPublishCredential`'s
- *  own doc). `store.ts`'s `validateConnection` already enforces `accountId` is non-blank at
- *  credential-save time, so any DB-backed credential that reaches this point has one; the env-backed
- *  source's own `readCredential` enforces the same before ever reporting `ok: true` (see
- *  `credentials.ts`). This guard is defense-in-depth against a future `PublishCredentialSource`
- *  implementation that does not uphold that contract.
- *  @throws {DeployError} `credential.accountId` is missing. */
-function buildCloudflarePagesJiniTarget(token: string, accountId: string | undefined): DeployTarget {
-  if (!accountId) {
-    throw new DeployError("Cloudflare account ID is required but was not resolved from the saved credential.", 400);
-  }
-  return new CloudflarePagesDeployTarget({ token, accountId });
-}
-
-/** The real, default `buildTarget` — constructs the actual Jini `DeployTarget` that will hit the
- *  provider's real API. `StaticPublishDeps.buildTarget` exists specifically so a test can substitute
- *  a fake `DeployTarget` here instead (per the brief: "adapter tests with a faked deploy target — do
- *  not hit real GitHub or Vercel in tests"), without needing to stub global `fetch`. Exported (not
- *  merely internal) so this dispatch is directly testable without going through `publishStaticSite`'s
- *  full export/publish pipeline — same "extract a pure, directly-tested helper" precedent as
- *  {@link computeBasePath}/{@link buildS3CompatibleTargetConfig}. */
-export function buildJiniTarget(config: StaticPublishConfig, credential: ResolvedPublishCredential): DeployTarget {
-  const token = credential.token;
-  if (config.target === "github-pages") {
-    return buildGitHubPagesJiniTarget(config, token);
-  }
-  if (config.target === "vercel") {
-    return buildVercelJiniTarget(config, token);
-  }
-  if (config.target === "netlify") {
-    // No `siteId`/site-selection field to forward — Jini's `NetlifyDeployTarget` config is `{token}`
-    // only; see `types.ts`'s `NetlifyPublishConfig` doc for the full reasoning (it always
-    // find-or-creates a site from `publishStaticSite`'s own `projectName` argument instead).
-    return new NetlifyDeployTarget({ token });
-  }
-  if (config.target === "cloudflare-pages") {
-    return buildCloudflarePagesJiniTarget(token, credential.accountId);
-  }
-  // config.target === "s3-compatible" — every identifying field comes from the resolved CREDENTIAL,
-  // never this config (`S3CompatiblePublishConfig` is deliberately empty — see `types.ts`'s own doc).
-  return new S3CompatibleDeployTarget(buildS3CompatibleTargetConfig(credential));
-}
 
 export interface StaticPublishDeps {
   readonly credentialSource: PublishCredentialSource;
-  /** Builds the `DeployTarget` that `publish()` is called on. Defaults to {@link buildJiniTarget}
-   *  (the real Jini adapters) when omitted — tests inject a fake here instead of touching
-   *  GitHub/Vercel or global `fetch`. */
+  /** This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the only
+   *  place a target id, its config fields and its host behavior come from. */
+  readonly loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  /** Test seam: builds the `DeployTarget` in place of the resolved module's `create()`. Config
+   *  checks and the base path still come from the registry. */
   readonly buildTarget?: (config: StaticPublishConfig, credential: ResolvedPublishCredential) => DeployTarget;
-  /** This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`). A target id
-   *  the registry knows is built by its plugin module; every other id keeps the legacy branches in
-   *  {@link buildJiniTarget} (deploy plan T2, strangler). Omitted: legacy only. Ignored when
-   *  {@link buildTarget} is supplied, which stays the whole target-construction test seam. */
-  readonly loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
   /** The kit handed to a plugin module. Defaults to {@link createDeployHostKit}; tests inject one. */
   readonly hostKit?: DeployHostKit;
 }
@@ -491,27 +363,11 @@ async function runExportForPublish(
   return { ok: true, report };
 }
 
-/** The host header-config file that carries the live security headers, for the targets whose host
- *  applies one from an uploaded file (`static-security-headers.ts` says why the others get none). */
-const SECURITY_HEADER_FILES: Partial<Record<StaticPublishTargetId, () => DeployFile>> = {
-  netlify: () => ({ file: HEADERS_FILE_NAME, data: renderHeadersFile() }),
-  "cloudflare-pages": () => ({ file: HEADERS_FILE_NAME, data: renderHeadersFile() }),
-  vercel: () => ({ file: VERCEL_CONFIG_FILE_NAME, data: renderVercelConfig() }),
-};
-
-/** Maps a successful export `report` to the `DeployFile[]` a Jini target's `publish()` takes,
- *  injecting `.nojekyll` for the github-pages target only — see this file's header for why — and
- *  the target's security-header file where its host has one. */
-function buildDeployFilesForPublish(report: ExportReport, target: StaticPublishTargetId, pluginTarget: boolean): DeployFile[] {
-  const files: DeployFile[] = [...report.routes.succeeded.map(toDeployFile), ...report.assets.succeeded.map(toDeployFile)];
-  // A plugin module owns its host's extra files; it gets the headers as `responseHeaders` instead.
-  if (pluginTarget) return files;
-  if (target === "github-pages") {
-    files.push(NOJEKYLL_FILE);
-  }
-  const headerFile = SECURITY_HEADER_FILES[target];
-  if (headerFile) files.push(headerFile());
-  return files;
+/** Maps a successful export `report` to the `DeployFile[]` a target's `publish()` takes. A host's
+ *  own extra files (a header config, a marker file) are its module's job, never this one's.
+ *  @complexity O(n) in the exported route + asset count. */
+function buildDeployFilesForPublish(report: ExportReport): DeployFile[] {
+  return [...report.routes.succeeded.map(toDeployFile), ...report.assets.succeeded.map(toDeployFile)];
 }
 
 /** Maps a resolved `PublishCredentialSource` success into {@link ResolvedPublishCredential} — the
@@ -526,32 +382,6 @@ function buildResolvedPublishCredential(credential: ResolvedCredentialSourceSucc
     ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
     ...(credential.publicUrl !== undefined ? { publicUrl: credential.publicUrl } : {}),
   };
-}
-
-/**
- * Constructs the `DeployTarget` `publishAndMapOutcome` will call `publish()` on, translating a throw
- * into {@link publishStaticSite}'s own `{ok:false, code}` channel.
- *
- * `buildJiniTarget` throws a `DeployError` naming the exact missing field when `resolvedCredential`
- * doesn't have what `config.target` needs (e.g. `buildS3CompatibleTargetConfig`'s own
- * defense-in-depth throw, or a cloudflare-pages credential missing `accountId`) — a shape problem
- * with the CREDENTIAL, not a live provider rejection, so it is caught here rather than left to
- * propagate: `NO_CREDENTIALS_CONFIGURED` is the closest existing code (this file has no dedicated
- * "credential is configured but malformed for this target" code, and adding one is a wider API
- * change than this fix), same bucket {@link resolvePublishCredentialForSite}'s own catch uses for an
- * analogous "the credential exists but cannot be used" outcome.
- */
-function constructJiniTargetForPublish(
-  deps: StaticPublishDeps,
-  config: StaticPublishConfig,
-  resolvedCredential: ResolvedPublishCredential
-): { ok: true; target: DeployTarget } | { ok: false; outcome: StaticPublishOutcome } {
-  try {
-    return { ok: true, target: (deps.buildTarget ?? buildJiniTarget)(config, resolvedCredential) };
-  } catch (err) {
-    const message = err instanceof DeployError || err instanceof Error ? err.message : String(err);
-    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${config.target}: ${message}` } };
-  }
 }
 
 /**
@@ -574,6 +404,7 @@ function buildPartialPublishOutcome(targetId: StaticPublishTargetId, result: Dep
     message: result.statusMessage ?? `Published to ${targetId}, but the public URL is not confirmed reachable yet (status: ${result.status}).`,
     ...(result.deploymentId !== undefined ? { deploymentId: result.deploymentId } : {}),
     ...(basePath !== undefined ? { basePath } : {}),
+    ...(result.providerMetadata !== undefined ? { providerMetadata: result.providerMetadata } : {}),
   };
 }
 
@@ -586,6 +417,7 @@ function buildSuccessPublishOutcome(targetId: StaticPublishTargetId, result: Dep
     status: result.status,
     ...(result.deploymentId !== undefined ? { deploymentId: result.deploymentId } : {}),
     ...(basePath !== undefined ? { basePath } : {}),
+    ...(result.providerMetadata !== undefined ? { providerMetadata: result.providerMetadata } : {}),
   };
 }
 
@@ -624,107 +456,81 @@ async function publishAndMapOutcome(
  * export with the target-correct base path immediately before publishing (see this file's header)
  * — never reuses a previously-produced export directory.
  *
- * Never throws: every failure (bad config, a credential that does not resolve — including a genuine
- * DECRYPT failure, not just "not configured", see {@link resolvePublishCredentialForSite} — a failed
- * export, a credential unusable for the target, or a rejected Jini `publish()` call) is returned as
- * `{ok: false, code, message}`. `message` is always built from `err.message`, never a raw
- * `DeployError.details`/response-body object — see the helpers' own `catch` blocks for why that
- * boundary matters even though no code path here has ever been observed to put a token in one.
- *
- * This is a REAL contract, not aspirational (Terra audit finding #2, 2026-08-16 fix): two call sites —
- * `credentialSource.resolve()` and `buildTarget`/`buildJiniTarget` — used to run unguarded, before
- * either of those steps was wrapped in its own `try`/`catch` (now {@link resolvePublishCredentialForSite}
- * and {@link constructJiniTargetForPublish}), so a genuine decrypt failure or a credential missing a
- * target-required field propagated as an UNCAUGHT exception, silently breaking this exact doc
- * comment. Every caller (`publish-site.ts`'s HTTP route, `deployment_execute_static_publish`) is
- * written assuming this function never throws, so that was a real crash risk for both, not just a
- * documentation lie — both call sites are now inside their own `try`/`catch`.
+ * Never throws: every failure (an unknown target or bad config, a registry that will not load, a
+ * credential that does not resolve — including a genuine DECRYPT failure, see
+ * {@link resolvePublishCredentialForSite} — a failed export, a credential unusable for the target, or
+ * a rejected `publish()` call) is returned as `{ok: false, code, message}`. `message` is always built
+ * from `err.message`, never a raw `DeployError.details`/response-body object. Every caller
+ * (`publish-site.ts`'s HTTP route, `deployment_execute_static_publish`) relies on this.
  *
  * Orchestrates its work as a flat sequence of steps, each translating its own failure mode into this
- * function's `{ok:false, code, message}` channel and returning early: {@link resolvePublishCredentialForSite},
- * {@link runExportForPublish}, {@link constructJiniTargetForPublish}, then {@link publishAndMapOutcome}
- * for the terminal result.
+ * function's `{ok:false, code, message}` channel and returning early: {@link resolvePublishPlan},
+ * {@link resolvePublishCredentialForSite}, {@link runExportForPublish}, {@link constructTargetForPublish},
+ * then {@link publishAndMapOutcome} for the terminal result.
  *
- * @complexity One `exportSite` pass (see that function's own complexity note: O(routes + assets)
- *   HTTP requests against the in-process app) plus one Jini `DeployTarget.publish()` call (bounded
- *   by that target's own fixed poll budget, ~30 attempts / up to ~1 minute).
+ * @complexity One registry load, one `exportSite` pass (O(routes + assets) HTTP requests against the
+ *   in-process app) plus one `DeployTarget.publish()` call (bounded by that target's own poll budget).
  */
 export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPublishInput): Promise<StaticPublishOutcome> {
-  const configError = validateStaticPublishConfig(input.config);
-  if (configError) {
-    return { ok: false, code: "INVALID_CONFIG", message: configError };
-  }
   if (input.projectName.trim() === "" || input.projectName.length > MAX_PROJECT_NAME_LENGTH) {
     return { ok: false, code: "INVALID_CONFIG", message: `projectName must be 1-${MAX_PROJECT_NAME_LENGTH} characters` };
   }
-
-  const pluginTarget = await resolvePluginTarget(deps, input);
-  const pluginConfigError = pluginTarget?.module.validateConfig?.(input.config as unknown as JsonObject);
-  if (pluginConfigError) {
-    return { ok: false, code: "INVALID_CONFIG", message: pluginConfigError };
-  }
+  const plan = await resolvePublishPlan(deps, input);
+  if (!plan.ok) return { ok: false, code: "INVALID_CONFIG", message: plan.message };
 
   const credentialResult = await resolvePublishCredentialForSite(deps, input);
   if (!credentialResult.ok) {
     return credentialResult.outcome;
   }
 
-  const basePath = pluginTarget ? pluginTarget.module.basePath?.(input.config as unknown as JsonObject) : computeBasePath(input.config);
   const outputDir = publishOutputDir(input.publishOutputRootDir, input.config.target, input.idGen.newId());
-
-  const exportResult = await runExportForPublish(input, outputDir, basePath);
+  const exportResult = await runExportForPublish(input, outputDir, plan.basePath);
   if (!exportResult.ok) {
     return exportResult.outcome;
   }
 
-  const files = buildDeployFilesForPublish(exportResult.report, input.config.target, pluginTarget !== undefined);
+  const files = buildDeployFilesForPublish(exportResult.report);
   const resolvedCredential = buildResolvedPublishCredential(credentialResult.credential);
-
-  const targetResult = pluginTarget
-    ? constructPluginTargetForPublish(deps, pluginTarget, input.config, resolvedCredential)
-    : constructJiniTargetForPublish(deps, input.config, resolvedCredential);
+  const targetResult = constructTargetForPublish(deps, plan.target, input.config, resolvedCredential);
   if (!targetResult.ok) {
     return targetResult.outcome;
   }
 
-  const publishInput: HostDeployPublishInput = pluginTarget
-    ? { files, projectName: input.projectName, responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS }
-    : { files, projectName: input.projectName };
-  return publishAndMapOutcome(targetResult.target, publishInput, input, basePath);
+  const publishInput: HostDeployPublishInput = { files, projectName: input.projectName, responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS };
+  return publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath);
 }
 
 /**
- * The plugin-contributed target for this publish, or `undefined` for the legacy branches: when no
- * registry loader is wired, when {@link StaticPublishDeps.buildTarget} (the test seam) is supplied,
- * when the registry does not know this id, or when the registry itself fails to load. A load
- * failure and every registry refusal are logged, never returned: a broken plugin must not stop a
- * publish the legacy path can still make, while those paths exist.
- *
+ * Loads this workspace's registry and plans the publish against it. Every registry refusal (a plugin
+ * or module that did not load) is logged, never returned: the caller's answer is about ITS target.
  * @complexity One registry load (see `loadDeployTargetRegistry`).
  */
-async function resolvePluginTarget(deps: StaticPublishDeps, input: StaticPublishInput): Promise<LoadedDeployTarget | undefined> {
-  if (deps.buildTarget !== undefined || deps.loadDeployTargets === undefined) return undefined;
+async function resolvePublishPlan(deps: StaticPublishDeps, input: StaticPublishInput): Promise<StaticPublishPlan> {
   let registry: DeployTargetRegistry;
   try {
     registry = await deps.loadDeployTargets(input.workspaceId);
   } catch (err) {
-    console.warn(`[static-publish] deploy-target registry failed to load, using the built-in targets: ${err instanceof Error ? err.message : String(err)}`);
-    return undefined;
+    return { ok: false, message: `publish targets could not be loaded: ${err instanceof Error ? err.message : String(err)}` };
   }
   for (const refusal of registry.refusals) console.warn(`[static-publish] ${refusal}`);
-  return registry.get(input.config.target);
+  return planStaticPublish(registry, input.config);
 }
 
-/** {@link constructJiniTargetForPublish}'s plugin twin: builds the target from the plugin module,
- *  with a thrown error mapped to the same `NO_CREDENTIALS_CONFIGURED` outcome the legacy builders
- *  use for an unusable credential. @complexity O(1) plus the module's own `create`. */
-function constructPluginTargetForPublish(
+/**
+ * Constructs the `DeployTarget` `publishAndMapOutcome` will call `publish()` on, translating a throw
+ * (typically a credential missing a field the host requires) into {@link publishStaticSite}'s own
+ * `{ok:false, code}` channel — the message, never the raw error object, since it crosses an
+ * HTTP/tool-result boundary.
+ * @complexity O(1) plus the module's own construction.
+ */
+function constructTargetForPublish(
   deps: StaticPublishDeps,
   pluginTarget: LoadedDeployTarget,
   config: StaticPublishConfig,
   credential: ResolvedPublishCredential
 ): { ok: true; target: DeployTarget } | { ok: false; outcome: StaticPublishOutcome } {
   try {
+    if (deps.buildTarget !== undefined) return { ok: true, target: deps.buildTarget(config, credential) };
     const kit = deps.hostKit ?? createDeployHostKit();
     return { ok: true, target: pluginTarget.module.create({ credential, config: config as unknown as JsonObject, kit }) };
   } catch (err) {

@@ -44,6 +44,7 @@ import { createInMemoryRevocations } from "#src/features/publish-trust/revocatio
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
+import { loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
@@ -1271,6 +1272,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `server/deps.ts`'s
     // `resolvePublishOutputRootDir` doc and `routes/types.ts`'s `publishOutputRootDir` doc.
     publishOutputRootDir: resolvePublishOutputRootDir(),
+    // Hermetic: the bundled deploy plugin's own source directory, no install or activation step —
+    // see `routes/types.ts`'s `loadDeployTargets` doc.
+    loadDeployTargets: () =>
+      loadDeployTargetRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") }),
     // 2026-08-16 — hermetic double for `server/deps.ts`'s real (also in-memory — see
     // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
     // deliberately never DB-backed) instance.

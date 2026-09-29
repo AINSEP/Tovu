@@ -3,16 +3,7 @@
  * for why this stays a separate module tree from this directory's sibling continuous-deployment
  * feature (`../ports.ts`/`../providers/github.ts`).
  */
-export type {
-  CloudflarePagesPublishConfig,
-  GitHubPagesPublishConfig,
-  NetlifyPublishConfig,
-  PublishCredentialSource,
-  StaticPublishConfig,
-  StaticPublishOutcome,
-  StaticPublishTargetId,
-  VercelPublishConfig,
-} from "./types.js";
+export type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
 
 export {
   composePublishCredentialSource,
@@ -22,7 +13,16 @@ export {
   type DbPublishCredentialSourceDeps,
 } from "./credentials.js";
 
-export { computeBasePath, publishStaticSite, validateStaticPublishConfig, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
+export {
+  missingRequiredFieldMessage,
+  planStaticPublish,
+  publishStaticSite,
+  readStaticPublishConfig,
+  unknownTargetMessage,
+  type StaticPublishDeps,
+  type StaticPublishInput,
+  type StaticPublishPlan,
+} from "./adapter.js";
 
 export {
   getPublishRunSnapshot,

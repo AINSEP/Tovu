@@ -61,6 +61,7 @@ import type { DatabaseDestinationStorePort } from "../../features/database-trans
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
+import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
@@ -1801,6 +1802,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * exports into — never re-reads `process.env` itself.
    */
   publishOutputRootDir: string;
+  /**
+   * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
+   * the publish route and the static-publish agent tools learn which targets exist and which config
+   * fields each takes. `server/deps.ts` loads the installed, activated deploy Agent Plugin;
+   * `server/app.ts`'s hermetic root reads the bundled plugin's source directory directly.
+   */
+  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
   /**
    * 2026-08-16 — cached, non-secret provider-verification results for `publishCredentialSetRepo`'s
    * (or the env-var fallback's) credentials, keyed by `(workspaceId, target)`. Fixes "ready means a

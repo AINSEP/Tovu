@@ -93,8 +93,15 @@ async function loadPluginTargets(plugin: InstalledAgentPlugin, bundled: BundledA
     return refuse(`only plugins shipped with Tovu may add deploy targets (installed digest ${plugin.archiveDigest.slice(0, 12)} is not the one this build shipped)`);
   }
 
+  return loadPackageTargets(plugin);
+}
+
+/** A package's own targets, trusted: parses its descriptor file and imports each module. Every trust
+ *  gate is the CALLER's job ({@link loadPluginTargets}, or the hermetic source registry below).
+ *  @complexity O(t) targets, one import each. */
+async function loadPackageTargets(plugin: TargetPackage): Promise<PluginLoad> {
   const parsed = parseDeployTargetsFile(await readFile(path.join(plugin.packageRoot, DEPLOY_TARGETS_FILENAME), "utf8"));
-  if (!parsed.ok) return refuse(`${DEPLOY_TARGETS_FILENAME} is invalid: ${parsed.reason}`);
+  if (!parsed.ok) return { targets: [], refusals: [`deploy targets from '${plugin.pluginId}' were not loaded: ${DEPLOY_TARGETS_FILENAME} is invalid: ${parsed.reason}`] };
 
   const targets: LoadedDeployTarget[] = [];
   const refusals: string[] = [];
@@ -106,9 +113,28 @@ async function loadPluginTargets(plugin: InstalledAgentPlugin, bundled: BundledA
   return { targets, refusals };
 }
 
+/** The two facts {@link loadPackageTargets} needs about a package: whose it is and where it lives. */
+interface TargetPackage {
+  readonly pluginId: string;
+  readonly packageRoot: string;
+}
+
+/**
+ * A registry read straight from a plugin's SOURCE directory, with no install, activation or digest
+ * gate. For the hermetic composition root (`server/runtime/composition/app.ts`) and tests only,
+ * where the directory is this product's own `content/agent-plugins/<id>/`: never point it at
+ * anything an operator or a third party can write.
+ *
+ * @complexity O(t) targets, one import each.
+ */
+export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage): Promise<DeployTargetRegistry> {
+  const load = await loadPackageTargets(plugin);
+  return buildRegistry(load.targets, load.refusals);
+}
+
 /** Imports one module after the containment check. Returns the module, or the refusal reason.
  *  @complexity One `realpath` walk plus one dynamic import. */
-async function loadTargetModule(plugin: InstalledAgentPlugin, descriptor: DeployTargetDescriptor): Promise<DeployTargetModule | string> {
+async function loadTargetModule(plugin: TargetPackage, descriptor: DeployTargetDescriptor): Promise<DeployTargetModule | string> {
   let modulePath: string;
   try {
     modulePath = await assertContainedOnDisk(plugin.packageRoot, descriptor.module);

@@ -117,6 +117,7 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_P
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
+import type { DeployTargetRegistry } from "./deploy-targets/types.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
 // file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
@@ -146,10 +147,11 @@ import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./
 // was already closed by a different fix.
 import {
   composePublishCredentialSource,
-  computeBasePath,
   getPublishRunSnapshot,
+  planStaticPublish,
+  readStaticPublishConfig,
   runPublishAndAwait,
-  validateStaticPublishConfig,
+  unknownTargetMessage,
   type PublishCredentialSource,
   type PublishCredentialVerificationCache,
   type PublishHistoryStore,
@@ -529,6 +531,10 @@ export interface StaticPublishToolDeps {
    *  "adapter tests with a faked deploy target — do not hit real providers in tests"). Production
    *  never sets this — `publishStaticSite`'s own default (the real Jini adapters) applies. */
   buildTarget?: StaticPublishDeps["buildTarget"];
+  /** `RouteDeps.loadDeployTargets` — this workspace's deploy registry, which decides which config
+   *  fields a target takes and judges them. Defaults to the installed deploy Agent Plugin
+   *  (`loadDeployTargetRegistry`); a test injects a registry read from the plugin's source. */
+  loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
   /** Test-only override for `RouteDeps.publishHistoryStore` (2026-08-16 rework — that field is now
    *  the real, DB-backed `SqlitePublishHistoryStore` in production; see `routes/types.ts`'s own doc)
    *  — lets a test inject an `InMemoryPublishHistoryStore` so it can assert on a recorded publish (or
@@ -565,38 +571,36 @@ function requireVendorCredentialPort(deps: StaticPublishToolDeps): VendorCredent
   return deps.vendorCredentials;
 }
 
-/** {@link buildPreviewConfig}'s github-pages branch — see that function's own doc. */
-function buildGitHubPagesPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
-  const owner = typeof raw.owner === "string" ? raw.owner : "";
-  const repo = typeof raw.repo === "string" ? raw.repo : "";
-  return { target: "github-pages", owner, repo, ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}) };
+/** {@link StaticPublishToolDeps.loadDeployTargets}, or the installed deploy Agent Plugin. */
+function deployTargetsLoader(deps: StaticPublishToolDeps): (workspaceId: string) => Promise<DeployTargetRegistry> {
+  return deps.loadDeployTargets ?? ((workspaceId) => loadDeployTargetRegistry({ workspaceId }));
 }
 
-/** {@link buildPreviewConfig}'s vercel branch — see that function's own doc. */
-function buildVercelPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
-  return { target: "vercel", ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) };
+/**
+ * Reads a tool input into a publish config through this workspace's deploy registry and plans it
+ * (`planStaticPublish`, the same call `publishStaticSite` makes). A blank optional field means "not
+ * set", matching the old per-target builders.
+ *
+ * @throws {ToolInputError} `target` is not a target the registry knows, or a declared field is not a string.
+ * @complexity One registry load plus O(f) declared fields.
+ */
+async function planToolPublish(
+  deps: StaticPublishToolDeps,
+  raw: Record<string, unknown>,
+  targetId: StaticPublishTargetId
+): Promise<{ readonly config: StaticPublishConfig; readonly plan: ReturnType<typeof planStaticPublish> }> {
+  const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+  const target = registry.get(targetId);
+  if (target === undefined) throw new ToolInputError(unknownTargetMessage(registry, targetId));
+  const read = readStaticPublishConfig(target, raw, { blankAsAbsent: true });
+  if (!read.ok) throw new ToolInputError(read.message);
+  return { config: read.config, plan: planStaticPublish(registry, read.config) };
 }
 
-function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
-  const target = raw.target as StaticPublishTargetId;
-  if (target === "github-pages") {
-    return buildGitHubPagesPreviewConfig(raw);
-  }
-  if (target === "vercel") {
-    return buildVercelPreviewConfig(raw);
-  }
-  if (target === "netlify") {
-    return { target };
-  }
-  if (target === "cloudflare-pages") {
-    // no target-specific field: `accountId` lives on the credential, not this config (see
-    // `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc).
-    return { target: "cloudflare-pages" };
-  }
-  // target === "s3-compatible" — same empty-config shape as netlify/cloudflare-pages: every
-  // identifying field (endpoint/region/bucket/accessKeyId/secretAccessKey/publicUrl) lives on the
-  // CREDENTIAL, never this config (`static-publish/types.ts`'s `S3CompatiblePublishConfig` doc).
-  return { target: "s3-compatible" };
+/** One confirmation/outcome card row per config field the publish carries, target excluded. Generic
+ *  on purpose: which fields exist is the target descriptor's business. @complexity O(f). */
+function configDetailRows(config: StaticPublishConfig): { label: string; value: string }[] {
+  return Object.entries(config).flatMap(([name, value]) => (name !== "target" && typeof value === "string" ? [{ label: name, value }] : []));
 }
 
 const EXECUTE_STATIC_PUBLISH_TOOL_ID = "deployment_execute_static_publish";
@@ -637,7 +641,7 @@ function buildPublishConfirmationResource(spec: {
     details: [
       { label: "Target", value: config.target },
       { label: "Project name", value: projectName },
-      ...(config.target === "github-pages" ? [{ label: "Repository", value: `${config.owner}/${config.repo}` }] : []),
+      ...configDetailRows(config),
       ...(basePath !== undefined ? [{ label: "Base path", value: basePath }] : []),
     ],
     warning:
@@ -697,7 +701,7 @@ function buildPublishOutcomeResource(spec: {
     details: [
       { label: "Target", value: config.target },
       { label: "Project name", value: projectName },
-      ...(config.target === "github-pages" ? [{ label: "Repository", value: `${config.owner}/${config.repo}` }] : []),
+      ...configDetailRows(config),
     ],
     state,
     message,
@@ -910,7 +914,6 @@ function buildStaticPublishPreviewResult(
     basePath: basePath ?? null,
     credentialsConfigured: credential.configured,
     ...(!credential.configured ? { credentialGuidance: credential.reason } : {}),
-    willInjectNojekyll: target === "github-pages",
   };
 }
 
@@ -1230,7 +1233,7 @@ async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: Publ
   const outcome = await runPublishAndAwait(
     {
       credentialSource: ctx.credentialSource,
-      loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }),
+      loadDeployTargets: deployTargetsLoader(ctx.deps),
       ...(ctx.deps.buildTarget !== undefined ? { buildTarget: ctx.deps.buildTarget } : {}),
     },
     {
@@ -1427,9 +1430,9 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
 
-      const config = buildPreviewConfig(raw);
-      const validationError = validateStaticPublishConfig(config);
-      const basePath = validationError ? undefined : computeBasePath(config);
+      const { plan } = await planToolPublish(deps, raw, target);
+      const validationError = plan.ok ? null : plan.message;
+      const basePath = plan.ok ? plan.basePath : undefined;
       // `isConfigured()`, NOT `resolve()` — this is an agent-facing read; per this file's own header
       // (and `static-publish/types.ts`'s `PublishCredentialSource` doc) an agent-facing path must
       // never be able to resolve a real credential, even indirectly by reading `.ok` off it.
@@ -1513,10 +1516,9 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.publish", entityType: "site-publish" });
 
-      const config = buildPreviewConfig(raw);
-      const validationError = validateStaticPublishConfig(config);
-      if (validationError !== null) {
-        throw new ToolInputError(`deployment_execute_static_publish: ${validationError}`);
+      const { config, plan } = await planToolPublish(deps, raw, target);
+      if (!plan.ok) {
+        throw new ToolInputError(`deployment_execute_static_publish: ${plan.message}`);
       }
 
       // Fail closed rather than degrade — see this handler's own doc comment above.
@@ -1539,7 +1541,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         };
       }
 
-      const basePath = computeBasePath(config);
+      const basePath = plan.basePath;
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
         { toolId: EXECUTE_STATIC_PUBLISH_TOOL_ID, principalId: ctx.principal.id },
         ctx.emitSurface
