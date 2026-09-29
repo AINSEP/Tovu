@@ -27,6 +27,7 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential } from "../store.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import { WRITE_FILES_TOOL_ID } from "../write-files-confirmation-ui.js";
+import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 
 const WORKSPACE_ID = "ws-cred-write-files-network";
 const PRINCIPAL_ID = "principal-under-test";
@@ -85,6 +86,7 @@ async function buildHarness(steps: Step[]) {
     siteAssistantSecretKeyring: keyring,
     idGen,
     customCredentialsHttpClient: new SteppedHttpClient([...steps]),
+    loadSourceControlProviders: githubFromSource,
     customCredentialsFailureLog: (line) => logLines.push(line),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };

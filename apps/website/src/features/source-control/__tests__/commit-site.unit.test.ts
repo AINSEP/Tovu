@@ -327,7 +327,7 @@ test("commitSiteToSourceControl: an omitted gitAdapter fails loudly as PROVIDER_
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "PROVIDER_ERROR");
-  assert.match(result.message, /no GitHub commit adapter is configured/);
+  assert.match(result.message, /no source control commit adapter is configured — this is a wiring bug/);
 });
 
 /**

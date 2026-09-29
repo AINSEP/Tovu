@@ -111,7 +111,8 @@ function exchangeIdFromSurface(surface: unknown): string {
 async function raiseDialog(executeTool: ToolRegistration, input: Record<string, unknown>) {
   const emitted: unknown[] = [];
   const pending = call(executeTool, { input, emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
+  // The provider registry is read before the dialog, so the emit lands some ticks later — poll.
+  for (let tick = 0; tick < 1000 && emitted.length === 0; tick += 1) await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const exchangeId = exchangeIdFromSurface(emitted[0]);
@@ -563,6 +564,22 @@ test("with no plugin providing github, capabilities report commitSupported:false
   assert.equal(github?.guidance, "A github credential is saved, but no enabled Agent Plugin supports committing to github.");
 });
 
+test("with the github plugin switched off, capabilities and a commit both name the plugin and the screen that turns it back on", async () => {
+  const switchedOff: LoadSourceControlProviders = async () => ({ list: () => [], get: () => undefined, refusals: [], switchedOff: new Map([["github", "github"]]) });
+  const { deps } = fakeDeps({ loadSourceControlProviders: switchedOff });
+  await seedGithubCredential(deps);
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const howTo = "the 'github' Agent Plugin is switched off. To switch it back on, open the admin's Add-Ons > Agent Plugins screen and turn on 'github'.";
+
+  const capabilities = (await call(tool(registrations, "source_control_get_capabilities"))) as { providers: { providerId: string; guidance?: string }[] };
+  assert.equal(capabilities.providers.find((p) => p.providerId === "github")?.guidance, `A github credential is saved, but no enabled Agent Plugin supports committing to github: ${howTo}`);
+
+  const emitted: unknown[] = [];
+  const result = await call(tool(registrations, "source_control_execute_commit"), { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async (s) => void emitted.push(s) });
+  assert.deepEqual(result, { committed: false, reason: "no-provider", message: `No enabled Agent Plugin provides 'github' source control: ${howTo}` });
+  assert.equal(emitted.length, 0);
+});
+
 test("with no plugin providing github, a commit is refused with reason 'no-provider' and never raises a dialog", async () => {
   const { deps } = fakeDeps({ loadSourceControlProviders: noProviders });
   await seedGithubCredential(deps);
@@ -573,7 +590,7 @@ test("with no plugin providing github, a commit is refused with reason 'no-provi
   assert.deepEqual(result, {
     committed: false,
     reason: "no-provider",
-    message: "No enabled Agent Plugin provides 'github' source control. Turn on the Agent Plugin for it on the Agent Plugins page.",
+    message: "No enabled Agent Plugin provides 'github' source control, and no installed one declares it. Open the admin's Add-Ons > Agent Plugins screen to install or turn on a plugin that provides it.",
   });
   assert.equal(emitted.length, 0);
 });

@@ -244,7 +244,7 @@ function backupTarget(credential: ResolvedBackupCredential, owner: string, repo:
 }
 
 /** Every git-host provider an enabled plugin ships, or the refusal when there is none. */
-async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true; providers: readonly SourceControlProvider[] } | Refusal> {
+async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true; providers: readonly SourceControlProvider[]; noProviderMessage: string } | Refusal> {
   const built = await buildSourceControlProviders({
     ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
     workspaceId: deps.workspaceId,
@@ -252,9 +252,9 @@ async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true
   });
   for (const refusal of built.refusals) failureLog(deps)(`[site-backup] ${refusal}`);
   if (built.providers.length === 0) {
-    return { ok: false, code: "NO_PROVIDER", message: "No enabled Agent Plugin provides a repository host to back up to. Turn on the GitHub plugin on the Agent Plugins page." };
+    return { ok: false, code: "NO_PROVIDER", message: built.noProviderMessage };
   }
-  return { ok: true, providers: built.providers };
+  return { ok: true, providers: built.providers, noProviderMessage: built.noProviderMessage };
 }
 
 function originOf(url: string): string | null {
@@ -360,7 +360,7 @@ async function resolveBackupCredential(deps: SiteBackupToolDeps, requested: stri
     throw err;
   }
   if (!resolved) return { ok: false, code: "CREDENTIAL_NOT_FOUND", message: `the credential '${picked.label}' was deleted while the backup was being prepared` };
-  const provider = pickSourceControlProviderForApi(providers.providers, resolved.baseUrl);
+  const provider = pickSourceControlProviderForApi(providers.providers, resolved.baseUrl, providers.noProviderMessage);
   if (!provider.ok) return { ok: false, code: "NO_PROVIDER", message: provider.message };
   return { ok: true, label: picked.label, baseUrl: resolved.baseUrl, connection: resolved.connection, provider: provider.provider };
 }

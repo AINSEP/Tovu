@@ -12,6 +12,7 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
 import { buildCustomCredentialsRegistrations, buildWriteFilesConfirmationFileSpecs, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 
 /**
  * @file Certification of `custom_credential_write_files`'s confirmation gate
@@ -96,6 +97,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
       return { newId: () => `deps-cred-${++n}` };
     })(),
     customCredentialsHttpClient: httpClient,
+    loadSourceControlProviders: githubFromSource,
     authorize: async (params: Record<string, unknown>) => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
 
@@ -164,7 +166,8 @@ function exchangeIdFromSurface(surface: unknown): string {
 async function raiseDialog(writeTool: ToolRegistration, input: unknown = VALID_INPUT) {
   const emitted: unknown[] = [];
   const pending = call(writeTool, { input, emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
+  // The provider registry and the branch plan are read before the dialog, so the emit lands some ticks later — poll.
+  for (let tick = 0; tick < 1000 && emitted.length === 0; tick += 1) await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
   const exchangeId = exchangeIdFromSurface(emitted[0]);
@@ -451,7 +454,7 @@ test("a cancelled run abandons the dialog and reports {executed:false, cancelled
   const controller = new AbortController();
 
   const pending = call(writeTool, { emitSurface: async () => undefined, signal: controller.signal });
-  await new Promise((resolve) => setImmediate(resolve));
+  for (let tick = 0; tick < 1000 && surfaceExchanges.size() === 0; tick += 1) await new Promise((resolve) => setImmediate(resolve));
   assert.equal(surfaceExchanges.size(), 1);
 
   controller.abort();

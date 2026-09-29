@@ -19,6 +19,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { SiteBackupPlanStore } from "../plan-store.js";
 import type { SiteBackupSources } from "../sources.js";
 import { buildSiteBackupRegistrations, type SiteBackupToolDeps } from "../tool-registrations.js";
+import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 
 /**
  * @file `site_backup_plan` / `site_backup_push`'s proof, driven through the real registrations: a
@@ -212,6 +213,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: options.openSealer ? options.openSealer(sealer) : sealer,
     customCredentialsHttpClient: github,
+    loadSourceControlProviders: githubFromSource,
     dbOps,
     ...(options.withoutSources ? {} : { siteBackupSources: site.sources }),
     siteBackupPlanStore: planStore,

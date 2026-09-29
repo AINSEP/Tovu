@@ -30,7 +30,7 @@ import {
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "./commit-site.js";
-import { buildSourceControlProvider, loadInstalledSourceControlProviders, type LoadSourceControlProviders } from "./provider-registry.js";
+import { buildSourceControlProvider, loadInstalledSourceControlProviders, switchedOffPluginSentence, type LoadSourceControlProviders } from "./provider-registry.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
@@ -366,15 +366,16 @@ function buildCommitOutcomeResult(outcome: SourceControlCommitOutcome): unknown 
  *
  * @complexity O(1) — fixed string interpolation, no iteration.
  */
-function buildCapabilityGuidance(providerId: SourceControlProviderId, configured: boolean, commitReady: boolean): string | undefined {
+function buildCapabilityGuidance(providerId: SourceControlProviderId, configured: boolean, commitReady: boolean, switchedOffPluginId: string | undefined): string | undefined {
+  const switchOn = switchedOffPluginId === undefined ? "" : `: ${switchedOffPluginSentence(switchedOffPluginId)}`;
   if (!configured && !commitReady) {
-    return `No ${providerId} credential is saved, and no enabled Agent Plugin supports committing to ${providerId}.`;
+    return `No ${providerId} credential is saved, and no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
   }
   if (!configured) {
     return `No ${providerId} credential is saved yet. Connect one in the admin's Source Control page.`;
   }
   if (!commitReady) {
-    return `A ${providerId} credential is saved, but no enabled Agent Plugin supports committing to ${providerId}.`;
+    return `A ${providerId} credential is saved, but no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
   }
   return undefined;
 }
@@ -405,7 +406,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
           .map((credential) => ({ id: credential.id, label: credential.label, isDefault: credential.isDefault, createdAt: credential.createdAt, updatedAt: credential.updatedAt }));
         const configured = savedCredentials.length > 0;
         const ready = registry.get(providerId) !== undefined;
-        const guidance = buildCapabilityGuidance(providerId, configured, ready);
+        const guidance = buildCapabilityGuidance(providerId, configured, ready, registry.switchedOff?.get(providerId));
 
         return {
           providerId,

@@ -95,9 +95,11 @@ import type { AgentPluginLayout } from "./layout.js";
  * (`activation.ts`'s `recordBundledAgentPluginIfAbsent`). An operator can still turn it off, and
  * that decision survives every later boot. `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
  * moved out of core 2026-09-29: with it off, a site that saved that provider's key would silently
- * stop sending mail.
+ * stop sending mail. `github` hosts the only git-host provider (`features/source-control/provider-registry.ts`),
+ * moved out of core 2026-09-29: with it off, committing the site, `custom_credential_write_files`, site
+ * backups and the Source Control form's account-name check would all stop.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "resend"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "resend", "github"]);
 
 export type SeededAgentPluginOutcome =
   | {
