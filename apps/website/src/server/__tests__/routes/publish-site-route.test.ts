@@ -10,7 +10,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
-import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "#src/features/deployments/static-publish/index";
+import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/
@@ -20,8 +20,7 @@ import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "#src/f
  * `RouteDeps.publishOutputRootDir` is pointed at a throwaway temp directory for this whole file
  * (via {@link testRouteDeps} below — the adapter's own knob, `static-publish/adapter.ts`'s
  * `publishOutputDir`) so the underlying export never writes into the checked-out repo. This suite
- * deliberately never sets any of `ENV_VAR_ALIASES_BY_TARGET`'s vars (nor
- * `CLOUDFLARE_ACCOUNT_ID_ENV_VAR`) — per the brief, these tests must not hit real GitHub or Vercel,
+ * deliberately never sets any env var a bundled host's descriptor names — per the brief, these tests must not hit real GitHub or Vercel,
  * and an absent credential is exactly what makes that true structurally: `publishStaticSite`
  * returns `NO_CREDENTIALS_CONFIGURED` before ever constructing a real `DeployTarget`, so the
  * "success" trigger+poll test below reaches a genuine, fully-exercised terminal state (auth, body
@@ -37,7 +36,7 @@ import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "#src/f
  * commit 5b035a93 and its predecessor 76b0705d) that hardcoded pair silently stopped covering the
  * real alias set — a `GITHUB_ACCESS_TOKEN`/`NETLIFY_ACCESS_TOKEN`/`CLOUDFLARE_API_TOKEN` left set in
  * the host shell then reads as "configured" here even though this suite never set it. Iterating
- * `ENV_VAR_ALIASES_BY_TARGET` (the same table `credentials.ts` uses to resolve a token) keeps this
+ * the bundled deploy descriptors' `env` blocks (what `credentials.ts` reads a token from) keeps this
  * file's isolation from ever drifting behind that list again.
  *
  * `currentRun` (the route module's own process-local run slot, independent of `export-site.ts`'s)
@@ -47,10 +46,7 @@ import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "#src/f
  */
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-route-test-"));
-for (const aliases of Object.values(ENV_VAR_ALIASES_BY_TARGET)) {
-  for (const envVar of aliases) delete process.env[envVar];
-}
-delete process.env[CLOUDFLARE_ACCOUNT_ID_ENV_VAR];
+for (const envVar of await bundledDeployEnvVars()) delete process.env[envVar];
 
 const PUBLISH_PATH = "system/publish";
 

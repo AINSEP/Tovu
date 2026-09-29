@@ -47,16 +47,6 @@
     "cloudflare": 5,
     "s3-compatible": 8
   },
-  "apps/website/src/features/deployments/static-publish/credentials.ts": {
-    "cloudflare": 12,
-    "github-pages": 1,
-    "netlify": 4,
-    "s3-compatible": 7,
-    "vercel": 3
-  },
-  "apps/website/src/features/deployments/static-publish/index.ts": {
-    "cloudflare": 1
-  },
   "apps/website/src/features/deployments/static-publish/s3-compatible-target.ts": {
     "s3-compatible": 20
   },

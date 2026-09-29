@@ -1437,7 +1437,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     composePublishCredentialSource({
       workspaceId: deps.workspaceId,
       executionMode: deps.publishExecutionMode,
-      dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+      dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deployTargetsLoader(deps) },
     });
   const historyStore = deps.historyStore ?? deps.publishHistoryStore;
 

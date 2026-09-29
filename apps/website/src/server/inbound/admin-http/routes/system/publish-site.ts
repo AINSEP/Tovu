@@ -153,7 +153,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   const credentialSource = composePublishCredentialSource({
     workspaceId: deps.workspaceId,
     executionMode: deps.publishExecutionMode,
-    dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+    dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets: deps.loadDeployTargets },
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {

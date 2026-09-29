@@ -7,6 +7,7 @@ import { createPublishCredential, type PublishCredentialWriteDeps } from "../../
 import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
 import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 /**
  * @file `createEnvPublishCredentialSource` (bound to one workspace, refuses any other — Terra's
@@ -37,7 +38,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
 // --- createEnvPublishCredentialSource ---------------------------------------------------------
 
 test("resolves GITHUB_TOKEN for the github-pages target, trimmed, for the bound workspace", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { GITHUB_TOKEN: "  ghp_fake_token_value  " } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { GITHUB_TOKEN: "  ghp_fake_token_value  " } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -45,7 +46,7 @@ test("resolves GITHUB_TOKEN for the github-pages target, trimmed, for the bound 
 });
 
 test("resolves VERCEL_TOKEN for the vercel target — distinct env var from github-pages", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -53,13 +54,13 @@ test("resolves VERCEL_TOKEN for the vercel target — distinct env var from gith
 });
 
 test("a target's own token being unset never falls back to the OTHER target's env var", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
   assert.equal(result.ok, false);
 });
 
 test("fails cleanly (ok:false with a guidance message) when the env var is unset — never throws, never returns an empty token", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {} as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {} as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -68,13 +69,13 @@ test("fails cleanly (ok:false with a guidance message) when the env var is unset
 });
 
 test("fails cleanly when the env var is present but blank/whitespace-only — never resolves an empty-string token", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { GITHUB_TOKEN: "   " } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { GITHUB_TOKEN: "   " } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
   assert.equal(result.ok, false);
 });
 
 test("refuses (never silently serves) a resolve() call for a DIFFERENT workspace than the one it's bound to", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: OTHER_WORKSPACE, target: "vercel" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -83,13 +84,13 @@ test("refuses (never silently serves) a resolve() call for a DIFFERENT workspace
 });
 
 test("isConfigured() also refuses a DIFFERENT workspace than the one it's bound to", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { VERCEL_TOKEN: "fake_vercel_token" } as NodeJS.ProcessEnv);
   const result = await source.isConfigured({ workspaceId: OTHER_WORKSPACE, target: "vercel" });
   assert.equal(result.configured, false);
 });
 
 test("cloudflare-pages requires BOTH CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID — token alone is not configured", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { CLOUDFLARE_API_TOKEN: "cf-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { CLOUDFLARE_API_TOKEN: "cf-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "cloudflare-pages" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -97,7 +98,7 @@ test("cloudflare-pages requires BOTH CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT
 });
 
 test("cloudflare-pages resolves BOTH token and accountId once both env vars are set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {
     CLOUDFLARE_API_TOKEN: "cf-token",
     CLOUDFLARE_ACCOUNT_ID: "acct-123",
   } as NodeJS.ProcessEnv);
@@ -109,7 +110,7 @@ test("cloudflare-pages resolves BOTH token and accountId once both env vars are 
 });
 
 test("netlify/vercel/github-pages never carry an accountId field", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { NETLIFY_TOKEN: "nl-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { NETLIFY_TOKEN: "nl-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -119,7 +120,7 @@ test("netlify/vercel/github-pages never carry an accountId field", async () => {
 // --- vendor-official env var aliases (2026-08-15 credential-UI redesign brief) -----------------
 
 test("netlify falls back to NETLIFY_ACCESS_TOKEN when NETLIFY_TOKEN is unset", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { NETLIFY_ACCESS_TOKEN: "nl-alias-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { NETLIFY_ACCESS_TOKEN: "nl-alias-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -127,7 +128,7 @@ test("netlify falls back to NETLIFY_ACCESS_TOKEN when NETLIFY_TOKEN is unset", a
 });
 
 test("netlify falls back to NETLIFY_AUTH_TOKEN when neither NETLIFY_TOKEN nor NETLIFY_ACCESS_TOKEN is set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { NETLIFY_AUTH_TOKEN: "nl-auth-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { NETLIFY_AUTH_TOKEN: "nl-auth-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -135,7 +136,7 @@ test("netlify falls back to NETLIFY_AUTH_TOKEN when neither NETLIFY_TOKEN nor NE
 });
 
 test("netlify prefers NETLIFY_TOKEN over its own aliases when more than one is set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {
     NETLIFY_TOKEN: "primary",
     NETLIFY_ACCESS_TOKEN: "alias-1",
     NETLIFY_AUTH_TOKEN: "alias-2",
@@ -147,7 +148,7 @@ test("netlify prefers NETLIFY_TOKEN over its own aliases when more than one is s
 });
 
 test("netlify's failure reason names every alias it checked when none is set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {} as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {} as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -157,7 +158,7 @@ test("netlify's failure reason names every alias it checked when none is set", a
 });
 
 test("cloudflare-pages accepts CLOUDFLARE_TOKEN (the vendor-official name) as its token, alongside the account id", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {
     CLOUDFLARE_TOKEN: "cf-official-token",
     CLOUDFLARE_ACCOUNT_ID: "acct-1",
   } as NodeJS.ProcessEnv);
@@ -168,7 +169,7 @@ test("cloudflare-pages accepts CLOUDFLARE_TOKEN (the vendor-official name) as it
 });
 
 test("cloudflare-pages prefers CLOUDFLARE_TOKEN over CLOUDFLARE_API_TOKEN when both are set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {
     CLOUDFLARE_TOKEN: "primary",
     CLOUDFLARE_API_TOKEN: "fallback",
     CLOUDFLARE_ACCOUNT_ID: "acct-1",
@@ -180,7 +181,7 @@ test("cloudflare-pages prefers CLOUDFLARE_TOKEN over CLOUDFLARE_API_TOKEN when b
 });
 
 test("cloudflare-pages still names CLOUDFLARE_ACCOUNT_ID explicitly even when the token comes from an alias", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { CLOUDFLARE_TOKEN: "cf-official-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { CLOUDFLARE_TOKEN: "cf-official-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "cloudflare-pages" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -188,7 +189,7 @@ test("cloudflare-pages still names CLOUDFLARE_ACCOUNT_ID explicitly even when th
 });
 
 test("github-pages falls back to GH_TOKEN (the gh CLI's own name) when GITHUB_TOKEN is unset", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { GH_TOKEN: "gh-cli-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { GH_TOKEN: "gh-cli-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -196,7 +197,7 @@ test("github-pages falls back to GH_TOKEN (the gh CLI's own name) when GITHUB_TO
 });
 
 test("github-pages falls back to GITHUB_ACCESS_TOKEN — the name operators reach for by analogy", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { GITHUB_ACCESS_TOKEN: "gh-access-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { GITHUB_ACCESS_TOKEN: "gh-access-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -204,7 +205,7 @@ test("github-pages falls back to GITHUB_ACCESS_TOKEN — the name operators reac
 });
 
 test("github-pages prefers GITHUB_TOKEN over its own aliases when more than one is set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {
     GITHUB_TOKEN: "primary",
     GH_TOKEN: "alias-1",
     GITHUB_ACCESS_TOKEN: "alias-2",
@@ -216,7 +217,7 @@ test("github-pages prefers GITHUB_TOKEN over its own aliases when more than one 
 });
 
 test("github-pages' failure reason names every alias it checked when none is set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {} as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {} as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -226,7 +227,7 @@ test("github-pages' failure reason names every alias it checked when none is set
 });
 
 test("vercel falls back to VERCEL_ACCESS_TOKEN — the name operators reach for by analogy", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_ACCESS_TOKEN: "vercel-access-token" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { VERCEL_ACCESS_TOKEN: "vercel-access-token" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -234,7 +235,7 @@ test("vercel falls back to VERCEL_ACCESS_TOKEN — the name operators reach for 
 });
 
 test("vercel prefers VERCEL_TOKEN over VERCEL_ACCESS_TOKEN when both are set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {
     VERCEL_TOKEN: "primary",
     VERCEL_ACCESS_TOKEN: "alias-1",
   } as NodeJS.ProcessEnv);
@@ -245,7 +246,7 @@ test("vercel prefers VERCEL_TOKEN over VERCEL_ACCESS_TOKEN when both are set", a
 });
 
 test("vercel's failure reason names every alias it checked when none is set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {} as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {} as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -283,7 +284,7 @@ test("isConfigured() never decrypts — a broken sealer does not fail it", async
   const writeDeps = makeWriteDeps();
   await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "netlify", token: "t" } });
 
-  const source = createDbPublishCredentialSource({ repo: writeDeps.repo, sealer: { open: () => { throw new Error("must not be called"); }, seal: writeDeps.sealer.seal.bind(writeDeps.sealer) } });
+  const source = createDbPublishCredentialSource({ repo: writeDeps.repo, sealer: { open: () => { throw new Error("must not be called"); }, seal: writeDeps.sealer.seal.bind(writeDeps.sealer) }, loadDeployTargets: loadBundledDeployTargets });
   const result = await source.isConfigured({ workspaceId: WORKSPACE, target: "netlify" });
   assert.equal(result.configured, true);
 });
@@ -387,7 +388,7 @@ test("hosted-api-only: still resolves a DB-backed default when one is saved", as
 // --- s3-compatible: no env fallback, six-field DB projection (spec `custom-publish-provider-contract.md` §4/§10) ---
 
 test("createEnvPublishCredentialSource: s3-compatible has NO env-var fallback — always ok:false, regardless of any env vars set", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, {
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, {
     GITHUB_TOKEN: "irrelevant",
     VERCEL_TOKEN: "irrelevant",
   } as NodeJS.ProcessEnv);
@@ -595,7 +596,7 @@ test("credentialId: self-hosted-cli NEVER falls back to the env token when the n
 });
 
 test("credentialId: the env source itself refuses an id-bound resolve — env vars are not saved connections", async () => {
-  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_TOKEN: "from-env-must-never-appear" } as NodeJS.ProcessEnv);
+  const source = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { VERCEL_TOKEN: "from-env-must-never-appear" } as NodeJS.ProcessEnv);
   const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel", credentialId: "cred-1" });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -620,4 +621,40 @@ test("credentialId: omitting it is unchanged — the provider's default still re
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
   assert.equal(result.token, "default-token");
+});
+
+// --- hosts declared only by a deploy plugin ----------------------------------------------------
+
+/** One host nothing in core names: its env vars and credential fields exist only in its descriptor. */
+async function pluginOnlyHostRegistry(): Promise<DeployTargetRegistry> {
+  const target: LoadedDeployTarget = {
+    pluginId: "fixture-plugin",
+    module: { create: () => { throw new Error("not used"); } },
+    descriptor: {
+      id: "fixture-host",
+      label: "Fixture host",
+      module: "targets/fixture.mjs",
+      configFields: [],
+      env: { tokenVars: ["FIXTURE_KEY"], fields: { zone: "FIXTURE_ZONE" } },
+      credential: { vendorId: "fixture", tokenField: "apiKey", fields: [{ name: "apiKey", label: "API key", required: true, secret: true }, { name: "zone", label: "Zone", required: true }] },
+    },
+  };
+  return { get: (id) => (id === target.descriptor.id ? target : undefined), list: () => [target], refusals: [] };
+}
+
+test("env source: a plugin-only host's token and extra fields come from the env vars its descriptor names", async () => {
+  const missingZone = createEnvPublishCredentialSource(WORKSPACE, pluginOnlyHostRegistry, { FIXTURE_KEY: "k" } as NodeJS.ProcessEnv);
+  assert.deepEqual(await missingZone.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), {
+    ok: false,
+    reason: "FIXTURE_ZONE is not set — publishing to fixture-host requires both a token (FIXTURE_KEY) and FIXTURE_ZONE",
+  });
+  const source = createEnvPublishCredentialSource(WORKSPACE, pluginOnlyHostRegistry, { FIXTURE_KEY: " k ", FIXTURE_ZONE: "eu" } as NodeJS.ProcessEnv);
+  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "k", zone: "eu" });
+});
+
+test("db source: a plugin-only host's saved token field becomes the resolved token; other declared fields pass through", async () => {
+  const writeDeps = { ...makeWriteDeps(), loadDeployTargets: pluginOnlyHostRegistry };
+  await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "main", connection: { providerId: "fixture-host", apiKey: "secret-k", zone: "eu" } });
+  const source = createDbPublishCredentialSource(writeDeps);
+  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "secret-k", zone: "eu" });
 });

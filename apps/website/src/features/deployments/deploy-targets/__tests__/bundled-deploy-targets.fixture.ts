@@ -18,3 +18,9 @@ export function loadBundledDeployTargets(): Promise<DeployTargetRegistry> {
   cached ??= loadDeployTargetRegistryFromSource({ pluginId: "deploy", packageRoot: BUNDLED_DEPLOY_PLUGIN_ROOT });
   return cached;
 }
+
+/** Every env var the bundled hosts read a credential from (token vars and extra fields), so a
+ *  hermetic "nothing configured" fixture can clear exactly the names the product reads. */
+export async function bundledDeployEnvVars(): Promise<string[]> {
+  return (await loadBundledDeployTargets()).list().flatMap(({ descriptor }) => [...(descriptor.env?.tokenVars ?? []), ...Object.values(descriptor.env?.fields ?? {})]);
+}

@@ -4,6 +4,7 @@ import type { SecretSealerPort } from "../../webhooks/index.js";
 import { resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
 import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
+import type { DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
 /**
@@ -41,50 +42,20 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js"
  */
 
 /**
- * Env var name(s) that carry a target's token, in preference order — the first one set (and
- * non-blank) wins. Every target carries more than one because their own CLIs/CI docs have used more
- * than one name across tooling generations, and an operator who already has one of the aliases set in
- * their environment should not have to rename it just because this admin's UI now also shows its own
- * preferred name (2026-08-15 credential-UI redesign brief — accept the vendor-official name as an
- * alias rather than forcing a rename).
- *
- * The `github-pages`/`vercel` alias lists were promised by that same brief and shipped only for
- * Netlify and Cloudflare Pages; the two that were missed are the two the owner actually uses, and
- * `VERCEL_ACCESS_TOKEN`/`GITHUB_ACCESS_TOKEN` are exactly the names they set by analogy three separate
- * times before the single-name lists rejected them (2026-08-15 follow-up). `GH_TOKEN` is the `gh`
- * CLI's own documented name, so an operator already authenticated for `gh` needs no new variable.
+ * Env var names come from each target's deploy-plugin descriptor (`DeployTargetDescriptor.env`):
+ * `tokenVars` in preference order (the first set, non-blank one wins; several because hosts' own CLIs
+ * and CI docs have used more than one name, and an operator should not have to rename one they
+ * already set), plus `fields`, one env var per extra credential field, all required. A target whose
+ * descriptor declares no `env` has no env fallback at all.
  */
-/** `s3-compatible` is deliberately EXCLUDED from this record's key set (`Exclude<..., "s3-compatible">`,
- *  not merely an empty array under that key) — its credential has SIX fields (endpoint, region, bucket,
- *  access key id, secret access key, public URL), and this env-var fallback model is built around one
- *  single-value secret per target (the same shape GITHUB_TOKEN/VERCEL_TOKEN/... already are). Excluding
- *  the key entirely (rather than defining it with an empty alias list) means `readToken` below can never
- *  even be CALLED for `s3-compatible` without a compile error — `readCredential` special-cases it
- *  before ever reaching `readToken`, so this exclusion is enforced structurally, not by convention. */
-/** Exported so tests that go through an HTTP route (which never gets an `env` override — see
- *  `composePublishCredentialSource`'s own doc for why the route always reads real `process.env`)
- *  can enumerate every alias to clear for a hermetic "no credential configured" fixture instead of
- *  hardcoding a second, driftable copy of this list — exactly the gap that let a real
- *  `GITHUB_ACCESS_TOKEN`/`VERCEL_ACCESS_TOKEN`/etc. left set in a dev shell silently flip
- *  `publish-site-route.test.ts`'s "no credentials" fixtures to "configured" after this alias list
- *  grew past its original single-name-per-target shape. */
-export const ENV_VAR_ALIASES_BY_TARGET: Readonly<Record<Exclude<StaticPublishTargetId, "s3-compatible">, readonly string[]>> = {
-  "github-pages": ["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ACCESS_TOKEN"],
-  vercel: ["VERCEL_TOKEN", "VERCEL_ACCESS_TOKEN"],
-  netlify: ["NETLIFY_TOKEN", "NETLIFY_ACCESS_TOKEN", "NETLIFY_AUTH_TOKEN"],
-  "cloudflare-pages": ["CLOUDFLARE_TOKEN", "CLOUDFLARE_API_TOKEN"],
-};
+function noEnvFallbackReason(target: StaticPublishTargetId): string {
+  return `${target} has no server-environment-variable fallback — its credential can only be configured through a saved connection, never through env vars`;
+}
 
-/** The fixed, human-readable reason `s3-compatible` refuses env-var fallback entirely — see
- *  `ENV_VAR_ALIASES_BY_TARGET`'s own doc for why. Safe to surface directly (never a secret, never
- *  workspace-specific), so both `resolve()` and `isConfigured()` below share it verbatim. */
-const S3_COMPATIBLE_NO_ENV_FALLBACK_REASON =
-  "s3-compatible has no server-environment-variable fallback — its credential (endpoint, region, bucket, access key id, secret access key, public URL) can only be configured through the Custom tab's saved connection, never through env vars";
-
-/** `cloudflare-pages` is the one target whose credential needs a SECOND env var — see
- *  `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc for why `accountId` lives on the
- *  credential, not the publish config, for the DB-backed source too. */
-export const CLOUDFLARE_ACCOUNT_ID_ENV_VAR = "CLOUDFLARE_ACCOUNT_ID";
+/** Refusal text for a target this workspace's deploy registry does not know. */
+function unknownTargetReason(target: StaticPublishTargetId): string {
+  return `'${target}' is not a deploy target this workspace knows — is the deploy plugin enabled?`;
+}
 
 /**
  * The ONE refusal text every "the chosen connection cannot be used" path shares (terra review
@@ -110,42 +81,54 @@ function chosenConnectionUnavailableFromEnvReason(target: StaticPublishTargetId)
   return `a saved connection was chosen for this publish, but this install resolves '${target}' credentials from server environment variables, which have no saved connections to choose from`;
 }
 
-type EnvCredentialResult = { readonly token: string; readonly accountId?: string } | { readonly reason: string };
+type EnvCredentialResult = { readonly token: string; readonly fields: Readonly<Record<string, string>> } | { readonly reason: string };
 
 /**
- * Builds a `PublishCredentialSource` that resolves a target's token (and, for `cloudflare-pages`, its
- * account id) from fixed env vars, bound to exactly one workspace at construction time.
+ * Builds a `PublishCredentialSource` that resolves a target's token (and any extra credential fields)
+ * from the env vars its deploy-plugin descriptor names, bound to exactly one workspace at construction
+ * time.
  *
  * @param workspaceId - The ONLY workspace this instance will ever answer for. A `resolve()`/
  *   `isConfigured()` call for any other `workspaceId` is refused, not silently served — see this
  *   file's header for why this changed from "accepted but ignored".
+ * @param loadDeployTargets - This workspace's deploy registry (which env vars each target reads).
  * @param env - Defaults to `process.env`; overridable for tests so no test needs to mutate real
  *   process env vars (which would leak across parallel test files in the same process).
- * @complexity O(1).
+ * @complexity One registry load per call, then O(v) env reads for the target's declared vars.
  */
-export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.ProcessEnv = process.env): PublishCredentialSource {
-  /** Reads a target's token from the first set, non-blank alias in {@link ENV_VAR_ALIASES_BY_TARGET}
-   *  — never partially matches (a blank/whitespace-only alias is treated the same as unset, same as
-   *  every other env read in this function). The failure reason names every alias the caller could
-   *  have set, not just the first, so an operator who set the second-choice name by mistake reading
-   *  an error naming only the first would be told to add a var they already have. */
-  function readToken(target: Exclude<StaticPublishTargetId, "s3-compatible">): { token: string } | { reason: string } {
-    const aliases = ENV_VAR_ALIASES_BY_TARGET[target];
-    for (const envVar of aliases) {
+export function createEnvPublishCredentialSource(
+  workspaceId: UUID,
+  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>,
+  env: NodeJS.ProcessEnv = process.env
+): PublishCredentialSource {
+  /** The first set, non-blank var of `tokenVars` (blank counts as unset). The failure reason names
+   *  every var the operator could have set, not just the first. */
+  function readToken(target: StaticPublishTargetId, tokenVars: readonly string[]): { token: string } | { reason: string } {
+    for (const envVar of tokenVars) {
       const token = env[envVar]?.trim();
       if (token) return { token };
     }
     const reason =
-      aliases.length === 1
-        ? `${aliases[0]} is not set — publishing to ${target} requires a token with write access configured in the server environment`
-        : `none of ${aliases.join(", ")} is set — publishing to ${target} requires a token with write access configured in the server environment (any one of these env vars)`;
+      tokenVars.length === 1
+        ? `${tokenVars[0]} is not set — publishing to ${target} requires a token with write access configured in the server environment`
+        : `none of ${tokenVars.join(", ")} is set — publishing to ${target} requires a token with write access configured in the server environment (any one of these env vars)`;
     return { reason };
   }
 
-  function readCredential(target: StaticPublishTargetId, requestedWorkspaceId: UUID, credentialId?: UUID): EnvCredentialResult {
-    // An env var is not a saved connection: it has no id, so it can never BE the row the operator
-    // picked. Refusing (rather than ignoring the id and serving the env token anyway) is the whole
-    // point of the binding — terra review 2026-09-20, finding 1. See this file's header.
+  /** Every declared extra field's env var, or the first one missing. */
+  function readFields(target: StaticPublishTargetId, fallback: DeployTargetEnvFallback): { fields: Record<string, string> } | { reason: string } {
+    const fields: Record<string, string> = {};
+    for (const [field, envVar] of Object.entries(fallback.fields ?? {})) {
+      const value = env[envVar]?.trim();
+      if (!value) return { reason: `${envVar} is not set — publishing to ${target} requires both a token (${fallback.tokenVars.join(" or ")}) and ${envVar}` };
+      fields[field] = value;
+    }
+    return { fields };
+  }
+
+  async function readCredential(target: StaticPublishTargetId, requestedWorkspaceId: UUID, credentialId?: UUID): Promise<EnvCredentialResult> {
+    // An env var is never "the saved connection the operator chose" — a chosen id must resolve to
+    // THAT row or refuse (see `PublishCredentialSource.resolve`'s `credentialId` doc).
     if (credentialId !== undefined) {
       return { reason: chosenConnectionUnavailableFromEnvReason(target) };
     }
@@ -154,37 +137,24 @@ export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.
         reason: `this credential source is bound to workspace '${workspaceId}' and refuses to resolve a token for workspace '${requestedWorkspaceId}'`,
       };
     }
-    // s3-compatible has no env-var fallback at all — see `ENV_VAR_ALIASES_BY_TARGET`'s own doc.
-    // Branches BEFORE `readToken` so that function's own parameter type (which structurally excludes
-    // this target) is never violated.
-    if (target === "s3-compatible") {
-      return { reason: S3_COMPATIBLE_NO_ENV_FALLBACK_REASON };
-    }
-    const tokenResult = readToken(target);
+    const descriptor = (await loadDeployTargets(workspaceId)).get(target)?.descriptor;
+    if (descriptor === undefined) return { reason: unknownTargetReason(target) };
+    if (descriptor.env === undefined) return { reason: noEnvFallbackReason(target) };
+
+    const tokenResult = readToken(target, descriptor.env.tokenVars);
     if ("reason" in tokenResult) return tokenResult;
-    if (target !== "cloudflare-pages") {
-      return { token: tokenResult.token };
-    }
-    const accountId = env[CLOUDFLARE_ACCOUNT_ID_ENV_VAR]?.trim();
-    if (!accountId) {
-      return {
-        reason: `${CLOUDFLARE_ACCOUNT_ID_ENV_VAR} is not set — publishing to cloudflare-pages requires both a token (${ENV_VAR_ALIASES_BY_TARGET["cloudflare-pages"].join(" or ")}) and ${CLOUDFLARE_ACCOUNT_ID_ENV_VAR}`,
-      };
-    }
-    return { token: tokenResult.token, accountId };
+    const fieldsResult = readFields(target, descriptor.env);
+    if ("reason" in fieldsResult) return fieldsResult;
+    return { token: tokenResult.token, fields: fieldsResult.fields };
   }
 
   return {
     async resolve(input) {
-      const result = readCredential(input.target, input.workspaceId, input.credentialId);
-      return "token" in result ? { ok: true, token: result.token, ...(result.accountId !== undefined ? { accountId: result.accountId } : {}) } : { ok: false, reason: result.reason };
+      const result = await readCredential(input.target, input.workspaceId, input.credentialId);
+      return "token" in result ? { ok: true, token: result.token, ...result.fields } : { ok: false, reason: result.reason };
     },
-    // Never exposes the token/accountId — same env-var presence/blankness/workspace-match check
-    // `resolve()` performs, just without returning what it found. See `types.ts`'s
-    // `PublishCredentialSource` header for why this is a separate method rather than a caller reading
-    // `.ok` off `resolve()`.
     async isConfigured(input) {
-      const result = readCredential(input.target, input.workspaceId);
+      const result = await readCredential(input.target, input.workspaceId);
       return "token" in result ? { configured: true } : { configured: false, reason: result.reason };
     },
   };
@@ -193,40 +163,31 @@ export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.
 /**
  * Projects a decrypted connection onto {@link PublishCredentialSource.resolve}'s success shape — the
  * one place that mapping lives, shared by the default-row lookup and the operator's chosen-row
- * lookup so the two can never drift into projecting a credential differently.
+ * lookup so the two can never drift into projecting a credential differently. The field the host's
+ * descriptor names as `tokenField` becomes `token` (for an access-key pair, the secret half); every
+ * other declared field passes through under its own name.
  *
- * `accountId` only exists on the cloudflare-pages branch of `PublishConnectionInput` — see
- * `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc for why it flows through here rather
- * than living on the publish config. s3-compatible has NO `token` field on its own connection variant
- * (it authenticates with an access-key/secret-key pair, not a bearer token —
- * `publish-credentials/types.ts`'s `S3CompatibleConnectionInput` doc): `secretAccessKey` fills
- * `token`'s "the value that authenticates this request" role instead (see `PublishCredentialSource`'s
- * own doc on this reuse), and the other five fields ride along as that interface's optional s3-only
- * fields.
- *
- * @complexity O(1) — field reads only, no I/O.
+ * @complexity O(f) declared credential fields, no I/O.
  */
-function projectConnectionForPublish(connection: PublishConnectionInput): Extract<Awaited<ReturnType<PublishCredentialSource["resolve"]>>, { ok: true }> {
-  if (connection.providerId === "s3-compatible") {
-    return {
-      ok: true,
-      token: connection.secretAccessKey,
-      accessKeyId: connection.accessKeyId,
-      bucket: connection.bucket,
-      region: connection.region,
-      publicUrl: connection.publicUrl,
-      ...(connection.endpoint !== undefined ? { endpoint: connection.endpoint } : {}),
-    };
+function projectConnectionForPublish(
+  connection: PublishConnectionInput,
+  spec: DeployTargetCredentialSpec
+): Awaited<ReturnType<PublishCredentialSource["resolve"]>> {
+  const token = connection[spec.tokenField];
+  if (token === undefined) return { ok: false, reason: `the saved '${connection.providerId}' credential has no ${spec.tokenField} — save the connection again` };
+  const fields: Record<string, string> = {};
+  for (const field of spec.fields) {
+    const value = connection[field.name];
+    if (field.name !== spec.tokenField && value !== undefined) fields[field.name] = value;
   }
-  if (connection.providerId === "cloudflare-pages") {
-    return { ok: true, token: connection.token, accountId: connection.accountId };
-  }
-  return { ok: true, token: connection.token };
+  return { ok: true, token, ...fields };
 }
 
 export interface DbPublishCredentialSourceDeps {
   repo: PublishCredentialSetRepoPort;
   sealer: SecretSealerPort;
+  /** This workspace's deploy registry: which field of a saved connection is the token. */
+  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
 /**
@@ -241,6 +202,12 @@ export interface DbPublishCredentialSourceDeps {
 export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceDeps): PublishCredentialSource {
   const notConfiguredReason = (target: StaticPublishTargetId) =>
     `no default '${target}' credential is saved for this workspace yet — add one in the Static Site tab`;
+
+  /** Projects through the target's declared credential spec, refusing a target the registry cannot describe. */
+  async function project(workspaceId: UUID, connection: PublishConnectionInput): Promise<Awaited<ReturnType<PublishCredentialSource["resolve"]>>> {
+    const spec = (await deps.loadDeployTargets(workspaceId)).get(connection.providerId)?.descriptor.credential;
+    return spec === undefined ? { ok: false, reason: unknownTargetReason(connection.providerId) } : projectConnectionForPublish(connection, spec);
+  }
 
   /**
    * Resolves the ONE saved connection the operator chose, or refuses — never the provider's default
@@ -261,7 +228,7 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
     if (resolved.providerId !== input.target) {
       return { ok: false, reason: chosenCredentialWrongProviderReason(resolved.providerId, input.target) };
     }
-    return projectConnectionForPublish(resolved.connection);
+    return project(input.workspaceId, resolved.connection);
   }
 
   return {
@@ -275,7 +242,7 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
       if (!resolved) {
         return { ok: false, reason: notConfiguredReason(input.target) };
       }
-      return projectConnectionForPublish(resolved.connection);
+      return project(input.workspaceId, resolved.connection);
     },
     async isConfigured(input) {
       const record = await deps.repo.findDefaultByProvider({ workspaceId: input.workspaceId, providerId: input.target });
@@ -313,7 +280,7 @@ export function composePublishCredentialSource(input: ComposePublishCredentialSo
     return dbSource;
   }
 
-  const envSource = createEnvPublishCredentialSource(input.workspaceId, input.env);
+  const envSource = createEnvPublishCredentialSource(input.workspaceId, input.dbDeps.loadDeployTargets, input.env);
   return {
     async resolve(req) {
       const fromDb = await dbSource.resolve(req);
