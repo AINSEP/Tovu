@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -159,6 +159,24 @@ describe("socket location", () => {
     const link = join(scratch, "link");
     symlinkSync(target, link);
     assert.throws(() => ensurePrivateDir(link), /not a directory owned by this user/);
+  });
+
+  test("the per-user parent (the /tmp/tovu-<uid> fallback) must be a 0700 non-symlink dir of ours, else refused", () => {
+    const loose = mkdtempSync(join(scratch, "root-"));
+    chmodSync(loose, 0o777);
+    assert.throws(() => ensurePrivateDir(join(loose, "key"), { privateParent: true }), /refusing socket parent .*: not a 0700 directory owned by this user/);
+    assert.equal(existsSync(join(loose, "key")), false, "nothing is created inside a parent others can write");
+
+    const target = mkdtempSync(join(scratch, "root-target-"));
+    const linked = join(scratch, "root-link");
+    symlinkSync(target, linked);
+    assert.throws(() => ensurePrivateDir(join(linked, "key"), { privateParent: true }), /refusing socket parent/);
+    assert.equal(existsSync(join(target, "key")), false);
+
+    const fresh = join(scratch, "root-fresh");
+    ensurePrivateDir(join(fresh, "key"), { privateParent: true });
+    assert.equal(statSync(fresh).mode & 0o777, 0o700, "a missing parent is created 0700");
+    assert.equal(statSync(join(fresh, "key")).mode & 0o777, 0o700);
   });
 });
 

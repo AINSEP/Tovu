@@ -16,7 +16,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { PGlite } from "@electric-sql/pglite";
 
@@ -107,7 +107,12 @@ export function defaultPgliteSocketDir(dataDir: string, home: string = homedir()
   const key = dirKey(dataDir);
   const inHome = join(home, ".tovu", "run", key);
   if (Buffer.byteLength(join(inHome, PGLITE_SOCKET_FILE)) <= MAX_SOCKET_PATH_BYTES) return inHome;
-  return join("/tmp", `tovu-${process.getuid?.() ?? "user"}`, key);
+  return join(tmpSocketParent(), key);
+}
+
+/** The per-user parent of fallback socket dirs. Other users can write `/tmp`, so it is checked, never trusted. */
+function tmpSocketParent(): string {
+  return join("/tmp", `tovu-${process.getuid?.() ?? "user"}`);
 }
 
 /** Throws unless `socketPath` fits in `sun_path`. */
@@ -118,15 +123,35 @@ export function assertSocketPathFits(socketPath: string): void {
   }
 }
 
+function ownedByOtherUser(uid: number): boolean {
+  const own = process.getuid?.();
+  return own !== undefined && uid !== own;
+}
+
 /**
  * Creates `dir` (and missing parents) owner-only, and refuses one that is a symlink or belongs to
  * another user (a pre-created `/tmp/tovu-<uid>` would otherwise let that user reach the socket).
+ *
+ * @param optional.privateParent also create-or-check `dir`'s parent, refusing one that is not a
+ *   0700 non-symlink directory of ours (else its owner could swap `dir` for their own). Default:
+ *   on when the parent is the `/tmp/tovu-<uid>` fallback.
  */
-export function ensurePrivateDir(dir: string): void {
+export function ensurePrivateDir(dir: string, optional: { privateParent?: boolean } = {}): void {
+  const parent = dirname(resolve(dir));
+  if (optional.privateParent ?? parent === tmpSocketParent()) {
+    try {
+      mkdirSync(parent, { mode: 0o700 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+    const stat = lstatSync(parent);
+    if (!stat.isDirectory() || ownedByOtherUser(stat.uid) || (stat.mode & 0o077) !== 0) {
+      throw new Error(`refusing socket parent ${parent}: not a 0700 directory owned by this user`);
+    }
+  }
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const stat = lstatSync(dir);
-  const uid = process.getuid?.();
-  if (!stat.isDirectory() || stat.isSymbolicLink() || (uid !== undefined && stat.uid !== uid)) {
+  if (!stat.isDirectory() || stat.isSymbolicLink() || ownedByOtherUser(stat.uid)) {
     throw new Error(`refusing socket dir ${dir}: not a directory owned by this user`);
   }
   chmodSync(dir, 0o700);
