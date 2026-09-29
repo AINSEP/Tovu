@@ -405,9 +405,17 @@ const WRITE_SHAPED_WORDS = new Set(WRITE_SHAPED_INPUT_WORDS);
 /** How deep {@link writeShapedInputNames} and {@link writeShapedSchemaInputNames} look into nested objects. */
 const WRITE_SHAPED_MAX_DEPTH = 8;
 
-/** `sqlText`, `delete_ids`, `DROP` → their words (`sql text`, `delete ids`, `drop`), and whether one is write-shaped. */
+/**
+ * `sqlText`, `delete_ids`, `DROP`, `SQLQuery` → their words (`sql text`, `delete ids`, `drop`,
+ * `sql query`), and whether one is write-shaped. The second split breaks an acronym run before its
+ * last capital when a lowercase letter follows (`SQLQuery` → `SQL Query`, `GraphQLMutation` → `Graph QL Mutation`).
+ */
 function isWriteShapedName(name: string): boolean {
-  const words = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z0-9]+/);
+  const words = name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/);
   return words.some((word) => WRITE_SHAPED_WORDS.has(word));
 }
 

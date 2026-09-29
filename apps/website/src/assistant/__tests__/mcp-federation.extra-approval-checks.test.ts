@@ -254,6 +254,13 @@ test("G3 write-shaped: names match by word, in any case or separator style; ordi
   assert.deepEqual(writeShapedInputNames(undefined), []);
 });
 
+test("G3 write-shaped: acronym-led names split at the acronym boundary — SQLQuery, DDLScript, GraphQLMutation", () => {
+  assert.deepEqual(
+    writeShapedInputNames({ SQLQuery: "", SQLStatement: "", DDLScript: "", GraphQLMutation: "", HTTPRequest: "", userID: "", URLPath: "" }),
+    ["DDLScript", "GraphQLMutation", "SQLQuery", "SQLStatement"],
+  );
+});
+
 test("G3 write-shaped: a read-only tool whose schema names a write-shaped input is admitted behind a card", () => {
   const tools: RemoteToolDescriptor[] = [
     { name: "search", description: "Search.", inputSchema: { type: "object", properties: { query: { type: "string" } } }, annotations: { readOnlyHint: true } },
