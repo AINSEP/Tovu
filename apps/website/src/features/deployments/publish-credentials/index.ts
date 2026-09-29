@@ -2,15 +2,11 @@
  * @file Public surface for the `publish-credentials` sub-feature (ADR-009 §1).
  */
 export type {
-  CloudflarePagesConnectionInput,
-  GitHubPagesConnectionInput,
-  NetlifyConnectionInput,
   PublishConnectionInput,
   PublishCredentialSetRecord,
   PublishCredentialSetRepoPort,
   PublishCredentialSummary,
   PublishProviderId,
-  VercelConnectionInput,
 } from "./types.js";
 
 export { buildPublishCredentialAad } from "./aad.js";

@@ -19,6 +19,7 @@ import { extractGitHubLogin } from "../../deployments/static-publish/index.js";
 import { resolveDefaultForVendorDualRead, type VendorCredentialDualReadDeps } from "../dual-read.js";
 import { createVendorCredential, VendorCredentialSecretStoreUnconfiguredError, type VendorCredentialWriteDeps } from "../store.js";
 import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 
 /**
  * @file `dual-read.ts` — proves the three outcomes this feature's own acceptance criteria name
@@ -65,7 +66,7 @@ function makeDeps(): VendorCredentialDualReadDeps & {
     resolveLegacyPublish: resolveDefaultForPublish,
     resolveLegacySourceControl: resolveDefaultForSourceControl,
     vendorWriteDeps: { repo: vendorRepo, sealer, keyring, clock, idGen, extractGitHubLogin },
-    publishWriteDeps: { repo: publishRepo, sealer, keyring, clock, idGen },
+    publishWriteDeps: { repo: publishRepo, sealer, keyring, clock, idGen, loadDeployTargets: loadBundledDeployTargets },
     sourceControlWriteDeps: { repo: sourceControlRepo, sealer, keyring, clock, idGen },
   };
 }

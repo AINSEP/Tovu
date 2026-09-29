@@ -2,6 +2,7 @@ import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import { isUniqueViolation } from "../../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../../webhooks/index.js";
+import type { DeployTargetRegistry } from "../deploy-targets/types.js";
 import { buildPublishCredentialAad } from "./aad.js";
 import type {
   PublishConnectionInput,
@@ -68,14 +69,6 @@ import type {
  */
 
 const MAX_LABEL_LENGTH = 200;
-const PROVIDER_IDS: ReadonlySet<PublishProviderId> = new Set(["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"]);
-
-/** Type-predicate wrapper around `PROVIDER_IDS.has()` — `Set<T>.has()` alone does not narrow its
- *  argument's static type, so `validateConnection` below would otherwise see `providerId` as a plain
- *  `string` even after the runtime membership check. */
-function isPublishProviderId(value: string): value is PublishProviderId {
-  return PROVIDER_IDS.has(value as PublishProviderId);
-}
 
 export class PublishCredentialValidationError extends Error {}
 
@@ -138,6 +131,8 @@ export interface PublishCredentialWriteDeps extends PublishCredentialReadDeps {
   keyring: KeyringPort;
   clock: ClockPort;
   idGen: { newId(): string };
+  /** This workspace's deploy registry: which hosts take a saved credential, and its fields. */
+  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every rejection
@@ -190,66 +185,36 @@ function optionalBoolean(raw: unknown, field: string): boolean | undefined {
 }
 
 /**
- * Validates a caller-supplied `connection` against its own provider's required/optional shape (see
- * `types.ts`'s per-variant doc comments for exactly which fields are hard-required). Never throws a
+ * Validates a caller-supplied `connection` against the credential its host declares
+ * (`DeployTargetDescriptor.credential` in this workspace's deploy registry): `providerId` must be a
+ * target that takes a saved credential; every declared required field must be a non-empty string,
+ * every declared optional one a non-empty string when present. Required fields are checked before
+ * optional ones, in declaration order. Values are trimmed; undeclared keys are dropped. Never throws a
  * raw shape error — every rejection is a {@link PublishCredentialValidationError}.
  *
- * @complexity O(1) — fixed-shape field reads, no iteration.
- * @overallScore 100
+ * @complexity O(t + f): one pass over the registry's targets (for the error text), one over the fields.
  */
-/** s3-compatible has NO `token` field at all (spec `custom-publish-provider-contract.md` §4a/§4b —
- *  it authenticates with an access-key/secret-key PAIR, not a single bearer token), so it is built
- *  entirely separately from the four token-bearing providers below. */
-function buildS3CompatibleConnection(value: Record<string, unknown>, providerId: "s3-compatible"): PublishConnectionInput {
-  const region = requireNonEmptyString(value.region, "region", providerId);
-  const bucket = requireNonEmptyString(value.bucket, "bucket", providerId);
-  const accessKeyId = requireNonEmptyString(value.accessKeyId, "accessKeyId", providerId);
-  const secretAccessKey = requireNonEmptyString(value.secretAccessKey, "secretAccessKey", providerId);
-  const publicUrl = requireNonEmptyString(value.publicUrl, "publicUrl", providerId);
-  const endpoint = optionalString(value.endpoint, "endpoint");
-  return { providerId, region, bucket, accessKeyId, secretAccessKey, publicUrl, ...(endpoint !== undefined ? { endpoint } : {}) };
-}
-
-/** One builder per token-bearing provider — each already has `token` (the field every one of these
- *  four shares) resolved by the caller, so it only needs to add its own provider-specific fields. */
-const TOKEN_PROVIDER_CONNECTION_BUILDERS: {
-  readonly [K in Exclude<PublishProviderId, "s3-compatible">]: (value: Record<string, unknown>, token: string) => PublishConnectionInput;
-} = {
-  // No owner/repo here — see `types.ts`'s `GitHubPagesConnectionInput` doc for why those are
-  // publish-TARGET fields, never credential fields.
-  "github-pages": (_value, token) => ({ providerId: "github-pages", token }),
-  vercel: (value, token) => {
-    const teamId = optionalString(value.teamId, "teamId");
-    return { providerId: "vercel", token, ...(teamId !== undefined ? { teamId } : {}) };
-  },
-  netlify: (value, token) => {
-    const siteId = optionalString(value.siteId, "siteId");
-    return { providerId: "netlify", token, ...(siteId !== undefined ? { siteId } : {}) };
-  },
-  // accountId is HARD required, never publishable without it (Cloudflare Pages has no
-  // account-scope-free API surface — see `types.ts`'s own doc comment).
-  "cloudflare-pages": (value, token) => {
-    const accountId = requireNonEmptyString(value.accountId, "accountId", "cloudflare-pages");
-    const projectName = optionalString(value.projectName, "projectName");
-    return { providerId: "cloudflare-pages", token, accountId, ...(projectName !== undefined ? { projectName } : {}) };
-  },
-};
-
-function validateConnection(raw: unknown): PublishConnectionInput {
+function validateConnection(raw: unknown, registry: DeployTargetRegistry): PublishConnectionInput {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new PublishCredentialValidationError("connection must be an object");
   }
   const value = raw as Record<string, unknown>;
   const providerId = value.providerId;
-  if (typeof providerId !== "string" || !isPublishProviderId(providerId)) {
-    throw new PublishCredentialValidationError(`connection.providerId must be one of: ${[...PROVIDER_IDS].join(", ")}`);
+  const spec = typeof providerId === "string" ? registry.get(providerId)?.descriptor.credential : undefined;
+  if (typeof providerId !== "string" || spec === undefined) {
+    const known = registry.list().flatMap((target) => (target.descriptor.credential !== undefined ? [target.descriptor.id] : []));
+    throw new PublishCredentialValidationError(`connection.providerId must be one of: ${known.join(", ")}`);
   }
 
-  if (providerId === "s3-compatible") return buildS3CompatibleConnection(value, providerId);
-
-  // Every other provider in this union shares this one generic requirement.
-  const token = requireNonEmptyString(value.token, "token", providerId);
-  return TOKEN_PROVIDER_CONNECTION_BUILDERS[providerId](value, token);
+  const fields: Record<string, string> = {};
+  for (const field of spec.fields.filter((candidate) => candidate.required)) {
+    fields[field.name] = requireNonEmptyString(value[field.name], field.name, providerId);
+  }
+  for (const field of spec.fields.filter((candidate) => !candidate.required)) {
+    const optional = optionalString(value[field.name], field.name);
+    if (optional !== undefined) fields[field.name] = optional;
+  }
+  return { providerId, ...fields };
 }
 
 /** Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
@@ -314,7 +279,7 @@ function decideCreateDefault(existingForProvider: readonly unknown[], requested:
  */
 export async function createPublishCredential(deps: PublishCredentialWriteDeps, input: CreatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const label = validateLabel(input.label);
-  const connection = validateConnection(input.connection);
+  const connection = validateConnection(input.connection, await deps.loadDeployTargets(input.workspaceId));
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const id = deps.idGen.newId();
   const now = deps.clock.nowIso();
@@ -395,7 +360,7 @@ async function resolveUpdatedConnectionSecrets(
   if (input.connection === undefined) {
     return { providerId: existing.providerId, sealed: existing.sealed, accountLabel: existing.accountLabel };
   }
-  const connection = validateConnection(input.connection);
+  const connection = validateConnection(input.connection, await deps.loadDeployTargets(input.workspaceId));
   const providerId = connection.providerId;
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
   return { providerId, sealed, accountLabel: null };

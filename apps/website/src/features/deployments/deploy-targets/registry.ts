@@ -9,7 +9,7 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { assertContainedOnDisk, PackagePathViolation } from "#src/features/agent-plugins/package-paths";
 import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
 
-import type { DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
+import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
 /**
  * @file Loads deploy targets that Agent Plugins contribute — the generic seam that lets the `deploy`
@@ -193,7 +193,24 @@ function parseDescriptor(entry: unknown, at: string): DeployTargetDescriptor | s
   if (typeof configFields === "string") return configFields;
   const env = parseEnvFallback(entry.env, `${at}.env`);
   if (typeof env === "string") return env;
-  return { id, label, module, configFields, ...(env !== undefined ? { env } : {}) };
+  const credential = parseCredentialSpec(entry.credential, `${at}.credential`);
+  if (typeof credential === "string") return credential;
+  return { id, label, module, configFields, ...(env !== undefined ? { env } : {}), ...(credential !== undefined ? { credential } : {}) };
+}
+
+/** A saved connection's own discriminant, so a credential field of that name would be ambiguous. */
+const RESERVED_CREDENTIAL_FIELD_NAMES: ReadonlySet<string> = new Set(["providerId"]);
+
+/** A target's `credential` block (absent = no saved credential), or the reason it is invalid. @complexity O(f). */
+function parseCredentialSpec(value: unknown, at: string): DeployTargetCredentialSpec | undefined | string {
+  if (value === undefined) return undefined;
+  if (!isPlainObject(value)) return `${at} must be an object`;
+  const { vendorId, tokenField = "token" } = value;
+  if (typeof vendorId !== "string" || vendorId.length > MAX_TARGET_ID_LENGTH || !TARGET_ID_PATTERN.test(vendorId)) return `${at}.vendorId must be a lowercase hyphenated id`;
+  const fields = parseFieldList(value.fields, `${at}.fields`, RESERVED_CREDENTIAL_FIELD_NAMES);
+  if (typeof fields === "string") return fields;
+  if (typeof tokenField !== "string" || !fields.some((field) => field.name === tokenField && field.required)) return `${at}.tokenField '${String(tokenField)}' must name a required field`;
+  return { vendorId, tokenField, fields };
 }
 
 /** Keys a publish request already uses for itself, so a config field of that name would be ambiguous. */
@@ -206,10 +223,15 @@ const MAX_HELP_LENGTH = 500;
 /** A target's `config` list (absent = none), or the reason it is invalid. @complexity O(f). */
 function parseConfigFields(value: unknown, at: string): DeployTargetFieldSpec[] | string {
   if (value === undefined) return [];
+  return parseFieldList(value, at, RESERVED_FIELD_NAMES);
+}
+
+/** A list of uniquely named field specs, or the reason it is invalid. @complexity O(f²), f <= {@link MAX_FIELDS}. */
+function parseFieldList(value: unknown, at: string, reserved: ReadonlySet<string>): DeployTargetFieldSpec[] | string {
   if (!Array.isArray(value) || value.length > MAX_FIELDS) return `${at} must be an array of at most ${MAX_FIELDS} fields`;
   const fields: DeployTargetFieldSpec[] = [];
   for (const [index, entry] of value.entries()) {
-    const field = parseFieldSpec(entry, `${at}[${index}]`);
+    const field = parseFieldSpec(entry, `${at}[${index}]`, reserved);
     if (typeof field === "string") return field;
     if (fields.some((seen) => seen.name === field.name)) return `${at}[${index}].name '${field.name}' is declared twice`;
     fields.push(field);
@@ -218,15 +240,16 @@ function parseConfigFields(value: unknown, at: string): DeployTargetFieldSpec[] 
 }
 
 /** One field spec, or the reason it is invalid. @complexity O(1). */
-function parseFieldSpec(entry: unknown, at: string): DeployTargetFieldSpec | string {
+function parseFieldSpec(entry: unknown, at: string, reserved: ReadonlySet<string>): DeployTargetFieldSpec | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { name, label, required, help } = entry;
+  const { name, label, required, help, secret } = entry;
   if (typeof name !== "string" || !FIELD_NAME_PATTERN.test(name)) return `${at}.name must be a camelCase identifier`;
-  if (RESERVED_FIELD_NAMES.has(name)) return `${at}.name '${name}' is reserved`;
+  if (reserved.has(name)) return `${at}.name '${name}' is reserved`;
   if (!isLabel(label)) return `${at}.label must be a non-empty string`;
   if (required !== undefined && typeof required !== "boolean") return `${at}.required must be a boolean`;
+  if (secret !== undefined && typeof secret !== "boolean") return `${at}.secret must be a boolean`;
   if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
-  return { name, label, required: required === true, ...(help !== undefined ? { help } : {}) };
+  return { name, label, required: required === true, ...(help !== undefined ? { help } : {}), ...(secret === true ? { secret: true as const } : {}) };
 }
 
 /** A target's `env` block (absent = no env fallback), or the reason it is invalid. @complexity O(v). */

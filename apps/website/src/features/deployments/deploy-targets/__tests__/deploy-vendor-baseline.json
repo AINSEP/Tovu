@@ -43,29 +43,9 @@
     "s3-compatible": 70,
     "vercel": 14
   },
-  "apps/website/src/features/deployments/publish-credentials/index.ts": {
-    "cloudflare": 1,
-    "github-pages": 1,
-    "netlify": 1,
-    "vercel": 1
-  },
   "apps/website/src/features/deployments/publish-credentials/s3-compatible-field-guidance.ts": {
     "cloudflare": 5,
     "s3-compatible": 8
-  },
-  "apps/website/src/features/deployments/publish-credentials/store.ts": {
-    "cloudflare": 4,
-    "github-pages": 3,
-    "netlify": 3,
-    "s3-compatible": 6,
-    "vercel": 3
-  },
-  "apps/website/src/features/deployments/publish-credentials/types.ts": {
-    "cloudflare": 4,
-    "github-pages": 4,
-    "netlify": 4,
-    "s3-compatible": 4,
-    "vercel": 4
   },
   "apps/website/src/features/deployments/static-publish/credentials.ts": {
     "cloudflare": 12,

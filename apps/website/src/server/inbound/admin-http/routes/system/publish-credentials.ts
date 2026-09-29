@@ -107,6 +107,7 @@ export type AdminPublishCredentialsDeps = Pick<
   | "siteAssistantSecretKeyring"
   | "publishExecutionMode"
   | "publishCredentialVerificationCache"
+  | "loadDeployTargets"
 >;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
@@ -181,6 +182,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
+    loadDeployTargets: deps.loadDeployTargets,
   };
   /** Verifies ONE specific row (the one this route just touched) against its real provider. The
    *  PROVIDER-PROBE layer never throws — `verify.ts`'s per-provider checkers fold every network

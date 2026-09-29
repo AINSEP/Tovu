@@ -118,6 +118,20 @@ export interface DeployTargetDescriptor {
   readonly configFields: readonly DeployTargetFieldSpec[];
   /** The server-environment credential fallback. Absent when the host has none. */
   readonly env?: DeployTargetEnvFallback;
+  /** What a saved connection for this host holds. Absent when the host takes no saved credential. */
+  readonly credential?: DeployTargetCredentialSpec;
+}
+
+/**
+ * A host's saved credential: flat string fields, sealed as one JSON object together with its
+ * `providerId` (the target id). `tokenField` names the required field that becomes the resolved
+ * credential's `token`; every other field is handed to the module under its own name.
+ */
+export interface DeployTargetCredentialSpec {
+  /** The account/company the credential authenticates to (`vendor_credential_sets.vendor_id`). */
+  readonly vendorId: string;
+  readonly tokenField: string;
+  readonly fields: readonly DeployTargetFieldSpec[];
 }
 
 /** One named string field a person fills in. */
@@ -126,6 +140,8 @@ export interface DeployTargetFieldSpec {
   readonly label: string;
   readonly required: boolean;
   readonly help?: string;
+  /** Never echoed back once saved (credential fields only). */
+  readonly secret?: true;
 }
 
 /** Where an env-configured install finds a target's credential: the first set `tokenVars` entry

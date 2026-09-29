@@ -77,3 +77,53 @@ test("the shipped deploy plugin declares the publish fields and env vars core us
   assert.deepEqual(byId.get("cloudflare-pages")?.env, { tokenVars: ["CLOUDFLARE_TOKEN", "CLOUDFLARE_API_TOKEN"], fields: { accountId: "CLOUDFLARE_ACCOUNT_ID" } });
   assert.equal(byId.get("s3-compatible")?.env, undefined);
 });
+
+test("a credential block parses: vendor, declared fields, and which field is the token (default 'token')", () => {
+  const parsed = parseDeployTargetsFile(
+    file([
+      { ...BASE, credential: { vendorId: "fixture", fields: [{ name: "token", label: "Token", required: true, secret: true }, { name: "siteId", label: "Site" }] } },
+      { ...BASE, id: "pair-host", credential: { vendorId: "pair", tokenField: "secretKey", fields: [{ name: "keyId", label: "Key id", required: true }, { name: "secretKey", label: "Secret", required: true, secret: true }] } },
+    ]),
+  );
+  assert.equal(parsed.ok, true, JSON.stringify(parsed));
+  if (!parsed.ok) return;
+  assert.deepEqual(parsed.descriptors[0]?.credential, {
+    vendorId: "fixture",
+    tokenField: "token",
+    fields: [{ name: "token", label: "Token", required: true, secret: true }, { name: "siteId", label: "Site", required: false }],
+  });
+  assert.equal(parsed.descriptors[1]?.credential?.tokenField, "secretKey");
+});
+
+test("malformed credential blocks are refused with the exact reason", () => {
+  const cases: ReadonlyArray<[unknown, string]> = [
+    [{ fields: [] }, "targets[0].credential.vendorId must be a lowercase hyphenated id"],
+    [{ vendorId: "v", fields: [{ name: "token", label: "T" }] }, "targets[0].credential.tokenField 'token' must name a required field"],
+    [{ vendorId: "v", tokenField: "key", fields: [{ name: "token", label: "T", required: true }] }, "targets[0].credential.tokenField 'key' must name a required field"],
+    [{ vendorId: "v", fields: [{ name: "providerId", label: "T", required: true }] }, "targets[0].credential.fields[0].name 'providerId' is reserved"],
+    [{ vendorId: "v", fields: [{ name: "token", label: "T", required: true, secret: "yes" }] }, "targets[0].credential.fields[0].secret must be a boolean"],
+  ];
+  for (const [credential, reason] of cases) {
+    assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, credential }])), { ok: false, reason });
+  }
+});
+
+test("the shipped deploy plugin declares the credential fields and vendors core used to hard-code", () => {
+  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+  assert.equal(parsed.ok, true, JSON.stringify(parsed));
+  if (!parsed.ok) return;
+  const byId = new Map(parsed.descriptors.map((descriptor) => [descriptor.id, descriptor]));
+  const credential = (id: string) => {
+    const spec = byId.get(id)?.credential;
+    return spec && { vendorId: spec.vendorId, tokenField: spec.tokenField, fields: spec.fields.map((field) => `${field.name}${field.required ? "*" : ""}${field.secret ? "!" : ""}`) };
+  };
+  assert.deepEqual(credential("github-pages"), { vendorId: "github", tokenField: "token", fields: ["token*!"] });
+  assert.deepEqual(credential("vercel"), { vendorId: "vercel", tokenField: "token", fields: ["token*!", "teamId"] });
+  assert.deepEqual(credential("netlify"), { vendorId: "netlify", tokenField: "token", fields: ["token*!", "siteId"] });
+  assert.deepEqual(credential("cloudflare-pages"), { vendorId: "cloudflare", tokenField: "token", fields: ["token*!", "accountId*", "projectName"] });
+  assert.deepEqual(credential("s3-compatible"), {
+    vendorId: "s3-compatible",
+    tokenField: "secretAccessKey",
+    fields: ["endpoint", "region*", "bucket*", "accessKeyId*", "secretAccessKey*!", "publicUrl*"],
+  });
+});

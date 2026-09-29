@@ -20,6 +20,8 @@ import {
   updatePublishCredential,
   type PublishCredentialWriteDeps,
 } from "../store.js";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
+import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 /** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
  *  Same double used by `server/__tests__/admin-media-provider-routes.test.ts`'s own `BrokenKeyring`
@@ -59,9 +61,42 @@ function makeDeps(overrides: Partial<PublishCredentialWriteDeps> = {}): PublishC
     keyring,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `cred-${(counter += 1)}` },
+    loadDeployTargets: loadBundledDeployTargets,
     ...overrides,
   };
 }
+
+/** A registry holding one host that only a plugin declares: nothing in core knows its id or fields. */
+function pluginOnlyHostRegistry(): DeployTargetRegistry {
+  const target: LoadedDeployTarget = {
+    pluginId: "fixture-plugin",
+    module: { create: () => { throw new Error("not used"); } },
+    descriptor: {
+      id: "fixture-host",
+      label: "Fixture host",
+      module: "targets/fixture.mjs",
+      configFields: [],
+      credential: { vendorId: "fixture", tokenField: "apiKey", fields: [{ name: "apiKey", label: "API key", required: true, secret: true }, { name: "zone", label: "Zone", required: true }, { name: "note", label: "Note", required: false }] },
+    },
+  };
+  return { get: (id) => (id === target.descriptor.id ? target : undefined), list: () => [target], refusals: [] };
+}
+
+test("a host declared only by a deploy plugin can save a credential; its declared fields are what is validated and sealed", async () => {
+  const deps = makeDeps({ loadDeployTargets: async () => pluginOnlyHostRegistry() });
+  await assert.rejects(
+    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "fixture-host", apiKey: "k" } }),
+    (err: unknown) => err instanceof PublishCredentialValidationError && err.message === "'zone' (non-empty string) is required for provider 'fixture-host'",
+  );
+  const summary = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "fixture-host", apiKey: " k ", zone: "eu", undeclared: "dropped" } });
+  assert.equal(summary.providerId, "fixture-host");
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+  assert.deepEqual(resolved?.connection, { providerId: "fixture-host", apiKey: "k", zone: "eu" });
+  await assert.rejects(
+    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "y", connection: { providerId: "github-pages", token: "t" } }),
+    (err: unknown) => err instanceof PublishCredentialValidationError && err.message === "connection.providerId must be one of: fixture-host",
+  );
+});
 
 test("createPublishCredential seals the connection and returns a summary with NO secret material", async () => {
   const deps = makeDeps();

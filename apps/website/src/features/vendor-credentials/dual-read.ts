@@ -126,7 +126,7 @@ function withDefined<K extends string, V>(key: K, value: V | undefined): { [P in
  * `cloudflare-pages`, its literal value — the same parity `backfill-vendor-credentials.ts`'s own
  * `deriveTokenTail` silently relies on (it reads `.token`/`.secretAccessKey` off either shape without
  * caring which one it got). One small branch per vendor, dispatched via `switch` over the closed
- * `PublishConnectionInput` union rather than a generic spread-and-cast — matches `store.ts`'s own
+ * legacy provider ids rather than a generic spread-and-cast — matches `store.ts`'s own
  * `validateConnection` complexity-budget discipline (one small function's worth of branching per
  * vendor, not a widened inline conditional) and keeps every field named explicitly rather than
  * trusting a runtime shape assumption a future field rename could silently break.
@@ -158,6 +158,10 @@ function publishConnectionToVendorConnection(connection: PublishConnectionInput)
         publicUrl: connection.publicUrl,
         ...withDefined("endpoint", connection.endpoint),
       };
+    default:
+      // Unreachable from `resolveDefaultForVendorDualRead`: it only reads legacy rows for the ids
+      // `PUBLISH_PROVIDER_TO_VENDOR` maps. `PublishProviderId` is open, so the compiler cannot see that.
+      throw new Error(`no vendor mapping for publish provider '${connection.providerId}'`);
   }
 }
 

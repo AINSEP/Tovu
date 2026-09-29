@@ -6,6 +6,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "../s3-compatible-field-guidance.js";
 import { createPublishCredential, PublishCredentialValidationError, type PublishCredentialWriteDeps } from "../store.js";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 
 /**
  * @file `S3_COMPATIBLE_FIELD_GUIDANCE` — the single canonical per-field table (spec §4c/§5). The most
@@ -26,6 +27,7 @@ function makeDeps(): PublishCredentialWriteDeps {
     keyring,
     clock: { nowIso: () => "2026-08-15T00:00:00.000Z" },
     idGen: { newId: () => `cred-${(counter += 1)}` },
+    loadDeployTargets: loadBundledDeployTargets,
   };
 }
 

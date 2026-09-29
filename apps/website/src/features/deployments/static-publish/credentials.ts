@@ -2,7 +2,7 @@ import type { UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
-import type { PublishConnectionInput, PublishCredentialSetRepoPort, PublishProviderId } from "../publish-credentials/types.js";
+import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
@@ -271,14 +271,14 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
       if (input.credentialId !== undefined) {
         return resolveChosenCredential({ workspaceId: input.workspaceId, target: input.target, credentialId: input.credentialId });
       }
-      const resolved = await resolveDefaultForPublish(deps, { workspaceId: input.workspaceId, providerId: input.target as PublishProviderId });
+      const resolved = await resolveDefaultForPublish(deps, { workspaceId: input.workspaceId, providerId: input.target });
       if (!resolved) {
         return { ok: false, reason: notConfiguredReason(input.target) };
       }
       return projectConnectionForPublish(resolved.connection);
     },
     async isConfigured(input) {
-      const record = await deps.repo.findDefaultByProvider({ workspaceId: input.workspaceId, providerId: input.target as PublishProviderId });
+      const record = await deps.repo.findDefaultByProvider({ workspaceId: input.workspaceId, providerId: input.target });
       return record ? { configured: true } : { configured: false, reason: notConfiguredReason(input.target) };
     },
   };

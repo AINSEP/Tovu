@@ -6,6 +6,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
 import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
 import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials.js";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 
 /**
  * @file `createEnvPublishCredentialSource` (bound to one workspace, refuses any other — Terra's
@@ -29,6 +30,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
     keyring,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `cred-${(counter += 1)}` },
+    loadDeployTargets: loadBundledDeployTargets,
   };
 }
 

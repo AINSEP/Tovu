@@ -822,6 +822,7 @@ test("publish-credentials: PUT's `req.body ?? {}` fallback, forced via a direct 
       keyring: deps.siteAssistantSecretKeyring,
       clock: deps.clock,
       idGen: deps.idGen,
+      loadDeployTargets: deps.loadDeployTargets,
     },
     { workspaceId: deps.workspaceId, label: "Direct Invoke Vercel", connection: { providerId: "vercel", token: "vercel-secret-token" } }
   );
@@ -864,6 +865,7 @@ test("publish-credentials: verifyAfterSave's `result ?? undefined` fallback, for
       keyring: deps.siteAssistantSecretKeyring,
       clock: deps.clock,
       idGen: deps.idGen,
+      loadDeployTargets: deps.loadDeployTargets,
     },
     { workspaceId: deps.workspaceId, label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }
   );

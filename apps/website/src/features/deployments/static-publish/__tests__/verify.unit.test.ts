@@ -14,6 +14,7 @@ import {
   verifyPublishCredentialById,
   type PublishCredentialVerificationCache,
 } from "../verify.js";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 
 /**
  * @file Verifies `verify.ts` in isolation — the fix for "ready means a row exists, not a working
@@ -37,6 +38,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
     keyring,
     clock,
     idGen: { newId: () => `cred-${(counter += 1)}` },
+    loadDeployTargets: loadBundledDeployTargets,
   };
 }
 
