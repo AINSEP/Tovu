@@ -5,13 +5,15 @@ import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
 import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
+import { openSiteStore, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { resolveWorkspace } from "./resolve-workspace.js";
 import { compareSchemaVersion, runtimeSchemaVersion } from "./schema-guard.js";
-import type { ConfigJson, SiteMetaJson } from "./types.js";
+import { parseSiteStorage } from "./site-storage.js";
+import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
 
 /**
  * @file SPEC-003 C-008 — `bootSiteDir`, `tovu serve`'s validate -> guard -> migrate+stamp ->
@@ -40,10 +42,34 @@ export interface BootSiteDirOptions {
   workspaceId?: string;
 }
 
-export interface BootSiteDirResult {
-  db: ContentDb;
+interface BootSiteDirResultBase {
   workspaceId: string;
   config: ConfigJson;
+}
+
+/** A SQLite site: the one open, migrated `content.db` handle. */
+export interface SqliteSiteDirBoot extends BootSiteDirResultBase {
+  storage: Extract<SiteStorage, { kind: "sqlite" }>;
+  db: ContentDb;
+  store?: undefined;
+}
+
+/** A Postgres/PGlite site (`.site-meta.json` `storage`): the store `openSiteStore` opened, at head. */
+export interface StoreSiteDirBoot extends BootSiteDirResultBase {
+  storage: Exclude<SiteStorage, { kind: "sqlite" }>;
+  store: SiteStore;
+  db?: undefined;
+}
+
+export type BootSiteDirResult = SqliteSiteDirBoot | StoreSiteDirBoot;
+
+/**
+ * Closes what {@link bootSiteDir} opened. SQLite closes synchronously, before the returned promise
+ * exists, so a caller that exits right after (`serve`'s shutdown) still closes `content.db`.
+ */
+export async function closeSiteDirBoot(boot: BootSiteDirResult): Promise<void> {
+  if (boot.db !== undefined) closeSqliteConnection(boot.db);
+  else await boot.store.close();
 }
 
 /**
@@ -52,9 +78,10 @@ export interface BootSiteDirResult {
  * @param required.dir - the install dir path; resolved once (CIC U-004) into `target`.
  * @param options.workspaceId - when supplied, resolve exactly this workspace id instead of the
  *   default (oldest) — threaded from `tovu serve --workspace <id>`.
- * @returns (as a promise; every failure below is a rejection) `{ db, workspaceId, config }` —
- *   `db` is the one open, migrated content.db handle;
- *   `cli/commands/serve.ts` passes it straight to `createSiteRouteDeps`'s `overrides` (no
+ * @returns (as a promise; every failure below is a rejection) `{ storage, db | store, workspaceId,
+ *   config }` — on SQLite `db` is the one open, migrated content.db handle; on Postgres/PGlite
+ *   (`.site-meta.json` `storage`) `store` is the one opened store (see {@link bootStoreSiteDir}).
+ *   `cli/commands/serve.ts` passes either straight to `createSiteRouteDeps`'s `overrides` (no
  *   second db is ever opened for the same boot).
  * @throws {SiteDirInvalidError} `config.json`/`.site-meta.json` invalid (via `readSiteDir`), or
  *   `content.db` missing entirely.
@@ -73,6 +100,8 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
   // BR-05 steps 1-2: dir/config/meta validation (SiteDirInvalidError).
   const { config, meta } = readSiteDir({ dir: target });
+  const storage = parseSiteStorage(meta.storage);
+  if (storage.kind !== "sqlite") return bootStoreSiteDir({ target, storage, config, meta }, options);
 
   const dbPath = path.join(target, "content.db");
   if (!fs.existsSync(dbPath)) {
@@ -114,9 +143,43 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
       console.warn(`bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)`);
     }
 
-    return { db, workspaceId: workspace.id, config };
+    return { storage, db, workspaceId: workspace.id, config };
   } catch (err) {
     closeSqliteConnection(db);
+    throw err;
+  }
+}
+
+/**
+ * The Postgres/PGlite arm of {@link bootSiteDir}: `openSiteStore` (connection secret → migrations
+ * to head → prepared store), then the same workspace gate. The SQLite schema guard and its
+ * `.site-meta.json` stamp are skipped: they describe `content.db`'s legacy chain, and a Postgres
+ * store's own history is its migration ledger, which the runner checks while it opens.
+ *
+ * @throws whatever `openSiteStore` throws (`StorageSecretError`, `StorageNotAvailableError` for
+ *   PGlite until R1f part 2, a migration failure); `resolveWorkspace`'s errors. The store is
+ *   closed before any rejection.
+ */
+async function bootStoreSiteDir(
+  required: { target: string; storage: StoreSiteDirBoot["storage"]; config: ConfigJson; meta: SiteMetaJson },
+  options: BootSiteDirOptions
+): Promise<StoreSiteDirBoot> {
+  const { target, storage, config, meta } = required;
+  const store = await openSiteStore({
+    storage,
+    dbPath: path.join(target, "content.db"),
+    chatDbPath: path.join(target, "chat.db"),
+    role: "owner",
+  });
+  try {
+    const workspace = await resolveWorkspace({ kernel: store.content }, { workspaceId: options.workspaceId });
+    if (meta.templateId !== "starter") {
+      // eslint-disable-next-line no-console
+      console.warn(`bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)`);
+    }
+    return { storage, store, workspaceId: workspace.id, config };
+  } catch (err) {
+    await store.close();
     throw err;
   }
 }

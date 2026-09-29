@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 
 import { posts } from "#src/platform/db/schema.sqlite";
 import { initSite } from "../../init-site.js";
-import { bootSiteDir } from "../../boot-site-dir.js";
+import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
 
 /**
  * @file SPEC-003 REQ-08/AC-10 (portability — moved/renamed install dirs) — TDD certification,
@@ -35,7 +35,7 @@ test("AC-10/REQ-08: an initialized, served install dir behaves identically after
   const initResult = await initSite({ dir: originalDir, name: "Movable Site" });
   const firstBoot = await bootSiteDir({ dir: originalDir });
   assert.equal(firstBoot.config.name, "Movable Site");
-  firstBoot.db.$client.close();
+  await closeSiteDirBoot(firstBoot);
 
   const parentB = mkTempParent();
   const movedDir = path.join(parentB, "site-new-location");
@@ -47,6 +47,7 @@ test("AC-10/REQ-08: an initialized, served install dir behaves identically after
       assert.equal(secondBoot.workspaceId, firstBoot.workspaceId, "AC-10: the resolved workspace id must be unchanged after a move");
       assert.equal(secondBoot.config.name, "Movable Site", "AC-10: config content must be unchanged after a move");
 
+      assert.ok(secondBoot.db, "a SQLite site boots with its content.db handle");
       const welcomePost = secondBoot.db.select().from(posts).where(eq(posts.slug, "welcome")).all();
       assert.equal(welcomePost.length, 1, "AC-10: seeded content must survive the move unchanged");
 
@@ -61,7 +62,7 @@ test("AC-10/REQ-08: an initialized, served install dir behaves identically after
       assert.ok(initResult.siteId, "sanity: initSite's own siteId is still the identity carried through the move");
       assert.equal(secondBoot.workspaceId, firstBoot.workspaceId);
     } finally {
-      secondBoot.db.$client.close();
+      await closeSiteDirBoot(secondBoot);
     }
   } finally {
     fs.rmSync(parentA, { recursive: true, force: true });

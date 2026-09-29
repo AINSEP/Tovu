@@ -590,6 +590,12 @@ export interface CreateSiteRouteDepsOverrides {
    * SQLite handle the id was validated against; see {@link createSiteRouteDepsForWorkspace}.
    */
   requestedWorkspaceId: string;
+  /**
+   * An already opened Postgres/PGlite store, supplied with `workspaceId` by the install-dir boot
+   * path (`bootSiteDir` opened, migrated and resolved it) — the non-SQLite form of `db`, so one
+   * boot never opens a second pool. The composition does not close it; its opener does.
+   */
+  store: SiteStore;
 }
 
 /**
@@ -600,11 +606,11 @@ export interface CreateSiteRouteDepsOverrides {
  * changing what gets checked or when.
  */
 function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
-  const hasOverrideDb = overrides?.db !== undefined;
+  const hasOverrideDb = overrides?.db !== undefined || overrides?.store !== undefined;
   const hasOverrideWorkspaceId = overrides?.workspaceId !== undefined;
   if (hasOverrideDb !== hasOverrideWorkspaceId) {
     throw new Error(
-      "createSiteRouteDeps: overrides.db and overrides.workspaceId must be supplied together or not at all"
+      "createSiteRouteDeps: overrides.db (or overrides.store) and overrides.workspaceId must be supplied together or not at all"
     );
   }
 }
@@ -713,6 +719,10 @@ async function openCompositionStore(dbPath: string, overrides?: Partial<CreateSi
   const storage = resolveSiteStorage(isInMemoryDbPath(dbPath) ? ":memory:" : dirname(dbPath));
   hydrateContentDbIfNeeded(dbPath, storage, overrides);
   const role = overrides?.storeRole ?? "owner";
+  if (overrides?.store !== undefined) {
+    if (role === "owner") startChatExpirySweep(overrides.store.chat);
+    return overrides.store;
+  }
   // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
@@ -762,7 +772,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
   idGen: IdGeneratorPort;
   overrides?: Partial<CreateSiteRouteDepsOverrides>;
 }): Promise<void> {
-  if (required.overrides?.db !== undefined) return Promise.resolve();
+  if (required.overrides?.db !== undefined || required.overrides?.store !== undefined) return Promise.resolve();
 
   const password = process.env.TOVU_ADMIN_RESET_PASSWORD;
   if (!password) return Promise.resolve();

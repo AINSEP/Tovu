@@ -5,8 +5,7 @@ import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
-import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
-import { closeSqliteConnection } from "../../platform/db/kernel/drivers/sqlite.js";
+import { bootSiteDir, closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
@@ -312,6 +311,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   const dbPath = path.join(target, "content.db");
   const deps = await createSiteRouteDeps(dbPath, {
     db: bootResult.db,
+    store: bootResult.store,
     workspaceId: bootResult.workspaceId,
     uploadsDir: path.join(target, "uploads"),
     // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
@@ -356,7 +356,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   setReadinessSnapshot(lifecycleResult);
   if (!lifecycleResult.ok) {
     logCriticalBootFailures(lifecycleResult);
-    closeSqliteConnection(bootResult.db);
+    await closeSiteDirBoot(bootResult);
     // Never `process.exit()` here (unlike `index.ts`): this file's own header records the
     // established contract — `cli` layer errors propagate uncaught to `cli/main.ts`, which maps
     // them to an exit code via `errors.ts`. An unrecognized plain `Error` falls through to
@@ -475,7 +475,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
           if (exited) return;
           exited = true;
           shutdownAssistantDaemon();
-          closeSqliteConnection(bootResult.db);
+          void closeSiteDirBoot(bootResult);
           process.exit(0);
         };
         server.close(finish);

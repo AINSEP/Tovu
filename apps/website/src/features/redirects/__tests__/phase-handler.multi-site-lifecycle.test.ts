@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
@@ -114,7 +114,7 @@ async function bootSite(t: TestContext, name: string): Promise<BootedSite> {
   const close = (): void => {
     if (closed) return;
     closed = true;
-    boot.db.$client.close();
+    void closeSiteDirBoot(boot);
   };
   // Settle the boot chain BEFORE anything closes the handle those promises are still writing
   // through, then close on the way out whether or not the test closed it itself.

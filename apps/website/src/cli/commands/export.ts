@@ -2,8 +2,7 @@ import path from "node:path";
 
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { exportSite, type ExportReport } from "../../features/site-export/index.js";
-import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
-import { closeSqliteConnection } from "../../platform/db/kernel/drivers/sqlite.js";
+import { bootSiteDir, closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
@@ -136,6 +135,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
   const dbPath = path.join(target, "content.db");
   const routeDeps = await createSiteRouteDeps(dbPath, {
     db: bootResult.db,
+    store: bootResult.store,
     workspaceId: bootResult.workspaceId,
     uploadsDir: path.join(target, "uploads"),
     // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
@@ -169,6 +169,6 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
       );
     }
   } finally {
-    closeSqliteConnection(bootResult.db);
+    await closeSiteDirBoot(bootResult);
   }
 }

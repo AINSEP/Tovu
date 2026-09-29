@@ -11,7 +11,7 @@ import { copyRowsIntoOlderSchema, migrateToBeforeSiteTitleMarker } from "#src/pl
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { seedContentStore } from "#src/platform/db/prepare-content-store";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
-import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
@@ -131,7 +131,7 @@ async function bootSite(t: TestContext, dir: string, beforeBootChain?: (deps: Ro
   beforeBootChain?.(deps);
   t.after(async () => {
     await drainBootReadiness(deps);
-    boot.db.$client.close();
+    await closeSiteDirBoot(boot);
   });
   publishPricingPage(deps);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);

@@ -12,7 +12,7 @@ import { createApp } from "#src/server/runtime/composition/app";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
-import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/routing";
 import type { RedirectRecord, RedirectRevision } from "#src/features/redirects/types";
@@ -98,7 +98,7 @@ async function bootSqliteSite(t: TestContext): Promise<NewsletterRouteDeps> {
   await drainBootReadiness(deps);
   t.after(async () => {
     await drainBootReadiness(deps);
-    boot.db.$client.close();
+    await closeSiteDirBoot(boot);
     fs.rmSync(parent, { recursive: true, force: true });
   });
   return deps;
