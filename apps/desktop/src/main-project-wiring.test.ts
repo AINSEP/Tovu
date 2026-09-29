@@ -76,7 +76,7 @@ test("the migration and the seed are handed the SAME dev-fallback directory", ()
   assert.match(source, /const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS\.devFallbackSiteDir/);
   assert.equal(
     resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs", appDataDir: "/appdata" }).devFallbackSiteDir,
-    path.join("/repo", "sites", "tovu-com"),
+    path.join("/repo", "sites", "tovu-dev"),
   );
 });
 
