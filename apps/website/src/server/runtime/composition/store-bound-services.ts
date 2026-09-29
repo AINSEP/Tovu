@@ -12,10 +12,10 @@ import { sqliteOnlyServices } from "./sqlite-only-services.js";
  * db and the tool-attempt audit sink included: both are kernel repos). What is left depends on the
  * engine, so it is built here, per store, with ONE shape: the body never asks which engine it is on.
  *
- * - SQLite (`sqliteOnlyServices`): restore points are whole-file copies of `content.db`; the
- *   watermark is the certified synchronous Drizzle stamp.
- * - Postgres/PGlite ({@link pgOnlyServices}): restore points are reported unavailable; the watermark
- *   is the async kernel stamp, which Jini cms awaits (owner decision O2).
+ * - SQLite (`sqliteOnlyServices`): restore points are whole-file copies of `content.db`.
+ * - Postgres/PGlite ({@link pgOnlyServices}): restore points are reported unavailable.
+ * The watermark stamp is the async kernel stamp on both (`watermark-kernel.ts`; Jini cms awaits it,
+ * owner decision O2); it stays in this bundle so the body keeps one source for it.
  */
 
 /** The services whose implementation depends on the storage engine. */

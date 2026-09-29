@@ -31,7 +31,7 @@ import {
  *
  * How it relates to the project:
  * `hooks.executeMutation()` is where a feature (e.g. `features/database`'s migrate-forward) opens
- * its own transaction and calls `watermark.ts`'s `stampWatermarkTx` alongside its domain writes.
+ * its own transaction and stamps the watermark (`platform/db/watermark-kernel.ts`) alongside its domain writes.
  *
  * Architectural role:
  * Core primitive. Depends only on `core/ports`, this package's own `ports.ts`/`token.ts` — never

@@ -9,8 +9,15 @@ import Database from "better-sqlite3";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { evaluatePostgresRestoreCapability } from "#src/platform/db/postgres/db-ops";
-import { stampWatermarkTx } from "#src/platform/db/sqlite/watermark";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import { openPreparedContentDb } from "../../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
+
+/** `n` watermark stamps, each its own statement (how the taxonomy write-service stamps). */
+async function stampWatermark(db: ContentDb, n: number): Promise<void> {
+  const stamp = kernelStampWatermark(contentKernel(db));
+  for (let i = 0; i < n; i += 1) await stamp();
+}
 
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — the dialect-neutral `db-ops` restore-point capability
@@ -63,10 +70,7 @@ test("AC-30: capturing a restore point for a SQLite-backed site produces a whole
   const filePath = path.join(tmpDir, "content.db");
   try {
     const db = await openPreparedContentDb(filePath);
-    db.transaction((tx) => {
-      stampWatermarkTx({ tx });
-      stampWatermarkTx({ tx });
-    });
+    await stampWatermark(db, 2);
 
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
     const result = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
@@ -159,21 +163,14 @@ test("restoreFromArtifact: swaps content.db's real content to match the captured
   const filePath = path.join(tmpDir, "content.db");
   try {
     const db = await openPreparedContentDb(filePath);
-    db.transaction((tx) => {
-      stampWatermarkTx({ tx });
-      stampWatermarkTx({ tx }); // watermark = 2 at capture time
-    });
+    await stampWatermark(db, 2); // watermark = 2 at capture time
 
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
     const captured = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
     assert.equal(captured.watermarkAtCapture, 2);
 
     // Mutate further AFTER the capture — this is the state a restore must discard.
-    db.transaction((tx) => {
-      stampWatermarkTx({ tx });
-      stampWatermarkTx({ tx });
-      stampWatermarkTx({ tx }); // watermark = 5, post-capture drift
-    });
+    await stampWatermark(db, 3); // watermark = 5, post-capture drift
 
     const restoreResult = await adapter.restoreFromArtifact({ artifactRef: captured.artifactRef });
     assert.equal(restoreResult.restartRequired, true, "a real file-backed site must always require a restart to pick up the swap");
@@ -204,7 +201,7 @@ test("restoreFromArtifact: removes stale -wal/-shm sidecars so a fresh boot neve
   const filePath = path.join(tmpDir, "content.db");
   try {
     const db = await openPreparedContentDb(filePath); // journal_mode=WAL — produces -wal/-shm sidecars
-    db.transaction((tx) => stampWatermarkTx({ tx }));
+    await stampWatermark(db, 1);
 
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
     const captured = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
@@ -253,7 +250,7 @@ test("restoreFromArtifact: never leaves a stray temp file behind on success", as
   const filePath = path.join(tmpDir, "content.db");
   try {
     const db = await openPreparedContentDb(filePath);
-    db.transaction((tx) => stampWatermarkTx({ tx }));
+    await stampWatermark(db, 1);
     const adapter = new SqliteDbOpsAdapter({ db, filePath });
     const captured = await adapter.captureRestorePoint({ scopeId: "workspace-1" });
 

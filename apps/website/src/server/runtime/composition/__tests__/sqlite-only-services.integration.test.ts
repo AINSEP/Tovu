@@ -7,7 +7,7 @@ import test from "node:test";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { getCurrentWatermark } from "#src/platform/db/sqlite/watermark";
+import { readKernelWatermark } from "#src/platform/db/watermark-kernel";
 import { sqliteOnlyServices } from "../sqlite-only-services.js";
 
 /**
@@ -27,9 +27,9 @@ test("each SQLite-bound service works on the handle and file it was given", asyn
     await prepareContentStore(contentKernel(db));
     const services = sqliteOnlyServices(db, dbPath);
 
-    const before = getCurrentWatermark({ db }).value;
-    services.stampWatermark();
-    assert.equal(getCurrentWatermark({ db }).value, before + 1);
+    const before = await readKernelWatermark(contentKernel(db));
+    await services.stampWatermark();
+    assert.equal(await readKernelWatermark(contentKernel(db)), before + 1);
 
     const restorePoint = await services.dbOps.captureRestorePoint({ scopeId: "r1d-test" });
     assert.equal(restorePoint.watermarkAtCapture, before + 1);

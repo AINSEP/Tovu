@@ -1074,11 +1074,11 @@ export const apiKeys = sqliteTable(
 
 /**
  * SPEC-016 (ADR-041 §3, C-004) — the site-wide gated-mutation write watermark. A single
- * singleton row (`id=1`), incremented exactly once per `stampWatermarkTx` call inside the
+ * singleton row (`id=1`), incremented exactly once per `kernelStampWatermark` call inside the
  * caller's own already-open transaction (same-transaction atomicity, INV-01). Not
  * workspace-scoped: one counter per `content.db` (one site), matching ADR-041's storage-domain
- * boundary. `openContentDb` guarantees the singleton row exists (`INSERT OR IGNORE`) right after
- * migration, so `getCurrentWatermark`/`stampWatermarkTx` never have to special-case "row missing".
+ * boundary. `prepareContentStore` guarantees the singleton row exists right after migration, so
+ * `platform/db/watermark-kernel.ts` never has to special-case "row missing".
  */
 export const databaseWriteWatermark = sqliteTable("database_write_watermark", {
   id: integer("id").primaryKey(),

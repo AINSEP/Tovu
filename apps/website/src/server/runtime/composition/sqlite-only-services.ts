@@ -1,6 +1,7 @@
-import { sqliteStampWatermark } from "#src/features/taxonomy/repo.sqlite";
+import { contentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
+import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import type { StoreBoundServices } from "./store-bound-services.js";
 
 /**
@@ -17,6 +18,6 @@ import type { StoreBoundServices } from "./store-bound-services.js";
 export function sqliteOnlyServices(db: ContentDb, dbPath: string): StoreBoundServices {
   return {
     dbOps: new SqliteDbOpsAdapter({ db, filePath: dbPath }),
-    stampWatermark: sqliteStampWatermark(db),
+    stampWatermark: kernelStampWatermark(contentKernel(db)),
   };
 }

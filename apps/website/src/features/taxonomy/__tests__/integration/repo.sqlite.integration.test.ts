@@ -5,7 +5,9 @@ import path from "node:path";
 import test from "node:test";
 
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo, sqliteStampWatermark } from "../../repo.sqlite.js";
+import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../../repo.sqlite.js";
+import { contentKernel } from "../../../../platform/db/content-kernel.js";
+import { kernelStampWatermark } from "../../../../platform/db/watermark-kernel.js";
 import {
   createTaxonomy,
   createTerm,
@@ -48,7 +50,7 @@ function buildDeps(db: ContentDb, workspaceId: string, idPrefix = "id") {
     terms: new SqliteTermRepo({ db, workspaceId }),
     entryTerms: new SqliteEntryTermRepo({ db, workspaceId }),
     revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId }),
-    stampWatermark: sqliteStampWatermark(db),
+    stampWatermark: kernelStampWatermark(contentKernel(db)),
     outbox: { enqueue: async () => {} },
     // `deleteTerm`/`deleteTaxonomy` (coordinator review addition) and `assignTerms` are the only
     // functions in this file's test set that dereference these two — `createTaxonomy`/`createTerm`/
@@ -125,7 +127,7 @@ test("revision/audit trail actually persists: create + create-term + rename each
     assert.ok(rows.every((r) => r.workspace_id === "ws-1" && r.taxonomy_id === taxonomy.id));
 
     // database_write_watermark advanced by exactly 3 (one per stampWatermark() call above) — proves
-    // `sqliteStampWatermark` genuinely reused the certified `stampWatermarkTx` increment, not a
+    // the kernel stamp (`kernelStampWatermark`) genuinely advanced the real row, not a
     // silent no-op.
     const watermarkRow = dbAfterRestart.$client.prepare("SELECT value FROM database_write_watermark WHERE id = 1").get() as { value: number };
     assert.equal(watermarkRow.value, 3);

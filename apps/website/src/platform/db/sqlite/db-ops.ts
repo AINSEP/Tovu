@@ -1,7 +1,8 @@
 import { SqliteDbOpsAdapter as InfraSqliteDbOpsAdapter } from "@jini-ai/infra/db/sqlite";
 
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
-import { getCurrentWatermark } from "./watermark.js";
+import { contentKernel } from "../content-kernel.js";
+import { readKernelWatermark } from "../watermark-kernel.js";
 import type { ContentDb } from "./content-db.js";
 
 /**
@@ -43,7 +44,7 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
       // Read lazily per capture, not captured at construction — the watermark advances with
       // every gated write, and a restore point must be stamped with its value at capture time
       // (REQ-06), not at wiring time.
-      readWatermark: () => getCurrentWatermark({ db: deps.db }).value,
+      readWatermark: () => readKernelWatermark(contentKernel(deps.db)),
     });
   }
 

@@ -1218,9 +1218,8 @@ export interface DatabaseOpsDeps {
    * composition has no content database. */
   contentKernel?: ContentKernel;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in
-   * `server/deps.ts` (`store-bound-services.ts`): SQLite `sqliteStampWatermark(db)` (the certified
-   * `stampWatermarkTx`, see `core/gated-mutations/watermark.ts`), Postgres/PGlite the async kernel
-   * stamp, which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,
+   * `server/deps.ts` (`store-bound-services.ts`): the async kernel stamp on every dialect
+   * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,
    * which has no watermark table to advance. */
   stampWatermark: () => Promise<void> | void;
   /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
