@@ -36,6 +36,7 @@ const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-plugin-ta
 test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 
 const NETLIFY_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/netlify.mjs");
+const CLOUDFLARE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/cloudflare-pages.mjs");
 
 function credentialSource(extra: Record<string, string> = {}): PublishCredentialSource {
   return {
@@ -137,6 +138,37 @@ test("the REAL plugin Netlify module, fed through the adapter, uploads exactly o
   assert.equal(result.ok, true, JSON.stringify(result));
   assert.equal(manifestPaths.filter((file) => file === "/_headers").length, 1);
   assert.equal(uploads.get("_headers"), renderHeadersFile());
+});
+
+test("the REAL plugin Cloudflare Pages module, fed through the adapter, sends _headers as a config form field, never an asset", async (t) => {
+  const cloudflare = ((await import(pathToFileURL(CLOUDFLARE_MODULE_PATH).href)) as { default: DeployTargetModule }).default;
+  let deployForm: FormData | undefined;
+  const realFetch = globalThis.fetch;
+  t.mock.method(globalThis, "fetch", async (input: string | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    // The export itself fetches every page from the in-process app over loopback: let those through.
+    if (!url.includes("cloudflare") && !url.includes("pages.dev")) return realFetch(input, init);
+    const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+    if (/\/pages\/projects\/jini-demo$/.test(url)) return json(200, { success: true, result: { name: "jini-demo" } });
+    if (url.endsWith("/upload-token")) return json(200, { success: true, result: { jwt: "jwt" } });
+    if (url.endsWith("/pages/assets/check-missing")) return json(200, { success: true, result: [] });
+    if (url.endsWith("/pages/assets/upsert-hashes")) return json(200, { success: true });
+    if (url.endsWith("/deployments") && init.method === "POST") {
+      deployForm = init.body as FormData;
+      return json(200, { success: true, result: { id: "d1", url: "jini-demo.pages.dev" } });
+    }
+    if (url.startsWith("https://jini-demo.pages.dev")) return new Response("", { status: 200 });
+    throw new Error(`unexpected Cloudflare call: ${init.method ?? "GET"} ${url}`);
+  });
+
+  const result = await publishWith(
+    { credentialSource: credentialSource({ accountId: "acct" }), loadDeployTargets: async () => registryOf([loaded("cloudflare-pages", cloudflare)]) },
+    { target: "cloudflare-pages" },
+  );
+
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(await (deployForm?.get("_headers") as File).text(), renderHeadersFile());
+  assert.equal(Object.keys(JSON.parse(String(deployForm?.get("manifest")))).includes("/_headers"), false);
 });
 
 test("an id the registry does not know keeps the legacy branch (cloudflare-pages still demands an accountId there)", async () => {

@@ -12,6 +12,7 @@
     "static-site",
     "static-export",
     "netlify",
+    "cloudflare-pages",
     "go-live",
     "website"
   ]

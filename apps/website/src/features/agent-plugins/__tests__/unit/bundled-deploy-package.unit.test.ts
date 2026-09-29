@@ -52,13 +52,16 @@ test("target ids are byte-identical to the legacy provider ids (sealed credentia
   for (const target of descriptor.targets) assert.ok(legacyIds.has(target.id), `'${target.id}' is not a legacy provider id`);
   assert.deepEqual(
     descriptor.targets.map((target) => [target.id, target.module]),
-    [["netlify", "targets/netlify.mjs"]],
+    [
+      ["netlify", "targets/netlify.mjs"],
+      ["cloudflare-pages", "targets/cloudflare-pages.mjs"],
+    ],
   );
 });
 
 test("the package packs through the real packer with its descriptor and modules", async () => {
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
-  for (const file of ["plugin.json", "mcp.json", DEPLOY_TARGETS_FILENAME, "targets/netlify.mjs", "skills/deploy/SKILL.md"]) {
+  for (const file of ["plugin.json", "mcp.json", DEPLOY_TARGETS_FILENAME, "targets/netlify.mjs", "targets/cloudflare-pages.mjs", "skills/deploy/SKILL.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
 });
@@ -115,5 +118,6 @@ test("seeded by the real seeder, deploy is ENABLED with no user action and the r
     assert.equal(netlify?.pluginId, "deploy");
     assert.equal(netlify?.descriptor.label, "Netlify");
     assert.equal(typeof netlify?.module.create, "function");
+    assert.equal(registry.get("cloudflare-pages")?.descriptor.label, "Cloudflare Pages");
   });
 });
