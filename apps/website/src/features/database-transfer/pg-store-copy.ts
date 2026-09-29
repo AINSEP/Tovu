@@ -14,10 +14,10 @@ import type { StorageKernel } from "../../platform/db/kernel/port.js";
  *
  * - Tables the migrations do not create (a plugin's `p_<id>__*` tables, `_plugin_*` bookkeeping) are
  *   created on the target from the source's own catalog: columns, identity, constraints, indexes.
- * - Everything happens in ONE target transaction: foreign keys are dropped, every table emptied
- *   (a migration may seed rows the source also has), rows copied, foreign keys put back (validated),
- *   identity counters moved past the copied ids, and each table verified (row count + a checksum of
- *   its primary keys). Any failure rolls the target back to its migrated, empty state.
+ * - Everything happens in ONE target transaction: the target's tables are locked and must still be
+ *   empty (no migration seeds rows), foreign keys are dropped, rows copied, foreign keys put back
+ *   (validated), identity counters moved past the copied ids, and each table verified (row count + a
+ *   checksum of its primary keys). Any failure rolls the target back to its migrated, empty state.
  * - The migration ledgers are not copied: both sides are at head, and the ledgers must agree.
  *
  * The source must not change during the copy (the caller holds its PGlite owner lock). Source reads
@@ -239,8 +239,8 @@ async function fingerprint(kernel: StorageKernel<unknown>, table: CatalogTable):
  *
  * @param optional.onCopied runs inside the target transaction after everything is verified; a throw
  *   rolls the copy back (tests inject a failure here).
- * @throws {StoreCopyError} ledgers disagree, a table's columns differ between the sides, a table cannot
- *   be recreated, or a table's rows do not verify.
+ * @throws {StoreCopyError} ledgers disagree, a table's columns differ between the sides, the target
+ *   holds rows once locked, a table cannot be recreated, or a table's rows do not verify.
  * @complexity O(total rows) reads and writes, in batches of {@link BATCH_ROWS}.
  */
 export async function copyPgStore(
@@ -270,8 +270,12 @@ export async function copyPgStore(
     for (const fk of foreignKeys) {
       await target.execute(sql`ALTER TABLE ${tableRef({ schema: fk.schema, name: fk.table })} DROP CONSTRAINT ${sql.ref(fk.name)}`);
     }
+    // Emptiness again, under locks this transaction holds to the end: a row another process wrote
+    // after the caller's check would otherwise be lost or mixed in.
     const existing = [...targetTables.values()].filter((t) => !isLedger(t));
-    if (existing.length > 0) await target.execute(sql`TRUNCATE ${sql.join(existing.map(tableRef))}`);
+    if (existing.length > 0) await target.execute(sql`LOCK TABLE ${sql.join(existing.map(tableRef))} IN ACCESS EXCLUSIVE MODE`);
+    const occupied = await nonEmptyTables(target);
+    if (occupied.length > 0) throw new StoreCopyError(`the target database already holds data (${occupied.join(", ")}); nothing was copied`);
 
     for (const table of created) {
       await target.execute(sql`CREATE TABLE ${tableRef(table)} (${sql.join(table.columns.map(columnDdl))})`);

@@ -6,13 +6,14 @@ import { after, before, test } from "node:test";
 
 import { sql } from "kysely";
 
-import { nonEmptyTables, readCatalog } from "#src/features/database-transfer/pg-store-copy";
+import { copyPgStore, nonEmptyTables, readCatalog, StoreCopyError } from "#src/features/database-transfer/pg-store-copy";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
 import { dropDatabase, psql } from "#src/platform/db/migration/pg-fixture";
+import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { ValidationError } from "#src/platform/site-dir/errors";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
@@ -30,10 +31,12 @@ import { readSealedConnectionString, STORAGE_SECRET_FILENAME } from "../storage-
 
 const TARGET = "tovu_move_site_test";
 const BUSY = "tovu_move_site_busy";
+const LATE = "tovu_move_site_late_write";
 const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-move-"));
 let siteDir: string;
 let targetUrl: string;
 let busyUrl: string;
+let lateUrl: string;
 const keyring = new InMemoryKeyring();
 const sealing = { keyring, sealer: new AesGcmSecretSealer(keyring) };
 
@@ -60,6 +63,7 @@ const metaText = () => fs.readFileSync(path.join(siteDir, SITE_META_FILENAME), "
 before(async () => {
   targetUrl = freshPostgresDatabase(TARGET);
   busyUrl = freshPostgresDatabase(BUSY);
+  lateUrl = freshPostgresDatabase(LATE);
   const created = psql(BUSY, "CREATE TABLE someone_elses (id text); INSERT INTO someone_elses VALUES ('x');");
   assert.ok(created.ok, created.stderr);
   siteDir = (await initSite({ dir: path.join(parent, "site"), name: "Move Me", storage: { kind: "pglite" } })).dir;
@@ -93,6 +97,7 @@ before(async () => {
 after(() => {
   dropDatabase(TARGET);
   dropDatabase(BUSY);
+  dropDatabase(LATE);
   fs.rmSync(parent, { recursive: true, force: true });
 });
 
@@ -120,6 +125,30 @@ test("a target that already holds data is refused; nothing changes", async () =>
   });
   assert.equal(metaText(), before);
   assert.equal(fs.existsSync(path.join(siteDir, STORAGE_SECRET_FILENAME)), false);
+});
+
+test("a row written to the target after the emptiness check refuses the copy; nothing is truncated", async () => {
+  const source = openPgliteKernel<unknown>({ dataDir: path.join(siteDir, "pglite") });
+  const target = openPostgresKernel<unknown>({ connectionString: lateUrl, max: 2 });
+  try {
+    for (const kernel of [source, target]) {
+      await migrateContentDatabase(kernel);
+      await migrateChatDatabase(kernel);
+    }
+    assert.deepEqual(await nonEmptyTables(target), [], "the pre-check passes");
+    // Another process writes between the move's pre-check and its copy transaction.
+    await target.execute(sql`INSERT INTO ai_chat.ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('late', 'ws', 'user', 'u9', 1, 1)`);
+    await assert.rejects(copyPgStore(source, target), (err: unknown) => {
+      assert.ok(err instanceof StoreCopyError);
+      assert.equal(err.message, "the target database already holds data (ai_chat.ai_chats); nothing was copied");
+      return true;
+    });
+    const rows = await target.query<{ id: string }>(sql`SELECT id FROM ai_chat.ai_chats`);
+    assert.deepEqual(rows.map((row) => row.id), ["late"], "the late row survives");
+  } finally {
+    await target.close();
+    await source.close();
+  }
 });
 
 test("a failure after the copy rolls the target back and leaves the site on PGlite", async () => {
