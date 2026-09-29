@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 
 import Database from "better-sqlite3";
 
@@ -42,6 +42,7 @@ const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 const TSX_LOADER = require.resolve("tsx");
 
 const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-serve-site-key-worker-coverage-"));
+after(() => fs.rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
 
 function mkTempParent(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
