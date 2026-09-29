@@ -116,6 +116,7 @@ import {
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
+import { extractPlainTextFromHtml } from "./html-plain-text.js";
 import { extractPostPlainText, searchAdminPosts, type PostSearchPort } from "./search.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
@@ -518,9 +519,13 @@ function excerptCharsFor(rowCount: number): number {
 }
 
 /** The compact listing row: {@link toPostToolViewWithPublicUrl} minus `bodyJson`, plus a plain-text
- *  `excerpt` and the full plain-text length as `bodyChars`. */
+ *  `excerpt` and the full plain-text length as `bodyChars`. An `"html"`-format Page's text comes from
+ *  `bodyHtml` — its `bodyJson` is only the empty placeholder (`repo.rows.ts`'s `toRecord`). */
 function toPostListRow(routeDeps: PostToolDeps, post: PostRecord, excerptChars: number): PostListRow {
-  const text = extractPostPlainText(post.bodyJson);
+  const text =
+    post.bodyFormat === "html"
+      ? extractPlainTextFromHtml(post.bodyHtml ?? "").replace(/\s+/g, " ").trim()
+      : extractPostPlainText(post.bodyJson);
   return {
     id: post.id,
     kind: post.kind,

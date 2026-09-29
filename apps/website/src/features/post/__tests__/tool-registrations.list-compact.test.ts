@@ -185,3 +185,26 @@ test("content_post_list publishes includeBody as an optional boolean in its inpu
   assert.equal(schema.properties.includeBody?.type, "boolean");
   assert.equal(schema.required?.includes("includeBody") ?? false, false);
 });
+
+test("content_post_list reads an html-format page's bodyHtml for its excerpt and bodyChars, not the empty bodyJson placeholder", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await postRepo.save({
+    id: "html-page",
+    workspaceId: WORKSPACE_ID,
+    title: "Media",
+    slug: "media",
+    bodyJson: { type: "doc", content: [] },
+    bodyFormat: "html",
+    bodyHtml: `<style>.x{color:red}</style><div class="post-detail-header"><h1>Media</h1></div><p>Upload files &amp; images.</p>`,
+    status: "published",
+    kind: "page",
+    updatedAt: NOW,
+    version: 1,
+  } as never);
+
+  const result = (await call(listTool(deps), { kind: "page" })) as { posts: Row[] };
+  const row = result.posts[0];
+  assert.ok(row);
+  assert.equal(row.excerpt, "Upload files & images.");
+  assert.equal(row.bodyChars, "Upload files & images.".length);
+});
