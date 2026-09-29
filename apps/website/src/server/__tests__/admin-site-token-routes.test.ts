@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,6 +12,7 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
+import { fingerprintRootKeyHex } from "#src/features/webhooks/keyring.env";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
@@ -427,6 +429,147 @@ test("generate writes THIS site's own per-site key file when a siteKeyId is reso
     "generate targets the resolved siteKeyId's own per-site file, not the legacy shared default"
   );
   assert.ok(existsSync(generatedBody.keyFilePath));
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-29: generate is safe and self-healing. It runs the same site-key rules boot runs
+// (`ensureSiteKeyForSite`, injected): a working key is left alone, the key the site's data was sealed
+// with is adopted from wherever it still is, and a new key is never minted over sealed data.
+// ---------------------------------------------------------------------------
+
+/** Seeds one key-dependent row into the isolated site's content.db (same fixture as the
+ *  'missing-with-data' test above). */
+function seedKeyDependentRow(siteDir: string): void {
+  const db = new Database(path.join(siteDir, CONTENT_DB_FILENAME));
+  db.exec("CREATE TABLE webhook_subscriptions (id INTEGER PRIMARY KEY)");
+  db.prepare("INSERT INTO webhook_subscriptions DEFAULT VALUES").run();
+  db.close();
+}
+
+function perSiteKeyPath(siteKeyId: string): string {
+  return path.join(process.env.HOME ?? "", ".tovu", "site-keys", `${siteKeyId}.hex`);
+}
+
+function writeLegacySharedKey(hex: string): void {
+  mkdirSync(path.join(process.env.HOME ?? "", ".tovu"), { recursive: true });
+  writeFileSync(path.join(process.env.HOME ?? "", ".tovu", "integrations-root-key.hex"), hex, { mode: 0o600 });
+}
+
+test("generate with this site's matching key already in place → 200 'already-active', nothing written", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const hex = randomBytes(32).toString("hex");
+  const keyPath = perSiteKeyPath("active-site");
+  mkdirSync(path.dirname(keyPath), { recursive: true });
+  writeFileSync(keyPath, hex, { mode: 0o600 });
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  const meta = JSON.stringify({ siteId: "active-site", siteKeyFingerprint: fingerprintRootKeyHex(hex) });
+  writeFileSync(metaPath, meta);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { outcome: string; fingerprint: string; keyFilePath: string };
+  assert.equal(body.outcome, "already-active");
+  assert.equal(body.fingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(body.keyFilePath, keyPath);
+  assert.equal(readFileSync(keyPath, "utf8"), hex, "the working key is never replaced");
+  assert.equal(readFileSync(metaPath, "utf8"), meta, "the stamp is never touched");
+});
+
+test("generate with the per-site key gone but the stamped key still in the legacy shared file → 200 'recovered', that key adopted", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const hex = randomBytes(32).toString("hex");
+  writeLegacySharedKey(hex);
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "recover-site", siteKeyFingerprint: fingerprintRootKeyHex(hex) }));
+  seedKeyDependentRow(deps.siteBinding.dir);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { outcome: string; fingerprint: string };
+  assert.equal(body.outcome, "recovered");
+  assert.equal(body.fingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(readFileSync(perSiteKeyPath("recover-site"), "utf8"), hex, "the per-site file now holds the SAME key the data was sealed with");
+  const metaAfter = JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>;
+  assert.equal(metaAfter.siteKeyFingerprint, fingerprintRootKeyHex(hex), "the stamp is unchanged");
+});
+
+test("generate with a working legacy key whose fingerprint differs from the stamp, on a site with sealed data → 409 KEY_MISMATCH, nothing shadows it", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const legacyHex = randomBytes(32).toString("hex");
+  writeLegacySharedKey(legacyHex);
+  const stamp = fingerprintRootKeyHex(randomBytes(32).toString("hex"));
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "mismatch-site", siteKeyFingerprint: stamp }));
+  seedKeyDependentRow(deps.siteBinding.dir);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: string; detail: string };
+  assert.equal(body.error, "KEY_MISMATCH");
+  assert.equal(
+    body.detail,
+    "The site token on this computer is not the one this site's saved credentials were locked with, so nothing was changed. Put the original site token back to unlock them."
+  );
+  assert.equal(existsSync(perSiteKeyPath("mismatch-site")), false, "no per-site file may shadow the working legacy key");
+  assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, stamp, "the stamp is never overwritten");
+});
+
+test("generate with no key anywhere and sealed data present → 409 KEY_DEPENDENT_DATA, no key minted, stamp kept", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const stamp = fingerprintRootKeyHex(randomBytes(32).toString("hex"));
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "locked-site", siteKeyFingerprint: stamp }));
+  seedKeyDependentRow(deps.siteBinding.dir);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: string; detail: string };
+  assert.equal(body.error, "KEY_DEPENDENT_DATA");
+  assert.equal(
+    body.detail,
+    "This site has saved credentials locked with a site token that is not on this computer. A new token could not open them, so none was created. Put the original site token back to unlock them."
+  );
+  assert.equal(existsSync(perSiteKeyPath("locked-site")), false, "no key may be minted over sealed data");
+  assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, stamp, "the stamp is never overwritten");
+});
+
+test("generate with no key anywhere and no sealed data → 201 'created', this site's own key minted and stamped", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "fresh-site" }));
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(res.status, 201);
+  const body = (await res.json()) as { outcome: string; fingerprint: string; keyFilePath: string };
+  assert.equal(body.outcome, "created");
+  assert.equal(body.keyFilePath, perSiteKeyPath("fresh-site"));
+  assert.equal(fingerprintRootKeyHex(readFileSync(body.keyFilePath, "utf8")), body.fingerprint);
+  assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, body.fingerprint);
 });
 
 test("all three verbs stay 401 without a credential and 403 for a session lacking the permission", async (t) => {

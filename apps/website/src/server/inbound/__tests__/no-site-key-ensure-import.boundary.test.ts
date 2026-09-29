@@ -2,8 +2,10 @@
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md`) §A3a: "no file
  * under `server/inbound/**` imports `site-key-ensure`" — `site-key-ensure.ts` is the one WRITER of
  * a site's key file (race-safe, but still a write with no single-instance lock; see that module's
- * own header). Nothing on a request path may reach it — only the two real boot entrypoints
- * (`cli/commands/serve.ts`, `src/index.ts`) may call `ensureSiteKeyForBoot`. A route that read the
+ * own header). No route may import it — the two real boot entrypoints (`cli/commands/serve.ts`,
+ * `src/index.ts`) call `ensureSiteKeyForBoot`, and the one route that runs it (Site Token
+ * `generate`, 2026-09-29) receives `ensureSiteKeyForSite` from the composition root
+ * (`server/runtime/composition/app.ts`), so it cannot write a key by any other rules. A route that read the
  * per-site key file's candidate list still may (`site-key-sources.ts`'s `resolveSiteKeyId`,
  * `siteKeySources`, `siteKeyFilePathFrom` — pure readers, a separate module by design for exactly
  * this reason) — only the writer is fenced off here.

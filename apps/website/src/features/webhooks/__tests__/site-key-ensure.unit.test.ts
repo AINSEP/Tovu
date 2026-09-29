@@ -530,3 +530,42 @@ test("ensureSiteKey: a Postgres site whose connection string is sealed (.storage
   assert.equal(result.action, "refuse");
   assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false);
 });
+
+// ---------------------------------------------------------------------------
+// 2026-09-29 self-healing adopt: when `.site-meta.json` names the key the data was sealed with, any
+// source holding exactly that key is adopted — even one that is not the first present source. A
+// user who still has the right key somewhere never has to move it by hand.
+// ---------------------------------------------------------------------------
+
+function writeLegacySharedKey(homeDir: string, hex: string): void {
+  mkdirSync(path.join(homeDir, ".tovu"), { recursive: true });
+  writeFileSync(path.join(homeDir, ".tovu", "integrations-root-key.hex"), hex, { mode: 0o600 });
+}
+
+test("ensureSiteKey: a different env key comes first but the legacy file holds the stamped key, on a site with sealed data → 'adopt' of the stamped key", async () => {
+  const rightHex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  buildSealedCiphertextDb(path.join(siteDir, "content.db"));
+  writeLegacySharedKey(home, rightHex);
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: validHex() };
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(result.fingerprint, fingerprintRootKeyHex(rightHex));
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), rightHex, "the key the stamp names is the one adopted");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(rightHex), "the stamp is unchanged");
+});
+
+test("ensureSiteKey: a malformed env key comes first but the legacy file holds the stamped key → 'adopt' of the stamped key, not 'invalid'", async () => {
+  const rightHex = validHex();
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  buildSealedCiphertextDb(path.join(siteDir, "content.db"));
+  writeLegacySharedKey(home, rightHex);
+  const env = { ...bareEnv(), TOVU_INTEGRATIONS_ROOT_KEY: "not-a-key" };
+
+  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
+
+  assert.equal(result.action, "adopt");
+  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), rightHex);
+});

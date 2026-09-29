@@ -84,10 +84,13 @@ import type { RouteDeps } from "#src/server/routes/types";
  * site-token-permission.ts`) — a narrower trust boundary than ordinary content admin, since this
  * is the one screen that can both mint AND reveal the key protecting every other credential.
  *
- * `POST .../generate` is create-only, never overwrite/rotate: it 409s if a key file already
- * exists. Replacing an existing key would orphan every secret already sealed under the old one
- * with no confirmation dialog at all — a real rotate/replace flow is intentionally NOT built here
- * (reported as out of scope, not silently half-built).
+ * `POST .../generate` never overwrites or rotates, and never mints over sealed data (2026-09-29): it
+ * runs the site-key writer boot runs (`site-key-ensure.ts`'s `ensureSiteKeyForSite`, injected by the
+ * composition root so this file never imports it). A working key is reported as `already-active`; a
+ * missing per-site key is adopted from whichever source still holds the key `.site-meta.json` names
+ * (`recovered`); a key is minted only for a site with no sealed data (`created`); otherwise 409 with
+ * a stable code and nothing written — see {@link generateSiteToken}. A real rotate/replace flow is
+ * intentionally NOT built here.
  *
  * ## Site-key plan §A3b — site-aware sources
  *
@@ -97,11 +100,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `unreadableCredentialMessage` reuses, so the two site-aware callers can never drift apart)
  * instead of the module-level env-then-legacy-default precedence `inspectRootKeyMaterial`'s own
  * defaults still use. In local mode with a resolvable `siteKeyId` this prefers the per-site file
- * (`~/.tovu/site-keys/<id>.hex`, A.1) over the legacy shared file, and `generate` now (re)writes
- * THAT per-site file rather than the one legacy path — still refusing (409) when the env var is
- * active, and still never overwriting an existing file (`RootKeyFileAlreadyExistsError`). A site
- * with no readable `.site-meta.json` (or production, which has no per-site file at all) falls back
- * to exactly today's behavior: `siteKeySources` drops the per-site candidate in that case.
+ * (`~/.tovu/site-keys/<id>.hex`, A.1) over the legacy shared file, and `generate` fills THAT
+ * per-site file rather than the one legacy path. Production, which has no per-site file at all,
+ * keeps the env-var/volume-file behavior (`siteKeySources` drops the per-site candidate there).
  *
  * `GET`'s response also carries a `state` field derived from the resolved status — the full
  * site-key-plan §A.6 5-state set ({@link SiteTokenState}: `"active" | "missing" |
@@ -197,8 +198,8 @@ async function siteHasKeyDependentData(deps: AdminSiteTokenDeps): Promise<boolea
 }
 
 /**
- * Re-stamps `.site-meta.json`'s `siteKeyFingerprint` to `fingerprint` after `generate` mints a new
- * key (site-key plan §A.6) — mirrors `ensureSiteKey`'s own `withFingerprintReconciliation`
+ * Re-stamps `.site-meta.json`'s `siteKeyFingerprint` to `fingerprint` after production `generate`
+ * mints a new key (site-key plan §A.6; locally `ensureSiteKey` stamps its own) — mirrors `ensureSiteKey`'s own `withFingerprintReconciliation`
  * "present and equal → nothing written" case (`site-key-ensure.ts`): a missing `.site-meta.json`
  * (no commit marker at all — a legacy or unrepaired site) is left alone rather than fabricated, and
  * an already-matching stamp is left untouched rather than rewritten for no reason. Every other
@@ -242,7 +243,7 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   }));
 }
 
-export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenDeps): void {
+export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter): void {
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     const { sources } = resolveSiteTokenSources(deps);
@@ -269,41 +270,13 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
 
   app.post(`${BASE_PATH}/generate`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
-
-    const { sources, keyFilePath } = resolveSiteTokenSources(deps);
-    // The env var always wins over a key file (`inspectRootKeyMaterial`'s precedence), so writing
-    // one while the env var is active would create a file that is never read — refuse rather than
-    // let a caller who bypassed the UI believe it did something.
-    const status = inspectRootKeyMaterial({ sources });
-    if (status.source === "env") {
-      res.status(409).json({
-        error: "ENV_VAR_ACTIVE",
-        detail:
-          "TOVU_INTEGRATIONS_ROOT_KEY is already set as an environment variable, which always " +
-          "takes precedence over a key file. Generating a file here would not become the active key.",
-      });
-      return;
-    }
-
     try {
-      const generated = generateFileRootKey({ keyFilePath });
-      // Site-key plan §A.6: keep `.site-meta.json`'s stamped fingerprint in step with the key
-      // `generate` just minted, so a subsequent GET reports `"active"` rather than a spurious
-      // `"mismatch"` against a now-stale stamp. Never touches the create-only/never-overwrite
-      // semantics above — this only stamps metadata after a successful create.
-      stampSiteKeyFingerprint(deps.siteBinding.dir, generated.fingerprint);
-      // `generated.hex` is deliberately NOT forwarded here (sol finding 3-2, 2026-09-16): the
-      // admin controller (`use-site-token.hooks.ts`'s `generate()`) only ever reads
-      // fingerprint/keyFilePath/runtimeMode from this response, so echoing the raw key gave it no
-      // product behavior — only extra exposure across the HTTP response, browser memory, and any
-      // network-log tooling. Reveal (above) stays the one, explicit, on-purpose place this route
-      // family discloses the value.
+      const result = await generateSiteToken(deps, siteKey);
+      // The raw key is never in this body (sol finding 3-2, 2026-09-16): the admin controller
+      // (`use-site-token.hooks.ts`'s `generate()`) reads only fingerprint/keyFilePath/runtimeMode.
+      // Reveal (above) stays the one, explicit place this route family discloses the value.
       res.set("Cache-Control", "no-store");
-      res.status(201).json({
-        fingerprint: generated.fingerprint,
-        keyFilePath: generated.keyFilePath,
-        runtimeMode: resolveRuntimeMode(),
-      });
+      res.status(result.status).json({ ...result.body, runtimeMode: resolveRuntimeMode() });
     } catch (err) {
       if (err instanceof RootKeyFileAlreadyExistsError) {
         res.status(409).json({ error: "ALREADY_EXISTS", detail: err.message });
@@ -313,4 +286,99 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });
+}
+
+/** The site-key writer's result, as far as `generate` reads it — `site-key-ensure.ts`'s
+ *  `EnsureSiteKeyResult`, restated structurally because nothing under `server/inbound/**` may import
+ *  that module (`no-site-key-ensure-import.boundary.test.ts`). */
+export interface SiteKeyEnsureOutcome {
+  readonly action: "noop" | "adopt" | "mint" | "refuse" | "invalid" | "mismatch" | "production-noop";
+  readonly perSiteFilePath?: string;
+  readonly fingerprint?: string;
+}
+
+/** What `generate` needs from the composition root: `site-key-ensure.ts`'s `ensureSiteKeyForSite`,
+ *  the same writer boot runs. `undefined` means no `siteKeyId` resolves for the site. */
+export interface SiteTokenKeyWriter {
+  readonly ensureSiteKeyForSite: (input: {
+    siteDir: string;
+    findSiteKeyDependentData: (siteDir: string) => Promise<boolean>;
+  }) => Promise<SiteKeyEnsureOutcome | undefined>;
+}
+
+type GenerateOutcome = "already-active" | "recovered" | "created";
+
+interface GenerateResult {
+  readonly status: 200 | 201 | 409;
+  readonly body:
+    | { outcome: GenerateOutcome; fingerprint: string; keyFilePath: string }
+    | { error: string; detail: string };
+}
+
+/** Plain-words refusals — the key the site's data needs is not here, so nothing is written. */
+const REFUSALS = {
+  KEY_DEPENDENT_DATA:
+    "This site has saved credentials locked with a site token that is not on this computer. A new token could not open them, so none was created. Put the original site token back to unlock them.",
+  KEY_MISMATCH:
+    "The site token on this computer is not the one this site's saved credentials were locked with, so nothing was changed. Put the original site token back to unlock them.",
+  KEY_INVALID: "A site token is set on this computer but is not a valid key, so nothing was changed. Fix or remove it, then try again.",
+  SITE_META_UNREADABLE: "This site's .site-meta.json cannot be read, so its site token cannot be set up. Nothing was changed.",
+} as const;
+
+function refusal(code: keyof typeof REFUSALS): GenerateResult {
+  return { status: 409, body: { error: code, detail: REFUSALS[code] } };
+}
+
+function success(outcome: GenerateOutcome, fingerprint: string, keyFilePath: string): GenerateResult {
+  return { status: outcome === "created" ? 201 : 200, body: { outcome, fingerprint, keyFilePath } };
+}
+
+/**
+ * `POST .../generate`: makes sure this site has the RIGHT key, never a second one. Runs the same
+ * rules boot runs (`ensureSiteKeyForSite`): a working per-site key that matches the stamp is left
+ * alone (`already-active`); a missing per-site key is filled from whichever source holds the key the
+ * site's data was sealed with (`recovered`); a new key is minted only when the site has no sealed
+ * data (`created`). With sealed data and no matching key it refuses (409) and writes nothing — the
+ * stamp in `.site-meta.json` is the only record of which key the data needs.
+ *
+ * Production has no per-site file (site-key plan §A.1), so there the route keeps its env/volume-file
+ * behavior, with the same two guards: an active key is reported, not replaced, and no key is minted
+ * over sealed data.
+ *
+ * @throws {RootKeyFileAlreadyExistsError} production only, when the volume file appears mid-request.
+ * @complexity O(1) file reads plus at most one key-dependent-data scan.
+ */
+async function generateSiteToken(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter): Promise<GenerateResult> {
+  const hasData = (): Promise<boolean> => siteHasKeyDependentData(deps);
+  const mode = resolveRuntimeMode();
+  const ensured = await siteKey.ensureSiteKeyForSite({ siteDir: deps.siteBinding.dir, findSiteKeyDependentData: hasData });
+  if (mode === "production" || ensured?.action === "production-noop") return generateProductionSiteToken(deps, hasData);
+  if (ensured === undefined) return refusal("SITE_META_UNREADABLE");
+  const { action, fingerprint, perSiteFilePath } = ensured;
+  switch (action) {
+    case "noop":
+    case "adopt":
+    case "mint":
+      if (fingerprint === undefined || perSiteFilePath === undefined) throw new Error(`site key '${action}' carried no fingerprint or path`);
+      return success(action === "noop" ? "already-active" : action === "adopt" ? "recovered" : "created", fingerprint, perSiteFilePath);
+    case "refuse":
+      return refusal("KEY_DEPENDENT_DATA");
+    case "mismatch":
+      return refusal("KEY_MISMATCH");
+    case "invalid":
+      return refusal("KEY_INVALID");
+  }
+}
+
+/** {@link generateSiteToken}'s production branch: the env var or the durable-volume file.
+ *  @complexity O(1) file reads plus at most one key-dependent-data scan. */
+async function generateProductionSiteToken(deps: AdminSiteTokenDeps, hasData: () => Promise<boolean>): Promise<GenerateResult> {
+  const { sources, keyFilePath } = resolveSiteTokenSources(deps);
+  const status = inspectRootKeyMaterial({ sources });
+  if (status.active && status.fingerprint !== undefined) return success("already-active", status.fingerprint, status.keyFilePath);
+  if (status.invalid) return refusal("KEY_INVALID");
+  if (await hasData()) return refusal("KEY_DEPENDENT_DATA");
+  const generated = generateFileRootKey({ keyFilePath });
+  stampSiteKeyFingerprint(deps.siteBinding.dir, generated.fingerprint);
+  return success("created", generated.fingerprint, generated.keyFilePath);
 }

@@ -120,6 +120,7 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#s
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { ensureSiteKeyForSite } from "#src/features/webhooks/site-key-ensure";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
 import {
   InMemoryAssetBlobRepo,
@@ -1662,8 +1663,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // generated-file fallback. `admin.security.tokens.manage`-gated on both verbs — see that route
   // file's own header for exactly what this does and does not cover (since 2026-09-09 it seals
   // every stored credential and can satisfy a production boot, but webhook signing / newsletter
-  // tokens still need the env var).
-  registerAdminSiteTokenRoutes(app, routeDeps);
+  // tokens still need the env var). Generate runs the one site-key writer boot runs
+  // (`ensureSiteKeyForSite`), handed in here because the route itself may not import it.
+  registerAdminSiteTokenRoutes(app, routeDeps, { ensureSiteKeyForSite });
   // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
   // same permission that gates those two tools themselves — see that route file's own header.

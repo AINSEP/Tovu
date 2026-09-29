@@ -47,8 +47,10 @@ import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
  * fingerprint) and `site-key-sources.ts` (candidate ordering) — never the reverse: both keyrings
  * stay readers (`allowFileAutoGenerate: false`), and this module is the only place `randomBytes`
  * feeds a site key file. Nothing under `server/inbound/**` may import this module (site-key plan
- * §A.3: "no request path can reach it") — Stage A3a's own wiring test enforces that; this file
- * does not import anything from `server/inbound` in either direction.
+ * §A.3) — Stage A3a's own wiring test enforces that; this file does not import anything from
+ * `server/inbound` in either direction. The one request path that runs it, the admin Site Token
+ * `generate` (2026-09-29), receives {@link ensureSiteKeyForSite} from the composition root, so a
+ * request writes a key only by these same rules and never by a writer of its own.
  */
 
 // ---------------------------------------------------------------------------
@@ -82,8 +84,9 @@ export interface PlanSiteKeyEnsureInput {
   readonly mode: RuntimeMode;
   /** This site's own `~/.tovu/site-keys/<id>.hex`. */
   readonly perSite: SiteKeyMaterialCheck;
-  /** The first-present candidate among every OTHER source (env var, legacy shared file) — i.e.
-   *  `siteKeySources` with `perSite` excluded. */
+  /** The candidate among every OTHER source (env var, legacy shared file) — i.e. `siteKeySources`
+   *  with `perSite` excluded: the one holding the key `.site-meta.json` names when any does,
+   *  otherwise the first present. */
   readonly other: SiteKeyMaterialCheck;
   /** Irrelevant unless both `perSite` and `other` are `"absent"` — a caller may pass `false`
    *  unconditionally otherwise, the same convention the now-deleted CLI decision table
@@ -195,7 +198,10 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
   const perSiteRaw = readSiteKeySourceMaterial(perSiteSource, env);
   const perSiteParsed = perSiteRaw === undefined ? undefined : parseRootKeyHex(perSiteRaw);
 
-  const otherRaw = findFirstPresentMaterial(otherSources, env);
+  // A source holding exactly the key `.site-meta.json` names is the right one to adopt wherever it
+  // sits in the order; only without such a source does the first-present rule apply.
+  const stampedFingerprint = resolveSiteKeyFingerprint({ siteDir: input.siteDir });
+  const otherRaw = findStampedMaterial(otherSources, env, stampedFingerprint) ?? findFirstPresentMaterial(otherSources, env);
   const otherParsed = otherRaw === undefined ? undefined : parseRootKeyHex(otherRaw);
 
   let hasKeyDataMemo: boolean | undefined;
@@ -230,8 +236,7 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
       // the right key from ever being adopted. With no key-dependent data the stamp protects
       // nothing, so adoption goes ahead and the stamp is updated.
       const candidateFingerprint = fingerprintRootKeyHex(otherParsed.hex);
-      const stamped = resolveSiteKeyFingerprint({ siteDir: input.siteDir });
-      if (stamped !== undefined && stamped !== candidateFingerprint && (await siteHasKeyData())) {
+      if (stampedFingerprint !== undefined && stampedFingerprint !== candidateFingerprint && (await siteHasKeyData())) {
         return { action: "mismatch", perSiteFilePath, fingerprint: candidateFingerprint };
       }
       const written = atomicCreateSiteKeyFile(perSiteFilePath, otherParsed.hex);
@@ -357,19 +362,7 @@ export interface EnsureSiteKeyForBootInput {
  */
 export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Promise<EnsureSiteKeyResult | undefined> {
   try {
-    const env = input.env ?? process.env;
-    const mode = input.mode ?? resolveRuntimeMode({ env });
-    const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
-    if (!siteKeyId) return undefined;
-    return await ensureSiteKey({
-      siteDir: input.siteDir,
-      siteKeyId,
-      mode,
-      env,
-      home: input.home,
-      cwd: input.cwd,
-      findSiteKeyDependentData: input.findSiteKeyDependentData,
-    });
+    return await ensureSiteKeyForSite(input);
   } catch (err) {
     // Boot must never go down over this — see this function's own header. `console.error` (not the
     // `warn`-level line `root-key-boot-notice.ts` prints moments later on the same terminal) so an
@@ -377,6 +370,33 @@ export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Pr
     console.error(`[site-key] could not ensure a site key at boot for ${input.siteDir}: ${(err as Error).message}`);
     return undefined;
   }
+}
+
+/**
+ * {@link ensureSiteKeyForBoot} without its catch: resolves (or, in local mode, mints) this site's
+ * `siteKeyId`, then runs {@link ensureSiteKey}. Also the admin Site Token route's `generate`, injected
+ * by the composition root (`server/runtime/composition/app.ts`) so that route mints, adopts and
+ * refuses by exactly the rules boot uses rather than a second writer of its own.
+ *
+ * @returns `undefined` when no `siteKeyId` resolves (production with no meta file, or a meta file
+ *   that exists but is unreadable).
+ * @throws whatever {@link ensureSiteKey} or the meta-file mint throws.
+ * @complexity Same as {@link ensureSiteKeyForBoot}.
+ */
+export async function ensureSiteKeyForSite(input: EnsureSiteKeyForBootInput): Promise<EnsureSiteKeyResult | undefined> {
+  const env = input.env ?? process.env;
+  const mode = input.mode ?? resolveRuntimeMode({ env });
+  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
+  if (!siteKeyId) return undefined;
+  return ensureSiteKey({
+    siteDir: input.siteDir,
+    siteKeyId,
+    mode,
+    env,
+    home: input.home,
+    cwd: input.cwd,
+    findSiteKeyDependentData: input.findSiteKeyDependentData,
+  });
 }
 
 /**
@@ -436,6 +456,25 @@ function mintMinimalSiteMetaJson(siteDir: string): string | undefined {
 function materialCheckOf(parsed: ReturnType<typeof parseRootKeyHex> | undefined): SiteKeyMaterialCheck {
   if (parsed === undefined) return { kind: "absent" };
   return parsed.ok ? { kind: "valid" } : { kind: "invalid" };
+}
+
+/** The material of the first source in `sources` holding a valid key whose fingerprint is
+ *  `stampedFingerprint`, or `undefined` when nothing is stamped or no source matches. A match is
+ *  proof it is the key the site's data was sealed with, so a broken or different source earlier in
+ *  the order does not hide it.
+ *  @complexity O(n) in `sources.length` — one read and one hash per source. */
+function findStampedMaterial(
+  sources: readonly SiteKeySource[],
+  env: NodeJS.ProcessEnv,
+  stampedFingerprint: string | undefined
+): string | undefined {
+  if (stampedFingerprint === undefined) return undefined;
+  for (const source of sources) {
+    const raw = readSiteKeySourceMaterial(source, env);
+    const parsed = raw === undefined ? undefined : parseRootKeyHex(raw);
+    if (parsed?.ok && fingerprintRootKeyHex(parsed.hex) === stampedFingerprint) return raw;
+  }
+  return undefined;
 }
 
 /** The first source in `sources` that has ANY material — present-but-invalid still counts and
