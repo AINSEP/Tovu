@@ -36,7 +36,7 @@ import type { EgressPolicy } from "./ports.js";
 /**
  * A single, fixed-method HTTPS call to a specific endpoint with no legitimate reason to redirect:
  * denies private/loopback addresses, follows zero redirects, and bounds connect time and response
- * size. Used today for outbound mail-API calls (Resend) — see this file's own header for why this
+ * size. Used today for outbound mail-API calls (plugin-provided hosted mail adapters) — see this file's own header for why this
  * used to be a hand-copied literal.
  *
  * `custom_credential_verify`/`custom_credential_make_request` used this same policy until

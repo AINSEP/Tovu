@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "adapters": [
+    {
+      "id": "resend",
+      "label": "Resend",
+      "module": "adapters/resend.mjs",
+      "credentialLabel": "Tovu Mail — Resend API"
+    }
+  ]
+}

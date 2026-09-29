@@ -3,7 +3,7 @@
  *
  * Purpose:
  * The one `HttpClientPort` + `EgressPolicy` shape every consumer (Integrations/webhooks,
- * Newsletter's `HttpApiMailerAdapter`, Analytics' `ForwardingSink`) imports — resolves
+ * the hosted mail adapters, Analytics' `ForwardingSink`) imports — resolves
  * `HttpClientPort` being declared only inside Integrations (036) with an SSRF guard that
  * didn't extend to the other two consumers.
  */

@@ -134,7 +134,7 @@ export function toUnsubscribeDeps(deps: NewsletterRouteDeps): UnsubscribeDeps {
  * settings toggle (out of scope this pass, same as the deferred admin UI), and `false` is
  * behavior.spec.md §3's own documented default — never a corner cut. Real sending stays off because
  * of (a), this constant, and (b): both composition roots bind `membersConsentCapability: null`.
- * Precondition (d) is met whenever a Resend or SMTP credential resolves
+ * Precondition (d) is met whenever a hosted-API (plugin) or SMTP credential resolves
  * (`server/runtime/boot/resolve-mailer.ts`), corrected 2026-09-16 — a real `MailerPort` adapter now
  * exists for both drivers.
  */

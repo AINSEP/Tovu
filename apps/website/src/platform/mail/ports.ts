@@ -8,8 +8,8 @@
  * can't be bypassed or lost on a Tier-3 module disable.
  *
  * Architectural role:
- * INTERFACES ONLY. `SmtpMailerAdapter` + `HttpApiMailerAdapter` (over `HttpClientPort`) are the
- * ADR-006 production rule-of-two pair; `ConsoleMailerAdapter` and the in-memory test double do
+ * INTERFACES ONLY. `SmtpMailerAdapter` + a plugin-provided hosted-API adapter (over `HttpClientPort`,
+ * `./adapter-module.ts`) are the ADR-006 production rule-of-two pair; `ConsoleMailerAdapter` and the in-memory test double do
  * NOT count toward it (ADR-037 amendment 6 — round-2 audit finding R2-006 corrected this file's
  * wording, which previously credited all four as satisfying rule-of-two). This "no test-double
  * credit" rule is scoped to this external-effect port specifically — it does not relax ADR-015's
@@ -17,13 +17,13 @@
  *
  * 2026-08-31 correction (false-code-comments register entry, `ADS-memory/reports/2026-08-20-
  * false-code-comments-register.md`): the two marker-type doc comments below used to read "built
- * now (nodemailer/SMTP)" for `SmtpMailerAdapter` and "named-next (Resend/Postmark/SES over
- * HttpClientPort)" for `HttpApiMailerAdapter`. Neither was true at the time — no class implemented
+ * now (nodemailer/SMTP)" for `SmtpMailerAdapter` and "named-next (hosted API over
+ * HttpClientPort)" for the hosted-API adapter. Neither was true at the time — no class implemented
  * either interface anywhere in this codebase; `ConsoleMailerAdapter` was the ONLY adapter that
  * existed, so this port had zero rule-of-two-qualifying implementations despite what this file
- * claimed. Both are real now: `HttpApiMailerAdapter` (`./adapters/http-api.resend.ts`, Resend) and
- * `SmtpMailerAdapter` (`./adapters/smtp.nodemailer.ts`, nodemailer) — rule-of-two is satisfied as
- * of this change.
+ * claimed. Both are real now: the hosted-API adapter (an Agent Plugin since 2026-09-29, loaded
+ * through `features/agent-plugins/mail-adapter-registry.ts`) and `SmtpMailerAdapter`
+ * (`./adapters/smtp.nodemailer.ts`, nodemailer) — rule-of-two is satisfied as of this change.
  */
 import type { UUID } from "@jini-ai/cms/core";
 import type {
@@ -64,9 +64,8 @@ export interface MailerPort {
  * `ConsoleMailerAdapter`'s concrete class lives in `features/members/mailer.console.ts` (a Tier-3
  * feature), reachable only through that module's own barrel (`features/members/index.ts`).
  *
- * `SmtpMailerAdapter`/`HttpApiMailerAdapter` do NOT need this treatment — both concrete classes
- * live inside THIS library (`./adapters/*.ts`, same tier), so `./index.ts` exports the real classes
- * directly (a same-tier internal re-export, no naming collision to work around: see that file).
+ * `SmtpMailerAdapter` does NOT need this treatment — its concrete class lives inside THIS library
+ * (`./adapters/smtp.nodemailer.ts`, same tier), so `./index.ts` exports the real class directly (a same-tier internal re-export, no naming collision to work around: see that file).
  */
 export type ConsoleMailerAdapter = MailerPort; // built — `features/members/mailer.console.ts`, logs to stdout in dev
 export type InMemoryMailerAdapter = MailerPort; // test double (captures sends)

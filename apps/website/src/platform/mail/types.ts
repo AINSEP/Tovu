@@ -8,7 +8,7 @@
  *
  * How it relates to the project:
  * - `members`, `newsletter`, `comments` import these types instead of declaring their own.
- * - Adapters (`ConsoleMailerAdapter`, `SmtpMailerAdapter`, `HttpApiMailerAdapter`, the in-memory
+ * - Adapters (`ConsoleMailerAdapter`, `SmtpMailerAdapter`, plugin-provided hosted-API ones, the in-memory
  *   test double) are built against this shape elsewhere; this file is interfaces/types only.
  *
  * Architectural role:
@@ -88,7 +88,7 @@ export type MailerSendResult =
 
 /** Static description of an adapter's capabilities (mirrors ADR-027's `BlobStorePort.capabilities`). */
 export interface MailerCapabilities {
-  /** Adapter identifier, e.g. `console`, `smtp`, `resend`, `memory`. */
+  /** Adapter identifier, e.g. `console`, `smtp`, `memory`, or a plugin adapter's own id. */
   driver: string;
   /** Whether the provider honours a forwarded idempotency key. */
   supportsIdempotencyKey: boolean;

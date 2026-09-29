@@ -31,8 +31,8 @@ import { EgressRefusedError, type HttpClientPort } from "../../platform/http/ind
  *   provider URLs (`api.github.com`, `api.vercel.com`, ...) — safe because those hosts are fixed
  *   constants, never attacker- or operator-influenced. THIS module's target host is exactly the
  *   opposite: an arbitrary, operator-typed `baseUrl`, which is precisely why it goes through the
- *   guarded `HttpClientPort` (ADR-038) instead, the same reason `platform/mail/adapters/
- *   http-api.resend.ts` and `server/runtime/boot/resolve-mailer.ts` do for the identical shape of
+ *   guarded `HttpClientPort` (ADR-038) instead, the same reason the hosted mail
+ *   adapters (`server/runtime/boot/resolve-mailer.ts`) do for the identical shape of
  *   credential.
  * - {@link makeCredentialedRequest} — an authenticated request through a saved credential. Supports
  *   GET/POST/PUT/PATCH/DELETE, with a request body, at PARITY with what a human can already do from

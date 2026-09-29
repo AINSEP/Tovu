@@ -7,8 +7,8 @@ import type { EmailAddress, MailerCapabilities, MailerSendOptions, MailerSendRes
 /**
  * @file `SmtpMailerAdapter` — the ADR-006 rule-of-two "second real adapter" half of `MailerPort`
  * (ADR-037). The escape hatch for an operator with a corporate mail server, or who does not want a
- * third-party API in the loop at all — `../adapters/http-api.resend.ts`'s own file header records
- * the owner's reasoning for why THAT adapter is the default; this one exists for the case that
+ * third-party API in the loop at all — `server/runtime/boot/resolve-mailer.ts` records the owner's
+ * reasoning for why a plugin-provided hosted-API adapter is the default; this one exists for the case that
  * reasoning does not fit.
  *
  * `SmtpMailerAdapter` itself depends only on {@link SmtpTransport} — a two-method structural
@@ -24,7 +24,7 @@ import type { EmailAddress, MailerCapabilities, MailerSendOptions, MailerSendRes
  * (MAIL FROM/RCPT TO/DATA, STARTTLS negotiation, AUTH LOGIN/PLAIN) is exactly the kind of
  * protocol-correctness surface not worth re-implementing for a single adapter.
  *
- * `sendBatch` loops `send()` — same reasoning `http-api.resend.ts`'s own header gives (no shared
+ * `sendBatch` loops `send()` — same as the hosted-API adapter (no shared
  * batch-loop helper exists in this codebase yet; this mirrors `ConsoleMailerAdapter`'s existing
  * inline loop rather than introducing one). SMTP has no native batch verb to call instead, so this
  * is not even a simplification — it is the only shape available.
@@ -62,7 +62,7 @@ export interface SmtpMailerAdapterDeps {
 }
 
 /** `EmailAddress` -> nodemailer's own `{name, address}` object convention — chosen over a
- *  formatted `"Name <email>"` string (which `http-api.resend.ts` uses for Resend's JSON API)
+ *  formatted `"Name <email>"` string (which a JSON mail API typically takes)
  *  because nodemailer handles header-safe quoting/encoding of `name` itself when given the
  *  object form, so this adapter never has to.
  *
@@ -140,8 +140,8 @@ export class SmtpMailerAdapter implements MailerPort {
       // implemented or wired yet (see its doc).
       supportsIdempotencyKey: false,
       // No bounce/complaint feedback channel without a separate, unconfigured-here return-path
-      // mailbox parser — a real gap, not a rounding error (see `http-api.resend.ts`'s header for
-      // why the hosted-API adapter is the default partly BECAUSE of this asymmetry).
+      // mailbox parser — a real gap, not a rounding error (the hosted-API adapter is the default
+      // partly BECAUSE of this asymmetry).
       supportsWebhookFeedback: false,
       // See file header — loops `send()`; SMTP has no batch verb to call instead.
       maxBatchSize: 1,

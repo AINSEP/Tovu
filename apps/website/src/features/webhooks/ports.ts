@@ -5,7 +5,7 @@
  * The dependency-inversion seams webhook delivery needs. `HttpClientPort`/`EgressPolicy` are
  * imported from the shared `../http` core primitive (ADR-038) — Round-3 audit fold
  * (TM-admin-sweep-001): these were previously declared locally here, but Newsletter's
- * `HttpApiMailerAdapter` and Analytics' `ForwardingSink` also need the same SSRF-guarded
+ * the hosted mail adapters and Analytics' `ForwardingSink` also need the same SSRF-guarded
  * client, so the port + policy moved to a shared home. Dispatch itself is deliberately NOT a
  * port — it is ordinary core code on the outbox spine (ADR-006 features-not-ports; ADR-009
  * rejected a mediator layer), exactly as ADR-021's `authorize()` is core code, not a port.

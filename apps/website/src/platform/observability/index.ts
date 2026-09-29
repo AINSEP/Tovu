@@ -21,7 +21,7 @@ const require = createRequire(import.meta.url);
  * a stray `OTEL_EXPORTER_OTLP_ENDPOINT` left in a developer's shell can never make the hermetic
  * test composition try to reach a real collector (the same "hermetic root gets the safe double,
  * SQLite root gets the real env-driven adapter" split every other rule-of-two pair in `RouteDeps`
- * already follows — `ConsoleMailerAdapter` vs `HttpApiMailerAdapter`, `InMemoryPublishHistoryStore`
+ * already follows — `ConsoleMailerAdapter` vs `SmtpMailerAdapter`, `InMemoryPublishHistoryStore`
  * vs `SqlitePublishHistoryStore`, etc.).
  *
  * The OTel adapter module is loaded lazily — see `otel.ts`'s file header for the full mechanism and

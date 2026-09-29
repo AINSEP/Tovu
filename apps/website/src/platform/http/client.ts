@@ -198,7 +198,7 @@ function hasUserAgentHeader(headers: Readonly<Record<string, string>>): boolean 
 /**
  * Adds {@link DEFAULT_USER_AGENT} to `headers` unless the caller already set one (any casing) —
  * applied once, at this module's single public entry point (`createHttpClient(...).send`), so
- * every consumer that reaches a real provider through this seam (custom-credentials, the Resend
+ * every consumer that reaches a real provider through this seam (custom-credentials, the hosted
  * mailer, comment spam checks, webhook delivery, deploy/lipay plugins) gets a non-empty
  * `User-Agent` with no per-consumer change required, and a caller's own explicit choice is always
  * preserved untouched.

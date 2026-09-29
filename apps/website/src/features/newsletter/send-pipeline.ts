@@ -39,7 +39,7 @@ export const SEND_BATCH_CLAIMED_EVENT = "newsletter.send.batch.claimed";
 
 /**
  * How long one run holds a send row while it dispatches it (2026-09-16). Must outlast one row's hooks + `mailer.send`
- * + `recordResult` (the Resend adapter caps a call at 10s). A run that throws after leasing a row keeps the lease, so
+ * + `recordResult` (the hosted mail adapter caps a call at 10s). A run that throws after leasing a row keeps the lease, so
  * the lease must also expire before the batch event's LAST attempt, whichever attempt took it. The tightest case is a
  * lease taken on attempt `MAX_OUTBOX_ATTEMPTS - 1`: the last attempt can follow after only
  * computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, random 0) = 240s. A lease still live then fails that attempt, the

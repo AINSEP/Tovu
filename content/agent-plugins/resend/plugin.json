@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "resend",
+  "version": "0.1.0",
+  "description": "Sends the site's email (sign-in links, form notifications, newsletters) through Resend's hosted email API. Ships the mail adapter itself (Tovu loads it only because Tovu shipped it) and the know-how to set it up: get a Resend API key, verify the sending domain, and save the key under Access Tokens with the exact label Tovu looks for.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "keywords": [
+    "resend",
+    "email",
+    "mail",
+    "send-email",
+    "transactional-email",
+    "newsletter",
+    "smtp-alternative"
+  ]
+}

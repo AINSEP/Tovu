@@ -8,10 +8,10 @@ import {
 } from "#src/features/custom-credentials/index";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { ConsoleMailerAdapter } from "#src/features/members/index";
+import type { LoadedMailAdapter, MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {
   createNodemailerSmtpTransport,
-  HttpApiMailerAdapter,
   SmtpMailerAdapter,
   type CreateNodemailerSmtpTransportConfig,
   type MailerPort,
@@ -20,8 +20,10 @@ import {
 
 /**
  * @file Boot-time `MailerPort` selection — owner decision, 2026-08-31: build both a hosted-API
- * (Resend) and an SMTP adapter, default to the hosted API, and never let an unconfigured mailer
- * fail silently.
+ * and an SMTP adapter, default to the hosted API, and never let an unconfigured mailer fail
+ * silently. 2026-09-29: hosted-API providers moved out of core into Agent Plugins; this module asks
+ * the mail-adapter registry (`features/agent-plugins/mail-adapter-registry.ts`) which ones are
+ * installed and enabled, tries each one's saved credential in registry order, then SMTP (core).
  *
  * Deliberately NOT in `platform/mail/**`: this module needs a runtime (not just type) dependency
  * on `features/custom-credentials` (a Tier-3 feature) to look up the saved credential, and
@@ -38,9 +40,10 @@ import {
  * `apps/admin` change (out of scope for this task), and it is the one existing store an operator
  * can already populate for an unlisted provider with zero UI work from this task. Concretely:
  *
- * - Hosted API: a credential labeled exactly {@link MAIL_HTTP_API_CREDENTIAL_LABEL}, category
- *   `"ops"`, `baseUrl` = `https://api.resend.com` (Resend's real API origin), connection
- *   `{token: "<Resend API key>"}`.
+ * - Hosted API: a credential labeled exactly as the plugin's descriptor declares
+ *   (`credentialLabel`), category `"ops"`, `baseUrl` = the provider's API origin, connection
+ *   `{token: "<API key>"}`. The label is unchanged from when the adapter lived in core, so a saved
+ *   key keeps working with no re-entry.
  * - SMTP: a credential labeled exactly {@link MAIL_SMTP_CREDENTIAL_LABEL}, category `"ops"`,
  *   `baseUrl` = `https://<smtp-host>:<port>` (an `https://` SCHEME PREFIX ON A NON-HTTP ENDPOINT —
  *   a disclosed, deliberate encoding, not a mistake: `custom_credential_sets.baseUrl` is validated
@@ -70,16 +73,18 @@ import {
  * settles and then reaches whichever adapter actually won (real credential or, only once
  * genuinely unconfigured/undecryptable, Console) — it can no longer report success for a message
  * a real, just-not-yet-loaded credential would have delivered.
+ *
+ * **Retry while unresolved (2026-09-29).** The boot lookup can run before the `bundled-agent-plugins`
+ * boot step has installed the plugin that provides the adapter (first boot after an upgrade), and a
+ * key can be saved after boot. So while the mailer is still the Console fallback, every send (and a
+ * `capabilities()` read, in the background) retries the lookup once, single-flight; the first real
+ * adapter found is kept for the life of the process, as before. The production warning is logged once.
  */
 
 /** Custom-credential category (`features/custom-credentials/types.ts`'s closed set) mail
  *  credentials are filed under — outbound-mail delivery is operational infrastructure, not a
  *  source-control/hosting/media/ai integration. */
 const MAIL_CREDENTIAL_CATEGORY = "ops";
-
-/** Exact `custom_credential_sets.label` an operator must use (via the Access Tokens "Add custom
- *  provider" form) for the hosted-API (Resend) adapter to activate. */
-export const MAIL_HTTP_API_CREDENTIAL_LABEL = "Tovu Mail — Resend API";
 
 /** Exact `custom_credential_sets.label` an operator must use for the SMTP adapter to activate. */
 export const MAIL_SMTP_CREDENTIAL_LABEL = "Tovu Mail — SMTP Server";
@@ -111,6 +116,8 @@ export interface ResolveMailerDeps {
    *  module never constructs one itself (only a composition root may, per `.dependency-cruiser
    *  .mjs`'s `only-composition-constructs-concrete-adapters`-adjacent discipline). */
   httpClient: HttpClientPort;
+  /** This workspace's plugin-contributed mail adapters (`loadMailAdapterRegistry` in production). */
+  loadMailAdapters: () => Promise<MailAdapterRegistry>;
   mode: RuntimeMode;
   /** Injected for tests; defaults to the real `createNodemailerSmtpTransport`. */
   createSmtpTransport?: (config: CreateNodemailerSmtpTransportConfig) => SmtpTransport;
@@ -138,13 +145,67 @@ async function attemptTier(label: string, resolve: () => Promise<MailerPort | nu
   }
 }
 
-async function resolveHttpApiMailer(deps: ResolveMailerDeps): Promise<MailerPort | null> {
+async function resolvePluginMailer(deps: ResolveMailerDeps, adapter: LoadedMailAdapter): Promise<MailerPort | null> {
   const resolved = await resolveCustomCredentialByLabel(
     { repo: deps.customCredentialRepo, sealer: deps.sealer },
-    { workspaceId: deps.workspaceId, label: MAIL_HTTP_API_CREDENTIAL_LABEL }
+    { workspaceId: deps.workspaceId, label: adapter.descriptor.credentialLabel }
   );
   if (!resolved) return null;
-  return new HttpApiMailerAdapter(deps.httpClient, { apiKey: resolved.connection.token, baseUrl: resolved.baseUrl });
+  const credential = {
+    token: resolved.connection.token,
+    baseUrl: resolved.baseUrl,
+    ...(resolved.connection.username ? { username: resolved.connection.username } : {}),
+  };
+  return adapter.module.create({ credential, kit: { httpClient: deps.httpClient } });
+}
+
+/** The registry, or an empty one plus the reason it could not be read. @complexity One registry load. */
+async function loadAdapters(deps: ResolveMailerDeps): Promise<{ adapters: readonly LoadedMailAdapter[]; problems: string[] }> {
+  try {
+    const registry = await deps.loadMailAdapters();
+    return { adapters: registry.list(), problems: [...registry.refusals] };
+  } catch (err) {
+    return { adapters: [], problems: [`the plugin mail adapters could not be listed (${err instanceof Error ? err.message : String(err)})`] };
+  }
+}
+
+interface ResolutionOutcome {
+  mailer: MailerPort | null;
+  /** Every credential label tried, in order (for the warning). */
+  labels: string[];
+  reasons: string[];
+}
+
+/** One pass over the chain: each plugin adapter's credential, then SMTP. @complexity O(a) lookups. */
+async function resolveOnce(deps: ResolveMailerDeps): Promise<ResolutionOutcome> {
+  const { adapters, problems } = await loadAdapters(deps);
+  const labels: string[] = [];
+  const reasons: string[] = [];
+  for (const adapter of adapters) {
+    const label = adapter.descriptor.credentialLabel;
+    labels.push(label);
+    const attempt = await attemptTier(label, () => resolvePluginMailer(deps, adapter));
+    if (attempt.mailer) return { mailer: attempt.mailer, labels, reasons };
+    if (attempt.failureReason) reasons.push(attempt.failureReason);
+  }
+  labels.push(MAIL_SMTP_CREDENTIAL_LABEL);
+  const smtp = await attemptTier(MAIL_SMTP_CREDENTIAL_LABEL, () => resolveSmtpMailer(deps));
+  if (smtp.mailer) return { mailer: smtp.mailer, labels, reasons };
+  if (smtp.failureReason) reasons.push(smtp.failureReason);
+  return { mailer: null, labels, reasons: [...reasons, ...problems] };
+}
+
+/** The production fallback warning. @complexity O(l) labels. */
+function fallbackWarning(outcome: ResolutionOutcome): string {
+  const { labels, reasons } = outcome;
+  const detail = reasons.length > 0 ? ` (${reasons.join("; ")})` : ` — ${labels.length === 2 ? "neither" : "none"} is configured`;
+  const quoted = labels.map((label) => `"${label}"`);
+  const add = quoted.length === 1 ? quoted[0] : `${quoted[0]} (recommended) or ${quoted.slice(1).join(" or ")}`;
+  return (
+    `[mail] no working mail credential found${detail} — falling back to ConsoleMailerAdapter, so ` +
+    `outbound mail (form notifications, newsletter, member verification) will NOT actually be sent. ` +
+    `Add a ${add} credential under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}") to fix this.`
+  );
 }
 
 async function resolveSmtpMailer(deps: ResolveMailerDeps): Promise<MailerPort | null> {
@@ -178,65 +239,59 @@ export interface ResolvedMailer {
 }
 
 /**
- * Builds the boot-time-resolved `MailerPort`. Tries the hosted-API credential first (the owner's
- * chosen default), then SMTP, and only falls back to `ConsoleMailerAdapter` — which sends nothing,
- * it logs to stdout — when neither is configured or a configured one could not be used. The
- * fallback only WARNS outside `local` mode (INV-style: local dev without a mail credential is the
- * expected, unremarkable default, same reasoning `purpose-scoped-mailer.ts`'s own "local mode
- * never refuses" gate documents); in `production` mode it is exactly the silent failure this task
- * exists to end, so it is loud.
+ * Builds the boot-time-resolved `MailerPort`. Tries each plugin-provided hosted-API adapter's
+ * credential first (the owner's chosen default), then SMTP, and only falls back to
+ * `ConsoleMailerAdapter` — which sends nothing, it logs to stdout — when none is configured or a
+ * configured one could not be used. The fallback only WARNS in `production` mode (local dev without
+ * a mail credential is the expected default, same reasoning `purpose-scoped-mailer.ts`'s "local mode
+ * never refuses" gate documents), and only once. See this file's header for the retry rule.
  *
- * @complexity O(1) beyond the two credential lookups this kicks off (each already documented as
- *   O(n) in the workspace's own small credential-set count).
+ * @complexity O(a) credential lookups per resolution pass, a = plugin adapters + SMTP.
  */
 export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
-  let current: MailerPort = new ConsoleMailerAdapter();
+  const fallback: MailerPort = new ConsoleMailerAdapter();
+  let current: MailerPort = fallback;
+  let warned = false;
+  let inFlight: Promise<void> | undefined;
   const warn = deps.warn ?? ((message: string) => console.warn(message));
 
-  const ready = (async () => {
-    const httpApi = await attemptTier(MAIL_HTTP_API_CREDENTIAL_LABEL, () => resolveHttpApiMailer(deps));
-    if (httpApi.mailer) {
-      current = httpApi.mailer;
-      return;
-    }
+  const resolve = (): Promise<void> => {
+    inFlight ??= (async () => {
+      try {
+        const outcome = await resolveOnce(deps);
+        if (outcome.mailer) {
+          current = outcome.mailer;
+          return;
+        }
+        if (deps.mode !== "production" || warned) return;
+        warned = true;
+        warn(fallbackWarning(outcome));
+      } finally {
+        inFlight = undefined;
+      }
+    })();
+    return inFlight;
+  };
 
-    const smtp = await attemptTier(MAIL_SMTP_CREDENTIAL_LABEL, () => resolveSmtpMailer(deps));
-    if (smtp.mailer) {
-      current = smtp.mailer;
-      return;
-    }
+  /** Resolves a real adapter if there is still none. Never rejects: `MailerPort` must not throw
+   *  across the boundary (ADR-024 §3), so a throw from an injected `warn` is swallowed. */
+  const settled = async (): Promise<MailerPort> => {
+    // A pass already in flight may have started before the plugin was installed, so a send that
+    // still finds the fallback after it runs one fresh pass of its own.
+    if (inFlight !== undefined) await inFlight.catch(() => {});
+    if (current === fallback) await resolve().catch(() => {});
+    return current;
+  };
 
-    if (deps.mode !== "production") return;
+  const ready = resolve();
 
-    const reasons = [httpApi.failureReason, smtp.failureReason].filter((reason): reason is string => reason !== undefined);
-    const detail = reasons.length > 0 ? ` (${reasons.join("; ")})` : " — neither is configured";
-    warn(
-      `[mail] no working mail credential found${detail} — falling back to ConsoleMailerAdapter, so ` +
-        `outbound mail (form notifications, newsletter, member verification) will NOT actually be sent. ` +
-        `Add a "${MAIL_HTTP_API_CREDENTIAL_LABEL}" (recommended) or "${MAIL_SMTP_CREDENTIAL_LABEL}" ` +
-        `credential under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}") to fix this.`
-    );
-  })();
-
-  // `send`/`sendBatch` await `ready` before delegating — a call made during the resolution
-  // window must not be silently handled by the (still-current) `ConsoleMailerAdapter` while
-  // reporting success for a message that a real, just-not-yet-loaded credential would have
-  // actually delivered. `.catch(() => {})`: `ready` never rejects in practice (every internal
-  // failure is already caught by `attemptTier`), but `MailerPort.send`/`sendBatch` must never
-  // throw across the boundary (ADR-024 §3), so a hypothetical throw from an injected `warn` is
-  // swallowed here rather than propagating. `capabilities()` stays synchronous and can still
-  // reflect the pre-swap adapter for a caller that checks it before `ready` settles — same
-  // disclosed startup-race window as before, just no longer able to produce a false success.
   const mailer: MailerPort = {
-    capabilities: () => current.capabilities(),
-    send: async (message, opts) => {
-      await ready.catch(() => {});
-      return current.send(message, opts);
+    capabilities: () => {
+      if (current === fallback && inFlight === undefined) void resolve().catch(() => {});
+      return current.capabilities();
     },
-    sendBatch: async (messages, opts) => {
-      await ready.catch(() => {});
-      return current.sendBatch(messages, opts);
-    },
+    send: async (message, opts) => (await settled()).send(message, opts),
+    sendBatch: async (messages, opts) => (await settled()).sendBatch(messages, opts),
   };
   return { mailer, ready };
 }

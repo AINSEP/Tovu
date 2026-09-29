@@ -39,6 +39,7 @@ import {
   parsePublishContentDevHosts,
 } from "#src/platform/http/egress-policies";
 import { createResolvedMailer } from "../boot/resolve-mailer.js";
+import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
@@ -1656,7 +1657,7 @@ async function composeSiteRouteDeps(
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
   // comment above) — kept read here via the same local rather than re-hoisting every downstream
   // use, since everything below this point already assumed a local named `runtimeMode` exists.
-  // Outbound mail-API calls (Resend today) use the shared `SINGLE_HOP_HTTPS_EGRESS_POLICY` — see
+  // Outbound mail-API calls (plugin-provided hosted mail adapters) use the shared `SINGLE_HOP_HTTPS_EGRESS_POLICY` — see
   // `platform/http/egress-policies.ts`'s own header for why this used to be a hand-copied literal
   // (no default policy exists elsewhere in this codebase to reuse otherwise; checked: no production
   // `HttpClientPort` consumer was wired into either composition root before this).
@@ -1665,6 +1666,7 @@ async function composeSiteRouteDeps(
     customCredentialRepo: customCredentialSetRepo,
     sealer: siteAssistantSecretSealer,
     httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
+    loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }),
     mode: runtimeMode,
   });
 

@@ -93,9 +93,11 @@ import type { AgentPluginLayout } from "./layout.js";
  * a site would stop working. Owner rule: a user should never have to fix anything by hand, so it is on
  * from the first boot, and an existing site's untouched disabled seed record is switched on too
  * (`activation.ts`'s `recordBundledAgentPluginIfAbsent`). An operator can still turn it off, and
- * that decision survives every later boot.
+ * that decision survives every later boot. `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
+ * moved out of core 2026-09-29: with it off, a site that saved that provider's key would silently
+ * stop sending mail.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "resend"]);
 
 export type SeededAgentPluginOutcome =
   | {

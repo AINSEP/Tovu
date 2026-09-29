@@ -1431,7 +1431,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
   // because precondition (a) `isSendingEnabled` always resolves `false` (`routes/newsletter/deps.ts`'s
   // `toSendPipelineDeps`) and (b) both composition roots bind `membersConsentCapability: null`
   // (tasks.md's disclosed, by-design "Real Sending Is Inherently Blocked Today" flag). Precondition
-  // (d) is no longer the blocker — Resend and SMTP adapters resolve (`boot/resolve-mailer.ts`),
+  // (d) is no longer the blocker — hosted-API (plugin) and SMTP adapters resolve (`boot/resolve-mailer.ts`),
   // corrected 2026-09-16. Wired now anyway so the pipeline is genuinely complete end to end the
   // moment (a) and (b) are met, not silently half-wired.
   void routeDeps.bus.subscribe<SendBatchJob>(SEND_BATCH_CLAIMED_EVENT, async (event) => {

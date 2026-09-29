@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -11,22 +12,33 @@ import {
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import type { SmtpMailPayload, SmtpTransport } from "#src/platform/mail/index";
 import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
-import {
-  createResolvedMailer,
-  parseSmtpEndpoint,
-  MAIL_HTTP_API_CREDENTIAL_LABEL,
-  MAIL_SMTP_CREDENTIAL_LABEL,
-  type ResolveMailerDeps,
-} from "../resolve-mailer.js";
+import { loadMailAdapterRegistryFromSource, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { createResolvedMailer, parseSmtpEndpoint, MAIL_SMTP_CREDENTIAL_LABEL, type ResolveMailerDeps } from "../resolve-mailer.js";
 
 /**
- * @file `createResolvedMailer` — the hosted-API -> SMTP -> console resolution chain and its
+ * @file `createResolvedMailer` — the plugin-adapter -> SMTP -> console resolution chain and its
  * production-only warning. No test in this file sends a real email or makes a live API call: the
- * hosted-API branch is driven by a fake `HttpClientPort` and the SMTP branch by an injected fake
- * transport factory (never the real `createNodemailerSmtpTransport`).
+ * plugin branch runs the bundled `resend` plugin's real adapter (read from its source directory)
+ * over a fake `HttpClientPort`, and the SMTP branch an injected fake transport factory (never the
+ * real `createNodemailerSmtpTransport`).
  */
 
 const WORKSPACE = "ws-1";
+
+/** The label sites already saved their Resend key under; it now lives in the plugin's descriptor. */
+const MAIL_HTTP_API_CREDENTIAL_LABEL = "Tovu Mail — Resend API";
+
+const RESEND_PLUGIN_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/resend");
+
+let bundledRegistry: Promise<MailAdapterRegistry> | undefined;
+
+/** The bundled `resend` plugin's registry, as an enabled, seeded install would load it. */
+function loadBundledMailAdapters(): Promise<MailAdapterRegistry> {
+  bundledRegistry ??= loadMailAdapterRegistryFromSource({ pluginId: "resend", packageRoot: RESEND_PLUGIN_ROOT });
+  return bundledRegistry;
+}
+
+const EMPTY_REGISTRY: MailAdapterRegistry = { list: () => [], refusals: [] };
 
 class FakeHttpClient implements HttpClientPort {
   readonly calls: HttpRequest[] = [];
@@ -90,6 +102,7 @@ function makeResolveDeps(overrides: Partial<ResolveMailerDeps> = {}, warnings: s
     sealer: credentialDeps.sealer,
     httpClient: new FakeHttpClient(),
     mode: "production",
+    loadMailAdapters: loadBundledMailAdapters,
     createSmtpTransport: () => new NeverCalledSmtpTransport(),
     warn: (message: string) => warnings.push(message),
     ...overrides,
@@ -131,7 +144,7 @@ test("no credential configured + local mode: falls back to console silently (no 
   assert.equal(warnings.length, 0);
 });
 
-test("hosted-API credential configured: resolves to HttpApiMailerAdapter and does not warn", async () => {
+test("hosted-API credential configured: resolves to the resend plugin's adapter and does not warn", async () => {
   const warnings: string[] = [];
   const credentialDeps = makeCredentialWriteDeps();
   await createCustomCredential(credentialDeps, {
@@ -360,4 +373,56 @@ test("send() called during the boot-time credential-resolution window must not r
     1,
     "the message must actually reach the resolved (real) adapter, not be swallowed by the Console fallback while still reporting success"
   );
+});
+
+test("first boot after upgrade: the bundled plugin is not installed yet when the boot lookup runs, and the next send still goes through it", async () => {
+  // Boot order: the mailer's lookup starts while `bundled-agent-plugins` is still seeding, so the
+  // first registry read is empty. A site with a saved Resend key must not drop mail until a restart.
+  const credentialDeps = makeCredentialWriteDeps();
+  await createCustomCredential(credentialDeps, {
+    workspaceId: WORKSPACE,
+    label: MAIL_HTTP_API_CREDENTIAL_LABEL,
+    category: "ops",
+    baseUrl: "https://api.resend.com",
+    connection: { token: "re_live_key" },
+  });
+  let seeded = false;
+  const httpClient = new FakeHttpClient();
+  const deps = makeResolveDeps({
+    customCredentialRepo: credentialDeps.repo,
+    sealer: credentialDeps.sealer,
+    httpClient,
+    loadMailAdapters: async () => (seeded ? loadBundledMailAdapters() : EMPTY_REGISTRY),
+  });
+  const { mailer, ready } = createResolvedMailer(deps);
+  await ready;
+  assert.equal(mailer.capabilities().driver, "console");
+
+  seeded = true;
+  const result = await mailer.send(
+    { workspaceId: WORKSPACE, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "hi", text: "hi" },
+    { idempotencyKey: "k1", workspaceId: WORKSPACE, sourceContext: { module: "test" } }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(httpClient.calls.length, 1, "the send must reach the plugin's adapter, not the Console fallback");
+  assert.equal(mailer.capabilities().driver, "resend");
+});
+
+test("no plugin adds a mail adapter and nothing is configured: the production warning names only SMTP, once across retried sends", async () => {
+  const warnings: string[] = [];
+  const deps = makeResolveDeps({ loadMailAdapters: async () => EMPTY_REGISTRY }, warnings);
+  const { mailer, ready } = createResolvedMailer(deps);
+  await ready;
+  await mailer.send(
+    { workspaceId: WORKSPACE, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "hi", text: "hi" },
+    { idempotencyKey: "k1", workspaceId: WORKSPACE, sourceContext: { module: "test" } }
+  );
+
+  assert.equal(mailer.capabilities().driver, "console");
+  assert.deepEqual(warnings, [
+    '[mail] no working mail credential found — none is configured — falling back to ConsoleMailerAdapter, so ' +
+      'outbound mail (form notifications, newsletter, member verification) will NOT actually be sent. ' +
+      `Add a "${MAIL_SMTP_CREDENTIAL_LABEL}" credential under Access Tokens (category "ops") to fix this.`,
+  ]);
 });
