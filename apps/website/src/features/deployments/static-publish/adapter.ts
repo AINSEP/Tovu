@@ -5,7 +5,7 @@ import { DeployError, type DeployFile, type DeployPublishResult, type DeployTarg
 
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit, DeployTargetRegistry, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 import type { ExportReport } from "#src/features/site-export/index";
 /**
@@ -31,6 +31,7 @@ import type { ExportReport } from "#src/features/site-export/index";
  */
 import { firstExportFailure, type ExportFailureSummary } from "#src/features/site-export/export-failure-summary";
 
+import { toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
 
 /**
@@ -202,19 +203,9 @@ export function toDeployFile(entry: { outputFile: string; data: string | Buffer;
   };
 }
 
-/** The resolved credential a real `DeployTarget` is built from — `token` for every provider, plus
- *  `accountId` for `cloudflare-pages` only, and five more optional fields for `s3-compatible` only
- *  (see `types.ts`'s `PublishCredentialSource.resolve()` doc for the full reasoning on both). */
-export type ResolvedPublishCredential = {
-  readonly token: string;
-  readonly accountId?: string;
-  readonly accessKeyId?: string;
-  readonly bucket?: string;
-  readonly region?: string;
-  readonly endpoint?: string;
-  readonly publicUrl?: string;
-};
-
+/** The resolved credential a `DeployTarget` is built from: `token` plus the host's other declared
+ *  credential fields (see `types.ts`'s `PublishCredentialSource.resolve()` doc). */
+export type ResolvedPublishCredential = DeployTargetCredential;
 
 export interface StaticPublishDeps {
   readonly credentialSource: PublishCredentialSource;
@@ -370,20 +361,6 @@ function buildDeployFilesForPublish(report: ExportReport): DeployFile[] {
   return [...report.routes.succeeded.map(toDeployFile), ...report.assets.succeeded.map(toDeployFile)];
 }
 
-/** Maps a resolved `PublishCredentialSource` success into {@link ResolvedPublishCredential} — the
- *  shape {@link buildJiniTarget} (and, through it, {@link buildS3CompatibleTargetConfig}) reads. */
-function buildResolvedPublishCredential(credential: ResolvedCredentialSourceSuccess): ResolvedPublishCredential {
-  return {
-    token: credential.token,
-    ...(credential.accountId !== undefined ? { accountId: credential.accountId } : {}),
-    ...(credential.accessKeyId !== undefined ? { accessKeyId: credential.accessKeyId } : {}),
-    ...(credential.bucket !== undefined ? { bucket: credential.bucket } : {}),
-    ...(credential.region !== undefined ? { region: credential.region } : {}),
-    ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
-    ...(credential.publicUrl !== undefined ? { publicUrl: credential.publicUrl } : {}),
-  };
-}
-
 /**
  * `result.status` is EVERY target's own honest terminal state (`DeployLinkStatus`) — not merely "did
  * the API call succeed". A status other than 'ready' means the provider accepted the publish but the
@@ -490,7 +467,7 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   }
 
   const files = buildDeployFilesForPublish(exportResult.report);
-  const resolvedCredential = buildResolvedPublishCredential(credentialResult.credential);
+  const resolvedCredential = toDeployTargetCredential(credentialResult.credential);
   const targetResult = constructTargetForPublish(deps, plan.target, input.config, resolvedCredential);
   if (!targetResult.ok) {
     return targetResult.outcome;

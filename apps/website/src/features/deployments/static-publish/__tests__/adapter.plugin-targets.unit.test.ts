@@ -107,6 +107,23 @@ test("a registry-known target is built by its plugin module, gets responseHeader
   assert.deepEqual(seen.input?.files.filter((file) => file.file === "_headers" || file.file === "vercel.json"), []);
 });
 
+test("every field the resolved credential carries reaches the module under its own name, whatever the host declares", async () => {
+  let credential: DeployTargetCreateContext["credential"] | undefined;
+  const module: DeployTargetModule = {
+    create(context) {
+      credential = context.credential;
+      throw new Error("stop after create");
+    },
+  };
+
+  await publishWith(
+    { credentialSource: credentialSource({ siteId: "site-1", apiRegion: "eu" }), loadDeployTargets: async () => registryOf([loaded("acme-host", module)]) },
+    { target: "acme-host" } as unknown as StaticPublishConfig,
+  );
+
+  assert.deepEqual(credential, { token: "tok", siteId: "site-1", apiRegion: "eu" });
+});
+
 test("the REAL plugin Netlify module, fed through the adapter, uploads exactly one _headers rendered from the live header set", async (t) => {
   const netlify = ((await import(pathToFileURL(NETLIFY_MODULE_PATH).href)) as { default: DeployTargetModule }).default;
   const uploads = new Map<string, string>();

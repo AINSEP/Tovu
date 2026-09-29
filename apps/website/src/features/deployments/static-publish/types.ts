@@ -104,22 +104,15 @@ export type StaticPublishOutcome =
  * result — harmless while the only implementation was a plain `process.env` read, but it would have
  * meant a REAL decrypt on every preview once a DB-backed source existed.
  *
- * `resolve()`'s success shape carries an OPTIONAL `accountId` alongside `token` (Contract v2
- * Correction A) — populated only for `cloudflare-pages`, where the credential itself carries the
- * account scope (see `CloudflarePagesPublishConfig`'s own doc for why that field has no home on the
- * publish config). Every other target's `accountId` is simply absent; `adapter.ts`'s `buildJiniTarget`
- * is the one place that reads it.
- *
- * Five more OPTIONAL fields (`accessKeyId`/`bucket`/`region`/`endpoint`/`publicUrl`), populated only
- * for `s3-compatible` — same "additive field per provider" pattern as `accountId` above, just carried
- * further since S3-compatible's credential has six identifying values instead of one companion id.
- * `token` is still always populated for every target INCLUDING `s3-compatible` (it carries that
- * protocol's `secretAccessKey` there — the value that authenticates the request, same role `token`
- * plays for every other target, even though the field it originated from has a different name on
- * `publish-credentials/types.ts`'s `S3CompatibleConnectionInput`) — kept required rather than widened
- * to optional so this interface's single most load-bearing field never needs an existence check added
- * to every existing caller for a fifth target's sake.
+ * `resolve()`'s success ({@link ResolvedPublishCredentialSuccess}) is flat: `token` (the host
+ * descriptor's `credential.tokenField`, e.g. the secret half of an access-key pair) plus every other
+ * field that host's credential declares, under its own name. Core names none of them; the host's
+ * deploy module reads what it needs.
  */
+/** {@link PublishCredentialSource.resolve}'s success: `token` plus the host's other declared credential
+ *  fields. `true` is in the index type only so `ok` itself fits it; every field is a string. */
+export type ResolvedPublishCredentialSuccess = { readonly ok: true; readonly token: string } & Readonly<Record<string, string | true | undefined>>;
+
 export interface PublishCredentialSource {
   /**
    * @param input.credentialId - OPTIONAL id of the saved connection the OPERATOR chose for this one
@@ -137,17 +130,7 @@ export interface PublishCredentialSource {
    *   a request naming another workspace's credential id must refuse, not publish.
    */
   resolve(input: { workspaceId: UUID; target: StaticPublishTargetId; credentialId?: UUID }): Promise<
-    | {
-        readonly ok: true;
-        readonly token: string;
-        readonly accountId?: string;
-        readonly accessKeyId?: string;
-        readonly bucket?: string;
-        readonly region?: string;
-        readonly endpoint?: string;
-        readonly publicUrl?: string;
-      }
-    | { readonly ok: false; readonly reason: string }
+    ResolvedPublishCredentialSuccess | { readonly ok: false; readonly reason: string }
   >;
   /** Read-only, never decrypts. `reason` (when `configured` is `false`) is the same human-readable,
    *  non-secret guidance `resolve()`'s own `{ok:false}.reason` carries — safe to show in an admin UI

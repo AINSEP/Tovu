@@ -5,7 +5,7 @@ import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/ho
 import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetRegistry } from "../deploy-targets/types.js";
 import { resolveForPublish } from "../publish-credentials/store.js";
 import type { PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
-import { projectConnectionForPublish } from "./credentials.js";
+import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
 /**
@@ -185,12 +185,6 @@ function cannotVerify(reason: string, clock: { nowIso(): string }): PublishCrede
   return { status: "unreachable", message: `Could not verify this credential: ${reason}.`, checkedAt: clock.nowIso() };
 }
 
-/** A resolved credential without its `ok` discriminant: the shape a module is handed. */
-function withoutOk<T extends { readonly ok: true }>(resolved: T): Omit<T, "ok"> {
-  const { ok: _ok, ...credential } = resolved;
-  return credential;
-}
-
 /**
  * Shared tail of both entry points below: runs the host's own check and stamps `checkedAt` — kept as
  * one function so a THIRD entry point can never build this result shape differently. A target with
@@ -264,7 +258,7 @@ export async function verifyPublishCredential(
   }
 
   const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
-  const result = await computeVerificationResult(context, input.target, withoutOk(resolved));
+  const result = await computeVerificationResult(context, input.target, toDeployTargetCredential(resolved));
   deps.cache.set(input, result);
   return result;
 }
@@ -315,7 +309,7 @@ export async function verifyPublishCredentialById(
   const spec = context.registry.get(resolved.providerId)?.descriptor.credential;
   const projected = spec === undefined ? undefined : projectConnectionForPublish(resolved.connection, spec);
   const result = projected?.ok
-    ? await computeVerificationResult(context, resolved.providerId, withoutOk(projected))
+    ? await computeVerificationResult(context, resolved.providerId, toDeployTargetCredential(projected))
     : cannotVerify(projected?.reason ?? noCheckReason(resolved.providerId), deps.clock);
   if (record.isDefault) {
     deps.cache.set({ workspaceId: input.workspaceId, target: resolved.providerId }, result);

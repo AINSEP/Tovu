@@ -4,8 +4,8 @@ import type { SecretSealerPort } from "../../webhooks/index.js";
 import { resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
 import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
-import type { DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry } from "../deploy-targets/types.js";
-import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
+import type { DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { PublishCredentialSource, ResolvedPublishCredentialSuccess, StaticPublishTargetId } from "./types.js";
 
 /**
  * @file `PublishCredentialSource` implementations + composition — env-var (self-hosted operator
@@ -158,6 +158,18 @@ export function createEnvPublishCredentialSource(
       return "token" in result ? { configured: true } : { configured: false, reason: result.reason };
     },
   };
+}
+
+/**
+ * The credential a deploy module is handed: a resolved success without its `ok` discriminant, string
+ * fields only.
+ *
+ * @complexity O(f) fields, no I/O.
+ */
+export function toDeployTargetCredential(resolved: ResolvedPublishCredentialSuccess): DeployTargetCredential {
+  const fields: Record<string, string> = {};
+  for (const [name, value] of Object.entries(resolved)) if (typeof value === "string") fields[name] = value;
+  return { ...fields, token: resolved.token };
 }
 
 /**
