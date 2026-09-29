@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   EnvOrFileKeyring,
+  FixedRootKeyKeyring,
   defaultRootKeyFilePath,
   fingerprintRootKeyHex,
   generateFileRootKey,
@@ -676,6 +677,23 @@ test("sources: a whitespace-only env var is also treated as ABSENT", async () =>
     } finally {
       delete process.env[envVarName];
     }
+  });
+});
+
+test("sources: a key file replaced while the process runs takes effect on the next call, without a restart", async () => {
+  await withTempDir(async (dir) => {
+    const keyFile = join(dir, "site.hex");
+    writeFileSync(keyFile, "33".repeat(32), { mode: 0o600 });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "per-site-file", path: keyFile }] });
+    const input = { workspaceId: "ws-1", purpose: "p", info: "i" };
+    const before = await keyring.derive(input);
+
+    // What the Site Token tab's "Paste your old token" / "Start fresh" do: swap the file in place.
+    writeFileSync(keyFile, "44".repeat(32), { mode: 0o600 });
+    const after = await keyring.derive(input);
+
+    assert.deepEqual(after, await new FixedRootKeyKeyring("44".repeat(32)).derive(input), "the running keyring must use the replaced key");
+    assert.notDeepEqual(after, before);
   });
 });
 
