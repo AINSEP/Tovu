@@ -8,7 +8,7 @@ import { describeErrorForLog } from "../../contracts/core/model-facing-tool-erro
 /**
  * @file What a site backup is made of, read from this machine: which files on disk each scope switch
  * picks up, the database snapshot, the size limits, re-reading a planned file at push time, and the
- * `tovu-backup.json` manifest a future restore reads first. No network here — `github-push.ts` owns
+ * `tovu-backup.json` manifest a future restore reads first. No network here — the git-host plugin provider (`source-control/provider-module.ts`) owns
  * GitHub, `tool-registrations.ts` owns the order these run in.
  *
  * The backup folder's layout (paths relative to the folder root):

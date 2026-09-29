@@ -1,9 +1,9 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
-import { extractGitHubLogin } from "../deployments/static-publish/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { buildSourceControlCredentialAad } from "./aad.js";
+import { buildSourceControlProvider, type LoadSourceControlProviders } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
   SourceControlCredentialSetRecord,
@@ -82,38 +82,27 @@ function toSummary(record: SourceControlCredentialSetRecord): SourceControlCrede
   };
 }
 
-/** Same order of magnitude as `static-publish/verify.ts`'s own `VERIFY_TIMEOUT_MS` — a human is
- *  waiting on a form submit, not a background job. */
-const ACCOUNT_LABEL_PROBE_TIMEOUT_MS = 10_000;
-
 /**
  * Best-effort "who does this token belong to" probe, run inline at save time — see this file's own
  * header for why THIS table's `create`/`update` may do this while `publish-credentials/store.ts`'s
- * may not. NEVER throws: a network failure, timeout, or non-2xx response degrades to `null` (no
- * account label learned) rather than failing the save, matching `static-publish/verify.ts`'s own
- * per-provider checkers' "never throws" contract.
+ * may not. NEVER throws: no provider, a network failure, timeout, or non-2xx response degrades to
+ * `null` (no account label learned) rather than failing the save.
  *
- * `gitlab`/`bitbucket` return `null` unconditionally, with no request made at all — neither has a
- * reviewed single-field identity extractor the way GitHub's `login` does (see `verify.ts`'s header
- * for why s3-compatible gets the identical treatment on the publish side); inventing one here without
- * that same review would break this codebase's "never email/plan/billing/org, one field only"
- * discipline for account-identity reads. `github` reuses `static-publish/verify.ts`'s
- * `extractGitHubLogin` against the identical `GET /user` endpoint a github-pages PUBLISH credential
- * is checked against — same provider, same reviewed field, just a source-control token instead.
+ * The host-specific read lives in the plugin that provides the host (`provider-module.ts`'s
+ * `readAccountLabel`; the bundled `github` plugin reads `GET /user` -> `login`). A host no enabled
+ * plugin provides (gitlab and bitbucket today) yields `null` with no request made.
  *
- * @complexity O(1) — one bounded HTTP request (skipped entirely for gitlab/bitbucket).
- * @overallScore 100
+ * @complexity One registry load plus at most one bounded HTTP request.
  */
-async function probeAccountLabel(providerId: SourceControlProviderId, token: string, fetchFn: typeof fetch): Promise<string | null> {
-  if (providerId !== "github") return null;
+async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspaceId: UUID, providerId: SourceControlProviderId, token: string): Promise<string | null> {
   try {
-    const resp = await fetchFn("https://api.github.com/user", {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
-      signal: AbortSignal.timeout(ACCOUNT_LABEL_PROBE_TIMEOUT_MS),
+    const built = await buildSourceControlProvider({
+      ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
+      ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+      workspaceId,
+      providerId,
     });
-    if (!resp.ok) return null;
-    const body: unknown = await resp.json();
-    return extractGitHubLogin(body) ?? null;
+    return built.ok ? await built.provider.readAccountLabel(token) : null;
   } catch {
     return null;
   }
@@ -159,9 +148,10 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
   keyring: KeyringPort;
   clock: ClockPort;
   idGen: { newId(): string };
-  /** Injected by tests (mirrors `static-publish/verify.ts`'s own `VerifyPublishCredentialDeps
-   *  .fetchFn`); defaults to global `fetch`. Used only by {@link probeAccountLabel}. */
+  /** Injected by tests; defaults to global `fetch`. Used only by {@link probeAccountLabel}. */
   fetchFn?: typeof fetch;
+  /** This workspace's git-host providers; the installed, enabled Agent Plugins when omitted. */
+  loadSourceControlProviders?: LoadSourceControlProviders;
 }
 
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every
@@ -294,7 +284,7 @@ export async function createSourceControlCredential(
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId: connection.providerId, id, connection });
   // Best-effort — see probeAccountLabel's own doc. Run against the SAME plaintext token about to be
   // sealed, before it leaves this function's scope; never throws, degrades to null.
-  const accountLabel = await probeAccountLabel(connection.providerId, connection.token, deps.fetchFn ?? fetch);
+  const accountLabel = await probeAccountLabel(deps, input.workspaceId, connection.providerId, connection.token);
   const record: SourceControlCredentialSetRecord = {
     workspaceId: input.workspaceId,
     id,
@@ -365,7 +355,7 @@ export async function updateSourceControlCredential(
     const connection = validateConnection(input.connection);
     providerId = connection.providerId;
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
-    accountLabel = await probeAccountLabel(connection.providerId, connection.token, deps.fetchFn ?? fetch);
+    accountLabel = await probeAccountLabel(deps, input.workspaceId, connection.providerId, connection.token);
   }
 
   const record: SourceControlCredentialSetRecord = {

@@ -1,13 +1,27 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import { DeployError } from "@jini-ai/devops/deploy";
 
-import { createGitHubCommitAdapter } from "../github-git-provider.js";
-import type { CommitFile } from "../commit-site.js";
+import { createSourceControlProviderKit } from "#src/features/source-control/provider-kit";
+import type { CommitFile, SourceControlProvider } from "#src/features/source-control/provider-module";
+
+import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+
+const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github");
+const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
+
+/** The bundled `github` plugin's site committer, built with the real kit (so `global.fetch` stubs apply). */
+function createGitHubCommitAdapter(): { commit: SourceControlProvider["commitSite"] } {
+  const loaded = registry.get("github");
+  if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
+  return { commit: loaded.module.create({ kit: createSourceControlProviderKit() }).commitSite };
+}
 
 /**
- * @file `github-git-provider.ts`'s proof — EVERY call goes through a stubbed `global.fetch`. No real
+ * @file The bundled `github` plugin's `source-control/commit-site.mjs` (moved from core's
+ * `github-git-provider.ts`, these are that file's own tests) — EVERY call goes through a stubbed `global.fetch`. No real
  * network call is made anywhere in this file, per the owner's explicit instruction: this is Milestone
  * 2's whole contract — prove every branch (success, diverged, network-unreachable, provider-rejected,
  * nothing-to-commit) against a fake, never a live credential. `source_control_credential_sets` stays

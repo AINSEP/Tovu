@@ -19,14 +19,14 @@ import {
   validateCommitTarget,
   commitExportDir,
   type CommitFile,
-  type GitHubCommitAdapter,
-  type GitHubCommitAdapterResult,
+  type SourceControlCommitAdapter,
+  type SourceControlCommitResult,
 } from "../commit-site.js";
 
 /**
  * @file `commit-site.ts`'s business-logic proof — mirrors
  * `static-publish/__tests__/adapter.unit.test.ts`'s own shape: real `createRouteDeps()` (in-process,
- * no external network) runs a REAL export, with only the `GitHubCommitAdapter` seam faked, so this
+ * no external network) runs a REAL export, with only the `SourceControlCommitAdapter` seam faked, so this
  * file never touches `fetch`. Every test redirects `RouteDeps.sourceControlExportRootDir` to a
  * throwaway temp directory (via {@link testRouteDeps} below, matching `adapter.unit.test.ts`'s own
  * `publishOutputRootDir` redirect).
@@ -78,7 +78,7 @@ function createSiteAppWithFailingAsset(failingPath: string, routeDeps: RouteDeps
   };
 }
 
-function neverCalledGitAdapter(): GitHubCommitAdapter {
+function neverCalledGitAdapter(): SourceControlCommitAdapter {
   return {
     async commit() {
       throw new Error("gitAdapter.commit must not be called on this path");
@@ -86,7 +86,7 @@ function neverCalledGitAdapter(): GitHubCommitAdapter {
   };
 }
 
-function fakeGitAdapter(result: GitHubCommitAdapterResult, captured: { files: readonly CommitFile[] | null; input: unknown }): GitHubCommitAdapter {
+function fakeGitAdapter(result: SourceControlCommitResult, captured: { files: readonly CommitFile[] | null; input: unknown }): SourceControlCommitAdapter {
   return {
     async commit(input) {
       captured.files = input.files;
@@ -314,7 +314,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
 /**
  * Branch-coverage fill (2026-09-04): every other test in this file supplies `deps.gitAdapter` — the
  * "no adapter configured" wiring-bug guard (documented as production-unreachable, since
- * `tool-registrations.ts` always supplies the real `github-git-provider.ts` adapter) was never
+ * `tool-registrations.ts` always supplies the plugin provider's adapter) was never
  * exercised at all. `CommitSiteDeps.gitAdapter` is optional precisely so this direct-invoke proof is
  * possible without touching `tool-registrations.ts`'s own wiring.
  */
@@ -364,7 +364,7 @@ test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter 
   assert.equal("branch" in passedInput, false, "commitSiteToSourceControl must not invent a branch — that decision belongs to the git adapter");
 });
 
-const ADAPTER_FAILURE_CASES: { adapterCode: GitHubCommitAdapterResult extends { ok: false; code: infer C } ? C : never; expected: string }[] = [
+const ADAPTER_FAILURE_CASES: { adapterCode: SourceControlCommitResult extends { ok: false; code: infer C } ? C : never; expected: string }[] = [
   { adapterCode: "repository-not-found", expected: "REPOSITORY_NOT_FOUND" },
   { adapterCode: "no-changes", expected: "NO_CHANGES" },
   { adapterCode: "diverged", expected: "DIVERGED_BRANCH" },

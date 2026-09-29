@@ -569,7 +569,7 @@ function resolveAuthorizationScheme(connection: CustomProviderConnectionInput): 
  *  one, HTTP Basic when a `username` is saved, Bearer otherwise. Never logged, and never returned
  *  from this module — used only as an outbound request header value.
  *
- *  Exported (2026-09-09) for `github-write-files.ts`'s own outbound GitHub Git Data API calls —
+ *  Exported (2026-09-09) for the write-files tool's git-host calls (now the plugin provider's, which core hands this header) —
  *  the same per-credential auth-scheme precedence a `custom_credential_write_files` call must use,
  *  reused rather than re-derived so the scheme a future 401/403 there could report can never drift
  *  from the scheme this module actually sends.

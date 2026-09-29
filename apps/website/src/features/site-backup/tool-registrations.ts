@@ -35,12 +35,14 @@ import {
   type CustomCredentialSetRepoPort,
   type CustomProviderConnectionInput,
 } from "../custom-credentials/index.js";
+import { buildAuthorizationHeader } from "../custom-credentials/credentialed-request.js";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateOwner, validateRepo } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import { buildConfirmationSurface, SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
-import { commitBackupTree, inspectBackupRepository, uploadBackupBlob, type BackupRepositoryTarget, type InspectBackupRepositoryResult, type UploadedBackupBlob } from "./github-push.js";
+import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider, UploadedBackupBlob } from "../source-control/provider-module.js";
+import { buildSourceControlProviders, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
 import {
   buildSiteBackupManifest,
@@ -106,8 +108,6 @@ const PUSH_PERMISSION = "site-backup.push";
 /** Also required: the push sends a saved credential's token to its provider, which is exactly what
  *  `custom_credential_write_files` gates on this permission. */
 const CREDENTIAL_WRITE_PERMISSION = "custom-credentials.write";
-/** Where a credential saved for github.com points. Used only to pick a credential when none is named. */
-const GITHUB_API_ORIGIN = "https://api.github.com";
 /** The restore-point name the database snapshot is captured under, so an orphan is recognizable. */
 const SNAPSHOT_SCOPE_ID = "site-backup";
 
@@ -192,6 +192,9 @@ export interface SiteBackupToolDeps {
   readonly customCredentialSetRepo: CustomCredentialSetRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly customCredentialsHttpClient: HttpClientPort;
+  /** The git-host providers a backup pushes through (the installed, enabled Agent Plugins when
+   *  omitted — the bundled `github` one today). */
+  readonly loadSourceControlProviders?: LoadSourceControlProviders;
   readonly dbOps: DbOpsPort;
   /** Where this site's files live. Absent in the in-memory `app.ts` runtime, which has no site
    *  folder — both tools then answer `UNAVAILABLE`. */
@@ -231,6 +234,27 @@ interface ResolvedBackupCredential {
   readonly label: string;
   readonly baseUrl: string;
   readonly connection: CustomProviderConnectionInput;
+  /** The plugin provider for the credential's host. */
+  readonly provider: SourceControlProvider;
+}
+
+/** A resolved credential's repository target: its API plus the `Authorization` header built from it. */
+function backupTarget(credential: ResolvedBackupCredential, owner: string, repo: string): CredentialedRepositoryTarget {
+  return { baseUrl: credential.baseUrl, authorization: buildAuthorizationHeader(credential.connection), owner, repo };
+}
+
+/** Every git-host provider an enabled plugin ships, or the refusal when there is none. */
+async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true; providers: readonly SourceControlProvider[] } | Refusal> {
+  const built = await buildSourceControlProviders({
+    ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
+    workspaceId: deps.workspaceId,
+    httpClient: deps.customCredentialsHttpClient,
+  });
+  for (const refusal of built.refusals) failureLog(deps)(`[site-backup] ${refusal}`);
+  if (built.providers.length === 0) {
+    return { ok: false, code: "NO_PROVIDER", message: "No enabled Agent Plugin provides a repository host to back up to. Turn on the GitHub plugin on the Agent Plugins page." };
+  }
+  return { ok: true, providers: built.providers };
 }
 
 function originOf(url: string): string | null {
@@ -251,23 +275,25 @@ function labelList(labels: readonly string[]): string {
  *
  * @complexity O(saved credentials).
  */
-async function pickCredentialLabel(deps: SiteBackupToolDeps, requested: string | undefined): Promise<{ ok: true; label: string } | Refusal> {
+async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly SourceControlProvider[], requested: string | undefined): Promise<{ ok: true; label: string } | Refusal> {
   const saved = await listCustomCredentials({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId });
   const labels = saved.map((credential) => credential.label);
   if (requested !== undefined) {
     if (labels.includes(requested)) return { ok: true, label: requested };
     return { ok: false, code: "CREDENTIAL_NOT_FOUND", message: `no saved credential is labeled '${requested}' (${labelList(labels)})` };
   }
-  const github = saved.filter((credential) => originOf(credential.baseUrl) === GITHUB_API_ORIGIN).map((credential) => credential.label);
-  if (github.length === 1) return { ok: true, label: github[0]! };
-  if (github.length === 0) {
+  const apiOrigins = providers.map((provider) => provider.apiOrigin);
+  const where = apiOrigins.join(" or ");
+  const matching = saved.filter((credential) => apiOrigins.includes(originOf(credential.baseUrl) ?? "")).map((credential) => credential.label);
+  if (matching.length === 1) return { ok: true, label: matching[0]! };
+  if (matching.length === 0) {
     return {
       ok: false,
       code: "CREDENTIAL_NOT_FOUND",
-      message: `no saved credential points at ${GITHUB_API_ORIGIN} (${labelList(labels)}). Save a GitHub token on the Access Tokens page ('Add custom provider'), or name one with 'credential'.`,
+      message: `no saved credential points at ${where} (${labelList(labels)}). Save a GitHub token on the Access Tokens page ('Add custom provider'), or name one with 'credential'.`,
     };
   }
-  return { ok: false, code: "CREDENTIAL_AMBIGUOUS", message: `${github.length} saved credentials point at ${GITHUB_API_ORIGIN} (${labelList(github)}); name one with 'credential'.` };
+  return { ok: false, code: "CREDENTIAL_AMBIGUOUS", message: `${matching.length} saved credentials point at ${where} (${labelList(matching)}); name one with 'credential'.` };
 }
 
 /**
@@ -322,7 +348,9 @@ function unreadableCredentialMessage(deps: SiteBackupToolDeps, label: string): s
  * @complexity O(saved credentials) plus one decrypt.
  */
 async function resolveBackupCredential(deps: SiteBackupToolDeps, requested: string | undefined): Promise<ResolvedBackupCredential | Refusal> {
-  const picked = await pickCredentialLabel(deps, requested);
+  const providers = await loadBackupProviders(deps);
+  if (!providers.ok) return providers;
+  const picked = await pickCredentialLabel(deps, providers.providers, requested);
   if (!picked.ok) return picked;
   let resolved;
   try {
@@ -332,7 +360,9 @@ async function resolveBackupCredential(deps: SiteBackupToolDeps, requested: stri
     throw err;
   }
   if (!resolved) return { ok: false, code: "CREDENTIAL_NOT_FOUND", message: `the credential '${picked.label}' was deleted while the backup was being prepared` };
-  return { ok: true, label: picked.label, baseUrl: resolved.baseUrl, connection: resolved.connection };
+  const provider = pickSourceControlProviderForApi(providers.providers, resolved.baseUrl);
+  if (!provider.ok) return { ok: false, code: "NO_PROVIDER", message: provider.message };
+  return { ok: true, label: picked.label, baseUrl: resolved.baseUrl, connection: resolved.connection, provider: provider.provider };
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +381,7 @@ const INSPECT_CODES: Record<string, string> = {
   diverged: "DIVERGED_BRANCH",
 };
 
-/** A `github-push.ts` failure as this tool's `{code, message}`, logging any server-only detail. */
+/** A provider failure as this tool's `{code, message}`, logging any server-only detail. */
 function githubRefusal(deps: SiteBackupToolDeps, toolId: string, failure: { readonly code: string; readonly message: string; readonly logDetail?: string }): Refusal {
   logFailureDetail(deps, toolId, failure);
   return { ok: false, code: INSPECT_CODES[failure.code] ?? "PROVIDER_ERROR", message: failure.message };
@@ -359,10 +389,11 @@ function githubRefusal(deps: SiteBackupToolDeps, toolId: string, failure: { read
 
 async function inspect(
   deps: SiteBackupToolDeps,
+  provider: SourceControlProvider,
   toolId: string,
-  input: BackupRepositoryTarget & { branch?: string; folder: string }
+  input: CredentialedRepositoryTarget & { branch?: string; folder: string }
 ): Promise<Extract<InspectBackupRepositoryResult, { ok: true }> | Refusal> {
-  const result = await inspectBackupRepository({ httpClient: deps.customCredentialsHttpClient }, input);
+  const result = await provider.inspectBackupRepository(input);
   return result.ok ? result : githubRefusal(deps, toolId, result);
 }
 
@@ -493,8 +524,8 @@ async function handlePlan(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): 
 
   const folderName = path.basename(sources.siteDir);
   const folder = input.folder ?? normalizeWriteFilePath(folderName);
-  const target = { baseUrl: credential.baseUrl, connection: credential.connection, owner: input.owner, repo: input.repo };
-  const repo = await inspect(deps, PLAN_TOOL_ID, { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder });
+  const target = backupTarget(credential, input.owner, input.repo);
+  const repo = await inspect(deps, credential.provider, PLAN_TOOL_ID, { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder });
   if (!repo.ok) return { planned: false, code: repo.code, message: repo.message };
 
   const prepared = await prepareContent(deps, sources, input.include);
@@ -586,7 +617,8 @@ class BlobUploader {
   readonly blobs: UploadedBackupBlob[] = [];
   constructor(
     private readonly deps: SiteBackupToolDeps,
-    private readonly target: BackupRepositoryTarget
+    private readonly provider: SourceControlProvider,
+    private readonly target: CredentialedRepositoryTarget
   ) {}
 
   /** @complexity O(bytes) to hash; one POST unless the content was already uploaded. */
@@ -597,7 +629,7 @@ class BlobUploader {
       this.blobs.push({ path: file.path, blobSha: existing, bytes: file.content.byteLength, sha256 });
       return { ok: true };
     }
-    const uploaded = await uploadBackupBlob({ httpClient: this.deps.customCredentialsHttpClient }, this.target, file);
+    const uploaded = await this.provider.uploadBackupBlob(this.target, file);
     if (!uploaded.ok) return githubRefusal(this.deps, SITE_BACKUP_PUSH_TOOL_ID, uploaded);
     this.shaByHash.set(sha256, uploaded.blob.blobSha);
     this.blobs.push(uploaded.blob);
@@ -611,8 +643,13 @@ class BlobUploader {
  *
  * @complexity O(total bytes); one POST per distinct file content.
  */
-async function uploadPlannedContent(deps: SiteBackupToolDeps, plan: SiteBackupPlan, target: BackupRepositoryTarget): Promise<{ ok: true; blobs: UploadedBackupBlob[] } | Refusal> {
-  const uploader = new BlobUploader(deps, target);
+async function uploadPlannedContent(
+  deps: SiteBackupToolDeps,
+  provider: SourceControlProvider,
+  plan: SiteBackupPlan,
+  target: CredentialedRepositoryTarget
+): Promise<{ ok: true; blobs: UploadedBackupBlob[] } | Refusal> {
+  const uploader = new BlobUploader(deps, provider, target);
   if (plan.database) {
     const added = await uploader.add({ path: SITE_BACKUP_DATABASE_PATH, content: plan.database.bytes });
     if (!added.ok) return added;
@@ -647,9 +684,9 @@ async function uploadPlannedContent(deps: SiteBackupToolDeps, plan: SiteBackupPl
 async function pushConfirmedPlan(deps: SiteBackupToolDeps, plan: SiteBackupPlan): Promise<PushResult> {
   const credential = await resolveBackupCredential(deps, plan.credentialLabel);
   if (!credential.ok) return pushRefusal(credential);
-  const target = { baseUrl: credential.baseUrl, connection: credential.connection, owner: plan.owner, repo: plan.repo };
+  const target = backupTarget(credential, plan.owner, plan.repo);
 
-  const repo = await inspect(deps, SITE_BACKUP_PUSH_TOOL_ID, { ...target, branch: plan.repository.branch, folder: plan.folder });
+  const repo = await inspect(deps, credential.provider, SITE_BACKUP_PUSH_TOOL_ID, { ...target, branch: plan.repository.branch, folder: plan.folder });
   if (!repo.ok) return pushRefusal(repo);
   if (repo.state.parentCommitSha !== plan.repository.parentCommitSha) {
     return pushRefusal({
@@ -659,22 +696,19 @@ async function pushConfirmedPlan(deps: SiteBackupToolDeps, plan: SiteBackupPlan)
     });
   }
 
-  const uploaded = await uploadPlannedContent(deps, plan, target);
+  const uploaded = await uploadPlannedContent(deps, credential.provider, plan, target);
   if (!uploaded.ok) return pushRefusal(uploaded);
 
-  const committed = await commitBackupTree(
-    { httpClient: deps.customCredentialsHttpClient },
-    {
-      ...target,
-      branch: plan.repository.branch,
-      folder: plan.folder,
-      commitMessage: plan.commitMessage,
-      parentCommitSha: plan.repository.parentCommitSha,
-      baseTreeSha: plan.repository.baseTreeSha,
-      htmlUrl: plan.repository.htmlUrl,
-      blobs: uploaded.blobs,
-    }
-  );
+  const committed = await credential.provider.commitBackupTree({
+    ...target,
+    branch: plan.repository.branch,
+    folder: plan.folder,
+    commitMessage: plan.commitMessage,
+    parentCommitSha: plan.repository.parentCommitSha,
+    baseTreeSha: plan.repository.baseTreeSha,
+    htmlUrl: plan.repository.htmlUrl,
+    blobs: uploaded.blobs,
+  });
   if (!committed.ok) return pushRefusal(githubRefusal(deps, SITE_BACKUP_PUSH_TOOL_ID, committed));
   return {
     pushed: true,

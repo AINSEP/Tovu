@@ -1,8 +1,37 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { commitBackupTree, inspectBackupRepository, uploadBackupBlob } from "../github-push.js";
+import { buildAuthorizationHeader } from "#src/features/custom-credentials/credentialed-request";
+import type { CustomProviderConnectionInput } from "#src/features/custom-credentials/types";
+import { createSourceControlProviderKit } from "#src/features/source-control/provider-kit";
+import type { CommitBackupTreeInput, SourceControlProvider } from "#src/features/source-control/provider-module";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
+
+import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+
+const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github");
+const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
+
+/** The bundled `github` plugin's provider over `httpClient`, built with the real kit. */
+function githubProvider(httpClient: HttpClientPort): SourceControlProvider {
+  const loaded = registry.get("github");
+  if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
+  return loaded.module.create({ kit: createSourceControlProviderKit({ httpClient }) });
+}
+
+/** Core hands the provider the `Authorization` header it built from the saved connection. */
+function withAuthorization<T extends { connection: CustomProviderConnectionInput }>(input: T): Omit<T, "connection"> & { authorization: string } {
+  const { connection, ...rest } = input;
+  return { ...rest, authorization: buildAuthorizationHeader(connection) };
+}
+
+const inspectBackupRepository = (deps: { httpClient: HttpClientPort }, input: Omit<Parameters<SourceControlProvider["inspectBackupRepository"]>[0], "authorization"> & { connection: CustomProviderConnectionInput }) =>
+  githubProvider(deps.httpClient).inspectBackupRepository(withAuthorization(input));
+const uploadBackupBlob = (deps: { httpClient: HttpClientPort }, target: { baseUrl: string; connection: CustomProviderConnectionInput; owner: string; repo: string }, file: { path: string; content: Uint8Array }) =>
+  githubProvider(deps.httpClient).uploadBackupBlob(withAuthorization(target), file);
+const commitBackupTree = (deps: { httpClient: HttpClientPort }, input: Omit<CommitBackupTreeInput, "authorization"> & { connection: CustomProviderConnectionInput }) =>
+  githubProvider(deps.httpClient).commitBackupTree(withAuthorization(input));
 
 /**
  * @file `github-push.ts`'s proof — every call goes through an order-verifying fake `HttpClientPort`

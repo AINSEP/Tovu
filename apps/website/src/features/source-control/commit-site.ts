@@ -6,6 +6,7 @@ import type { UUID } from "@jini-ai/cms/core";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
 
+import type { CommitFile, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
 
@@ -15,14 +16,14 @@ import type { SourceControlCredentialSetRepoPort } from "./types.js";
  * own file, mirroring `features/deployments/static-publish/adapter.ts`'s split from
  * `publish-agent-tools.ts`: the tool-wiring layer owns the confirmation dialog and the exchange
  * park/resume, this layer owns "run a fresh export, resolve a credential, and push a real commit" —
- * directly unit-testable with a faked {@link GitHubCommitAdapter}, no surface-exchange store involved.
+ * directly unit-testable with a faked {@link SourceControlCommitAdapter}, no surface-exchange store involved.
  *
  * Purpose:
  * "Wrap it, do not reimplement," same discipline `adapter.ts`'s own header states — this module runs
  * Tovu's real static exporter (`#src/features/site-export`'s `exportSite`, the SAME engine every publish target and
  * the admin's manual export route already drive), maps the resulting `ExportReport` into the flat
- * `{path, data}` shape {@link GitHubCommitAdapter.commit} takes, and hands that off. It does no GitHub
- * HTTP itself — that lives in `github-git-provider.ts`, injected here as {@link CommitSiteDeps.gitAdapter}.
+ * `{path, data}` shape {@link SourceControlCommitAdapter.commit} takes, and hands that off. It does no GitHub
+ * HTTP itself — that lives in the plugin's provider module, injected here as {@link CommitSiteDeps.gitAdapter}.
  *
  * No base path: unlike `static-publish/adapter.ts`'s `computeBasePath` (needed because a GitHub Pages
  * PROJECT site serves from `/<repo>`), a source-control commit is not a hosted site at all — nothing
@@ -40,7 +41,8 @@ import type { SourceControlCredentialSetRepoPort } from "./types.js";
  * contract rather than an aspirational one.
  *
  * Architectural role:
- * `features/source-control` domain logic, this feature's one seam into `github-git-provider.ts`. No
+ * `features/source-control` domain logic, this feature's one seam into the git-host provider a plugin
+ * ships (`provider-module.ts`). No
  * dependency on `features/deployments/**` — this feature's identity table and Git Data API adapter
  * are its own, deliberately not sharing `publish-credentials`' resolve path (see `store.ts`'s header
  * for why `source_control_credential_sets` is a separate table) or `static-publish/adapter.ts`'s
@@ -82,15 +84,7 @@ export function validateCommitTarget(input: { owner: string; repo: string; branc
   return null;
 }
 
-/** One file this commit will write, already deploy/commit-relative — the flat shape
- *  {@link GitHubCommitAdapter.commit} takes. Mirrors `static-publish/adapter.ts`'s `DeployFile`
- *  shape exactly (same underlying `ExportedRoute`/`ExportedAsset` source), declared locally rather
- *  than imported — this feature has no dependency on `@jini-ai/devops/deploy`, whose `DeployFile`
- *  this happens to resemble only because both ultimately describe "one exported file." */
-export interface CommitFile {
-  readonly path: string;
-  readonly data: string | Buffer;
-}
+export type { CommitFile, SourceControlCommitResult } from "./provider-module.js";
 
 /** Normalizes an `ExportedRoute`/`ExportedAsset`'s `outputFile` (already commit-relative, per that
  *  interface's own doc) to forward slashes — same reasoning `static-publish/adapter.ts`'s own
@@ -100,7 +94,7 @@ export function toCommitFile(entry: { outputFile: string; data: string | Buffer 
   return { path: entry.outputFile.split(path.sep).join("/"), data: entry.data };
 }
 
-/** The resolved credential {@link GitHubCommitAdapter.commit} is called with — this feature's GitHub
+/** The resolved credential {@link SourceControlCommitAdapter.commit} is called with — this feature's GitHub
  *  connection is `{providerId, token}` only (`types.ts`'s `GitHubSourceControlConnectionInput`), so
  *  this is simpler than `static-publish/adapter.ts`'s `ResolvedPublishCredential` (which carries
  *  provider-specific extra fields for four OTHER providers this feature does not have). */
@@ -108,52 +102,18 @@ export interface ResolvedSourceControlCredential {
   readonly token: string;
 }
 
-/** One real commit attempt's outcome from the GitHub Git Data API adapter — see
- *  `github-git-provider.ts`'s own header for the full per-code reasoning, most importantly the
- *  `"network-unreachable"` vs `"provider-error"` split (a thrown `fetch` error vs. an HTTP response
- *  that came back non-2xx are never conflated into one code) and `"diverged"` (a non-fast-forward
- *  branch update is refused, never force-overwritten — see that file's header for why). */
-export type GitHubCommitAdapterResult =
-  | {
-      ok: true;
-      branch: string;
-      branchCreated: boolean;
-      commitSha: string;
-      commitUrl: string;
-      filesChanged: number;
-      filesDeleted: number;
-      /** Paths this adapter previously recorded owning that the CURRENT export no longer produces, but
-       *  did NOT delete — either their live content diverged from what this adapter itself last wrote
-       *  (a human, or something else, touched them since), or the previous manifest recorded no
-       *  provenance for them at all (a pre-provenance `v1` manifest). Optional so an older/fake adapter
-       *  (e.g. a test double) that omits it is still a valid result — see `github-git-provider.ts`'s
-       *  header, SECOND-ROUND CRITICAL FIX note, finding 1, for the full reasoning. */
-      divergedPaths?: readonly string[];
-    }
-  | { ok: false; code: "repository-not-found" | "no-changes" | "diverged" | "network-unreachable" | "provider-error"; message: string };
-
-/** The one seam between this file and real GitHub HTTP — `commitSiteToSourceControl` calls exactly
- *  one method, mirroring `@jini-ai/devops/deploy`'s own single-method `DeployTarget.publish()` shape
- *  (no pre-flight/plan call: the same "no network before a human confirms" discipline
- *  `deployment_execute_static_publish` already holds for `publishStaticSite`, unbroken here — a
- *  repository-not-found/diverged-branch/network-unreachable outcome is discovered DURING this one
- *  call, post-confirm, never before). */
-export interface GitHubCommitAdapter {
-  commit(input: {
-    readonly token: string;
-    readonly owner: string;
-    readonly repo: string;
-    readonly branch?: string;
-    readonly commitMessage: string;
-    readonly files: readonly CommitFile[];
-  }): Promise<GitHubCommitAdapterResult>;
+/** The one seam between this file and the git host — `commitSiteToSourceControl` calls exactly one
+ *  method, with no pre-flight call: every repository/branch/network outcome is discovered during this
+ *  one call, after the human confirmed. Production passes the plugin provider's `commitSite`. */
+export interface SourceControlCommitAdapter {
+  commit: SourceControlProvider["commitSite"];
 }
 
 /**
  * Every outcome {@link commitSiteToSourceControl} can produce — one variant per row of this feature's
  * own proposal doc's failure-contract table (`ADS-memory/reports/2026-08-16-source-control-tools.md`).
  * `NO_CHANGES`/`DIVERGED_BRANCH`/`REPOSITORY_NOT_FOUND`/`NETWORK_UNREACHABLE`/`PROVIDER_ERROR` are all
- * discovered post-confirm (this function's own single call to `GitHubCommitAdapter.commit`), never
+ * discovered post-confirm (this function's own single call to `SourceControlCommitAdapter.commit`), never
  * pre-dialog — `tool-registrations.ts`'s handler only ever pre-checks credential PRESENCE (a cheap,
  * non-decrypting DB read), matching `deployment_execute_static_publish`'s own "one cheap pre-check,
  * everything else discovered after confirm" shape.
@@ -177,7 +137,7 @@ export type SourceControlCommitOutcome =
       commitUrl: string;
       filesChanged: number;
       filesDeleted: number;
-      /** See {@link GitHubCommitAdapterResult}'s own doc — passed through verbatim, always present
+      /** See {@link SourceControlCommitResult}'s own doc — passed through verbatim, always present
        *  (defaults to `[]`) for the real adapter, so a caller can tell a human exactly what survived a
        *  shrinking publish because it could not be verified as still Tovu's own. */
       divergedPaths: readonly string[];
@@ -185,10 +145,9 @@ export type SourceControlCommitOutcome =
 
 export interface CommitSiteDeps {
   readonly credentialDeps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort; keyring?: KeyringPort };
-  /** The real GitHub Git Data API adapter when omitted (`github-git-provider.ts`'s
-   *  `realGitHubCommitAdapter`) — tests inject a fake here instead of touching `fetch`, same seam
-   *  shape `StaticPublishDeps.buildTarget` gives `static-publish/adapter.ts`. */
-  readonly gitAdapter?: GitHubCommitAdapter;
+  /** The plugin provider's `commitSite` (`tool-registrations.ts` resolves it) — tests inject a fake
+   *  here instead of touching `fetch`. Omitted, the commit fails loudly as a wiring bug. */
+  readonly gitAdapter?: SourceControlCommitAdapter;
 }
 
 /**
@@ -401,12 +360,12 @@ export type PreviewCommitExportResult =
  * the same fresh, isolated {@link exportForCommit} pass the real commit runs — so the file count and
  * byte total are real, not estimated — then reports a summary instead of committing anything.
  * Deliberately stops there: unlike {@link commitSiteToSourceControl}, this never calls
- * `resolveCommitCredential` (no decrypt) and never touches a {@link GitHubCommitAdapter} (no
+ * `resolveCommitCredential` (no decrypt) and never touches a {@link SourceControlCommitAdapter} (no
  * network call) — see this file's header's "no network before a human confirms" rule.
  * `paths` is sorted and capped at the first 50, so a large export does not blow out a dry-run
  * response.
  * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) —
- *   no credential resolution, no `GitHubCommitAdapter.commit()` call, ever.
+ *   no credential resolution, no `SourceControlCommitAdapter.commit()` call, ever.
  */
 export async function previewCommitExport(input: CommitSiteInput): Promise<PreviewCommitExportResult> {
   const configError = validateCommitTarget(input);
@@ -442,8 +401,8 @@ export async function previewCommitExport(input: CommitSiteInput): Promise<Previ
  * just answered one tool call with an error.
  *
  * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) plus
- *   one `GitHubCommitAdapter.commit()` call (bounded by that adapter's own fixed request count — see
- *   `github-git-provider.ts`).
+ *   one `SourceControlCommitAdapter.commit()` call (bounded by that adapter's own fixed request count — see
+ *   the provider module).
  */
 export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: CommitSiteInput): Promise<SourceControlCommitOutcome> {
   const configError = validateCommitTarget(input);
@@ -458,9 +417,9 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   const gitAdapter = deps.gitAdapter;
   if (!gitAdapter) {
     // Only reachable if a caller omits BOTH this and relies on a default that does not exist yet —
-    // `tool-registrations.ts` always supplies the real adapter (`github-git-provider.ts`) in
+    // `tool-registrations.ts` always supplies the plugin provider's adapter in
     // production. Fails loudly rather than silently no-op'ing a commit.
-    return { ok: false, code: "PROVIDER_ERROR", message: "no GitHub commit adapter is configured — this is a wiring bug, not a credential or network problem" };
+    return { ok: false, code: "PROVIDER_ERROR", message: "no source control commit adapter is configured — this is a wiring bug, not a credential or network problem" };
   }
 
   const result = await gitAdapter.commit({

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { BackupRepositoryState } from "./github-push.js";
+import type { BackupRepositoryState } from "../source-control/provider-module.js";
 import type { PlannedDiskFile, SiteBackupInclude, SiteBackupScope, SkippedSiteBackupFile } from "./sources.js";
 
 /**

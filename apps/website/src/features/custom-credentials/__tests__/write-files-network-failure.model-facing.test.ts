@@ -1,7 +1,7 @@
 /**
  * @file Regression suite for `custom_credential_write_files`' network-failure branch (2026-09-16, w7).
  *
- * The defect: when a GitHub call failed before any response arrived, `github-write-files.ts`'s
+ * The defect: when a GitHub call failed before any response arrived, the GitHub write-files code's (now `content/agent-plugins/github/source-control/write-files.mjs`)
  * `githubSend` kept the thrown error's raw text as the failure `message`, and after the human confirmed,
  * `performGitHubFilesWrite` returned that text in `{ executed: false, reason: "error", message }` —
  * straight to the model. That text is transport internals (`connect ECONNREFUSED 10.0.4.7:443`) or an

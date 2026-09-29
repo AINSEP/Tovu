@@ -22,8 +22,8 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
  * `custom_credential_make_request`.
  *
  * The property this file is responsible for: **a declined, expired, or abandoned write must never
- * reach `commitGitHubFiles` — no blob, tree, commit, or ref call is ever made.** The read-only
- * reconnaissance (`planGitHubFileWrite`'s branch/tree/existence lookups) DOES run before the dialog —
+ * reach the provider's `commitFiles` — no blob, tree, commit, or ref call is ever made.** The read-only
+ * reconnaissance (the provider's `planFileWrite` branch/tree/existence lookups) DOES run before the dialog —
  * see this domain's own `tool-registrations.ts` header for why that is a deliberate, documented
  * choice, unlike DELETE's non-decrypting pre-check — so `TrackingSecretSealer` here asserts decrypt
  * COUNT (exactly once per call, for the plan phase), not decrypt AVOIDANCE.
@@ -49,7 +49,7 @@ class TrackingSecretSealer implements SecretSealerPort {
 }
 
 /** Sequential, order-verifying fake `HttpClientPort` — same discipline
- *  `github-write-files.unit.test.ts`'s own `SequentialFakeHttpClient` uses, kept local per this
+ *  `bundled-github-write-files.unit.test.ts`'s own `SequentialFakeHttpClient` uses, kept local per this
  *  codebase's "each test file owns its own fixtures" convention. */
 class FakeHttpClient implements HttpClientPort {
   readonly calls: HttpRequest[] = [];
@@ -225,7 +225,7 @@ test("a file that already exists on the branch is labeled as an update, resolved
       { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
       { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
       // A directory listing (an ARRAY of `{name, type}` entries) is what GitHub's real Contents API
-      // answers here, and `github-write-files.ts`'s existence check matches `fly.toml` against
+      // answers here, and the github plugin's existence check matches `fly.toml` against
       // `entry.name` in it (5716426c/S21 — a directory or submodule at the path must NOT be
       // described as an update). Without a `type: "file"` entry this fixture exercises the refusal
       // path, not the update path this test is about.

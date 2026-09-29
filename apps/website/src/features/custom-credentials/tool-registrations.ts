@@ -42,6 +42,7 @@ import { customCredentialsAgentToolCatalog } from "./agent-tools.js";
 import {
   CredentialedRequestValidationError,
   makeCredentialedRequest,
+  buildAuthorizationHeader,
   resolveRequestTarget,
   verifyCustomCredential,
   type CredentialedRequestAuditPort,
@@ -54,7 +55,8 @@ import {
 import { buildCreateFormResource, buildCreateOutcomeResource, CREATE_TOOL_ID, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
-import { commitGitHubFiles, planGitHubFileWrite, type FileWriteState, type GitHubWriteFilesPlan } from "./github-write-files.js";
+import type { FileWritePlan, FileWriteState, SourceControlProvider } from "../source-control/provider-module.js";
+import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
@@ -213,7 +215,7 @@ import { isWorkflowPath, validateWriteFilesInput, type NormalizedWriteFile, type
  * Unlike DELETE above (gated only for one HTTP verb inside a general-purpose request tool), EVERY
  * call to this tool is gated — there is no un-confirmed path, because every call durably writes to a
  * real, third-party repository. Every path/size/count check (`write-files-validation.ts`) and the
- * read-only branch/tree/existence reconnaissance (`github-write-files.ts`'s `planGitHubFileWrite`)
+ * read-only branch/tree/existence reconnaissance (the provider's `planFileWrite`)
  * run BEFORE the dialog is opened, so a malformed call or a nonexistent branch is refused with no
  * dialog raised at all — same ordering `custom_credential_make_request`'s own DELETE gate uses. The
  * confirmation dialog (`write-files-confirmation-ui.ts`) then names every path this call would write,
@@ -221,7 +223,7 @@ import { isWorkflowPath, validateWriteFilesInput, type NormalizedWriteFile, type
  * never guessed), and gives any `.github/workflows/**` path its own emphatic, textually distinct
  * warning: that directory is the single most sensitive path class a repository can have, since it
  * controls what code executes automatically on every future push. Only on confirmation does
- * `commitGitHubFiles` build and land the real commit; a decline, expiry, or abandonment writes
+ * the provider's `commitFiles` build and land the real commit; a decline, expiry, or abandonment writes
  * nothing, same fail-closed contract this domain's other gated tools already establish.
  *
  * `WRITE`-gated, the same permission `custom_credential_make_request`/`custom_credential_set_token`
@@ -255,6 +257,9 @@ export interface CustomCredentialsToolDeps {
    *  a composition root (`server/runtime/composition/{deps,app}.ts`); see `credentialed-request.ts`'s
    *  own `CredentialedRequestDeps.httpClient` doc for why this file never constructs one itself. */
   readonly customCredentialsHttpClient: HttpClientPort;
+  /** The git-host providers `custom_credential_write_files` writes through (the installed, enabled
+   *  Agent Plugins when omitted — the bundled `github` one today). */
+  readonly loadSourceControlProviders?: LoadSourceControlProviders;
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;
   /** Test-only override for the server-side failure log; defaults to `console.warn`. Receives only
@@ -397,7 +402,7 @@ function isWriteFilesShapeRejection(error: unknown): boolean {
  *   through {@link makeModelFacingCredentialedRequest}, in its address-free form.
  * - `CustomCredentialDuplicateLabelError`: never escapes as a throw (`mapCreateCredentialError`).
  * - `write_files`' plan-failure `Error`, which carries GitHub's own rejection text (a network failure
- *   is already reduced to fixed text by `github-write-files.ts`'s `describeSendFailure`), and
+ *   is already reduced to fixed text by the plugin provider (`provider-module.ts`)'s `describeSendFailure`), and
  *   {@link buildWriteFilesConfirmationFileSpecs}' internal-invariant `Error`.
  *
  * The structured `{ saved: false }` / `{ created: false }` / `{ executed: false }` results are return
@@ -462,8 +467,8 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
   // in this map uses. No external call, ever — see this file's header, "custom_credential_create", for
   // the full reasoning.
   ["custom_credential_create", "mutates-durable-state"],
-  // -> planGitHubFileWrite (read-only reconnaissance) then, ONLY on human confirmation,
-  // commitGitHubFiles: a real commit landed in a THIRD-PARTY repository — the same
+  // -> the plugin provider's planFileWrite (read-only reconnaissance) then, ONLY on human confirmation,
+  // its commitFiles: a real commit landed in a THIRD-PARTY repository — the same
   // "mutates-durable-state via an external write" classification custom_credential_make_request/
   // deployment_execute_static_publish/source_control_execute_commit carry. Every call is gated (see
   // this file's header, "custom_credential_write_files") — there is no un-confirmed path the way
@@ -525,20 +530,20 @@ async function resolveWriteFilesDecision(exchange: SurfaceExchange, ui: UIResour
  * so the handler's own branching stays under this repo's complexity ceiling, same reasoning
  * {@link handleSetTokenAnswer}'s own extraction gives. `plan` must be the SAME plan the confirmation
  * dialog was built from (`tool-registrations.ts`'s handler threads it through directly rather than
- * re-planning), so the tree {@link commitGitHubFiles} builds on top of is guaranteed to be the one the
+ * re-planning), so the tree the provider's `commitFiles` builds on top of is guaranteed to be the one the
  * human actually saw described.
  *
- * @complexity O(1) beyond {@link commitGitHubFiles}'s own O(files) cost.
+ * @complexity O(1) beyond the provider's `commitFiles`'s own O(files) cost.
  */
 async function performGitHubFilesWrite(
   routeDeps: CustomCredentialsToolDeps,
+  provider: SourceControlProvider,
   resolved: { baseUrl: string; connection: CustomProviderConnectionInput },
   validated: ValidatedWriteFilesInput,
-  plan: GitHubWriteFilesPlan
+  plan: FileWritePlan
 ): Promise<WriteFilesResult> {
-  const commitResult = await commitGitHubFiles(
-    { httpClient: routeDeps.customCredentialsHttpClient },
-    { baseUrl: resolved.baseUrl, connection: resolved.connection, owner: validated.owner, repo: validated.repo, branch: validated.branch, commitMessage: validated.commitMessage, files: validated.files },
+  const commitResult = await provider.commitFiles(
+    { ...writeTarget(resolved, validated), branch: validated.branch, commitMessage: validated.commitMessage, files: validated.files },
     plan
   );
   if (!commitResult.ok) {
@@ -546,6 +551,11 @@ async function performGitHubFilesWrite(
     return { executed: false, cancelled: false, reason: "error", message: commitResult.message };
   }
   return { executed: true, commitSha: commitResult.commitSha, commitUrl: commitResult.commitUrl, filesWritten: validated.files.length };
+}
+
+/** Where a write goes: the credential's API plus the `Authorization` header built from its connection. */
+function writeTarget(resolved: { baseUrl: string; connection: CustomProviderConnectionInput }, validated: ValidatedWriteFilesInput) {
+  return { baseUrl: resolved.baseUrl, authorization: buildAuthorizationHeader(resolved.connection), owner: validated.owner, repo: validated.repo };
 }
 
 /** The longest content excerpt `custom_credential_write_files`'s confirmation dialog shows per file.
@@ -569,7 +579,7 @@ function buildWriteFilesContentExcerpt(content: string): string {
 }
 
 /**
- * Maps one {@link FileWriteState} from `planGitHubFileWrite` plus its already-validated content onto
+ * Maps one {@link FileWriteState} from the provider's `planFileWrite` plus its already-validated content onto
  * `write-files-confirmation-ui.ts`'s own spec shape — the one place this wiring layer decides what
  * the dialog shows for a file. The byte size is computed here from the content itself rather than
  * read off `NormalizedWriteFile` (which carries only `path`/`content`; `write-files-validation.ts`'s
@@ -588,21 +598,21 @@ function buildWriteFilesConfirmationFileSpec(fileState: FileWriteState, content:
 }
 
 /**
- * Pairs every path `planGitHubFileWrite` planned with the validated content this call would write
+ * Pairs every path the provider's `planFileWrite` planned with the validated content this call would write
  * there, producing the file list `buildWriteFilesConfirmationResource` renders.
  *
  * THROWS when a planned path has no entry in `files`, rather than substituting an empty string: a
  * detail row reading `(empty file)` for a file that is about to be written with real content is the
  * confirmation dialog lying to the human whose consent it is asking for — the one failure this
- * dialog exists to make impossible. `planGitHubFileWrite` derives its `fileStates` from this same
- * `files` array (one state per entry, same normalized path — see `github-write-files.ts`'s own
+ * dialog exists to make impossible. the provider's `planFileWrite` derives its `fileStates` from this same
+ * `files` array (one state per entry, same normalized path — see the plugin provider (`provider-module.ts`)'s own
  * existence loop), so a miss is never a caller mistake; it means these two modules have drifted, and
  * the only safe answer is to raise no dialog at all and let the write fail loudly.
  *
  * Exported for that reason: the miss is unreachable through the handler precisely because the two
  * lists share an origin, and an invariant no test can reach is an invariant nothing protects.
  *
- * @param input.fileStates - `planGitHubFileWrite`'s per-file create/update reconnaissance.
+ * @param input.fileStates - the provider's `planFileWrite`'s per-file create/update reconnaissance.
  * @param input.files - The same validated files that plan was built from.
  * @throws {Error} A planned path is absent from `files`. Deliberately a plain `Error`, not a
  * `ToolInputError`: no different input from the caller would fix it.
@@ -1329,7 +1339,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // gated behind an in-chat confirmation naming every path — see this file's header,
     // "custom_credential_write_files", for the full design. Shape/path/size validation
     // (`validateWriteFilesInput`) and the read-only branch/tree/existence reconnaissance
-    // (`planGitHubFileWrite`) both run BEFORE the dialog is opened, same ordering the DELETE gate above
+    // (the provider's `planFileWrite`) both run BEFORE the dialog is opened, same ordering the DELETE gate above
     // uses: a malformed call or a nonexistent branch is refused with no dialog and no confirmation spent.
     custom_credential_write_files: async (ctx): Promise<WriteFilesResult> => {
       const input = requireInputRecord(ctx.input);
@@ -1363,10 +1373,16 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
       }
 
-      const planResult = await planGitHubFileWrite(
-        { httpClient: routeDeps.customCredentialsHttpClient },
-        { baseUrl: resolved.baseUrl, connection: resolved.connection, owner: validated.owner, repo: validated.repo, branch: validated.branch, files: validated.files }
-      );
+      const built = await buildSourceControlProviderForApi({
+        ...(routeDeps.loadSourceControlProviders ? { load: routeDeps.loadSourceControlProviders } : {}),
+        workspaceId: routeDeps.workspaceId,
+        baseUrl: resolved.baseUrl,
+        httpClient: routeDeps.customCredentialsHttpClient,
+      });
+      if (!built.ok) throw new Error(`custom_credential_write_files: ${built.message}`);
+      const provider = built.provider;
+
+      const planResult = await provider.planFileWrite({ ...writeTarget(resolved, validated), branch: validated.branch, files: validated.files });
       if (!planResult.ok) {
         reportGitHubWriteFailure(routeDeps, { phase: "plan", failure: planResult });
         throw new Error(`custom_credential_write_files: ${planResult.message}`);
@@ -1392,7 +1408,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       }
       if (!decision.confirmed) return decision.result;
 
-      return performGitHubFilesWrite(routeDeps, resolved, validated, planResult.plan);
+      return performGitHubFilesWrite(routeDeps, provider, resolved, validated, planResult.plan);
     },
   };
 

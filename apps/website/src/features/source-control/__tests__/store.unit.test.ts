@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { KeyringPort } from "../../webhooks/index.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
+import { loadSourceControlProviderRegistryFromSource, type LoadSourceControlProviders } from "../provider-registry.js";
 import {
   createSourceControlCredential,
   deleteSourceControlCredential,
@@ -57,6 +59,12 @@ const NOW = "2026-08-15T00:00:00.000Z";
  *  write path, unlike `publish-credentials/store.ts`'s, is allowed to probe inline. Rejects, which
  *  `probeAccountLabel`'s own `catch` folds into `null` — the same "never throws, degrades silently"
  *  contract the real fetch failure path exercises. */
+/** The bundled `github` plugin read from its source directory (no install or activation gate). */
+const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins/github");
+const githubFromSource: LoadSourceControlProviders = () => loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
+/** A workspace where no plugin provides a git host (the github plugin turned off). */
+const noProviders: LoadSourceControlProviders = async () => ({ list: () => [], get: () => undefined, refusals: [] });
+
 function neverCallRealNetwork(): typeof fetch {
   return (async () => {
     throw new Error("test fetchFn stub: no test in this file should reach the real network");
@@ -73,6 +81,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `cred-${(counter += 1)}` },
     fetchFn: neverCallRealNetwork(),
+    loadSourceControlProviders: githubFromSource,
     ...overrides,
   };
 }
@@ -564,4 +573,16 @@ test("createSourceControlCredential leaves accountLabel null when a 200 GitHub /
   const deps = makeDeps({ fetchFn: fetchReturningJson(200, { id: 12345, name: "no login field here" }) });
   const summary = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github", token: "t" } });
   assert.equal(summary.accountLabel, null);
+});
+
+test("createSourceControlCredential with no plugin providing the host saves with accountLabel null and makes no request", async () => {
+  let calls = 0;
+  const fetchFn = (async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ login: "must-not-be-read" }), { status: 200 });
+  }) as unknown as typeof fetch;
+  const deps = makeDeps({ fetchFn, loadSourceControlProviders: noProviders });
+  const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github", token: "ghp_fake" } });
+  assert.equal(created.accountLabel, null);
+  assert.equal(calls, 0);
 });

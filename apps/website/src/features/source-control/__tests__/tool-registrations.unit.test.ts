@@ -8,7 +8,8 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import type { GitHubCommitAdapter, GitHubCommitAdapterResult } from "../commit-site.js";
+import type { SourceControlCommitAdapter, SourceControlCommitResult } from "../commit-site.js";
+import { loadSourceControlProviderRegistryFromSource, type LoadSourceControlProviders } from "../provider-registry.js";
 import { createSourceControlCredential } from "../store.js";
 
 import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
@@ -33,7 +34,13 @@ test.after(() => rmSync(exportDir, { recursive: true, force: true }));
  *  `process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR` (commit-site.ts no longer reads env vars at all),
  *  so overriding it here is what keeps this suite's real `exportSite` writes off the checked-out
  *  repo. */
-function fakeDeps(options: { allow?: boolean; gitAdapter?: GitHubCommitAdapter } = {}): {
+/** The bundled `github` plugin read from its source directory (no install or activation gate). */
+const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins/github");
+const githubFromSource: LoadSourceControlProviders = () => loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
+/** A workspace where no plugin provides a git host (the github plugin turned off). */
+const noProviders: LoadSourceControlProviders = async () => ({ list: () => [], get: () => undefined, refusals: [] });
+
+function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAdapter; loadSourceControlProviders?: LoadSourceControlProviders } = {}): {
   deps: SourceControlToolDeps;
   authorizeCalls: Record<string, unknown>[];
   setAllow: (value: boolean) => void;
@@ -49,6 +56,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: GitHubCommitAdapter }
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
+    loadSourceControlProviders: options.loadSourceControlProviders ?? githubFromSource,
     ...(options.gitAdapter ? { gitAdapter: options.gitAdapter } : {}),
   };
 
@@ -110,13 +118,13 @@ async function raiseDialog(executeTool: ToolRegistration, input: Record<string, 
   return { pending, html, exchangeId };
 }
 
-const FAKE_SUCCESS: GitHubCommitAdapterResult = { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 0 };
+const FAKE_SUCCESS: SourceControlCommitResult = { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 0 };
 
-function fakeGitAdapter(result: GitHubCommitAdapterResult): GitHubCommitAdapter {
+function fakeGitAdapter(result: SourceControlCommitResult): SourceControlCommitAdapter {
   return { async commit() { return result; } };
 }
 
-function neverCalledGitAdapter(): GitHubCommitAdapter {
+function neverCalledGitAdapter(): SourceControlCommitAdapter {
   return { async commit() { throw new Error("gitAdapter.commit must not be called on this path"); } };
 }
 
@@ -170,7 +178,7 @@ test("source_control_get_capabilities reports all three providers, honestly dist
 
   assert.equal(byId.get("gitlab")?.configured, false);
   assert.equal(byId.get("gitlab")?.commitSupported, false);
-  assert.match(byId.get("gitlab")?.guidance ?? "", /not supported yet/);
+  assert.match(byId.get("gitlab")?.guidance ?? "", /no enabled Agent Plugin supports committing to gitlab/);
 
   assert.equal(byId.get("bitbucket")?.configured, false);
   assert.equal(byId.get("bitbucket")?.commitSupported, false);
@@ -191,7 +199,7 @@ test("source_control_get_capabilities: a SAVED gitlab credential is still honest
   assert.equal(gitlab.configured, true, "a saved credential must be reported as configured, not hidden");
   assert.equal(gitlab.commitSupported, false, "commit support must stay false even though a credential exists");
   assert.equal(gitlab.savedCredentials.length, 1);
-  assert.match(gitlab.guidance ?? "", /credential is saved.*committing.*not supported yet/is);
+  assert.match(gitlab.guidance ?? "", /credential is saved.*no enabled Agent Plugin supports committing/is);
   assert.doesNotMatch(JSON.stringify(result), /glpat_secret/);
 });
 
@@ -539,4 +547,33 @@ test("with no gitAdapter override, a confirmed commit reaches the real GitHub ad
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// 2026-09-29: GitHub committing moved into the bundled `github` Agent Plugin. With that plugin off,
+// the host is reported as not commit-ready and a commit is refused BEFORE any dialog opens.
+test("with no plugin providing github, capabilities report commitSupported:false and say how to turn it on", async () => {
+  const { deps } = fakeDeps({ loadSourceControlProviders: noProviders });
+  await seedGithubCredential(deps);
+  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_get_capabilities");
+
+  const result = (await call(capabilities)) as { providers: { providerId: string; configured: boolean; commitSupported: boolean; guidance?: string }[] };
+  const github = result.providers.find((p) => p.providerId === "github");
+  assert.equal(github?.configured, true);
+  assert.equal(github?.commitSupported, false);
+  assert.equal(github?.guidance, "A github credential is saved, but no enabled Agent Plugin supports committing to github.");
+});
+
+test("with no plugin providing github, a commit is refused with reason 'no-provider' and never raises a dialog", async () => {
+  const { deps } = fakeDeps({ loadSourceControlProviders: noProviders });
+  await seedGithubCredential(deps);
+  const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit");
+
+  const emitted: unknown[] = [];
+  const result = await call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async (s) => void emitted.push(s) });
+  assert.deepEqual(result, {
+    committed: false,
+    reason: "no-provider",
+    message: "No enabled Agent Plugin provides 'github' source control. Turn on the Agent Plugin for it on the Agent Plugins page.",
+  });
+  assert.equal(emitted.length, 0);
 });

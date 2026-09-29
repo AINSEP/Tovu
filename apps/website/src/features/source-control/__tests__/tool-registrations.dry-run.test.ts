@@ -10,7 +10,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import type { ExportReport } from "#src/features/site-export/index";
 
-import type { ExportSiteBoundFn, GitHubCommitAdapter } from "../commit-site.js";
+import type { ExportSiteBoundFn, SourceControlCommitAdapter } from "../commit-site.js";
 import { createSourceControlCredential } from "../store.js";
 import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../tool-registrations.js";
 
@@ -18,7 +18,7 @@ import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../
  * @file S8 (`dryRun` preview for `source_control_execute_commit`) proof. A fake `exportSiteBound`
  * writes two files to a throwaway temp dir, standing in for a real `exportSite` pass, so this file
  * proves the dry-run branch itself rather than the real exporter: no confirmation dialog, no
- * `GitHubCommitAdapter.commit()` call, and the same `cleanupCommitRunDir` disposal a real commit
+ * `SourceControlCommitAdapter.commit()` call, and the same `cleanupCommitRunDir` disposal a real commit
  * gets (`commit-site.ts`'s `previewCommitExport`). Modelled on `tool-registrations.unit.test.ts`'s
  * own `fakeDeps`/`call` shape.
  */
@@ -26,7 +26,7 @@ import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../
 const exportRootDir = mkdtempSync(path.join(tmpdir(), "tovu-source-control-dry-run-test-"));
 test.after(() => rmSync(exportRootDir, { recursive: true, force: true }));
 
-function neverCalledGitAdapter(calls: { count: number }): GitHubCommitAdapter {
+function neverCalledGitAdapter(calls: { count: number }): SourceControlCommitAdapter {
   return {
     async commit() {
       calls.count += 1;
@@ -56,7 +56,7 @@ function fakeExportSiteBound(captured: { outputDir: string | null }): ExportSite
   };
 }
 
-function fakeDeps(options: { gitAdapter: GitHubCommitAdapter; exportSiteBound: ExportSiteBoundFn }): SourceControlToolDeps {
+function fakeDeps(options: { gitAdapter: SourceControlCommitAdapter; exportSiteBound: ExportSiteBoundFn }): SourceControlToolDeps {
   const base = createRouteDeps();
   return {
     ...base,

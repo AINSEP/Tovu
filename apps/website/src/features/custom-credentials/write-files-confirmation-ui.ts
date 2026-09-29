@@ -14,8 +14,8 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exc
  * Two things this dialog must do that DELETE's confirmation does not:
  *
  * 1. Name EVERY path being written, and whether it already exists on the branch (an update) or does
- *   not (a create) — `tool-registrations.ts`'s handler resolves this via `github-write-files.ts`'s
- *   `planGitHubFileWrite` before this resource is ever built, so the label shown here is always a
+ *   not (a create) — `tool-registrations.ts`'s handler resolves this via the git-host plugin provider's
+ *   `planFileWrite` before this resource is ever built, so the label shown here is always a
  *   real, freshly-checked fact, never a guess.
  * 2. Make a `.github/workflows/**` write visually/textually distinct from an ordinary file write —
  *   see {@link buildWriteFilesConfirmationResource}'s own doc for exactly how, and why: a workflow
@@ -30,7 +30,7 @@ export function writeFilesConfirmationUri(exchangeId: string): UIResourceUri {
 }
 
 /** One file the confirmation dialog names — `exists` (create vs. update) and `isWorkflow` are both
- *  facts the caller must have already resolved (`github-write-files.ts`'s plan phase,
+ *  facts the caller must have already resolved (the provider's plan phase,
  *  `write-files-validation.ts`'s `isWorkflowPath`) — this module only renders them, it never decides
  *  them. `contentExcerpt`/`sizeBytes` are supplied by the caller the same way: the caller truncates
  *  the excerpt to a short, reviewable length (see `tool-registrations.ts`'s own

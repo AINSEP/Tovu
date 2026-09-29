@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "providers": [
+    {
+      "id": "github",
+      "label": "GitHub",
+      "module": "source-control/github.mjs"
+    }
+  ]
+}
