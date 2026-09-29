@@ -11,6 +11,7 @@ import { createApp } from "#src/server/runtime/composition/app";
 import { exportSite } from "#src/features/site-export/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { psql } from "#src/platform/db/migration/pg-fixture";
+import { CHAT_MIGRATIONS, CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
@@ -121,8 +122,8 @@ test("first boot (secretRef env): the composition migrates the database and ever
   // Nothing SQLite was created for the store: no content.db / chat.db beside the meta file.
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), false, "a postgres site must not create content.db");
   assert.equal(fs.existsSync(path.join(siteDir, "chat.db")), false, "a postgres site must not create chat.db");
-  assert.ok(Number(query("SELECT count(*) FROM public.tovu_migrations")) >= 2, "content history ran to head (0000 + 0001)");
-  assert.equal(query("SELECT count(*) FROM ai_chat.tovu_chat_migrations"), "1", "chat history ran to head in ai_chat");
+  assert.equal(query("SELECT string_agg(id, ',' ORDER BY id) FROM public.tovu_migrations"), CONTENT_MIGRATIONS.map((step) => step.id).join(","), "content history ran to head");
+  assert.equal(query("SELECT string_agg(id, ',' ORDER BY id) FROM ai_chat.tovu_chat_migrations"), CHAT_MIGRATIONS.map((step) => step.id).join(","), "chat history ran to head in ai_chat");
   firstBootLedger = query("SELECT string_agg(id || '@' || applied_at, ',' ORDER BY id) FROM public.tovu_migrations") +
     "|" + query("SELECT string_agg(id || '@' || applied_at, ',' ORDER BY id) FROM ai_chat.tovu_chat_migrations");
 
