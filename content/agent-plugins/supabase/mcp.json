@@ -5,6 +5,10 @@
       "type": "streamable-http",
       "url": "https://mcp.supabase.com/mcp?features=account,database,development,docs,debugging",
       "tovuAuthMode": "oauth",
+      "tovuTokenAuth": {
+        "helpUrl": "https://supabase.com/dashboard/account/tokens",
+        "probeUrl": "https://api.supabase.com/v1/projects"
+      },
       "tovuDefaultTools": {
         "allow": ["list_organizations", "get_organization", "list_projects", "get_project", "get_cost", "confirm_cost",
                   "create_project", "pause_project", "restore_project", "list_tables", "list_extensions", "list_migrations",

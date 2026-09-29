@@ -30,7 +30,7 @@ import type { McpServerConfig, RemoteMcpServerConfig } from "./manifest.js";
  * @file `agent_plugin_connect` — G1 of the 2026-09-27 Supabase-agent-plugin v2 plan
  * (`ADS-memory/reports/2026-09-27-supabase-agent-plugin-plan-v2.md`, section 3): a GENERIC "connect
  * this plugin's account" tool any OAuth-authenticated Agent Plugin can use, so no plugin needs its
- * own bespoke connect tool the way `features/supabase-connect/` did (removed in a later slice, R2).
+ * own bespoke connect tool the way `features/supabase-connect/` did (deleted 2026-09-29).
  *
  * ## What one call does
  *
@@ -118,7 +118,7 @@ export interface ResolvedAgentPluginForConnect {
  *  plugin's worth of exports just to reach the one function; both read `mcp.json` off the winning
  *  (bundled-preferred) installed digest for a pluginId. Returns `null` for a pluginId not installed
  *  in this workspace. */
-async function defaultResolveInstalledAgentPlugin(workspaceId: string, pluginId: string): Promise<ResolvedAgentPluginForConnect | null> {
+export async function defaultResolveInstalledAgentPlugin(workspaceId: string, pluginId: string): Promise<ResolvedAgentPluginForConnect | null> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
   const installed = preferBundledAgentPluginDigests(
     await listInstalledPlugins(workspaceLayout.packages),
@@ -132,7 +132,7 @@ async function defaultResolveInstalledAgentPlugin(workspaceId: string, pluginId:
 /** "supabase" -> "Supabase", "higgsfield-media" -> "Higgsfield Media". There is no separate
  *  display-name field in `plugin.json` (agent-plugins.org has none) — `uninstall-confirmation-ui.ts`'s
  *  own dialog makes the identical choice, naming the plugin by its id. */
-function titleCaseFromPluginId(pluginId: string): string {
+export function titleCaseFromPluginId(pluginId: string): string {
   return pluginId
     .split(/[-_]+/)
     .filter((word) => word.length > 0)

@@ -181,6 +181,31 @@ test("mcp.json: tovuDefaultTools on a remote server passes through when write is
   });
 });
 
+function parseTokenAuth(tovuTokenAuth: unknown) {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuTokenAuth } },
+  });
+  assert.equal(result.ok, true);
+  return result.ok ? (result.config.servers.remote as { tovuTokenAuth?: unknown } | undefined) : undefined;
+}
+
+test("mcp.json: tovuTokenAuth with https helpUrl and probeUrl passes through", () => {
+  const auth = { helpUrl: "https://example.com/tokens", probeUrl: "https://api.example.com/v1/me" };
+  assert.deepEqual(parseTokenAuth(auth)?.tovuTokenAuth, auth);
+});
+
+test("mcp.json: tovuTokenAuth with a non-https or missing URL excludes the server, so a token is never probed in the clear", () => {
+  for (const bad of [
+    { helpUrl: "https://example.com/tokens", probeUrl: "http://api.example.com/v1/me" },
+    { helpUrl: "javascript:alert(1)", probeUrl: "https://api.example.com/v1/me" },
+    { helpUrl: "https://example.com/tokens" },
+    "https://example.com/tokens",
+  ]) {
+    assert.equal(parseTokenAuth(bad), undefined, JSON.stringify(bad));
+  }
+});
+
 test("mcp.json: tovuDefaultTools whose write names a tool outside allow excludes the server (like any shape error)", () => {
   const result = parseAgentPluginMcpConfig({
     $schema: MCP_SCHEMA_1_0_0,

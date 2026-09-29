@@ -212,7 +212,6 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "sites",
     "source-control",
     "static-publish",
-    "supabase-connect",
     "taxonomy",
     "themes",
     // 2026-09-24: `theme_set_active` (F7a, ca9f97328) and `change_sets_list`/`change_sets_revert`
@@ -351,11 +350,10 @@ test("installing the contributor afterward makes the same id wirable — proving
 // `supabase_get_database` prototype (a679de93d) out-competed the generic
 // `agent_plugin_connect { pluginId: "supabase" }` in a live test because its wording was more
 // attractive to the model; it was deleted, and so was the one-project picker
-// `supabase_set_project_scope` (the plugin works account-wide). The only `supabase_*` tool core may
-// still register is the token fallback below, which leaves with the rest of
-// `features/supabase-connect/` (plan v2, slice R2, after the token form moves into the generic
-// Connect card). This list only ever shrinks.
-const SUPABASE_TOOLS_STILL_IN_CORE: readonly string[] = ["supabase_set_access_token"];
+// `supabase_set_project_scope` (the plugin works account-wide). The token fallback
+// `supabase_set_access_token` became the generic `agent_plugin_set_access_token` on 2026-09-29, and
+// `features/supabase-connect/` was deleted. This list stays empty.
+const SUPABASE_TOOLS_STILL_IN_CORE: readonly string[] = [];
 
 test("core registers no Supabase-specific connect tool — the generic agent_plugin_connect is the only way in", async () => {
   installFirstPartyToolContributors();

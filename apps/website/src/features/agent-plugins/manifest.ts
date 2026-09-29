@@ -45,7 +45,9 @@
  *   nothing. Absent, it defaults to `"none"` wherever it is consulted
  *   (`capability-projection.ts`'s `resolveAgentPluginMcpAuthMode`). A second extension on the same
  *   entries, `tovuDefaultTools: { allow, write? }`, names the tools granted on the operator's first
- *   sign-in (`apply-connect-defaults.ts`); `write` must be a subset of `allow`. A malformed per-server entry
+ *   sign-in (`apply-connect-defaults.ts`); `write` must be a subset of `allow`. A third,
+ *   `tovuTokenAuth: { helpUrl, probeUrl }`, offers a pasted access token as the sign-in fallback
+ *   (`access-token-tool.ts`). A malformed per-server entry
  *   (wrong/missing `type`, missing required field) does not fail the whole file — see
  *   `ParseAgentPluginMcpConfigResult`'s own doc for the fail-open contract this preserves.
  *
@@ -190,6 +192,17 @@ export interface RemoteMcpServerConfig {
    *  operator's FIRST successful sign-in (`apply-connect-defaults.ts`), so connecting is the only step.
    *  `write` is a subset of `allow`, the same rule the external-MCP store enforces on a save. */
   readonly tovuDefaultTools?: AgentPluginDefaultTools;
+  /** Tovu-specific extension, not part of the spec: this server also takes a pasted access token, sent
+   *  as `Authorization: Bearer` — the fallback when its sign-in cannot start (`access-token-tool.ts`). */
+  readonly tovuTokenAuth?: AgentPluginTokenAuth;
+}
+
+/** Where a human makes the token (`helpUrl`, linked from the form) and the URL a pasted token is
+ *  checked against before it is saved (`probeUrl`: one GET, 401/403 means the token was rejected).
+ *  Both https. */
+export interface AgentPluginTokenAuth {
+  readonly helpUrl: string;
+  readonly probeUrl: string;
 }
 
 export interface AgentPluginDefaultTools {
@@ -275,6 +288,24 @@ function parseDefaultTools(value: unknown): AgentPluginDefaultTools | null {
   return write.every((name) => allowed.has(name)) ? { allow, write } : null;
 }
 
+const MAX_TOKEN_AUTH_URL_LENGTH = 2048;
+
+function isHttpsUrl(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > MAX_TOKEN_AUTH_URL_LENGTH) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Validates a remote entry's `tovuTokenAuth` extension, or `null` for any shape violation — the
+ *  caller excludes the whole server, same as a malformed `tovuDefaultTools`. */
+function parseTokenAuth(value: unknown): AgentPluginTokenAuth | null {
+  if (!isJsonObject(value) || !isHttpsUrl(value.helpUrl) || !isHttpsUrl(value.probeUrl)) return null;
+  return { helpUrl: value.helpUrl, probeUrl: value.probeUrl };
+}
+
 /**
  * Validates one `type: "streamable-http"` or `type: "sse"` server entry — the two remote transports
  * share this one implementation because they share every field (see {@link RemoteMcpServerConfig}).
@@ -291,6 +322,8 @@ function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<
   if (tovuAuthMode !== undefined && tovuAuthMode !== "oauth" && tovuAuthMode !== "none") return null;
   const tovuDefaultTools = raw.tovuDefaultTools === undefined ? undefined : parseDefaultTools(raw.tovuDefaultTools);
   if (tovuDefaultTools === null) return null;
+  const tovuTokenAuth = raw.tovuTokenAuth === undefined ? undefined : parseTokenAuth(raw.tovuTokenAuth);
+  if (tovuTokenAuth === null) return null;
 
   return {
     type,
@@ -298,6 +331,7 @@ function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<
     ...(headers !== undefined ? { headers } : {}),
     ...(tovuAuthMode !== undefined ? { tovuAuthMode } : {}),
     ...(tovuDefaultTools !== undefined ? { tovuDefaultTools } : {}),
+    ...(tovuTokenAuth !== undefined ? { tovuTokenAuth } : {}),
   };
 }
 

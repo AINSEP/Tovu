@@ -28,7 +28,7 @@
  * that file imports today — as of 2026-09-20/21 (two agent-plugins connect files added 2026-09-27):
  * `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`,
  * `src/features/agent-plugins/federate-mcp.ts`,
- * `src/features/supabase-connect/tool-registrations.ts`, and
+ * `src/features/agent-plugins/access-token-tool.ts` (was `supabase-connect/tool-registrations.ts`), and
  * `src/features/external-mcp/tool-registrations.ts`. A value-import of any OTHER symbol from
  * `#src/assistant/index` by one of these files — `registerToolContributor` above all — is not
  * covered by its allowlist and fails the test, the same as it would for any non-exempt file.
@@ -73,12 +73,11 @@ const EXEMPT_FILE_SYMBOLS = new Map<string, Set<string>>([
     new Set(["saveExternalMcpServer"]),
   ],
   [
-    // Added 2026-09-13 (d06662795, SPEC-052 M2) — confirmed via `assistant/index.ts`'s own comment
-    // naming this file. Imports the External MCP CRUD/OAuth-status surface its own tool handlers
-    // call directly, same seam `server/inbound/admin-http/routes/external-mcp/{put,probe}.ts` use.
-    path.join(REPO_ROOT, "apps", "website", "src", "features", "supabase-connect", "tool-registrations.ts"),
-    // Narrowed 2026-09-27: the project picker and its URL/token helpers were deleted; only the
-    // token form's save path is left.
+    // Added 2026-09-29: `agent_plugin_set_access_token`, moved here from the deleted
+    // `supabase-connect/tool-registrations.ts` (SPEC-052), which had this exact exemption. Saves a
+    // pasted token onto a plugin's row and maps the store's own errors. Never calls
+    // `registerToolContributor`; contributed through `contributeAgentPluginConnectTools()`.
+    path.join(REPO_ROOT, "apps", "website", "src", "features", "agent-plugins", "access-token-tool.ts"),
     new Set(["ExternalMcpSecretStoreUnconfiguredError", "ExternalMcpValidationError", "saveExternalMcpServer"]),
   ],
   [
@@ -104,7 +103,7 @@ const EXEMPT_FILE_SYMBOLS = new Map<string, Set<string>>([
   [
     // Added 2026-09-27 (1ec285153, S-G1): `agent_plugin_connect` reads a plugin row's OAuth status
     // and maps the store's validation error — the same External MCP read surface
-    // `supabase-connect/tool-registrations.ts` uses above. Never calls `registerToolContributor`;
+    // `access-token-tool.ts` uses above. Never calls `registerToolContributor`;
     // it is contributed through `contributeAgentPluginConnectTools()`.
     path.join(REPO_ROOT, "apps", "website", "src", "features", "agent-plugins", "connect-tool.ts"),
     new Set(["ExternalMcpValidationError", "resolveExternalMcpOAuthStatus"]),

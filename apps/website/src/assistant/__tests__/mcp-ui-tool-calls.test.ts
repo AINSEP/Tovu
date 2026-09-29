@@ -122,6 +122,7 @@ test("custom_credential_write_files is on the allowlist — every call holds up 
 const EXPECTED_ALLOWLIST = [
   // 2026-09-27 (S-G1, 1ec285153) — the generic Agent Plugin Connect card; see the allowlist's own entry.
   "agent_plugin_connect",
+  "agent_plugin_set_access_token",
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",
@@ -151,7 +152,6 @@ const EXPECTED_ALLOWLIST = [
   "database_transfer_run",
   "database_transfer_set_destination",
   "source_control_execute_commit",
-  "supabase_set_access_token",
   "taxonomy_execute_merge_term",
   "theme_trash_file",
   "trash_item",

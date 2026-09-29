@@ -46,7 +46,6 @@ import { contributeSitesTools } from "#src/features/sites/index";
 import { contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
 import { deriveTrashItemRegistrations, trashItemDerivedRisk } from "#src/features/trash/index";
-import { contributeSupabaseConnectTools } from "#src/features/supabase-connect/tool-registrations";
 import { contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
 
@@ -267,8 +266,8 @@ export function installFirstPartyToolContributors(): void {
   // header for why the two halves use different wiring seams.
   registerToolContributor(contributeAgentPluginSearchTools());
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
-  // this plugin's account" tool any OAuth-authenticated Agent Plugin uses. Static, same seam as
-  // `search_agent_plugin_local` above.
+  // this plugin's account" tool any OAuth-authenticated Agent Plugin uses — and its access-token
+  // fallback `agent_plugin_set_access_token`. Static, same seam as `search_agent_plugin_local` above.
   registerToolContributor(contributeAgentPluginConnectTools());
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
@@ -328,8 +327,6 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeSitesTools());
   registerToolContributor(contributeSourceControlTools());
   registerToolContributor(contributeStaticPublishTools());
-  // SPEC-052 — the `supabase` agent plugin's two in-chat forms (access-token fallback, project scope).
-  registerToolContributor(contributeSupabaseConnectTools());
   registerToolContributor(contributeTaxonomyTools());
   registerToolContributor(contributeThemesTools());
   // `theme_set_active` (F7a, 2026-09-24) — a SEPARATE contributor, own domain key

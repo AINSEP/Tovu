@@ -21,8 +21,14 @@ import {
   agentPluginConnectAgentToolCatalog,
   agentPluginConnectDerivedRisk,
   runAgentPluginConnect,
-  type AgentPluginConnectToolDeps,
 } from "./connect-tool.js";
+import {
+  agentPluginAccessTokenAgentToolCatalog,
+  agentPluginAccessTokenDerivedRisk,
+  AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID,
+  runAgentPluginSetAccessToken,
+  type AgentPluginAccessTokenToolDeps,
+} from "./access-token-tool.js";
 import {
   filterActiveAgentPlugins,
   isAgentPluginActive,
@@ -1088,27 +1094,33 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
  * static tool this domain contributes is wired from the one place, the same split that file already
  * uses for `search_agent_plugin_local`.
  */
-export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginConnectToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAccessTokenToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const pluginId = requireString(input, "pluginId");
       return runAgentPluginConnect(routeDeps, surfaces, ctx, pluginId);
     },
+    // The token fallback (`access-token-tool.ts`) for a plugin whose server declares `tovuTokenAuth`.
+    [AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID]: async (ctx) => runAgentPluginSetAccessToken(routeDeps, surfaces, ctx, requireInputRecord(ctx.input)),
   };
 
   return buildDomainRegistrations({
     domain: "agent-plugin-connect",
     catalogModule: "features/agent-plugins/connect-tool.ts",
-    catalog: indexCatalogById(agentPluginConnectAgentToolCatalog),
+    catalog: indexCatalogById(agentPluginConnectDomainCatalog),
     handlers,
-    derivedRisk: agentPluginConnectDerivedRisk,
+    derivedRisk: agentPluginConnectDomainRisk,
   });
 }
 
-/** Contributes `agent_plugin_connect` to the assistant's static tool catalog — called once by
- *  `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
+/** Both tools the `agent-plugin-connect` domain wires: sign-in, and its access-token fallback. */
+export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCatalog, ...agentPluginAccessTokenAgentToolCatalog];
+const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...agentPluginAccessTokenDerivedRisk]);
+
+/** Contributes `agent_plugin_connect` and `agent_plugin_set_access_token` to the assistant's static
+ *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
 export function contributeAgentPluginConnectTools(): ToolContributor {
-  return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDerivedRisk };
+  return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };
 }
 

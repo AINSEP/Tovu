@@ -74,6 +74,19 @@ test("mcp.json declares exactly one streamable-http OAuth server at Supabase's a
   assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
 });
 
+test("mcp.json offers the access-token fallback: Supabase's tokens page, probed against its projects list", async () => {
+  // Moved out of core `features/supabase-connect/` on 2026-09-29: the generic
+  // `agent_plugin_set_access_token` (`access-token-tool.ts`) reads these from the plugin.
+  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  assert.ok(parsed.ok);
+  const server = parsed.config.servers.supabase;
+  assert.ok(server && server.type !== "stdio");
+  assert.deepEqual(server.tovuTokenAuth, {
+    helpUrl: "https://supabase.com/dashboard/account/tokens",
+    probeUrl: "https://api.supabase.com/v1/projects",
+  });
+});
+
 test("plugin.json's keywords reach someone who just says they need a database", async () => {
   const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildAgentPluginConnectCard } from "../../connect-card-ui.js";
-import { buildConnectCardResource } from "../../../supabase-connect/supabase-connect-ui.js";
 
 /**
  * @file Regression: the connect card's sign-in button did nothing. The card's bridge posted
@@ -58,11 +57,4 @@ test("the generic connect card's sign-in button sends ui/open-link as a request 
   const open = await clickOpenLink(card.resource.text as string);
   assert.deepEqual(open, { jsonrpc: "2.0", id: open?.id, method: "ui/open-link", params: { url: SIGN_IN } });
   assert.equal(typeof open?.id, "string", "an id-less ui/open-link is a notification AppBridge drops silently");
-});
-
-test("the Supabase prototype card's Connect button sends ui/open-link as a request too", async () => {
-  const card = buildConnectCardResource({ exchangeId: "ex-1", state: "partial", message: "Waiting...", authorizeUrl: SIGN_IN });
-  const open = await clickOpenLink(card.resource.text as string);
-  assert.equal(open?.method, "ui/open-link");
-  assert.equal(typeof open?.id, "string");
 });

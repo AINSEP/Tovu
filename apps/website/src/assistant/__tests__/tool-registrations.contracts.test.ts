@@ -5,14 +5,14 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
-import { agentPluginConnectAgentToolCatalog } from "../../features/agent-plugins/connect-tool.js";
+import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
+import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
 import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../../features/trash/agent-tools.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
-import { supabaseConnectAgentToolCatalog } from "../../features/supabase-connect/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
 import { askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
@@ -240,8 +240,12 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // through the tool-contribution registry at all, so they never appear in this map either).
   "agent-plugin-search": agentPluginSearchAgentToolCatalog as unknown as AgentToolDefinition[],
   // 2026-09-27: `agent-plugin-connect` — `agent_plugin_connect` (S-G1), wired via
-  // `contributeAgentPluginConnectTools()`, same static seam as `agent-plugin-search` above.
-  "agent-plugin-connect": agentPluginConnectAgentToolCatalog as unknown as AgentToolDefinition[],
+  // `contributeAgentPluginConnectTools()`, same static seam as `agent-plugin-search` above. Since
+  // 2026-09-29 also `agent_plugin_set_access_token`, moved out of the deleted `supabase-connect`.
+  "agent-plugin-connect": agentPluginConnectDomainCatalog as unknown as AgentToolDefinition[],
+  // 2026-09-29: `database-transfer` was wired with no entry here, which stopped this loop before it
+  // reached any later domain. Added while moving the Supabase token tool.
+  "database-transfer": databaseTransferAgentToolCatalog as unknown as AgentToolDefinition[],
   // Pre-existing gap, unrelated to `agent-plugin-search` — found and fixed opportunistically while
   // adding the entry above. `content-duplication` (`content_duplicate`, 2026-09-07 per
   // `tool-catalog-manifest.ts`'s own header) was already wired in production with no entry here,
@@ -256,9 +260,6 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `contributeFsFilesTools()` with no entry here, so the completeness test above and every per-tool
   // lookup that reached `fs_list_files` went red.
   "fs-files": getFsFilesAgentToolCatalog() as unknown as AgentToolDefinition[],
-  // And again: `supabase-connect` (SPEC-052 M2, d0666279) wired via `contributeSupabaseConnectTools()`
-  // with no entry here — surfaced the moment the `fs-files` entry above let the loop get past it.
-  "supabase-connect": supabaseConnectAgentToolCatalog as unknown as AgentToolDefinition[],
   // Same class again: `publish-content` was wired via `contributePublishContentTools()` with no
   // entry here, so the completeness test above and every per-tool lookup that reached
   // `publish_content_status` went red. Found already failing at HEAD while adding `trash` below.
