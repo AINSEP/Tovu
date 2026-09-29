@@ -180,6 +180,21 @@ test("createPublishCredential rejects a second credential with the same (workspa
   );
 });
 
+/** Postgres/PGlite reports the label's UNIQUE index as SQLSTATE `23505` with its own wording, not
+ *  SQLite's "UNIQUE constraint failed" — the store must still map it to the typed duplicate-label error. */
+test("createPublishCredential maps a Postgres UNIQUE violation (SQLSTATE 23505) to PublishCredentialDuplicateLabelError", async () => {
+  class PgDuplicateRepo extends InMemoryPublishCredentialSetRepo {
+    override async insert(): Promise<void> {
+      throw Object.assign(new Error('duplicate key value violates unique constraint "publish_credential_sets_label_idx"'), { code: "23505" });
+    }
+  }
+  const deps = makeDeps({ repo: new PgDuplicateRepo() });
+  await assert.rejects(
+    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Main repo", connection: { providerId: "vercel", token: "token-a" } }),
+    PublishCredentialDuplicateLabelError
+  );
+});
+
 test("the SAME label is allowed for a DIFFERENT provider (uniqueness is per-provider, not workspace-wide)", async () => {
   const deps = makeDeps();
   await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Main", connection: { providerId: "vercel", token: "token-a" } });

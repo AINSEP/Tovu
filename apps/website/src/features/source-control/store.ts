@@ -1,5 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
+import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { extractGitHubLogin } from "../deployments/static-publish/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { buildSourceControlCredentialAad } from "./aad.js";
@@ -236,15 +237,11 @@ async function sealConnection(
   }
 }
 
-/** True iff `err` is the underlying SQLite driver's "UNIQUE constraint failed" error — same
- *  detection shape `publish-credentials/store.ts`'s own `isUniqueLabelViolation` uses (kept local
- *  here rather than imported cross-feature — same repo-wide convention `forms/repo.sqlite.ts`/
- *  `integrations/repo.sqlite.ts`/`media-repo.sqlite.ts` each already follow for this identical,
- *  tiny, table-agnostic check). */
+/** True iff `err` is the label's UNIQUE `(workspace_id, provider_id, label)` index rejecting a
+ *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
+ *  SQLSTATE 23505). */
 export function isUniqueLabelViolation(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const code = (err as { code?: string }).code;
-  return code === "SQLITE_CONSTRAINT_UNIQUE" || err.message.includes("UNIQUE constraint failed");
+  return isUniqueViolation(err);
 }
 
 export interface CreateSourceControlCredentialInput {

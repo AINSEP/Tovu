@@ -1,5 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
+import { isUniqueViolation } from "../../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../../webhooks/index.js";
 import { buildPublishCredentialAad } from "./aad.js";
 import type {
@@ -269,14 +270,11 @@ async function sealConnection(
   }
 }
 
-/** True iff `err` is the underlying SQLite driver's "UNIQUE constraint failed" error — same
- *  detection shape `forms/repo.sqlite.ts`/`integrations/repo.sqlite.ts`/`media-repo.sqlite.ts` already
- *  use elsewhere in this codebase for the identical problem (better-sqlite3 has no typed
- *  constraint-violation error class, only a `code` string and a message substring). */
+/** True iff `err` is the label's UNIQUE `(workspace_id, provider_id, label)` index rejecting a
+ *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
+ *  SQLSTATE 23505). */
 export function isUniqueLabelViolation(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const code = (err as { code?: string }).code;
-  return code === "SQLITE_CONSTRAINT_UNIQUE" || err.message.includes("UNIQUE constraint failed");
+  return isUniqueViolation(err);
 }
 
 export interface CreatePublishCredentialInput {

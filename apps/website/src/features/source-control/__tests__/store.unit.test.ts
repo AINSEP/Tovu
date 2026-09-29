@@ -470,6 +470,11 @@ test("isUniqueLabelViolation: an Error with better-sqlite3's own .code is recogn
   assert.equal(isUniqueLabelViolation(err), true);
 });
 
+test("isUniqueLabelViolation: a Postgres/PGlite UNIQUE violation (SQLSTATE 23505, Postgres wording) is recognized", () => {
+  const err = Object.assign(new Error('duplicate key value violates unique constraint "source_control_credential_sets_label_idx"'), { code: "23505" });
+  assert.equal(isUniqueLabelViolation(err), true);
+});
+
 test("isUniqueLabelViolation: an Error with neither a matching .code nor matching message text is NOT a unique-constraint violation", () => {
   assert.equal(isUniqueLabelViolation(new Error("connection reset")), false);
 });
