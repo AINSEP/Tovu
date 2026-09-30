@@ -32,23 +32,23 @@ function outline(nodes: readonly PackageFileTreeNode[], indent = ""): string[] {
 }
 
 describe("buildPackageFileTree", () => {
-  it("groups paths into folders, folders first then files, each alphabetical", () => {
+  it("groups paths into folders, files first then folders, each alphabetical", () => {
     expect(outline(buildPackageFileTree(DEPLOY_PATHS))).toEqual([
+      "mcp.json",
+      "plugin.json",
+      "tovu-deploy-targets.json",
       "deploy-configs/",
       "  fly.mjs",
       "  railway.mjs",
       "skills/",
       "  deploy/",
+      "    SKILL.md",
       "    references/",
       "      cloudflare-pages.md",
       "      fly-deploy.template.yml",
-      "    SKILL.md",
       "targets/",
       "  cloudflare-pages.mjs",
       "  vercel.mjs",
-      "mcp.json",
-      "plugin.json",
-      "tovu-deploy-targets.json",
     ]);
   });
 
@@ -68,8 +68,8 @@ describe("buildPackageFileTree", () => {
 
   it("ignores stray slashes when grouping, and drops empty and duplicate paths", () => {
     const tree = buildPackageFileTree(["/a//b.md", "a/b.md", "", "/", "c/"]);
-    expect(outline(tree)).toEqual(["a/", "  b.md", "c"]);
-    const a = tree[0];
+    expect(outline(tree)).toEqual(["c", "a/", "  b.md"]);
+    const a = tree[1];
     expect(a?.kind === "folder" && a.children[0]?.path).toBe("/a//b.md");
   });
 
@@ -94,12 +94,12 @@ describe("visiblePackageFileRows", () => {
   it("shows only root entries while every folder is collapsed", () => {
     const rows = visiblePackageFileRows(tree, () => false);
     expect(rows.map((row) => row.node.path)).toEqual([
-      "deploy-configs",
-      "skills",
-      "targets",
       "mcp.json",
       "plugin.json",
       "tovu-deploy-targets.json",
+      "deploy-configs",
+      "skills",
+      "targets",
     ]);
     expect(rows.every((row) => row.depth === 0 && row.parentPath === null && row.setSize === 6)).toBe(true);
     expect(rows.map((row) => row.posInSet)).toEqual([1, 2, 3, 4, 5, 6]);
@@ -108,12 +108,12 @@ describe("visiblePackageFileRows", () => {
   it("walks into expanded folders with depth, parent and position within the folder", () => {
     const open = new Set(["skills", "skills/deploy"]);
     const rows = visiblePackageFileRows(tree, (path) => open.has(path));
-    const skillRows = rows.slice(1, 5).map(({ node, depth, parentPath, setSize, posInSet }) => [node.path, depth, parentPath, setSize, posInSet]);
+    const skillRows = rows.slice(4, 8).map(({ node, depth, parentPath, setSize, posInSet }) => [node.path, depth, parentPath, setSize, posInSet]);
     expect(skillRows).toEqual([
-      ["skills", 0, null, 6, 2],
+      ["skills", 0, null, 6, 5],
       ["skills/deploy", 1, "skills", 1, 1],
-      ["skills/deploy/references", 2, "skills/deploy", 2, 1],
-      ["skills/deploy/SKILL.md", 2, "skills/deploy", 2, 2],
+      ["skills/deploy/SKILL.md", 2, "skills/deploy", 2, 1],
+      ["skills/deploy/references", 2, "skills/deploy", 2, 2],
     ]);
   });
 
@@ -134,13 +134,13 @@ describe("packageFileTreeKeyAction", () => {
   it("moves down and up, stopping at the ends", () => {
     expect(act("deploy-configs", "ArrowDown")).toEqual({ focus: "skills" });
     expect(act("skills", "ArrowUp")).toEqual({ focus: "deploy-configs" });
-    expect(act("deploy-configs", "ArrowUp")).toEqual({ focus: "deploy-configs" });
-    expect(act("tovu-deploy-targets.json", "ArrowDown")).toEqual({ focus: "tovu-deploy-targets.json" });
+    expect(act("mcp.json", "ArrowUp")).toEqual({ focus: "mcp.json" });
+    expect(act("targets", "ArrowDown")).toEqual({ focus: "targets" });
   });
 
   it("jumps with Home and End", () => {
-    expect(act("skills", "Home")).toEqual({ focus: "deploy-configs" });
-    expect(act("skills", "End")).toEqual({ focus: "tovu-deploy-targets.json" });
+    expect(act("skills", "Home")).toEqual({ focus: "mcp.json" });
+    expect(act("skills", "End")).toEqual({ focus: "targets" });
   });
 
   it("Right expands a closed folder, then steps into an open one", () => {
@@ -171,7 +171,7 @@ describe("packageFileTreeKeyAction", () => {
   });
 
   it("treats an unknown current path as the first row", () => {
-    expect(act("gone.md", "ArrowDown")).toEqual({ focus: "skills" });
+    expect(act("gone.md", "ArrowDown")).toEqual({ focus: "plugin.json" });
   });
 });
 

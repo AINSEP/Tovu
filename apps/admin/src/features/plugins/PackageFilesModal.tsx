@@ -12,7 +12,7 @@ import { usePackageFileWrap } from "./hooks/use-package-file-wrap.hooks";
 
 /**
  * @file The read-only package-files browser BOTH plugin screens open — a VS Code-style file tree
- * (folders first, chevrons, indent guides, file-type icons; since 2026-09-29) on the left, the
+ * (files first, chevrons, indent guides, file-type icons; since 2026-09-29) on the left, the
  * selected file's source on the right with a Wrap toggle, inside Jini's `PreviewModalShell` (which
  * supplies the expand and close controls). Extracted 2026-09-13 out of `AgentPluginDetailsModal.tsx`
  * so Agent Plugins and Plugins render through one component and cannot drift apart.

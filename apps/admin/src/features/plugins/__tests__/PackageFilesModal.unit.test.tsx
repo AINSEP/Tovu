@@ -69,7 +69,7 @@ describe("PackageFilesModal", () => {
     expect(props.onSelectFile).toHaveBeenCalledWith("server/index.mjs");
   });
 
-  it("lists folders before files, marks the selected file, and names each row's full path in its tooltip", () => {
+  it("lists files before folders, marks the selected file, and names each row's full path in its tooltip", () => {
     const files = [
       { relativePath: "plugin.json", content: "{}" },
       { relativePath: "skills/deploy/SKILL.md", content: "# Deploy" },
@@ -79,8 +79,8 @@ describe("PackageFilesModal", () => {
 
     const tree = screen.getByRole("tree", { name: "Package files" });
     const rows = within(tree).getAllByRole("treeitem");
-    expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual(["skills", "deploy", "SKILL.md", "a.md", "plugin.json"]);
-    expect(rows.map((row) => row.getAttribute("aria-level"))).toEqual(["1", "2", "3", "1", "1"]);
+    expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual(["a.md", "plugin.json", "skills", "deploy", "SKILL.md"]);
+    expect(rows.map((row) => row.getAttribute("aria-level"))).toEqual(["1", "1", "1", "2", "3"]);
     expect(within(tree).getByRole("treeitem", { name: "SKILL.md" })).toHaveAttribute("aria-selected", "true");
     expect(within(tree).getByRole("treeitem", { name: "SKILL.md" })).toHaveAttribute("title", "skills/deploy/SKILL.md");
     expect(within(tree).getByRole("treeitem", { name: "a.md" })).toHaveAttribute("aria-selected", "false");
@@ -98,7 +98,7 @@ describe("PackageFilesModal", () => {
     const row = (name: string) => within(tree).getByRole("treeitem", { name });
 
     row("plugin.json").focus();
-    await userEvent.keyboard("{ArrowUp}");
+    await userEvent.keyboard("{ArrowDown}");
     expect(row("targets")).toHaveFocus();
     await userEvent.keyboard("{ArrowRight}");
     expect(row("targets")).toHaveAttribute("aria-expanded", "true");

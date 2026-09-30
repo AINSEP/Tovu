@@ -45,9 +45,9 @@ interface MutableFolder {
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
-/** Folders first, then files, each alphabetical — VS Code's default explorer order. */
+/** Files first, then folders, each alphabetical (owner's call, 2026-09-29 — VS Code's default is the reverse). */
 function compareNodes(a: PackageFileTreeNode, b: PackageFileTreeNode): number {
-  if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+  if (a.kind !== b.kind) return a.kind === "file" ? -1 : 1;
   return collator.compare(a.name, b.name) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 }
 
