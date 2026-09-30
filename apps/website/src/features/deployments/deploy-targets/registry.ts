@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { parseDescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
 import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
 
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
@@ -158,6 +159,8 @@ function parseDescriptor(entry: unknown, at: string): DeployTargetDescriptor | s
   if (typeof credential === "string") return credential;
   const projectName = parseProjectNameCopy(entry.projectName, `${at}.projectName`);
   if (typeof projectName === "string") return projectName;
+  const i18n = parseDescriptorI18n(entry.i18n, `${at}.i18n`);
+  if (typeof i18n === "string") return i18n;
   return {
     id,
     label,
@@ -166,6 +169,7 @@ function parseDescriptor(entry: unknown, at: string): DeployTargetDescriptor | s
     ...(projectName !== undefined ? { projectName } : {}),
     ...(env !== undefined ? { env } : {}),
     ...(credential !== undefined ? { credential } : {}),
+    ...(i18n !== undefined ? { i18n } : {}),
   };
 }
 
@@ -195,11 +199,12 @@ const RESERVED_CREDENTIAL_FIELD_NAMES: ReadonlySet<string> = new Set(["providerI
 function parseCredentialSpec(value: unknown, at: string): DeployTargetCredentialSpec | undefined | string {
   if (value === undefined) return undefined;
   if (!isPlainObject(value)) return `${at} must be an object`;
-  const { vendorId, vendorLabel, yieldsAccountLabel, help, tokenPageUrl, tokenField = "token" } = value;
+  const { vendorId, vendorLabel, yieldsAccountLabel, help, userHelp, tokenPageUrl, tokenField = "token" } = value;
   if (typeof vendorId !== "string" || vendorId.length > MAX_TARGET_ID_LENGTH || !TARGET_ID_PATTERN.test(vendorId)) return `${at}.vendorId must be a lowercase hyphenated id`;
   if (vendorLabel !== undefined && !isLabel(vendorLabel)) return `${at}.vendorLabel must be a non-empty string`;
   if (yieldsAccountLabel !== undefined && typeof yieldsAccountLabel !== "boolean") return `${at}.yieldsAccountLabel must be a boolean`;
   if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  if (userHelp !== undefined && (typeof userHelp !== "string" || userHelp.length > MAX_HELP_LENGTH)) return `${at}.userHelp must be a string of at most ${MAX_HELP_LENGTH} characters`;
   if (tokenPageUrl !== undefined && !isHttpsUrl(tokenPageUrl)) return `${at}.tokenPageUrl must be an https URL`;
   const fields = parseFieldList(value.fields, `${at}.fields`, RESERVED_CREDENTIAL_FIELD_NAMES);
   if (typeof fields === "string") return fields;
@@ -209,6 +214,7 @@ function parseCredentialSpec(value: unknown, at: string): DeployTargetCredential
     ...(vendorLabel !== undefined ? { vendorLabel } : {}),
     ...(yieldsAccountLabel === true ? { yieldsAccountLabel: true as const } : {}),
     ...(help !== undefined ? { help } : {}),
+    ...(userHelp !== undefined ? { userHelp } : {}),
     ...(tokenPageUrl !== undefined ? { tokenPageUrl } : {}),
     tokenField,
     fields,

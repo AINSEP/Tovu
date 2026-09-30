@@ -1,3 +1,4 @@
+import type { DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
 import type {
   DeployError,
   assertNotRedirected,
@@ -158,6 +159,9 @@ export interface DeployTargetDescriptor {
   readonly env?: DeployTargetEnvFallback;
   /** What a saved connection for this host holds. Absent when the host takes no saved credential. */
   readonly credential?: DeployTargetCredentialSpec;
+  /** Translations of this target's own person-facing text, keyed by locale then by the English
+   *  string (`features/agent-plugins/descriptor-i18n.ts`). Absent: English only. */
+  readonly i18n?: DescriptorI18n;
 }
 
 /**
@@ -176,6 +180,8 @@ export interface DeployTargetCredentialSpec {
   readonly yieldsAccountLabel?: true;
   /** Shown above the credential form's fields (what to have ready before filling it in). */
   readonly help?: string;
+  /** The same guidance written for the person; the admin shows it over {@link help} when present. */
+  readonly userHelp?: string;
   /** The host's own page for creating the credential (https), linked from the credential form. */
   readonly tokenPageUrl?: string;
   readonly tokenField: string;

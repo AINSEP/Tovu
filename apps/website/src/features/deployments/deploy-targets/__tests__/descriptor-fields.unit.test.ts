@@ -53,6 +53,36 @@ test("the shipped github-pages owner field has person-facing help that does not 
   assert.doesNotMatch(owner.userHelp, /accountLabel|never guess/);
 });
 
+test("a credential may carry a separate person-facing userHelp; a non-string one is refused", () => {
+  const credential = { vendorId: "acme", help: "agent hint", userHelp: "person hint", fields: [{ name: "token", label: "Token", required: true, secret: true }] };
+  const parsed = parseDeployTargetsFile(file([{ ...BASE, credential }]));
+  assert.ok(parsed.ok);
+  assert.equal(parsed.descriptors[0]?.credential?.userHelp, "person hint");
+  assert.equal(parsed.descriptors[0]?.credential?.help, "agent hint");
+  assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, credential: { ...credential, userHelp: 3 } }])), {
+    ok: false,
+    reason: "targets[0].credential.userHelp must be a string of at most 500 characters",
+  });
+});
+
+test("the shipped S3 credential and Public URL speak to the person, not in the agent's voice", () => {
+  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+  assert.ok(parsed.ok);
+  const credential = parsed.descriptors.find((descriptor) => descriptor.id === "s3-compatible")?.credential;
+  const publicUrl = credential?.fields.find((field) => field.name === "publicUrl");
+  assert.ok(credential?.userHelp && publicUrl?.userHelp);
+  for (const text of [credential.userHelp, publicUrl.userHelp]) assert.doesNotMatch(text, /\bask me\b|\bme to\b/i);
+});
+
+test("the shipped Cloudflare credential help and Account ID help do not point to different places", () => {
+  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+  assert.ok(parsed.ok);
+  const credential = parsed.descriptors.find((descriptor) => descriptor.id === "cloudflare-pages")?.credential;
+  const accountId = credential?.fields.find((field) => field.name === "accountId");
+  assert.doesNotMatch(credential?.help ?? "", /sidebar|home page/);
+  assert.match(accountId?.help ?? "", /dash\.cloudflare\.com\//);
+});
+
 test("a config field may not shadow a publish request's own keys", () => {
   for (const name of ["target", "projectName", "credentialId"]) {
     assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, config: [{ name, label: "X" }] }])), { ok: false, reason: `targets[0].config[0].name '${name}' is reserved` });

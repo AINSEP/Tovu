@@ -155,6 +155,7 @@ async function readTargetConfig(
 function publicCredentialSpec(spec: DeployTargetCredentialSpec): {
   vendorLabel?: string;
   help?: string;
+  userHelp?: string;
   tokenPageUrl?: string;
   tokenField: string;
   fields: DeployTargetCredentialSpec["fields"];
@@ -162,6 +163,7 @@ function publicCredentialSpec(spec: DeployTargetCredentialSpec): {
   return {
     ...(spec.vendorLabel !== undefined ? { vendorLabel: spec.vendorLabel } : {}),
     ...(spec.help !== undefined ? { help: spec.help } : {}),
+    ...(spec.userHelp !== undefined ? { userHelp: spec.userHelp } : {}),
     ...(spec.tokenPageUrl !== undefined ? { tokenPageUrl: spec.tokenPageUrl } : {}),
     tokenField: spec.tokenField,
     fields: spec.fields,
@@ -344,8 +346,8 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   });
 
   // The registry's targets, for the admin publish card to render from descriptors (deploy plan T7).
-  // Ids, labels, config field specs and the saved-credential form's field specs only: a module path,
-  // a vendor id or a refusal reason stays server-side.
+  // Ids, labels, config field specs, the saved-credential form's field specs and the translations of
+  // that text (`i18n`) only: a module path, a vendor id or a refusal reason stays server-side.
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish-targets", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -371,6 +373,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
           configFields: descriptor.configFields,
           ...(descriptor.projectName !== undefined ? { projectName: descriptor.projectName } : {}),
           ...(descriptor.credential !== undefined ? { credential: publicCredentialSpec(descriptor.credential) } : {}),
+          ...(descriptor.i18n !== undefined ? { i18n: descriptor.i18n } : {}),
         })),
       });
     } catch (err) {

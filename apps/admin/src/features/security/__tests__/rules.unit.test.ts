@@ -116,6 +116,14 @@ describe("accessTokenProviders", () => {
     expect(cloudflare.vendorLabel).toBe("Cloudflare");
   });
 
+  it("shows a credential's person-facing userHelp as its guidance over the agent's help", () => {
+    const target = PUBLISH_TARGETS.find((entry) => entry.id === "cloudflare-pages")!;
+    const withUserHelp = { ...target, credential: { ...target.credential!, userHelp: "Have your account ID ready." } };
+    expect(accessTokenProviderInfo(accessTokenProviders([withUserHelp]), { kind: "publish", providerId: "cloudflare-pages" }).scopeGuidanceKey).toBe(
+      "Have your account ID ready."
+    );
+  });
+
   it("falls back to the host's own label as its vendor, and to no token page or guidance, when the descriptor names none", () => {
     const netlify = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "netlify" });
     expect(netlify.vendorLabel).toBe("Netlify");

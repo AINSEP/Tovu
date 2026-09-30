@@ -222,7 +222,7 @@ function publishTargetProviderInfo(target: AdminPublishTargetDescriptor, credent
     purposeLabel: "Hosting",
     category: "hosting",
     tokenPageUrl: credential.tokenPageUrl ?? "",
-    scopeGuidanceKey: credential.help ?? "",
+    scopeGuidanceKey: credential.userHelp ?? credential.help ?? "",
     ...(tokenField !== undefined ? { tokenLabel: tokenField.label } : {}),
     publishCredential: credential,
     extraFields: credential.fields.filter((field) => field.name !== credential.tokenField),

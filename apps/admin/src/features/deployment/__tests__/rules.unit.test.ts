@@ -298,6 +298,11 @@ describe("fieldHelpText", () => {
     );
   });
 
+  it("reads a credential form's guidance the same way: userHelp over help", () => {
+    expect(fieldHelpText({ help: "Ask me for the steps.", userHelp: "Create the bucket first.", tokenField: "token", fields: [] })).toBe("Create the bucket first.");
+    expect(fieldHelpText({ help: "Needs an API token.", tokenField: "token", fields: [] })).toBe("Needs an API token.");
+  });
+
   it("falls back to help, and to nothing when a field has neither", () => {
     expect(fieldHelpText({ name: "branch", label: "Branch", help: "Defaults to gh-pages." })).toBe("Defaults to gh-pages.");
     expect(fieldHelpText({ name: "repo", label: "Repository" })).toBeUndefined();

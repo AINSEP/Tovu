@@ -787,7 +787,7 @@ function PublishCredentialFields({
 
   return (
     <>
-      {row.credential.help ? <p className="deployment-action-reason">{row.credential.help}</p> : null}
+      {fieldHelpText(row.credential) ? <p className="deployment-action-reason">{fieldHelpText(row.credential)}</p> : null}
       <div className="deployment-credential-fields">
         {row.credential.fields.map((field) => (
           <CredentialFieldInput key={field.name} row={row} field={field} controller={controller} t={translate} />

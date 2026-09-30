@@ -577,6 +577,10 @@ export interface AdminExportRunSnapshot {
  *  alias of {@link AdminPublishCredentialProviderId}: a saved credential is keyed by the same id. */
 export type AdminStaticPublishTargetId = AdminPublishCredentialProviderId;
 
+/** A plugin descriptor's translations of its own text: locale, then the English string, then its
+ *  translation. Mirrors the server's `DescriptorI18n`; `lib/descriptor-i18n.ts` applies it. */
+export type AdminDescriptorI18n = Record<string, Record<string, string>>;
+
 /** One named string field a person fills in — mirrors the server's `DeployTargetFieldSpec`. */
 export interface AdminPublishTargetField {
   name: string;
@@ -593,7 +597,10 @@ export interface AdminPublishTargetField {
 /** A host's saved-credential form as `GET .../system/publish-targets` returns it (field specs and
  *  help only, never a value). `tokenField` names the field that is the token. */
 export interface AdminPublishTargetCredentialSpec {
+  /** The agent's guidance; the form shows {@link userHelp} when present. */
   help?: string;
+  /** The same guidance written for the person. */
+  userHelp?: string;
   /** The company whose console issues and revokes the token, when it differs from the host's own
    *  label (a host named for a place, not a vendor). */
   vendorLabel?: string;
@@ -612,6 +619,7 @@ export interface AdminPublishTargetDescriptor {
   configFields: AdminPublishTargetField[];
   credential?: AdminPublishTargetCredentialSpec;
   projectName?: { label: string; help?: string };
+  i18n?: AdminDescriptorI18n;
 }
 
 /** A publish's target plus its descriptor-declared config values (blank optional values already
@@ -869,6 +877,7 @@ export interface AdminSourceControlProviderDescriptor {
   id: AdminSourceControlProviderId;
   label: string;
   credential?: AdminSourceControlCredentialForm;
+  i18n?: AdminDescriptorI18n;
 }
 
 /** Mirrors `GET .../system/source-control/providers`: the hosts switched-on plugins declare, and
