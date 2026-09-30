@@ -12,9 +12,10 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  * not break. The duplicate-label and generic-error strings are fully translated because they show
  * directly in credential rows.
  *
- * Every OTHER string here — headings, field labels, hints, the three providers' scope-guidance
- * sentences — gets the full locale set this app's nav and every other stable feature dictionary
- * carries, since those are read on every visit, not just an error path.
+ * Every OTHER string here — headings, field labels, hints — gets the full locale set this app's nav
+ * and every other stable feature dictionary carries, since those are read on every visit, not just
+ * an error path. A host's own scope guidance is not here: its plugin ships it with its translations
+ * (`lib/descriptor-i18n.ts`).
  */
 
 const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
@@ -42,12 +43,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Reemplazar token",
     "This connection was already saved — reload the page and try again.": "Esta conexión ya estaba guardada; recarga la página e inténtalo de nuevo.",
     "unknown error": "error desconocido",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Necesita un token de acceso personal detallado, limitado únicamente a este repositorio, con el permiso Contents en Lectura y escritura. Un token clásico con el alcance "repo" también funciona, pero da acceso a todos los repositorios que esta cuenta pueda alcanzar — usa el token detallado siempre que puedas.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Necesita un token de acceso de proyecto — limitado únicamente a este proyecto, no a toda tu cuenta — con los alcances "read_repository" y "write_repository". Créalo desde la página Settings → Access tokens del propio proyecto (no existe una única página para toda la cuenta).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Necesita un token de API de Bitbucket limitado solo al acceso al repositorio (los alcances "read:repository:bitbucket" y "write:repository:bitbucket"), más el nombre de usuario de Bitbucket al que pertenece — Bitbucket autentica el par, no el token por sí solo.',
   },
   id: {
     Operations: "Operasi",
@@ -73,12 +68,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Ganti token",
     "This connection was already saved — reload the page and try again.": "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.",
     "unknown error": "kesalahan tidak diketahui",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Memerlukan token akses pribadi terperinci yang dibatasi hanya untuk repositori ini, dengan izin Contents diatur ke Read and write. Token klasik dengan cakupan "repo" juga berfungsi, tetapi menjangkau semua repositori yang dapat diakses akun ini — gunakan token terperinci jika memungkinkan.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Memerlukan token akses proyek — dibatasi hanya untuk proyek ini, bukan seluruh akun Anda — dengan cakupan "read_repository" dan "write_repository". Buat dari halaman Settings → Access tokens milik proyek itu sendiri (tidak ada satu halaman tunggal untuk seluruh akun).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Memerlukan token API Bitbucket yang dibatasi hanya untuk akses repositori (cakupan "read:repository:bitbucket" dan "write:repository:bitbucket"), ditambah nama pengguna Bitbucket tempat token ini berasal — Bitbucket mengautentikasi pasangan ini, bukan hanya tokennya.',
   },
   de: {
     Operations: "Vorgänge",
@@ -104,12 +93,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Token ersetzen",
     "This connection was already saved — reload the page and try again.": "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.",
     "unknown error": "unbekannter Fehler",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Benötigt ein feingranulares persönliches Zugriffstoken, das auf nur dieses Repository beschränkt ist, mit der Berechtigung Contents auf Lesen und Schreiben. Ein klassisches Token mit dem Bereich "repo" funktioniert auch, erreicht aber jedes Repository, auf das dieses Konto zugreifen kann — bevorzuge nach Möglichkeit das feingranulare Token.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Benötigt ein Projekt-Zugriffstoken — beschränkt auf nur dieses Projekt, nicht dein ganzes Konto — mit den Bereichen "read_repository" und "write_repository". Erstelle es auf der eigenen Settings → Access tokens-Seite des Projekts (es gibt keine einzelne kontoweite Seite dafür).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Benötigt ein Bitbucket-API-Token, das ausschließlich auf Repository-Zugriff beschränkt ist (die Bereiche "read:repository:bitbucket" und "write:repository:bitbucket"), plus den Bitbucket-Benutzernamen, zu dem es gehört — Bitbucket authentifiziert das Paar, nicht nur das Token.',
   },
   "zh-CN": {
     Operations: "操作",
@@ -134,12 +117,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "更换令牌",
     "This connection was already saved — reload the page and try again.": "此连接已保存，请重新加载页面后重试。",
     "unknown error": "未知错误",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      '需要一个精细令牌，仅限访问此仓库，并将 Contents 权限设为读写。具有 "repo" 范围的经典令牌也可以使用，但会访问该账户可访问的所有仓库——请尽可能使用精细令牌。',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      '需要一个项目访问令牌——仅限于此项目，而非整个账户——具有 "read_repository" 和 "write_repository" 范围。请从该项目自己的 Settings → Access tokens 页面创建（没有统一的账户级页面）。',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      '需要一个仅限仓库访问的 Bitbucket API 令牌（"read:repository:bitbucket" 和 "write:repository:bitbucket" 范围），以及其所属的 Bitbucket 用户名——Bitbucket 验证的是这一对信息，而不仅仅是令牌本身。',
   },
   "zh-TW": {
     Operations: "操作",
@@ -164,12 +141,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "更換權杖",
     "This connection was already saved — reload the page and try again.": "此連線已儲存，請重新載入頁面後再試一次。",
     "unknown error": "未知錯誤",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      '需要精細權杖，僅限存取此儲存庫，並將 Contents 權限設為讀寫。具有 "repo" 範圍的傳統權杖也可使用，但會存取此帳戶可存取的每個儲存庫——請盡量使用精細權杖。',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      '需要專案存取權杖——僅限此專案，而非整個帳戶——具有 "read_repository" 與 "write_repository" 範圍。請從該專案自己的 Settings → Access tokens 頁面建立（沒有單一的帳戶層級頁面）。',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      '需要僅限儲存庫存取的 Bitbucket API 權杖（"read:repository:bitbucket" 與 "write:repository:bitbucket" 範圍），以及其所屬的 Bitbucket 使用者名稱——Bitbucket 驗證的是這一對資訊，而非僅是權杖本身。',
   },
   "pt-BR": {
     Operations: "Operações",
@@ -195,12 +166,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Substituir token",
     "This connection was already saved — reload the page and try again.": "Esta conexão já foi salva — recarregue a página e tente novamente.",
     "unknown error": "erro desconhecido",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Requer um token de acesso pessoal refinado, restrito apenas a este repositório, com a permissão Contents definida como Leitura e escrita. Um token clássico com o escopo "repo" também funciona, mas alcança todos os repositórios que esta conta pode acessar — prefira o token refinado sempre que possível.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Requer um token de acesso de projeto — restrito apenas a este projeto, não a toda a conta — com os escopos "read_repository" e "write_repository". Crie-o na própria página Settings → Access tokens do projeto (não existe uma única página para toda a conta).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Requer um token de API do Bitbucket restrito apenas ao acesso de repositório (os escopos "read:repository:bitbucket" e "write:repository:bitbucket"), além do nome de usuário do Bitbucket ao qual pertence — o Bitbucket autentica o par, não apenas o token.',
   },
   ru: {
     Operations: "Операции",
@@ -226,12 +191,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Заменить токен",
     "This connection was already saved — reload the page and try again.": "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.",
     "unknown error": "неизвестная ошибка",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Требуется детализированный персональный токен доступа, ограниченный только этим репозиторием, с правом Contents на чтение и запись. Классический токен с областью "repo" тоже подходит, но даёт доступ ко всем репозиториям, доступным этому аккаунту — по возможности используйте детализированный токен.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Требуется токен доступа проекта — ограниченный только этим проектом, а не всем аккаунтом — с областями "read_repository" и "write_repository". Создайте его на странице Settings → Access tokens самого проекта (единой страницы для всего аккаунта не существует).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Требуется токен API Bitbucket, ограниченный только доступом к репозиторию (области "read:repository:bitbucket" и "write:repository:bitbucket"), а также имя пользователя Bitbucket, которому он принадлежит — Bitbucket проверяет именно эту пару, а не только токен.',
   },
   fa: {
     Operations: "عملیات",
@@ -257,12 +216,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "جایگزینی توکن",
     "This connection was already saved — reload the page and try again.": "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.",
     "unknown error": "خطای ناشناخته",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'به یک توکن دسترسی شخصی دقیق نیاز دارد که فقط به این مخزن محدود شده باشد، با مجوز Contents تنظیم‌شده روی خواندن و نوشتن. یک توکن کلاسیک با محدوده "repo" هم کار می‌کند، اما به هر مخزنی که این حساب به آن دسترسی دارد می‌رسد — در صورت امکان از توکن دقیق استفاده کنید.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'به یک توکن دسترسی پروژه نیاز دارد — که فقط به این پروژه محدود شده، نه کل حساب شما — با محدوده‌های "read_repository" و "write_repository". آن را از صفحه Settings → Access tokens خودِ پروژه بسازید (صفحه‌ی واحدی برای کل حساب وجود ندارد).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'به یک توکن API بیت‌باکت نیاز دارد که فقط به دسترسی مخزن محدود شده (محدوده‌های "read:repository:bitbucket" و "write:repository:bitbucket")، به‌همراه نام کاربری Bitbucket که به آن تعلق دارد — Bitbucket این جفت را احراز هویت می‌کند، نه فقط توکن را.',
   },
   ar: {
     Operations: "العمليات",
@@ -288,12 +241,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "استبدال الرمز",
     "This connection was already saved — reload the page and try again.": "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.",
     "unknown error": "خطأ غير معروف",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'يتطلب رمز وصول شخصي دقيقًا مقصورًا على هذا المستودع فقط، بصلاحية Contents مضبوطة على القراءة والكتابة. يعمل أيضًا رمز تقليدي بنطاق "repo"، لكنه يصل إلى كل مستودع يمكن لهذا الحساب الوصول إليه — يُفضَّل استخدام الرمز الدقيق كلما أمكن.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'يتطلب رمز وصول مشروع — مقصورًا على هذا المشروع فقط، وليس حسابك بالكامل — بنطاقي "read_repository" و"write_repository". أنشئه من صفحة Settings ← Access tokens الخاصة بالمشروع نفسه (لا توجد صفحة واحدة على مستوى الحساب لهذا الغرض).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'يتطلب رمز API من Bitbucket مقصورًا على الوصول إلى المستودع فقط (نطاقا "read:repository:bitbucket" و"write:repository:bitbucket")، إضافةً إلى اسم مستخدم Bitbucket الذي ينتمي إليه — يتحقق Bitbucket من هذا الزوج معًا، وليس من الرمز وحده.',
   },
   ja: {
     Operations: "操作",
@@ -318,12 +265,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "トークンを置き換える",
     "This connection was already saved — reload the page and try again.": "この接続はすでに保存されています。ページを再読み込みしてもう一度お試しください。",
     "unknown error": "不明なエラー",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'このリポジトリだけに限定された、きめ細かい個人アクセストークンが必要です。Contents 権限を読み書きに設定してください。"repo" スコープを持つクラシックなトークンでも動作しますが、このアカウントがアクセスできるすべてのリポジトリに届いてしまいます — 可能な限りきめ細かいトークンを優先してください。',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'このプロジェクトだけに限定された（アカウント全体ではない）プロジェクトアクセストークンが必要です。"read_repository" と "write_repository" スコープを設定してください。プロジェクト自体の Settings → Access tokens ページから作成します（アカウント全体で使える単一のページはありません）。',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'リポジトリへのアクセスのみに限定された Bitbucket API トークン（"read:repository:bitbucket" と "write:repository:bitbucket" スコープ）と、それが属する Bitbucket のユーザー名が必要です — Bitbucket はトークン単体ではなく、この組み合わせを認証します。',
   },
   ko: {
     Operations: "작업",
@@ -348,12 +289,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "토큰 교체",
     "This connection was already saved — reload the page and try again.": "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 후 다시 시도하세요.",
     "unknown error": "알 수 없는 오류",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      '이 저장소에만 국한된 세분화된 개인 액세스 토큰이 필요하며, Contents 권한을 읽기/쓰기로 설정해야 합니다. "repo" 범위를 가진 클래식 토큰도 작동하지만 이 계정이 접근할 수 있는 모든 저장소에 도달합니다 — 가능하면 세분화된 토큰을 우선하세요.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      '전체 계정이 아닌 이 프로젝트에만 국한된 프로젝트 액세스 토큰이 필요하며, "read_repository" 및 "write_repository" 범위를 설정해야 합니다. 프로젝트 자체의 Settings → Access tokens 페이지에서 생성하세요 (계정 전체에 대한 단일 페이지는 없습니다).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      '저장소 접근으로만 범위가 제한된 Bitbucket API 토큰("read:repository:bitbucket" 및 "write:repository:bitbucket" 범위)과, 그것이 속한 Bitbucket 사용자 이름이 필요합니다 — Bitbucket은 토큰 단독이 아니라 이 조합을 인증합니다.',
   },
   pl: {
     Operations: "Operacje",
@@ -379,12 +314,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Zastąp token",
     "This connection was already saved — reload the page and try again.": "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.",
     "unknown error": "nieznany błąd",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Wymaga precyzyjnego osobistego tokenu dostępu ograniczonego wyłącznie do tego repozytorium, z uprawnieniem Contents ustawionym na odczyt i zapis. Klasyczny token o zakresie "repo" również działa, ale obejmuje każde repozytorium dostępne dla tego konta — jeśli to możliwe, preferuj token precyzyjny.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Wymaga tokenu dostępu projektu — ograniczonego wyłącznie do tego projektu, a nie całego konta — o zakresach "read_repository" i "write_repository". Utwórz go na własnej stronie projektu Settings → Access tokens (nie istnieje jedna strona dla całego konta).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Wymaga tokenu API Bitbucket ograniczonego wyłącznie do dostępu do repozytorium (zakresy "read:repository:bitbucket" i "write:repository:bitbucket"), a także nazwy użytkownika Bitbucket, do którego należy — Bitbucket uwierzytelnia tę parę, a nie sam token.',
   },
   hu: {
     Operations: "Műveletek",
@@ -410,12 +339,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Token cseréje",
     "This connection was already saved — reload the page and try again.": "Ez a kapcsolat már mentve van — töltse újra az oldalt, és próbálja újra.",
     "unknown error": "ismeretlen hiba",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Finomhangolt személyes hozzáférési token szükséges, amely kizárólag erre a tárolóra korlátozódik, a Contents jogosultsággal olvasásra és írásra állítva. A klasszikus, "repo" hatókörű token is működik, de eléri a fiók által elérhető összes tárolót — lehetőség szerint a finomhangolt tokent részesítsd előnyben.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Projekt-hozzáférési token szükséges — kizárólag erre a projektre korlátozva, nem az egész fiókra — "read_repository" és "write_repository" hatókörrel. Hozd létre a projekt saját Settings → Access tokens oldalán (nincs egyetlen, fiókszintű oldal ehhez).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Kizárólag tárolóhozzáférésre korlátozott Bitbucket API-token szükséges ("read:repository:bitbucket" és "write:repository:bitbucket" hatókörök), valamint a Bitbucket felhasználónév, amelyhez tartozik — a Bitbucket ezt a párost hitelesíti, nem csak a tokent.',
   },
   fr: {
     Operations: "Opérations",
@@ -441,12 +364,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Remplacer le jeton",
     "This connection was already saved — reload the page and try again.": "Cette connexion a déjà été enregistrée — rechargez la page et réessayez.",
     "unknown error": "erreur inconnue",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Nécessite un jeton d\'accès personnel fin, limité à ce seul dépôt, avec la permission Contents réglée sur lecture et écriture. Un jeton classique avec le champ "repo" fonctionne aussi, mais donne accès à tous les dépôts que ce compte peut atteindre — préférez le jeton fin quand c\'est possible.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Nécessite un jeton d\'accès de projet — limité à ce seul projet, pas à tout le compte — avec les champs "read_repository" et "write_repository". Créez-le depuis la page Settings → Access tokens du projet lui-même (il n\'existe pas de page unique pour tout le compte).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Nécessite un jeton API Bitbucket limité au seul accès aux dépôts (les champs "read:repository:bitbucket" et "write:repository:bitbucket"), ainsi que le nom d\'utilisateur Bitbucket auquel il appartient — Bitbucket authentifie cette paire, pas seulement le jeton.',
   },
   uk: {
     Operations: "Операції",
@@ -472,12 +389,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Замінити токен",
     "This connection was already saved — reload the page and try again.": "Це підключення вже збережено — перезавантажте сторінку та спробуйте ще раз.",
     "unknown error": "невідома помилка",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Потрібен деталізований особистий токен доступу, обмежений лише цим репозиторієм, із правом Contents на читання й запис. Класичний токен з областю "repo" також підходить, але надає доступ до кожного репозиторію, доступного цьому обліковому запису — за можливості віддавайте перевагу деталізованому токену.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Потрібен токен доступу проєкту — обмежений лише цим проєктом, а не всім обліковим записом — з областями "read_repository" та "write_repository". Створіть його на сторінці Settings → Access tokens самого проєкту (єдиної сторінки для всього облікового запису не існує).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Потрібен токен API Bitbucket, обмежений лише доступом до репозиторію (області "read:repository:bitbucket" та "write:repository:bitbucket"), а також ім\'я користувача Bitbucket, якому він належить — Bitbucket перевіряє саме цю пару, а не лише токен.',
   },
   tr: {
     Operations: "İşlemler",
@@ -503,12 +414,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Belirteci değiştir",
     "This connection was already saved — reload the page and try again.": "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyin ve tekrar deneyin.",
     "unknown error": "bilinmeyen hata",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Yalnızca bu depoyla sınırlı, ayrıntılı bir kişisel erişim belirteci gerekir; Contents izni Okuma ve yazma olarak ayarlanmalıdır. "repo" kapsamına sahip klasik bir belirteç de çalışır, ancak bu hesabın erişebildiği her depoya ulaşır — mümkünse ayrıntılı belirteci tercih edin.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Tüm hesap değil, yalnızca bu projeyle sınırlı bir proje erişim belirteci gerekir; "read_repository" ve "write_repository" kapsamlarına sahip olmalıdır. Bunu projenin kendi Settings → Access tokens sayfasından oluşturun (hesap geneli için tek bir sayfa yoktur).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Yalnızca depo erişimiyle sınırlı bir Bitbucket API belirteci ("read:repository:bitbucket" ve "write:repository:bitbucket" kapsamları) ile ait olduğu Bitbucket kullanıcı adı gerekir — Bitbucket yalnızca belirteci değil, bu ikiliyi doğrular.',
   },
   th: {
     Operations: "การดำเนินการ",
@@ -534,12 +439,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "แทนที่โทเคน",
     "This connection was already saved — reload the page and try again.": "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง",
     "unknown error": "ข้อผิดพลาดที่ไม่ทราบสาเหตุ",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'ต้องใช้โทเคนการเข้าถึงส่วนบุคคลแบบละเอียดที่จำกัดเฉพาะที่เก็บโค้ดนี้เท่านั้น โดยตั้งสิทธิ์ Contents เป็นอ่านและเขียน โทเคนแบบคลาสสิกที่มีขอบเขต "repo" ก็ใช้ได้เช่นกัน แต่จะเข้าถึงทุกที่เก็บโค้ดที่บัญชีนี้เข้าถึงได้ — ควรเลือกใช้โทเคนแบบละเอียดเมื่อทำได้',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'ต้องใช้โทเคนการเข้าถึงโปรเจกต์ — จำกัดเฉพาะโปรเจกต์นี้เท่านั้น ไม่ใช่ทั้งบัญชี — ที่มีขอบเขต "read_repository" และ "write_repository" สร้างได้จากหน้า Settings → Access tokens ของโปรเจกต์นั้นเอง (ไม่มีหน้าเดียวสำหรับทั้งบัญชี)',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'ต้องใช้โทเคน API ของ Bitbucket ที่จำกัดเฉพาะการเข้าถึงที่เก็บโค้ด (ขอบเขต "read:repository:bitbucket" และ "write:repository:bitbucket") พร้อมชื่อผู้ใช้ Bitbucket ที่เป็นเจ้าของ — Bitbucket ตรวจสอบสิทธิ์จากคู่ข้อมูลนี้ ไม่ใช่โทเคนเพียงอย่างเดียว',
   },
   it: {
     Operations: "Operazioni",
@@ -565,12 +464,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "Sostituisci token",
     "This connection was already saved — reload the page and try again.": "Questa connessione è già stata salvata: ricarica la pagina e riprova.",
     "unknown error": "errore sconosciuto",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'Richiede un token di accesso personale granulare, limitato a questo solo repository, con il permesso Contents impostato su Lettura e scrittura. Funziona anche un token classico con l\'ambito "repo", ma raggiunge ogni repository a cui questo account può accedere — preferisci il token granulare quando possibile.',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'Richiede un token di accesso al progetto — limitato a questo solo progetto, non all\'intero account — con gli ambiti "read_repository" e "write_repository". Crealo dalla pagina Settings → Access tokens del progetto stesso (non esiste un\'unica pagina per l\'intero account).',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'Richiede un token API di Bitbucket limitato al solo accesso al repository (gli ambiti "read:repository:bitbucket" e "write:repository:bitbucket"), oltre al nome utente Bitbucket a cui appartiene — Bitbucket autentica la coppia, non solo il token.',
   },
   hi: {
     Operations: "संचालन",
@@ -596,12 +489,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "टोकन बदलें",
     "This connection was already saved — reload the page and try again.": "यह कनेक्शन पहले से सहेजा गया है — पेज रीफ़्रेश करके फिर से कोशिश करें।",
     "unknown error": "अज्ञात त्रुटि",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'इसके लिए केवल इसी रिपॉज़िटरी तक सीमित एक बारीक व्यक्तिगत एक्सेस टोकन चाहिए, जिसमें Contents अनुमति पढ़ने और लिखने पर सेट हो। "repo" स्कोप वाला क्लासिक टोकन भी काम करता है, लेकिन यह उन सभी रिपॉज़िटरी तक पहुँच देता है जिन तक यह खाता पहुँच सकता है — जब संभव हो, बारीक टोकन को प्राथमिकता दें।',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'इसके लिए एक प्रोजेक्ट एक्सेस टोकन चाहिए — जो पूरे खाते तक नहीं, केवल इसी प्रोजेक्ट तक सीमित हो — जिसमें "read_repository" और "write_repository" स्कोप हों। इसे प्रोजेक्ट के अपने Settings → Access tokens पेज से बनाएं (पूरे खाते के लिए कोई एक पेज नहीं है)।',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'इसके लिए केवल रिपॉज़िटरी एक्सेस तक सीमित एक Bitbucket API टोकन ("read:repository:bitbucket" और "write:repository:bitbucket" स्कोप), साथ ही वह Bitbucket उपयोगकर्ता नाम चाहिए जिससे यह संबंधित है — Bitbucket केवल टोकन को नहीं, बल्कि इस जोड़ी को प्रमाणित करता है।',
   },
   ur: {
     Operations: "عملیات",
@@ -627,12 +514,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "ٹوکن تبدیل کریں",
     "This connection was already saved — reload the page and try again.": "یہ کنکشن پہلے ہی محفوظ ہے — صفحہ دوبارہ لوڈ کریں اور دوبارہ کوشش کریں۔",
     "unknown error": "نامعلوم خرابی",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'اس کے لیے صرف اسی ریپوزٹری تک محدود ایک باریک ذاتی رسائی ٹوکن درکار ہے، جس میں Contents اجازت پڑھنے اور لکھنے پر سیٹ ہو۔ "repo" اسکوپ کے ساتھ کلاسک ٹوکن بھی کام کرتا ہے، لیکن یہ ہر اس ریپوزٹری تک رسائی دیتا ہے جس تک یہ اکاؤنٹ پہنچ سکتا ہے — جب ممکن ہو باریک ٹوکن کو ترجیح دیں۔',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'اس کے لیے ایک پراجیکٹ ایکسیس ٹوکن درکار ہے — جو پورے اکاؤنٹ کے بجائے صرف اسی پراجیکٹ تک محدود ہو — جس میں "read_repository" اور "write_repository" اسکوپس ہوں۔ اسے پراجیکٹ کے اپنے Settings → Access tokens صفحے سے بنائیں (پورے اکاؤنٹ کے لیے کوئی ایک صفحہ نہیں ہے)۔',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'اس کے لیے صرف ریپوزٹری تک رسائی محدود کردہ Bitbucket API ٹوکن ("read:repository:bitbucket" اور "write:repository:bitbucket" اسکوپس)، اور وہ Bitbucket صارف نام درکار ہے جس سے یہ تعلق رکھتا ہے — Bitbucket صرف ٹوکن کی نہیں بلکہ اس جوڑے کی توثیق کرتا ہے۔',
   },
   bn: {
     Operations: "কার্যক্রম",
@@ -658,12 +539,6 @@ const SOURCE_CONTROL_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Replace token": "টোকেন প্রতিস্থাপন করুন",
     "This connection was already saved — reload the page and try again.": "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত আছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।",
     "unknown error": "অজানা ত্রুটি",
-    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
-      'শুধুমাত্র এই রিপোজিটরির মধ্যে সীমাবদ্ধ একটি সূক্ষ্ম ব্যক্তিগত অ্যাক্সেস টোকেন প্রয়োজন, যেখানে Contents অনুমতি Read and write-এ সেট করা থাকবে। "repo" স্কোপ সহ একটি ক্লাসিক টোকেনও কাজ করে, তবে এটি এই অ্যাকাউন্ট যত রিপোজিটরিতে পৌঁছাতে পারে সবগুলোতে পৌঁছায় — যখনই সম্ভব সূক্ষ্ম টোকেনটি ব্যবহার করুন।',
-    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
-      'পুরো অ্যাকাউন্ট নয়, শুধুমাত্র এই প্রকল্পের মধ্যে সীমাবদ্ধ একটি প্রকল্প অ্যাক্সেস টোকেন প্রয়োজন, যেখানে "read_repository" এবং "write_repository" স্কোপ থাকবে। এটি প্রকল্পের নিজস্ব Settings → Access tokens পৃষ্ঠা থেকে তৈরি করুন (পুরো অ্যাকাউন্টের জন্য একটিমাত্র পৃষ্ঠা নেই)।',
-    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
-      'শুধুমাত্র রিপোজিটরি অ্যাক্সেসের মধ্যে সীমাবদ্ধ একটি Bitbucket API টোকেন ("read:repository:bitbucket" এবং "write:repository:bitbucket" স্কোপ), এবং যে Bitbucket ব্যবহারকারীর নামের সাথে এটি সম্পর্কিত তা প্রয়োজন — Bitbucket শুধু টোকেন নয়, এই জোড়াটি যাচাই করে।',
   },
 };
 

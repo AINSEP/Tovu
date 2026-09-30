@@ -57,114 +57,269 @@
           "Commit message": "Mensaje de confirmación",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Se usa como mensaje de confirmación cuando Tovu envía la exportación a la rama gh-pages.",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Necesita un token de acceso personal clásico con el alcance \"repo\", o un token de granularidad fina con permisos Contents y Pages configurados en Read and write.",
-          "Repository": "Repositorio"
+          "Repository": "Repositorio",
+          "Owner": "Propietario",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "El usuario u organización de GitHub propietario del repositorio. Escribe tu propio nombre de usuario, o el nombre de la organización si el repositorio es suyo.",
+          "The repository to publish to. The site is served from /<repository>.": "El repositorio en el que se publica. El sitio se sirve desde /<repository>.",
+          "Branch": "Rama",
+          "Defaults to gh-pages.": "Por defecto, gh-pages.",
+          "Personal access token": "Token de acceso personal",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, con acceso de escritura al contenido del repositorio."
         },
         "id": {
           "Commit message": "Pesan commit",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Digunakan sebagai pesan commit saat Tovu mendorong ekspor ke branch gh-pages.",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Memerlukan token akses pribadi klasik dengan cakupan \"repo\", atau token terperinci dengan izin Contents dan Pages yang disetel ke Read and write.",
-          "Repository": "Repositori"
+          "Repository": "Repositori",
+          "Owner": "Pemilik",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "Pengguna atau organisasi GitHub yang memiliki repositori. Masukkan nama pengguna Anda sendiri, atau nama organisasi jika repositori dimiliki organisasi.",
+          "The repository to publish to. The site is served from /<repository>.": "Repositori tujuan publikasi. Situs disajikan dari /<repository>.",
+          "Defaults to gh-pages.": "Bawaannya gh-pages.",
+          "Personal access token": "Token akses pribadi",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, dengan akses tulis ke isi repositori."
         },
         "de": {
           "Commit message": "Commit-Nachricht",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Wird als Commit-Nachricht verwendet, wenn Tovu den Export in den Branch gh-pages pusht.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Benötigt einen klassischen persönlichen Zugriffstoken mit dem Bereich \"repo\" oder einen feingranularen Token mit den Berechtigungen Contents und Pages auf Read and write."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Benötigt einen klassischen persönlichen Zugriffstoken mit dem Bereich \"repo\" oder einen feingranularen Token mit den Berechtigungen Contents und Pages auf Read and write.",
+          "Owner": "Inhaber",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "Der GitHub-Benutzer oder die Organisation, dem bzw. der das Repository gehört. Geben Sie Ihren eigenen Benutzernamen ein oder den Namen der Organisation, wenn es der Organisation gehört.",
+          "The repository to publish to. The site is served from /<repository>.": "Das Repository, in das veröffentlicht wird. Die Website wird unter /<repository> ausgeliefert.",
+          "Defaults to gh-pages.": "Standardmäßig gh-pages.",
+          "Personal access token": "Persönlicher Zugriffstoken",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, mit Schreibzugriff auf die Inhalte des Repositorys."
         },
         "zh-CN": {
           "Commit message": "提交消息",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Tovu 将导出内容推送到 gh-pages 分支时，会使用此消息作为提交消息。",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "需要具有 \"repo\" 范围的经典个人访问令牌，或将 Contents 和 Pages 权限设为 Read and write 的细粒度令牌。",
-          "Repository": "仓库"
+          "Repository": "仓库",
+          "Owner": "所有者",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "拥有该仓库的 GitHub 用户或组织。请输入您自己的用户名；如果仓库归组织所有，请输入组织名称。",
+          "The repository to publish to. The site is served from /<repository>.": "要发布到的仓库。站点将从 /<repository> 提供服务。",
+          "Branch": "分支",
+          "Defaults to gh-pages.": "默认为 gh-pages。",
+          "Personal access token": "个人访问令牌",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub：Settings > Developer settings > Personal access tokens，需具有仓库内容的写入权限。"
         },
         "zh-TW": {
           "Commit message": "提交訊息",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Tovu 將匯出內容推送至 gh-pages 分支時，會使用此訊息作為提交訊息。",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "需要具有 \"repo\" 範圍的傳統個人存取權杖，或將 Contents 與 Pages 權限設為 Read and write 的細微權杖。",
-          "Repository": "儲存庫"
+          "Repository": "儲存庫",
+          "Owner": "擁有者",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "擁有該儲存庫的 GitHub 使用者或組織。請輸入您自己的使用者名稱；若儲存庫屬於組織，請輸入組織名稱。",
+          "The repository to publish to. The site is served from /<repository>.": "要發佈到的儲存庫。網站將從 /<repository> 提供。",
+          "Branch": "分支",
+          "Defaults to gh-pages.": "預設為 gh-pages。",
+          "Personal access token": "個人存取權杖",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub：Settings > Developer settings > Personal access tokens，需具備儲存庫內容的寫入權限。"
         },
         "pt-BR": {
           "Commit message": "Mensagem de commit",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Usada como mensagem de commit quando o Tovu envia a exportação para a branch gh-pages.",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Precisa de um token de acesso pessoal clássico com o escopo \"repo\", ou de um token refinado com as permissões Contents e Pages definidas como Read and write.",
-          "Repository": "Repositório"
+          "Repository": "Repositório",
+          "Owner": "Proprietário",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "O usuário ou a organização do GitHub dona do repositório. Digite seu próprio nome de usuário, ou o nome da organização se o repositório for dela.",
+          "The repository to publish to. The site is served from /<repository>.": "O repositório para onde publicar. O site é servido a partir de /<repository>.",
+          "Defaults to gh-pages.": "O padrão é gh-pages.",
+          "Personal access token": "Token de acesso pessoal",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, com acesso de escrita ao conteúdo do repositório."
         },
         "ru": {
           "Commit message": "Сообщение коммита",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Используется как сообщение коммита, когда Tovu отправляет экспорт в ветку gh-pages.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Нужен классический персональный токен доступа с областью \"repo\" или детализированный токен с разрешениями Contents и Pages, установленными в Read and write."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Нужен классический персональный токен доступа с областью \"repo\" или детализированный токен с разрешениями Contents и Pages, установленными в Read and write.",
+          "Owner": "Владелец",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "Пользователь или организация GitHub, которой принадлежит репозиторий. Введите своё имя пользователя или название организации, если репозиторий принадлежит ей.",
+          "Repository": "Репозиторий",
+          "The repository to publish to. The site is served from /<repository>.": "Репозиторий, в который выполняется публикация. Сайт обслуживается по пути /<repository>.",
+          "Branch": "Ветка",
+          "Defaults to gh-pages.": "По умолчанию gh-pages.",
+          "Personal access token": "Персональный токен доступа",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, с правом записи в содержимое репозитория."
         },
         "fa": {
           "Commit message": "پیام کامیت",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "وقتی Tovu خروجی را به شاخه gh-pages پوش می‌کند، از این به‌عنوان پیام کامیت استفاده می‌شود.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "به یک توکن دسترسی شخصی کلاسیک با دامنه \"repo\"، یا یک توکن ریزدانه با مجوزهای Contents و Pages روی Read and write نیاز دارد."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "به یک توکن دسترسی شخصی کلاسیک با دامنه \"repo\"، یا یک توکن ریزدانه با مجوزهای Contents و Pages روی Read and write نیاز دارد.",
+          "Owner": "مالک",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "کاربر یا سازمان GitHub که مالک مخزن است. نام کاربری خودتان را وارد کنید، یا اگر مخزن متعلق به سازمان است، نام سازمان را.",
+          "Repository": "مخزن",
+          "The repository to publish to. The site is served from /<repository>.": "مخزنی که در آن منتشر می‌شود. سایت از /<repository> ارائه می‌شود.",
+          "Branch": "شاخه",
+          "Defaults to gh-pages.": "پیش‌فرض gh-pages است.",
+          "Personal access token": "توکن دسترسی شخصی",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens، با دسترسی نوشتن به محتوای مخزن."
         },
         "ar": {
           "Commit message": "رسالة الالتزام",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "تُستخدم كرسالة التزام عندما يدفع Tovu التصدير إلى فرع gh-pages.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "يتطلب رمز وصول شخصياً تقليدياً بنطاق \"repo\"، أو رمزاً دقيق الصلاحيات مع تعيين أذونات Contents وPages إلى Read and write."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "يتطلب رمز وصول شخصياً تقليدياً بنطاق \"repo\"، أو رمزاً دقيق الصلاحيات مع تعيين أذونات Contents وPages إلى Read and write.",
+          "Owner": "المالك",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "مستخدم GitHub أو المؤسسة التي تملك المستودع. أدخل اسم المستخدم الخاص بك، أو اسم المؤسسة إذا كانت هي المالكة.",
+          "Repository": "المستودع",
+          "The repository to publish to. The site is served from /<repository>.": "المستودع الذي يتم النشر إليه. يُقدَّم الموقع من /<repository>.",
+          "Branch": "الفرع",
+          "Defaults to gh-pages.": "القيمة الافتراضية gh-pages.",
+          "Personal access token": "رمز وصول شخصي",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens، مع صلاحية الكتابة على محتويات المستودع."
         },
         "ja": {
           "Commit message": "コミットメッセージ",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Tovu がエクスポートを gh-pages ブランチへプッシュするときのコミットメッセージとして使われます。",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" スコープの従来の個人アクセストークン、または Contents と Pages の権限を Read and write に設定したきめ細かいトークンが必要です。",
-          "Repository": "リポジトリ"
+          "Repository": "リポジトリ",
+          "Owner": "オーナー",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "リポジトリを所有する GitHub ユーザーまたは Organization。自分のユーザー名か、Organization が所有している場合はその名前を入力します。",
+          "The repository to publish to. The site is served from /<repository>.": "公開先のリポジトリ。サイトは /<repository> から配信されます。",
+          "Branch": "ブランチ",
+          "Defaults to gh-pages.": "既定は gh-pages です。",
+          "Personal access token": "個人アクセストークン",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens。リポジトリのコンテンツへの書き込み権限が必要です。"
         },
         "ko": {
           "Commit message": "커밋 메시지",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Tovu가 내보내기를 gh-pages 브랜치로 푸시할 때 커밋 메시지로 사용됩니다.",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" 범위가 있는 클래식 개인 액세스 토큰 또는 Contents와 Pages 권한이 Read and write로 설정된 세분화된 토큰이 필요합니다.",
-          "Repository": "리포지토리"
+          "Repository": "리포지토리",
+          "Owner": "소유자",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "리포지토리를 소유한 GitHub 사용자 또는 조직입니다. 본인의 사용자 이름을 입력하거나, 조직이 소유한 경우 조직 이름을 입력하세요.",
+          "The repository to publish to. The site is served from /<repository>.": "게시할 리포지토리입니다. 사이트는 /<repository>에서 제공됩니다.",
+          "Branch": "브랜치",
+          "Defaults to gh-pages.": "기본값은 gh-pages입니다.",
+          "Personal access token": "개인 액세스 토큰",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, 리포지토리 콘텐츠에 대한 쓰기 권한 포함."
         },
         "pl": {
           "Commit message": "Komunikat commitu",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Używane jako komunikat commitu, gdy Tovu wysyła eksport do gałęzi gh-pages.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Wymaga klasycznego osobistego tokenu dostępu z zakresem \"repo\" albo szczegółowego tokenu z uprawnieniami Contents i Pages ustawionymi na Read and write."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Wymaga klasycznego osobistego tokenu dostępu z zakresem \"repo\" albo szczegółowego tokenu z uprawnieniami Contents i Pages ustawionymi na Read and write.",
+          "Owner": "Właściciel",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "Użytkownik lub organizacja GitHub, do której należy repozytorium. Wpisz swoją nazwę użytkownika albo nazwę organizacji, jeśli to ona jest właścicielem.",
+          "Repository": "Repozytorium",
+          "The repository to publish to. The site is served from /<repository>.": "Repozytorium, do którego publikujesz. Witryna jest serwowana spod /<repository>.",
+          "Branch": "Gałąź",
+          "Defaults to gh-pages.": "Domyślnie gh-pages.",
+          "Personal access token": "Osobisty token dostępu",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, z uprawnieniem zapisu do zawartości repozytorium."
         },
         "hu": {
           "Commit message": "Commit üzenet",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Ezt használja commit üzenetként, amikor a Tovu az exportot a gh-pages ágba küldi.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Klasszikus személyes hozzáférési token szükséges \"repo\" hatókörrel, vagy finomhangolt token, amelynél a Contents és Pages engedélyek Read and write értékre vannak állítva."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Klasszikus személyes hozzáférési token szükséges \"repo\" hatókörrel, vagy finomhangolt token, amelynél a Contents és Pages engedélyek Read and write értékre vannak állítva.",
+          "Owner": "Tulajdonos",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "Az a GitHub-felhasználó vagy szervezet, amelyé a tároló. Adja meg a saját felhasználónevét, vagy a szervezet nevét, ha a tároló a szervezeté.",
+          "Repository": "Tároló",
+          "The repository to publish to. The site is served from /<repository>.": "A tároló, ahová a közzététel történik. A webhely a /<repository> útvonalon érhető el.",
+          "Branch": "Ág",
+          "Defaults to gh-pages.": "Alapértelmezés: gh-pages.",
+          "Personal access token": "Személyes hozzáférési token",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, a tároló tartalmára vonatkozó írási jogosultsággal."
         },
         "fr": {
           "Commit message": "Message de commit",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Utilisé comme message de commit lorsque Tovu envoie l’export vers la branche gh-pages.",
           "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Nécessite un jeton d’accès personnel classique avec la portée \"repo\", ou un jeton à granularité fine avec les autorisations Contents et Pages réglées sur Read and write.",
-          "Repository": "Dépôt"
+          "Repository": "Dépôt",
+          "Owner": "Propriétaire",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "L’utilisateur ou l’organisation GitHub propriétaire du dépôt. Saisissez votre propre nom d’utilisateur, ou le nom de l’organisation si le dépôt lui appartient.",
+          "The repository to publish to. The site is served from /<repository>.": "Le dépôt dans lequel publier. Le site est servi depuis /<repository>.",
+          "Branch": "Branche",
+          "Defaults to gh-pages.": "gh-pages par défaut.",
+          "Personal access token": "Jeton d’accès personnel",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub : Settings > Developer settings > Personal access tokens, avec un accès en écriture au contenu du dépôt."
         },
         "uk": {
           "Commit message": "Повідомлення коміту",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Використовується як повідомлення коміту, коли Tovu надсилає експорт до гілки gh-pages.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Потрібен класичний персональний токен доступу з областю \"repo\" або деталізований токен із дозволами Contents і Pages, установленими на Read and write."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Потрібен класичний персональний токен доступу з областю \"repo\" або деталізований токен із дозволами Contents і Pages, установленими на Read and write.",
+          "Owner": "Власник",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "Користувач або організація GitHub, якій належить репозиторій. Введіть своє ім’я користувача або назву організації, якщо репозиторій належить їй.",
+          "Repository": "Репозиторій",
+          "The repository to publish to. The site is served from /<repository>.": "Репозиторій, у який виконується публікація. Сайт обслуговується за шляхом /<repository>.",
+          "Branch": "Гілка",
+          "Defaults to gh-pages.": "За замовчуванням gh-pages.",
+          "Personal access token": "Персональний токен доступу",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, з правом запису до вмісту репозиторію."
         },
         "tr": {
           "Commit message": "Commit mesajı",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Tovu dışa aktarmayı gh-pages dalına gönderdiğinde commit mesajı olarak kullanılır.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" kapsamına sahip klasik bir kişisel erişim belirteci veya Contents ve Pages izinleri Read and write olarak ayarlanmış ayrıntılı bir belirteç gerekir."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" kapsamına sahip klasik bir kişisel erişim belirteci veya Contents ve Pages izinleri Read and write olarak ayarlanmış ayrıntılı bir belirteç gerekir.",
+          "Owner": "Sahip",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "Deponun sahibi olan GitHub kullanıcısı veya kuruluşu. Kendi kullanıcı adınızı ya da depo bir kuruluşa aitse kuruluşun adını girin.",
+          "Repository": "Depo",
+          "The repository to publish to. The site is served from /<repository>.": "Yayınlanacak depo. Site /<repository> yolundan sunulur.",
+          "Branch": "Dal",
+          "Defaults to gh-pages.": "Varsayılan: gh-pages.",
+          "Personal access token": "Kişisel erişim belirteci",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, deponun içeriğine yazma erişimiyle."
         },
         "th": {
           "Commit message": "ข้อความคอมมิต",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "ใช้เป็นข้อความคอมมิตเมื่อ Tovu พุชการส่งออกไปยังสาขา gh-pages",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "ต้องใช้โทเค็นการเข้าถึงส่วนบุคคลแบบคลาสสิกที่มีขอบเขต \"repo\" หรือโทเค็นแบบละเอียดที่ตั้งค่าสิทธิ์ Contents และ Pages เป็น Read and write"
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "ต้องใช้โทเค็นการเข้าถึงส่วนบุคคลแบบคลาสสิกที่มีขอบเขต \"repo\" หรือโทเค็นแบบละเอียดที่ตั้งค่าสิทธิ์ Contents และ Pages เป็น Read and write",
+          "Owner": "เจ้าของ",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "ผู้ใช้หรือองค์กร GitHub ที่เป็นเจ้าของรีโพซิทอรี ใส่ชื่อผู้ใช้ของคุณเอง หรือชื่อองค์กรหากองค์กรเป็นเจ้าของ",
+          "Repository": "รีโพซิทอรี",
+          "The repository to publish to. The site is served from /<repository>.": "รีโพซิทอรีที่จะเผยแพร่ไป เว็บไซต์จะให้บริการจาก /<repository>",
+          "Branch": "สาขา",
+          "Defaults to gh-pages.": "ค่าเริ่มต้นคือ gh-pages",
+          "Personal access token": "โทเค็นการเข้าถึงส่วนบุคคล",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens พร้อมสิทธิ์เขียนเนื้อหาของรีโพซิทอรี"
         },
         "it": {
           "Commit message": "Messaggio di commit",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Usato come messaggio di commit quando Tovu invia l’esportazione al branch gh-pages.",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Richiede un token di accesso personale classico con l’ambito \"repo\", oppure un token granulare con i permessi Contents e Pages impostati su Read and write."
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Richiede un token di accesso personale classico con l’ambito \"repo\", oppure un token granulare con i permessi Contents e Pages impostati su Read and write.",
+          "Owner": "Proprietario",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "L’utente o l’organizzazione GitHub proprietaria del repository. Inserisci il tuo nome utente, oppure il nome dell’organizzazione se il repository è suo.",
+          "The repository to publish to. The site is served from /<repository>.": "Il repository in cui pubblicare. Il sito viene servito da /<repository>.",
+          "Branch": "Ramo",
+          "Defaults to gh-pages.": "Predefinito: gh-pages.",
+          "Personal access token": "Token di accesso personale",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, con accesso in scrittura ai contenuti del repository."
         },
         "hi": {
           "Commit message": "कमिट संदेश",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "जब Tovu एक्सपोर्ट को gh-pages शाखा में पुश करता है, तो यह कमिट संदेश के रूप में उपयोग होता है।",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" स्कोप वाला क्लासिक व्यक्तिगत एक्सेस टोकन, या Contents और Pages अनुमतियों को Read and write पर सेट किया गया फाइन-ग्रेन्ड टोकन चाहिए।"
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" स्कोप वाला क्लासिक व्यक्तिगत एक्सेस टोकन, या Contents और Pages अनुमतियों को Read and write पर सेट किया गया फाइन-ग्रेन्ड टोकन चाहिए।",
+          "Owner": "स्वामी",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "वह GitHub उपयोगकर्ता या संगठन जिसके पास रिपॉज़िटरी है। अपना उपयोगकर्ता नाम दर्ज करें, या यदि रिपॉज़िटरी संगठन की है तो संगठन का नाम।",
+          "Repository": "रिपॉज़िटरी",
+          "The repository to publish to. The site is served from /<repository>.": "वह रिपॉज़िटरी जिसमें प्रकाशित करना है। साइट /<repository> से परोसी जाती है।",
+          "Branch": "ब्रांच",
+          "Defaults to gh-pages.": "डिफ़ॉल्ट gh-pages है।",
+          "Personal access token": "व्यक्तिगत एक्सेस टोकन",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, रिपॉज़िटरी की सामग्री पर लिखने की पहुँच के साथ।"
         },
         "ur": {
           "Commit message": "کمٹ پیغام",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "جب Tovu ایکسپورٹ کو gh-pages برانچ پر پش کرتا ہے تو اسے کمٹ پیغام کے طور پر استعمال کیا جاتا ہے۔",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" دائرہ کار والا کلاسک ذاتی رسائی ٹوکن، یا Contents اور Pages کی اجازتیں Read and write پر سیٹ والا باریک ٹوکن درکار ہے۔"
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" دائرہ کار والا کلاسک ذاتی رسائی ٹوکن، یا Contents اور Pages کی اجازتیں Read and write پر سیٹ والا باریک ٹوکن درکار ہے۔",
+          "Owner": "مالک",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "وہ GitHub صارف یا تنظیم جس کی ملکیت میں ریپوزٹری ہے۔ اپنا صارف نام درج کریں، یا اگر ریپوزٹری تنظیم کی ہے تو تنظیم کا نام۔",
+          "Repository": "ریپوزٹری",
+          "The repository to publish to. The site is served from /<repository>.": "وہ ریپوزٹری جس میں شائع کرنا ہے۔ سائٹ /<repository> سے پیش کی جاتی ہے۔",
+          "Branch": "برانچ",
+          "Defaults to gh-pages.": "ڈیفالٹ gh-pages ہے۔",
+          "Personal access token": "ذاتی رسائی ٹوکن",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens، ریپوزٹری کے مواد پر لکھنے کی رسائی کے ساتھ۔"
         },
         "bn": {
           "Commit message": "কমিট বার্তা",
           "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Tovu যখন gh-pages শাখায় এক্সপোর্ট পুশ করে, তখন এটি কমিট বার্তা হিসেবে ব্যবহৃত হয়।",
-          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" স্কোপসহ একটি ক্লাসিক ব্যক্তিগত অ্যাক্সেস টোকেন, অথবা Contents এবং Pages অনুমতি Read and write-এ সেট করা একটি সূক্ষ্ম-গ্রেইন টোকেন প্রয়োজন।"
+          "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "\"repo\" স্কোপসহ একটি ক্লাসিক ব্যক্তিগত অ্যাক্সেস টোকেন, অথবা Contents এবং Pages অনুমতি Read and write-এ সেট করা একটি সূক্ষ্ম-গ্রেইন টোকেন প্রয়োজন।",
+          "Owner": "মালিক",
+          "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it.": "যে GitHub ব্যবহারকারী বা সংস্থা রিপোজিটরির মালিক। আপনার নিজের ব্যবহারকারী নাম লিখুন, অথবা রিপোজিটরি সংস্থার হলে সংস্থার নাম।",
+          "Repository": "রিপোজিটরি",
+          "The repository to publish to. The site is served from /<repository>.": "যে রিপোজিটরিতে প্রকাশ করা হবে। সাইটটি /<repository> থেকে পরিবেশিত হয়।",
+          "Branch": "ব্রাঞ্চ",
+          "Defaults to gh-pages.": "ডিফল্ট gh-pages।",
+          "Personal access token": "ব্যক্তিগত অ্যাক্সেস টোকেন",
+          "GitHub: Settings > Developer settings > Personal access tokens, with write access to the repository's contents.": "GitHub: Settings > Developer settings > Personal access tokens, রিপোজিটরির বিষয়বস্তুতে লেখার অনুমতিসহ।"
         }
       }
     },
@@ -209,127 +364,169 @@
           "Vercel project name": "Nombre del proyecto de Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel busca o crea un proyecto con este nombre en cada publicación.",
           "An access token from your Vercel account.": "Un token de acceso de tu cuenta de Vercel.",
-          "Access token": "Token de acceso"
+          "Access token": "Token de acceso",
+          "Team ID": "ID del equipo",
+          "Only for a team account. Leave blank for a personal account.": "Solo para una cuenta de equipo. Déjalo en blanco si es una cuenta personal."
         },
         "id": {
           "Vercel project name": "Nama proyek Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel menemukan atau membuat proyek dengan nama ini setiap kali menerbitkan.",
           "An access token from your Vercel account.": "Token akses dari akun Vercel Anda.",
-          "Access token": "Token akses"
+          "Access token": "Token akses",
+          "Team ID": "ID tim",
+          "Only for a team account. Leave blank for a personal account.": "Hanya untuk akun tim. Kosongkan untuk akun pribadi."
         },
         "de": {
           "Vercel project name": "Vercel-Projektname",
           "Vercel finds or creates a project with this name on every publish.": "Vercel findet oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen.",
           "An access token from your Vercel account.": "Ein Zugriffstoken aus Ihrem Vercel-Konto.",
-          "Access token": "Zugriffstoken"
+          "Access token": "Zugriffstoken",
+          "Team ID": "Team-ID",
+          "Only for a team account. Leave blank for a personal account.": "Nur für ein Team-Konto. Bei einem persönlichen Konto leer lassen."
         },
         "zh-CN": {
           "Vercel project name": "Vercel 项目名称",
           "Vercel finds or creates a project with this name on every publish.": "Vercel 会在每次发布时查找或创建使用此名称的项目。",
           "An access token from your Vercel account.": "来自您 Vercel 帐户的访问令牌。",
-          "Access token": "访问令牌"
+          "Access token": "访问令牌",
+          "Team ID": "团队 ID",
+          "Only for a team account. Leave blank for a personal account.": "仅适用于团队帐户。个人帐户请留空。"
         },
         "zh-TW": {
           "Vercel project name": "Vercel 專案名稱",
           "Vercel finds or creates a project with this name on every publish.": "Vercel 會在每次發佈時尋找或建立使用此名稱的專案。",
           "An access token from your Vercel account.": "您 Vercel 帳戶的存取權杖。",
-          "Access token": "存取權杖"
+          "Access token": "存取權杖",
+          "Team ID": "團隊 ID",
+          "Only for a team account. Leave blank for a personal account.": "僅適用於團隊帳戶。個人帳戶請留空。"
         },
         "pt-BR": {
           "Vercel project name": "Nome do projeto Vercel",
           "Vercel finds or creates a project with this name on every publish.": "A Vercel encontra ou cria um projeto com este nome em cada publicação.",
           "An access token from your Vercel account.": "Um token de acesso da sua conta Vercel.",
-          "Access token": "Token de acesso"
+          "Access token": "Token de acesso",
+          "Team ID": "ID da equipe",
+          "Only for a team account. Leave blank for a personal account.": "Só para uma conta de equipe. Deixe em branco para uma conta pessoal."
         },
         "ru": {
           "Vercel project name": "Название проекта Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel при каждой публикации находит или создаёт проект с этим именем.",
           "An access token from your Vercel account.": "Токен доступа из вашей учётной записи Vercel.",
-          "Access token": "Токен доступа"
+          "Access token": "Токен доступа",
+          "Team ID": "ID команды",
+          "Only for a team account. Leave blank for a personal account.": "Только для командной учётной записи. Для личной оставьте пустым."
         },
         "fa": {
           "Vercel project name": "نام پروژه Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel در هر انتشار پروژه‌ای با این نام پیدا یا ایجاد می‌کند.",
           "An access token from your Vercel account.": "یک توکن دسترسی از حساب Vercel شما.",
-          "Access token": "توکن دسترسی"
+          "Access token": "توکن دسترسی",
+          "Team ID": "شناسه تیم",
+          "Only for a team account. Leave blank for a personal account.": "فقط برای حساب تیمی. برای حساب شخصی خالی بگذارید."
         },
         "ar": {
           "Vercel project name": "اسم مشروع Vercel",
           "Vercel finds or creates a project with this name on every publish.": "يعثر Vercel على مشروع بهذا الاسم أو ينشئه عند كل نشر.",
           "An access token from your Vercel account.": "رمز وصول من حساب Vercel الخاص بك.",
-          "Access token": "رمز الوصول"
+          "Access token": "رمز الوصول",
+          "Team ID": "معرّف الفريق",
+          "Only for a team account. Leave blank for a personal account.": "لحساب الفريق فقط. اتركه فارغًا للحساب الشخصي."
         },
         "ja": {
           "Vercel project name": "Vercel プロジェクト名",
           "Vercel finds or creates a project with this name on every publish.": "Vercel は公開のたびにこの名前のプロジェクトを見つけるか作成します。",
           "An access token from your Vercel account.": "Vercel アカウントのアクセストークン。",
-          "Access token": "アクセストークン"
+          "Access token": "アクセストークン",
+          "Team ID": "チーム ID",
+          "Only for a team account. Leave blank for a personal account.": "チームアカウントの場合のみ。個人アカウントなら空欄のままにします。"
         },
         "ko": {
           "Vercel project name": "Vercel 프로젝트 이름",
           "Vercel finds or creates a project with this name on every publish.": "Vercel은 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다.",
           "An access token from your Vercel account.": "Vercel 계정의 액세스 토큰입니다.",
-          "Access token": "액세스 토큰"
+          "Access token": "액세스 토큰",
+          "Team ID": "팀 ID",
+          "Only for a team account. Leave blank for a personal account.": "팀 계정인 경우에만 입력합니다. 개인 계정이면 비워 두세요."
         },
         "pl": {
           "Vercel project name": "Nazwa projektu Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel przy każdej publikacji znajduje lub tworzy projekt o tej nazwie.",
           "An access token from your Vercel account.": "Token dostępu z Twojego konta Vercel.",
-          "Access token": "Token dostępu"
+          "Access token": "Token dostępu",
+          "Team ID": "ID zespołu",
+          "Only for a team account. Leave blank for a personal account.": "Tylko dla konta zespołowego. W przypadku konta osobistego zostaw puste."
         },
         "hu": {
           "Vercel project name": "Vercel-projektnév",
           "Vercel finds or creates a project with this name on every publish.": "A Vercel minden közzétételkor megkeres vagy létrehoz egy ilyen nevű projektet.",
           "An access token from your Vercel account.": "Hozzáférési token a Vercel-fiókjából.",
-          "Access token": "Hozzáférési token"
+          "Access token": "Hozzáférési token",
+          "Team ID": "Csapatazonosító",
+          "Only for a team account. Leave blank for a personal account.": "Csak csapatfiókhoz. Személyes fióknál hagyja üresen."
         },
         "fr": {
           "Vercel project name": "Nom du projet Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel trouve ou crée un projet portant ce nom à chaque publication.",
           "An access token from your Vercel account.": "Un jeton d’accès de votre compte Vercel.",
-          "Access token": "Jeton d'accès"
+          "Access token": "Jeton d'accès",
+          "Team ID": "ID d’équipe",
+          "Only for a team account. Leave blank for a personal account.": "Uniquement pour un compte d’équipe. Laissez vide pour un compte personnel."
         },
         "uk": {
           "Vercel project name": "Назва проєкту Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel під час кожної публікації знаходить або створює проєкт із цією назвою.",
           "An access token from your Vercel account.": "Токен доступу з вашого облікового запису Vercel.",
-          "Access token": "Токен доступу"
+          "Access token": "Токен доступу",
+          "Team ID": "ID команди",
+          "Only for a team account. Leave blank for a personal account.": "Лише для командного облікового запису. Для особистого залиште порожнім."
         },
         "tr": {
           "Vercel project name": "Vercel proje adı",
           "Vercel finds or creates a project with this name on every publish.": "Vercel her yayında bu adla bir proje bulur veya oluşturur.",
           "An access token from your Vercel account.": "Vercel hesabınızdan bir erişim belirteci.",
-          "Access token": "Erişim jetonu"
+          "Access token": "Erişim jetonu",
+          "Team ID": "Takım Kimliği",
+          "Only for a team account. Leave blank for a personal account.": "Yalnızca takım hesabı için. Kişisel hesapta boş bırakın."
         },
         "th": {
           "Vercel project name": "ชื่อโปรเจ็กต์ Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel ค้นหาหรือสร้างโปรเจ็กต์ชื่อนี้ทุกครั้งที่เผยแพร่",
           "An access token from your Vercel account.": "โทเค็นการเข้าถึงจากบัญชี Vercel ของคุณ",
-          "Access token": "โทเคนการเข้าถึง"
+          "Access token": "โทเคนการเข้าถึง",
+          "Team ID": "ID ทีม",
+          "Only for a team account. Leave blank for a personal account.": "สำหรับบัญชีทีมเท่านั้น เว้นว่างไว้หากเป็นบัญชีส่วนตัว"
         },
         "it": {
           "Vercel project name": "Nome del progetto Vercel",
           "Vercel finds or creates a project with this name on every publish.": "Vercel trova o crea un progetto con questo nome a ogni pubblicazione.",
           "An access token from your Vercel account.": "Un token di accesso dal tuo account Vercel.",
-          "Access token": "Token di accesso"
+          "Access token": "Token di accesso",
+          "Team ID": "ID del team",
+          "Only for a team account. Leave blank for a personal account.": "Solo per un account team. Lascia vuoto per un account personale."
         },
         "hi": {
           "Vercel project name": "Vercel प्रोजेक्ट नाम",
           "Vercel finds or creates a project with this name on every publish.": "Vercel हर प्रकाशन पर इस नाम से प्रोजेक्ट खोजता या बनाता है।",
           "An access token from your Vercel account.": "आपके Vercel खाते का एक्सेस टोकन।",
-          "Access token": "एक्सेस टोकन"
+          "Access token": "एक्सेस टोकन",
+          "Team ID": "टीम ID",
+          "Only for a team account. Leave blank for a personal account.": "केवल टीम खाते के लिए। व्यक्तिगत खाते के लिए खाली छोड़ें।"
         },
         "ur": {
           "Vercel project name": "Vercel پروجیکٹ کا نام",
           "Vercel finds or creates a project with this name on every publish.": "Vercel ہر اشاعت پر اس نام کا پروجیکٹ ڈھونڈتا یا بناتا ہے۔",
           "An access token from your Vercel account.": "آپ کے Vercel اکاؤنٹ کا رسائی ٹوکن۔",
-          "Access token": "رسائی ٹوکن"
+          "Access token": "رسائی ٹوکن",
+          "Team ID": "ٹیم ID",
+          "Only for a team account. Leave blank for a personal account.": "صرف ٹیم اکاؤنٹ کے لیے۔ ذاتی اکاؤنٹ کے لیے خالی چھوڑ دیں۔"
         },
         "bn": {
           "Vercel project name": "Vercel প্রকল্পের নাম",
           "Vercel finds or creates a project with this name on every publish.": "Vercel প্রতিটি প্রকাশনার সময় এই নামের একটি প্রকল্প খুঁজে বা তৈরি করে।",
           "An access token from your Vercel account.": "আপনার Vercel অ্যাকাউন্টের একটি অ্যাক্সেস টোকেন।",
-          "Access token": "অ্যাক্সেস টোকেন"
+          "Access token": "অ্যাক্সেস টোকেন",
+          "Team ID": "টিম আইডি",
+          "Only for a team account. Leave blank for a personal account.": "শুধু টিম অ্যাকাউন্টের জন্য। ব্যক্তিগত অ্যাকাউন্টে ফাঁকা রাখুন।"
         }
       }
     },
@@ -366,107 +563,128 @@
         "es": {
           "Site name": "Nombre del sitio",
           "Netlify finds or creates a site with this name on every publish.": "Netlify busca o crea un sitio con este nombre en cada publicación.",
-          "A personal access token from your Netlify account.": "Un token de acceso personal de tu cuenta de Netlify."
+          "A personal access token from your Netlify account.": "Un token de acceso personal de tu cuenta de Netlify.",
+          "Personal access token": "Token de acceso personal"
         },
         "id": {
           "Site name": "Nama situs",
           "Netlify finds or creates a site with this name on every publish.": "Netlify menemukan atau membuat situs dengan nama ini setiap kali menerbitkan.",
-          "A personal access token from your Netlify account.": "Token akses pribadi dari akun Netlify Anda."
+          "A personal access token from your Netlify account.": "Token akses pribadi dari akun Netlify Anda.",
+          "Personal access token": "Token akses pribadi"
         },
         "de": {
           "Site name": "Website-Name",
           "Netlify finds or creates a site with this name on every publish.": "Netlify findet oder erstellt bei jeder Veröffentlichung eine Website mit diesem Namen.",
-          "A personal access token from your Netlify account.": "Ein persönlicher Zugriffstoken aus Ihrem Netlify-Konto."
+          "A personal access token from your Netlify account.": "Ein persönlicher Zugriffstoken aus Ihrem Netlify-Konto.",
+          "Personal access token": "Persönlicher Zugriffstoken"
         },
         "zh-CN": {
           "Site name": "站点名称",
           "Netlify finds or creates a site with this name on every publish.": "Netlify 会在每次发布时查找或创建使用此名称的站点。",
-          "A personal access token from your Netlify account.": "来自您 Netlify 帐户的个人访问令牌。"
+          "A personal access token from your Netlify account.": "来自您 Netlify 帐户的个人访问令牌。",
+          "Personal access token": "个人访问令牌"
         },
         "zh-TW": {
           "Site name": "網站名稱",
           "Netlify finds or creates a site with this name on every publish.": "Netlify 會在每次發佈時尋找或建立使用此名稱的網站。",
-          "A personal access token from your Netlify account.": "您 Netlify 帳戶的個人存取權杖。"
+          "A personal access token from your Netlify account.": "您 Netlify 帳戶的個人存取權杖。",
+          "Personal access token": "個人存取權杖"
         },
         "pt-BR": {
           "Site name": "Nome do site",
           "Netlify finds or creates a site with this name on every publish.": "A Netlify encontra ou cria um site com este nome em cada publicação.",
-          "A personal access token from your Netlify account.": "Um token de acesso pessoal da sua conta Netlify."
+          "A personal access token from your Netlify account.": "Um token de acesso pessoal da sua conta Netlify.",
+          "Personal access token": "Token de acesso pessoal"
         },
         "ru": {
           "Site name": "Название сайта",
           "Netlify finds or creates a site with this name on every publish.": "Netlify при каждой публикации находит или создаёт сайт с этим именем.",
-          "A personal access token from your Netlify account.": "Персональный токен доступа из вашей учётной записи Netlify."
+          "A personal access token from your Netlify account.": "Персональный токен доступа из вашей учётной записи Netlify.",
+          "Personal access token": "Персональный токен доступа"
         },
         "fa": {
           "Site name": "نام سایت",
           "Netlify finds or creates a site with this name on every publish.": "Netlify در هر انتشار سایتی با این نام پیدا یا ایجاد می‌کند.",
-          "A personal access token from your Netlify account.": "یک توکن دسترسی شخصی از حساب Netlify شما."
+          "A personal access token from your Netlify account.": "یک توکن دسترسی شخصی از حساب Netlify شما.",
+          "Personal access token": "توکن دسترسی شخصی"
         },
         "ar": {
           "Site name": "اسم الموقع",
           "Netlify finds or creates a site with this name on every publish.": "يعثر Netlify على موقع بهذا الاسم أو ينشئه عند كل نشر.",
-          "A personal access token from your Netlify account.": "رمز وصول شخصي من حساب Netlify الخاص بك."
+          "A personal access token from your Netlify account.": "رمز وصول شخصي من حساب Netlify الخاص بك.",
+          "Personal access token": "رمز وصول شخصي"
         },
         "ja": {
           "Site name": "サイト名",
           "Netlify finds or creates a site with this name on every publish.": "Netlify は公開のたびにこの名前のサイトを見つけるか作成します。",
-          "A personal access token from your Netlify account.": "Netlify アカウントの個人アクセストークン。"
+          "A personal access token from your Netlify account.": "Netlify アカウントの個人アクセストークン。",
+          "Personal access token": "個人アクセストークン"
         },
         "ko": {
           "Site name": "사이트 이름",
           "Netlify finds or creates a site with this name on every publish.": "Netlify는 게시할 때마다 이 이름의 사이트를 찾거나 만듭니다.",
-          "A personal access token from your Netlify account.": "Netlify 계정의 개인 액세스 토큰입니다."
+          "A personal access token from your Netlify account.": "Netlify 계정의 개인 액세스 토큰입니다.",
+          "Personal access token": "개인 액세스 토큰"
         },
         "pl": {
           "Site name": "Nazwa witryny",
           "Netlify finds or creates a site with this name on every publish.": "Netlify przy każdej publikacji znajduje lub tworzy witrynę o tej nazwie.",
-          "A personal access token from your Netlify account.": "Osobisty token dostępu z Twojego konta Netlify."
+          "A personal access token from your Netlify account.": "Osobisty token dostępu z Twojego konta Netlify.",
+          "Personal access token": "Osobisty token dostępu"
         },
         "hu": {
           "Site name": "Webhely neve",
           "Netlify finds or creates a site with this name on every publish.": "A Netlify minden közzétételkor megkeres vagy létrehoz egy ilyen nevű webhelyet.",
-          "A personal access token from your Netlify account.": "Személyes hozzáférési token a Netlify-fiókjából."
+          "A personal access token from your Netlify account.": "Személyes hozzáférési token a Netlify-fiókjából.",
+          "Personal access token": "Személyes hozzáférési token"
         },
         "fr": {
           "Site name": "Nom du site",
           "Netlify finds or creates a site with this name on every publish.": "Netlify trouve ou crée un site portant ce nom à chaque publication.",
-          "A personal access token from your Netlify account.": "Un jeton d’accès personnel de votre compte Netlify."
+          "A personal access token from your Netlify account.": "Un jeton d’accès personnel de votre compte Netlify.",
+          "Personal access token": "Jeton d’accès personnel"
         },
         "uk": {
           "Site name": "Назва сайту",
           "Netlify finds or creates a site with this name on every publish.": "Netlify під час кожної публікації знаходить або створює сайт із цією назвою.",
-          "A personal access token from your Netlify account.": "Персональний токен доступу з вашого облікового запису Netlify."
+          "A personal access token from your Netlify account.": "Персональний токен доступу з вашого облікового запису Netlify.",
+          "Personal access token": "Персональний токен доступу"
         },
         "tr": {
           "Site name": "Site adı",
           "Netlify finds or creates a site with this name on every publish.": "Netlify her yayında bu adla bir site bulur veya oluşturur.",
-          "A personal access token from your Netlify account.": "Netlify hesabınızdan bir kişisel erişim belirteci."
+          "A personal access token from your Netlify account.": "Netlify hesabınızdan bir kişisel erişim belirteci.",
+          "Personal access token": "Kişisel erişim belirteci"
         },
         "th": {
           "Site name": "ชื่อเว็บไซต์",
           "Netlify finds or creates a site with this name on every publish.": "Netlify ค้นหาหรือสร้างเว็บไซต์ชื่อนี้ทุกครั้งที่เผยแพร่",
-          "A personal access token from your Netlify account.": "โทเค็นการเข้าถึงส่วนบุคคลจากบัญชี Netlify ของคุณ"
+          "A personal access token from your Netlify account.": "โทเค็นการเข้าถึงส่วนบุคคลจากบัญชี Netlify ของคุณ",
+          "Personal access token": "โทเค็นการเข้าถึงส่วนบุคคล"
         },
         "it": {
           "Site name": "Nome del sito",
           "Netlify finds or creates a site with this name on every publish.": "Netlify trova o crea un sito con questo nome a ogni pubblicazione.",
-          "A personal access token from your Netlify account.": "Un token di accesso personale dal tuo account Netlify."
+          "A personal access token from your Netlify account.": "Un token di accesso personale dal tuo account Netlify.",
+          "Personal access token": "Token di accesso personale"
         },
         "hi": {
           "Site name": "साइट नाम",
           "Netlify finds or creates a site with this name on every publish.": "Netlify हर प्रकाशन पर इस नाम से साइट खोजता या बनाता है।",
-          "A personal access token from your Netlify account.": "आपके Netlify खाते का व्यक्तिगत एक्सेस टोकन।"
+          "A personal access token from your Netlify account.": "आपके Netlify खाते का व्यक्तिगत एक्सेस टोकन।",
+          "Personal access token": "व्यक्तिगत एक्सेस टोकन"
         },
         "ur": {
           "Site name": "سائٹ کا نام",
           "Netlify finds or creates a site with this name on every publish.": "Netlify ہر اشاعت پر اس نام کی سائٹ ڈھونڈتا یا بناتا ہے۔",
-          "A personal access token from your Netlify account.": "آپ کے Netlify اکاؤنٹ کا ذاتی رسائی ٹوکن۔"
+          "A personal access token from your Netlify account.": "آپ کے Netlify اکاؤنٹ کا ذاتی رسائی ٹوکن۔",
+          "Personal access token": "ذاتی رسائی ٹوکن"
         },
         "bn": {
           "Site name": "সাইটের নাম",
           "Netlify finds or creates a site with this name on every publish.": "Netlify প্রতিটি প্রকাশনার সময় এই নামের একটি সাইট খুঁজে বা তৈরি করে।",
-          "A personal access token from your Netlify account.": "আপনার Netlify অ্যাকাউন্টের একটি ব্যক্তিগত অ্যাক্সেস টোকেন।"
+          "A personal access token from your Netlify account.": "আপনার Netlify অ্যাকাউন্টের একটি ব্যক্তিগত অ্যাক্সেস টোকেন।",
+          "Personal access token": "ব্যক্তিগত অ্যাক্সেস টোকেন"
         }
       }
     },
@@ -512,107 +730,191 @@
         "es": {
           "Project name": "Nombre del proyecto",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages busca o crea un proyecto con este nombre en cada publicación.",
-          "Account ID": "ID de cuenta"
+          "Account ID": "ID de cuenta",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Necesita un token de API con el permiso Cloudflare Pages: Edit, además del ID de tu cuenta de Cloudflare. Cloudflare no puede encontrar un proyecto sin el ID de cuenta.",
+          "API token": "Token de API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, con el permiso Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Panel de Cloudflare: el ID largo de la barra de direcciones, justo después de dash.cloudflare.com/."
         },
         "id": {
           "Project name": "Nama proyek",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages menemukan atau membuat proyek dengan nama ini setiap kali menerbitkan.",
-          "Account ID": "ID akun"
+          "Account ID": "ID akun",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Memerlukan token API dengan izin Cloudflare Pages: Edit, serta ID akun Cloudflare Anda. Cloudflare tidak dapat menemukan proyek tanpa ID akun.",
+          "API token": "Token API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, dengan izin Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Dasbor Cloudflare: ID panjang di bilah alamat, tepat setelah dash.cloudflare.com/."
         },
         "de": {
           "Project name": "Projektname",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages findet oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen.",
-          "Account ID": "Konto-ID"
+          "Account ID": "Konto-ID",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Benötigt einen API-Token mit der Berechtigung Cloudflare Pages: Edit sowie Ihre Cloudflare-Konto-ID. Ohne die Konto-ID kann Cloudflare kein Projekt finden.",
+          "API token": "API-Token",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, mit der Berechtigung Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare-Dashboard: die lange ID in der Adressleiste, direkt nach dash.cloudflare.com/."
         },
         "zh-CN": {
           "Project name": "项目名称",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages 会在每次发布时查找或创建使用此名称的项目。",
-          "Account ID": "账户 ID"
+          "Account ID": "账户 ID",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "需要具有 Cloudflare Pages: Edit 权限的 API 令牌，以及您的 Cloudflare 帐户 ID。没有帐户 ID，Cloudflare 无法找到项目。",
+          "API token": "API 令牌",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare：My Profile > API Tokens，需具有 Cloudflare Pages: Edit 权限。",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare 控制面板：地址栏中紧跟在 dash.cloudflare.com/ 之后的那串长 ID。"
         },
         "zh-TW": {
           "Project name": "專案名稱",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages 會在每次發佈時尋找或建立使用此名稱的專案。",
-          "Account ID": "帳戶 ID"
+          "Account ID": "帳戶 ID",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "需要具有 Cloudflare Pages: Edit 權限的 API 權杖，以及您的 Cloudflare 帳戶 ID。沒有帳戶 ID，Cloudflare 無法找到專案。",
+          "API token": "API 權杖",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare：My Profile > API Tokens，需具備 Cloudflare Pages: Edit 權限。",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare 控制台：網址列中緊接在 dash.cloudflare.com/ 之後的那串長 ID。"
         },
         "pt-BR": {
           "Project name": "Nome do projeto",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "A Cloudflare Pages encontra ou cria um projeto com este nome em cada publicação.",
-          "Account ID": "ID da conta"
+          "Account ID": "ID da conta",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Precisa de um token de API com a permissão Cloudflare Pages: Edit, além do ID da sua conta Cloudflare. A Cloudflare não consegue encontrar um projeto sem o ID da conta.",
+          "API token": "Token de API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, com a permissão Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Painel da Cloudflare: o ID longo na barra de endereço, logo depois de dash.cloudflare.com/."
         },
         "ru": {
           "Project name": "Название проекта",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages при каждой публикации находит или создаёт проект с этим именем.",
-          "Account ID": "ID учётной записи"
+          "Account ID": "ID учётной записи",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Нужен токен API с разрешением Cloudflare Pages: Edit, а также ID вашей учётной записи Cloudflare. Без ID учётной записи Cloudflare не может найти проект.",
+          "API token": "Токен API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, с разрешением Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Панель Cloudflare: длинный ID в адресной строке, сразу после dash.cloudflare.com/."
         },
         "fa": {
           "Project name": "نام پروژه",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages در هر انتشار پروژه‌ای با این نام پیدا یا ایجاد می‌کند.",
-          "Account ID": "شناسه حساب"
+          "Account ID": "شناسه حساب",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "به یک توکن API با مجوز Cloudflare Pages: Edit و شناسه حساب Cloudflare شما نیاز دارد. Cloudflare بدون شناسه حساب نمی‌تواند پروژه را پیدا کند.",
+          "API token": "توکن API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens، با مجوز Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "داشبورد Cloudflare: شناسه طولانی در نوار آدرس، درست بعد از dash.cloudflare.com/."
         },
         "ar": {
           "Project name": "اسم المشروع",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "يعثر Cloudflare Pages على مشروع بهذا الاسم أو ينشئه عند كل نشر.",
-          "Account ID": "معرّف الحساب"
+          "Account ID": "معرّف الحساب",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "يتطلب رمز API مع إذن Cloudflare Pages: Edit، بالإضافة إلى معرّف حساب Cloudflare الخاص بك. لا يستطيع Cloudflare العثور على مشروع بدون معرّف الحساب.",
+          "API token": "رمز API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens، مع إذن Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "لوحة Cloudflare: المعرّف الطويل في شريط العنوان، مباشرةً بعد dash.cloudflare.com/."
         },
         "ja": {
           "Project name": "プロジェクト名",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages は公開のたびにこの名前のプロジェクトを見つけるか作成します。",
-          "Account ID": "アカウント ID"
+          "Account ID": "アカウント ID",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Cloudflare Pages: Edit 権限のある API トークンと、Cloudflare のアカウント ID が必要です。アカウント ID がないと Cloudflare はプロジェクトを見つけられません。",
+          "API token": "API トークン",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens。Cloudflare Pages: Edit 権限が必要です。",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare ダッシュボード: アドレスバーの dash.cloudflare.com/ の直後にある長い ID。"
         },
         "ko": {
           "Project name": "프로젝트 이름",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages는 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다.",
-          "Account ID": "계정 ID"
+          "Account ID": "계정 ID",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Cloudflare Pages: Edit 권한이 있는 API 토큰과 Cloudflare 계정 ID가 필요합니다. 계정 ID가 없으면 Cloudflare가 프로젝트를 찾을 수 없습니다.",
+          "API token": "API 토큰",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, Cloudflare Pages: Edit 권한 포함.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare 대시보드: 주소 표시줄에서 dash.cloudflare.com/ 바로 뒤에 있는 긴 ID입니다."
         },
         "pl": {
           "Project name": "Nazwa projektu",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages przy każdej publikacji znajduje lub tworzy projekt o tej nazwie.",
-          "Account ID": "Identyfikator konta"
+          "Account ID": "Identyfikator konta",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Wymaga tokenu API z uprawnieniem Cloudflare Pages: Edit oraz identyfikatora Twojego konta Cloudflare. Bez identyfikatora konta Cloudflare nie znajdzie projektu.",
+          "API token": "Token API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, z uprawnieniem Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Panel Cloudflare: długi identyfikator w pasku adresu, zaraz po dash.cloudflare.com/."
         },
         "hu": {
           "Project name": "Projekt neve",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "A Cloudflare Pages minden közzétételkor megkeres vagy létrehoz egy ilyen nevű projektet.",
-          "Account ID": "Fiókazonosító"
+          "Account ID": "Fiókazonosító",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Cloudflare Pages: Edit engedélyű API-token és a Cloudflare-fiókazonosítója szükséges. Fiókazonosító nélkül a Cloudflare nem találja meg a projektet.",
+          "API token": "API-token",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, Cloudflare Pages: Edit engedéllyel.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare-irányítópult: a hosszú azonosító a címsorban, közvetlenül a dash.cloudflare.com/ után."
         },
         "fr": {
           "Project name": "Nom du projet",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages trouve ou crée un projet portant ce nom à chaque publication.",
-          "Account ID": "ID de compte"
+          "Account ID": "ID de compte",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Nécessite un jeton API avec l’autorisation Cloudflare Pages: Edit, ainsi que l’ID de votre compte Cloudflare. Sans l’ID de compte, Cloudflare ne peut pas trouver le projet.",
+          "API token": "Jeton API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare : My Profile > API Tokens, avec l’autorisation Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Tableau de bord Cloudflare : le long ID dans la barre d’adresse, juste après dash.cloudflare.com/."
         },
         "uk": {
           "Project name": "Назва проєкту",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages під час кожної публікації знаходить або створює проєкт із цією назвою.",
-          "Account ID": "ID облікового запису"
+          "Account ID": "ID облікового запису",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Потрібен токен API з дозволом Cloudflare Pages: Edit, а також ID вашого облікового запису Cloudflare. Без ID облікового запису Cloudflare не може знайти проєкт.",
+          "API token": "Токен API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, з дозволом Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Панель Cloudflare: довгий ID в адресному рядку, одразу після dash.cloudflare.com/."
         },
         "tr": {
           "Project name": "Proje adı",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages her yayında bu adla bir proje bulur veya oluşturur.",
-          "Account ID": "Hesap Kimliği"
+          "Account ID": "Hesap Kimliği",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Cloudflare Pages: Edit iznine sahip bir API belirteci ve Cloudflare hesap kimliğiniz gerekir. Hesap kimliği olmadan Cloudflare projeyi bulamaz.",
+          "API token": "API belirteci",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, Cloudflare Pages: Edit izniyle.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare panosu: adres çubuğunda dash.cloudflare.com/ ifadesinin hemen ardından gelen uzun kimlik."
         },
         "th": {
           "Project name": "ชื่อโปรเจ็กต์",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages ค้นหาหรือสร้างโปรเจ็กต์ชื่อนี้ทุกครั้งที่เผยแพร่",
-          "Account ID": "รหัสบัญชี"
+          "Account ID": "รหัสบัญชี",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "ต้องใช้โทเค็น API ที่มีสิทธิ์ Cloudflare Pages: Edit และ ID บัญชี Cloudflare ของคุณ Cloudflare หาโปรเจ็กต์ไม่พบหากไม่มี ID บัญชี",
+          "API token": "โทเค็น API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens พร้อมสิทธิ์ Cloudflare Pages: Edit",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "แดชบอร์ด Cloudflare: ID ยาวในแถบที่อยู่ ต่อจาก dash.cloudflare.com/ ทันที"
         },
         "it": {
           "Project name": "Nome del progetto",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages trova o crea un progetto con questo nome a ogni pubblicazione.",
-          "Account ID": "ID account"
+          "Account ID": "ID account",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Richiede un token API con il permesso Cloudflare Pages: Edit, oltre all’ID del tuo account Cloudflare. Senza l’ID account, Cloudflare non riesce a trovare il progetto.",
+          "API token": "Token API",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, con il permesso Cloudflare Pages: Edit.",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Dashboard di Cloudflare: il lungo ID nella barra degli indirizzi, subito dopo dash.cloudflare.com/."
         },
         "hi": {
           "Project name": "प्रोजेक्ट नाम",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages हर प्रकाशन पर इस नाम से प्रोजेक्ट खोजता या बनाता है।",
-          "Account ID": "खाता ID"
+          "Account ID": "खाता ID",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Cloudflare Pages: Edit अनुमति वाला API टोकन और आपका Cloudflare खाता ID चाहिए। खाता ID के बिना Cloudflare प्रोजेक्ट नहीं ढूँढ सकता।",
+          "API token": "API टोकन",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, Cloudflare Pages: Edit अनुमति के साथ।",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare डैशबोर्ड: एड्रेस बार में dash.cloudflare.com/ के ठीक बाद वाला लंबा ID।"
         },
         "ur": {
           "Project name": "پروجیکٹ کا نام",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages ہر اشاعت پر اس نام کا پروجیکٹ ڈھونڈتا یا بناتا ہے۔",
-          "Account ID": "اکاؤنٹ ID"
+          "Account ID": "اکاؤنٹ ID",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Cloudflare Pages: Edit اجازت والا API ٹوکن اور آپ کا Cloudflare اکاؤنٹ ID درکار ہے۔ اکاؤنٹ ID کے بغیر Cloudflare پروجیکٹ نہیں ڈھونڈ سکتا۔",
+          "API token": "API ٹوکن",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens، Cloudflare Pages: Edit اجازت کے ساتھ۔",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare ڈیش بورڈ: ایڈریس بار میں dash.cloudflare.com/ کے فوراً بعد والا لمبا ID۔"
         },
         "bn": {
           "Project name": "প্রকল্পের নাম",
           "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages প্রতিটি প্রকাশনার সময় এই নামের একটি প্রকল্প খুঁজে বা তৈরি করে।",
-          "Account ID": "অ্যাকাউন্ট আইডি"
+          "Account ID": "অ্যাকাউন্ট আইডি",
+          "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.": "Cloudflare Pages: Edit অনুমতিসহ একটি API টোকেন এবং আপনার Cloudflare অ্যাকাউন্ট আইডি প্রয়োজন। অ্যাকাউন্ট আইডি ছাড়া Cloudflare প্রকল্পটি খুঁজে পায় না।",
+          "API token": "API টোকেন",
+          "Cloudflare: My Profile > API Tokens, with the Cloudflare Pages: Edit permission.": "Cloudflare: My Profile > API Tokens, Cloudflare Pages: Edit অনুমতিসহ।",
+          "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.": "Cloudflare ড্যাশবোর্ড: ঠিকানা বারে dash.cloudflare.com/-এর ঠিক পরের লম্বা আইডি।"
         }
       }
     },
@@ -665,6 +967,349 @@
             "userHelp": "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached."
           }
         ]
+      },
+      "i18n": {
+        "es": {
+          "S3-compatible storage": "Almacenamiento compatible con S3",
+          "the storage provider": "el proveedor de almacenamiento",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Antes de rellenar esto: crea el bucket, hazlo accesible en la web y crea una clave de acceso limitada a ese bucket. El asistente puede darte los pasos exactos para tu proveedor.",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "La dirección de la API de tu servicio de almacenamiento, no la dirección web de tu bucket. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: consulta el campo 'Endpoint' de tu bucket en el panel de B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. AWS S3 sin más: déjalo en blanco.",
+          "Region": "Región",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "La región donde está tu bucket; por ejemplo, us-east-1 en AWS, auto en Cloudflare R2 o la región de tu Space en DigitalOcean (p. ej., nyc3). Hace falta para firmar bien las solicitudes aunque tu proveedor no use regiones.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "El nombre exacto del bucket (DigitalOcean lo llama 'Space') en el que se publica. Distingue mayúsculas y minúsculas. Tovu no lo crea por ti: créalo primero en el panel de tu proveedor.",
+          "Access key ID": "ID de clave de acceso",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Se crea junto con tu clave de acceso secreta al generar un par de claves de API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Usa una clave limitada a este bucket si tu proveedor lo permite, no una clave para toda la cuenta.",
+          "Secret access key": "Clave de acceso secreta",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Solo se muestra una vez, al crear el par de claves: cópiala enseguida. Si la pierdes, tu proveedor no puede volver a mostrártela y tendrás que crear una clave nueva. Tovu la guarda cifrada y nunca vuelve a mostrarla después de guardarla.",
+          "Public URL": "URL pública",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "La dirección que abren los visitantes: la URL pública de tu bucket o un dominio propio que apunte al bucket. Tovu la comprueba después de cada publicación y te avisa si no se puede acceder."
+        },
+        "id": {
+          "S3-compatible storage": "Penyimpanan kompatibel S3",
+          "the storage provider": "penyedia penyimpanan",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Sebelum mengisi ini: buat bucket, jadikan dapat diakses di web, dan buat kunci akses yang dibatasi ke bucket tersebut. Asisten dapat memberi Anda langkah persisnya untuk penyedia Anda.",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "Alamat API layanan penyimpanan Anda — bukan alamat situs web bucket Anda. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: lihat kolom 'Endpoint' bucket Anda di dasbor B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. AWS S3 biasa: kosongkan.",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "Region tempat bucket Anda berada — mis. us-east-1 untuk AWS, auto untuk Cloudflare R2, atau region Space Anda untuk DigitalOcean (mis. nyc3). Diperlukan agar permintaan ditandatangani dengan benar, meskipun penyedia Anda tidak memakai region.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Nama persis bucket (DigitalOcean menyebutnya 'Space') tujuan publikasi. Peka huruf besar-kecil. Tovu tidak membuatnya untuk Anda — buat dulu di dasbor penyedia Anda.",
+          "Access key ID": "ID kunci akses",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Dibuat bersama kunci akses rahasia saat Anda membuat pasangan kunci API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Gunakan kunci yang dibatasi hanya ke bucket ini jika penyedia Anda mendukungnya — bukan kunci untuk seluruh akun.",
+          "Secret access key": "Kunci akses rahasia",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Hanya ditampilkan sekali, saat pasangan kunci dibuat — segera salin. Jika hilang, penyedia Anda tidak dapat menampilkannya lagi; Anda harus membuat kunci baru. Tovu menyimpannya terenkripsi dan tidak pernah menampilkannya lagi setelah Anda simpan.",
+          "Public URL": "URL publik",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Alamat yang dibuka pengunjung: URL publik bucket Anda, atau domain kustom yang diarahkan ke bucket. Tovu memeriksanya setelah setiap publikasi dan memberi tahu Anda jika tidak dapat dijangkau."
+        },
+        "de": {
+          "S3-compatible storage": "S3-kompatibler Speicher",
+          "the storage provider": "der Speicheranbieter",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Bevor Sie dies ausfüllen: Legen Sie den Bucket an, machen Sie ihn im Web erreichbar und erstellen Sie einen Zugriffsschlüssel, der auf diesen Bucket beschränkt ist. Der Assistent kann Ihnen die genauen Schritte für Ihren Anbieter nennen.",
+          "Endpoint": "Endpunkt",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "Die API-Adresse Ihres Speicherdienstes — nicht die Website-Adresse Ihres Buckets. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: siehe das Feld 'Endpoint' Ihres Buckets im B2-Dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Reines AWS S3: leer lassen.",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "Die Region, in der Ihr Bucket liegt — z. B. us-east-1 bei AWS, auto bei Cloudflare R2 oder die Region Ihres Space bei DigitalOcean (z. B. nyc3). Wird zum korrekten Signieren von Anfragen benötigt, auch wenn Ihr Anbieter sonst keine Regionen kennt.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Der genaue Name des Buckets (bei DigitalOcean 'Space'), in den veröffentlicht wird. Groß- und Kleinschreibung beachten. Tovu legt ihn nicht für Sie an — erstellen Sie ihn zuerst im Dashboard Ihres Anbieters.",
+          "Access key ID": "Zugriffsschlüssel-ID",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Wird zusammen mit Ihrem geheimen Zugriffsschlüssel erstellt, wenn Sie ein API-Schlüsselpaar anlegen. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Verwenden Sie einen Schlüssel, der nur auf diesen einen Bucket beschränkt ist, sofern Ihr Anbieter das unterstützt — keinen kontoweiten Schlüssel.",
+          "Secret access key": "Geheimer Zugriffsschlüssel",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Wird nur einmal angezeigt, beim Erstellen des Schlüsselpaars — kopieren Sie ihn sofort. Wenn er verloren geht, kann Ihr Anbieter ihn nicht erneut anzeigen; Sie müssen dann einen neuen Schlüssel erstellen. Tovu speichert ihn verschlüsselt und zeigt ihn nach dem Speichern nie wieder an.",
+          "Public URL": "Öffentliche URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Die Adresse, die Besucher öffnen: die öffentliche URL Ihres Buckets oder eine eigene Domain, die auf den Bucket zeigt. Tovu prüft sie nach jeder Veröffentlichung und sagt Ihnen, wenn sie nicht erreichbar ist."
+        },
+        "zh-CN": {
+          "S3-compatible storage": "S3 兼容存储",
+          "the storage provider": "存储提供商",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "填写之前：先创建存储桶，使其可通过网络访问，并创建一个仅限该存储桶的访问密钥。助手可以为您的提供商给出具体步骤。",
+          "Endpoint": "端点",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "您的存储服务的 API 地址——不是存储桶的网站地址。Cloudflare R2：https://<account-id>.r2.cloudflarestorage.com。Backblaze B2：查看 B2 控制面板中存储桶的 'Endpoint' 字段。DigitalOcean Spaces：https://<region>.digitaloceanspaces.com。Wasabi：https://s3.<region>.wasabisys.com。普通 AWS S3：留空。",
+          "Region": "区域",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "存储桶所在的区域——例如 AWS 为 us-east-1，Cloudflare R2 为 auto，DigitalOcean 为您的 Space 所在区域（例如 nyc3）。即使您的提供商本身不区分区域，也需要它来正确签名请求。",
+          "Bucket": "存储桶",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "要发布到的存储桶的确切名称（DigitalOcean 称之为 'Space'）。区分大小写。Tovu 不会为您创建它——请先在提供商的控制面板中创建。",
+          "Access key ID": "访问密钥 ID",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "创建 API 密钥对时与秘密访问密钥一同生成。AWS：IAM → Security credentials → Access keys。Cloudflare R2：R2 → Manage API tokens。Backblaze B2：Application Keys。如果提供商支持，请使用仅限这一个存储桶的密钥，而不是整个帐户的密钥。",
+          "Secret access key": "秘密访问密钥",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "仅在创建密钥对时显示一次——请立即复制。如果丢失，提供商无法再次显示，您需要创建新密钥。Tovu 会加密存储它，保存后不再显示。",
+          "Public URL": "公开 URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "访问者打开的地址：存储桶的公开 URL，或指向该存储桶的自定义域名。Tovu 会在每次发布后检查它，无法访问时会告诉您。"
+        },
+        "zh-TW": {
+          "S3-compatible storage": "S3 相容儲存空間",
+          "the storage provider": "儲存服務供應商",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "填寫之前：先建立儲存貯體，讓它可從網路存取，並建立僅限該儲存貯體的存取金鑰。助理可以提供適用於您供應商的確切步驟。",
+          "Endpoint": "端點",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "您儲存服務的 API 位址——不是儲存貯體的網站位址。Cloudflare R2：https://<account-id>.r2.cloudflarestorage.com。Backblaze B2：查看 B2 控制台中儲存貯體的 'Endpoint' 欄位。DigitalOcean Spaces：https://<region>.digitaloceanspaces.com。Wasabi：https://s3.<region>.wasabisys.com。一般 AWS S3：留空。",
+          "Region": "區域",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "儲存貯體所在的區域——例如 AWS 為 us-east-1，Cloudflare R2 為 auto，DigitalOcean 為您 Space 的區域（例如 nyc3）。即使您的供應商本身不使用區域，也需要它才能正確簽署請求。",
+          "Bucket": "儲存貯體",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "要發佈到的儲存貯體確切名稱（DigitalOcean 稱為 'Space'）。區分大小寫。Tovu 不會替您建立——請先在供應商的控制台建立。",
+          "Access key ID": "存取金鑰 ID",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "建立 API 金鑰組時與秘密存取金鑰一起產生。AWS：IAM → Security credentials → Access keys。Cloudflare R2：R2 → Manage API tokens。Backblaze B2：Application Keys。若供應商支援，請使用僅限這一個儲存貯體的金鑰，而非整個帳戶的金鑰。",
+          "Secret access key": "秘密存取金鑰",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "只在建立金鑰組時顯示一次——請立即複製。若遺失，供應商無法再次顯示，您必須建立新金鑰。Tovu 會加密儲存，儲存後不再顯示。",
+          "Public URL": "公開 URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "訪客開啟的位址：儲存貯體的公開 URL，或指向該儲存貯體的自訂網域。Tovu 會在每次發佈後檢查，無法連線時會告訴您。"
+        },
+        "pt-BR": {
+          "S3-compatible storage": "Armazenamento compatível com S3",
+          "the storage provider": "o provedor de armazenamento",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Antes de preencher: crie o bucket, deixe-o acessível na web e crie uma chave de acesso limitada a esse bucket. O assistente pode dar os passos exatos para o seu provedor.",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "O endereço da API do seu serviço de armazenamento — não o endereço do site do seu bucket. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: veja o campo 'Endpoint' do seu bucket no painel do B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. AWS S3 puro: deixe em branco.",
+          "Region": "Região",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "A região onde fica o seu bucket — por exemplo, us-east-1 na AWS, auto no Cloudflare R2 ou a região do seu Space na DigitalOcean (ex.: nyc3). É necessária para assinar as solicitações corretamente, mesmo que o seu provedor não trabalhe com regiões.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "O nome exato do bucket (a DigitalOcean chama de 'Space') para onde publicar. Diferencia maiúsculas de minúsculas. O Tovu não o cria para você — crie-o primeiro no painel do seu provedor.",
+          "Access key ID": "ID da chave de acesso",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Criado junto com a sua chave de acesso secreta quando você gera um par de chaves de API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use uma chave limitada a este bucket se o seu provedor permitir — não uma chave para a conta inteira.",
+          "Secret access key": "Chave de acesso secreta",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Aparece só uma vez, no momento em que o par de chaves é criado — copie na hora. Se perder, o seu provedor não consegue mostrá-la de novo; você precisará criar uma chave nova. O Tovu a armazena criptografada e nunca mais a exibe depois que você salva.",
+          "Public URL": "URL pública",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "O endereço que os visitantes abrem: a URL pública do seu bucket ou um domínio próprio apontado para o bucket. O Tovu verifica após cada publicação e avisa se não estiver acessível."
+        },
+        "ru": {
+          "S3-compatible storage": "S3-совместимое хранилище",
+          "the storage provider": "поставщик хранилища",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Прежде чем заполнять: создайте бакет, сделайте его доступным из интернета и создайте ключ доступа, ограниченный этим бакетом. Ассистент может подсказать точные шаги для вашего поставщика.",
+          "Endpoint": "Эндпоинт",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "Адрес API вашего сервиса хранения — не адрес сайта вашего бакета. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: см. поле 'Endpoint' вашего бакета в панели B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Обычный AWS S3: оставьте пустым.",
+          "Region": "Регион",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "Регион, в котором находится ваш бакет, — например, us-east-1 для AWS, auto для Cloudflare R2 или регион вашего Space в DigitalOcean (например, nyc3). Нужен для правильной подписи запросов, даже если ваш поставщик не использует регионы.",
+          "Bucket": "Бакет",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Точное имя бакета (в DigitalOcean он называется 'Space'), в который выполняется публикация. С учётом регистра. Tovu не создаёт его за вас — сначала создайте его в панели вашего поставщика.",
+          "Access key ID": "ID ключа доступа",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Создаётся вместе с секретным ключом доступа, когда вы создаёте пару ключей API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Если поставщик позволяет, используйте ключ, ограниченный только этим бакетом, а не ключ для всей учётной записи.",
+          "Secret access key": "Секретный ключ доступа",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Показывается только один раз, в момент создания пары ключей, — скопируйте его сразу. Если вы его потеряете, поставщик не сможет показать его снова, и придётся создать новый ключ. Tovu хранит его в зашифрованном виде и никогда не показывает после сохранения.",
+          "Public URL": "Публичный URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Адрес, который открывают посетители: публичный URL вашего бакета или собственный домен, направленный на бакет. Tovu проверяет его после каждой публикации и сообщит, если он недоступен."
+        },
+        "fa": {
+          "S3-compatible storage": "فضای ذخیره‌سازی سازگار با S3",
+          "the storage provider": "ارائه‌دهنده فضای ذخیره‌سازی",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "پیش از پر کردن این بخش: باکت را بسازید، آن را از وب در دسترس کنید و یک کلید دسترسی محدود به همان باکت بسازید. دستیار می‌تواند مراحل دقیق را برای ارائه‌دهنده شما بگوید.",
+          "Endpoint": "نقطه پایانی",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "نشانی API سرویس ذخیره‌سازی شما — نه نشانی وب‌سایت باکت. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: فیلد 'Endpoint' باکت خود را در داشبورد B2 ببینید. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. AWS S3 معمولی: خالی بگذارید.",
+          "Region": "منطقه",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "منطقه‌ای که باکت شما در آن است — مثلاً us-east-1 برای AWS، auto برای Cloudflare R2، یا منطقه Space شما در DigitalOcean (مثلاً nyc3). برای امضای درست درخواست‌ها لازم است، حتی اگر ارائه‌دهنده شما از منطقه استفاده نکند.",
+          "Bucket": "باکت",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "نام دقیق باکتی (DigitalOcean آن را 'Space' می‌نامد) که در آن منتشر می‌شود. به حروف کوچک و بزرگ حساس است. Tovu آن را برای شما نمی‌سازد — ابتدا آن را در داشبورد ارائه‌دهنده خود بسازید.",
+          "Access key ID": "شناسه کلید دسترسی",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "هنگام ساختن جفت‌کلید API، همراه با کلید دسترسی مخفی ساخته می‌شود. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. اگر ارائه‌دهنده شما پشتیبانی می‌کند، از کلیدی استفاده کنید که فقط به همین باکت محدود است — نه کلیدی برای کل حساب.",
+          "Secret access key": "کلید دسترسی مخفی",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "فقط یک بار، هنگام ساخت جفت‌کلید، نمایش داده می‌شود — فوراً آن را کپی کنید. اگر گمش کنید، ارائه‌دهنده نمی‌تواند دوباره نشانش دهد و باید کلید تازه‌ای بسازید. Tovu آن را رمزنگاری‌شده ذخیره می‌کند و پس از ذخیره دیگر نمایش نمی‌دهد.",
+          "Public URL": "نشانی عمومی",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "نشانی‌ای که بازدیدکنندگان باز می‌کنند: نشانی عمومی باکت، یا دامنه سفارشی که به باکت اشاره می‌کند. Tovu پس از هر انتشار آن را بررسی می‌کند و اگر در دسترس نباشد به شما می‌گوید."
+        },
+        "ar": {
+          "S3-compatible storage": "تخزين متوافق مع S3",
+          "the storage provider": "مزوّد التخزين",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "قبل تعبئة هذا: أنشئ الحاوية (bucket)، واجعلها متاحة على الويب، وأنشئ مفتاح وصول مقصورًا على تلك الحاوية. يمكن للمساعد أن يعطيك الخطوات الدقيقة لمزوّدك.",
+          "Endpoint": "نقطة النهاية",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "عنوان API لخدمة التخزين لديك — وليس عنوان موقع الحاوية. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: راجع حقل 'Endpoint' لحاويتك في لوحة B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. AWS S3 العادي: اتركه فارغًا.",
+          "Region": "المنطقة",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "المنطقة التي توجد فيها حاويتك — مثل us-east-1 في AWS، أو auto في Cloudflare R2، أو منطقة Space الخاصة بك في DigitalOcean (مثل nyc3). مطلوبة لتوقيع الطلبات بشكل صحيح حتى لو كان مزوّدك لا يعتمد المناطق.",
+          "Bucket": "الحاوية",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "الاسم الدقيق للحاوية (تسميها DigitalOcean 'Space') التي يتم النشر إليها. حساس لحالة الأحرف. لا ينشئها Tovu نيابةً عنك — أنشئها أولًا في لوحة مزوّدك.",
+          "Access key ID": "معرّف مفتاح الوصول",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "يُنشأ مع مفتاح الوصول السري عند إنشاء زوج مفاتيح API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. استخدم مفتاحًا مقصورًا على هذه الحاوية وحدها إن كان مزوّدك يدعم ذلك — لا مفتاحًا للحساب كله.",
+          "Secret access key": "مفتاح الوصول السري",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "يُعرض مرة واحدة فقط، لحظة إنشاء زوج المفاتيح — انسخه فورًا. إذا فقدته، فلن يستطيع مزوّدك عرضه مجددًا وستحتاج إلى إنشاء مفتاح جديد. يخزّنه Tovu مشفّرًا ولا يعرضه مرة أخرى بعد الحفظ.",
+          "Public URL": "العنوان العام",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "العنوان الذي يفتحه الزوار: عنوان URL العام لحاويتك، أو نطاق مخصص يشير إلى الحاوية. يتحقق Tovu منه بعد كل نشر ويخبرك إذا تعذّر الوصول إليه."
+        },
+        "ja": {
+          "S3-compatible storage": "S3 互換ストレージ",
+          "the storage provider": "ストレージプロバイダー",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "入力する前に: バケットを作成し、Web から到達できるようにし、そのバケットに限定したアクセスキーを作成してください。アシスタントがお使いのプロバイダー向けの具体的な手順を案内できます。",
+          "Endpoint": "エンドポイント",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "ストレージサービスの API アドレスです。バケットの Web サイトアドレスではありません。Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com。Backblaze B2: B2 ダッシュボードでバケットの 'Endpoint' 欄を確認します。DigitalOcean Spaces: https://<region>.digitaloceanspaces.com。Wasabi: https://s3.<region>.wasabisys.com。通常の AWS S3: 空欄のままにします。",
+          "Region": "リージョン",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "バケットがあるリージョンです。例: AWS なら us-east-1、Cloudflare R2 なら auto、DigitalOcean なら Space のリージョン（例: nyc3）。プロバイダーがリージョンを意識しない場合でも、リクエストに正しく署名するために必要です。",
+          "Bucket": "バケット",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "公開先バケットの正確な名前（DigitalOcean では 'Space'）。大文字と小文字を区別します。Tovu はこれを作成しません。先にプロバイダーのダッシュボードで作成してください。",
+          "Access key ID": "アクセスキー ID",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "API キーペアを作成するときに、シークレットアクセスキーと一緒に作成されます。AWS: IAM → Security credentials → Access keys。Cloudflare R2: R2 → Manage API tokens。Backblaze B2: Application Keys。プロバイダーが対応していれば、アカウント全体ではなくこのバケットだけに限定したキーを使ってください。",
+          "Secret access key": "シークレットアクセスキー",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "キーペアを作成したときに一度だけ表示されます。すぐにコピーしてください。紛失するとプロバイダーでも再表示できず、新しいキーの作成が必要になります。Tovu は暗号化して保存し、保存後に再び表示することはありません。",
+          "Public URL": "公開 URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "訪問者が開くアドレス: バケットの公開 URL、またはバケットを指すカスタムドメイン。Tovu は公開のたびに確認し、到達できない場合はお知らせします。"
+        },
+        "ko": {
+          "S3-compatible storage": "S3 호환 스토리지",
+          "the storage provider": "스토리지 제공업체",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "입력하기 전에: 버킷을 만들고, 웹에서 접근할 수 있게 하고, 해당 버킷으로 제한된 액세스 키를 만드세요. 어시스턴트가 사용 중인 제공업체에 맞는 정확한 단계를 알려 드릴 수 있습니다.",
+          "Endpoint": "엔드포인트",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "스토리지 서비스의 API 주소입니다. 버킷의 웹사이트 주소가 아닙니다. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: B2 대시보드에서 버킷의 'Endpoint' 필드를 확인하세요. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. 일반 AWS S3: 비워 두세요.",
+          "Region": "리전",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "버킷이 있는 리전입니다. 예: AWS는 us-east-1, Cloudflare R2는 auto, DigitalOcean은 Space의 리전(예: nyc3). 제공업체가 리전 개념을 쓰지 않더라도 요청에 올바르게 서명하려면 필요합니다.",
+          "Bucket": "버킷",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "게시할 버킷의 정확한 이름입니다(DigitalOcean에서는 'Space'). 대소문자를 구분합니다. Tovu가 대신 만들지 않으니 먼저 제공업체 대시보드에서 만드세요.",
+          "Access key ID": "액세스 키 ID",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "API 키 쌍을 만들 때 비밀 액세스 키와 함께 생성됩니다. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. 제공업체가 지원하면 계정 전체 키가 아니라 이 버킷 하나로 제한된 키를 사용하세요.",
+          "Secret access key": "비밀 액세스 키",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "키 쌍을 만드는 순간 한 번만 표시되니 바로 복사하세요. 잃어버리면 제공업체도 다시 보여 줄 수 없어 새 키를 만들어야 합니다. Tovu는 암호화해 저장하며 저장한 뒤에는 다시 표시하지 않습니다.",
+          "Public URL": "공개 URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "방문자가 여는 주소입니다. 버킷의 공개 URL 또는 버킷을 가리키는 사용자 지정 도메인입니다. Tovu는 게시할 때마다 확인하고 접근할 수 없으면 알려 드립니다."
+        },
+        "pl": {
+          "S3-compatible storage": "Magazyn zgodny z S3",
+          "the storage provider": "dostawca magazynu",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Zanim to wypełnisz: utwórz bucket, udostępnij go w sieci i utwórz klucz dostępu ograniczony do tego bucketu. Asystent poda Ci dokładne kroki dla Twojego dostawcy.",
+          "Endpoint": "Punkt końcowy",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "Adres API Twojej usługi magazynu — nie adres strony Twojego bucketu. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: sprawdź pole 'Endpoint' bucketu w panelu B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Zwykłe AWS S3: zostaw puste.",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "Region, w którym znajduje się Twój bucket — np. us-east-1 w AWS, auto w Cloudflare R2 lub region Twojego Space w DigitalOcean (np. nyc3). Potrzebny do poprawnego podpisywania żądań, nawet jeśli Twój dostawca nie posługuje się regionami.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Dokładna nazwa bucketu (w DigitalOcean nazywa się 'Space'), do którego publikujesz. Wielkość liter ma znaczenie. Tovu go nie utworzy — najpierw utwórz go w panelu dostawcy.",
+          "Access key ID": "Identyfikator klucza dostępu",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Tworzony razem z tajnym kluczem dostępu, gdy generujesz parę kluczy API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Jeśli dostawca na to pozwala, użyj klucza ograniczonego tylko do tego bucketu — nie klucza dla całego konta.",
+          "Secret access key": "Tajny klucz dostępu",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Wyświetlany tylko raz, w chwili tworzenia pary kluczy — skopiuj go od razu. Jeśli go zgubisz, dostawca nie pokaże go ponownie i trzeba będzie utworzyć nowy klucz. Tovu przechowuje go zaszyfrowany i po zapisaniu nigdy go nie wyświetla.",
+          "Public URL": "Publiczny URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Adres, który otwierają odwiedzający: publiczny URL Twojego bucketu lub własna domena wskazująca na bucket. Tovu sprawdza go po każdej publikacji i powie Ci, jeśli jest nieosiągalny."
+        },
+        "hu": {
+          "S3-compatible storage": "S3-kompatibilis tárhely",
+          "the storage provider": "a tárhelyszolgáltató",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Mielőtt kitölti: hozza létre a bucketet, tegye elérhetővé a weben, és hozzon létre egy csak erre a bucketre korlátozott hozzáférési kulcsot. Az asszisztens megadja a pontos lépéseket a szolgáltatójához.",
+          "Endpoint": "Végpont",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "A tárhelyszolgáltatás API-címe — nem a bucket webhelycíme. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: nézze meg a bucket 'Endpoint' mezőjét a B2 irányítópulton. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Sima AWS S3: hagyja üresen.",
+          "Region": "Régió",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "A régió, ahol a bucket található — pl. us-east-1 az AWS-nél, auto a Cloudflare R2-nél, vagy a Space régiója a DigitalOceannél (pl. nyc3). A kérések helyes aláírásához kell, akkor is, ha a szolgáltatója egyébként nem használ régiókat.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Annak a bucketnek a pontos neve (a DigitalOcean 'Space'-nek hívja), ahová a közzététel történik. Kis- és nagybetűérzékeny. A Tovu nem hozza létre — először hozza létre a szolgáltató irányítópultján.",
+          "Access key ID": "Hozzáférési kulcs azonosítója",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Az API-kulcspár létrehozásakor jön létre a titkos hozzáférési kulccsal együtt. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Ha a szolgáltató támogatja, csak erre az egy bucketre korlátozott kulcsot használjon — ne az egész fiókra szólót.",
+          "Secret access key": "Titkos hozzáférési kulcs",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Csak egyszer jelenik meg, a kulcspár létrehozásakor — azonnal másolja ki. Ha elveszíti, a szolgáltató sem tudja újra megmutatni; új kulcsot kell létrehoznia. A Tovu titkosítva tárolja, és mentés után többé nem jeleníti meg.",
+          "Public URL": "Nyilvános URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "A cím, amelyet a látogatók megnyitnak: a bucket nyilvános URL-je, vagy a bucketre mutató saját domain. A Tovu minden közzététel után ellenőrzi, és szól, ha nem érhető el."
+        },
+        "fr": {
+          "S3-compatible storage": "Stockage compatible S3",
+          "the storage provider": "le fournisseur de stockage",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Avant de remplir ceci : créez le bucket, rendez-le accessible sur le web et créez une clé d’accès limitée à ce bucket. L’assistant peut vous donner les étapes exactes pour votre fournisseur.",
+          "Endpoint": "Point de terminaison",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "L’adresse de l’API de votre service de stockage — pas l’adresse web de votre bucket. Cloudflare R2 : https://<account-id>.r2.cloudflarestorage.com. Backblaze B2 : consultez le champ 'Endpoint' de votre bucket dans le tableau de bord B2. DigitalOcean Spaces : https://<region>.digitaloceanspaces.com. Wasabi : https://s3.<region>.wasabisys.com. AWS S3 standard : laissez vide.",
+          "Region": "Région",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "La région où se trouve votre bucket — par ex. us-east-1 pour AWS, auto pour Cloudflare R2, ou la région de votre Space pour DigitalOcean (par ex. nyc3). Nécessaire pour signer correctement les requêtes, même si votre fournisseur ne raisonne pas en régions.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Le nom exact du bucket (DigitalOcean l’appelle 'Space') dans lequel publier. Sensible à la casse. Tovu ne le crée pas pour vous — créez-le d’abord dans le tableau de bord de votre fournisseur.",
+          "Access key ID": "ID de clé d’accès",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Créé avec votre clé d’accès secrète quand vous générez une paire de clés API. AWS : IAM → Security credentials → Access keys. Cloudflare R2 : R2 → Manage API tokens. Backblaze B2 : Application Keys. Utilisez une clé limitée à ce seul bucket si votre fournisseur le permet — pas une clé valable pour tout le compte.",
+          "Secret access key": "Clé d’accès secrète",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Affichée une seule fois, au moment où la paire de clés est créée — copiez-la tout de suite. Si vous la perdez, votre fournisseur ne peut pas vous la réafficher ; il faudra créer une nouvelle clé. Tovu la stocke chiffrée et ne l’affiche plus jamais après l’enregistrement.",
+          "Public URL": "URL publique",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "L’adresse que les visiteurs ouvrent : l’URL publique de votre bucket, ou un domaine personnalisé pointant vers le bucket. Tovu la vérifie après chaque publication et vous prévient si elle est inaccessible."
+        },
+        "uk": {
+          "S3-compatible storage": "S3-сумісне сховище",
+          "the storage provider": "постачальник сховища",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Перш ніж заповнювати: створіть бакет, зробіть його доступним з інтернету та створіть ключ доступу, обмежений цим бакетом. Асистент може підказати точні кроки для вашого постачальника.",
+          "Endpoint": "Ендпоінт",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "Адреса API вашого сервісу зберігання — не адреса сайту вашого бакета. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: див. поле 'Endpoint' вашого бакета в панелі B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Звичайний AWS S3: залиште порожнім.",
+          "Region": "Регіон",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "Регіон, у якому розташований ваш бакет, — наприклад, us-east-1 для AWS, auto для Cloudflare R2 або регіон вашого Space у DigitalOcean (наприклад, nyc3). Потрібен для правильного підписування запитів, навіть якщо ваш постачальник не використовує регіони.",
+          "Bucket": "Бакет",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Точна назва бакета (у DigitalOcean він називається 'Space'), у який виконується публікація. З урахуванням регістру. Tovu не створює його за вас — спочатку створіть його в панелі постачальника.",
+          "Access key ID": "ID ключа доступу",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Створюється разом із секретним ключем доступу, коли ви створюєте пару ключів API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Якщо постачальник дозволяє, використовуйте ключ, обмежений лише цим бакетом, а не ключ для всього облікового запису.",
+          "Secret access key": "Секретний ключ доступу",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Показується лише один раз, у момент створення пари ключів, — скопіюйте його одразу. Якщо ви його втратите, постачальник не зможе показати його знову, і доведеться створити новий ключ. Tovu зберігає його в зашифрованому вигляді й ніколи не показує після збереження.",
+          "Public URL": "Публічний URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Адреса, яку відкривають відвідувачі: публічний URL вашого бакета або власний домен, спрямований на бакет. Tovu перевіряє її після кожної публікації й повідомить, якщо вона недоступна."
+        },
+        "tr": {
+          "S3-compatible storage": "S3 uyumlu depolama",
+          "the storage provider": "depolama sağlayıcısı",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Bunu doldurmadan önce: bucket'ı oluşturun, web'den erişilebilir hale getirin ve yalnızca o bucket ile sınırlı bir erişim anahtarı oluşturun. Asistan, sağlayıcınız için tam adımları verebilir.",
+          "Endpoint": "Uç nokta",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "Depolama hizmetinizin API adresi — bucket'ınızın web sitesi adresi değil. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: B2 panosunda bucket'ınızın 'Endpoint' alanına bakın. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Düz AWS S3: boş bırakın.",
+          "Region": "Bölge",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "Bucket'ınızın bulunduğu bölge — ör. AWS için us-east-1, Cloudflare R2 için auto veya DigitalOcean için Space'inizin bölgesi (ör. nyc3). Sağlayıcınız bölge kavramını kullanmasa bile istekleri doğru imzalamak için gereklidir.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Yayınlanacak bucket'ın tam adı (DigitalOcean buna 'Space' der). Büyük/küçük harfe duyarlıdır. Tovu bunu sizin için oluşturmaz — önce sağlayıcınızın panosunda oluşturun.",
+          "Access key ID": "Erişim anahtarı kimliği",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Bir API anahtar çifti oluşturduğunuzda gizli erişim anahtarınızla birlikte oluşturulur. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Sağlayıcınız destekliyorsa hesap genelinde bir anahtar değil, yalnızca bu bucket ile sınırlı bir anahtar kullanın.",
+          "Secret access key": "Gizli erişim anahtarı",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Yalnızca bir kez, anahtar çifti oluşturulduğu anda gösterilir — hemen kopyalayın. Kaybederseniz sağlayıcınız onu tekrar gösteremez; yeni bir anahtar oluşturmanız gerekir. Tovu bunu şifrelenmiş olarak saklar ve kaydettikten sonra bir daha göstermez.",
+          "Public URL": "Genel URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Ziyaretçilerin açtığı adres: bucket'ınızın genel URL'si veya bucket'a yönlendirilmiş özel bir alan adı. Tovu her yayından sonra bunu kontrol eder ve erişilemiyorsa size bildirir."
+        },
+        "th": {
+          "S3-compatible storage": "พื้นที่จัดเก็บที่เข้ากันได้กับ S3",
+          "the storage provider": "ผู้ให้บริการพื้นที่จัดเก็บ",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "ก่อนกรอกข้อมูลนี้: สร้างบัคเก็ต ทำให้เข้าถึงได้จากเว็บ และสร้างคีย์การเข้าถึงที่จำกัดเฉพาะบัคเก็ตนั้น ผู้ช่วยสามารถบอกขั้นตอนที่แน่นอนสำหรับผู้ให้บริการของคุณได้",
+          "Endpoint": "เอนด์พอยต์",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "ที่อยู่ API ของบริการพื้นที่จัดเก็บของคุณ — ไม่ใช่ที่อยู่เว็บไซต์ของบัคเก็ต Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com Backblaze B2: ดูช่อง 'Endpoint' ของบัคเก็ตในแดชบอร์ด B2 DigitalOcean Spaces: https://<region>.digitaloceanspaces.com Wasabi: https://s3.<region>.wasabisys.com AWS S3 ทั่วไป: เว้นว่างไว้",
+          "Region": "ภูมิภาค",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "ภูมิภาคที่บัคเก็ตของคุณอยู่ — เช่น us-east-1 สำหรับ AWS, auto สำหรับ Cloudflare R2 หรือภูมิภาคของ Space สำหรับ DigitalOcean (เช่น nyc3) จำเป็นสำหรับการลงนามคำขอให้ถูกต้อง แม้ผู้ให้บริการของคุณจะไม่ได้ใช้ภูมิภาคก็ตาม",
+          "Bucket": "บัคเก็ต",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "ชื่อที่แน่นอนของบัคเก็ต (DigitalOcean เรียกว่า 'Space') ที่จะเผยแพร่ไป ตัวพิมพ์เล็กและใหญ่มีผล Tovu ไม่สร้างให้คุณ — สร้างในแดชบอร์ดของผู้ให้บริการก่อน",
+          "Access key ID": "ID คีย์การเข้าถึง",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "สร้างขึ้นพร้อมกับคีย์การเข้าถึงลับเมื่อคุณสร้างคู่คีย์ API AWS: IAM → Security credentials → Access keys Cloudflare R2: R2 → Manage API tokens Backblaze B2: Application Keys ใช้คีย์ที่จำกัดเฉพาะบัคเก็ตนี้หากผู้ให้บริการรองรับ — ไม่ใช่คีย์สำหรับทั้งบัญชี",
+          "Secret access key": "คีย์การเข้าถึงลับ",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "แสดงเพียงครั้งเดียวตอนสร้างคู่คีย์ — คัดลอกทันที หากทำหาย ผู้ให้บริการจะแสดงให้อีกไม่ได้ และคุณต้องสร้างคีย์ใหม่ Tovu จัดเก็บแบบเข้ารหัสและไม่แสดงอีกหลังจากคุณบันทึก",
+          "Public URL": "URL สาธารณะ",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "ที่อยู่ที่ผู้เยี่ยมชมเปิด: URL สาธารณะของบัคเก็ต หรือโดเมนที่กำหนดเองซึ่งชี้ไปที่บัคเก็ต Tovu ตรวจสอบหลังการเผยแพร่ทุกครั้งและแจ้งคุณหากเข้าถึงไม่ได้"
+        },
+        "it": {
+          "S3-compatible storage": "Storage compatibile con S3",
+          "the storage provider": "il provider di storage",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "Prima di compilare: crea il bucket, rendilo raggiungibile sul web e crea una chiave di accesso limitata a quel bucket. L’assistente può darti i passaggi esatti per il tuo provider.",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "L’indirizzo API del tuo servizio di storage, non l’indirizzo web del bucket. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: controlla il campo 'Endpoint' del bucket nella dashboard di B2. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. AWS S3 standard: lascia vuoto.",
+          "Region": "Regione",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "La regione in cui si trova il bucket, ad es. us-east-1 per AWS, auto per Cloudflare R2 o la regione del tuo Space per DigitalOcean (ad es. nyc3). Serve per firmare correttamente le richieste anche se il tuo provider non ragiona per regioni.",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "Il nome esatto del bucket (DigitalOcean lo chiama 'Space') in cui pubblicare. Distingue maiuscole e minuscole. Tovu non lo crea al posto tuo: crealo prima nella dashboard del tuo provider.",
+          "Access key ID": "ID chiave di accesso",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "Viene creato insieme alla chiave di accesso segreta quando generi una coppia di chiavi API. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Se il provider lo consente, usa una chiave limitata a questo solo bucket, non una chiave valida per tutto l’account.",
+          "Secret access key": "Chiave di accesso segreta",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Viene mostrata una sola volta, quando si crea la coppia di chiavi: copiala subito. Se la perdi, il provider non può mostrartela di nuovo e dovrai crearne una nuova. Tovu la conserva crittografata e non la mostra mai più dopo il salvataggio.",
+          "Public URL": "URL pubblico",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "L’indirizzo che aprono i visitatori: l’URL pubblico del bucket o un dominio personalizzato che punta al bucket. Tovu lo controlla dopo ogni pubblicazione e ti avvisa se non è raggiungibile."
+        },
+        "hi": {
+          "S3-compatible storage": "S3-संगत स्टोरेज",
+          "the storage provider": "स्टोरेज प्रदाता",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "इसे भरने से पहले: बकेट बनाएँ, उसे वेब पर पहुँच योग्य बनाएँ, और केवल उसी बकेट तक सीमित एक एक्सेस कुंजी बनाएँ। सहायक आपके प्रदाता के लिए सटीक चरण बता सकता है।",
+          "Endpoint": "एंडपॉइंट",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "आपकी स्टोरेज सेवा का API पता — आपके बकेट की वेबसाइट का पता नहीं। Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: B2 डैशबोर्ड में अपने बकेट का 'Endpoint' फ़ील्ड देखें। DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. सामान्य AWS S3: खाली छोड़ें।",
+          "Region": "क्षेत्र",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "वह क्षेत्र जहाँ आपका बकेट है — जैसे AWS के लिए us-east-1, Cloudflare R2 के लिए auto, या DigitalOcean के लिए आपके Space का क्षेत्र (जैसे nyc3)। अनुरोधों पर सही हस्ताक्षर के लिए ज़रूरी है, भले ही आपका प्रदाता क्षेत्रों का उपयोग न करता हो।",
+          "Bucket": "बकेट",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "उस बकेट का सटीक नाम (DigitalOcean इसे 'Space' कहता है) जिसमें प्रकाशित करना है। बड़े-छोटे अक्षरों का अंतर मायने रखता है। Tovu इसे आपके लिए नहीं बनाता — पहले इसे अपने प्रदाता के डैशबोर्ड में बनाएँ।",
+          "Access key ID": "एक्सेस कुंजी ID",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "API कुंजी जोड़ी बनाते समय आपकी गुप्त एक्सेस कुंजी के साथ बनती है। AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. यदि आपका प्रदाता समर्थन करता है, तो पूरे खाते की कुंजी नहीं, केवल इसी बकेट तक सीमित कुंजी का उपयोग करें।",
+          "Secret access key": "गुप्त एक्सेस कुंजी",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "केवल एक बार, कुंजी जोड़ी बनाते समय दिखाई जाती है — तुरंत कॉपी करें। खो जाने पर आपका प्रदाता इसे दोबारा नहीं दिखा सकता; आपको नई कुंजी बनानी होगी। Tovu इसे एन्क्रिप्ट करके संग्रहीत करता है और सहेजने के बाद फिर कभी नहीं दिखाता।",
+          "Public URL": "सार्वजनिक URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "वह पता जिसे आगंतुक खोलते हैं: आपके बकेट का सार्वजनिक URL, या बकेट की ओर इंगित कस्टम डोमेन। Tovu हर प्रकाशन के बाद इसकी जाँच करता है और पहुँच न होने पर आपको बताता है।"
+        },
+        "ur": {
+          "S3-compatible storage": "S3 سے مطابقت رکھنے والا اسٹوریج",
+          "the storage provider": "اسٹوریج فراہم کنندہ",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "یہ بھرنے سے پہلے: بکٹ بنائیں، اسے ویب پر قابلِ رسائی بنائیں، اور صرف اسی بکٹ تک محدود ایک رسائی کلید بنائیں۔ اسسٹنٹ آپ کے فراہم کنندہ کے لیے درست مراحل بتا سکتا ہے۔",
+          "Endpoint": "اینڈپوائنٹ",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "آپ کی اسٹوریج سروس کا API پتہ — آپ کے بکٹ کی ویب سائٹ کا پتہ نہیں۔ Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: B2 ڈیش بورڈ میں اپنے بکٹ کا 'Endpoint' فیلڈ دیکھیں۔ DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. سادہ AWS S3: خالی چھوڑ دیں۔",
+          "Region": "علاقہ",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "وہ علاقہ جہاں آپ کا بکٹ ہے — مثلاً AWS کے لیے us-east-1، Cloudflare R2 کے لیے auto، یا DigitalOcean کے لیے آپ کے Space کا علاقہ (مثلاً nyc3)۔ درخواستوں پر درست دستخط کے لیے ضروری ہے، چاہے آپ کا فراہم کنندہ علاقے استعمال نہ کرتا ہو۔",
+          "Bucket": "بکٹ",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "اس بکٹ کا درست نام (DigitalOcean اسے 'Space' کہتا ہے) جس میں شائع کرنا ہے۔ بڑے اور چھوٹے حروف کا فرق اہم ہے۔ Tovu اسے آپ کے لیے نہیں بناتا — پہلے اسے اپنے فراہم کنندہ کے ڈیش بورڈ میں بنائیں۔",
+          "Access key ID": "رسائی کلید ID",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "API کلیدی جوڑا بناتے وقت آپ کی خفیہ رسائی کلید کے ساتھ بنتا ہے۔ AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. اگر آپ کا فراہم کنندہ اجازت دیتا ہے تو پورے اکاؤنٹ کی کلید کے بجائے صرف اسی بکٹ تک محدود کلید استعمال کریں۔",
+          "Secret access key": "خفیہ رسائی کلید",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "صرف ایک بار، کلیدی جوڑا بنتے وقت دکھائی جاتی ہے — فوراً کاپی کریں۔ کھو جانے پر آپ کا فراہم کنندہ اسے دوبارہ نہیں دکھا سکتا؛ آپ کو نئی کلید بنانی ہوگی۔ Tovu اسے خفیہ کاری کے ساتھ محفوظ کرتا ہے اور محفوظ کرنے کے بعد دوبارہ کبھی نہیں دکھاتا۔",
+          "Public URL": "عوامی URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "وہ پتہ جو ملاحظہ کار کھولتے ہیں: آپ کے بکٹ کا عوامی URL، یا بکٹ کی طرف اشارہ کرنے والا حسبِ ضرورت ڈومین۔ Tovu ہر اشاعت کے بعد اسے چیک کرتا ہے اور قابلِ رسائی نہ ہو تو آپ کو بتاتا ہے۔"
+        },
+        "bn": {
+          "S3-compatible storage": "S3-সামঞ্জস্যপূর্ণ স্টোরেজ",
+          "the storage provider": "স্টোরেজ প্রদানকারী",
+          "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.": "এটি পূরণ করার আগে: বাকেট তৈরি করুন, ওয়েব থেকে সেটিতে পৌঁছানো যায় এমন করুন, এবং শুধু সেই বাকেটে সীমিত একটি অ্যাক্সেস কী তৈরি করুন। সহকারী আপনার প্রদানকারীর জন্য সঠিক ধাপগুলো বলে দিতে পারে।",
+          "Endpoint": "এন্ডপয়েন্ট",
+          "Your storage service's API address — not your bucket's website address. Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. Plain AWS S3: leave this blank.": "আপনার স্টোরেজ পরিষেবার API ঠিকানা — আপনার বাকেটের ওয়েবসাইট ঠিকানা নয়। Cloudflare R2: https://<account-id>.r2.cloudflarestorage.com. Backblaze B2: B2 ড্যাশবোর্ডে আপনার বাকেটের 'Endpoint' ঘরটি দেখুন। DigitalOcean Spaces: https://<region>.digitaloceanspaces.com. Wasabi: https://s3.<region>.wasabisys.com. সাধারণ AWS S3: ফাঁকা রাখুন।",
+          "Region": "অঞ্চল",
+          "The region your bucket lives in — e.g. us-east-1 for AWS, auto for Cloudflare R2, or your Space's region for DigitalOcean (e.g. nyc3). Needed to sign requests correctly even if your provider doesn't otherwise think in regions.": "যে অঞ্চলে আপনার বাকেট আছে — যেমন AWS-এর জন্য us-east-1, Cloudflare R2-এর জন্য auto, বা DigitalOcean-এর জন্য আপনার Space-এর অঞ্চল (যেমন nyc3)। আপনার প্রদানকারী অঞ্চল ব্যবহার না করলেও অনুরোধে সঠিকভাবে স্বাক্ষর করতে এটি লাগে।",
+          "Bucket": "বাকেট",
+          "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first.": "যে বাকেটে প্রকাশ করা হবে তার সঠিক নাম (DigitalOcean একে 'Space' বলে)। বড় ও ছোট হাতের অক্ষর আলাদা ধরা হয়। Tovu এটি আপনার জন্য তৈরি করে না — আগে আপনার প্রদানকারীর ড্যাশবোর্ডে তৈরি করুন।",
+          "Access key ID": "অ্যাক্সেস কী আইডি",
+          "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key.": "API কী জোড়া তৈরির সময় আপনার গোপন অ্যাক্সেস কী-এর সঙ্গে তৈরি হয়। AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. আপনার প্রদানকারী সমর্থন করলে পুরো অ্যাকাউন্টের কী নয়, শুধু এই বাকেটে সীমিত একটি কী ব্যবহার করুন।",
+          "Secret access key": "গোপন অ্যাক্সেস কী",
+          "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "কী জোড়া তৈরির মুহূর্তে শুধু একবার দেখানো হয় — সঙ্গে সঙ্গে কপি করুন। হারিয়ে গেলে আপনার প্রদানকারী আর দেখাতে পারবে না; নতুন কী তৈরি করতে হবে। Tovu এটি এনক্রিপ্ট করে সংরক্ষণ করে এবং সংরক্ষণের পর আর কখনো দেখায় না।",
+          "Public URL": "সর্বজনীন URL",
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "দর্শকেরা যে ঠিকানা খোলেন: আপনার বাকেটের সর্বজনীন URL, বা বাকেটের দিকে নির্দেশিত একটি কাস্টম ডোমেন। Tovu প্রতিটি প্রকাশের পরে এটি যাচাই করে এবং পৌঁছানো না গেলে আপনাকে জানায়।"
+        }
       }
     }
   ]
