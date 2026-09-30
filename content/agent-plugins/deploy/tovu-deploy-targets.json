@@ -14,7 +14,8 @@
           "name": "owner",
           "label": "Owner",
           "required": true,
-          "help": "The GitHub user or organization that owns the repository. Default it to the verified account (accountLabel) and confirm it; never guess it."
+          "help": "The GitHub user or organization that owns the repository. Default it to the verified account (accountLabel) and confirm it; never guess it.",
+          "userHelp": "The GitHub user or organization that owns the repository. It starts as the account your token belongs to; change it if the repository belongs to an organization."
         },
         {
           "name": "repo",

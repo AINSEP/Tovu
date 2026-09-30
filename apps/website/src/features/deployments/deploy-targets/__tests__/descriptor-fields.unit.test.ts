@@ -36,6 +36,23 @@ test("config fields and env fallback parse; absent ones default to none", () => 
   });
 });
 
+test("a config field may carry a separate person-facing userHelp; a non-string one is refused", () => {
+  const parsed = parseDeployTargetsFile(file([{ ...BASE, config: [{ name: "owner", label: "Owner", help: "agent hint", userHelp: "person hint" }] }]));
+  assert.deepEqual(parsed, { ok: true, descriptors: [{ ...BASE, configFields: [{ name: "owner", label: "Owner", required: false, help: "agent hint", userHelp: "person hint" }] }] });
+  assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, config: [{ name: "owner", label: "Owner", userHelp: 3 }] }])), {
+    ok: false,
+    reason: "targets[0].config[0].userHelp must be a string of at most 500 characters",
+  });
+});
+
+test("the shipped github-pages owner field has person-facing help that does not address the agent", () => {
+  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+  assert.ok(parsed.ok);
+  const owner = parsed.descriptors.find((descriptor) => descriptor.id === "github-pages")?.configFields.find((field) => field.name === "owner");
+  assert.ok(owner?.userHelp);
+  assert.doesNotMatch(owner.userHelp, /accountLabel|never guess/);
+});
+
 test("a config field may not shadow a publish request's own keys", () => {
   for (const name of ["target", "projectName", "credentialId"]) {
     assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, config: [{ name, label: "X" }] }])), { ok: false, reason: `targets[0].config[0].name '${name}' is reserved` });

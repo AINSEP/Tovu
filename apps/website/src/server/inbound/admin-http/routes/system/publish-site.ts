@@ -149,15 +149,18 @@ async function readTargetConfig(
   return { ok: true, registry, target, config: read.config };
 }
 
-/** A target's saved-credential form, as the admin renders it: the field specs (secret fields flagged,
- *  never a value), the form's help and token page, and which field is the token. @complexity O(1). */
+/** A target's saved-credential form, as the admin renders it: the vendor's display name, the field
+ *  specs (secret fields flagged, never a value), the form's help and token page, and which field is
+ *  the token. Never the vendor id. @complexity O(1). */
 function publicCredentialSpec(spec: DeployTargetCredentialSpec): {
+  vendorLabel?: string;
   help?: string;
   tokenPageUrl?: string;
   tokenField: string;
   fields: DeployTargetCredentialSpec["fields"];
 } {
   return {
+    ...(spec.vendorLabel !== undefined ? { vendorLabel: spec.vendorLabel } : {}),
     ...(spec.help !== undefined ? { help: spec.help } : {}),
     ...(spec.tokenPageUrl !== undefined ? { tokenPageUrl: spec.tokenPageUrl } : {}),
     tokenField: spec.tokenField,

@@ -247,14 +247,22 @@ function parseFieldList(value: unknown, at: string, reserved: ReadonlySet<string
 /** One field spec, or the reason it is invalid. @complexity O(1). */
 function parseFieldSpec(entry: unknown, at: string, reserved: ReadonlySet<string>): DeployTargetFieldSpec | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { name, label, required, help, secret } = entry;
+  const { name, label, required, help, userHelp, secret } = entry;
   if (typeof name !== "string" || !FIELD_NAME_PATTERN.test(name)) return `${at}.name must be a camelCase identifier`;
   if (reserved.has(name)) return `${at}.name '${name}' is reserved`;
   if (!isLabel(label)) return `${at}.label must be a non-empty string`;
   if (required !== undefined && typeof required !== "boolean") return `${at}.required must be a boolean`;
   if (secret !== undefined && typeof secret !== "boolean") return `${at}.secret must be a boolean`;
   if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
-  return { name, label, required: required === true, ...(help !== undefined ? { help } : {}), ...(secret === true ? { secret: true as const } : {}) };
+  if (userHelp !== undefined && (typeof userHelp !== "string" || userHelp.length > MAX_HELP_LENGTH)) return `${at}.userHelp must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  return {
+    name,
+    label,
+    required: required === true,
+    ...(help !== undefined ? { help } : {}),
+    ...(userHelp !== undefined ? { userHelp } : {}),
+    ...(secret === true ? { secret: true as const } : {}),
+  };
 }
 
 /** A target's `env` block (absent = no env fallback), or the reason it is invalid. @complexity O(v). */

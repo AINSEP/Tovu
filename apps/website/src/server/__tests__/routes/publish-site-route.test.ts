@@ -859,6 +859,8 @@ test("publish-targets: a target with a saved credential carries its form's field
   const s3 = body.targets.find((target) => target.id === "s3-compatible");
   assert.equal(s3?.credential?.tokenField, "secretAccessKey");
   assert.equal(typeof s3?.credential?.help, "string");
+  // The vendor's display name is for the form; only its id stays server-internal.
+  assert.equal((cloudflare.credential as { vendorLabel?: string }).vendorLabel, "Cloudflare");
   assert.equal(JSON.stringify(body).includes("vendorId"), false, "a vendor id is server-internal");
 });
 

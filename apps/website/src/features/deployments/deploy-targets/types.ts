@@ -194,6 +194,9 @@ export interface DeployTargetFieldSpec {
   readonly label: string;
   readonly required: boolean;
   readonly help?: string;
+  /** The help a PERSON sees in the admin form, when it should read differently from `help` (which
+   *  the agent sees as the field's hint). Absent = the form shows `help`. */
+  readonly userHelp?: string;
   /** Never echoed back once saved (credential fields only). */
   readonly secret?: true;
 }
