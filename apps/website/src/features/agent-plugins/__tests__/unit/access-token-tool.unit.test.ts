@@ -54,12 +54,15 @@ class FakeVendorApi implements HttpClientPort {
   }
 }
 
-async function setup(options: { servers?: Readonly<Record<string, McpServerConfig>> | null; rowUrl?: string } = {}) {
+async function setup(
+  options: { servers?: Readonly<Record<string, McpServerConfig>> | null; rowUrl?: string; allowedToolNames?: string; pluginOffByOperator?: boolean; switchOnFails?: boolean } = {},
+) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const clock = { nowIso: () => "2026-09-13T00:00:00.000Z" };
   const http = new FakeVendorApi(probeOk);
+  const connected: string[] = [];
   // Exactly what federate-mcp.ts provisions when the plugin is enabled: disabled, oauth, no write grants.
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
@@ -72,7 +75,7 @@ async function setup(options: { servers?: Readonly<Record<string, McpServerConfi
       command: "",
       url: options.rowUrl ?? "https://mcp.supabase.com/mcp",
       args: "",
-      allowedToolNames: "list_tables,execute_sql",
+      allowedToolNames: options.allowedToolNames ?? "list_tables,execute_sql",
       writeAllowedToolNames: "",
       principalId: PRINCIPAL,
       provisionedByPluginId: "supabase",
@@ -88,11 +91,19 @@ async function setup(options: { servers?: Readonly<Record<string, McpServerConfi
     siteAssistantSecretKeyring: keyring,
     customCredentialsHttpClient: http,
     resolveInstalledPlugin: async (pluginId) => (pluginId === "supabase" && servers !== null ? { servers } : null),
+    // Stands in for apply-connect-defaults: switches on only a row nobody edited (empty lists).
+    onConnected: async (serverId) => {
+      if (options.switchOnFails) throw new Error("activations file busy");
+      connected.push(serverId);
+      const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId });
+      if (row && (row.allowedToolNames ?? "[]") === "[]") await repo.upsert({ ...row, enabled: true, allowedToolNames: JSON.stringify(["list_tables"]) });
+    },
+    isPluginOffByOperator: async () => options.pluginOffByOperator === true,
   };
   const surfaceExchanges = createSurfaceExchangeStore();
   const tools = new Map(buildAgentPluginConnectRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
   const readRow = () => repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" });
-  return { repo, sealer, http, surfaceExchanges, tools, readRow };
+  return { repo, sealer, http, surfaceExchanges, tools, readRow, connected };
 }
 
 type Env = Awaited<ReturnType<typeof setup>>;
@@ -192,8 +203,9 @@ test("AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as 
   const row = await env.readRow();
   assert.equal(row?.authMode, "static_env", "the fallback token supersedes the unfinished OAuth attempt on the same row");
   assert.ok(row?.sealedOAuth, "the token is stored sealed");
-  assert.equal(row?.enabled, false, "saving a token never enables the connection");
+  assert.equal(row?.enabled, false, "a connection whose tool lists an operator already edited is left as they set it");
   assert.equal(row?.allowedToolNames, JSON.stringify(["list_tables", "execute_sql"]), "operator lists carry forward unchanged");
+  assert.match(String(result.next), /Add-Ons → Integrations → External MCP/, "the result names the screen that switches it on");
   for (const [what, value] of Object.entries({ result, emitted, row })) {
     assert.ok(!JSON.stringify(value).includes(TOKEN), `the raw token must not appear in the ${what}`);
   }
@@ -249,4 +261,37 @@ test("AC-08: the generic token form's tool id is redeemable; every deleted Supab
   assert.equal(isMcpUiToolCallAllowed("supabase_set_project_scope"), false);
   assert.equal(isMcpUiToolCallAllowed("supabase_get_database"), false);
   assert.equal(isMcpUiToolCallAllowed("mcp__supabase__execute_sql"), false);
+});
+
+test("IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step", async () => {
+  const env = await setup({ allowedToolNames: "" });
+  const { result, emitted } = await submit(env, { token: TOKEN });
+  assert.equal(result.saved, true);
+  assert.deepEqual(env.connected, ["supabase"], "the sign-in's own connect defaults run after the save");
+  assert.equal((await env.readRow())?.enabled, true);
+  assert.equal(result.next, "Supabase is connected and switched on. Its tools are ready to use.");
+  assert.ok(!String(result.next).includes("Settings"), "no instruction to go and switch it on by hand");
+  assert.ok(JSON.stringify(emitted).includes("switched on"), "the form's outcome says the same thing");
+});
+
+test("a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen", async () => {
+  const env = await setup({ allowedToolNames: "", pluginOffByOperator: true });
+  const { result } = await submit(env, { token: TOKEN });
+  assert.equal(result.saved, true);
+  assert.deepEqual(env.connected, [], "an operator's off switch must not be overridden");
+  const row = await env.readRow();
+  assert.equal(row?.authMode, "static_env");
+  assert.equal(row?.enabled, false);
+  assert.equal(
+    result.next,
+    "Token saved. Supabase stays off because an operator turned it off. To use it, switch 'Supabase' on in Add-Ons → Agent Plugins.",
+  );
+});
+
+test("a failure switching on after the save still reports the token as saved, with a retry step", async () => {
+  const env = await setup({ allowedToolNames: "", switchOnFails: true });
+  const { result } = await submit(env, { token: TOKEN });
+  assert.equal(result.saved, true);
+  assert.equal((await env.readRow())?.authMode, "static_env");
+  assert.equal(result.next, "Token saved, but Supabase could not be switched on automatically. Save the token again to retry.");
 });

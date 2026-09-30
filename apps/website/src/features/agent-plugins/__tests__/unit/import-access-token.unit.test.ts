@@ -70,7 +70,13 @@ async function setup() {
     siteAssistantSecretKeyring: keyring,
     resolveInstalledPlugin: async (pluginId) => (pluginId === "supabase" ? { servers: SUPABASE_SERVERS } : null),
     listPlugins: async () => [{ pluginId: "supabase", servers: SUPABASE_SERVERS }],
-    onConnected: async (serverId) => void connected.push(serverId),
+    // Stands in for apply-connect-defaults: records the call and switches the row on.
+    onConnected: async (serverId) => {
+      connected.push(serverId);
+      const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId });
+      if (row) await repo.upsert({ ...row, enabled: true });
+    },
+    isPluginOffByOperator: async () => false,
   };
   const readRow = () => repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" });
   const logs = { info: [] as string[], warn: [] as string[] };
@@ -98,6 +104,20 @@ test("a row that already holds a saved token is never overwritten", async () => 
   assert.equal(outcome, "already-connected");
   assert.deepEqual((await readRow())?.sealedEnv, before);
   assert.deepEqual(connected, []);
+});
+
+test("a plugin an operator turned off gets the token but stays off", async () => {
+  const { deps, connected, readRow } = await setup();
+  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = { ...deps, isPluginOffByOperator: async () => true };
+  assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "saved-left-off");
+  assert.equal((await readRow())?.authMode, "static_env");
+  assert.equal((await readRow())?.enabled, false);
+  assert.deepEqual(connected, [], "an operator's off switch must not be overridden");
+
+  const { deps: envDeps, logs: envLogs, log: envLog } = await setup();
+  await importAgentPluginAccessTokensFromEnv({ ...envDeps, isPluginOffByOperator: async () => true }, { [ENV_VAR]: TOKEN }, envLog);
+  assert.equal(envLogs.info.length, 1);
+  assert.match(envLogs.info[0] ?? "", /stays off because an operator turned it off \(Add-Ons → Agent Plugins\)/);
 });
 
 test("hasStoredAgentPluginCredential: a finished sign-in or a saved token counts; a bare oauth row does not", () => {

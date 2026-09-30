@@ -1,4 +1,3 @@
-import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
 import { resolveTarget, saveStaticAccessToken, type AgentPluginTokenTargetDeps } from "./access-token-tool.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
 import { readInstalledMcpServers } from "./capability-projection.js";
@@ -6,11 +5,12 @@ import { hasStoredAgentPluginCredential } from "./connect-tool.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import type { McpServerConfig } from "./manifest.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
+import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from "./switch-on-saved-token.js";
 
 /**
  * @file Saves an access token that did NOT come through `agent_plugin_set_access_token`'s form onto
- * an Agent Plugin's token-auth row, then switches the plugin on — the same end state as a pasted
- * token followed by a first sign-in.
+ * an Agent Plugin's token-auth row, then switches the plugin on (`switch-on-saved-token.ts`, shared
+ * with the tool) — the same end state as a pasted token followed by a first sign-in.
  *
  * Two callers, both at boot (`server/runtime/boot/bootstrap.ts`):
  * - {@link importAgentPluginAccessTokensFromEnv}: a plugin's `mcp.json` may name an old env var
@@ -25,13 +25,13 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 /** Recorded as `updatedBy`/principal on what an import writes. */
 export const AGENT_PLUGIN_TOKEN_IMPORT_ACTOR = "system:token-import";
 
-export interface ImportAgentPluginAccessTokenDeps extends AgentPluginTokenTargetDeps {
-  /** Turns the plugin and the row on with the plugin's declared default tools. Defaults to the same
-   *  `onConnected` a first sign-in runs (`apply-connect-defaults.ts`). Injected for tests. */
-  readonly onConnected?: (serverId: string) => Promise<void>;
-}
+export interface ImportAgentPluginAccessTokenDeps
+  extends AgentPluginTokenTargetDeps,
+    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator"> {}
 
-export type ImportAgentPluginAccessTokenOutcome = "saved" | "already-connected";
+/** `saved-left-off`: the token is saved but an operator had turned the plugin or its connection off,
+ *  so it stays off (`switch-on-saved-token.ts`). */
+export type ImportAgentPluginAccessTokenOutcome = "saved" | "saved-left-off" | "already-connected";
 
 /**
  * Seals `token` onto `pluginId`'s token-auth row unless that row already has a credential.
@@ -50,9 +50,8 @@ export async function importAgentPluginAccessToken(
   if (row && hasStoredAgentPluginCredential(row)) return "already-connected";
 
   await saveStaticAccessToken(deps, target, principalId, input.token);
-  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, repo: deps.externalMcpServerRepo, clock: deps.clock });
-  await onConnected(target.connectionId);
-  return "saved";
+  const switched = await switchOnSavedTokenConnection(deps, target);
+  return switched.state === "on" ? "saved" : "saved-left-off";
 }
 
 /** One installed plugin's id and declared servers. */
@@ -127,6 +126,8 @@ export async function importAgentPluginAccessTokensFromEnv(
       const outcome = await importAgentPluginAccessToken(deps, { pluginId, token });
       if (outcome === "saved") {
         log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection and switched it on. The env var is no longer needed.`);
+      } else if (outcome === "saved-left-off") {
+        log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection; it stays off because an operator turned it off (${AGENT_PLUGINS_SCREEN}). The env var is no longer needed.`);
       }
     } catch (err) {
       log.warn(`[agent-plugins] could not copy ${auth.importFromEnv} onto the '${pluginId}' plugin: ${err instanceof Error ? err.message : String(err)}`);

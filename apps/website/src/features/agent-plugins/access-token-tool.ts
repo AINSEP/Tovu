@@ -19,6 +19,7 @@ import { buildAgentPluginAccessTokenForm, buildAgentPluginAccessTokenOutcome } f
 import { defaultResolveInstalledAgentPlugin, titleCaseFromPluginId, type AgentPluginConnectToolDeps } from "./connect-tool.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
 import type { AgentPluginTokenAuth, RemoteMcpServerConfig } from "./manifest.js";
+import { describeSavedTokenSwitch, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from "./switch-on-saved-token.js";
 
 /**
  * @file `agent_plugin_set_access_token` — the generic access-token fallback for an Agent Plugin whose
@@ -32,7 +33,9 @@ import type { AgentPluginTokenAuth, RemoteMcpServerConfig } from "./manifest.js"
  * `probeUrl` (401/403 = rejected), then saved as the plugin row's sealed `static_env` access token
  * through `saveExternalMcpServer`. The store sends that token to the hosted server as
  * `Authorization: Bearer`, and switching the row's auth mode replaces any unfinished OAuth attempt on
- * it. It does not touch `enabled`, `allowedToolNames`, or `writeAllowedToolNames`.
+ * it. The save itself carries `enabled` and the tool lists forward; then `switch-on-saved-token.ts`
+ * switches the plugin on with its declared default tools, exactly as a first sign-in does, unless an
+ * operator deliberately turned it off (the result then names the screen that turns it back on).
  *
  * The tool takes only a `pluginId`: the token arrives through the form's own submission, never
  * through a model-issued call. Driven by `askThenReport`, like `custom_credential_set_token`: a second
@@ -55,7 +58,9 @@ export type AgentPluginTokenTargetDeps = Pick<
   "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "resolveInstalledPlugin"
 >;
 
-export interface AgentPluginAccessTokenToolDeps extends AgentPluginConnectToolDeps {
+export interface AgentPluginAccessTokenToolDeps
+  extends AgentPluginConnectToolDeps,
+    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator"> {
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
 }
@@ -255,8 +260,14 @@ async function handleAnswer(
   } catch (err) {
     return failure(exchange, target, "error", describeSaveError(err));
   }
-  const next = `Ask the operator to enable '${target.connectionId}' in Settings → External MCP, tick the tools it may use, and restart the assistant.`;
-  return { result: { saved: true, next }, outcome: outcome(exchange, target, "success", "Token saved", "Token saved.") };
+  let next: string;
+  try {
+    next = describeSavedTokenSwitch(await switchOnSavedTokenConnection(routeDeps, target), target);
+  } catch {
+    // The token is saved; only switching on failed. The next save or sign-in retries it.
+    next = `Token saved, but ${target.displayName} could not be switched on automatically. Save the token again to retry.`;
+  }
+  return { result: { saved: true, next }, outcome: outcome(exchange, target, "success", "Token saved", next) };
 }
 
 function requireEmitSurface(ctx: ToolExecutionContext): SurfaceEmitter {
