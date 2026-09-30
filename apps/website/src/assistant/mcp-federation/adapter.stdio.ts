@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 
 import {
@@ -56,6 +57,76 @@ import type { ResolvedStdioLaunch } from "./stdio-launch-resolver.js";
  * would otherwise grow the reassembly buffer without limit. 4 MiB is far above any legitimate MCP
  * message and far below anything that threatens the daemon. */
 const MAX_INBOUND_MESSAGE_BYTES = 4 * 1024 * 1024;
+
+/** How much of a child's stderr survives into its exit reason — enough for a startup error message,
+ *  not enough to turn the admissions report into a log viewer. */
+const STDERR_TAIL_CHARS = 600;
+
+/** How long an exit waits for the child's stderr to drain before the close reason is emitted. */
+const STDERR_DRAIN_MS = 250;
+
+/** Secret values shorter than this are not redacted: replacing every "1" or "on" in a message would
+ *  destroy it, and a value that short is not a credential. */
+const MIN_REDACTED_VALUE_LENGTH = 4;
+
+/** Commands that fetch a package by name and run it — `npx -y some-mcp@latest`, the shape most
+ *  published MCP servers document. Matched on the basename, without a Windows `.cmd`/`.exe`. */
+const PACKAGE_RUNNER_COMMANDS: ReadonlySet<string> = new Set(["npx"]);
+
+/**
+ * The working directory one stdio child is spawned in.
+ *
+ * An explicit `cwd` always wins. Otherwise a package runner gets a neutral directory instead of the
+ * daemon's own cwd, because npm reads the cwd's project tree BEFORE it runs anything: in this dev
+ * checkout that tree links `@jini-ai/*` to a pnpm monorepo whose `workspace:*` ranges npm cannot
+ * parse, so `npx -y namecom-mcp@latest` died with `EUNSUPPORTEDPROTOCOL` on every daemon boot
+ * (2026-09-29) while the same command worked from any other directory. A package fetched by name
+ * never needs Tovu's project directory; a host's own `package.json` is the wrong input for it.
+ *
+ * Anything else keeps inheriting the daemon's cwd exactly as before — a relative `command` or a
+ * server that reads files relative to where it was started depends on it.
+ *
+ * @complexity O(1).
+ */
+export function resolveStdioChildCwd(resolved: ResolvedStdioLaunch, neutralDir: string = os.tmpdir()): string | undefined {
+  if (resolved.cwd !== undefined) return resolved.cwd;
+  const name = path.basename(resolved.command).replace(/\.(cmd|exe)$/i, "").toLowerCase();
+  return PACKAGE_RUNNER_COMMANDS.has(name) ? neutralDir : undefined;
+}
+
+/**
+ * Appends one stderr chunk and keeps only the last {@link STDERR_TAIL_CHARS} characters.
+ * @complexity O(n) in the chunk length.
+ */
+export function keepStderrTail(tail: string, chunk: string): string {
+  return (tail + chunk).slice(-STDERR_TAIL_CHARS);
+}
+
+/**
+ * The close reason for a child that exited: code and signal, plus what it last printed to stderr.
+ *
+ * Every value of the connection's own `env` is replaced with `[redacted]` first. That env holds the
+ * row's unsealed credentials, and a server that echoes its config on failure would otherwise carry a
+ * token into `connectFailures` — which the admissions route serves to the admin UI and whose contract
+ * (`bootstrap.ts`) is "never a raw env value or secret".
+ *
+ * @param secretValues - The child's own `env` values, as spawned.
+ * @complexity O(s · v) in stderr length and env value count.
+ */
+export function describeChildExit(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+  stderrTail: string,
+  secretValues: readonly string[],
+): string {
+  const base = `child process exited (code=${String(code)}, signal=${String(signal)})`;
+  let said = stderrTail;
+  for (const value of secretValues) {
+    if (value.length >= MIN_REDACTED_VALUE_LENGTH) said = said.split(value).join("[redacted]");
+  }
+  said = said.replace(/\s+/g, " ").trim();
+  return said ? `${base}: ${said}` : base;
+}
 
 /**
  * A connected MCP client session over one {@link McpStdioChannel}.
@@ -269,7 +340,7 @@ export async function connectMcpStdioSession(deps: { channel: McpStdioChannel; r
  */
 export function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioChannel {
   const child = spawn(resolved.command, [...resolved.args], {
-    cwd: resolved.cwd,
+    cwd: resolveStdioChildCwd(resolved),
     env: buildMcpChildEnv({ command: resolved.command, specEnv: resolved.env, launchEnv: resolved.launchEnv }),
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -278,6 +349,12 @@ export function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioCha
   const closeListeners: Array<(reason: string) => void> = [];
   let buffer = "";
   let closed = false;
+  // Set the instant the child exits, before the close reason is final (see the `exit` handler), so
+  // `send` never writes into a dead pipe — an EPIPE on `stdin` has no listener and would crash the
+  // daemon.
+  let exited = false;
+  let stderrTail = "";
+  const secretValues = Object.values(resolved.env);
 
   const emitClose = (reason: string): void => {
     if (closed) return;
@@ -306,16 +383,34 @@ export function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioCha
   });
 
   // stderr is a diagnostic channel for MCP servers, never a protocol one. Consumed so the pipe
-  // cannot fill and deadlock the child, and never parsed.
+  // cannot fill and deadlock the child, and never parsed — but its tail is kept, because when a
+  // server dies at startup that is the ONLY place it says why (2026-09-29: `npx -y namecom-mcp`
+  // failing with npm's EUNSUPPORTEDPROTOCOL reached the operator as a bare "exited (code=1)").
   child.stderr.setEncoding("utf8");
-  child.stderr.on("data", () => undefined);
+  child.stderr.on("data", (chunk: string) => {
+    stderrTail = keepStderrTail(stderrTail, chunk);
+  });
 
   child.on("error", (error: Error) => emitClose(`child process error: ${error.message}`));
-  child.on("exit", (code, signal) => emitClose(`child process exited (code=${String(code)}, signal=${String(signal)})`));
+  child.on("exit", (code, signal) => {
+    exited = true;
+    // `exit` can fire before the child's last stderr bytes are read; `end` means they have been.
+    // Bounded, because a grandchild still holding the pipe (npx → node) could postpone `end` forever.
+    const finish = (): void => emitClose(describeChildExit(code, signal, stderrTail, secretValues));
+    if (child.stderr.readableEnded) {
+      finish();
+      return;
+    }
+    const drainTimer = setTimeout(finish, STDERR_DRAIN_MS);
+    child.stderr.once("end", () => {
+      clearTimeout(drainTimer);
+      finish();
+    });
+  });
 
   return {
     send(message: string): void {
-      if (closed) throw new Error("mcp-federation: cannot write to a closed stdio channel");
+      if (closed || exited) throw new Error("mcp-federation: cannot write to a closed stdio channel");
       child.stdin.write(`${message}\n`);
     },
     onMessage(listener) {
