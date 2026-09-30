@@ -56,6 +56,12 @@ export async function sealPendingAgentPluginTokensForNewSite(required: {
   for (const [pluginId, token] of Object.entries(tokens)) {
     file.tokens[pluginId] = await sealer.seal({ plaintext: token, key, aad: pendingTokenAad(pluginId) });
   }
+  writePendingTokensFile(siteDir, file);
+}
+
+/** Writes the file 0600 via a temp file and rename, so a rewrite never leaves it half-written and
+ *  never inherits a wider mode from the file it replaces. */
+function writePendingTokensFile(siteDir: string, file: PendingTokensFile): void {
   const target = path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
   const temp = path.join(siteDir, `.${PENDING_AGENT_PLUGIN_TOKENS_FILENAME}.${process.pid}.${randomUUID()}.tmp`);
   fs.writeFileSync(temp, JSON.stringify(file, null, 2), { mode: 0o600 });
@@ -115,6 +121,5 @@ export async function applyPendingAgentPluginTokens(
     fs.rmSync(target, { force: true });
     return;
   }
-  const next: PendingTokensFile = { version: 1, tokens: remaining };
-  fs.writeFileSync(target, JSON.stringify(next, null, 2), { mode: 0o600 });
+  writePendingTokensFile(required.siteDir, { version: 1, tokens: remaining });
 }
