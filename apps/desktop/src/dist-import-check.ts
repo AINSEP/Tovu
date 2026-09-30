@@ -69,6 +69,26 @@ function importsOf(file: string): string[] {
   return found;
 }
 
+/** The walk's shared state: what it has found wrong, what it has already queued, and what is next. */
+interface Walk {
+  distDir: string;
+  declared: ReadonlySet<string>;
+  problems: string[];
+  seen: Set<string>;
+  queue: string[];
+}
+
+/** Handles one import of `file`: reports an undeclared package or a missing file, and queues a file not yet seen. */
+function walkImport(specifier: string, file: string, walk: Walk): void {
+  const rel = path.relative(walk.distDir, file);
+  const found = classify(specifier, file, walk.distDir);
+  if (found.kind === "package" && !walk.declared.has(found.name)) walk.problems.push(`${found.name} (${rel})`);
+  if (found.kind !== "file" || walk.seen.has(found.target)) return;
+  walk.seen.add(found.target);
+  if (existsSync(found.target)) walk.queue.push(found.target);
+  else walk.problems.push(`${specifier} (${rel}: file not found)`);
+}
+
 /**
  * Every bare import reachable from `entry` that is neither a builtin nor in `declared`, as
  * `"<package> (<file relative to distDir>)"`, in walk order. A relative import whose target file
@@ -77,21 +97,11 @@ function importsOf(file: string): string[] {
  * @complexity O(files + imports) reachable from `entry`; each file is read once.
  */
 export function undeclaredDistImports({ distDir, entry, declared }: DistImportInput): string[] {
-  const problems: string[] = [];
-  const seen = new Set<string>([entry]);
-  const queue = [entry];
-  for (let file = queue.shift(); file !== undefined; file = queue.shift()) {
-    const rel = path.relative(distDir, file);
-    for (const specifier of importsOf(file)) {
-      const found = classify(specifier, file, distDir);
-      if (found.kind === "package" && !declared.has(found.name)) problems.push(`${found.name} (${rel})`);
-      if (found.kind !== "file" || seen.has(found.target)) continue;
-      seen.add(found.target);
-      if (existsSync(found.target)) queue.push(found.target);
-      else problems.push(`${specifier} (${rel}: file not found)`);
-    }
+  const walk: Walk = { distDir, declared, problems: [], seen: new Set<string>([entry]), queue: [entry] };
+  for (let file = walk.queue.shift(); file !== undefined; file = walk.queue.shift()) {
+    for (const specifier of importsOf(file)) walkImport(specifier, file, walk);
   }
-  return problems;
+  return walk.problems;
 }
 
 /** @throws {Error} listing every {@link undeclaredDistImports} entry, when there is any. */
