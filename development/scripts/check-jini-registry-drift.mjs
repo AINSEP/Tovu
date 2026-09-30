@@ -68,7 +68,7 @@
  * would not be enforced by anything and is out of this task's scope.
  */
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -118,6 +118,24 @@ function readJiniDependencies(projectDir) {
     deps[name] = spec;
   }
   return deps;
+}
+
+/**
+ * Reads a project's `@jini-ai/*` npm `overrides` entries, so the scratch install resolves the same
+ * graph the project's own install does. Without them it models a DIFFERENT consumer: root pins
+ * `http-kit`'s `daemon`/`agent-runtime` to its own versions via overrides (http-kit@0.3.7 declares
+ * exact older ones), and an override-less install nests `daemon@0.3.7` under `http-kit`, making
+ * `agent-daemon-server.ts`'s `RunLifecycle` two unrelated types — drift nobody's real install has.
+ * Only entries keyed by a `@jini-ai/*` package are kept: their `$` references point at `@jini-ai/*`
+ * deps the scratch install declares, whereas a third-party entry's reference could not resolve there.
+ *
+ * @param {string} projectDir - directory containing the project's package.json
+ * @returns {Record<string,unknown>} `@jini-ai/*`-keyed subset of the manifest's `overrides`
+ * @complexity O(o) over the manifest's override entry count
+ */
+function readJiniOverrides(projectDir) {
+  const manifest = JSON.parse(readFileSync(path.join(projectDir, "package.json"), "utf8"));
+  return Object.fromEntries(Object.entries(manifest.overrides ?? {}).filter(([key]) => key.startsWith("@jini-ai/")));
 }
 
 /**
@@ -287,7 +305,11 @@ async function checkProject(project, pinOverrides) {
   try {
     writeFileSync(
       path.join(scratchRoot, "package.json"),
-      JSON.stringify({ name: "tovu-jini-registry-drift-scratch", private: true, dependencies: deps }, null, 2),
+      JSON.stringify(
+        { name: "tovu-jini-registry-drift-scratch", private: true, dependencies: deps, overrides: readJiniOverrides(project.dir) },
+        null,
+        2,
+      ),
     );
 
     try {
@@ -310,7 +332,14 @@ async function checkProject(project, pinOverrides) {
     // via ordinary module resolution, exactly like `npm run typecheck` does today.
     const baseline = runTsc(project, tsconfigPath);
 
-    const removeShadow = createShadow(project.shadowAnchor, scratchNodeModules, names);
+    // Shadow EVERY `@jini-ai/*` the registry install hoisted, not just the pinned ones. A pinned
+    // package's un-pinned `@jini-ai/*` dependency (e.g. `daemon` -> `protocol`, which root never
+    // imports directly) is hoisted to the scratch top level; left out of the shadow, it resolves
+    // past it to the real symlink into the local Jini checkout, and the "registry" run type-checks
+    // a mix of registry and local copies (2026-09-29: `agent-daemon-server.ts` RunLifecycle
+    // mismatch between registry `daemon` types and local `protocol` types — a false drift report).
+    const shadowNames = readdirSync(path.join(scratchNodeModules, "@jini-ai")).map((dir) => `@jini-ai/${dir}`);
+    const removeShadow = createShadow(project.shadowAnchor, scratchNodeModules, shadowNames);
     let registry;
     try {
       registry = runTsc(project, tsconfigPath);
