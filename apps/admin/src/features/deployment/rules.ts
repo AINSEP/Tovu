@@ -328,6 +328,13 @@ export function credentialFieldHandleId(providerId: string, fieldName: string, t
   return `deployment-static-site-credentials-${fieldName === "accountId" ? "account" : fieldNameHandleSegment(fieldName)}-${providerId}`;
 }
 
+/** The help a config or credential field shows under its input: the descriptor's person-facing
+ *  `userHelp`, else its `help` (written for the agent); `undefined` when it has neither.
+ *  @complexity O(1). */
+export function fieldHelpText(field: AdminPublishTargetField): string | undefined {
+  return field.userHelp ?? field.help;
+}
+
 /** The label a config or credential field shows: the descriptor's label, with the generic
  *  "(optional)" suffix key when the field is optional. The caller translates `suffixKey`.
  *  @complexity O(1). */

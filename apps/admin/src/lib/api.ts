@@ -582,7 +582,10 @@ export interface AdminPublishTargetField {
   name: string;
   label: string;
   required?: boolean;
+  /** The agent's hint; the form shows {@link userHelp} when present. */
   help?: string;
+  /** The person-facing help under the input. */
+  userHelp?: string;
   /** Never echoed back once saved (credential fields only). */
   secret?: true;
 }

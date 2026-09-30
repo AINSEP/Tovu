@@ -9,6 +9,7 @@ import {
   credentialFieldHandleId,
   fieldNameHandleSegment,
   credentialFormReadyToSave,
+  fieldHelpText,
   fieldLabelParts,
   publishConfigFieldHandleId,
   publishTargetById,
@@ -287,6 +288,19 @@ describe("agent handle ids", () => {
     expect(credentialFieldHandleId("s3-compatible", "accessKeyId", "secretAccessKey")).toBe("deployment-static-site-credentials-access-key-id-s3-compatible");
     expect(publishConfigFieldHandleId("basePath")).toBe("deployment-static-site-publish-base-path");
     expect(fieldNameHandleSegment("publicURL")).toBe("public-url");
+  });
+});
+
+describe("fieldHelpText", () => {
+  it("shows the person-facing userHelp over the agent's help", () => {
+    expect(fieldHelpText({ name: "owner", label: "Owner", help: "Never guess it.", userHelp: "The account that owns the repository." })).toBe(
+      "The account that owns the repository."
+    );
+  });
+
+  it("falls back to help, and to nothing when a field has neither", () => {
+    expect(fieldHelpText({ name: "branch", label: "Branch", help: "Defaults to gh-pages." })).toBe("Defaults to gh-pages.");
+    expect(fieldHelpText({ name: "repo", label: "Repository" })).toBeUndefined();
   });
 });
 

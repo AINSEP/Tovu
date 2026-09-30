@@ -13,7 +13,13 @@ export const GITHUB_PAGES_TARGET: AdminPublishTargetDescriptor = {
   id: "github-pages",
   label: "GitHub Pages",
   configFields: [
-    { name: "owner", label: "Owner", required: true, help: "The GitHub user or organization that owns the repository." },
+    {
+      name: "owner",
+      label: "Owner",
+      required: true,
+      help: "Default it to the verified account and confirm it; never guess it.",
+      userHelp: "The GitHub user or organization that owns the repository.",
+    },
     { name: "repo", label: "Repository", required: true, help: "The site is served from /<repository>." },
     { name: "branch", label: "Branch", required: false, help: "Defaults to gh-pages." },
   ],

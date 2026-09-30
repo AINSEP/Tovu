@@ -6,6 +6,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
 import type { AdminPublishTargetField } from "../../lib/api";
+import { fieldHelpText } from "../deployment/rules";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
@@ -567,7 +568,7 @@ function ExtraFieldInput({
         onChange={(e) => onChange(e.target.value)}
         {...agentHandle(id, { role: "field", label: `This provider's ${field.label}` })}
       />
-      {field.help ? <p className="field-hint">{field.help}</p> : null}
+      {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
   credentialFieldHandleId,
   credentialFormReadyToSave,
   exportRunStatusLabelKey,
+  fieldHelpText,
   fieldLabelParts,
   publishConfigFieldHandleId,
   publishRunStatusLabelKey,
@@ -860,7 +861,7 @@ function CredentialFieldInput({
         })}
       />
       {isToken ? <TokenFieldHints row={row} t={translate} /> : null}
-      {field.help ? <p className="field-hint">{field.help}</p> : null}
+      {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
     </div>
   );
 }
@@ -1167,7 +1168,7 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
               onChange={(e) => controller.setConfigField(field.name, e.target.value)}
               {...agentHandle(id, { role: "field", label: `${controller.selectedTarget?.label ?? ""} ${field.label}` })}
             />
-            {field.help ? <p className="field-hint">{field.help}</p> : null}
+            {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
           </div>
         );
       })}
