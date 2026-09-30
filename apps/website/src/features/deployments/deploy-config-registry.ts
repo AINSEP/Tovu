@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
@@ -77,6 +78,25 @@ export async function loadDeployConfigGeneratorsFromSource(plugin: TrustedPlugin
     else loaded.push({ descriptor, pluginId: plugin.pluginId, module });
   }
   return buildRegistry(loaded, refusals);
+}
+
+/**
+ * The generator ids a plugin's SOURCE directory declares, in declared order, read synchronously from
+ * its {@link DEPLOY_CONFIGS_FILENAME} without importing any module. For text built before any async
+ * work can run (the CLI's `--target` help). A missing or invalid manifest yields `[]`; the refusal
+ * itself is reported when the command actually loads the generators.
+ *
+ * @complexity O(g) in the declared generator count.
+ */
+export function readDeployConfigTargetIdsFromSource(plugin: TrustedPluginPackage): readonly string[] {
+  let raw: string;
+  try {
+    raw = readFileSync(path.join(plugin.packageRoot, DEPLOY_CONFIGS_FILENAME), "utf8");
+  } catch {
+    return [];
+  }
+  const parsed = parseDeployConfigsFile(raw);
+  return parsed.ok ? parsed.descriptors.map((descriptor) => descriptor.id) : [];
 }
 
 /** The export as a generator module, or the refusal reason. @complexity O(1). */

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 
 import { runAdoptCommand } from "./commands/adopt.js";
-import { runDeployConfigCommand } from "./commands/deploy-config.js";
+import { deployConfigTargetOptionHelp, runDeployConfigCommand } from "./commands/deploy-config.js";
 import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
 import { runStorageMoveCommand } from "./commands/storage-move.js";
@@ -167,7 +167,7 @@ export function createProgram(): Command {
     .description(
       "generate one platform's deploy config file from Tovu's single deployment descriptor (Dockerfile/fly.toml as source of truth) — prints to stdout, or writes to --out"
     )
-    .option("--target <target>", "deploy platform: fly, render, or railway")
+    .option("--target <target>", deployConfigTargetOptionHelp())
     .option("--region <region>", "platform region (required — no default region is assumed)")
     .option("--out <file>", "write the generated config to this file instead of stdout")
     .action(async (options: { target?: string; region?: string; out?: string }) => {

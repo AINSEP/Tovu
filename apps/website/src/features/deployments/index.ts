@@ -97,6 +97,7 @@ export {
 export {
   DEPLOY_CONFIGS_FILENAME,
   loadDeployConfigGeneratorsFromSource,
+  readDeployConfigTargetIdsFromSource,
   type DeployConfigGeneratorDescriptor,
   type DeployConfigGeneratorRegistry,
   type LoadedDeployConfigGenerator,

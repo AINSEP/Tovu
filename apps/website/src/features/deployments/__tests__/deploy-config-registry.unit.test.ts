@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 
-import { DEPLOY_CONFIGS_FILENAME, loadDeployConfigGeneratorsFromSource, parseDeployConfigsFile } from "../deploy-config-registry.js";
+import { DEPLOY_CONFIGS_FILENAME, loadDeployConfigGeneratorsFromSource, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource } from "../deploy-config-registry.js";
 
 /**
  * @file `deploy-config-registry.ts` — the generators behind `tovu deploy config --target <id>`, read
@@ -100,4 +100,17 @@ test("parseDeployConfigsFile: rejects each malformed shape with its exact reason
     [manifest([{ id: "b", label: "B", module: "b.mjs" }, { id: "b", label: "B2", module: "c.mjs" }]), "generators[1].id 'b' is declared twice"],
   ];
   for (const [raw, reason] of cases) assert.deepEqual(parseDeployConfigsFile(raw), { ok: false, reason }, raw);
+});
+
+test("readDeployConfigTargetIdsFromSource: the bundled plugin's ids in declared order, without importing modules", () => {
+  assert.deepEqual(readDeployConfigTargetIdsFromSource({ pluginId: "deploy", packageRoot: BUNDLED_DEPLOY_PLUGIN_ROOT }), ["fly", "render", "railway"]);
+});
+
+test("readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids", async () => {
+  await withPlugin({}, async (packageRoot) => {
+    assert.deepEqual(readDeployConfigTargetIdsFromSource({ pluginId: "fixture", packageRoot }), []);
+  });
+  await withPlugin({ [DEPLOY_CONFIGS_FILENAME]: "{" }, async (packageRoot) => {
+    assert.deepEqual(readDeployConfigTargetIdsFromSource({ pluginId: "fixture", packageRoot }), []);
+  });
 });

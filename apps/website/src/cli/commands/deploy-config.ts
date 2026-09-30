@@ -5,6 +5,7 @@ import {
   buildDeploymentDescriptor,
   createDeployConfigKit,
   loadDeployConfigGeneratorsFromSource,
+  readDeployConfigTargetIdsFromSource,
   type DeployConfigGeneratorRegistry,
   type RenderDeployConfigOptions,
 } from "../../features/deployments/index.js";
@@ -47,6 +48,24 @@ export interface RunDeployConfigCommandInput {
  *  pulls in the whole server composition graph for one path). @complexity O(1). */
 function bundledDeployPluginRoot(): string {
   return path.join(process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins"), "deploy");
+}
+
+/**
+ * The `--target` option's help text, built from the ids the bundled `deploy` plugin declares
+ * (e.g. "deploy platform: fly, render, or railway"). Sync: `cli/program.ts` builds help text before
+ * any command runs. Falls back to a generic line when the plugin declares none.
+ *
+ * @complexity O(g) in the declared generator count.
+ */
+export function deployConfigTargetOptionHelp(): string {
+  return formatTargetOptionHelp(readDeployConfigTargetIdsFromSource({ pluginId: "deploy", packageRoot: bundledDeployPluginRoot() }));
+}
+
+/** "a", "a or b", "a, b, or c". Pure (exported for its own tests). @complexity O(g). */
+export function formatTargetOptionHelp(ids: readonly string[]): string {
+  if (ids.length === 0) return "deploy platform id declared by the deploy plugin";
+  if (ids.length <= 2) return `deploy platform: ${ids.join(" or ")}`;
+  return `deploy platform: ${ids.slice(0, -1).join(", ")}, or ${ids[ids.length - 1]}`;
 }
 
 /** Loads the generators, printing any refused one to stderr so a missing `--target` is explainable.
