@@ -71,18 +71,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Planeado",
     "No credential fields yet — this instance has no backend to store them.":
       "Aún no hay campos de credenciales — esta instancia no tiene backend para almacenarlas.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Una pequeña máquina siempre activa cerca de tus visitantes — entre $2 y $9/mes aproximadamente.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Una plataforma de contenedores gestionada con un flujo de despliegue simple — plan Hobby desde $5/mes.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Una plataforma de contenedores gestionada con discos persistentes — plan Starter desde $7/mes (un servicio por disco).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Control total sobre la máquina, con la complejidad y los precios propios de AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Una máquina virtual sencilla (Droplet) — planes básicos desde $4–6/mes aproximadamente.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Cualquier servidor al que ya tengas acceso SSH — lo que ya te esté costando.",
     "Loading Dockerfile…": "Cargando el Dockerfile…",
     "Not generated yet": "Aún no generado",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -174,18 +162,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Direncanakan",
     "No credential fields yet — this instance has no backend to store them.":
       "Belum ada kolom kredensial — instans ini belum punya backend untuk menyimpannya.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Mesin kecil yang selalu aktif dan dekat dengan pengunjung Anda — sekitar $2–9/bulan.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Platform kontainer terkelola dengan alur deploy sederhana — paket Hobby mulai $5/bulan.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Platform kontainer terkelola dengan disk persisten — paket Starter mulai $7/bulan (satu layanan per disk).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Kendali penuh atas mesin, dengan kompleksitas dan harga khas AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Mesin virtual sederhana (Droplet) — paket dasar mulai sekitar $4–6/bulan.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Server apa pun yang sudah bisa Anda akses via SSH — sesuai biaya yang sudah Anda tanggung.",
     "Loading Dockerfile…": "Memuat Dockerfile…",
     "Not generated yet": "Belum dibuat",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -277,18 +253,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Geplant",
     "No credential fields yet — this instance has no backend to store them.":
       "Noch keine Zugangsdatenfelder — diese Instanz hat kein Backend, um sie zu speichern.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Eine kleine, dauerhaft laufende Maschine in der Nähe deiner Besucher — etwa 2–9 $/Monat.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Eine verwaltete Container-Plattform mit einfachem Deploy-Ablauf — Hobby-Tarif ab 5 $/Monat.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Eine verwaltete Container-Plattform mit persistenten Datenträgern — Starter-Tarif ab 7 $/Monat (ein Dienst pro Datenträger).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Volle Kontrolle über die Maschine, mit AWS' eigener Komplexität und Preisgestaltung.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Eine unkomplizierte virtuelle Maschine (Droplet) — Basistarife ab etwa 4–6 $/Monat.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Jeder Server, auf den du bereits per SSH zugreifen kannst — zu den Kosten, die er dich bereits kostet.",
     "Loading Dockerfile…": "Dockerfile wird geladen…",
     "Not generated yet": "Noch nicht erzeugt",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -380,18 +344,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "计划中",
     "No credential fields yet — this instance has no backend to store them.":
       "尚无凭据字段 — 此实例没有可安全存储它们的后端。",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "靠近访客的一台常驻小型机器 — 每月约 2–9 美元。",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "具有简单部署流程的托管容器平台 — Hobby 套餐每月起价 5 美元。",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "带持久化磁盘的托管容器平台 — Starter 套餐每月起价 7 美元(每个磁盘限一个服务实例)。",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "完全掌控机器,同时也伴随 AWS 自身的复杂度和定价。",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "简单直接的虚拟机(Droplet) — 基础套餐每月约 4–6 美元起。",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "任何你已有 SSH 访问权限的服务器 — 成本就是你已经在承担的费用。",
     "Loading Dockerfile…": "正在加载 Dockerfile…",
     "Not generated yet": "尚未生成",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -476,18 +428,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "規劃中",
     "No credential fields yet — this instance has no backend to store them.":
       "尚無憑證欄位 — 此執行個體沒有可安全儲存它們的後端。",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "靠近訪客的小型常駐主機 — 每月約 2–9 美元。",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "具有簡單部署流程的代管容器平台 — Hobby 方案每月 5 美元起。",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "具持久性磁碟的代管容器平台 — Starter 方案每月 7 美元起(每個磁碟限一個服務執行個體)。",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "完全掌控主機,同時伴隨 AWS 自身的複雜度與定價。",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "簡單直接的虛擬主機(Droplet) — 基本方案每月約 4–6 美元起。",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "任何你已擁有 SSH 存取權的伺服器 — 成本就是你目前已負擔的費用。",
     "Loading Dockerfile…": "正在載入 Dockerfile…",
     "Not generated yet": "尚未產生",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -572,18 +512,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Planejado",
     "No credential fields yet — this instance has no backend to store them.":
       "Ainda não há campos de credenciais — esta instância não tem backend para armazená-las.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Uma máquina pequena sempre ativa, próxima dos seus visitantes — cerca de US$ 2–9/mês.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Uma plataforma de contêineres gerenciada com um fluxo de implantação simples — plano Hobby a partir de US$ 5/mês.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Uma plataforma de contêineres gerenciada com discos persistentes — plano Starter a partir de US$ 7/mês (um serviço por disco).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Controle total sobre a máquina, com a complexidade e os preços próprios da AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Uma máquina virtual simples (Droplet) — planos básicos a partir de cerca de US$ 4–6/mês.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Qualquer servidor ao qual você já tenha acesso SSH — pelo custo que ele já representa para você.",
     "Loading Dockerfile…": "Carregando o Dockerfile…",
     "Not generated yet": "Ainda não gerado",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -675,18 +603,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Запланировано",
     "No credential fields yet — this instance has no backend to store them.":
       "Полей для учётных данных пока нет — у этого экземпляра нет backend'а для их хранения.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Небольшая постоянно работающая машина рядом с вашими посетителями — примерно $2–9/мес.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Управляемая контейнерная платформа с простым процессом деплоя — тариф Hobby от $5/мес.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Управляемая контейнерная платформа с постоянными дисками — тариф Starter от $7/мес (один сервис на диск).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Полный контроль над машиной — со всей сложностью и ценами, свойственными AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Простая виртуальная машина (Droplet) — базовые тарифы примерно от $4–6/мес.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Любой сервер, к которому у вас уже есть доступ по SSH — по той цене, которую вы уже платите.",
     "Loading Dockerfile…": "Загрузка Dockerfile…",
     "Not generated yet": "Пока не создан",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -771,18 +687,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "برنامه‌ریزی‌شده",
     "No credential fields yet — this instance has no backend to store them.":
       "هنوز فیلدی برای اعتبارنامه وجود ندارد — این نمونه بک‌اندی برای ذخیره آن‌ها ندارد.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "یک ماشین کوچک و همیشه روشن نزدیک به بازدیدکنندگان شما — تقریباً ۲ تا ۹ دلار در ماه.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "یک پلتفرم کانتینری مدیریت‌شده با فرآیند استقرار ساده — طرح Hobby از ۵ دلار در ماه.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "یک پلتفرم کانتینری مدیریت‌شده با دیسک‌های پایدار — طرح Starter از ۷ دلار در ماه (یک سرویس به ازای هر دیسک).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "کنترل کامل بر ماشین، همراه با پیچیدگی و قیمت‌گذاری خاص AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "یک ماشین مجازی ساده (Droplet) — طرح‌های پایه از حدود ۴ تا ۶ دلار در ماه.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "هر سروری که از قبل به آن دسترسی SSH دارید — به همان هزینه‌ای که همین حالا برای آن می‌پردازید.",
     "Loading Dockerfile…": "در حال بارگذاری Dockerfile…",
     "Not generated yet": "هنوز ایجاد نشده",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -867,18 +771,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "مخطَّط له",
     "No credential fields yet — this instance has no backend to store them.":
       "لا توجد حقول بيانات اعتماد بعد — لا تملك هذه النسخة خلفية لتخزينها.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "جهاز صغير يعمل باستمرار وقريب من زوّارك — حوالي 2–9 دولارات شهريًا.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "منصة حاويات مُدارة بتدفق نشر بسيط — خطة Hobby تبدأ من 5 دولارات شهريًا.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "منصة حاويات مُدارة بأقراص دائمة — خطة Starter تبدأ من 7 دولارات شهريًا (خدمة واحدة لكل قرص).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "تحكم كامل في الجهاز، مع ما يصاحب ذلك من تعقيد وتسعير خاصَّين بـ AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "جهاز افتراضي بسيط (Droplet) — الخطط الأساسية تبدأ من حوالي 4–6 دولارات شهريًا.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "أي خادم لديك بالفعل وصول SSH إليه — بأي تكلفة تتحملها بالفعل عنه.",
     "Loading Dockerfile…": "جارٍ تحميل Dockerfile…",
     "Not generated yet": "لم يُنشأ بعد",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -963,18 +855,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "予定",
     "No credential fields yet — this instance has no backend to store them.":
       "認証情報の入力欄はまだありません — このインスタンスには保存先のバックエンドがありません。",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "訪問者の近くで常時稼働する小さなマシン — 月額およそ2〜9ドル。",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "シンプルなデプロイフローを持つマネージドコンテナプラットフォーム — Hobbyプランは月額5ドルから。",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "永続ディスクを備えたマネージドコンテナプラットフォーム — Starterプランは月額7ドルから(ディスク1つにつきサービス1つ)。",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "マシンを完全に制御できる一方、AWS特有の複雑さと料金体系が伴います。",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "シンプルな仮想マシン(Droplet) — 基本プランは月額およそ4〜6ドルから。",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "すでにSSHでアクセスできるサーバーなら何でも — すでに支払っている費用のままです。",
     "Loading Dockerfile…": "Dockerfileを読み込み中…",
     "Not generated yet": "まだ生成されていません",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1059,18 +939,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "예정됨",
     "No credential fields yet — this instance has no backend to store them.":
       "아직 자격 증명 입력란이 없습니다 — 이 인스턴스에는 이를 저장할 백엔드가 없습니다.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "방문자와 가까운 곳에서 항상 켜져 있는 소형 머신 — 월 약 2~9달러.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "간단한 배포 흐름을 가진 관리형 컨테이너 플랫폼 — Hobby 요금제는 월 5달러부터.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "영구 디스크를 갖춘 관리형 컨테이너 플랫폼 — Starter 요금제는 월 7달러부터(디스크당 서비스 1개).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "머신에 대한 완전한 제어권을 가지되, AWS 특유의 복잡성과 요금 체계가 따릅니다.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "간단한 가상 머신(Droplet) — 기본 요금제는 월 약 4~6달러부터.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "이미 SSH로 접근 가능한 서버라면 무엇이든 — 이미 지불하고 있는 비용 그대로.",
     "Loading Dockerfile…": "Dockerfile을 불러오는 중…",
     "Not generated yet": "아직 생성되지 않음",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1155,18 +1023,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Planowane",
     "No credential fields yet — this instance has no backend to store them.":
       "Jeszcze brak pól na dane uwierzytelniające — ta instancja nie ma backendu do ich przechowywania.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Mała, stale działająca maszyna blisko Twoich odwiedzających — około 2–9 USD/mies.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Zarządzana platforma kontenerowa z prostym procesem wdrażania — plan Hobby od 5 USD/mies.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Zarządzana platforma kontenerowa z trwałymi dyskami — plan Starter od 7 USD/mies. (jedna usługa na dysk).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Pełna kontrola nad maszyną, wraz z właściwą dla AWS złożonością i cennikiem.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Prosta maszyna wirtualna (Droplet) — plany podstawowe od około 4–6 USD/mies.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Dowolny serwer, do którego masz już dostęp SSH — za tyle, ile już za niego płacisz.",
     "Loading Dockerfile…": "Wczytywanie Dockerfile…",
     "Not generated yet": "Jeszcze niewygenerowany",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1251,18 +1107,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Tervezett",
     "No credential fields yet — this instance has no backend to store them.":
       "Még nincsenek hitelesítési mezők — ennek a példánynak nincs háttérrendszere ezek tárolására.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Kis, folyamatosan futó gép a látogatóid közelében — kb. 2–9 USD/hó.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Menedzselt konténerplatform egyszerű telepítési folyamattal — Hobby csomag 5 USD/hótól.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Menedzselt konténerplatform tartós lemezekkel — Starter csomag 7 USD/hótól (lemezenként egy szolgáltatás).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Teljes kontroll a gép felett, az AWS-re jellemző összetettséggel és árazással.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Egyszerű virtuális gép (Droplet) — alapcsomagok kb. 4–6 USD/hótól.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Bármely szerver, amelyhez már van SSH-hozzáférésed — amennyibe már most is kerül.",
     "Loading Dockerfile…": "Dockerfile betöltése…",
     "Not generated yet": "Még nincs legenerálva",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1347,18 +1191,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Prévu",
     "No credential fields yet — this instance has no backend to store them.":
       "Pas encore de champs d'identifiants — cette instance n'a pas de backend pour les stocker.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Une petite machine toujours active, proche de vos visiteurs — environ 2 à 9 $/mois.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Une plateforme de conteneurs gérée avec un déploiement simple — forfait Hobby à partir de 5 $/mois.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Une plateforme de conteneurs gérée avec des disques persistants — forfait Starter à partir de 7 $/mois (un service par disque).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Un contrôle total sur la machine, avec la complexité et la tarification propres à AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Une machine virtuelle simple (Droplet) — forfaits de base à partir d'environ 4 à 6 $/mois.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "N'importe quel serveur auquel vous avez déjà accès en SSH — au coût que vous payez déjà.",
     "Loading Dockerfile…": "Chargement du Dockerfile…",
     "Not generated yet": "Pas encore généré",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1450,18 +1282,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Заплановано",
     "No credential fields yet — this instance has no backend to store them.":
       "Полів для облікових даних поки немає — цей екземпляр не має бекенду для їх зберігання.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Невелика постійно працююча машина поруч із вашими відвідувачами — приблизно $2–9/міс.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Керована контейнерна платформа з простим процесом деплою — тариф Hobby від $5/міс.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Керована контейнерна платформа з постійними дисками — тариф Starter від $7/міс (один сервіс на диск).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Повний контроль над машиною — з усією складністю та цінами, властивими AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Проста віртуальна машина (Droplet) — базові тарифи приблизно від $4–6/міс.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Будь-який сервер, до якого у вас уже є доступ по SSH — за ціною, яку ви вже платите.",
     "Loading Dockerfile…": "Завантаження Dockerfile…",
     "Not generated yet": "Ще не створено",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1546,18 +1366,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Planlandı",
     "No credential fields yet — this instance has no backend to store them.":
       "Henüz kimlik bilgisi alanları yok — bu örneğin bunları saklayacak bir arka ucu yok.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Ziyaretçilerinize yakın, sürekli açık küçük bir makine — ayda yaklaşık 2–9 $.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Basit bir dağıtım akışına sahip yönetilen konteyner platformu — Hobby planı aylık 5 $'dan başlar.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Kalıcı disklere sahip yönetilen konteyner platformu — Starter planı aylık 7 $'dan başlar (disk başına bir servis).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Makine üzerinde tam kontrol, AWS'ye özgü karmaşıklık ve fiyatlandırmayla birlikte.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Basit bir sanal makine (Droplet) — temel planlar ayda yaklaşık 4–6 $'dan başlar.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Zaten SSH erişiminiz olan herhangi bir sunucu — size şu anda neye mal oluyorsa o kadar.",
     "Loading Dockerfile…": "Dockerfile yükleniyor…",
     "Not generated yet": "Henüz oluşturulmadı",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1642,18 +1450,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "วางแผนไว้",
     "No credential fields yet — this instance has no backend to store them.":
       "ยังไม่มีช่องกรอกข้อมูลรับรอง — อินสแตนซ์นี้ยังไม่มีแบ็กเอนด์สำหรับจัดเก็บ",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "เครื่องขนาดเล็กที่เปิดใช้งานตลอดเวลาใกล้กับผู้เยี่ยมชมของคุณ — ประมาณ 2–9 ดอลลาร์/เดือน",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "แพลตฟอร์มคอนเทนเนอร์แบบจัดการที่มีขั้นตอนการปรับใช้ที่เรียบง่าย — แพ็กเกจ Hobby เริ่มต้น 5 ดอลลาร์/เดือน",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "แพลตฟอร์มคอนเทนเนอร์แบบจัดการที่มีดิสก์แบบถาวร — แพ็กเกจ Starter เริ่มต้น 7 ดอลลาร์/เดือน (หนึ่งบริการต่อหนึ่งดิสก์)",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "ควบคุมเครื่องได้อย่างเต็มที่ พร้อมความซับซ้อนและราคาแบบเฉพาะของ AWS",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "เครื่องเสมือนแบบเรียบง่าย (Droplet) — แพ็กเกจพื้นฐานเริ่มต้นประมาณ 4–6 ดอลลาร์/เดือน",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "เซิร์ฟเวอร์ใดก็ตามที่คุณมีสิทธิ์เข้าถึงผ่าน SSH อยู่แล้ว — ตามค่าใช้จ่ายที่คุณจ่ายอยู่แล้ว",
     "Loading Dockerfile…": "กำลังโหลด Dockerfile…",
     "Not generated yet": "ยังไม่ได้สร้าง",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1738,18 +1534,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "Pianificato",
     "No credential fields yet — this instance has no backend to store them.":
       "Ancora nessun campo per le credenziali — questa istanza non ha un backend per archiviarle.",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "Una piccola macchina sempre attiva vicino ai tuoi visitatori — circa 2–9 $/mese.",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "Una piattaforma di container gestita con un flusso di distribuzione semplice — piano Hobby da 5 $/mese.",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "Una piattaforma di container gestita con dischi persistenti — piano Starter da 7 $/mese (un servizio per disco).",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "Controllo completo sulla macchina, con la complessità e i prezzi tipici di AWS.",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "Una macchina virtuale semplice (Droplet) — piani base da circa 4–6 $/mese.",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "Qualsiasi server a cui hai già accesso SSH — al costo che già sostieni.",
     "Loading Dockerfile…": "Caricamento del Dockerfile…",
     "Not generated yet": "Non ancora generato",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1841,18 +1625,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "नियोजित",
     "No credential fields yet — this instance has no backend to store them.":
       "अभी कोई क्रेडेंशियल फ़ील्ड नहीं — इस इंस्टेंस के पास इन्हें संग्रहीत करने के लिए बैकएंड नहीं है।",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "आपके विज़िटर के पास एक छोटी हमेशा-चालू मशीन — लगभग $2–9/माह।",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "एक सरल डिप्लॉय फ़्लो वाला प्रबंधित कंटेनर प्लेटफ़ॉर्म — Hobby प्लान $5/माह से।",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "स्थायी डिस्क वाला प्रबंधित कंटेनर प्लेटफ़ॉर्म — Starter प्लान $7/माह से (प्रति डिस्क एक सेवा)।",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "मशीन पर पूर्ण नियंत्रण, AWS की अपनी जटिलता और मूल्य निर्धारण के साथ।",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "एक सीधी वर्चुअल मशीन (Droplet) — बेसिक प्लान लगभग $4–6/माह से।",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "कोई भी सर्वर जिस तक आपकी पहले से SSH पहुंच है — जो लागत आप पहले से वहन कर रहे हैं।",
     "Loading Dockerfile…": "Dockerfile लोड हो रहा है…",
     "Not generated yet": "अभी उत्पन्न नहीं हुआ",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -1937,18 +1709,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "منصوبہ بند",
     "No credential fields yet — this instance has no backend to store them.":
       "ابھی تک کوئی کریڈینشل فیلڈز نہیں — اس انسٹنس کے پاس انہیں محفوظ کرنے کے لیے بیک اینڈ نہیں ہے۔",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "آپ کے وزیٹرز کے قریب ایک چھوٹی ہمیشہ آن مشین — تقریباً $2–9/ماہ۔",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "ایک آسان ڈیپلائے فلو والا مینیجڈ کنٹینر پلیٹ فارم — Hobby پلان $5/ماہ سے۔",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "مستقل ڈسکس والا مینیجڈ کنٹینر پلیٹ فارم — Starter پلان $7/ماہ سے (فی ڈسک ایک سروس)۔",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "مشین پر مکمل کنٹرول، AWS کی اپنی پیچیدگی اور قیمتوں کے ساتھ۔",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "ایک سیدھی ورچوئل مشین (Droplet) — بنیادی پلانز تقریباً $4–6/ماہ سے۔",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "کوئی بھی سرور جس تک آپ کو پہلے ہی SSH رسائی حاصل ہے — جو لاگت آپ پہلے ہی برداشت کر رہے ہیں۔",
     "Loading Dockerfile…": "Dockerfile لوڈ ہو رہا ہے…",
     "Not generated yet": "ابھی تیار نہیں ہوا",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -2033,18 +1793,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     Planned: "পরিকল্পিত",
     "No credential fields yet — this instance has no backend to store them.":
       "এখনও কোনো পরিচয়পত্র ক্ষেত্র নেই — এই ইনস্ট্যান্সের সেগুলো সংরক্ষণের জন্য কোনো ব্যাকএন্ড নেই।",
-    "A small always-on machine close to your visitors — roughly $2–9/mo.":
-      "আপনার দর্শকদের কাছাকাছি একটি ছোট সর্বদা-চালু মেশিন — প্রায় $2–9/মাস।",
-    "A managed container platform with a simple deploy flow — Hobby plan from $5/mo.":
-      "একটি সহজ ডিপ্লয় প্রবাহসহ পরিচালিত কনটেইনার প্ল্যাটফর্ম — Hobby প্ল্যান $5/মাস থেকে।",
-    "A managed container platform with persistent disks — Starter plan from $7/mo (one service per disk).":
-      "স্থায়ী ডিস্কসহ পরিচালিত কনটেইনার প্ল্যাটফর্ম — Starter প্ল্যান $7/মাস থেকে (প্রতি ডিস্কে একটি সেবা)।",
-    "Full control over the machine, at AWS's own complexity and pricing.":
-      "মেশিনের উপর সম্পূর্ণ নিয়ন্ত্রণ, AWS-এর নিজস্ব জটিলতা ও মূল্যসহ।",
-    "A straightforward virtual machine (Droplet) — basic plans from around $4–6/mo.":
-      "একটি সহজবোধ্য ভার্চুয়াল মেশিন (Droplet) — মৌলিক প্ল্যান প্রায় $4–6/মাস থেকে।",
-    "Any server you already have SSH access to — whatever it already costs you.":
-      "যেকোনো সার্ভার যেখানে আপনার ইতিমধ্যে SSH অ্যাক্সেস আছে — যা খরচ আপনি ইতিমধ্যে বহন করছেন।",
     "Loading Dockerfile…": "Dockerfile লোড হচ্ছে…",
     "Not generated yet": "এখনও তৈরি হয়নি",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
@@ -2114,17 +1862,13 @@ const DEPLOYMENT_AUDIT_STRINGS: Record<string, string> = {
   "Create access token": "Create access token",
   "Loading credentials…": "Loading credentials…",
   "Account ID": "Account ID",
-  "Shown on your Cloudflare dashboard's own sidebar.": "Shown on your Cloudflare dashboard's own sidebar.",
   "connected": "connected as",
   "Verify": "Verify",
   "Verifying…": "Verifying…",
   "Which saved token publishes": "Which saved token publishes",
   "This workspace has more than one saved": "This workspace has more than one saved",
   "token. Pick which one Tovu publishes with.": "token. Pick which one Tovu publishes with.",
-  "GitHub owner or org": "GitHub owner or org",
   "Repository": "Repository",
-  "Branch (optional)": "Branch (optional)",
-  "Vercel team (optional)": "Vercel team (optional)",
   "Publishing…": "Publishing…",
   "This is immediately live on the public internet once it finishes — there is no draft or review step.": "This is immediately live on the public internet once it finishes — there is no draft or review step.",
   "Where this publish goes": "Where this publish goes",
@@ -2173,17 +1917,13 @@ const DEPLOYMENT_AUDIT_ES: Record<string, string> = {
   "Create access token": "Crear token de acceso",
   "Loading credentials…": "Cargando credenciales…",
   "Account ID": "ID de cuenta",
-  "Shown on your Cloudflare dashboard's own sidebar.": "Se muestra en la barra lateral de tu panel de Cloudflare.",
   "connected": "conectado como",
   "Verify": "Verificar",
   "Verifying…": "Verificando…",
   "Which saved token publishes": "Qué token guardado publica",
   "This workspace has more than one saved": "Este espacio de trabajo tiene más de un",
   "token. Pick which one Tovu publishes with.": "token guardado. Elige cuál usa Tovu para publicar.",
-  "GitHub owner or org": "Propietario u organización de GitHub",
   "Repository": "Repositorio",
-  "Branch (optional)": "Rama (opcional)",
-  "Vercel team (optional)": "Equipo de Vercel (opcional)",
   "Publishing…": "Publicando…",
   "This is immediately live on the public internet once it finishes — there is no draft or review step.": "Esto estará en Internet públicamente en cuanto termine; no hay borrador ni paso de revisión.",
   "Where this publish goes": "Dónde se publica",
@@ -2212,31 +1952,31 @@ const DEPLOYMENT_AUDIT_TRANSLATIONS: Record<string, Record<string, string>> = {
   en: DEPLOYMENT_AUDIT_STRINGS,
   es: DEPLOYMENT_AUDIT_ES,
   id: auditTranslationEntries([
-    "{count} baris", "Tidak didukung", "Didukung", "Belum ada Dockerfile", "Orang lain menyimpan versi Dockerfile yang berbeda saat Anda mengedit — perubahan Anda di bawah TIDAK disimpan.", "Isi saat ini di server adalah:", "File itu dihapus di server.", "Suntingan Anda di bawah tidak berubah. Bandingkan dengan isi saat ini di atas, selaraskan secara manual, lalu Simpan lagi.", "Muat versi saat ini", "Tersedia dari terminal", "Berjalan di host statis apa pun, termasuk yang gratis. Tidak ada yang dinamis yang bertahan setelah ekspor.", "Lihat detail Situs Statis", "Belum terhubung", "Memerlukan host untuk berjalan — penyiapan penyedia direncanakan, tetapi belum terhubung.", "Lihat detail Situs Lengkap", "Diatur", "Rute", "berhasil", "gagal", "Ditulis ke", "Rute gagal", "Aset gagal", "Tovu menulis setiap pos yang diterbitkan, halaman utama, produk, dan halaman tema ke dalam folder yang Anda namai.", "Salin perintah ekspor", "Ganti <dir> dengan folder tujuan penulisan. Ini argumen wajib — tidak ada nilai bawaan.", "Timpa file yang ada di folder keluaran", "Nonaktif secara bawaan. Pengekspor menolak menulis ke folder yang tidak kosong kecuali ini dicentang — ia tidak pernah menghapus file yang tidak dikenal secara diam-diam.", "Mengekspor…", "Memeriksa…", "Membawanya online", "Ekspor hanyalah folder berisi file. Pilih tujuannya, lalu publikasikan langsung dari sini.", "Target publikasi", "Terhubung", "Perlu menyimpan lebih dari satu token, mengganti namanya, atau mengelola semua kredensial tersimpan di satu tempat?", "Buat token akses", "Memuat kredensial…", "ID akun", "Ditampilkan di bilah sisi dasbor Cloudflare Anda sendiri.", "terhubung sebagai", "Verifikasi", "Memverifikasi…", "Token tersimpan mana yang menerbitkan", "Ruang kerja ini memiliki lebih dari satu", "token tersimpan. Pilih token yang digunakan Tovu untuk menerbitkan.", "Pemilik atau organisasi GitHub", "Repositori", "Branch (opsional)", "Tim Vercel (opsional)", "Menerbitkan…", "Ini langsung aktif di internet publik setelah selesai — tidak ada tahap draf atau peninjauan.", "Tujuan publikasi ini", "Akun di atas hanya membuktikan bahwa Anda diizinkan menerbitkan — ini menjelaskan tepatnya tujuan publikasi ini.", "Jalur dasar", "Tidak ada — disajikan dari akar domain", "Kredensial", "Diterbitkan:"
+    "{count} baris", "Tidak didukung", "Didukung", "Belum ada Dockerfile", "Orang lain menyimpan versi Dockerfile yang berbeda saat Anda mengedit — perubahan Anda di bawah TIDAK disimpan.", "Isi saat ini di server adalah:", "File itu dihapus di server.", "Suntingan Anda di bawah tidak berubah. Bandingkan dengan isi saat ini di atas, selaraskan secara manual, lalu Simpan lagi.", "Muat versi saat ini", "Tersedia dari terminal", "Berjalan di host statis apa pun, termasuk yang gratis. Tidak ada yang dinamis yang bertahan setelah ekspor.", "Lihat detail Situs Statis", "Belum terhubung", "Memerlukan host untuk berjalan — penyiapan penyedia direncanakan, tetapi belum terhubung.", "Lihat detail Situs Lengkap", "Diatur", "Rute", "berhasil", "gagal", "Ditulis ke", "Rute gagal", "Aset gagal", "Tovu menulis setiap pos yang diterbitkan, halaman utama, produk, dan halaman tema ke dalam folder yang Anda namai.", "Salin perintah ekspor", "Ganti <dir> dengan folder tujuan penulisan. Ini argumen wajib — tidak ada nilai bawaan.", "Timpa file yang ada di folder keluaran", "Nonaktif secara bawaan. Pengekspor menolak menulis ke folder yang tidak kosong kecuali ini dicentang — ia tidak pernah menghapus file yang tidak dikenal secara diam-diam.", "Mengekspor…", "Memeriksa…", "Membawanya online", "Ekspor hanyalah folder berisi file. Pilih tujuannya, lalu publikasikan langsung dari sini.", "Target publikasi", "Terhubung", "Perlu menyimpan lebih dari satu token, mengganti namanya, atau mengelola semua kredensial tersimpan di satu tempat?", "Buat token akses", "Memuat kredensial…", "ID akun", "terhubung sebagai", "Verifikasi", "Memverifikasi…", "Token tersimpan mana yang menerbitkan", "Ruang kerja ini memiliki lebih dari satu", "token tersimpan. Pilih token yang digunakan Tovu untuk menerbitkan.", "Repositori", "Menerbitkan…", "Ini langsung aktif di internet publik setelah selesai — tidak ada tahap draf atau peninjauan.", "Tujuan publikasi ini", "Akun di atas hanya membuktikan bahwa Anda diizinkan menerbitkan — ini menjelaskan tepatnya tujuan publikasi ini.", "Jalur dasar", "Tidak ada — disajikan dari akar domain", "Kredensial", "Diterbitkan:"
   ]),
   de: auditTranslationEntries([
-    "{count} Zeilen", "Nicht unterstützt", "Unterstützt", "Noch kein Dockerfile", "Während Sie dieses Dockerfile bearbeitet haben, hat jemand anderes eine andere Version gespeichert — Ihre Änderungen unten wurden NICHT gespeichert.", "Der aktuelle Inhalt auf dem Server ist:", "Es wurde auf dem Server gelöscht.", "Ihre eigenen Änderungen unten sind unverändert. Vergleichen Sie sie mit dem aktuellen Inhalt oben, führen Sie sie von Hand zusammen und speichern Sie dann erneut.", "Aktuelle Version laden", "Über ein Terminal verfügbar", "Läuft auf jedem statischen Host, auch auf kostenlosen. Beim Export bleibt nichts Dynamisches erhalten.", "Details der statischen Website anzeigen", "Noch nicht verbunden", "Benötigt einen Host zum Ausführen — die Anbieter-Einrichtung ist geplant, aber noch nicht verbunden.", "Details der vollständigen Website anzeigen", "Festgelegt", "Routen", "erfolgreich", "fehlgeschlagen", "Geschrieben nach", "Fehlgeschlagene Routen", "Fehlgeschlagene Assets", "Tovu schreibt jeden veröffentlichten Beitrag, die Startseite, Produkte und Themenseiten in den von Ihnen benannten Ordner.", "Exportbefehl kopieren", "Ersetzen Sie <dir> durch den Ordner, in den geschrieben werden soll. Dies ist ein Pflichtargument — es gibt keinen Standardwert.", "Vorhandene Dateien im Ausgabeordner überschreiben", "Standardmäßig aus. Der Exporter weigert sich, in einen nicht leeren Ordner zu schreiben, solange dies nicht aktiviert ist — unbekannte Dateien werden niemals stillschweigend gelöscht.", "Wird exportiert…", "Wird geprüft…", "Online bringen", "Der Export ist nur ein Ordner mit Dateien. Wähle das Ziel und veröffentliche ihn direkt von hier.", "Veröffentlichungsziel", "Verbunden", "Möchten Sie mehr als einen Token speichern, einen umbenennen oder alle gespeicherten Zugangsdaten an einem Ort verwalten?", "Zugriffstoken erstellen", "Zugangsdaten werden geladen…", "Konto-ID", "Wird in der eigenen Seitenleiste Ihres Cloudflare-Dashboards angezeigt.", "verbunden als", "Überprüfen", "Wird überprüft…", "Welcher gespeicherte Token veröffentlicht", "Dieser Arbeitsbereich hat mehr als einen gespeicherten", "Token. Wählen Sie, welchen Tovu zum Veröffentlichen verwendet.", "GitHub-Inhaber oder -Organisation", "Repository", "Branch (optional)", "Vercel-Team (optional)", "Wird veröffentlicht…", "Sobald dies fertig ist, ist es sofort im öffentlichen Internet verfügbar — es gibt keinen Entwurfs- oder Prüfschritt.", "Wohin diese Veröffentlichung geht", "Das Konto oben beweist nur, dass Sie veröffentlichen dürfen — dies zeigt genau, wohin diese Veröffentlichung geht.", "Basispfad", "Keiner — wird vom Stammverzeichnis der Domain bereitgestellt", "Zugangsdaten", "Veröffentlicht:"
+    "{count} Zeilen", "Nicht unterstützt", "Unterstützt", "Noch kein Dockerfile", "Während Sie dieses Dockerfile bearbeitet haben, hat jemand anderes eine andere Version gespeichert — Ihre Änderungen unten wurden NICHT gespeichert.", "Der aktuelle Inhalt auf dem Server ist:", "Es wurde auf dem Server gelöscht.", "Ihre eigenen Änderungen unten sind unverändert. Vergleichen Sie sie mit dem aktuellen Inhalt oben, führen Sie sie von Hand zusammen und speichern Sie dann erneut.", "Aktuelle Version laden", "Über ein Terminal verfügbar", "Läuft auf jedem statischen Host, auch auf kostenlosen. Beim Export bleibt nichts Dynamisches erhalten.", "Details der statischen Website anzeigen", "Noch nicht verbunden", "Benötigt einen Host zum Ausführen — die Anbieter-Einrichtung ist geplant, aber noch nicht verbunden.", "Details der vollständigen Website anzeigen", "Festgelegt", "Routen", "erfolgreich", "fehlgeschlagen", "Geschrieben nach", "Fehlgeschlagene Routen", "Fehlgeschlagene Assets", "Tovu schreibt jeden veröffentlichten Beitrag, die Startseite, Produkte und Themenseiten in den von Ihnen benannten Ordner.", "Exportbefehl kopieren", "Ersetzen Sie <dir> durch den Ordner, in den geschrieben werden soll. Dies ist ein Pflichtargument — es gibt keinen Standardwert.", "Vorhandene Dateien im Ausgabeordner überschreiben", "Standardmäßig aus. Der Exporter weigert sich, in einen nicht leeren Ordner zu schreiben, solange dies nicht aktiviert ist — unbekannte Dateien werden niemals stillschweigend gelöscht.", "Wird exportiert…", "Wird geprüft…", "Online bringen", "Der Export ist nur ein Ordner mit Dateien. Wähle das Ziel und veröffentliche ihn direkt von hier.", "Veröffentlichungsziel", "Verbunden", "Möchten Sie mehr als einen Token speichern, einen umbenennen oder alle gespeicherten Zugangsdaten an einem Ort verwalten?", "Zugriffstoken erstellen", "Zugangsdaten werden geladen…", "Konto-ID", "verbunden als", "Überprüfen", "Wird überprüft…", "Welcher gespeicherte Token veröffentlicht", "Dieser Arbeitsbereich hat mehr als einen gespeicherten", "Token. Wählen Sie, welchen Tovu zum Veröffentlichen verwendet.", "Repository", "Wird veröffentlicht…", "Sobald dies fertig ist, ist es sofort im öffentlichen Internet verfügbar — es gibt keinen Entwurfs- oder Prüfschritt.", "Wohin diese Veröffentlichung geht", "Das Konto oben beweist nur, dass Sie veröffentlichen dürfen — dies zeigt genau, wohin diese Veröffentlichung geht.", "Basispfad", "Keiner — wird vom Stammverzeichnis der Domain bereitgestellt", "Zugangsdaten", "Veröffentlicht:"
   ]),
   fr: auditTranslationEntries([
-    "{count} lignes", "Non pris en charge", "Pris en charge", "Pas encore de Dockerfile", "Quelqu’un d’autre a enregistré une version différente de ce Dockerfile pendant que vous le modifiiez — vos modifications ci-dessous n’ont PAS été enregistrées.", "Son contenu actuel sur le serveur est :", "Il a été supprimé sur le serveur.", "Vos propres modifications ci-dessous sont intactes. Comparez-les au contenu actuel ci-dessus, réconciliez-les à la main, puis enregistrez à nouveau.", "Charger la version actuelle", "Disponible depuis un terminal", "Fonctionne sur n’importe quel hébergeur statique, y compris gratuit. Rien de dynamique ne survit à l’exportation.", "Voir les détails du site statique", "Pas encore connecté", "Nécessite un hébergeur pour fonctionner — la configuration du fournisseur est prévue, mais pas encore connectée.", "Voir les détails du site complet", "Défini", "Routes", "réussi", "échoué", "Écrit dans", "Routes échouées", "Ressources échouées", "Tovu écrit chaque publication, la page d’accueil, les produits et les pages de thème publiés dans le dossier que vous indiquez.", "Copier la commande d’exportation", "Remplacez <dir> par le dossier dans lequel écrire. C’est un argument obligatoire — il n’y a pas de valeur par défaut.", "Écraser les fichiers existants dans le dossier de sortie", "Désactivé par défaut. L’exportateur refuse d’écrire dans un dossier non vide sauf si cette option est cochée — il ne supprime jamais silencieusement des fichiers inconnus.", "Exportation…", "Vérification…", "Mettre en ligne", "L'export n'est qu'un dossier de fichiers. Choisissez sa destination, puis publiez-le directement d'ici.", "Cible de publication", "Connecté", "Besoin d’enregistrer plus d’un jeton, d’en renommer un ou de gérer tous les identifiants enregistrés au même endroit ?", "Créer un jeton d’accès", "Chargement des identifiants…", "ID de compte", "Affiché dans la barre latérale de votre propre tableau de bord Cloudflare.", "connecté en tant que", "Vérifier", "Vérification…", "Quel jeton enregistré publie", "Cet espace de travail contient plus d’un", "jeton enregistré. Choisissez celui que Tovu utilise pour publier.", "Propriétaire ou organisation GitHub", "Dépôt", "Branche (facultatif)", "Équipe Vercel (facultatif)", "Publication…", "Ce sera immédiatement en ligne sur Internet public une fois terminé — il n’y a aucune étape de brouillon ou de révision.", "Où va cette publication", "Le compte ci-dessus prouve seulement que vous êtes autorisé à publier — ceci indique exactement où va celle-ci.", "Chemin de base", "Aucun — servi depuis la racine du domaine", "Identifiant", "Publié :"
+    "{count} lignes", "Non pris en charge", "Pris en charge", "Pas encore de Dockerfile", "Quelqu’un d’autre a enregistré une version différente de ce Dockerfile pendant que vous le modifiiez — vos modifications ci-dessous n’ont PAS été enregistrées.", "Son contenu actuel sur le serveur est :", "Il a été supprimé sur le serveur.", "Vos propres modifications ci-dessous sont intactes. Comparez-les au contenu actuel ci-dessus, réconciliez-les à la main, puis enregistrez à nouveau.", "Charger la version actuelle", "Disponible depuis un terminal", "Fonctionne sur n’importe quel hébergeur statique, y compris gratuit. Rien de dynamique ne survit à l’exportation.", "Voir les détails du site statique", "Pas encore connecté", "Nécessite un hébergeur pour fonctionner — la configuration du fournisseur est prévue, mais pas encore connectée.", "Voir les détails du site complet", "Défini", "Routes", "réussi", "échoué", "Écrit dans", "Routes échouées", "Ressources échouées", "Tovu écrit chaque publication, la page d’accueil, les produits et les pages de thème publiés dans le dossier que vous indiquez.", "Copier la commande d’exportation", "Remplacez <dir> par le dossier dans lequel écrire. C’est un argument obligatoire — il n’y a pas de valeur par défaut.", "Écraser les fichiers existants dans le dossier de sortie", "Désactivé par défaut. L’exportateur refuse d’écrire dans un dossier non vide sauf si cette option est cochée — il ne supprime jamais silencieusement des fichiers inconnus.", "Exportation…", "Vérification…", "Mettre en ligne", "L'export n'est qu'un dossier de fichiers. Choisissez sa destination, puis publiez-le directement d'ici.", "Cible de publication", "Connecté", "Besoin d’enregistrer plus d’un jeton, d’en renommer un ou de gérer tous les identifiants enregistrés au même endroit ?", "Créer un jeton d’accès", "Chargement des identifiants…", "ID de compte", "connecté en tant que", "Vérifier", "Vérification…", "Quel jeton enregistré publie", "Cet espace de travail contient plus d’un", "jeton enregistré. Choisissez celui que Tovu utilise pour publier.", "Dépôt", "Publication…", "Ce sera immédiatement en ligne sur Internet public une fois terminé — il n’y a aucune étape de brouillon ou de révision.", "Où va cette publication", "Le compte ci-dessus prouve seulement que vous êtes autorisé à publier — ceci indique exactement où va celle-ci.", "Chemin de base", "Aucun — servi depuis la racine du domaine", "Identifiant", "Publié :"
   ]),
   it: auditTranslationEntries([
-    "{count} righe", "Non supportato", "Supportato", "Nessun Dockerfile ancora", "Qualcun altro ha salvato una versione diversa di questo Dockerfile mentre lo modificavi — le modifiche qui sotto NON sono state salvate.", "Il contenuto attuale sul server è:", "È stato eliminato sul server.", "Le tue modifiche qui sotto sono intatte. Confrontale con il contenuto attuale sopra, riconciliale a mano, quindi salva di nuovo.", "Carica la versione attuale", "Disponibile da un terminale", "Funziona su qualsiasi host statico, inclusi quelli gratuiti. Nulla di dinamico sopravvive all’esportazione.", "Visualizza i dettagli del sito statico", "Non ancora collegato", "Richiede un host su cui eseguire — la configurazione del provider è pianificata, ma non ancora collegata.", "Visualizza i dettagli del sito completo", "Impostato", "Percorsi", "riuscito", "non riuscito", "Scritto in", "Percorsi non riusciti", "Risorse non riuscite", "Tovu scrive ogni post pubblicato, la home page, i prodotti e le pagine del tema nella cartella che indichi.", "Copia il comando di esportazione", "Sostituisci <dir> con la cartella in cui scrivere. È un argomento obbligatorio — non esiste un valore predefinito.", "Sovrascrivi i file esistenti nella cartella di output", "Disattivato per impostazione predefinita. L’esportatore rifiuta di scrivere in una cartella non vuota a meno che questa opzione non sia selezionata — non elimina mai silenziosamente file sconosciuti.", "Esportazione…", "Verifica…", "Mettilo online", "L'esportazione è solo una cartella di file. Scegli dove va, poi pubblicala direttamente da qui.", "Destinazione di pubblicazione", "Connesso", "Devi salvare più di un token, rinominarne uno o gestire tutte le credenziali salvate in un unico posto?", "Crea token di accesso", "Caricamento credenziali…", "ID account", "Mostrato nella barra laterale della tua dashboard Cloudflare.", "connesso come", "Verifica", "Verifica in corso…", "Quale token salvato pubblica", "Questo spazio di lavoro ha più di un", "token salvato. Scegli quale usa Tovu per pubblicare.", "Proprietario o organizzazione GitHub", "Repository", "Ramo (facoltativo)", "Team Vercel (facoltativo)", "Pubblicazione…", "Sarà immediatamente online su Internet pubblico al termine — non esiste una fase di bozza o revisione.", "Dove va questa pubblicazione", "L’account sopra dimostra solo che puoi pubblicare — questo indica esattamente dove va questa pubblicazione.", "Percorso di base", "Nessuno — servito dalla radice del dominio", "Credenziale", "Pubblicato:"
+    "{count} righe", "Non supportato", "Supportato", "Nessun Dockerfile ancora", "Qualcun altro ha salvato una versione diversa di questo Dockerfile mentre lo modificavi — le modifiche qui sotto NON sono state salvate.", "Il contenuto attuale sul server è:", "È stato eliminato sul server.", "Le tue modifiche qui sotto sono intatte. Confrontale con il contenuto attuale sopra, riconciliale a mano, quindi salva di nuovo.", "Carica la versione attuale", "Disponibile da un terminale", "Funziona su qualsiasi host statico, inclusi quelli gratuiti. Nulla di dinamico sopravvive all’esportazione.", "Visualizza i dettagli del sito statico", "Non ancora collegato", "Richiede un host su cui eseguire — la configurazione del provider è pianificata, ma non ancora collegata.", "Visualizza i dettagli del sito completo", "Impostato", "Percorsi", "riuscito", "non riuscito", "Scritto in", "Percorsi non riusciti", "Risorse non riuscite", "Tovu scrive ogni post pubblicato, la home page, i prodotti e le pagine del tema nella cartella che indichi.", "Copia il comando di esportazione", "Sostituisci <dir> con la cartella in cui scrivere. È un argomento obbligatorio — non esiste un valore predefinito.", "Sovrascrivi i file esistenti nella cartella di output", "Disattivato per impostazione predefinita. L’esportatore rifiuta di scrivere in una cartella non vuota a meno che questa opzione non sia selezionata — non elimina mai silenziosamente file sconosciuti.", "Esportazione…", "Verifica…", "Mettilo online", "L'esportazione è solo una cartella di file. Scegli dove va, poi pubblicala direttamente da qui.", "Destinazione di pubblicazione", "Connesso", "Devi salvare più di un token, rinominarne uno o gestire tutte le credenziali salvate in un unico posto?", "Crea token di accesso", "Caricamento credenziali…", "ID account", "connesso come", "Verifica", "Verifica in corso…", "Quale token salvato pubblica", "Questo spazio di lavoro ha più di un", "token salvato. Scegli quale usa Tovu per pubblicare.", "Repository", "Pubblicazione…", "Sarà immediatamente online su Internet pubblico al termine — non esiste una fase di bozza o revisione.", "Dove va questa pubblicazione", "L’account sopra dimostra solo che puoi pubblicare — questo indica esattamente dove va questa pubblicazione.", "Percorso di base", "Nessuno — servito dalla radice del dominio", "Credenziale", "Pubblicato:"
   ]),
   "pt-BR": auditTranslationEntries([
-    "{count} linhas", "Não compatível", "Compatível", "Ainda não há Dockerfile", "Outra pessoa salvou uma versão diferente deste Dockerfile enquanto você editava — suas alterações abaixo NÃO foram salvas.", "O conteúdo atual no servidor é:", "Ele foi excluído no servidor.", "Suas próprias edições abaixo permanecem intactas. Compare-as com o conteúdo atual acima, reconcilie manualmente e salve novamente.", "Carregar a versão atual", "Disponível em um terminal", "Funciona em qualquer hospedagem estática, inclusive gratuita. Nada dinâmico sobrevive à exportação.", "Ver detalhes do site estático", "Ainda não conectado", "Precisa de uma hospedagem para executar — a configuração do provedor está planejada, mas ainda não está conectada.", "Ver detalhes do site completo", "Definido", "Rotas", "bem-sucedido", "falhou", "Gravado em", "Rotas com falha", "Recursos com falha", "O Tovu grava cada post publicado, a página inicial, os produtos e as páginas do tema na pasta que você nomear.", "Copiar o comando de exportação", "Substitua <dir> pela pasta onde gravar. É um argumento obrigatório — não há padrão.", "Substituir arquivos existentes na pasta de saída", "Desativado por padrão. O exportador se recusa a gravar em uma pasta não vazia a menos que isto seja marcado — ele nunca exclui arquivos desconhecidos silenciosamente.", "Exportando…", "Verificando…", "Colocar online", "A exportação é só uma pasta de arquivos. Escolha para onde vai e publique direto daqui.", "Destino de publicação", "Conectado", "Precisa salvar mais de um token, renomear um ou gerenciar todas as credenciais salvas em um só lugar?", "Criar token de acesso", "Carregando credenciais…", "ID da conta", "Exibido na própria barra lateral do seu painel do Cloudflare.", "conectado como", "Verificar", "Verificando…", "Qual token salvo publica", "Este espaço de trabalho tem mais de um", "token salvo. Escolha qual o Tovu usa para publicar.", "Proprietário ou organização do GitHub", "Repositório", "Branch (opcional)", "Equipe Vercel (opcional)", "Publicando…", "Isto fica imediatamente ativo na internet pública quando termina — não há etapa de rascunho ou revisão.", "Para onde vai esta publicação", "A conta acima apenas prova que você tem permissão para publicar — isto informa exatamente para onde esta publicação vai.", "Caminho base", "Nenhum — servido a partir da raiz do domínio", "Credencial", "Publicado:"
+    "{count} linhas", "Não compatível", "Compatível", "Ainda não há Dockerfile", "Outra pessoa salvou uma versão diferente deste Dockerfile enquanto você editava — suas alterações abaixo NÃO foram salvas.", "O conteúdo atual no servidor é:", "Ele foi excluído no servidor.", "Suas próprias edições abaixo permanecem intactas. Compare-as com o conteúdo atual acima, reconcilie manualmente e salve novamente.", "Carregar a versão atual", "Disponível em um terminal", "Funciona em qualquer hospedagem estática, inclusive gratuita. Nada dinâmico sobrevive à exportação.", "Ver detalhes do site estático", "Ainda não conectado", "Precisa de uma hospedagem para executar — a configuração do provedor está planejada, mas ainda não está conectada.", "Ver detalhes do site completo", "Definido", "Rotas", "bem-sucedido", "falhou", "Gravado em", "Rotas com falha", "Recursos com falha", "O Tovu grava cada post publicado, a página inicial, os produtos e as páginas do tema na pasta que você nomear.", "Copiar o comando de exportação", "Substitua <dir> pela pasta onde gravar. É um argumento obrigatório — não há padrão.", "Substituir arquivos existentes na pasta de saída", "Desativado por padrão. O exportador se recusa a gravar em uma pasta não vazia a menos que isto seja marcado — ele nunca exclui arquivos desconhecidos silenciosamente.", "Exportando…", "Verificando…", "Colocar online", "A exportação é só uma pasta de arquivos. Escolha para onde vai e publique direto daqui.", "Destino de publicação", "Conectado", "Precisa salvar mais de um token, renomear um ou gerenciar todas as credenciais salvas em um só lugar?", "Criar token de acesso", "Carregando credenciais…", "ID da conta", "conectado como", "Verificar", "Verificando…", "Qual token salvo publica", "Este espaço de trabalho tem mais de um", "token salvo. Escolha qual o Tovu usa para publicar.", "Repositório", "Publicando…", "Isto fica imediatamente ativo na internet pública quando termina — não há etapa de rascunho ou revisão.", "Para onde vai esta publicação", "A conta acima apenas prova que você tem permissão para publicar — isto informa exatamente para onde esta publicação vai.", "Caminho base", "Nenhum — servido a partir da raiz do domínio", "Credencial", "Publicado:"
   ]),
   "zh-CN": auditTranslationEntries([
-    "{count} 行", "不支持", "支持", "尚无 Dockerfile", "您编辑此 Dockerfile 时，其他人保存了不同版本——您下方的更改未保存。", "服务器上的当前内容为：", "它已在服务器上删除。", "您下方的编辑未受影响。请与上方当前内容比较，手动协调后再次保存。", "加载当前版本", "可在终端中使用", "可在任何静态主机上运行，包括免费主机。导出后不会保留任何动态内容。", "查看静态站点详情", "尚未连接", "需要主机才能运行——已计划配置提供商，但尚未连接。", "查看完整站点详情", "已设置", "路由", "成功", "失败", "写入到", "失败的路由", "失败的资源", "Tovu 会将每篇已发布文章、主页、产品和主题页面写入您指定的文件夹。", "复制导出命令", "将 <dir> 替换为要写入的文件夹。这是必填参数——没有默认值。", "覆盖输出文件夹中的现有文件", "默认关闭。除非选中此项，否则导出器拒绝写入非空文件夹——它绝不会悄悄删除未知文件。", "正在导出…", "正在检查…", "上线发布", "导出只是一个文件夹。选择发布位置，然后直接在这里发布。", "发布目标", "已连接", "需要保存多个令牌、重命名令牌，或在一处管理所有已保存凭据？", "创建访问令牌", "正在加载凭据…", "账户 ID", "显示在您自己的 Cloudflare 仪表板侧边栏中。", "连接为", "验证", "正在验证…", "哪个已保存令牌用于发布", "此工作区保存了多个", "令牌。请选择 Tovu 用于发布的令牌。", "GitHub 所有者或组织", "仓库", "分支（可选）", "Vercel 团队（可选）", "正在发布…", "完成后会立即在公共互联网上上线——没有草稿或审核步骤。", "此次发布的去向", "上方账户仅证明您有发布权限——这里明确说明此次发布的确切去向。", "基础路径", "无——从域名根目录提供服务", "凭据", "已发布："
+    "{count} 行", "不支持", "支持", "尚无 Dockerfile", "您编辑此 Dockerfile 时，其他人保存了不同版本——您下方的更改未保存。", "服务器上的当前内容为：", "它已在服务器上删除。", "您下方的编辑未受影响。请与上方当前内容比较，手动协调后再次保存。", "加载当前版本", "可在终端中使用", "可在任何静态主机上运行，包括免费主机。导出后不会保留任何动态内容。", "查看静态站点详情", "尚未连接", "需要主机才能运行——已计划配置提供商，但尚未连接。", "查看完整站点详情", "已设置", "路由", "成功", "失败", "写入到", "失败的路由", "失败的资源", "Tovu 会将每篇已发布文章、主页、产品和主题页面写入您指定的文件夹。", "复制导出命令", "将 <dir> 替换为要写入的文件夹。这是必填参数——没有默认值。", "覆盖输出文件夹中的现有文件", "默认关闭。除非选中此项，否则导出器拒绝写入非空文件夹——它绝不会悄悄删除未知文件。", "正在导出…", "正在检查…", "上线发布", "导出只是一个文件夹。选择发布位置，然后直接在这里发布。", "发布目标", "已连接", "需要保存多个令牌、重命名令牌，或在一处管理所有已保存凭据？", "创建访问令牌", "正在加载凭据…", "账户 ID", "连接为", "验证", "正在验证…", "哪个已保存令牌用于发布", "此工作区保存了多个", "令牌。请选择 Tovu 用于发布的令牌。", "仓库", "正在发布…", "完成后会立即在公共互联网上上线——没有草稿或审核步骤。", "此次发布的去向", "上方账户仅证明您有发布权限——这里明确说明此次发布的确切去向。", "基础路径", "无——从域名根目录提供服务", "凭据", "已发布："
   ]),
   "zh-TW": auditTranslationEntries([
-    "{count} 行", "不支援", "支援", "尚無 Dockerfile", "您編輯此 Dockerfile 時，其他人儲存了不同版本——您下方的變更未儲存。", "伺服器上的目前內容為：", "它已在伺服器上刪除。", "您下方的編輯未受影響。請與上方目前內容比較，手動協調後再次儲存。", "載入目前版本", "可從終端機使用", "可在任何靜態主機上執行，包括免費主機。匯出後不會保留任何動態內容。", "檢視靜態網站詳細資料", "尚未連線", "需要主機才能執行——已規劃設定供應商，但尚未連線。", "檢視完整網站詳細資料", "已設定", "路由", "成功", "失敗", "寫入至", "失敗的路由", "失敗的資源", "Tovu 會將每篇已發佈文章、首頁、產品和佈景主題頁面寫入您指定的資料夾。", "複製匯出命令", "將 <dir> 替換為要寫入的資料夾。這是必要引數——沒有預設值。", "覆寫輸出資料夾中的現有檔案", "預設為關閉。除非勾選此項，否則匯出工具會拒絕寫入非空資料夾——它絕不會悄悄刪除未知檔案。", "正在匯出…", "正在檢查…", "上線發佈", "匯出只是一個資料夾。選擇發布位置，然後直接在這裡發布。", "發佈目標", "已連線", "需要儲存多個權杖、重新命名權杖，或在一處管理所有已儲存憑證嗎？", "建立存取權杖", "正在載入憑證…", "帳戶 ID", "顯示在您自己的 Cloudflare 儀表板側邊欄中。", "連線身分", "驗證", "正在驗證…", "哪個已儲存權杖用於發佈", "此工作區儲存了多個", "權杖。請選擇 Tovu 用於發佈的權杖。", "GitHub 擁有者或組織", "儲存庫", "分支（選用）", "Vercel 團隊（選用）", "正在發佈…", "完成後會立即在公開網際網路上線——沒有草稿或審核步驟。", "此次發佈的去向", "上方帳戶僅證明您有發佈權限——這裡明確說明此次發佈的確切去向。", "基礎路徑", "無——從網域根目錄提供服務", "憑證", "已發佈："
+    "{count} 行", "不支援", "支援", "尚無 Dockerfile", "您編輯此 Dockerfile 時，其他人儲存了不同版本——您下方的變更未儲存。", "伺服器上的目前內容為：", "它已在伺服器上刪除。", "您下方的編輯未受影響。請與上方目前內容比較，手動協調後再次儲存。", "載入目前版本", "可從終端機使用", "可在任何靜態主機上執行，包括免費主機。匯出後不會保留任何動態內容。", "檢視靜態網站詳細資料", "尚未連線", "需要主機才能執行——已規劃設定供應商，但尚未連線。", "檢視完整網站詳細資料", "已設定", "路由", "成功", "失敗", "寫入至", "失敗的路由", "失敗的資源", "Tovu 會將每篇已發佈文章、首頁、產品和佈景主題頁面寫入您指定的資料夾。", "複製匯出命令", "將 <dir> 替換為要寫入的資料夾。這是必要引數——沒有預設值。", "覆寫輸出資料夾中的現有檔案", "預設為關閉。除非勾選此項，否則匯出工具會拒絕寫入非空資料夾——它絕不會悄悄刪除未知檔案。", "正在匯出…", "正在檢查…", "上線發佈", "匯出只是一個資料夾。選擇發布位置，然後直接在這裡發布。", "發佈目標", "已連線", "需要儲存多個權杖、重新命名權杖，或在一處管理所有已儲存憑證嗎？", "建立存取權杖", "正在載入憑證…", "帳戶 ID", "連線身分", "驗證", "正在驗證…", "哪個已儲存權杖用於發佈", "此工作區儲存了多個", "權杖。請選擇 Tovu 用於發佈的權杖。", "儲存庫", "正在發佈…", "完成後會立即在公開網際網路上線——沒有草稿或審核步驟。", "此次發佈的去向", "上方帳戶僅證明您有發佈權限——這裡明確說明此次發佈的確切去向。", "基礎路徑", "無——從網域根目錄提供服務", "憑證", "已發佈："
   ]),
   ja: auditTranslationEntries([
-    "{count} 行", "非対応", "対応", "Dockerfile はまだありません", "編集中に別のユーザーがこの Dockerfile の別バージョンを保存しました。下の変更は保存されていません。", "サーバー上の現在の内容:", "サーバー上で削除されました。", "下の編集内容はそのままです。上の現在の内容と比較して手動で調整し、もう一度保存してください。", "現在のバージョンを読み込む", "ターミナルから利用可能", "無料のものを含む任意の静的ホストで動作します。エクスポート後に動的な機能は残りません。", "静的サイトの詳細を見る", "まだ接続されていません", "実行するにはホストが必要です。プロバイダー設定は予定されていますが、まだ接続されていません。", "完全なサイトの詳細を見る", "設定済み", "ルート", "成功", "失敗", "書き込み先", "失敗したルート", "失敗したアセット", "Tovu は公開済みの各投稿、ホームページ、商品、テーマページを指定したフォルダーに書き出します。", "エクスポートコマンドをコピー", "<dir> を書き込み先フォルダーに置き換えてください。必須の引数で、既定値はありません。", "出力フォルダー内の既存ファイルを上書きする", "既定ではオフです。これを選択しない限り、エクスポーターは空でないフォルダーへの書き込みを拒否します。不明なファイルを黙って削除することはありません。", "エクスポート中…", "確認中…", "オンラインにする", "エクスポートはファイルのフォルダーにすぎません。公開先を選び、ここから直接公開します。", "公開先", "接続済み", "複数のトークンを保存、名前変更、または保存済み資格情報を一か所で管理しますか？", "アクセストークンを作成", "資格情報を読み込み中…", "アカウント ID", "Cloudflare ダッシュボードのサイドバーに表示されます。", "接続先", "検証", "検証中…", "どの保存済みトークンで公開するか", "このワークスペースには複数の保存済み", "トークンがあります。Tovu が公開に使うものを選んでください。", "GitHub 所有者または組織", "リポジトリ", "ブランチ（任意）", "Vercel チーム（任意）", "公開中…", "完了するとすぐに公開インターネット上で公開されます。下書きやレビューの手順はありません。", "この公開先", "上のアカウントは公開の権限を示すだけです。ここでは今回の公開先を正確に指定します。", "ベースパス", "なし — ドメインのルートから提供", "資格情報", "公開済み:"
+    "{count} 行", "非対応", "対応", "Dockerfile はまだありません", "編集中に別のユーザーがこの Dockerfile の別バージョンを保存しました。下の変更は保存されていません。", "サーバー上の現在の内容:", "サーバー上で削除されました。", "下の編集内容はそのままです。上の現在の内容と比較して手動で調整し、もう一度保存してください。", "現在のバージョンを読み込む", "ターミナルから利用可能", "無料のものを含む任意の静的ホストで動作します。エクスポート後に動的な機能は残りません。", "静的サイトの詳細を見る", "まだ接続されていません", "実行するにはホストが必要です。プロバイダー設定は予定されていますが、まだ接続されていません。", "完全なサイトの詳細を見る", "設定済み", "ルート", "成功", "失敗", "書き込み先", "失敗したルート", "失敗したアセット", "Tovu は公開済みの各投稿、ホームページ、商品、テーマページを指定したフォルダーに書き出します。", "エクスポートコマンドをコピー", "<dir> を書き込み先フォルダーに置き換えてください。必須の引数で、既定値はありません。", "出力フォルダー内の既存ファイルを上書きする", "既定ではオフです。これを選択しない限り、エクスポーターは空でないフォルダーへの書き込みを拒否します。不明なファイルを黙って削除することはありません。", "エクスポート中…", "確認中…", "オンラインにする", "エクスポートはファイルのフォルダーにすぎません。公開先を選び、ここから直接公開します。", "公開先", "接続済み", "複数のトークンを保存、名前変更、または保存済み資格情報を一か所で管理しますか？", "アクセストークンを作成", "資格情報を読み込み中…", "アカウント ID", "接続先", "検証", "検証中…", "どの保存済みトークンで公開するか", "このワークスペースには複数の保存済み", "トークンがあります。Tovu が公開に使うものを選んでください。", "リポジトリ", "公開中…", "完了するとすぐに公開インターネット上で公開されます。下書きやレビューの手順はありません。", "この公開先", "上のアカウントは公開の権限を示すだけです。ここでは今回の公開先を正確に指定します。", "ベースパス", "なし — ドメインのルートから提供", "資格情報", "公開済み:"
   ]),
   ko: auditTranslationEntries([
-    "{count}줄", "지원되지 않음", "지원됨", "Dockerfile이 아직 없습니다", "편집하는 동안 다른 사용자가 이 Dockerfile의 다른 버전을 저장했습니다. 아래 변경 사항은 저장되지 않았습니다.", "서버의 현재 내용:", "서버에서 삭제되었습니다.", "아래의 편집 내용은 그대로입니다. 위의 현재 내용과 비교하여 수동으로 조정한 후 다시 저장하세요.", "현재 버전 불러오기", "터미널에서 사용 가능", "무료 호스트를 포함한 모든 정적 호스트에서 실행됩니다. 내보낸 뒤에는 동적 기능이 남지 않습니다.", "정적 사이트 세부 정보 보기", "아직 연결되지 않음", "실행하려면 호스트가 필요합니다. 제공업체 설정은 계획되어 있지만 아직 연결되지 않았습니다.", "전체 사이트 세부 정보 보기", "설정됨", "경로", "성공", "실패", "작성 위치", "실패한 경로", "실패한 자산", "Tovu는 게시된 모든 글, 홈 페이지, 제품 및 테마 페이지를 지정한 폴더에 씁니다.", "내보내기 명령 복사", "<dir>을 쓸 폴더로 바꾸세요. 필수 인수이며 기본값은 없습니다.", "출력 폴더의 기존 파일 덮어쓰기", "기본적으로 꺼져 있습니다. 이를 선택하지 않으면 내보내기가 비어 있지 않은 폴더에 쓰기를 거부하며, 알 수 없는 파일을 조용히 삭제하지 않습니다.", "내보내는 중…", "확인 중…", "온라인으로 게시", "내보내기는 파일 폴더일 뿐입니다. 게시할 곳을 고른 다음 여기서 바로 게시하세요.", "게시 대상", "연결됨", "토큰을 둘 이상 저장하거나 이름을 바꾸거나, 저장된 모든 자격 증명을 한 곳에서 관리해야 하나요?", "액세스 토큰 만들기", "자격 증명 불러오는 중…", "계정 ID", "Cloudflare 대시보드의 자체 사이드바에 표시됩니다.", "다음으로 연결됨", "확인", "확인 중…", "어떤 저장된 토큰으로 게시할지", "이 작업 공간에는 저장된", "토큰이 둘 이상 있습니다. Tovu가 게시에 사용할 토큰을 선택하세요.", "GitHub 소유자 또는 조직", "리포지토리", "브랜치(선택 사항)", "Vercel 팀(선택 사항)", "게시 중…", "완료되면 즉시 공개 인터넷에 게시됩니다. 초안이나 검토 단계는 없습니다.", "이번 게시의 대상", "위 계정은 게시 권한이 있음을 증명할 뿐입니다. 여기에서 이번 게시가 정확히 어디로 가는지 지정합니다.", "기본 경로", "없음 — 도메인 루트에서 제공", "자격 증명", "게시됨:"
+    "{count}줄", "지원되지 않음", "지원됨", "Dockerfile이 아직 없습니다", "편집하는 동안 다른 사용자가 이 Dockerfile의 다른 버전을 저장했습니다. 아래 변경 사항은 저장되지 않았습니다.", "서버의 현재 내용:", "서버에서 삭제되었습니다.", "아래의 편집 내용은 그대로입니다. 위의 현재 내용과 비교하여 수동으로 조정한 후 다시 저장하세요.", "현재 버전 불러오기", "터미널에서 사용 가능", "무료 호스트를 포함한 모든 정적 호스트에서 실행됩니다. 내보낸 뒤에는 동적 기능이 남지 않습니다.", "정적 사이트 세부 정보 보기", "아직 연결되지 않음", "실행하려면 호스트가 필요합니다. 제공업체 설정은 계획되어 있지만 아직 연결되지 않았습니다.", "전체 사이트 세부 정보 보기", "설정됨", "경로", "성공", "실패", "작성 위치", "실패한 경로", "실패한 자산", "Tovu는 게시된 모든 글, 홈 페이지, 제품 및 테마 페이지를 지정한 폴더에 씁니다.", "내보내기 명령 복사", "<dir>을 쓸 폴더로 바꾸세요. 필수 인수이며 기본값은 없습니다.", "출력 폴더의 기존 파일 덮어쓰기", "기본적으로 꺼져 있습니다. 이를 선택하지 않으면 내보내기가 비어 있지 않은 폴더에 쓰기를 거부하며, 알 수 없는 파일을 조용히 삭제하지 않습니다.", "내보내는 중…", "확인 중…", "온라인으로 게시", "내보내기는 파일 폴더일 뿐입니다. 게시할 곳을 고른 다음 여기서 바로 게시하세요.", "게시 대상", "연결됨", "토큰을 둘 이상 저장하거나 이름을 바꾸거나, 저장된 모든 자격 증명을 한 곳에서 관리해야 하나요?", "액세스 토큰 만들기", "자격 증명 불러오는 중…", "계정 ID", "다음으로 연결됨", "확인", "확인 중…", "어떤 저장된 토큰으로 게시할지", "이 작업 공간에는 저장된", "토큰이 둘 이상 있습니다. Tovu가 게시에 사용할 토큰을 선택하세요.", "리포지토리", "게시 중…", "완료되면 즉시 공개 인터넷에 게시됩니다. 초안이나 검토 단계는 없습니다.", "이번 게시의 대상", "위 계정은 게시 권한이 있음을 증명할 뿐입니다. 여기에서 이번 게시가 정확히 어디로 가는지 지정합니다.", "기본 경로", "없음 — 도메인 루트에서 제공", "자격 증명", "게시됨:"
   ]),
 };
 
@@ -2248,25 +1988,16 @@ const DEPLOYMENT_CANDIDATE_GAP_STRINGS: Record<string, string> = {
   "Checkout & orders": "Checkout & orders",
   "Admin panel, online": "Admin panel, online",
   "AI assistant": "AI assistant",
-  "Commit message": "Commit message",
-  "Used as the commit message when Tovu pushes the export to the gh-pages branch.": "Used as the commit message when Tovu pushes the export to the gh-pages branch.",
-  "Vercel project name": "Vercel project name",
-  "Vercel finds or creates a project with this name on every publish.": "Vercel finds or creates a project with this name on every publish.",
-  "Site name": "Site name",
-  "Netlify finds or creates a site with this name on every publish.": "Netlify finds or creates a site with this name on every publish.",
   "Project name": "Project name",
-  "Cloudflare Pages finds or creates a project with this name on every publish.": "Cloudflare Pages finds or creates a project with this name on every publish.",
   "Not started": "Not started",
   "Export failed": "Export failed",
   "Finished with failures": "Finished with failures",
   "Export finished": "Export finished",
   "Publish failed": "Publish failed",
-  "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.": "Needs a classic personal access token with the \"repo\" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.",
-  "An access token from your Vercel account.": "An access token from your Vercel account.",
-  "A personal access token from your Netlify account.": "A personal access token from your Netlify account.",
-  "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.": "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.",
   "This workspace can't use your computer's terminal — connecting here is the only way to publish.": "This workspace can't use your computer's terminal — connecting here is the only way to publish.",
   "Save a personal access token so Tovu can publish on your behalf.": "Save a personal access token so Tovu can publish on your behalf.",
+  "(optional)": "(optional)",
+  "The host finds or creates a project with this name on every publish.": "The host finds or creates a project with this name on every publish.",
 };
 
 function candidateGapTranslationEntries(entries: readonly string[]): Record<string, string> {
@@ -2280,67 +2011,67 @@ function candidateGapTranslationEntries(entries: readonly string[]): Record<stri
 const DEPLOYMENT_CANDIDATE_GAP_TRANSLATIONS: Record<string, Record<string, string>> = {
   en: DEPLOYMENT_CANDIDATE_GAP_STRINGS,
   es: candidateGapTranslationEntries([
-    "Esta conexión ya se guardó; recarga la página e inténtalo de nuevo.", "Error desconocido", "Páginas, publicaciones y productos", "Pago y pedidos", "Panel de administración, en línea", "Asistente de IA", "Mensaje de confirmación", "Se usa como mensaje de confirmación cuando Tovu envía la exportación a la rama gh-pages.", "Nombre del proyecto de Vercel", "Vercel busca o crea un proyecto con este nombre en cada publicación.", "Nombre del sitio", "Netlify busca o crea un sitio con este nombre en cada publicación.", "Nombre del proyecto", "Cloudflare Pages busca o crea un proyecto con este nombre en cada publicación.", "Sin iniciar", "La exportación falló", "Terminó con errores", "La exportación terminó", "La publicación falló", "Necesita un token de acceso personal clásico con el alcance \"repo\", o un token de granularidad fina con permisos Contents y Pages configurados en Read and write.", "Un token de acceso de tu cuenta de Vercel.", "Un token de acceso personal de tu cuenta de Netlify.", "Necesita un token de API con permiso Cloudflare Pages Edit, además del ID de cuenta que aparece en la barra lateral de tu panel de Cloudflare; Cloudflare no puede resolver un proyecto sin él.", "Este espacio de trabajo no puede usar el terminal de tu computadora; conectarte aquí es la única forma de publicar.", "Guarda un token de acceso personal para que Tovu pueda publicar en tu nombre."
+    "Esta conexión ya se guardó; recarga la página e inténtalo de nuevo.", "Error desconocido", "Páginas, publicaciones y productos", "Pago y pedidos", "Panel de administración, en línea", "Asistente de IA", "Nombre del proyecto", "Sin iniciar", "La exportación falló", "Terminó con errores", "La exportación terminó", "La publicación falló", "Este espacio de trabajo no puede usar el terminal de tu computadora; conectarte aquí es la única forma de publicar.", "Guarda un token de acceso personal para que Tovu pueda publicar en tu nombre.", "(opcional)", "El host busca o crea un proyecto con este nombre en cada publicación."
   ]),
   id: candidateGapTranslationEntries([
-    "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.", "Kesalahan tidak diketahui", "Halaman, pos & produk", "Checkout & pesanan", "Panel admin, online", "Asisten AI", "Pesan commit", "Digunakan sebagai pesan commit saat Tovu mendorong ekspor ke branch gh-pages.", "Nama proyek Vercel", "Vercel menemukan atau membuat proyek dengan nama ini setiap kali menerbitkan.", "Nama situs", "Netlify menemukan atau membuat situs dengan nama ini setiap kali menerbitkan.", "Nama proyek", "Cloudflare Pages menemukan atau membuat proyek dengan nama ini setiap kali menerbitkan.", "Belum dimulai", "Ekspor gagal", "Selesai dengan kegagalan", "Ekspor selesai", "Publikasi gagal", "Memerlukan token akses pribadi klasik dengan cakupan \"repo\", atau token terperinci dengan izin Contents dan Pages yang disetel ke Read and write.", "Token akses dari akun Vercel Anda.", "Token akses pribadi dari akun Netlify Anda.", "Memerlukan token API dengan izin Cloudflare Pages Edit, serta ID akun yang ditampilkan di sidebar dasbor Cloudflare Anda — Cloudflare tidak dapat menentukan proyek tanpa itu.", "Ruang kerja ini tidak dapat menggunakan terminal komputer Anda — menghubungkan di sini adalah satu-satunya cara untuk menerbitkan.", "Simpan token akses pribadi agar Tovu dapat menerbitkan atas nama Anda."
+    "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.", "Kesalahan tidak diketahui", "Halaman, pos & produk", "Checkout & pesanan", "Panel admin, online", "Asisten AI", "Nama proyek", "Belum dimulai", "Ekspor gagal", "Selesai dengan kegagalan", "Ekspor selesai", "Publikasi gagal", "Ruang kerja ini tidak dapat menggunakan terminal komputer Anda — menghubungkan di sini adalah satu-satunya cara untuk menerbitkan.", "Simpan token akses pribadi agar Tovu dapat menerbitkan atas nama Anda.", "(opsional)", "Host mencari atau membuat proyek dengan nama ini setiap kali memublikasikan."
   ]),
   de: candidateGapTranslationEntries([
-    "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.", "Unbekannter Fehler", "Seiten, Beiträge und Produkte", "Checkout und Bestellungen", "Admin-Bereich, online", "KI-Assistent", "Commit-Nachricht", "Wird als Commit-Nachricht verwendet, wenn Tovu den Export in den Branch gh-pages pusht.", "Vercel-Projektname", "Vercel findet oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen.", "Website-Name", "Netlify findet oder erstellt bei jeder Veröffentlichung eine Website mit diesem Namen.", "Projektname", "Cloudflare Pages findet oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen.", "Nicht gestartet", "Export fehlgeschlagen", "Mit Fehlern beendet", "Export abgeschlossen", "Veröffentlichung fehlgeschlagen", "Benötigt einen klassischen persönlichen Zugriffstoken mit dem Bereich \"repo\" oder einen feingranularen Token mit den Berechtigungen Contents und Pages auf Read and write.", "Ein Zugriffstoken aus Ihrem Vercel-Konto.", "Ein persönlicher Zugriffstoken aus Ihrem Netlify-Konto.", "Benötigt einen API-Token mit der Berechtigung Cloudflare Pages Edit sowie die Konto-ID aus der Seitenleiste Ihres Cloudflare-Dashboards — ohne sie kann Cloudflare kein Projekt auflösen.", "Dieser Arbeitsbereich kann das Terminal Ihres Computers nicht verwenden — die Verbindung hier ist die einzige Möglichkeit zu veröffentlichen.", "Speichern Sie einen persönlichen Zugriffstoken, damit Tovu in Ihrem Namen veröffentlichen kann."
+    "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.", "Unbekannter Fehler", "Seiten, Beiträge und Produkte", "Checkout und Bestellungen", "Admin-Bereich, online", "KI-Assistent", "Projektname", "Nicht gestartet", "Export fehlgeschlagen", "Mit Fehlern beendet", "Export abgeschlossen", "Veröffentlichung fehlgeschlagen", "Dieser Arbeitsbereich kann das Terminal Ihres Computers nicht verwenden — die Verbindung hier ist die einzige Möglichkeit zu veröffentlichen.", "Speichern Sie einen persönlichen Zugriffstoken, damit Tovu in Ihrem Namen veröffentlichen kann.", "(optional)", "Der Host sucht oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen."
   ]),
   fr: candidateGapTranslationEntries([
-    "Cette connexion est déjà enregistrée — rechargez la page et réessayez.", "Erreur inconnue", "Pages, publications et produits", "Paiement et commandes", "Panneau d’administration, en ligne", "Assistant IA", "Message de commit", "Utilisé comme message de commit lorsque Tovu envoie l’export vers la branche gh-pages.", "Nom du projet Vercel", "Vercel trouve ou crée un projet portant ce nom à chaque publication.", "Nom du site", "Netlify trouve ou crée un site portant ce nom à chaque publication.", "Nom du projet", "Cloudflare Pages trouve ou crée un projet portant ce nom à chaque publication.", "Non démarré", "Échec de l’exportation", "Terminé avec des échecs", "Exportation terminée", "Échec de la publication", "Nécessite un jeton d’accès personnel classique avec la portée \"repo\", ou un jeton à granularité fine avec les autorisations Contents et Pages réglées sur Read and write.", "Un jeton d’accès de votre compte Vercel.", "Un jeton d’accès personnel de votre compte Netlify.", "Nécessite un jeton API avec l’autorisation Cloudflare Pages Edit, ainsi que l’ID de compte affiché dans la barre latérale de votre tableau de bord Cloudflare — Cloudflare ne peut pas résoudre un projet sans lui.", "Cet espace de travail ne peut pas utiliser le terminal de votre ordinateur — vous connecter ici est la seule façon de publier.", "Enregistrez un jeton d’accès personnel afin que Tovu puisse publier en votre nom."
+    "Cette connexion est déjà enregistrée — rechargez la page et réessayez.", "Erreur inconnue", "Pages, publications et produits", "Paiement et commandes", "Panneau d’administration, en ligne", "Assistant IA", "Nom du projet", "Non démarré", "Échec de l’exportation", "Terminé avec des échecs", "Exportation terminée", "Échec de la publication", "Cet espace de travail ne peut pas utiliser le terminal de votre ordinateur — vous connecter ici est la seule façon de publier.", "Enregistrez un jeton d’accès personnel afin que Tovu puisse publier en votre nom.", "(facultatif)", "L’hébergeur trouve ou crée un projet portant ce nom à chaque publication."
   ]),
   it: candidateGapTranslationEntries([
-    "Questa connessione è già stata salvata — ricarica la pagina e riprova.", "Errore sconosciuto", "Pagine, post e prodotti", "Checkout e ordini", "Pannello di amministrazione, online", "Assistente IA", "Messaggio di commit", "Usato come messaggio di commit quando Tovu invia l’esportazione al branch gh-pages.", "Nome del progetto Vercel", "Vercel trova o crea un progetto con questo nome a ogni pubblicazione.", "Nome del sito", "Netlify trova o crea un sito con questo nome a ogni pubblicazione.", "Nome del progetto", "Cloudflare Pages trova o crea un progetto con questo nome a ogni pubblicazione.", "Non avviato", "Esportazione non riuscita", "Terminato con errori", "Esportazione terminata", "Pubblicazione non riuscita", "Richiede un token di accesso personale classico con l’ambito \"repo\", oppure un token granulare con i permessi Contents e Pages impostati su Read and write.", "Un token di accesso dal tuo account Vercel.", "Un token di accesso personale dal tuo account Netlify.", "Richiede un token API con il permesso Cloudflare Pages Edit, oltre all’ID account mostrato nella barra laterale del tuo dashboard Cloudflare — Cloudflare non può risolvere un progetto senza di esso.", "Questo spazio di lavoro non può usare il terminale del tuo computer — collegarti qui è l’unico modo per pubblicare.", "Salva un token di accesso personale affinché Tovu possa pubblicare per tuo conto."
+    "Questa connessione è già stata salvata — ricarica la pagina e riprova.", "Errore sconosciuto", "Pagine, post e prodotti", "Checkout e ordini", "Pannello di amministrazione, online", "Assistente IA", "Nome del progetto", "Non avviato", "Esportazione non riuscita", "Terminato con errori", "Esportazione terminata", "Pubblicazione non riuscita", "Questo spazio di lavoro non può usare il terminale del tuo computer — collegarti qui è l’unico modo per pubblicare.", "Salva un token di accesso personale affinché Tovu possa pubblicare per tuo conto.", "(facoltativo)", "L'host trova o crea un progetto con questo nome a ogni pubblicazione."
   ]),
   "pt-BR": candidateGapTranslationEntries([
-    "Esta conexão já foi salva — recarregue a página e tente novamente.", "Erro desconhecido", "Páginas, posts e produtos", "Checkout e pedidos", "Painel administrativo, online", "Assistente de IA", "Mensagem de commit", "Usada como mensagem de commit quando o Tovu envia a exportação para a branch gh-pages.", "Nome do projeto Vercel", "A Vercel encontra ou cria um projeto com este nome em cada publicação.", "Nome do site", "A Netlify encontra ou cria um site com este nome em cada publicação.", "Nome do projeto", "A Cloudflare Pages encontra ou cria um projeto com este nome em cada publicação.", "Não iniciado", "A exportação falhou", "Terminou com falhas", "Exportação concluída", "A publicação falhou", "Precisa de um token de acesso pessoal clássico com o escopo \"repo\", ou de um token refinado com as permissões Contents e Pages definidas como Read and write.", "Um token de acesso da sua conta Vercel.", "Um token de acesso pessoal da sua conta Netlify.", "Precisa de um token de API com a permissão Cloudflare Pages Edit, além do ID da conta exibido na barra lateral do seu painel da Cloudflare — a Cloudflare não consegue resolver um projeto sem ele.", "Este espaço de trabalho não pode usar o terminal do seu computador — conectar aqui é a única forma de publicar.", "Salve um token de acesso pessoal para que o Tovu possa publicar em seu nome."
+    "Esta conexão já foi salva — recarregue a página e tente novamente.", "Erro desconhecido", "Páginas, posts e produtos", "Checkout e pedidos", "Painel administrativo, online", "Assistente de IA", "Nome do projeto", "Não iniciado", "A exportação falhou", "Terminou com falhas", "Exportação concluída", "A publicação falhou", "Este espaço de trabalho não pode usar o terminal do seu computador — conectar aqui é a única forma de publicar.", "Salve um token de acesso pessoal para que o Tovu possa publicar em seu nome.", "(opcional)", "O host encontra ou cria um projeto com este nome a cada publicação."
   ]),
   "zh-CN": candidateGapTranslationEntries([
-    "此连接已保存——请重新加载页面后重试。", "未知错误", "页面、文章和产品", "结账和订单", "管理面板，在线", "AI 助手", "提交消息", "Tovu 将导出内容推送到 gh-pages 分支时，会使用此消息作为提交消息。", "Vercel 项目名称", "Vercel 会在每次发布时查找或创建使用此名称的项目。", "站点名称", "Netlify 会在每次发布时查找或创建使用此名称的站点。", "项目名称", "Cloudflare Pages 会在每次发布时查找或创建使用此名称的项目。", "尚未开始", "导出失败", "完成但有失败", "导出完成", "发布失败", "需要具有 \"repo\" 范围的经典个人访问令牌，或将 Contents 和 Pages 权限设为 Read and write 的细粒度令牌。", "来自您 Vercel 帐户的访问令牌。", "来自您 Netlify 帐户的个人访问令牌。", "需要具有 Cloudflare Pages Edit 权限的 API 令牌，以及 Cloudflare 控制面板侧栏显示的帐户 ID——没有它，Cloudflare 无法解析项目。", "此工作区无法使用您计算机的终端——在此连接是唯一的发布方式。", "保存个人访问令牌，以便 Tovu 代表您发布。"
+    "此连接已保存——请重新加载页面后重试。", "未知错误", "页面、文章和产品", "结账和订单", "管理面板，在线", "AI 助手", "项目名称", "尚未开始", "导出失败", "完成但有失败", "导出完成", "发布失败", "此工作区无法使用您计算机的终端——在此连接是唯一的发布方式。", "保存个人访问令牌，以便 Tovu 代表您发布。", "（可选）", "托管服务会在每次发布时查找或创建使用此名称的项目。"
   ]),
   "zh-TW": candidateGapTranslationEntries([
-    "此連線已儲存——請重新載入頁面後再試。", "未知錯誤", "頁面、文章與產品", "結帳與訂單", "管理面板，在線", "AI 助理", "提交訊息", "Tovu 將匯出內容推送至 gh-pages 分支時，會使用此訊息作為提交訊息。", "Vercel 專案名稱", "Vercel 會在每次發佈時尋找或建立使用此名稱的專案。", "網站名稱", "Netlify 會在每次發佈時尋找或建立使用此名稱的網站。", "專案名稱", "Cloudflare Pages 會在每次發佈時尋找或建立使用此名稱的專案。", "尚未開始", "匯出失敗", "完成但有失敗", "匯出完成", "發佈失敗", "需要具有 \"repo\" 範圍的傳統個人存取權杖，或將 Contents 與 Pages 權限設為 Read and write 的細微權杖。", "您 Vercel 帳戶的存取權杖。", "您 Netlify 帳戶的個人存取權杖。", "需要具有 Cloudflare Pages Edit 權限的 API 權杖，以及 Cloudflare 控制台側欄顯示的帳戶 ID——沒有它，Cloudflare 無法解析專案。", "此工作區無法使用您電腦的終端機——在此連線是唯一的發佈方式。", "儲存個人存取權杖，讓 Tovu 能代表您發佈。"
+    "此連線已儲存——請重新載入頁面後再試。", "未知錯誤", "頁面、文章與產品", "結帳與訂單", "管理面板，在線", "AI 助理", "專案名稱", "尚未開始", "匯出失敗", "完成但有失敗", "匯出完成", "發佈失敗", "此工作區無法使用您電腦的終端機——在此連線是唯一的發佈方式。", "儲存個人存取權杖，讓 Tovu 能代表您發佈。", "（選填）", "主機服務會在每次發佈時尋找或建立使用此名稱的專案。"
   ]),
   ar: candidateGapTranslationEntries([
-    "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.", "خطأ غير معروف", "الصفحات والمنشورات والمنتجات", "الدفع والطلبات", "لوحة الإدارة، متصلة", "مساعد الذكاء الاصطناعي", "رسالة الالتزام", "تُستخدم كرسالة التزام عندما يدفع Tovu التصدير إلى فرع gh-pages.", "اسم مشروع Vercel", "يعثر Vercel على مشروع بهذا الاسم أو ينشئه عند كل نشر.", "اسم الموقع", "يعثر Netlify على موقع بهذا الاسم أو ينشئه عند كل نشر.", "اسم المشروع", "يعثر Cloudflare Pages على مشروع بهذا الاسم أو ينشئه عند كل نشر.", "لم يبدأ", "فشل التصدير", "انتهى مع إخفاقات", "اكتمل التصدير", "فشل النشر", "يتطلب رمز وصول شخصياً تقليدياً بنطاق \"repo\"، أو رمزاً دقيق الصلاحيات مع تعيين أذونات Contents وPages إلى Read and write.", "رمز وصول من حساب Vercel الخاص بك.", "رمز وصول شخصي من حساب Netlify الخاص بك.", "يتطلب رمز API مع إذن Cloudflare Pages Edit، بالإضافة إلى معرّف الحساب الظاهر في الشريط الجانبي للوحة Cloudflare الخاصة بك — لا يستطيع Cloudflare حل مشروع بدونه.", "لا يمكن لمساحة العمل هذه استخدام طرفية جهازك — الاتصال هنا هو الطريقة الوحيدة للنشر.", "احفظ رمز وصول شخصياً لكي يتمكن Tovu من النشر نيابةً عنك."
+    "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.", "خطأ غير معروف", "الصفحات والمنشورات والمنتجات", "الدفع والطلبات", "لوحة الإدارة، متصلة", "مساعد الذكاء الاصطناعي", "اسم المشروع", "لم يبدأ", "فشل التصدير", "انتهى مع إخفاقات", "اكتمل التصدير", "فشل النشر", "لا يمكن لمساحة العمل هذه استخدام طرفية جهازك — الاتصال هنا هو الطريقة الوحيدة للنشر.", "احفظ رمز وصول شخصياً لكي يتمكن Tovu من النشر نيابةً عنك.", "(اختياري)", "يعثر المضيف على مشروع بهذا الاسم أو ينشئه عند كل نشر."
   ]),
   bn: candidateGapTranslationEntries([
-    "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত হয়েছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।", "অজানা ত্রুটি", "পৃষ্ঠা, পোস্ট ও পণ্য", "চেকআউট ও অর্ডার", "অ্যাডমিন প্যানেল, অনলাইন", "AI সহায়ক", "কমিট বার্তা", "Tovu যখন gh-pages শাখায় এক্সপোর্ট পুশ করে, তখন এটি কমিট বার্তা হিসেবে ব্যবহৃত হয়।", "Vercel প্রকল্পের নাম", "Vercel প্রতিটি প্রকাশনার সময় এই নামের একটি প্রকল্প খুঁজে বা তৈরি করে।", "সাইটের নাম", "Netlify প্রতিটি প্রকাশনার সময় এই নামের একটি সাইট খুঁজে বা তৈরি করে।", "প্রকল্পের নাম", "Cloudflare Pages প্রতিটি প্রকাশনার সময় এই নামের একটি প্রকল্প খুঁজে বা তৈরি করে।", "শুরু হয়নি", "এক্সপোর্ট ব্যর্থ হয়েছে", "ব্যর্থতা সহ শেষ হয়েছে", "এক্সপোর্ট শেষ হয়েছে", "প্রকাশনা ব্যর্থ হয়েছে", "\"repo\" স্কোপসহ একটি ক্লাসিক ব্যক্তিগত অ্যাক্সেস টোকেন, অথবা Contents এবং Pages অনুমতি Read and write-এ সেট করা একটি সূক্ষ্ম-গ্রেইন টোকেন প্রয়োজন।", "আপনার Vercel অ্যাকাউন্টের একটি অ্যাক্সেস টোকেন।", "আপনার Netlify অ্যাকাউন্টের একটি ব্যক্তিগত অ্যাক্সেস টোকেন।", "Cloudflare Pages Edit অনুমতিসহ একটি API টোকেন এবং আপনার Cloudflare ড্যাশবোর্ডের সাইডবারে দেখানো অ্যাকাউন্ট ID প্রয়োজন — এটি ছাড়া Cloudflare একটি প্রকল্প সমাধান করতে পারে না।", "এই কর্মক্ষেত্রটি আপনার কম্পিউটারের টার্মিনাল ব্যবহার করতে পারে না — এখানে সংযুক্ত করাই প্রকাশের একমাত্র উপায়।", "একটি ব্যক্তিগত অ্যাক্সেস টোকেন সংরক্ষণ করুন যাতে Tovu আপনার হয়ে প্রকাশ করতে পারে।"
+    "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত হয়েছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।", "অজানা ত্রুটি", "পৃষ্ঠা, পোস্ট ও পণ্য", "চেকআউট ও অর্ডার", "অ্যাডমিন প্যানেল, অনলাইন", "AI সহায়ক", "প্রকল্পের নাম", "শুরু হয়নি", "এক্সপোর্ট ব্যর্থ হয়েছে", "ব্যর্থতা সহ শেষ হয়েছে", "এক্সপোর্ট শেষ হয়েছে", "প্রকাশনা ব্যর্থ হয়েছে", "এই কর্মক্ষেত্রটি আপনার কম্পিউটারের টার্মিনাল ব্যবহার করতে পারে না — এখানে সংযুক্ত করাই প্রকাশের একমাত্র উপায়।", "একটি ব্যক্তিগত অ্যাক্সেস টোকেন সংরক্ষণ করুন যাতে Tovu আপনার হয়ে প্রকাশ করতে পারে।", "(ঐচ্ছিক)", "প্রতিবার প্রকাশের সময় হোস্ট এই নামের একটি প্রকল্প খুঁজে নেয় বা তৈরি করে।"
   ]),
   fa: candidateGapTranslationEntries([
-    "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.", "خطای ناشناخته", "صفحه‌ها، نوشته‌ها و محصولات", "پرداخت و سفارش‌ها", "پنل مدیریت، آنلاین", "دستیار هوش مصنوعی", "پیام کامیت", "وقتی Tovu خروجی را به شاخه gh-pages پوش می‌کند، از این به‌عنوان پیام کامیت استفاده می‌شود.", "نام پروژه Vercel", "Vercel در هر انتشار پروژه‌ای با این نام پیدا یا ایجاد می‌کند.", "نام سایت", "Netlify در هر انتشار سایتی با این نام پیدا یا ایجاد می‌کند.", "نام پروژه", "Cloudflare Pages در هر انتشار پروژه‌ای با این نام پیدا یا ایجاد می‌کند.", "شروع نشده", "خروجی ناموفق بود", "با خطاها پایان یافت", "خروجی تمام شد", "انتشار ناموفق بود", "به یک توکن دسترسی شخصی کلاسیک با دامنه \"repo\"، یا یک توکن ریزدانه با مجوزهای Contents و Pages روی Read and write نیاز دارد.", "یک توکن دسترسی از حساب Vercel شما.", "یک توکن دسترسی شخصی از حساب Netlify شما.", "به یک توکن API با مجوز Cloudflare Pages Edit و شناسه حساب نشان‌داده‌شده در نوار کناری داشبورد Cloudflare شما نیاز دارد — Cloudflare بدون آن نمی‌تواند پروژه‌ای را حل کند.", "این فضای کاری نمی‌تواند از ترمینال رایانه شما استفاده کند — اتصال در اینجا تنها راه انتشار است.", "یک توکن دسترسی شخصی ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند."
+    "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.", "خطای ناشناخته", "صفحه‌ها، نوشته‌ها و محصولات", "پرداخت و سفارش‌ها", "پنل مدیریت، آنلاین", "دستیار هوش مصنوعی", "نام پروژه", "شروع نشده", "خروجی ناموفق بود", "با خطاها پایان یافت", "خروجی تمام شد", "انتشار ناموفق بود", "این فضای کاری نمی‌تواند از ترمینال رایانه شما استفاده کند — اتصال در اینجا تنها راه انتشار است.", "یک توکن دسترسی شخصی ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند.", "(اختیاری)", "میزبان در هر انتشار، پروژه‌ای با این نام را پیدا یا ایجاد می‌کند."
   ]),
   hi: candidateGapTranslationEntries([
-    "यह कनेक्शन पहले ही सहेजा जा चुका है — पेज फिर से लोड करें और दोबारा कोशिश करें।", "अज्ञात त्रुटि", "पेज, पोस्ट और उत्पाद", "चेकआउट और ऑर्डर", "एडमिन पैनल, ऑनलाइन", "AI सहायक", "कमिट संदेश", "जब Tovu एक्सपोर्ट को gh-pages शाखा में पुश करता है, तो यह कमिट संदेश के रूप में उपयोग होता है।", "Vercel प्रोजेक्ट नाम", "Vercel हर प्रकाशन पर इस नाम से प्रोजेक्ट खोजता या बनाता है।", "साइट नाम", "Netlify हर प्रकाशन पर इस नाम से साइट खोजता या बनाता है।", "प्रोजेक्ट नाम", "Cloudflare Pages हर प्रकाशन पर इस नाम से प्रोजेक्ट खोजता या बनाता है।", "शुरू नहीं हुआ", "एक्सपोर्ट विफल हुआ", "विफलताओं के साथ समाप्त", "एक्सपोर्ट पूरा हुआ", "प्रकाशन विफल हुआ", "\"repo\" स्कोप वाला क्लासिक व्यक्तिगत एक्सेस टोकन, या Contents और Pages अनुमतियों को Read and write पर सेट किया गया फाइन-ग्रेन्ड टोकन चाहिए।", "आपके Vercel खाते का एक्सेस टोकन।", "आपके Netlify खाते का व्यक्तिगत एक्सेस टोकन।", "Cloudflare Pages Edit अनुमति वाला API टोकन और आपके Cloudflare डैशबोर्ड की साइडबार में दिखाया गया खाता ID चाहिए — इसके बिना Cloudflare प्रोजेक्ट हल नहीं कर सकता।", "यह कार्यक्षेत्र आपके कंप्यूटर का टर्मिनल उपयोग नहीं कर सकता — यहाँ कनेक्ट करना ही प्रकाशित करने का एकमात्र तरीका है।", "व्यक्तिगत एक्सेस टोकन सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।"
+    "यह कनेक्शन पहले ही सहेजा जा चुका है — पेज फिर से लोड करें और दोबारा कोशिश करें।", "अज्ञात त्रुटि", "पेज, पोस्ट और उत्पाद", "चेकआउट और ऑर्डर", "एडमिन पैनल, ऑनलाइन", "AI सहायक", "प्रोजेक्ट नाम", "शुरू नहीं हुआ", "एक्सपोर्ट विफल हुआ", "विफलताओं के साथ समाप्त", "एक्सपोर्ट पूरा हुआ", "प्रकाशन विफल हुआ", "यह कार्यक्षेत्र आपके कंप्यूटर का टर्मिनल उपयोग नहीं कर सकता — यहाँ कनेक्ट करना ही प्रकाशित करने का एकमात्र तरीका है।", "व्यक्तिगत एक्सेस टोकन सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।", "(वैकल्पिक)", "होस्ट हर प्रकाशन पर इस नाम का प्रोजेक्ट ढूँढता है या बनाता है।"
   ]),
   hu: candidateGapTranslationEntries([
-    "Ez a kapcsolat már el van mentve — töltse újra az oldalt, és próbálja meg újra.", "Ismeretlen hiba", "Oldalak, bejegyzések és termékek", "Pénztár és rendelések", "Adminisztrációs panel, online", "MI-asszisztens", "Commit üzenet", "Ezt használja commit üzenetként, amikor a Tovu az exportot a gh-pages ágba küldi.", "Vercel-projektnév", "A Vercel minden közzétételkor megkeres vagy létrehoz egy ilyen nevű projektet.", "Webhely neve", "A Netlify minden közzétételkor megkeres vagy létrehoz egy ilyen nevű webhelyet.", "Projekt neve", "A Cloudflare Pages minden közzétételkor megkeres vagy létrehoz egy ilyen nevű projektet.", "Nincs elindítva", "Az export sikertelen", "Hibákkal fejeződött be", "Az export befejeződött", "A közzététel sikertelen", "Klasszikus személyes hozzáférési token szükséges \"repo\" hatókörrel, vagy finomhangolt token, amelynél a Contents és Pages engedélyek Read and write értékre vannak állítva.", "Hozzáférési token a Vercel-fiókjából.", "Személyes hozzáférési token a Netlify-fiókjából.", "Cloudflare Pages Edit engedélyű API-token és a Cloudflare-irányítópult oldalsávjában látható fiókazonosító szükséges — ezek nélkül a Cloudflare nem tud projektet feloldani.", "Ez a munkaterület nem használhatja a számítógépe terminálját — az itt történő csatlakozás az egyetlen közzétételi mód.", "Mentsen személyes hozzáférési tokent, hogy a Tovu az Ön nevében közzétehessen."
+    "Ez a kapcsolat már el van mentve — töltse újra az oldalt, és próbálja meg újra.", "Ismeretlen hiba", "Oldalak, bejegyzések és termékek", "Pénztár és rendelések", "Adminisztrációs panel, online", "MI-asszisztens", "Projekt neve", "Nincs elindítva", "Az export sikertelen", "Hibákkal fejeződött be", "Az export befejeződött", "A közzététel sikertelen", "Ez a munkaterület nem használhatja a számítógépe terminálját — az itt történő csatlakozás az egyetlen közzétételi mód.", "Mentsen személyes hozzáférési tokent, hogy a Tovu az Ön nevében közzétehessen.", "(nem kötelező)", "A tárhely minden közzétételkor megkeresi vagy létrehozza az ilyen nevű projektet."
   ]),
   ja: candidateGapTranslationEntries([
-    "この接続はすでに保存されています。ページを再読み込みして、もう一度お試しください。", "不明なエラー", "ページ、投稿、商品", "チェックアウトと注文", "管理パネル、オンライン", "AI アシスタント", "コミットメッセージ", "Tovu がエクスポートを gh-pages ブランチへプッシュするときのコミットメッセージとして使われます。", "Vercel プロジェクト名", "Vercel は公開のたびにこの名前のプロジェクトを見つけるか作成します。", "サイト名", "Netlify は公開のたびにこの名前のサイトを見つけるか作成します。", "プロジェクト名", "Cloudflare Pages は公開のたびにこの名前のプロジェクトを見つけるか作成します。", "未開始", "エクスポートに失敗しました", "失敗を含めて完了", "エクスポート完了", "公開に失敗しました", "\"repo\" スコープの従来の個人アクセストークン、または Contents と Pages の権限を Read and write に設定したきめ細かいトークンが必要です。", "Vercel アカウントのアクセストークン。", "Netlify アカウントの個人アクセストークン。", "Cloudflare Pages Edit 権限のある API トークンと、Cloudflare ダッシュボードのサイドバーに表示されるアカウント ID が必要です。これがないと Cloudflare はプロジェクトを解決できません。", "このワークスペースではお使いのコンピューターのターミナルを使用できません。ここで接続することが公開する唯一の方法です。", "Tovu がお客様に代わって公開できるように、個人アクセストークンを保存します。"
+    "この接続はすでに保存されています。ページを再読み込みして、もう一度お試しください。", "不明なエラー", "ページ、投稿、商品", "チェックアウトと注文", "管理パネル、オンライン", "AI アシスタント", "プロジェクト名", "未開始", "エクスポートに失敗しました", "失敗を含めて完了", "エクスポート完了", "公開に失敗しました", "このワークスペースではお使いのコンピューターのターミナルを使用できません。ここで接続することが公開する唯一の方法です。", "Tovu がお客様に代わって公開できるように、個人アクセストークンを保存します。", "（任意）", "ホストは公開のたびにこの名前のプロジェクトを検索または作成します。"
   ]),
   ko: candidateGapTranslationEntries([
-    "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요.", "알 수 없는 오류", "페이지, 게시물 및 제품", "결제 및 주문", "관리자 패널, 온라인", "AI 도우미", "커밋 메시지", "Tovu가 내보내기를 gh-pages 브랜치로 푸시할 때 커밋 메시지로 사용됩니다.", "Vercel 프로젝트 이름", "Vercel은 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다.", "사이트 이름", "Netlify는 게시할 때마다 이 이름의 사이트를 찾거나 만듭니다.", "프로젝트 이름", "Cloudflare Pages는 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다.", "시작되지 않음", "내보내기 실패", "실패와 함께 완료", "내보내기 완료", "게시 실패", "\"repo\" 범위가 있는 클래식 개인 액세스 토큰 또는 Contents와 Pages 권한이 Read and write로 설정된 세분화된 토큰이 필요합니다.", "Vercel 계정의 액세스 토큰입니다.", "Netlify 계정의 개인 액세스 토큰입니다.", "Cloudflare Pages Edit 권한이 있는 API 토큰과 Cloudflare 대시보드 사이드바에 표시된 계정 ID가 필요합니다. 없으면 Cloudflare에서 프로젝트를 확인할 수 없습니다.", "이 작업 공간은 컴퓨터의 터미널을 사용할 수 없습니다. 여기에서 연결하는 것이 게시하는 유일한 방법입니다.", "Tovu가 사용자를 대신해 게시할 수 있도록 개인 액세스 토큰을 저장하세요."
+    "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요.", "알 수 없는 오류", "페이지, 게시물 및 제품", "결제 및 주문", "관리자 패널, 온라인", "AI 도우미", "프로젝트 이름", "시작되지 않음", "내보내기 실패", "실패와 함께 완료", "내보내기 완료", "게시 실패", "이 작업 공간은 컴퓨터의 터미널을 사용할 수 없습니다. 여기에서 연결하는 것이 게시하는 유일한 방법입니다.", "Tovu가 사용자를 대신해 게시할 수 있도록 개인 액세스 토큰을 저장하세요.", "(선택 사항)", "호스트는 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다."
   ]),
   pl: candidateGapTranslationEntries([
-    "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.", "Nieznany błąd", "Strony, wpisy i produkty", "Kasa i zamówienia", "Panel administracyjny, online", "Asystent AI", "Komunikat commitu", "Używane jako komunikat commitu, gdy Tovu wysyła eksport do gałęzi gh-pages.", "Nazwa projektu Vercel", "Vercel przy każdej publikacji znajduje lub tworzy projekt o tej nazwie.", "Nazwa witryny", "Netlify przy każdej publikacji znajduje lub tworzy witrynę o tej nazwie.", "Nazwa projektu", "Cloudflare Pages przy każdej publikacji znajduje lub tworzy projekt o tej nazwie.", "Nie rozpoczęto", "Eksport nie powiódł się", "Zakończono z niepowodzeniami", "Eksport zakończony", "Publikacja nie powiodła się", "Wymaga klasycznego osobistego tokenu dostępu z zakresem \"repo\" albo szczegółowego tokenu z uprawnieniami Contents i Pages ustawionymi na Read and write.", "Token dostępu z Twojego konta Vercel.", "Osobisty token dostępu z Twojego konta Netlify.", "Wymaga tokenu API z uprawnieniem Cloudflare Pages Edit oraz identyfikatora konta widocznego na pasku bocznym panelu Cloudflare — bez niego Cloudflare nie może rozpoznać projektu.", "Ten obszar roboczy nie może używać terminala Twojego komputera — połączenie tutaj jest jedynym sposobem publikacji.", "Zapisz osobisty token dostępu, aby Tovu mógł publikować w Twoim imieniu."
+    "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.", "Nieznany błąd", "Strony, wpisy i produkty", "Kasa i zamówienia", "Panel administracyjny, online", "Asystent AI", "Nazwa projektu", "Nie rozpoczęto", "Eksport nie powiódł się", "Zakończono z niepowodzeniami", "Eksport zakończony", "Publikacja nie powiodła się", "Ten obszar roboczy nie może używać terminala Twojego komputera — połączenie tutaj jest jedynym sposobem publikacji.", "Zapisz osobisty token dostępu, aby Tovu mógł publikować w Twoim imieniu.", "(opcjonalnie)", "Host przy każdej publikacji znajduje lub tworzy projekt o tej nazwie."
   ]),
   ru: candidateGapTranslationEntries([
-    "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.", "Неизвестная ошибка", "Страницы, записи и товары", "Оформление заказа и заказы", "Панель администратора, онлайн", "ИИ-помощник", "Сообщение коммита", "Используется как сообщение коммита, когда Tovu отправляет экспорт в ветку gh-pages.", "Название проекта Vercel", "Vercel при каждой публикации находит или создаёт проект с этим именем.", "Название сайта", "Netlify при каждой публикации находит или создаёт сайт с этим именем.", "Название проекта", "Cloudflare Pages при каждой публикации находит или создаёт проект с этим именем.", "Не запущено", "Экспорт не удался", "Завершено с ошибками", "Экспорт завершён", "Публикация не удалась", "Нужен классический персональный токен доступа с областью \"repo\" или детализированный токен с разрешениями Contents и Pages, установленными в Read and write.", "Токен доступа из вашей учётной записи Vercel.", "Персональный токен доступа из вашей учётной записи Netlify.", "Нужен токен API с разрешением Cloudflare Pages Edit и идентификатор учётной записи из боковой панели вашей панели Cloudflare — без него Cloudflare не может определить проект.", "Это рабочее пространство не может использовать терминал вашего компьютера — подключение здесь является единственным способом публикации.", "Сохраните персональный токен доступа, чтобы Tovu мог публиковать от вашего имени."
+    "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.", "Неизвестная ошибка", "Страницы, записи и товары", "Оформление заказа и заказы", "Панель администратора, онлайн", "ИИ-помощник", "Название проекта", "Не запущено", "Экспорт не удался", "Завершено с ошибками", "Экспорт завершён", "Публикация не удалась", "Это рабочее пространство не может использовать терминал вашего компьютера — подключение здесь является единственным способом публикации.", "Сохраните персональный токен доступа, чтобы Tovu мог публиковать от вашего имени.", "(необязательно)", "Хостинг находит или создаёт проект с этим именем при каждой публикации."
   ]),
   th: candidateGapTranslationEntries([
-    "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง", "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "หน้า โพสต์ และสินค้า", "ชำระเงินและคำสั่งซื้อ", "แผงผู้ดูแลระบบ ออนไลน์", "ผู้ช่วย AI", "ข้อความคอมมิต", "ใช้เป็นข้อความคอมมิตเมื่อ Tovu พุชการส่งออกไปยังสาขา gh-pages", "ชื่อโปรเจ็กต์ Vercel", "Vercel ค้นหาหรือสร้างโปรเจ็กต์ชื่อนี้ทุกครั้งที่เผยแพร่", "ชื่อเว็บไซต์", "Netlify ค้นหาหรือสร้างเว็บไซต์ชื่อนี้ทุกครั้งที่เผยแพร่", "ชื่อโปรเจ็กต์", "Cloudflare Pages ค้นหาหรือสร้างโปรเจ็กต์ชื่อนี้ทุกครั้งที่เผยแพร่", "ยังไม่เริ่ม", "การส่งออกล้มเหลว", "เสร็จสิ้นพร้อมข้อผิดพลาด", "การส่งออกเสร็จสิ้น", "การเผยแพร่ล้มเหลว", "ต้องใช้โทเค็นการเข้าถึงส่วนบุคคลแบบคลาสสิกที่มีขอบเขต \"repo\" หรือโทเค็นแบบละเอียดที่ตั้งค่าสิทธิ์ Contents และ Pages เป็น Read and write", "โทเค็นการเข้าถึงจากบัญชี Vercel ของคุณ", "โทเค็นการเข้าถึงส่วนบุคคลจากบัญชี Netlify ของคุณ", "ต้องใช้โทเค็น API ที่มีสิทธิ์ Cloudflare Pages Edit และ ID บัญชีที่แสดงในแถบด้านข้างของแดชบอร์ด Cloudflare ของคุณ — Cloudflare ไม่สามารถระบุโปรเจ็กต์ได้หากไม่มีสิ่งนี้", "พื้นที่ทำงานนี้ไม่สามารถใช้เทอร์มินัลของคอมพิวเตอร์คุณได้ — การเชื่อมต่อที่นี่เป็นวิธีเดียวในการเผยแพร่", "บันทึกโทเค็นการเข้าถึงส่วนบุคคลเพื่อให้ Tovu เผยแพร่แทนคุณได้"
+    "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง", "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "หน้า โพสต์ และสินค้า", "ชำระเงินและคำสั่งซื้อ", "แผงผู้ดูแลระบบ ออนไลน์", "ผู้ช่วย AI", "ชื่อโปรเจ็กต์", "ยังไม่เริ่ม", "การส่งออกล้มเหลว", "เสร็จสิ้นพร้อมข้อผิดพลาด", "การส่งออกเสร็จสิ้น", "การเผยแพร่ล้มเหลว", "พื้นที่ทำงานนี้ไม่สามารถใช้เทอร์มินัลของคอมพิวเตอร์คุณได้ — การเชื่อมต่อที่นี่เป็นวิธีเดียวในการเผยแพร่", "บันทึกโทเค็นการเข้าถึงส่วนบุคคลเพื่อให้ Tovu เผยแพร่แทนคุณได้", "(ไม่บังคับ)", "โฮสต์จะค้นหาหรือสร้างโปรเจกต์ที่ใช้ชื่อนี้ทุกครั้งที่เผยแพร่"
   ]),
   tr: candidateGapTranslationEntries([
-    "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyip tekrar deneyin.", "Bilinmeyen hata", "Sayfalar, gönderiler ve ürünler", "Ödeme ve siparişler", "Yönetici paneli, çevrimiçi", "Yapay zekâ asistanı", "Commit mesajı", "Tovu dışa aktarmayı gh-pages dalına gönderdiğinde commit mesajı olarak kullanılır.", "Vercel proje adı", "Vercel her yayında bu adla bir proje bulur veya oluşturur.", "Site adı", "Netlify her yayında bu adla bir site bulur veya oluşturur.", "Proje adı", "Cloudflare Pages her yayında bu adla bir proje bulur veya oluşturur.", "Başlatılmadı", "Dışa aktarma başarısız", "Hatalarla tamamlandı", "Dışa aktarma tamamlandı", "Yayınlama başarısız", "\"repo\" kapsamına sahip klasik bir kişisel erişim belirteci veya Contents ve Pages izinleri Read and write olarak ayarlanmış ayrıntılı bir belirteç gerekir.", "Vercel hesabınızdan bir erişim belirteci.", "Netlify hesabınızdan bir kişisel erişim belirteci.", "Cloudflare Pages Edit iznine sahip bir API belirteci ve Cloudflare panonuzun kenar çubuğunda gösterilen hesap ID'si gerekir — bunlar olmadan Cloudflare bir projeyi çözemaz.", "Bu çalışma alanı bilgisayarınızın terminalini kullanamaz — buradan bağlanmak yayınlamanın tek yoludur.", "Tovu'nun sizin adınıza yayınlayabilmesi için kişisel erişim belirtecini kaydedin."
+    "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyip tekrar deneyin.", "Bilinmeyen hata", "Sayfalar, gönderiler ve ürünler", "Ödeme ve siparişler", "Yönetici paneli, çevrimiçi", "Yapay zekâ asistanı", "Proje adı", "Başlatılmadı", "Dışa aktarma başarısız", "Hatalarla tamamlandı", "Dışa aktarma tamamlandı", "Yayınlama başarısız", "Bu çalışma alanı bilgisayarınızın terminalini kullanamaz — buradan bağlanmak yayınlamanın tek yoludur.", "Tovu'nun sizin adınıza yayınlayabilmesi için kişisel erişim belirtecini kaydedin.", "(isteğe bağlı)", "Barındırıcı her yayında bu ada sahip bir projeyi bulur veya oluşturur."
   ]),
   uk: candidateGapTranslationEntries([
-    "Це підключення вже збережено — перезавантажте сторінку й спробуйте ще раз.", "Невідома помилка", "Сторінки, дописи й товари", "Оформлення замовлення та замовлення", "Панель адміністратора, онлайн", "ШІ-помічник", "Повідомлення коміту", "Використовується як повідомлення коміту, коли Tovu надсилає експорт до гілки gh-pages.", "Назва проєкту Vercel", "Vercel під час кожної публікації знаходить або створює проєкт із цією назвою.", "Назва сайту", "Netlify під час кожної публікації знаходить або створює сайт із цією назвою.", "Назва проєкту", "Cloudflare Pages під час кожної публікації знаходить або створює проєкт із цією назвою.", "Не запущено", "Експорт не вдався", "Завершено з помилками", "Експорт завершено", "Публікація не вдалася", "Потрібен класичний персональний токен доступу з областю \"repo\" або деталізований токен із дозволами Contents і Pages, установленими на Read and write.", "Токен доступу з вашого облікового запису Vercel.", "Персональний токен доступу з вашого облікового запису Netlify.", "Потрібен токен API з дозволом Cloudflare Pages Edit і ID облікового запису, показаний на бічній панелі вашої панелі Cloudflare — без нього Cloudflare не може визначити проєкт.", "Цей робочий простір не може використовувати термінал вашого комп’ютера — підключення тут є єдиним способом публікації.", "Збережіть персональний токен доступу, щоб Tovu міг публікувати від вашого імені."
+    "Це підключення вже збережено — перезавантажте сторінку й спробуйте ще раз.", "Невідома помилка", "Сторінки, дописи й товари", "Оформлення замовлення та замовлення", "Панель адміністратора, онлайн", "ШІ-помічник", "Назва проєкту", "Не запущено", "Експорт не вдався", "Завершено з помилками", "Експорт завершено", "Публікація не вдалася", "Цей робочий простір не може використовувати термінал вашого комп’ютера — підключення тут є єдиним способом публікації.", "Збережіть персональний токен доступу, щоб Tovu міг публікувати від вашого імені.", "(необов’язково)", "Хостинг знаходить або створює проєкт із цією назвою під час кожної публікації."
   ]),
   ur: candidateGapTranslationEntries([
-    "یہ کنکشن پہلے ہی محفوظ ہو چکا ہے — صفحہ دوبارہ لوڈ کریں اور پھر کوشش کریں۔", "نامعلوم خرابی", "صفحات، پوسٹس اور مصنوعات", "چیک آؤٹ اور آرڈرز", "ایڈمن پینل، آن لائن", "AI معاون", "کمٹ پیغام", "جب Tovu ایکسپورٹ کو gh-pages برانچ پر پش کرتا ہے تو اسے کمٹ پیغام کے طور پر استعمال کیا جاتا ہے۔", "Vercel پروجیکٹ کا نام", "Vercel ہر اشاعت پر اس نام کا پروجیکٹ ڈھونڈتا یا بناتا ہے۔", "سائٹ کا نام", "Netlify ہر اشاعت پر اس نام کی سائٹ ڈھونڈتا یا بناتا ہے۔", "پروجیکٹ کا نام", "Cloudflare Pages ہر اشاعت پر اس نام کا پروجیکٹ ڈھونڈتا یا بناتا ہے۔", "شروع نہیں ہوا", "ایکسپورٹ ناکام ہوا", "ناکامیوں کے ساتھ ختم ہوا", "ایکسپورٹ مکمل ہوا", "اشاعت ناکام ہوئی", "\"repo\" دائرہ کار والا کلاسک ذاتی رسائی ٹوکن، یا Contents اور Pages کی اجازتیں Read and write پر سیٹ والا باریک ٹوکن درکار ہے۔", "آپ کے Vercel اکاؤنٹ کا رسائی ٹوکن۔", "آپ کے Netlify اکاؤنٹ کا ذاتی رسائی ٹوکن۔", "Cloudflare Pages Edit اجازت والا API ٹوکن اور آپ کے Cloudflare ڈیش بورڈ کی سائڈبار میں دکھایا گیا اکاؤنٹ ID درکار ہے — اس کے بغیر Cloudflare پروجیکٹ حل نہیں کر سکتا۔", "یہ ورک اسپیس آپ کے کمپیوٹر کا ٹرمینل استعمال نہیں کر سکتی — یہاں کنکشن کرنا شائع کرنے کا واحد طریقہ ہے۔", "ذاتی رسائی ٹوکن محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔"
+    "یہ کنکشن پہلے ہی محفوظ ہو چکا ہے — صفحہ دوبارہ لوڈ کریں اور پھر کوشش کریں۔", "نامعلوم خرابی", "صفحات، پوسٹس اور مصنوعات", "چیک آؤٹ اور آرڈرز", "ایڈمن پینل، آن لائن", "AI معاون", "پروجیکٹ کا نام", "شروع نہیں ہوا", "ایکسپورٹ ناکام ہوا", "ناکامیوں کے ساتھ ختم ہوا", "ایکسپورٹ مکمل ہوا", "اشاعت ناکام ہوئی", "یہ ورک اسپیس آپ کے کمپیوٹر کا ٹرمینل استعمال نہیں کر سکتی — یہاں کنکشن کرنا شائع کرنے کا واحد طریقہ ہے۔", "ذاتی رسائی ٹوکن محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔", "(اختیاری)", "ہوسٹ ہر اشاعت پر اس نام کا پروجیکٹ تلاش کرتا ہے یا بناتا ہے۔"
   ]),
 };
 
