@@ -61,6 +61,10 @@ export interface ResolvedStdioLaunch {
   readonly cwd?: string;
   readonly env: Readonly<Record<string, string>>;
   readonly launchEnv: Readonly<Record<string, string>>;
+  /** Set only when `command` was rewritten (desktop `npx` -> Electron + `npx-cli.js`): the command as
+   * configured, so a decision about WHAT runs — `resolveStdioChildCwd`'s package-runner check — is
+   * not made on the Electron binary standing in for it. */
+  readonly requestedCommand?: string;
   readonly warning?: string;
 }
 
@@ -247,7 +251,7 @@ export function createBundledNodeLaunchResolver({
       if (nodeToolchainCommand !== null) {
         const cli = nodeToolchainCommand === "npx" ? "npx-cli.js" : nodeToolchainCommand === "npm" ? "npm-cli.js" : null;
         const args = cli === null ? [...spec.args] : [pathModule.join(npmRoot, "bin", cli), ...spec.args];
-        return { command: execPath, args, cwd: spec.cwd, env: spec.env, launchEnv: nodeToolchainLaunchEnv };
+        return { command: execPath, args, cwd: spec.cwd, env: spec.env, launchEnv: nodeToolchainLaunchEnv, requestedCommand: spec.command };
       }
 
       if (isPathCommand(spec.command, pathModule)) {

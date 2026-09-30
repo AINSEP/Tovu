@@ -83,14 +83,22 @@ const PACKAGE_RUNNER_COMMANDS: ReadonlySet<string> = new Set(["npx"]);
  * (2026-09-29) while the same command worked from any other directory. A package fetched by name
  * never needs Tovu's project directory; a host's own `package.json` is the wrong input for it.
  *
- * Anything else keeps inheriting the daemon's cwd exactly as before — a relative `command` or a
- * server that reads files relative to where it was started depends on it.
+ * Anything else keeps inheriting the daemon's cwd exactly as before — a relative `command` (a
+ * package runner given as `./node_modules/.bin/npx` included) or a server that reads files relative
+ * to where it was started depends on it.
  *
  * @complexity O(1).
  */
 export function resolveStdioChildCwd(resolved: ResolvedStdioLaunch, neutralDir: string = os.tmpdir()): string | undefined {
   if (resolved.cwd !== undefined) return resolved.cwd;
-  const name = path.basename(resolved.command).replace(/\.(cmd|exe)$/i, "").toLowerCase();
+  // The command as configured, not as run: desktop's resolver rewrites `npx` to Electron running
+  // `npx-cli.js`, whose basename says nothing about being a package runner.
+  const command = resolved.requestedCommand ?? resolved.command;
+  // A relative path (`./node_modules/.bin/npx`) is resolved against the child's cwd at exec time,
+  // so moving the cwd would make the executable itself vanish.
+  const pathModule = /[\\]/.test(command) || /^[a-z]:/i.test(command) ? path.win32 : path.posix;
+  if (!pathModule.isAbsolute(command) && /[\\/]/.test(command)) return undefined;
+  const name = pathModule.basename(command).replace(/\.(cmd|exe)$/i, "").toLowerCase();
   return PACKAGE_RUNNER_COMMANDS.has(name) ? neutralDir : undefined;
 }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createStderrTail, describeChildExit, keepStderrTail, resolveStdioChildCwd, spawnMcpStdioChannel } from "../mcp-federation/adapter.stdio.js";
+import { createBundledNodeLaunchResolver } from "../mcp-federation/stdio-launch-resolver.js";
 
 /**
  * @file A stdio MCP server that dies at startup must say WHY in its close reason.
@@ -125,4 +126,27 @@ test("createStderrTail: a token still arriving when the child exits is redacted 
   const partial = createStderrTail(["tok_0123456789abcdef"]);
   partial.append("auth failed: tok_0123456789");
   assert.equal(partial.text(), "auth failed: tok_0123456789");
+});
+
+// Codex review 2026-09-29 run1 #4: on desktop the resolver rewrites `npx` to Electron running
+// `npx-cli.js` before the cwd is chosen, so a basename check on the rewritten command saw Electron
+// and kept the project cwd — the exact npm EUNSUPPORTEDPROTOCOL failure the neutral cwd exists for.
+test("resolveStdioChildCwd: desktop's rewritten npx (Electron + npx-cli.js) still runs in the neutral directory", () => {
+  const resolver = createBundledNodeLaunchResolver({
+    toolchainDir: "/toolchain",
+    npmRoot: "/npm",
+    execPath: "/Applications/Tovu.app/Contents/MacOS/Tovu",
+    platform: "darwin",
+    parentEnv: { PATH: "/usr/bin" },
+  });
+  const resolved = resolver.resolve({ command: "npx", args: ["-y", "namecom-mcp@latest"], env: {} });
+  assert.equal(resolved.command, "/Applications/Tovu.app/Contents/MacOS/Tovu");
+  assert.equal(resolveStdioChildCwd(resolved, "/neutral"), "/neutral");
+});
+
+// Codex review 2026-09-29 run1 #5: a relative runner path resolves against the child's cwd, so
+// moving `./node_modules/.bin/npx` to the neutral directory made it ENOENT.
+test("resolveStdioChildCwd: a relative package-runner path keeps the daemon's cwd it is relative to", () => {
+  assert.equal(resolveStdioChildCwd({ command: "./node_modules/.bin/npx", args: [], env: {}, launchEnv: {} }, "/neutral"), undefined);
+  assert.equal(resolveStdioChildCwd({ command: "node_modules/.bin/npx", args: [], env: {}, launchEnv: {} }, "/neutral"), undefined);
 });

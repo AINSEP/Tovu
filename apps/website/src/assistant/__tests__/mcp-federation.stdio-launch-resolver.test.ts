@@ -93,6 +93,7 @@ test("createBundledNodeLaunchResolver: posix npx is rewritten to execPath runnin
       PATH: "/toolchain/bin:/usr/bin:/bin",
       ...NPM_CONFIG_ENV("/toolchain"),
     },
+    requestedCommand: "npx",
   });
 });
 
