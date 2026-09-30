@@ -31,23 +31,5 @@
     "github-pages": 4,
     "netlify": 4,
     "vercel": 4
-  },
-  "apps/website/src/features/vendor-credentials/index.ts": {
-    "cloudflare": 1,
-    "netlify": 1,
-    "s3-compatible": 1,
-    "vercel": 1
-  },
-  "apps/website/src/features/vendor-credentials/store.ts": {
-    "cloudflare": 7,
-    "netlify": 6,
-    "s3-compatible": 11,
-    "vercel": 6
-  },
-  "apps/website/src/features/vendor-credentials/types.ts": {
-    "cloudflare": 5,
-    "netlify": 5,
-    "s3-compatible": 5,
-    "vercel": 5
   }
 }

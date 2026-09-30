@@ -12,7 +12,7 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchan
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
-import { createVendorCredential } from "../../vendor-credentials/index.js";
+import { createPublishCredential } from "../publish-credentials/store.js";
 
 import type { LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
@@ -335,9 +335,9 @@ test("deployment_get_static_publish_capabilities lists exactly the registry's ho
     },
   };
   deps.loadDeployTargets = async () => ({ get: (id) => (id === "acme-host" ? acme : undefined), list: () => [acme], refusals: [] });
-  await createVendorCredential(
-    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "bucket", connection: { vendorId: "s3-compatible", region: "us-east-1", bucket: "b", accessKeyId: "AKIA", secretAccessKey: "topsecret", publicUrl: "https://example.test" } }
+  await createPublishCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadDeployTargets: deps.loadDeployTargets },
+    { workspaceId: deps.workspaceId, label: "bucket", connection: { providerId: "acme-host", token: "tok" } }
   );
 
   const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_get_static_publish_capabilities");
@@ -427,11 +427,11 @@ test("deployment_get_static_publish_capabilities: a saved credential surfaces it
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  // Real `createVendorCredential`, not a hand-built record, so this exercises the exact seal/tokenTail
+  // Real `createPublishCredential`, not a hand-built record, so this exercises the exact seal/tokenTail
   // derivation production uses.
-  await createVendorCredential(
-    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "work", connection: { vendorId: "github", token: "ghp_aVeryRealLookingToken1234" } }
+  await createPublishCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadDeployTargets: deps.loadDeployTargets },
+    { workspaceId: deps.workspaceId, label: "work", connection: { providerId: "github-pages", token: "ghp_aVeryRealLookingToken1234" } }
   );
 
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -451,9 +451,9 @@ test("deployment_get_static_publish_capabilities: a freshly saved s3-compatible 
   // decrypts) reads the same vendor_credential_sets row the save below writes.
   const { deps } = fakeDeps();
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  await createVendorCredential(
-    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "custom bucket", connection: { vendorId: "s3-compatible", region: "us-east-1", bucket: "b", accessKeyId: "AKIA", secretAccessKey: "topsecret", publicUrl: "https://example.test" } }
+  await createPublishCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadDeployTargets: deps.loadDeployTargets },
+    { workspaceId: deps.workspaceId, label: "custom bucket", connection: { providerId: "s3-compatible", region: "us-east-1", bucket: "b", accessKeyId: "AKIA", secretAccessKey: "topsecret", publicUrl: "https://example.test" } }
   );
 
   const surfaceExchanges = createSurfaceExchangeStore();

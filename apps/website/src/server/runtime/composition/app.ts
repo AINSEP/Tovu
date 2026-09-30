@@ -272,7 +272,6 @@ import { registerAdminExportSiteRoutes } from "../../inbound/admin-http/routes/s
 import { registerAdminCustomCredentialsRoutes } from "../../inbound/admin-http/routes/system/custom-credentials.js";
 import { registerAdminPublishCredentialsRoutes } from "../../inbound/admin-http/routes/system/publish-credentials.js";
 import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin-http/routes/system/source-control-credentials.js";
-import { registerAdminVendorCredentialsRoutes } from "../../inbound/admin-http/routes/system/vendor-credentials.js";
 import { registerAdminSiteTokenRoutes } from "../../inbound/admin-http/routes/system/site-token.js";
 import { siteTokenRecovery } from "./site-token-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../inbound/admin-http/routes/fs-files/custom-root.js";
@@ -1662,12 +1661,6 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Access Tokens page's "Add custom provider" form: CRUD over saved user-defined provider
   // connections (`custom_credential_sets`). `custom-credentials.write`-gated on every verb.
   registerAdminCustomCredentialsRoutes(app, routeDeps);
-  // Phase 3: CRUD over the unified `vendor_credential_sets` table (`features/vendor-credentials/`) —
-  // the eventual replacement for BOTH credential routes just above, once every install's data is
-  // confirmed migrated. `vendor-credentials.write`-gated on every verb, deliberately its own
-  // permission — see that route file's own header for why neither `system.publish` nor
-  // `source-control.credentials.write` fits a table that now serves both domains.
-  registerAdminVendorCredentialsRoutes(app, routeDeps);
   // Security panel → Site Token tab: view/generate the TOVU_INTEGRATIONS_ROOT_KEY root key's
   // generated-file fallback. `admin.security.tokens.manage`-gated on both verbs — see that route
   // file's own header for exactly what this does and does not cover (since 2026-09-09 it seals

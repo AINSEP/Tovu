@@ -158,7 +158,7 @@ test("globToRegExp: '**/' in the middle matches across zero or more directory le
   const re = globToRegExp("apps/website/src/**/*credential*.ts");
   assert.ok(re.test("apps/website/src/assistant/site-credential-store.ts"), "one level deep");
   assert.ok(
-    re.test("apps/website/src/server/inbound/admin-http/routes/system/vendor-credentials.ts"),
+    re.test("apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts"),
     "several levels deep"
   );
   assert.ok(!re.test("apps/website/src/assistant/external-mcp-oauth.ts"), "no 'credential' in the name");

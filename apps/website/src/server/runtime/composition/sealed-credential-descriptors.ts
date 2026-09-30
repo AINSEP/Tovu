@@ -11,7 +11,6 @@ import { buildPublishContentPeerAad, PUBLISH_CONTENT_PEER_AAD_VERSION } from "#s
 import { buildSourceControlCredentialAad } from "#src/features/source-control/aad";
 import type { SourceControlProviderId } from "#src/features/source-control/types";
 import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
-import type { VendorId } from "#src/features/vendor-credentials/types";
 import { deviceAad } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 import type { SealedColumnDescriptor, SealedRowAadSelection, SealedRowIdentity } from "#src/platform/db/sealed-credential-inventory";
 
@@ -173,7 +172,7 @@ const vendorCredentialSets: SealedColumnDescriptor = {
   label: (row) => `Vendor credentials "${text(row, "label")}" (${text(row, "vendor_id")})`,
   aadFor: (row) => ({
     kind: "aad",
-    aad: buildVendorCredentialAad({ workspaceId: workspaceOf(row) as UUID, vendorId: text(row, "vendor_id") as VendorId, id: text(row, "id") as UUID }),
+    aad: buildVendorCredentialAad({ workspaceId: workspaceOf(row) as UUID, vendorId: text(row, "vendor_id"), id: text(row, "id") as UUID }),
   }),
 };
 
