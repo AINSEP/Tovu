@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
+import { PLAIN_TARGET } from "../../__tests__/publish-targets.fixture";
 
 /**
  * @file Coverage for `static-publish-dependencies.hooks.ts`. `defaultStaticPublishPort
@@ -14,7 +15,8 @@ import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPubl
  * `publish-credentials-dependencies.unit.test.ts`.
  */
 
-const { getPublishPreview, triggerPublish, getPublishStatus } = vi.hoisted(() => ({
+const { getPublishTargets, getPublishPreview, triggerPublish, getPublishStatus } = vi.hoisted(() => ({
+  getPublishTargets: vi.fn(),
   getPublishPreview: vi.fn(),
   triggerPublish: vi.fn(),
   getPublishStatus: vi.fn(),
@@ -24,7 +26,7 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
   return {
     ...actual,
-    api: { ...actual.api, getPublishPreview, triggerPublish, getPublishStatus },
+    api: { ...actual.api, getPublishTargets, getPublishPreview, triggerPublish, getPublishStatus },
   };
 });
 
@@ -44,6 +46,12 @@ const PREVIEW: AdminStaticPublishPreview = {
 };
 
 describe("defaultStaticPublishPort", () => {
+  it("listPublishTargets delegates to api.getPublishTargets, returning the hosts unchanged", async () => {
+    getPublishTargets.mockResolvedValue([PLAIN_TARGET]);
+    await expect(defaultStaticPublishPort.listPublishTargets()).resolves.toEqual([PLAIN_TARGET]);
+    expect(getPublishTargets).toHaveBeenCalledWith();
+  });
+
   it("getPublishPreview forwards config to api.getPublishPreview, returning the preview unchanged", async () => {
     getPublishPreview.mockResolvedValue(PREVIEW);
     await expect(defaultStaticPublishPort.getPublishPreview(GITHUB_CONFIG)).resolves.toEqual(PREVIEW);
@@ -83,6 +91,17 @@ describe("createFakeStaticPublishPort — getPublishPreview default", () => {
   it("an explicit getPublishPreview override wins over the default", async () => {
     const port = createFakeStaticPublishPort({ getPublishPreview: () => Promise.resolve(PREVIEW) });
     await expect(port.getPublishPreview(GITHUB_CONFIG)).resolves.toEqual(PREVIEW);
+  });
+});
+
+describe("createFakeStaticPublishPort — listPublishTargets default", () => {
+  it("lists no hosts when not overridden", async () => {
+    await expect(createFakeStaticPublishPort().listPublishTargets()).resolves.toEqual([]);
+  });
+
+  it("an explicit listPublishTargets override wins over the default", async () => {
+    const port = createFakeStaticPublishPort({ listPublishTargets: () => Promise.resolve([PLAIN_TARGET]) });
+    await expect(port.listPublishTargets()).resolves.toEqual([PLAIN_TARGET]);
   });
 });
 

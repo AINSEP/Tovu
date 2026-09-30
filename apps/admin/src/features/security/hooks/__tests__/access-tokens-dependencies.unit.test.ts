@@ -5,6 +5,7 @@ import type {
   AdminPublishCredentialSummary,
   AdminSourceControlCredentialSummary,
 } from "@/lib/api";
+import { PLAIN_TARGET } from "../../../deployment/__tests__/publish-targets.fixture";
 
 /**
  * @file Coverage for `access-tokens-dependencies.hooks.ts` — two independent surfaces:
@@ -18,6 +19,7 @@ import type {
  */
 
 const {
+  getPublishTargets,
   listPublishCredentials,
   createPublishCredential,
   updatePublishCredential,
@@ -32,6 +34,7 @@ const {
   updateCustomCredential,
   deleteCustomCredential,
 } = vi.hoisted(() => ({
+  getPublishTargets: vi.fn(),
   listPublishCredentials: vi.fn(),
   createPublishCredential: vi.fn(),
   updatePublishCredential: vi.fn(),
@@ -53,6 +56,7 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
     ...actual,
     api: {
       ...actual.api,
+      getPublishTargets,
       listPublishCredentials,
       createPublishCredential,
       updatePublishCredential,
@@ -140,6 +144,23 @@ describe("defaultAccessTokensPort.publish", () => {
     deletePublishCredential.mockResolvedValue(undefined);
     await expect(defaultAccessTokensPort.publish.remove("cred-1")).resolves.toBeUndefined();
     expect(deletePublishCredential).toHaveBeenCalledWith("cred-1");
+  });
+});
+
+describe("defaultAccessTokensPort.publishTargets", () => {
+  it("list delegates to api.getPublishTargets, returning the hosts unchanged", async () => {
+    getPublishTargets.mockResolvedValue([PLAIN_TARGET]);
+    await expect(defaultAccessTokensPort.publishTargets.list()).resolves.toEqual([PLAIN_TARGET]);
+    expect(getPublishTargets).toHaveBeenCalledWith();
+  });
+
+  it("the fake lists no hosts unless a test stubs some", async () => {
+    await expect(createFakeAccessTokensPort().publishTargets.list()).resolves.toEqual([]);
+  });
+
+  it("a publishTargets override wins over the fake's empty default", async () => {
+    const port = createFakeAccessTokensPort({ publishTargets: { list: () => Promise.resolve([PLAIN_TARGET]) } });
+    await expect(port.publishTargets.list()).resolves.toEqual([PLAIN_TARGET]);
   });
 });
 

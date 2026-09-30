@@ -84,15 +84,15 @@ import type { RouteDeps } from "#src/server/routes/types";
  * in-flight-dedupe contract that keeps this off the hot path and safe under `62ca21c7`'s guard.
  *
  * 2026-08-18 (`RouteDeps` decomposition Slice 3): was a bare `RouteDeps` alias; narrowed to a `Pick`
- * naming exactly the 9 fields `registerAdminPublishCredentialsRoutes`/`verifyAfterSave` read below
- * (confirmed by reading every `deps.*` access in this file, not guessed) — `publishCredentialSetRepo`
- * (now part of `routes/types.ts`'s `CredentialsDeps` group) plus the two shared ADR-058 sealing
- * fields, `clock`/`idGen`, `workspaceId`/`authorize`, and this route's own two extra reads
- * (`publishExecutionMode`, `publishCredentialVerificationCache` — neither is part of
- * `CredentialsDeps`, both stay declared directly on `RouteDeps`). Not composed from `CredentialsDeps`
- * directly: this route only ever touches its OWN repo, and pulling in the whole 10-field group would
- * add the other 9 credential repos (custom/source-control/vendor/media-provider/... ) this file never
- * reads — the same "would widen, not narrow" reasoning `routes/types.ts`'s own `CredentialsDeps` doc
+ * naming exactly the fields `registerAdminPublishCredentialsRoutes`/`verifyAfterSave` read below
+ * (confirmed by reading every `deps.*` access in this file, not guessed) — `vendorCredentialSetRepo`
+ * (part of `routes/types.ts`'s `CredentialsDeps` group; publish credentials live there since the
+ * vendor move) plus the two shared ADR-058 sealing fields, `clock`/`idGen`, `workspaceId`/`authorize`,
+ * and this route's own three extra reads (`publishExecutionMode`, `publishCredentialVerificationCache`,
+ * `loadDeployTargets` — none is part of `CredentialsDeps`, all stay declared directly on
+ * `RouteDeps`). Not composed from `CredentialsDeps` directly: this route only ever touches one
+ * credential repo, and pulling in the whole group would add the other credential repos
+ * (custom/source-control/media-provider/... ) this file never reads — the same "would widen, not narrow" reasoning `routes/types.ts`'s own `CredentialsDeps` doc
  * gives for why `MediaProviderRouteDeps`/`ExternalMcpRouteDeps` were left alone instead of composing
  * the group.
  */
