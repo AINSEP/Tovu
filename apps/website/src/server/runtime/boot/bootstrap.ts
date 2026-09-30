@@ -5,6 +5,7 @@ import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { seedBundledAgentPlugins } from "#src/features/agent-plugins/seed-bundled";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
+import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
 import { applyPendingAgentPluginTokens } from "../composition/pending-agent-plugin-tokens.js";
@@ -177,6 +178,9 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
           }
         }
         await importAgentPluginTokensAtBoot(deps, options);
+        // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
+        // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
+        await applyAgentPluginToolRenames(deps, tokenImportLog);
       },
       start: noop,
       stop: noop,

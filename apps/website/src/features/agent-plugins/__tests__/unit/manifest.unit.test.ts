@@ -206,6 +206,34 @@ test("mcp.json: tovuTokenAuth with a non-https or missing URL excludes the serve
   }
 });
 
+function parseRenamedTools(tovuRenamedTools: unknown) {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuRenamedTools } },
+  });
+  assert.equal(result.ok, true);
+  return result.ok ? (result.config.servers.remote as { tovuRenamedTools?: unknown } | undefined) : undefined;
+}
+
+test("mcp.json: tovuRenamedTools mapping valid old names to valid new names passes through", () => {
+  const renames = { get_logs: "query_logs", list_things: "list_items" };
+  assert.deepEqual(parseRenamedTools(renames)?.tovuRenamedTools, renames);
+});
+
+test("mcp.json: tovuRenamedTools that is malformed, renames a tool to itself, chains, or has over 64 entries excludes the server", () => {
+  for (const bad of [
+    ["get_logs", "query_logs"],
+    { get_logs: 1 },
+    { "has space": "query_logs" },
+    { get_logs: "has space" },
+    { get_logs: "get_logs" },
+    { a: "b", b: "c" },
+    Object.fromEntries(Array.from({ length: 65 }, (_, i) => [`t${i}`, `n${i}`])),
+  ]) {
+    assert.equal(parseRenamedTools(bad), undefined, JSON.stringify(bad));
+  }
+});
+
 test("mcp.json: tovuDefaultTools whose write names a tool outside allow excludes the server (like any shape error)", () => {
   const result = parseAgentPluginMcpConfig({
     $schema: MCP_SCHEMA_1_0_0,

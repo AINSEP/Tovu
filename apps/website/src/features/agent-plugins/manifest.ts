@@ -47,7 +47,8 @@
  *   entries, `tovuDefaultTools: { allow, write? }`, names the tools granted on the operator's first
  *   sign-in (`apply-connect-defaults.ts`); `write` must be a subset of `allow`. A third,
  *   `tovuTokenAuth: { helpUrl, probeUrl }`, offers a pasted access token as the sign-in fallback
- *   (`access-token-tool.ts`). A malformed per-server entry
+ *   (`access-token-tool.ts`). A fourth, `tovuRenamedTools: { oldName: newName }`, carries saved tool
+ *   selections across a vendor's tool rename (`apply-tool-renames.ts`). A malformed per-server entry
  *   (wrong/missing `type`, missing required field) does not fail the whole file — see
  *   `ParseAgentPluginMcpConfigResult`'s own doc for the fail-open contract this preserves.
  *
@@ -195,6 +196,10 @@ export interface RemoteMcpServerConfig {
   /** Tovu-specific extension, not part of the spec: this server also takes a pasted access token, sent
    *  as `Authorization: Bearer` — the fallback when its sign-in cannot start (`access-token-tool.ts`). */
   readonly tovuTokenAuth?: AgentPluginTokenAuth;
+  /** Tovu-specific extension, not part of the spec: `{ oldName: newName }` for tools the vendor
+   *  renamed. A row this plugin provisioned has each old name in its saved lists replaced by the new
+   *  one at boot (`apply-tool-renames.ts`), so a rename never strands an operator's selection. */
+  readonly tovuRenamedTools?: Readonly<Record<string, string>>;
 }
 
 /** Where a human makes the token (`helpUrl`, linked from the form) and the URL a pasted token is
@@ -318,6 +323,24 @@ function parseRetiredEnv(value: unknown): readonly string[] | null {
   return Array.isArray(value) && value.length <= MAX_RETIRED_ENV && value.every(isEnvVarName) ? value : null;
 }
 
+/**
+ * Validates a remote entry's `tovuRenamedTools` extension: at most {@link MAX_DEFAULT_TOOLS} entries,
+ * every key and value a valid tool name, no name renamed to itself, and no new name that is itself
+ * renamed again (so one pass is the whole rewrite).
+ *
+ * @returns The parsed map, or `null` for any shape violation — the caller excludes the whole server.
+ * @complexity O(n) in the entry count.
+ */
+function parseRenamedTools(value: unknown): Readonly<Record<string, string>> | null {
+  if (!isStringRecord(value)) return null;
+  const entries = Object.entries(value);
+  if (entries.length > MAX_DEFAULT_TOOLS) return null;
+  const valid = entries.every(
+    ([from, to]) => DEFAULT_TOOL_NAME_PATTERN.test(from) && DEFAULT_TOOL_NAME_PATTERN.test(to) && from !== to && !Object.hasOwn(value, to),
+  );
+  return valid ? value : null;
+}
+
 /** Validates a remote entry's `tovuTokenAuth` extension, or `null` for any shape violation — the
  *  caller excludes the whole server, same as a malformed `tovuDefaultTools`. */
 function parseTokenAuth(value: unknown): AgentPluginTokenAuth | null {
@@ -352,6 +375,8 @@ function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<
   if (tovuDefaultTools === null) return null;
   const tovuTokenAuth = raw.tovuTokenAuth === undefined ? undefined : parseTokenAuth(raw.tovuTokenAuth);
   if (tovuTokenAuth === null) return null;
+  const tovuRenamedTools = raw.tovuRenamedTools === undefined ? undefined : parseRenamedTools(raw.tovuRenamedTools);
+  if (tovuRenamedTools === null) return null;
 
   return {
     type,
@@ -360,6 +385,7 @@ function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<
     ...(tovuAuthMode !== undefined ? { tovuAuthMode } : {}),
     ...(tovuDefaultTools !== undefined ? { tovuDefaultTools } : {}),
     ...(tovuTokenAuth !== undefined ? { tovuTokenAuth } : {}),
+    ...(tovuRenamedTools !== undefined ? { tovuRenamedTools } : {}),
   };
 }
 

@@ -19,7 +19,8 @@
                   "apply_migration", "execute_sql", "get_advisors", "query_logs", "get_project_url", "get_publishable_keys",
                   "generate_typescript_types", "search_docs"],
         "write": ["confirm_cost", "create_project", "pause_project", "restore_project"]
-      }
+      },
+      "tovuRenamedTools": { "get_logs": "query_logs" }
     }
   }
 }

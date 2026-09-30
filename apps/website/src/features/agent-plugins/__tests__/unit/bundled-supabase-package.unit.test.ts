@@ -99,6 +99,16 @@ test("mcp.json offers the access-token fallback: Supabase's tokens page, probed 
   });
 });
 
+test("mcp.json carries saved selections across Supabase's get_logs -> query_logs rename, and defaults use the new name", async () => {
+  const parsed = parseAgentPluginMcpConfig(await readPackageJson("mcp.json"));
+  assert.ok(parsed.ok);
+  const server = parsed.config.servers.supabase;
+  assert.ok(server && server.type !== "stdio");
+  assert.deepEqual(server.tovuRenamedTools, { get_logs: "query_logs" });
+  assert.ok(server.tovuDefaultTools?.allow.includes("query_logs"));
+  assert.equal(server.tovuDefaultTools?.allow.includes("get_logs"), false);
+});
+
 test("plugin.json's keywords reach someone who just says they need a database", async () => {
   const parsed = parseAgentPluginManifest(await readPackageJson("plugin.json"));
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
