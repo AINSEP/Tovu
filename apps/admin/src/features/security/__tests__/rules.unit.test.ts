@@ -4,13 +4,13 @@ import { ApiError } from "@/lib/api";
 import { t as translateSecurity } from "../security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
-  ACCESS_TOKEN_PROVIDERS,
   OTHER_CREDENTIAL_STORES,
   accessTokenCategoryLabel,
   accessTokenCategoryMatches,
   accessTokenNameTaken,
   accessTokenProviderInfo,
   accessTokenProviderMatchesQuery,
+  accessTokenProviders,
   accessTokenReplaceReadyToSave,
   accessTokenRowMatchesQuery,
   accessTokenRowProviderInfo,
@@ -48,13 +48,22 @@ import {
   type RawCredentialSummary,
   type RawCustomCredentialSummary,
 } from "../rules";
+import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS } from "./access-token-providers.fixture";
+import { PLAIN_TARGET, PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 
 /** A blank form for one provider — every test overrides only the fields it cares about, same
  *  "start from a known-empty baseline" convention `deployment/__tests__/rules.unit.test.ts`'s own
  *  `blankCredentialFields` follows. */
 function blankFields(overrides: Partial<AccessTokenFormFields> = {}): AccessTokenFormFields {
-  return { ref: { kind: "publish", providerId: "github-pages" }, name: "", token: "", accountId: "", username: "", ...overrides };
+  return { ref: { kind: "publish", providerId: "github-pages" }, name: "", token: "", values: {}, username: "", ...overrides };
 }
+
+/** The provider entry a form's `ref` names, as the hook passes it alongside the fields. */
+function infoFor(ref: AccessTokenFormFields["ref"]) {
+  return accessTokenProviderInfo(PROVIDERS, ref);
+}
+
+const GITHUB_PAGES_INFO = infoFor({ kind: "publish", providerId: "github-pages" });
 
 function rawSummary(overrides: Partial<RawCredentialSummary> = {}): RawCredentialSummary {
   return {
@@ -68,9 +77,9 @@ function rawSummary(overrides: Partial<RawCredentialSummary> = {}): RawCredentia
   };
 }
 
-describe("ACCESS_TOKEN_PROVIDERS", () => {
-  it("lists all seven providers: four publish, then three source-control", () => {
-    expect(ACCESS_TOKEN_PROVIDERS.map((p) => `${p.kind}:${p.providerId}`)).toEqual([
+describe("accessTokenProviders", () => {
+  it("lists every deploy host that takes a credential, in registry order, then the three source-control providers", () => {
+    expect(PROVIDERS.map((p) => `${p.kind}:${p.providerId}`)).toEqual([
       "publish:github-pages",
       "publish:vercel",
       "publish:netlify",
@@ -81,13 +90,40 @@ describe("ACCESS_TOKEN_PROVIDERS", () => {
     ]);
   });
 
-  it("never includes s3-compatible — no admin UI exists for it yet", () => {
-    expect(ACCESS_TOKEN_PROVIDERS.some((p) => p.providerId === "s3-compatible")).toBe(false);
+  it("skips a host whose descriptor takes no credential", () => {
+    expect(accessTokenProviders([...PUBLISH_TARGETS, PLAIN_TARGET]).some((p) => p.providerId === PLAIN_TARGET.id)).toBe(false);
+  });
+
+  it("lists only the source-control providers while the deploy hosts are still loading", () => {
+    expect(accessTokenProviders(undefined).map((p) => p.kind)).toEqual(["source-control", "source-control", "source-control"]);
+  });
+
+  it("reads a host's token label, token page, guidance and vendor from its descriptor", () => {
+    const cloudflare = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "cloudflare-pages" });
+    expect(cloudflare.tokenLabel).toBe("API token");
+    expect(cloudflare.tokenPageUrl).toBe("https://dash.cloudflare.com/profile/api-tokens");
+    expect(cloudflare.scopeGuidanceKey).toBe("Needs an API token with Cloudflare Pages Edit permission, plus the account ID.");
+    expect(cloudflare.vendorLabel).toBe("Cloudflare");
+  });
+
+  it("falls back to the host's own label as its vendor, and to no token page or guidance, when the descriptor names none", () => {
+    const netlify = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "netlify" });
+    expect(netlify.vendorLabel).toBe("Netlify");
+    expect(netlify.tokenPageUrl).toBe("");
+    expect(netlify.scopeGuidanceKey).toBe("");
+  });
+
+  it("gives an unlisted provider a bare entry named by its own id, never another provider's copy", () => {
+    const info = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "gone-host" });
+    expect(info.label).toBe("gone-host");
+    expect(info.tokenPageUrl).toBe("");
+    expect(info.scopeGuidanceKey).toBe("");
+    expect(info.extraFields).toEqual([]);
   });
 
   it("gives github-pages and github distinct purpose labels — the two-store GitHub trap", () => {
-    const githubPages = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
-    const github = accessTokenProviderInfo({ kind: "source-control", providerId: "github" });
+    const githubPages = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "github-pages" });
+    const github = accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "github" });
     expect(githubPages.label).toBe("GitHub Pages");
     expect(github.label).toBe("GitHub");
     expect(githubPages.purposeLabel).not.toBe(github.purposeLabel);
@@ -98,21 +134,23 @@ describe("ACCESS_TOKEN_PROVIDERS", () => {
     expect(github.purposeLabel).toBe("Source control");
   });
 
-  it("carries cloudflare-pages' accountId requirement and bitbucket's username requirement through unchanged", () => {
-    expect(accessTokenProviderInfo({ kind: "publish", providerId: "cloudflare-pages" }).requiredFields).toEqual(["accountId"]);
-    expect(accessTokenProviderInfo({ kind: "source-control", providerId: "bitbucket" }).requiredFields).toEqual(["username"]);
+  it("carries cloudflare-pages' Account ID field and bitbucket's username requirement through unchanged", () => {
+    const cloudflare = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "cloudflare-pages" });
+    expect(cloudflare.extraFields.map((f) => [f.name, f.required])).toEqual([["accountId", true]]);
+    expect(accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "bitbucket" }).username).toBe("required");
+    expect(accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "github" }).username).toBeUndefined();
   });
 });
 
 describe("buildAccessTokenRows", () => {
   it("uses the saved label verbatim as the display name when it is not the legacy sentinel", () => {
-    const rows = buildAccessTokenRows("publish", [rawSummary({ label: "Production" })]);
+    const rows = buildAccessTokenRows("publish", [rawSummary({ label: "Production" })], PROVIDERS);
     expect(rows[0]!.name).toBe("Production");
     expect(rows[0]!.rawLabel).toBe("Production");
   });
 
   it("computes a friendly name for a lone legacy 'default'-labeled row", () => {
-    const rows = buildAccessTokenRows("publish", [rawSummary({ providerId: "vercel", label: "default" })]);
+    const rows = buildAccessTokenRows("publish", [rawSummary({ providerId: "vercel", label: "default" })], PROVIDERS);
     expect(rows[0]!.name).toBe("Vercel token");
   });
 
@@ -120,7 +158,7 @@ describe("buildAccessTokenRows", () => {
     const rows = buildAccessTokenRows("publish", [
       rawSummary({ id: "a", providerId: "netlify", label: "default" }),
       rawSummary({ id: "b", providerId: "netlify", label: "default" }),
-    ]);
+    ], PROVIDERS);
     expect(rows.map((r) => r.name)).toEqual(["Netlify token", "Netlify token 2"]);
   });
 
@@ -128,7 +166,7 @@ describe("buildAccessTokenRows", () => {
     const rows = buildAccessTokenRows("publish", [
       rawSummary({ id: "a", providerId: "netlify", label: "default" }),
       rawSummary({ id: "b", providerId: "vercel", label: "default" }),
-    ]);
+    ], PROVIDERS);
     expect(rows.map((r) => r.name)).toEqual(["Netlify token", "Vercel token"]);
   });
 
@@ -136,7 +174,7 @@ describe("buildAccessTokenRows", () => {
     // Both sentinels happen to be the literal string "default" today, but this proves the function
     // reads from the CORRECT store's own constant, not a hardcoded shared literal — a future
     // divergence between the two constants must not silently break this.
-    const rows = buildAccessTokenRows("source-control", [rawSummary({ providerId: "gitlab", label: "default" })]);
+    const rows = buildAccessTokenRows("source-control", [rawSummary({ providerId: "gitlab", label: "default" })], PROVIDERS);
     expect(rows[0]!.name).toBe("GitLab token");
   });
 });
@@ -147,7 +185,7 @@ describe("category filter", () => {
   });
 
   it("every Tier 1 provider lands in exactly one non-'all' category", () => {
-    for (const provider of ACCESS_TOKEN_PROVIDERS) {
+    for (const provider of PROVIDERS) {
       expect(["source-control", "hosting", "media", "ai", "ops"]).toContain(provider.category);
     }
   });
@@ -288,8 +326,8 @@ describe("mediaProviderLabel", () => {
 describe("accessTokenRowsForProvider", () => {
   it("filters to exactly one kind+providerId pair, ignoring the same providerId under a different kind", () => {
     const rows: AccessTokenRow[] = [
-      ...buildAccessTokenRows("publish", [rawSummary({ id: "a", providerId: "github-pages" })]),
-      ...buildAccessTokenRows("source-control", [rawSummary({ id: "b", providerId: "github" })]),
+      ...buildAccessTokenRows("publish", [rawSummary({ id: "a", providerId: "github-pages" })], PROVIDERS),
+      ...buildAccessTokenRows("source-control", [rawSummary({ id: "b", providerId: "github" })], PROVIDERS),
     ];
     const result = accessTokenRowsForProvider(rows, { kind: "publish", providerId: "github-pages" });
     expect(result.map((r) => r.id)).toEqual(["a"]);
@@ -369,8 +407,8 @@ describe("sortAccessTokenGroups", () => {
 });
 
 describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
-  const info = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
-  const row = buildAccessTokenRows("publish", [rawSummary({ label: "Production" })])[0]!;
+  const info = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "github-pages" });
+  const row = buildAccessTokenRows("publish", [rawSummary({ label: "Production" })], PROVIDERS)[0]!;
 
   it("matches everything when the query is blank", () => {
     expect(accessTokenRowMatchesQuery(row, info, "")).toBe(true);
@@ -384,7 +422,7 @@ describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
 
   it("matches on the purpose subtitle — the two-store GitHub disambiguator", () => {
     expect(accessTokenRowMatchesQuery(row, info, "hosting")).toBe(true);
-    const sourceControlInfo = accessTokenProviderInfo({ kind: "source-control", providerId: "github" });
+    const sourceControlInfo = accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "github" });
     expect(accessTokenProviderMatchesQuery(sourceControlInfo, "hosting")).toBe(false);
   });
 
@@ -401,7 +439,7 @@ describe("accessTokenRowMatchesQuery / accessTokenProviderMatchesQuery", () => {
 describe("accessTokenNameTaken", () => {
   const rows: AccessTokenRow[] = buildAccessTokenRows("publish", [
     rawSummary({ id: "a", providerId: "github-pages", label: "Production" }),
-  ]);
+  ], PROVIDERS);
   const ref = { kind: "publish" as const, providerId: "github-pages" };
 
   it("flags a collision, case- and whitespace-insensitive", () => {
@@ -425,74 +463,74 @@ describe("accessTokenNameTaken", () => {
 
 describe("accessTokenRowReadyToSave (Create flow)", () => {
   it("is not ready with a blank name, even with a token typed", () => {
-    expect(accessTokenRowReadyToSave(blankFields({ token: "tok" }))).toBe(false);
+    expect(accessTokenRowReadyToSave(blankFields({ token: "tok" }), GITHUB_PAGES_INFO)).toBe(false);
   });
 
   it("is not ready with a blank token, even with a name typed", () => {
-    expect(accessTokenRowReadyToSave(blankFields({ name: "Production" }))).toBe(false);
+    expect(accessTokenRowReadyToSave(blankFields({ name: "Production" }), GITHUB_PAGES_INFO)).toBe(false);
   });
 
   it("is ready once both are filled, for a provider needing no extra field", () => {
-    expect(accessTokenRowReadyToSave(blankFields({ name: "Production", token: "tok" }))).toBe(true);
+    expect(accessTokenRowReadyToSave(blankFields({ name: "Production", token: "tok" }), GITHUB_PAGES_INFO)).toBe(true);
   });
 
   it("stays not-ready for cloudflare-pages until Account ID is also filled", () => {
     const ref = { kind: "publish" as const, providerId: "cloudflare-pages" };
-    expect(accessTokenRowReadyToSave(blankFields({ ref, name: "Production", token: "tok" }))).toBe(false);
-    expect(accessTokenRowReadyToSave(blankFields({ ref, name: "Production", token: "tok", accountId: "acct-1" }))).toBe(true);
+    expect(accessTokenRowReadyToSave(blankFields({ ref, name: "Production", token: "tok" }), infoFor(ref))).toBe(false);
+    expect(accessTokenRowReadyToSave(blankFields({ ref, name: "Production", token: "tok", values: { accountId: "acct-1" } }), infoFor(ref))).toBe(true);
   });
 });
 
 describe("accessTokenReplaceReadyToSave (Replace flow)", () => {
   it("is not ready with everything blank — nothing to send", () => {
-    expect(accessTokenReplaceReadyToSave(blankFields({ name: "" }), "Production")).toBe(false);
+    expect(accessTokenReplaceReadyToSave(blankFields({ name: "" }), "Production", GITHUB_PAGES_INFO)).toBe(false);
   });
 
   it("is ready for a rename-only save: new name, blank token", () => {
-    expect(accessTokenReplaceReadyToSave(blankFields({ name: "New Name" }), "Production")).toBe(true);
+    expect(accessTokenReplaceReadyToSave(blankFields({ name: "New Name" }), "Production", GITHUB_PAGES_INFO)).toBe(true);
   });
 
   it("is NOT ready when the name is unchanged and the token is blank — no diff to send", () => {
-    expect(accessTokenReplaceReadyToSave(blankFields({ name: "Production" }), "Production")).toBe(false);
+    expect(accessTokenReplaceReadyToSave(blankFields({ name: "Production" }), "Production", GITHUB_PAGES_INFO)).toBe(false);
   });
 
   it("is ready when a new token is typed, name unchanged, for a provider needing no extra field", () => {
-    expect(accessTokenReplaceReadyToSave(blankFields({ name: "Production", token: "tok" }), "Production")).toBe(true);
+    expect(accessTokenReplaceReadyToSave(blankFields({ name: "Production", token: "tok" }), "Production", GITHUB_PAGES_INFO)).toBe(true);
   });
 
   it("requires cloudflare-pages' accountId whenever a NEW token is typed, even on replace", () => {
     const ref = { kind: "publish" as const, providerId: "cloudflare-pages" };
-    expect(accessTokenReplaceReadyToSave(blankFields({ ref, name: "Production", token: "tok" }), "Production")).toBe(false);
-    expect(accessTokenReplaceReadyToSave(blankFields({ ref, name: "Production", token: "tok", accountId: "a" }), "Production")).toBe(true);
+    expect(accessTokenReplaceReadyToSave(blankFields({ ref, name: "Production", token: "tok" }), "Production", infoFor(ref))).toBe(false);
+    expect(accessTokenReplaceReadyToSave(blankFields({ ref, name: "Production", token: "tok", values: { accountId: "a" } }), "Production", infoFor(ref))).toBe(true);
   });
 });
 
 describe("buildAccessTokenConnectionInput", () => {
   it("dispatches to the publish builder for a publish ref", () => {
-    const input = buildAccessTokenConnectionInput(blankFields({ name: "x", token: " ghp_abc " }));
+    const input = buildAccessTokenConnectionInput(blankFields({ name: "x", token: " ghp_abc " }), GITHUB_PAGES_INFO);
     expect(input).toEqual({ providerId: "github-pages", token: "ghp_abc" });
   });
 
   it("dispatches to the source-control builder for a source-control ref", () => {
     const ref = { kind: "source-control" as const, providerId: "bitbucket" };
-    const input = buildAccessTokenConnectionInput(blankFields({ ref, name: "x", token: "tok", username: " alice " }));
+    const input = buildAccessTokenConnectionInput(blankFields({ ref, name: "x", token: "tok", username: " alice " }), infoFor(ref));
     expect(input).toEqual({ providerId: "bitbucket", token: "tok", username: "alice" });
   });
 });
 
 describe("buildAccessTokenUpdatePatch", () => {
   it("sends a label-only patch when only the name changed", () => {
-    const patch = buildAccessTokenUpdatePatch(blankFields({ name: "New Name" }), true, false);
+    const patch = buildAccessTokenUpdatePatch(blankFields({ name: "New Name" }), true, false, GITHUB_PAGES_INFO);
     expect(patch).toEqual({ label: "New Name" });
   });
 
   it("sends a connection-only patch when only the token changed", () => {
-    const patch = buildAccessTokenUpdatePatch(blankFields({ name: "Same", token: "tok" }), false, true);
+    const patch = buildAccessTokenUpdatePatch(blankFields({ name: "Same", token: "tok" }), false, true, GITHUB_PAGES_INFO);
     expect(patch).toEqual({ connection: { providerId: "github-pages", token: "tok" } });
   });
 
   it("sends both when both changed", () => {
-    const patch = buildAccessTokenUpdatePatch(blankFields({ name: "New Name", token: "tok" }), true, true);
+    const patch = buildAccessTokenUpdatePatch(blankFields({ name: "New Name", token: "tok" }), true, true, GITHUB_PAGES_INFO);
     expect(patch).toEqual({ label: "New Name", connection: { providerId: "github-pages", token: "tok" } });
   });
 });
@@ -595,30 +633,30 @@ describe("accessTokenRowProviderInfo", () => {
       createdAt: "2026-08-17T10:00:00.000Z",
       updatedAt: "2026-08-17T10:00:00.000Z",
     };
-    expect(accessTokenRowProviderInfo(row)).toEqual(accessTokenProviderInfo(row));
+    expect(accessTokenRowProviderInfo(PROVIDERS, row)).toEqual(accessTokenProviderInfo(PROVIDERS, row));
   });
 
   it("builds a synthetic info for a 'custom' row from its own name/category/baseUrl", () => {
     const [row] = buildCustomCredentialRows([rawCustomSummary({ label: "name.com", category: "hosting", baseUrl: "https://api.name.com" })]);
-    const info = accessTokenRowProviderInfo(row!);
+    const info = accessTokenRowProviderInfo(PROVIDERS, row!);
     expect(info.label).toBe("name.com");
     expect(info.vendorLabel).toBe("name.com");
     expect(info.category).toBe("hosting");
     expect(info.purposeLabel).toBe("Hosting");
     expect(info.tokenPageUrl).toBe("https://api.name.com");
-    expect(info.requiredFields).toEqual([]);
-    expect(info.optionalFields).toEqual(["username"]);
+    expect(info.extraFields).toEqual([]);
+    expect(info.username).toBe("optional");
   });
 });
 
 describe("providerGroupHandleLabel / tokenRowHandleLabel", () => {
   it("providerGroupHandleLabel names the provider and reports the connected count", () => {
-    const info = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
+    const info = GITHUB_PAGES_INFO;
     expect(providerGroupHandleLabel(info, 3)).toBe(`${info.label}'s saved access tokens — 3 connected`);
   });
 
   it("providerGroupHandleLabel reports zero connected the same way as any other count", () => {
-    const info = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
+    const info = GITHUB_PAGES_INFO;
     expect(providerGroupHandleLabel(info, 0)).toBe(`${info.label}'s saved access tokens — 0 connected`);
   });
 
@@ -752,7 +790,7 @@ describe("buildCustomProviderConnectionInput", () => {
 /** A blank custom-row `AccessTokenFormFields` — the Replace-flow counterpart of {@link blankFields}
  *  for a `kind: "custom"` row (no catalog `providerId` to default to). */
 function blankCustomRowFields(overrides: Partial<AccessTokenFormFields> = {}): AccessTokenFormFields {
-  return { ref: { kind: "custom", providerId: "custom-1" }, name: "", token: "", accountId: "", username: "", ...overrides };
+  return { ref: { kind: "custom", providerId: "custom-1" }, name: "", token: "", values: {}, username: "", ...overrides };
 }
 
 describe("customCredentialReplaceReadyToSave (2026-09-01 owner-reported bug: username-only save)", () => {
@@ -784,15 +822,19 @@ describe("customCredentialReplaceReadyToSave (2026-09-01 owner-reported bug: use
 });
 
 describe("accessTokenExistingRowReadyToSave — the Replace form's gate, picked by row kind (terra review 2026-09-20 #3)", () => {
+  /** The custom gate reads the row, never the provider entry. */
+  const CUSTOM_INFO = infoFor({ kind: "custom", providerId: "name.com" });
+
   it("a custom row uses the custom gate: a username-only change is ready", () => {
-    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), { kind: "custom", name: "name.com", username: "old-user" })).toBe(true);
-    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "old-user" }), { kind: "custom", name: "name.com", username: "old-user" })).toBe(false);
+    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), { kind: "custom", name: "name.com", username: "old-user" }, CUSTOM_INFO)).toBe(true);
+    expect(accessTokenExistingRowReadyToSave(blankCustomRowFields({ name: "name.com", username: "old-user" }), { kind: "custom", name: "name.com", username: "old-user" }, CUSTOM_INFO)).toBe(false);
   });
 
   it("a catalog row keeps the catalog gate: a username with no token and no rename is NOT ready", () => {
-    const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", accountId: "", username: "bb-user" };
-    expect(accessTokenExistingRowReadyToSave(fields, { kind: "source-control", name: "Team", username: undefined })).toBe(false);
-    expect(accessTokenExistingRowReadyToSave({ ...fields, name: "Team 2" }, { kind: "source-control", name: "Team", username: undefined })).toBe(true);
+    const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", values: {}, username: "bb-user" };
+    const info = infoFor(fields.ref);
+    expect(accessTokenExistingRowReadyToSave(fields, { kind: "source-control", name: "Team", username: undefined }, info)).toBe(false);
+    expect(accessTokenExistingRowReadyToSave({ ...fields, name: "Team 2" }, { kind: "source-control", name: "Team", username: undefined }, info)).toBe(true);
   });
 });
 
