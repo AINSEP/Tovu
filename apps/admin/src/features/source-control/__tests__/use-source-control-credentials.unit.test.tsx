@@ -6,6 +6,12 @@ import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
 import type { AdminSourceControlCredentialSummary } from "@/lib/api";
+import { SOURCE_CONTROL_PROVIDERS_SNAPSHOT } from "./source-control-providers.fixture";
+
+/** The fake port with the fixture hosts listed (GitHub, and Forge with a required username). */
+function fakePort(overrides: Parameters<typeof createFakeSourceControlCredentialsPort>[0] = {}) {
+  return createFakeSourceControlCredentialsPort({ listProviders: () => Promise.resolve(SOURCE_CONTROL_PROVIDERS_SNAPSHOT), ...overrides });
+}
 
 /**
  * @file `useSourceControlCredentials`, exercised against `createFakeSourceControlCredentialsPort` —
@@ -34,56 +40,56 @@ function githubCredential(overrides: Partial<AdminSourceControlCredentialSummary
 }
 
 describe("useSourceControlCredentials", () => {
-  it("starts with rows undefined, then resolves one row per provider once the list loads", async () => {
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.resolve({ credentials: [] }) });
+  it("starts with rows undefined, then resolves one row per listed host once both lists load", async () => {
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }) });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
 
     expect(result.current.rows).toBeUndefined();
 
     await waitFor(() => expect(result.current.rows).toBeDefined());
-    expect(result.current.rows!.map((row) => row.providerId)).toEqual(["github", "gitlab", "bitbucket"]);
+    expect(result.current.rows!.map((row) => row.providerId)).toEqual(["github", "forge"]);
     expect(result.current.rows!.every((row) => row.saved === undefined)).toBe(true);
   });
 
   it("marks a provider's row saved once its default credential is present in the initial load", async () => {
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }) });
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }) });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
 
     await waitFor(() => expect(result.current.rows).toBeDefined());
     const githubRow = result.current.rows!.find((row) => row.providerId === "github");
     expect(githubRow?.saved?.id).toBe("cred-github-1");
-    const gitlabRow = result.current.rows!.find((row) => row.providerId === "gitlab");
-    expect(gitlabRow?.saved).toBeUndefined();
+    const forgeRow = result.current.rows!.find((row) => row.providerId === "forge");
+    expect(forgeRow?.saved).toBeUndefined();
   });
 
   it("sets a load error when listCredentials rejects, without throwing", async () => {
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.reject(new Error("network down")) });
+    const port = fakePort({ listCredentials: () => Promise.reject(new Error("network down")) });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
 
     await waitFor(() => expect(result.current.loadError).not.toBeNull());
     expect(result.current.loadError).toContain("network down");
   });
 
-  it("setToken/setUsername update only the targeted row's own draft state", async () => {
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.resolve({ credentials: [] }) });
+  it("setToken/setField update only the targeted row's own draft state", async () => {
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }) });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
     act(() => result.current.setToken("github", "ghp_abc"));
-    act(() => result.current.setUsername("bitbucket", "alice"));
+    act(() => result.current.setField("forge", "username", "alice"));
 
     const github = result.current.rows!.find((row) => row.providerId === "github")!;
-    const gitlab = result.current.rows!.find((row) => row.providerId === "gitlab")!;
-    const bitbucket = result.current.rows!.find((row) => row.providerId === "bitbucket")!;
+    const forge = result.current.rows!.find((row) => row.providerId === "forge")!;
     expect(github.token).toBe("ghp_abc");
-    expect(gitlab.token).toBe("");
-    expect(bitbucket.username).toBe("alice");
-    expect(bitbucket.token).toBe("");
+    expect(github.readyToSave).toBe(true);
+    expect(forge.values).toEqual({ username: "alice" });
+    expect(forge.token).toBe("");
+    expect(forge.readyToSave).toBe(false);
   });
 
   it("save() is a no-op (no create call) when the row isn't ready — e.g. a blank token", async () => {
     const createCredential = vi.fn();
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
@@ -93,7 +99,7 @@ describe("useSourceControlCredentials", () => {
 
   it("save() CREATEs with the fixed row label when this provider has nothing saved yet, then clears the draft", async () => {
     const createCredential = vi.fn().mockResolvedValue(githubCredential());
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
@@ -108,7 +114,7 @@ describe("useSourceControlCredentials", () => {
 
   it("save() UPDATEs the existing default's id when this provider already has a saved connection", async () => {
     const updateCredential = vi.fn().mockResolvedValue(githubCredential({ id: "cred-github-1" }));
-    const port = createFakeSourceControlCredentialsPort({
+    const port = fakePort({
       listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }),
       updateCredential,
     });
@@ -121,27 +127,27 @@ describe("useSourceControlCredentials", () => {
     expect(updateCredential).toHaveBeenCalledWith("cred-github-1", { connection: { providerId: "github", token: "ghp_new" } });
   });
 
-  it("save() requires BOTH token and username for bitbucket before it will call createCredential", async () => {
-    const createCredential = vi.fn().mockResolvedValue(githubCredential({ providerId: "bitbucket" }));
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
+  it("save() requires the token AND every required declared field before it will call createCredential", async () => {
+    const createCredential = vi.fn().mockResolvedValue(githubCredential({ providerId: "forge" }));
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
-    act(() => result.current.setToken("bitbucket", "app-pw"));
-    await act(() => result.current.save("bitbucket"));
+    act(() => result.current.setToken("forge", "app-pw"));
+    await act(() => result.current.save("forge"));
     expect(createCredential).not.toHaveBeenCalled();
 
-    act(() => result.current.setUsername("bitbucket", "alice"));
-    await act(() => result.current.save("bitbucket"));
+    act(() => result.current.setField("forge", "username", "alice"));
+    await act(() => result.current.save("forge"));
     expect(createCredential).toHaveBeenCalledWith({
       label: "default",
-      connection: { providerId: "bitbucket", token: "app-pw", username: "alice" },
+      connection: { providerId: "forge", token: "app-pw", username: "alice" },
     });
   });
 
   it("save() surfaces a rejected write as that row's own error, and resets saving to false", async () => {
     const createCredential = vi.fn().mockRejectedValue(new Error("server exploded"));
-    const port = createFakeSourceControlCredentialsPort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
@@ -153,5 +159,29 @@ describe("useSourceControlCredentials", () => {
     expect(githubRow.error).not.toBeNull();
     expect(githubRow.saved).toBeUndefined();
     expect(githubRow.token).toBe("ghp_abc"); // draft is NOT cleared on a failed save
+  });
+
+  it("keeps a saved connection whose host is not listed as a row marked unlisted, and never saves to it (IRON RULE)", async () => {
+    const createCredential = vi.fn();
+    const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [githubCredential({ id: "gl-1", providerId: "gitlab" })] }), createCredential });
+    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.rows).toBeDefined());
+
+    const gitlab = result.current.rows!.find((row) => row.providerId === "gitlab")!;
+    expect(gitlab.info.listed).toBe(false);
+    expect(gitlab.saved?.id).toBe("gl-1");
+    act(() => result.current.setToken("gitlab", "glpat"));
+    await act(() => result.current.save("gitlab"));
+    expect(createCredential).not.toHaveBeenCalled();
+  });
+
+  it("still shows saved connections when the host list fails to load", async () => {
+    const port = createFakeSourceControlCredentialsPort({
+      listProviders: () => Promise.reject(new Error("down")),
+      listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }),
+    });
+    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.rows).toBeDefined());
+    expect(result.current.rows!.map((row) => [row.providerId, row.info.listed])).toEqual([["github", false]]);
   });
 });

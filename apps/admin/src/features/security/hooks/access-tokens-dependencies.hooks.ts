@@ -12,6 +12,7 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
  *  adds no new HTTP surface, only a second reader/writer of the same two endpoints. */
 export const defaultAccessTokensPort: AccessTokensPort = {
   publishTargets: { list: () => api.getPublishTargets() },
+  sourceControlProviders: { list: () => api.listSourceControlProviders().then((res) => res.providers) },
   publish: {
     list: () => api.listPublishCredentials(),
     create: (input) => api.createPublishCredential(input).then((res) => res.credential),
@@ -76,6 +77,7 @@ function fakeCustomPort(overrides: Partial<AccessTokensPort["custom"]> | undefin
 export function createFakeAccessTokensPort(
   overrides: Partial<{
     publishTargets: Partial<AccessTokensPort["publishTargets"]>;
+    sourceControlProviders: Partial<AccessTokensPort["sourceControlProviders"]>;
     publish: Partial<AccessTokensPort["publish"]>;
     sourceControl: Partial<AccessTokensPort["sourceControl"]>;
     custom: Partial<AccessTokensPort["custom"]>;
@@ -84,6 +86,7 @@ export function createFakeAccessTokensPort(
   return {
     // No hosts unless a test lists some: the admin names none of its own.
     publishTargets: { list: overrides.publishTargets?.list ?? (() => Promise.resolve([])) },
+    sourceControlProviders: { list: overrides.sourceControlProviders?.list ?? (() => Promise.resolve([])) },
     publish: fakePublishPort(overrides.publish),
     sourceControl: fakeSourceControlPort(overrides.sourceControl),
     custom: fakeCustomPort(overrides.custom),

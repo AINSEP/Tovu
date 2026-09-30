@@ -3,22 +3,24 @@ import { describe, expect, it } from "vitest";
 import { ApiError, type AdminSourceControlCredentialSummary } from "@/lib/api";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
-  SOURCE_CONTROL_PROVIDERS,
   buildSourceControlConnectionInput,
   classifySourceControlCredentialSubmitError,
   defaultSourceControlCredentialForProvider,
   sourceControlCredentialRowReadyToSave,
   sourceControlCredentialsForProvider,
-  sourceControlProviderInfo,
+  sourceControlProviderInfoFromDescriptor,
+  sourceControlProviders,
   type SourceControlCredentialFormFields,
 } from "../rules";
+import { FORGE_PROVIDER, GITHUB_PROVIDER, SOURCE_CONTROL_PROVIDER_DESCRIPTORS } from "./source-control-providers.fixture";
 
-/** A blank form for one provider — every test below overrides only the fields it cares about, same
- *  "start from a known-empty baseline" convention `deployment/__tests__/rules.unit.test.ts`'s own
- *  `blankCredentialFields` follows. */
-function blankFields(providerId: SourceControlCredentialFormFields["providerId"]): SourceControlCredentialFormFields {
-  return { providerId, token: "", username: "" };
+/** A blank form for one provider — every test below overrides only the fields it cares about. */
+function blankFields(providerId: string): SourceControlCredentialFormFields {
+  return { providerId, token: "", values: {} };
 }
+
+const GITHUB = sourceControlProviderInfoFromDescriptor(GITHUB_PROVIDER);
+const FORGE = sourceControlProviderInfoFromDescriptor(FORGE_PROVIDER);
 
 function credential(overrides: Partial<AdminSourceControlCredentialSummary> = {}): AdminSourceControlCredentialSummary {
   return {
@@ -33,64 +35,80 @@ function credential(overrides: Partial<AdminSourceControlCredentialSummary> = {}
   };
 }
 
-describe("SOURCE_CONTROL_PROVIDERS", () => {
-  it("lists GitHub, GitLab, Bitbucket in that order — GitHub first per the brief", () => {
-    expect(SOURCE_CONTROL_PROVIDERS.map((provider) => provider.id)).toEqual(["github", "gitlab", "bitbucket"]);
+describe("sourceControlProviderInfoFromDescriptor", () => {
+  it("reads the label, guidance, token page and token label from the descriptor, and keeps only non-token fields", () => {
+    expect(GITHUB).toEqual({
+      id: "github",
+      label: "GitHub",
+      tokenPageUrl: "https://github.com/settings/personal-access-tokens/new",
+      scopeGuidanceKey: "Needs a fine-grained personal access token scoped to just this repository.",
+      tokenField: "token",
+      tokenLabel: "Access token",
+      fields: [],
+      listed: true,
+    });
+    expect(FORGE.fields.map((field) => field.name)).toEqual(["username"]);
   });
 
-  it("requires no extra field for GitHub or GitLab", () => {
-    expect(sourceControlProviderInfo("github").requiredFields).toEqual([]);
-    expect(sourceControlProviderInfo("gitlab").requiredFields).toEqual([]);
-  });
-
-  it("requires a username for Bitbucket alongside the universal token", () => {
-    expect(sourceControlProviderInfo("bitbucket").requiredFields).toEqual(["username"]);
+  it("gives a descriptor with no credential form a bare token field and no guidance", () => {
+    expect(sourceControlProviderInfoFromDescriptor({ id: "plain", label: "Plain" })).toEqual({
+      id: "plain", label: "Plain", tokenPageUrl: "", scopeGuidanceKey: "", tokenField: "token", fields: [], listed: true,
+    });
   });
 });
 
-describe("sourceControlProviderInfo", () => {
-  it("looks up a provider by id", () => {
-    expect(sourceControlProviderInfo("gitlab").label).toBe("GitLab");
+describe("sourceControlProviders (IRON RULE: a saved connection never drops off the page)", () => {
+  it("lists the listed hosts in the server's order", () => {
+    expect(sourceControlProviders(SOURCE_CONTROL_PROVIDER_DESCRIPTORS, []).map((p) => [p.id, p.listed])).toEqual([
+      ["github", true],
+      ["forge", true],
+    ]);
+  });
+
+  it("appends one bare unlisted entry per saved connection whose host is not listed, named by its id", () => {
+    const rows = [credential({ id: "a", providerId: "gitlab" }), credential({ id: "b", providerId: "gitlab" }), credential({ id: "c", providerId: "github" })];
+    const providers = sourceControlProviders([GITHUB_PROVIDER], rows);
+    expect(providers.map((p) => [p.id, p.label, p.listed])).toEqual([
+      ["github", "GitHub", true],
+      ["gitlab", "gitlab", false],
+    ]);
+  });
+
+  it("still lists saved connections' hosts while the host list is missing", () => {
+    expect(sourceControlProviders(undefined, [credential({ providerId: "bitbucket" })]).map((p) => p.id)).toEqual(["bitbucket"]);
   });
 });
 
 describe("buildSourceControlConnectionInput", () => {
-  it("builds a github connection with only the trimmed token", () => {
-    const input = buildSourceControlConnectionInput({ providerId: "github", token: "  ghp_abc  ", username: "" });
-    expect(input).toEqual({ providerId: "github", token: "ghp_abc" });
+  it("builds a connection with only the trimmed token when the host declares nothing else", () => {
+    expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: "  ghp_abc  " }, GITHUB.fields)).toEqual({ providerId: "github", token: "ghp_abc" });
   });
 
-  it("builds a gitlab connection with only the trimmed token", () => {
-    const input = buildSourceControlConnectionInput({ providerId: "gitlab", token: "glpat-xyz", username: "" });
-    expect(input).toEqual({ providerId: "gitlab", token: "glpat-xyz" });
-  });
-
-  it("builds a bitbucket connection with both the trimmed token AND the trimmed username", () => {
-    const input = buildSourceControlConnectionInput({ providerId: "bitbucket", token: " app-pw ", username: " alice " });
-    expect(input).toEqual({ providerId: "bitbucket", token: "app-pw", username: "alice" });
+  it("adds each declared field typed non-blank, trimmed, and drops undeclared or blank ones", () => {
+    const input = buildSourceControlConnectionInput({ providerId: "forge", token: " t ", values: { username: " alice ", stray: "x" } }, FORGE.fields);
+    expect(input).toEqual({ providerId: "forge", token: "t", username: "alice" });
+    expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: { username: "  " } }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
   });
 });
 
 describe("sourceControlCredentialRowReadyToSave", () => {
-  it("is false with a blank token, regardless of provider", () => {
-    expect(sourceControlCredentialRowReadyToSave(blankFields("github"))).toBe(false);
+  it("is false with a blank token", () => {
+    expect(sourceControlCredentialRowReadyToSave(blankFields("github"), GITHUB)).toBe(false);
   });
 
-  it("is true for GitHub/GitLab once the token alone is filled in", () => {
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("github"), token: "ghp_abc" })).toBe(true);
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("gitlab"), token: "glpat-xyz" })).toBe(true);
+  it("is true once the token alone is filled in when the host declares nothing else", () => {
+    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("github"), token: "ghp_abc" }, GITHUB)).toBe(true);
   });
 
-  it("is false for Bitbucket with a token but no username", () => {
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("bitbucket"), token: "app-pw" })).toBe(false);
+  it("is false until every required declared field is filled, treating whitespace as blank", () => {
+    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("forge"), token: "t" }, FORGE)).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "   " } }, FORGE)).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice" } }, FORGE)).toBe(true);
   });
 
-  it("is true for Bitbucket only once both token and username are filled in", () => {
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "bitbucket", token: "app-pw", username: "alice" })).toBe(true);
-  });
-
-  it("treats a whitespace-only username as blank for Bitbucket", () => {
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "bitbucket", token: "app-pw", username: "   " })).toBe(false);
+  it("is never ready for an unlisted host", () => {
+    const unlisted = sourceControlProviders([], [credential({ providerId: "gitlab" })])[0]!;
+    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("gitlab"), token: "glpat" }, unlisted)).toBe(false);
   });
 });
 

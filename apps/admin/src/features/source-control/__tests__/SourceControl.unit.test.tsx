@@ -5,7 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SourceControl } from "../SourceControl";
 import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
 import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/lib/api";
-import { SOURCE_CONTROL_PROVIDERS } from "../rules";
+import { sourceControlProviders, type SourceControlProviderInfo } from "../rules";
+import { FORGE_PROVIDER, GITHUB_PROVIDER } from "./source-control-providers.fixture";
+
+/** Three listed hosts: GitHub, Codeberg (token only), Forge (token plus a required username). */
+const PROVIDERS: readonly SourceControlProviderInfo[] = sourceControlProviders([GITHUB_PROVIDER, { id: "codeberg", label: "Codeberg" }, FORGE_PROVIDER], []);
 
 /**
  * @file `SourceControl`, driven through its one `useSourceControlCredentialsHook` DI seam — same
@@ -32,7 +36,8 @@ function credentialRowFixture(
   providerId: AdminSourceControlProviderId,
   overrides: Partial<SourceControlCredentialRowState> = {}
 ): SourceControlCredentialRowState {
-  return { providerId, saved: undefined, token: "", username: "", saving: false, error: null, ...overrides };
+  const info = PROVIDERS.find((provider) => provider.id === providerId) ?? sourceControlProviders([], [{ providerId }])[0]!;
+  return { providerId, info, saved: undefined, token: "", values: {}, readyToSave: false, saving: false, error: null, ...overrides };
 }
 
 function savedCredential(overrides: Partial<AdminSourceControlCredentialSummary> = {}): AdminSourceControlCredentialSummary {
@@ -62,10 +67,10 @@ function controllerFixture(overrides: ControllerFixtureOverrides = {}): SourceCo
   const hasExplicitRows = "rows" in overrides;
   const { rows, rowOverrides, ...rest } = overrides;
   return {
-    rows: hasExplicitRows ? rows : SOURCE_CONTROL_PROVIDERS.map((provider) => credentialRowFixture(provider.id, rowOverrides?.[provider.id])),
+    rows: hasExplicitRows ? rows : PROVIDERS.map((provider) => credentialRowFixture(provider.id, rowOverrides?.[provider.id])),
     loadError: null,
     setToken: vi.fn(),
-    setUsername: vi.fn(),
+    setField: vi.fn(),
     save: vi.fn().mockResolvedValue(undefined),
     t: fakeT,
     ...rest,
@@ -114,21 +119,21 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
   it("renders one row per provider, GitHub first", () => {
     renderPage();
     expect(screen.getByRole("heading", { name: /Connect GitHub/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Connect GitLab/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Connect Bitbucket/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Connect Codeberg/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Connect Forge/ })).toBeInTheDocument();
   });
 
-  it("shows Bitbucket's extra Username field but not GitHub's or GitLab's, once each row is open", async () => {
+  it("shows a host's declared extra field (Forge's Username) but not on hosts that declare none, once each row is open", async () => {
     const user = userEvent.setup();
     renderPage();
     const headings = screen.getAllByRole("heading", { level: 3 });
-    const bitbucketHeading = headings.find((h) => h.textContent?.includes("Bitbucket"))!;
-    const bitbucketRow = bitbucketHeading.closest<HTMLElement>(".source-control-row")!;
-    // Bitbucket is not the first unconnected provider (GitHub is), so it starts collapsed — open it
+    const forgeHeading = headings.find((h) => h.textContent?.includes("Forge"))!;
+    const forgeRow = forgeHeading.closest<HTMLElement>(".source-control-row")!;
+    // Forge is not the first unconnected provider (GitHub is), so it starts collapsed — open it
     // by clicking its own summary before looking for its fields, same dance the connected-row tests
     // below already use for a collapsed row.
-    await user.click(bitbucketHeading);
-    expect(within(bitbucketRow).getByLabelText("Username")).toBeInTheDocument();
+    await user.click(forgeHeading);
+    expect(within(forgeRow).getByLabelText("Username")).toBeInTheDocument();
 
     // GitHub is the first unconnected provider, so it is open by default — no click needed.
     const githubRow = headings.find((h) => h.textContent?.includes("GitHub"))!.closest<HTMLElement>(".source-control-row")!;
@@ -139,7 +144,7 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     const user = userEvent.setup();
     const save = vi.fn().mockResolvedValue(undefined);
     const setToken = vi.fn();
-    renderPage({ save, setToken, rowOverrides: { github: { token: "ghp_abc" } } });
+    renderPage({ save, setToken, rowOverrides: { github: { token: "ghp_abc", readyToSave: true } } });
 
     const githubHeading = screen.getByRole("heading", { name: /Connect GitHub/ });
     const githubRow = githubHeading.closest<HTMLElement>(".source-control-row")!;
@@ -155,6 +160,31 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     const githubHeading = screen.getByRole("heading", { name: /Connect GitHub/ });
     const githubRow = githubHeading.closest<HTMLElement>(".source-control-row")!;
     expect(within(githubRow).getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+});
+
+describe("SourceControl — a saved connection whose host is not listed (IRON RULE)", () => {
+  it("still shows the row, says its plugin is off or missing, and renders no token form", async () => {
+    const user = userEvent.setup();
+    const unlisted = credentialRowFixture("gitlab", { saved: savedCredential({ providerId: "gitlab" }) });
+    renderPage({ rows: [unlisted] });
+    const summary = screen.getByText(/token stored, encrypted/).closest("summary")!;
+    expect(summary).toHaveTextContent("gitlab");
+    await user.click(summary);
+    const details = summary.closest("details")!;
+    expect(within(details).getByText("Its plugin is off or missing. Remove this token on the Access tokens page.")).toBeInTheDocument();
+    expect(within(details).queryByLabelText("Access token")).not.toBeInTheDocument();
+    expect(within(details).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+
+  it("shows a host's declared token label and the field's person-facing help", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const forgeHeading = screen.getByRole("heading", { name: /Connect Forge/ });
+    await user.click(forgeHeading);
+    const forgeRow = forgeHeading.closest<HTMLElement>(".source-control-row")!;
+    expect(within(forgeRow).getByLabelText("API token")).toBeInTheDocument();
+    expect(within(forgeRow).getByText("The Forge username this token belongs to.")).toBeInTheDocument();
   });
 });
 
@@ -214,19 +244,19 @@ describe("SourceControl — connected row: the two defects this page must NOT in
 });
 
 describe("SourceControl — accordion: one exclusive group, not three open forms at once", () => {
-  it("opens only the first not-yet-connected provider (GitHub) by default, collapsing GitLab and Bitbucket", () => {
+  it("opens only the first not-yet-connected provider (GitHub) by default, collapsing Codeberg and Forge", () => {
     renderPage();
     expect(screen.getByRole("heading", { name: /Connect GitHub/ }).closest("details")).toHaveAttribute("open");
-    expect(screen.getByRole("heading", { name: /Connect GitLab/ }).closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByRole("heading", { name: /Connect Bitbucket/ }).closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: /Connect Codeberg/ }).closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: /Connect Forge/ }).closest("details")).not.toHaveAttribute("open");
   });
 
   it("shares one exclusive-accordion group name across all three rows, connected or not", () => {
     renderPage({ rowOverrides: { github: { saved: savedCredential() } } });
     const githubDetails = screen.getByText(/token stored, encrypted/).closest("details")!;
-    const gitlabDetails = screen.getByRole("heading", { name: /Connect GitLab/ }).closest("details")!;
-    const bitbucketDetails = screen.getByRole("heading", { name: /Connect Bitbucket/ }).closest("details")!;
-    for (const details of [githubDetails, gitlabDetails, bitbucketDetails]) {
+    const codebergDetails = screen.getByRole("heading", { name: /Connect Codeberg/ }).closest("details")!;
+    const forgeDetails = screen.getByRole("heading", { name: /Connect Forge/ }).closest("details")!;
+    for (const details of [githubDetails, codebergDetails, forgeDetails]) {
       expect(details).toHaveAttribute("name", "source-control-provider");
     }
   });
@@ -234,10 +264,10 @@ describe("SourceControl — accordion: one exclusive group, not three open forms
   it("reveals a collapsed not-yet-connected row's fields once the reader opens it", async () => {
     const user = userEvent.setup();
     renderPage();
-    const gitlabHeading = screen.getByRole("heading", { name: /Connect GitLab/ });
-    const details = gitlabHeading.closest("details")!;
+    const codebergHeading = screen.getByRole("heading", { name: /Connect Codeberg/ });
+    const details = codebergHeading.closest("details")!;
     expect(details).not.toHaveAttribute("open");
-    await user.click(gitlabHeading);
+    await user.click(codebergHeading);
     expect(details).toHaveAttribute("open");
     expect(within(details).getByLabelText("Access token")).toBeInTheDocument();
   });
@@ -246,15 +276,15 @@ describe("SourceControl — accordion: one exclusive group, not three open forms
     renderPage({ rowOverrides: { github: { saved: savedCredential() } } });
     const githubDetails = screen.getByText(/token stored, encrypted/).closest("details")!;
     expect(githubDetails).not.toHaveAttribute("open");
-    expect(screen.getByRole("heading", { name: /Connect GitLab/ }).closest("details")).toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: /Connect Codeberg/ }).closest("details")).toHaveAttribute("open");
   });
 
   it("opens no row by default once every provider is already connected", () => {
     renderPage({
       rowOverrides: {
         github: { saved: savedCredential({ providerId: "github" }) },
-        gitlab: { saved: savedCredential({ providerId: "gitlab" }) },
-        bitbucket: { saved: savedCredential({ providerId: "bitbucket" }) },
+        codeberg: { saved: savedCredential({ providerId: "codeberg" }) },
+        forge: { saved: savedCredential({ providerId: "forge" }) },
       },
     });
     for (const row of document.querySelectorAll(".source-control-row")) {

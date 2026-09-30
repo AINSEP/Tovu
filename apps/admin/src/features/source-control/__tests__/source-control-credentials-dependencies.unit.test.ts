@@ -10,7 +10,8 @@ import type { AdminSourceControlCredentialSummary } from "@/lib/api";
  * `sourceControl` block, which covers the identical shape on the Tier-1 Access Tokens port.
  */
 
-const { listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential } = vi.hoisted(() => ({
+const { listSourceControlProviders, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential } = vi.hoisted(() => ({
+  listSourceControlProviders: vi.fn(),
   listSourceControlCredentials: vi.fn(),
   createSourceControlCredential: vi.fn(),
   updateSourceControlCredential: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock("../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../lib/api")>();
   return {
     ...actual,
-    api: { ...actual.api, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential },
+    api: { ...actual.api, listSourceControlProviders, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential },
   };
 });
 
@@ -41,6 +42,12 @@ function credential(overrides: Partial<AdminSourceControlCredentialSummary> = {}
 }
 
 describe("defaultSourceControlCredentialsPort", () => {
+  it("listProviders delegates to api.listSourceControlProviders, returning the snapshot unchanged", async () => {
+    const snapshot = { providers: [{ id: "github", label: "GitHub" }], switchedOff: [] };
+    listSourceControlProviders.mockResolvedValue(snapshot);
+    await expect(defaultSourceControlCredentialsPort.listProviders()).resolves.toEqual(snapshot);
+  });
+
   it("listCredentials delegates to api.listSourceControlCredentials, returning the snapshot unchanged", async () => {
     const snapshot = { credentials: [credential()] };
     listSourceControlCredentials.mockResolvedValue(snapshot);
@@ -71,6 +78,10 @@ describe("defaultSourceControlCredentialsPort", () => {
 });
 
 describe("createFakeSourceControlCredentialsPort — defaults", () => {
+  it("listProviders defaults to no hosts — the admin names none of its own", async () => {
+    await expect(createFakeSourceControlCredentialsPort().listProviders()).resolves.toEqual({ providers: [], switchedOff: [] });
+  });
+
   it("listCredentials defaults to an empty snapshot, never a fabricated row", async () => {
     const port = createFakeSourceControlCredentialsPort();
     await expect(port.listCredentials()).resolves.toEqual({ credentials: [] });

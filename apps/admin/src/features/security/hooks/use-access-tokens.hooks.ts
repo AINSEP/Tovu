@@ -355,8 +355,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   // The deploy hosts are data from the deploy registry. A failed load leaves only source-control
   // and custom providers named; saved publish rows still list, under their own ids.
   const publishTargetsQuery = useFetchQuery({ key: ["security", "publish-targets"], fetch: () => port.publishTargets.list() });
-  const providers = useMemo(() => accessTokenProviders(publishTargetsQuery.data), [publishTargetsQuery.data]);
-  const publishTargetsSettled = publishTargetsQuery.status !== "loading";
+  // The source-control hosts come from plugins the same way; a failed load names none of them.
+  const sourceControlProvidersQuery = useFetchQuery({ key: ["security", "source-control-providers"], fetch: () => port.sourceControlProviders.list() });
+  const providers = useMemo(
+    () => accessTokenProviders(publishTargetsQuery.data, sourceControlProvidersQuery.data),
+    [publishTargetsQuery.data, sourceControlProvidersQuery.data]
+  );
+  const publishTargetsSettled = publishTargetsQuery.status !== "loading" && sourceControlProvidersQuery.status !== "loading";
   const [publishCredentials, setPublishCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);
   const [sourceControlCredentials, setSourceControlCredentials] = useState<AdminSourceControlCredentialSummary[] | undefined>(undefined);
   const [customCredentials, setCustomCredentials] = useState<AdminCustomCredentialSummary[] | undefined>(undefined);

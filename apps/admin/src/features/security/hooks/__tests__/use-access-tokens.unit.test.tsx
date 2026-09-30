@@ -11,10 +11,16 @@ import { ACCESS_TOKENS_RESOURCE } from "../../rules";
 import type { AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../use-access-tokens.hooks";
 import type { AccessTokenRow } from "../../rules";
 import { PUBLISH_TARGETS } from "../../../deployment/__tests__/publish-targets.fixture";
+import { SOURCE_CONTROL_TEST_DESCRIPTORS } from "../../__tests__/access-token-providers.fixture";
 
-/** The fake port with the fixture deploy registry loaded — the admin names no host of its own. */
+/** The fake port with the fixture deploy registry and source-control hosts loaded — the admin names
+ *  no host of its own. */
 function fakePort(overrides: Parameters<typeof createFakeAccessTokensPort>[0] = {}) {
-  return createFakeAccessTokensPort({ publishTargets: { list: () => Promise.resolve(PUBLISH_TARGETS) }, ...overrides });
+  return createFakeAccessTokensPort({
+    publishTargets: { list: () => Promise.resolve(PUBLISH_TARGETS) },
+    sourceControlProviders: { list: () => Promise.resolve(SOURCE_CONTROL_TEST_DESCRIPTORS) },
+    ...overrides,
+  });
 }
 
 /**

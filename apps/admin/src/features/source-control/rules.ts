@@ -1,7 +1,9 @@
 import {
   ApiError,
+  type AdminPublishTargetField,
   type AdminSourceControlConnectionInput,
   type AdminSourceControlCredentialSummary,
+  type AdminSourceControlProviderDescriptor,
   type AdminSourceControlProviderId,
 } from "../../lib/api";
 
@@ -11,144 +13,94 @@ import {
  * `rules.ts`-holds-the-logic convention `deployment/rules.ts`/`integrations/rules.ts` follow.
  *
  * This page is a CONNECTION page, not git integration — see `SourceControl.tsx`'s own header for
- * the scope boundary. There is no "which provider am I currently viewing" picker to model here (the
- * three provider rows below all render at once — see that file's header for why), so this file is
- * far smaller than `deployment/rules.ts`'s equivalent: one provider table, and the same
- * connect/validate/build trio the publish credential form needs, nothing about publish targets,
- * CLI tools, or execution mode.
+ * the scope boundary. The hosts are data: each comes from a plugin's `tovu-source-control.json`
+ * (`GET .../system/source-control/providers`), which also declares its credential form and guidance.
+ * This file turns those descriptors into rows and holds the same connect/validate/build trio the
+ * publish credential form needs.
  */
 
-/** A field the connection form can show for one provider, beyond the universal `token`. Kept as a
- *  union (of one, today) rather than inlined as a string literal so a future provider needing its
- *  own extra field extends this type in one place — same reasoning `PublishCredentialFieldKey`
- *  gives in `deployment/rules.ts`. */
-export type SourceControlCredentialFieldKey = "username";
-
-/** One provider this page can save a connection for. Order here is this page's row order —
- *  GitHub first (the one that matters), then GitLab, then Bitbucket. */
+/** One host row this page can render, built from its plugin's descriptor. A saved connection whose
+ *  host is not listed (its plugin off or missing) gets a bare `listed: false` entry named by its id:
+ *  it stays visible, but takes no new token here. */
 export interface SourceControlProviderInfo {
   readonly id: AdminSourceControlProviderId;
-  /** Proper noun — rendered verbatim, never translated, same treatment `StaticPublishTargetInfo.label`
-   *  gets in `deployment/rules.ts`. */
+  /** Proper noun — rendered verbatim, never translated. */
   readonly label: string;
-  /** Where to create a token for this provider. Always opened in a new tab — a third-party
-   *  account-security page has no business rendering inside this admin. */
+  /** Where to create a token; `""` when the host names none (no link is rendered). */
   readonly tokenPageUrl: string;
-  /** Short, inline scope guidance shown under this provider's form — a dictionary key, translated
-   *  the same as every other chrome string on this page. States what KIND of token is needed, not
-   *  how OAuth or PATs work in general. */
+  /** The host's own guidance (which token, which scopes), passed through the translator; `""` when none. */
   readonly scopeGuidanceKey: string;
-  /** Fields (beyond the universal `token`) this provider cannot function without — mirrors
-   *  `PublishCredentialProviderInfo.requiredFields`'s exact role. Empty for GitHub and GitLab;
-   *  Bitbucket needs `username` alongside its app password (Bitbucket's own REST API authenticates
-   *  the pair, not the app password alone — https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/). */
-  readonly requiredFields: readonly SourceControlCredentialFieldKey[];
+  /** The declared field that holds the token. */
+  readonly tokenField: string;
+  /** The token input's label from the descriptor; absent means the generic "Access token". */
+  readonly tokenLabel?: string;
+  /** The host's other declared credential fields; a `required` one gates Save. */
+  readonly fields: readonly AdminPublishTargetField[];
+  readonly listed: boolean;
+}
+
+/** One listed host's entry. A descriptor with no credential form takes just a token.
+ *  @complexity O(f) in its declared field count. */
+export function sourceControlProviderInfoFromDescriptor(descriptor: AdminSourceControlProviderDescriptor): SourceControlProviderInfo {
+  const credential = descriptor.credential;
+  const tokenField = credential?.tokenField ?? "token";
+  const token = credential?.fields.find((field) => field.name === tokenField);
+  return {
+    id: descriptor.id,
+    label: descriptor.label,
+    tokenPageUrl: credential?.tokenPageUrl ?? "",
+    scopeGuidanceKey: credential?.help ?? "",
+    tokenField,
+    ...(token !== undefined ? { tokenLabel: token.label } : {}),
+    fields: (credential?.fields ?? []).filter((field) => field.name !== tokenField),
+    listed: true,
+  };
+}
+
+/** The bare entry for a saved connection whose host is not listed. @complexity O(1). */
+function unlistedSourceControlProviderInfo(id: AdminSourceControlProviderId): SourceControlProviderInfo {
+  return { id, label: id, tokenPageUrl: "", scopeGuidanceKey: "", tokenField: "token", fields: [], listed: false };
 }
 
 /**
- * The three providers this page connects, verified against each provider's own token-creation
- * docs. `requiredFields` is the single source both {@link buildSourceControlConnectionInput} and
- * {@link sourceControlCredentialRowReadyToSave} read from — a field that should gate saving belongs
- * there, never hardcoded again at either call site (same discipline the deploy descriptors' own
- * `required` flags follow).
- *
- * 2026-08-15 owner decision: every `scopeGuidanceKey` below leads with the NARROWEST credential
- * each provider offers, and `tokenPageUrl` points at that narrow credential's own creation page —
- * the broad, account-wide option (a classic PAT / a personal access token / an account-wide app
- * password) is mentioned only as a fallback, if at all. Rationale: a broad credential is
- * long-lived, human-scoped, and grants access to every repository/project the account can reach;
- * the narrow one collapses most of that blast radius for free, with zero new infrastructure. This
- * reverses this file's own PREVIOUS copy, which led with the classic/broad option — do not revert
- * without a new owner decision.
- *
- * This does NOT touch how Tovu authenticates its OWN push-capable GitHub access
- * (`src/features/deployments/providers/github.ts`), which already carries a documented 5/5 ADS
- * debate decision (all three rounds) AGAINST stored PATs for that purpose, in favor of GitHub App
- * installation auth (RS256 JWT with the correct 10-minute `exp` cap, installation-token exchange,
- * an origin-pinned client that fails closed — fully implemented and tested, just not yet wired to
- * any caller). This page is a different, narrower thing: an operator manually pasting a token they
- * generated themselves to connect an EXTERNAL identity, the same shape
- * the deploy registry's GitHub Pages credential already asks for
- * (`deployment/rules.ts:305`, live in production against a real `github-pages` row in
- * `publish_credential_sets`) — this page matches existing, already-shipped practice, not a new
- * precedent, and narrowing ITS guidance does not reopen the App-vs-PAT debate for the deployments
- * feature.
- *
- * Bitbucket deviates from a literal reading of "app password": Atlassian's own current docs
- * (support.atlassian.com/bitbucket-cloud/docs/app-passwords/, fetched 2026-08-15) state API tokens
- * are "the long term replacement for App passwords" — scoped per-permission
- * (`read:repository:bitbucket` / `write:repository:bitbucket`, verified against
- * support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/) and still authenticate paired with
- * the account's username exactly like an app password does, so `requiredFields: ["username"]`
- * below is unchanged. Pointing at the soon-superseded mechanism would undercut this same change's
- * own "narrowest, current path" goal — flagged here for review rather than silently substituted.
+ * This page's rows: every listed host in the server's order, then one `listed: false` entry per
+ * saved connection's unlisted host (IRON RULE: a saved credential never drops off the page).
+ * @complexity O(p + c * p) in the host and saved-connection counts (both small).
  */
-export const SOURCE_CONTROL_PROVIDERS: readonly SourceControlProviderInfo[] = [
-  {
-    id: "github",
-    label: "GitHub",
-    tokenPageUrl: "https://github.com/settings/personal-access-tokens/new",
-    scopeGuidanceKey:
-      'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.',
-    requiredFields: [],
-  },
-  {
-    id: "gitlab",
-    label: "GitLab",
-    tokenPageUrl: "https://docs.gitlab.com/user/project/settings/project_access_tokens/",
-    scopeGuidanceKey:
-      'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).',
-    requiredFields: [],
-  },
-  {
-    id: "bitbucket",
-    label: "Bitbucket",
-    tokenPageUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
-    scopeGuidanceKey:
-      'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.',
-    requiredFields: ["username"],
-  },
-] as const;
-
-/** Looks up one provider's registry entry, falling back to the first (GitHub) — the same
- *  "the row list can never render something absent from its own table" guarantee
- *  `publishCredentialProviderInfo` relies on in `deployment/rules.ts`.
- *  @complexity O(1) — the array has exactly three entries. */
-export function sourceControlProviderInfo(id: AdminSourceControlProviderId): SourceControlProviderInfo {
-  return SOURCE_CONTROL_PROVIDERS.find((provider) => provider.id === id) ?? SOURCE_CONTROL_PROVIDERS[0]!;
-}
-
-/** One provider row's connection fields, kept together as one shape so
- *  {@link buildSourceControlConnectionInput} and {@link sourceControlCredentialRowReadyToSave} share
- *  a single parameter type — mirrors `PublishCredentialFormFields`'s exact role. */
-export interface SourceControlCredentialFormFields {
-  providerId: AdminSourceControlProviderId;
-  token: string;
-  username: string;
-}
-
-/**
- * Builds the wire {@link AdminSourceControlConnectionInput} from the form's current field values —
- * the one function that decides which fields matter for which provider, mirroring
- * `buildPublishConnectionInput`. `username` is trimmed and included only for `bitbucket` (required
- * there, absent everywhere else).
- *
- * Always trims and includes `token`, even when blank — detecting "no new token typed" is
- * {@link sourceControlCredentialRowReadyToSave}'s job (a blank token on an already-connected row
- * means "leave unchanged," which is a decision about whether to send a `connection` at all, not
- * about how to shape one once the caller has decided to).
- * @complexity O(1).
- */
-export function buildSourceControlConnectionInput(fields: SourceControlCredentialFormFields): AdminSourceControlConnectionInput {
-  const token = fields.token.trim();
-  switch (fields.providerId) {
-    case "github":
-      return { providerId: "github", token };
-    case "gitlab":
-      return { providerId: "gitlab", token };
-    case "bitbucket":
-      return { providerId: "bitbucket", token, username: fields.username.trim() };
+export function sourceControlProviders(
+  descriptors: readonly AdminSourceControlProviderDescriptor[] | undefined,
+  credentials: readonly Pick<AdminSourceControlCredentialSummary, "providerId">[]
+): SourceControlProviderInfo[] {
+  const providers = (descriptors ?? []).map(sourceControlProviderInfoFromDescriptor);
+  for (const credential of credentials) {
+    if (!providers.some((provider) => provider.id === credential.providerId)) providers.push(unlistedSourceControlProviderInfo(credential.providerId));
   }
+  return providers;
+}
+
+/** One host row's typed fields: the token, plus its other declared fields by name. */
+export interface SourceControlCredentialFormFields {
+  readonly providerId: AdminSourceControlProviderId;
+  readonly token: string;
+  readonly values: Readonly<Record<string, string>>;
+}
+
+/**
+ * Builds the wire {@link AdminSourceControlConnectionInput}: `providerId`, the trimmed token, and
+ * each of `declaredFields` typed non-blank, trimmed. Always includes `token`, even when blank —
+ * detecting "no new token typed" is {@link sourceControlCredentialRowReadyToSave}'s job.
+ * @complexity O(f) in the declared field count.
+ */
+export function buildSourceControlConnectionInput(
+  fields: SourceControlCredentialFormFields,
+  declaredFields: readonly Pick<AdminPublishTargetField, "name">[]
+): AdminSourceControlConnectionInput {
+  const values: Record<string, string> = {};
+  for (const field of declaredFields) {
+    const value = (fields.values[field.name] ?? "").trim();
+    if (value !== "") values[field.name] = value;
+  }
+  return { ...values, providerId: fields.providerId, token: fields.token.trim() };
 }
 
 /** The single fixed label every connection saved through this page's flat per-provider row list
@@ -182,18 +134,14 @@ export function defaultSourceControlCredentialForProvider(
 }
 
 /**
- * Whether one provider's row has enough typed to save — "connected" vs. "not connected" is read
- * directly off {@link AdminSourceControlCredentialSummary} presence, not form state, so a blank
- * token always means "nothing to save" whether or not the row is already connected (leaving it
- * blank on an already-connected row keeps the stored secret untouched). Mirrors
- * `credentialFormReadyToSave` (`deployment/rules.ts`) exactly.
- * @complexity O(k) in this provider's own required-field count (at most one — `username` for
- *   Bitbucket; GitHub and GitLab need nothing beyond the already-checked token).
+ * Whether one host's row has enough typed to save: a token, and every required declared field. A
+ * blank token always means "nothing to save", connected or not (leaving it blank on a connected row
+ * keeps the stored secret untouched). An unlisted host takes no new token.
+ * @complexity O(f) in the declared field count.
  */
-export function sourceControlCredentialRowReadyToSave(fields: SourceControlCredentialFormFields): boolean {
-  if (fields.token.trim() === "") return false;
-  const info = sourceControlProviderInfo(fields.providerId);
-  return info.requiredFields.every((field) => fields[field].trim() !== "");
+export function sourceControlCredentialRowReadyToSave(fields: SourceControlCredentialFormFields, info: SourceControlProviderInfo): boolean {
+  if (!info.listed || fields.token.trim() === "") return false;
+  return info.fields.every((field) => field.required !== true || (fields.values[field.name] ?? "").trim() !== "");
 }
 
 /** What a rejected credential create/update means for the FORM — a dictionary-key-shaped result to

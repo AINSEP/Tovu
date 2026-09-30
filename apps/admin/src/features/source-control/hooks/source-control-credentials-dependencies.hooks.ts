@@ -1,4 +1,9 @@
-import { api, type AdminSourceControlConnectionInput, type AdminSourceControlCredentialsSnapshot } from "@/lib/api";
+import {
+  api,
+  type AdminSourceControlConnectionInput,
+  type AdminSourceControlCredentialsSnapshot,
+  type AdminSourceControlProvidersSnapshot,
+} from "@/lib/api";
 import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
 
 /**
@@ -18,6 +23,7 @@ import type { SourceControlCredentialsPort } from "./source-control-credentials-
 /** The live implementation, as a module-level singleton — matches
  *  `publish-credentials-dependencies.hooks.ts`'s `defaultPublishCredentialsPort`. */
 export const defaultSourceControlCredentialsPort: SourceControlCredentialsPort = {
+  listProviders: () => api.listSourceControlProviders(),
   listCredentials: () => api.listSourceControlCredentials(),
   createCredential: (input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
     api.createSourceControlCredential(input).then((res) => res.credential),
@@ -30,6 +36,7 @@ export const defaultSourceControlCredentialsPort: SourceControlCredentialsPort =
  *  neutral, overridable stub — matches `createFakePublishCredentialsPort`'s per-call override shape. */
 export function createFakeSourceControlCredentialsPort(
   overrides: {
+    listProviders?: SourceControlCredentialsPort["listProviders"];
     listCredentials?: SourceControlCredentialsPort["listCredentials"];
     createCredential?: SourceControlCredentialsPort["createCredential"];
     updateCredential?: SourceControlCredentialsPort["updateCredential"];
@@ -37,7 +44,9 @@ export function createFakeSourceControlCredentialsPort(
   } = {}
 ): SourceControlCredentialsPort {
   const emptySnapshot: AdminSourceControlCredentialsSnapshot = { credentials: [] };
+  const noProviders: AdminSourceControlProvidersSnapshot = { providers: [], switchedOff: [] };
   return {
+    listProviders: overrides.listProviders ?? (() => Promise.resolve(noProviders)),
     listCredentials: overrides.listCredentials ?? (() => Promise.resolve(emptySnapshot)),
     createCredential:
       overrides.createCredential ?? (() => Promise.reject(new Error("createCredential not stubbed for this test"))),

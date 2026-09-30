@@ -8,6 +8,7 @@ import type {
   AdminPublishCredentialsSnapshot,
   AdminPublishTargetDescriptor,
   AdminSourceControlConnectionInput,
+  AdminSourceControlProviderDescriptor,
   AdminSourceControlCredentialSummary,
   AdminSourceControlCredentialsSnapshot,
 } from "@/lib/api";
@@ -26,6 +27,11 @@ export interface AccessTokensPort {
    *  takes a credential is a publish provider on this page, with its label, fields and help. */
   readonly publishTargets: {
     list(): Promise<readonly AdminPublishTargetDescriptor[]>;
+  };
+  /** The source-control hosts plugins declare (`GET .../system/source-control/providers`), with
+   *  their credential forms. */
+  readonly sourceControlProviders: {
+    list(): Promise<readonly AdminSourceControlProviderDescriptor[]>;
   };
   readonly publish: {
     list(): Promise<AdminPublishCredentialsSnapshot>;

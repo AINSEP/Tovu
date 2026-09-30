@@ -849,14 +849,34 @@ export interface AdminRevealedSiteToken extends AdminSiteTokenStatus {
 }
 
 /**
- * The three providers the Source Control page can save a connection for. Deliberately its own
- * union, NOT reusing {@link AdminPublishCredentialProviderId} — that type is a deploy-target id by
- * design (aliased to {@link AdminStaticPublishTargetId} so the two can never drift), and none of
- * GitLab, Bitbucket, or a *source* GitHub account is a static-publish target. See
- * `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
- * second table/type, not a wider union" reasoning this type mirrors on the client.
+ * A source-control host's id. The hosts come from plugins (`GET .../system/source-control/providers`),
+ * so this is any string; a saved connection may name a host whose plugin is now off. Deliberately its
+ * own type, NOT {@link AdminPublishCredentialProviderId}: a source host is not a publish target.
  */
-export type AdminSourceControlProviderId = "github" | "gitlab" | "bitbucket";
+export type AdminSourceControlProviderId = string;
+
+/** A source-control host's credential form as a plugin declares it: field specs and help only.
+ *  `tokenField` names the secret field that is the token. */
+export interface AdminSourceControlCredentialForm {
+  help?: string;
+  tokenPageUrl?: string;
+  tokenField: string;
+  fields: AdminPublishTargetField[];
+}
+
+/** One listed source-control host. No `credential` means a single "Access token" field. */
+export interface AdminSourceControlProviderDescriptor {
+  id: AdminSourceControlProviderId;
+  label: string;
+  credential?: AdminSourceControlCredentialForm;
+}
+
+/** Mirrors `GET .../system/source-control/providers`: the hosts switched-on plugins declare, and
+ *  each host an installed but switched-off plugin declares. */
+export interface AdminSourceControlProvidersSnapshot {
+  providers: AdminSourceControlProviderDescriptor[];
+  switchedOff: { id: AdminSourceControlProviderId; pluginId: string }[];
+}
 
 /**
  * One saved connection's non-secret summary — never carries the token itself, and (like
@@ -874,19 +894,9 @@ export interface AdminSourceControlCredentialSummary {
   readonly updatedAt: string;
 }
 
-/**
- * What a create/update call sends. A closed discriminated union on `providerId`, same shape
- * {@link AdminPublishConnectionInput} uses for the same reason: a provider that needs a field
- * beyond the universal `token` gets it here, typed, rather than every provider silently carrying
- * every other provider's optional fields. Bitbucket is the one provider here that needs a second
- * field — its API authenticates a token against the username it belongs to, not the token alone
- * (see `apps/admin/src/features/source-control/rules.ts`'s `SOURCE_CONTROL_PROVIDERS` for the
- * citation).
- */
-export type AdminSourceControlConnectionInput =
-  | { providerId: "github"; token: string }
-  | { providerId: "gitlab"; token: string }
-  | { providerId: "bitbucket"; token: string; username: string };
+/** What a create/update call sends: the host id, the token, and the host's other declared
+ *  credential fields by name. */
+export type AdminSourceControlConnectionInput = { providerId: AdminSourceControlProviderId; token: string } & Record<string, string>;
 
 /** Mirrors `GET .../system/source-control/credentials`'s response shape. No `executionMode` field
  *  here — unlike static publish, this page has no CLI-vs-hosted distinction to disclose. */
@@ -4059,6 +4069,8 @@ export const api = {
   // every verb server-side — NOT the same permission as the publish-credentials calls above (see
   // that route's own header for why connecting a source-control identity is not a publish
   // trigger).
+  /** The source-control hosts switched-on plugins declare, with their credential forms. */
+  listSourceControlProviders: () => request<AdminSourceControlProvidersSnapshot>(`/workspaces/${WORKSPACE_ID}/system/source-control/providers`),
   /** Every configured source-control credential for this workspace. */
   listSourceControlCredentials: () =>
     request<AdminSourceControlCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials`),

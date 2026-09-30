@@ -235,7 +235,7 @@ test("source-control providers: lists the github plugin's host with its declared
   const credential = body.providers[0]!.credential!;
   assert.equal(credential.tokenPageUrl, "https://github.com/settings/personal-access-tokens/new");
   assert.equal(credential.tokenField, "token");
-  assert.deepEqual(credential.fields, [{ name: "token", label: "Token", required: true, secret: true }]);
+  assert.deepEqual(credential.fields, [{ name: "token", label: "Access token", required: true, secret: true }]);
   assert.match(credential.help ?? "", /^Needs a fine-grained personal access token/);
   assert.deepEqual(body.switchedOff, []);
   assert.equal(JSON.stringify(body).includes("module"), false, "the plugin's module path is server-internal");

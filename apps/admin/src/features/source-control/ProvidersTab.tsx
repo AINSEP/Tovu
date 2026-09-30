@@ -6,11 +6,7 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
 import type { AdminSourceControlProviderId } from "../../lib/api";
 import { t } from "./source-control-i18n";
-import {
-  sourceControlCredentialRowReadyToSave,
-  sourceControlProviderInfo,
-  type SourceControlCredentialFormFields,
-} from "./rules";
+import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
 import { ConnectedMarkIcon, DisclosureChevronIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
 import type {
@@ -106,7 +102,7 @@ export function ProvidersTab(props: ProvidersTabProps) {
       className="source-control-tab form-measure"
       {...agentHandle("source-control-providers", {
         role: "region",
-        label: "Connect a GitHub, GitLab, or Bitbucket account so Tovu can read and later push to your repositories",
+        label: "Connect a source-control account so Tovu can read and later push to your repositories",
       })}
     >
       <SourceControlCredentialsList controller={controller} t={controller.t} />
@@ -127,8 +123,8 @@ export function ProvidersTab(props: ProvidersTabProps) {
  *
  * Deliberately NOT a 7-`VendorId` picker — a picker built from `VendorId` would list Netlify/Vercel/
  * Cloudflare/S3 as places to keep SOURCE CODE, which they are not; this page's own three rows
- * (`SOURCE_CONTROL_PROVIDERS`, `rules.ts`) are the correct, narrower provider set for what this page
- * actually does. See `AdminSourceControlProviderId`'s own three-member union in `lib/api.ts`.
+ * (the source-control hosts plugins declare, `rules.ts`'s `sourceControlProviders`) are the correct,
+ * narrower provider set for what this page actually does.
  * @complexity O(1) — no branches.
  */
 function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
@@ -150,8 +146,8 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
   );
 }
 
-/** The three provider rows — loading/error states, then one row per {@link SOURCE_CONTROL_PROVIDERS}
- *  entry. Split out of {@link ProvidersTab} purely for the complexity gate, same reasoning every
+/** The host rows — loading/error states, then one row per listed host (and per saved connection's
+ *  unlisted host). Split out of {@link ProvidersTab} purely for the complexity gate, same reasoning every
  *  other per-section split in this app documents: this repo's real `apps/admin` ESLint gate is a
  *  hard 9/9 cyclomatic/cognitive ceiling, and the loading/error branches plus the `.map()` counted
  *  directly in the tab component would have pushed it over budget alongside the header markup. */
@@ -189,7 +185,7 @@ function SourceControlCredentialsList({ controller, t: translate }: { controller
   );
 }
 
-/** The first provider still missing a saved connection, in {@link SOURCE_CONTROL_PROVIDERS} order —
+/** The first listed host still missing a saved connection, in row order —
  *  the one row {@link SourceControlProviderRow} defaults open. `undefined` once every provider is
  *  connected, matching every row starting collapsed (this file's own header explains why an
  *  accordion exists at all). Pure and React-free like this page's `rules.ts` helpers, but kept here
@@ -197,7 +193,7 @@ function SourceControlCredentialsList({ controller, t: translate }: { controller
  *  about a credential — `rules.ts` stays the file with no opinion about what is open on screen.
  *  @complexity O(n) in the fixed, size-3 provider list. */
 function firstUnconnectedProviderId(rows: readonly SourceControlCredentialRowState[]): AdminSourceControlProviderId | undefined {
-  return rows.find((row) => row.saved === undefined)?.providerId;
+  return rows.find((row) => row.saved === undefined && row.info.listed)?.providerId;
 }
 
 /**
@@ -246,7 +242,7 @@ function SourceControlProviderRow({
   t: Translate;
   defaultOpen: boolean;
 }) {
-  const info = sourceControlProviderInfo(row.providerId);
+  const info = row.info;
   const connected = row.saved !== undefined;
   return (
     <details
@@ -259,7 +255,12 @@ function SourceControlProviderRow({
       })}
     >
       <SourceControlRowSummary row={row} label={info.label} connected={connected} t={translate} />
-      <SourceControlCredentialFields row={row} controller={controller} t={translate} />
+      {/* An unlisted host (plugin off or missing) takes no new token; Access tokens can remove it. */}
+      {info.listed ? (
+        <SourceControlCredentialFields row={row} controller={controller} t={translate} />
+      ) : (
+        <p className="field-hint">{translate("Its plugin is off or missing. Remove this token on the Access tokens page.")}</p>
+      )}
     </details>
   );
 }
@@ -324,14 +325,14 @@ function SourceControlRowSummary({
 }
 
 /**
- * A row's fields — token input, Bitbucket's required username, and the Save action. Shared between
+ * A row's fields — token input, the host's other declared fields, and the Save action. Shared between
  * both {@link SourceControlProviderRow} states, same split `PublishCredentialFields` uses in
  * `deployment/StaticSiteTab.tsx` and for the same reason: the fields and Save behavior are
  * identical in both states, only whether the reader has opened the row to see them differs.
  *
  * Every hint renders BELOW its input as `.field-hint`, never as placeholder text inside it — a
  * placeholder sitting in an empty box reads as a saved value at a glance, the exact confusion the
- * Static Site tab's own credential form was corrected out of. The token and username inputs below
+ * Static Site tab's own credential form was corrected out of. The inputs below
  * carry no `placeholder` prop at all, connected or not.
  *
  * The scope-guidance sentence (which token, which scopes) sits behind its own nested "Which token do
@@ -350,18 +351,15 @@ function SourceControlCredentialFields({
   controller: SourceControlCredentialsController;
   t: Translate;
 }) {
-  const info = sourceControlProviderInfo(row.providerId);
+  const info = row.info;
   const connected = row.saved !== undefined;
-  const fields: SourceControlCredentialFormFields = { providerId: row.providerId, token: row.token, username: row.username };
-  const readyToSave = sourceControlCredentialRowReadyToSave(fields);
-  const needsUsername = info.requiredFields.includes("username");
 
   return (
     <>
       <div className="source-control-credential-fields">
         <div className="field">
           <label className="field-label" htmlFor={`source-control-credentials-token-${row.providerId}`}>
-            {translate("Access token")}
+            {info.tokenLabel !== undefined ? translate(info.tokenLabel) : translate("Access token")}
           </label>
           <input
             id={`source-control-credentials-token-${row.providerId}`}
@@ -381,54 +379,57 @@ function SourceControlCredentialFields({
               ? translate("Leave blank to keep the current token.")
               : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
           </p>
-          <details className="source-control-scope-guidance">
-            <summary className="source-control-scope-guidance-summary">
-              {translate("Which token do I need?")}
-              <DisclosureChevronIcon size={10} />
-            </summary>
-            <p className="field-hint">
-              {translate(info.scopeGuidanceKey)}{" "}
-              <a
-                href={info.tokenPageUrl}
-                target="_blank"
-                rel="noreferrer"
-                {...agentHandle(`source-control-credentials-token-page-${row.providerId}`, {
-                  role: "link",
-                  label: `Open ${info.label}'s own page for creating a personal access token`,
-                })}
-              >
-                {translate("Create a token")}
-              </a>
-            </p>
-          </details>
+          {info.scopeGuidanceKey !== "" || info.tokenPageUrl !== "" ? (
+            <details className="source-control-scope-guidance">
+              <summary className="source-control-scope-guidance-summary">
+                {translate("Which token do I need?")}
+                <DisclosureChevronIcon size={10} />
+              </summary>
+              <p className="field-hint">
+                {info.scopeGuidanceKey !== "" ? <>{translate(info.scopeGuidanceKey)} </> : null}
+                {info.tokenPageUrl !== "" ? (
+                  <a
+                    href={info.tokenPageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    {...agentHandle(`source-control-credentials-token-page-${row.providerId}`, {
+                      role: "link",
+                      label: `Open ${info.label}'s own page for creating a personal access token`,
+                    })}
+                  >
+                    {translate("Create a token")}
+                  </a>
+                ) : null}
+              </p>
+            </details>
+          ) : null}
         </div>
 
-        {needsUsername ? (
-          <div className="field">
-            <label className="field-label" htmlFor={`source-control-credentials-username-${row.providerId}`}>
-              {translate("Username")}
+        {info.fields.map((field) => (
+          <div className="field" key={field.name}>
+            <label className="field-label" htmlFor={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}>
+              {translate(field.label)}
             </label>
             <input
-              id={`source-control-credentials-username-${row.providerId}`}
-              type="text"
-              // The Bitbucket account's name, never this site's own saved login.
-              autoComplete="off"
-              value={row.username}
-              onChange={(e) => controller.setUsername(row.providerId, e.target.value)}
-              {...agentHandle(`source-control-credentials-username-${row.providerId}`, {
+              id={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}
+              type={field.secret ? "password" : "text"}
+              autoComplete={field.secret ? "new-password" : "off"}
+              value={row.values[field.name] ?? ""}
+              onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
+              {...agentHandle(`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`, {
                 role: "field",
-                label: "Bitbucket username this API token belongs to — required, Bitbucket authenticates the pair",
+                label: `${info.label} ${field.label}`,
               })}
             />
-            <p className="field-hint">{translate("The Bitbucket username this API token belongs to.")}</p>
+            {fieldHelpText(field) !== undefined ? <p className="field-hint">{translate(fieldHelpText(field)!)}</p> : null}
           </div>
-        ) : null}
+        ))}
       </div>
 
       <div className="source-control-action">
         <button
           type="button"
-          disabled={!readyToSave || row.saving}
+          disabled={!row.readyToSave || row.saving}
           onClick={() => void controller.save(row.providerId)}
           {...agentHandle(`source-control-credentials-save-${row.providerId}`, {
             role: "button",

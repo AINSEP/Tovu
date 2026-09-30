@@ -397,7 +397,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
   // The catalog rule must stay as it was: its own doc forbids a bare-username Save for a catalog
   // provider (Bitbucket's username only travels with a fresh token).
   it("keeps Save disabled for a Bitbucket row when ONLY the username field has text (catalog rule unchanged)", () => {
-    const target = rowState({ row: row({ kind: "source-control", providerId: "bitbucket", id: "bb-1", name: "Team" }), name: "Team", username: "bb-user" });
+    const target = rowState({ row: row({ kind: "source-control", providerId: "bitbucket", id: "bb-1", name: "Team" }), name: "Team", values: { username: "bb-user" } });
     renderTab({ groups: [groupFor("source-control", "bitbucket", [target])] });
     expect(screen.getByRole("button", { name: "Save — Team" })).toBeDisabled();
   });
@@ -438,7 +438,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
     expect(setExistingField).toHaveBeenCalledWith("row-1", { values: { accountId: "acct-9" } });
   });
 
-  it("typing into Username calls setExistingField for this row (Bitbucket's own required field)", () => {
+  it("typing into Username calls setExistingField for this row (a field Bitbucket's descriptor declares)", () => {
     const setExistingField = vi.fn();
     const { container } = renderTab({
       groups: [groupFor("source-control", "bitbucket", [rowState({ row: row({ id: "row-1", kind: "source-control", providerId: "bitbucket" }) })])],
@@ -447,7 +447,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
 
     const group = container.querySelector('[data-agent-element="security-access-tokens-group-source-control-bitbucket"]') as HTMLElement;
     fireEvent.change(within(group).getByLabelText("Username"), { target: { value: "bb-user" } });
-    expect(setExistingField).toHaveBeenCalledWith("row-1", { username: "bb-user" });
+    expect(setExistingField).toHaveBeenCalledWith("row-1", { values: { username: "bb-user" } });
   });
 
   it("clicking Remove from Tovu opens the confirm dialog", () => {
@@ -556,7 +556,7 @@ describe("AccessTokensTab — TokenInputFields: provider-specific extra fields",
     expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
   });
 
-  it("shows Username with Bitbucket-specific hint copy for a REQUIRED-username provider, and calls setAddField when typed into", () => {
+  it("shows a declared Username field with its descriptor's person-facing help, and calls setAddField when typed into", () => {
     const setAddField = vi.fn();
     const { container } = renderTab({ groups: [groupFor("source-control", "bitbucket", [], addForm({ visible: true }))], setAddField });
     expect(screen.getByText("The Bitbucket username this API token belongs to.")).toBeInTheDocument();
@@ -565,7 +565,7 @@ describe("AccessTokensTab — TokenInputFields: provider-specific extra fields",
     // and `getByLabelText` does not exclude a closed `<dialog>`'s content the way `getByRole` does.
     const group = container.querySelector('[data-agent-element="security-access-tokens-group-source-control-bitbucket"]') as HTMLElement;
     fireEvent.change(within(group).getByLabelText("Username"), { target: { value: "me" } });
-    expect(setAddField).toHaveBeenCalledWith({ kind: "source-control", providerId: "bitbucket" }, { username: "me" });
+    expect(setAddField).toHaveBeenCalledWith({ kind: "source-control", providerId: "bitbucket" }, { values: { username: "me" } });
   });
 
   it("shows Username with generic optional-field hint copy for a custom credential's Replace form (optionalFields, not required)", () => {

@@ -439,8 +439,7 @@ function TokenInputFields({
   connected: boolean;
   t: Translate;
 }) {
-  // An `"optional"` Username (a custom row — `rules.ts`'s `AccessTokenProviderInfo` doc) shows the
-  // field WITHOUT gating readiness on it; only `"required"` gates Save.
+  // Only a custom row shows Username, always optional (`rules.ts`'s `AccessTokenProviderInfo` doc).
   const needsUsername = info.username !== undefined;
   return (
     <div className="access-tokens-row-fields">
@@ -530,11 +529,7 @@ function TokenInputFields({
             onChange={(e) => onUsernameChange(e.target.value)}
             {...agentHandle(`${idPrefix}-username`, { role: "field", label: "The username this token authenticates against, when this provider needs one" })}
           />
-          <p className="field-hint">
-            {info.kind === "custom"
-              ? translate("Optional — only needed if this provider authenticates a token against a username.")
-              : translate("The Bitbucket username this API token belongs to.")}
-          </p>
+          <p className="field-hint">{translate("Optional — only needed if this provider authenticates a token against a username.")}</p>
         </div>
       ) : null}
     </div>

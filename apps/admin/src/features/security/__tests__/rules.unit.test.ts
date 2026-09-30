@@ -49,7 +49,7 @@ import {
   type RawCredentialSummary,
   type RawCustomCredentialSummary,
 } from "../rules";
-import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS } from "./access-token-providers.fixture";
+import { ACCESS_TOKEN_TEST_PROVIDERS as PROVIDERS, SOURCE_CONTROL_TEST_DESCRIPTORS } from "./access-token-providers.fixture";
 import { PLAIN_TARGET, PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 
 /** A blank form for one provider — every test overrides only the fields it cares about, same
@@ -79,7 +79,7 @@ function rawSummary(overrides: Partial<RawCredentialSummary> = {}): RawCredentia
 }
 
 describe("accessTokenProviders", () => {
-  it("lists every deploy host that takes a credential, in registry order, then the three source-control providers", () => {
+  it("lists every deploy host that takes a credential, in registry order, then the listed source-control hosts", () => {
     expect(PROVIDERS.map((p) => `${p.kind}:${p.providerId}`)).toEqual([
       "publish:github-pages",
       "publish:vercel",
@@ -95,8 +95,17 @@ describe("accessTokenProviders", () => {
     expect(accessTokenProviders([...PUBLISH_TARGETS, PLAIN_TARGET]).some((p) => p.providerId === PLAIN_TARGET.id)).toBe(false);
   });
 
-  it("lists only the source-control providers while the deploy hosts are still loading", () => {
-    expect(accessTokenProviders(undefined).map((p) => p.kind)).toEqual(["source-control", "source-control", "source-control"]);
+  it("lists only the source-control hosts while the deploy hosts are still loading, and none of either before both load", () => {
+    expect(accessTokenProviders(undefined, SOURCE_CONTROL_TEST_DESCRIPTORS).map((p) => p.kind)).toEqual(["source-control", "source-control", "source-control"]);
+    expect(accessTokenProviders(undefined)).toEqual([]);
+  });
+
+  it("reads a source-control host's token label, token page and guidance from its plugin descriptor, and never names GitLab or Bitbucket itself", () => {
+    const github = accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "github" });
+    expect(github.tokenLabel).toBe("Access token");
+    expect(github.tokenPageUrl).toBe("https://github.com/settings/personal-access-tokens/new");
+    expect(github.extraFields).toEqual([]);
+    expect(accessTokenProviders(undefined, [{ id: "github", label: "GitHub" }]).map((p) => p.providerId)).toEqual(["github"]);
   });
 
   it("reads a host's token label, token page, guidance and vendor from its descriptor", () => {
@@ -135,11 +144,12 @@ describe("accessTokenProviders", () => {
     expect(github.purposeLabel).toBe("Source control");
   });
 
-  it("carries cloudflare-pages' Account ID field and bitbucket's username requirement through unchanged", () => {
+  it("carries cloudflare-pages' Account ID field and a source-control host's declared Username field through as extra fields", () => {
     const cloudflare = accessTokenProviderInfo(PROVIDERS, { kind: "publish", providerId: "cloudflare-pages" });
     expect(cloudflare.extraFields.map((f) => [f.name, f.required])).toEqual([["accountId", true]]);
-    expect(accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "bitbucket" }).username).toBe("required");
-    expect(accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "github" }).username).toBeUndefined();
+    const bitbucket = accessTokenProviderInfo(PROVIDERS, { kind: "source-control", providerId: "bitbucket" });
+    expect(bitbucket.extraFields.map((f) => [f.name, f.required])).toEqual([["username", true]]);
+    expect(bitbucket.username).toBeUndefined();
   });
 });
 
@@ -514,7 +524,7 @@ describe("buildAccessTokenConnectionInput", () => {
 
   it("dispatches to the source-control builder for a source-control ref", () => {
     const ref = { kind: "source-control" as const, providerId: "bitbucket" };
-    const input = buildAccessTokenConnectionInput(blankFields({ ref, name: "x", token: "tok", username: " alice " }), infoFor(ref));
+    const input = buildAccessTokenConnectionInput(blankFields({ ref, name: "x", token: "tok", values: { username: " alice " } }), infoFor(ref));
     expect(input).toEqual({ providerId: "bitbucket", token: "tok", username: "alice" });
   });
 });
@@ -832,7 +842,7 @@ describe("accessTokenExistingRowReadyToSave — the Replace form's gate, picked 
   });
 
   it("a catalog row keeps the catalog gate: a username with no token and no rename is NOT ready", () => {
-    const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", values: {}, username: "bb-user" };
+    const fields: AccessTokenFormFields = { ref: { kind: "source-control", providerId: "bitbucket" }, name: "Team", token: "", values: { username: "bb-user" }, username: "" };
     const info = infoFor(fields.ref);
     expect(accessTokenExistingRowReadyToSave(fields, { kind: "source-control", name: "Team", username: undefined }, info)).toBe(false);
     expect(accessTokenExistingRowReadyToSave({ ...fields, name: "Team 2" }, { kind: "source-control", name: "Team", username: undefined }, info)).toBe(true);
@@ -883,7 +893,7 @@ describe("accessTokenProvidersWithSavedRows (IRON RULE: a saved credential never
   });
 
   it("adds nothing for listed providers or custom rows", () => {
-    const listed = accessTokenProviders(undefined);
+    const listed = accessTokenProviders(undefined, SOURCE_CONTROL_TEST_DESCRIPTORS);
     expect(accessTokenProvidersWithSavedRows(listed, [row("source-control", listed.find((p) => p.kind === "source-control")!.providerId), row("custom", "c-1")])).toEqual(listed);
   });
 });

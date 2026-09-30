@@ -23,6 +23,7 @@ const {
   updatePublishCredential,
   deletePublishCredential,
   listSourceControlCredentials,
+  listSourceControlProviders,
   createSourceControlCredential,
   updateSourceControlCredential,
   deleteSourceControlCredential,
@@ -36,6 +37,7 @@ const {
   updatePublishCredential: vi.fn(),
   deletePublishCredential: vi.fn(),
   listSourceControlCredentials: vi.fn(),
+  listSourceControlProviders: vi.fn(),
   createSourceControlCredential: vi.fn(),
   updateSourceControlCredential: vi.fn(),
   deleteSourceControlCredential: vi.fn(),
@@ -137,6 +139,19 @@ describe("defaultAccessTokensPort.publish", () => {
     deletePublishCredential.mockResolvedValue(undefined);
     await expect(defaultAccessTokensPort.publish.remove("cred-1")).resolves.toBeUndefined();
     expect(deletePublishCredential).toHaveBeenCalledWith("cred-1");
+  });
+});
+
+describe("defaultAccessTokensPort.sourceControlProviders", () => {
+  it("list delegates to api.listSourceControlProviders and returns just the listed hosts", async () => {
+    const providers = [{ id: "github", label: "GitHub" }];
+    listSourceControlProviders.mockResolvedValue({ providers, switchedOff: [{ id: "gitlab", pluginId: "gitlab" }] });
+    await expect(defaultAccessTokensPort.sourceControlProviders.list()).resolves.toEqual(providers);
+    expect(listSourceControlProviders).toHaveBeenCalledWith();
+  });
+
+  it("the fake lists no hosts unless a test stubs some", async () => {
+    await expect(createFakeAccessTokensPort().sourceControlProviders.list()).resolves.toEqual([]);
   });
 });
 

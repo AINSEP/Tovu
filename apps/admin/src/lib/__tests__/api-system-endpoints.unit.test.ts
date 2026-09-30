@@ -207,6 +207,13 @@ test("listSourceControlCredentials is a bare GET at /system/source-control/crede
   expect(calls[0].init?.method).toBeUndefined();
 });
 
+test("listSourceControlProviders is a bare GET at /system/source-control/providers", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.listSourceControlProviders();
+  expect(calls[0].url).toBe(`${BASE}/system/source-control/providers`);
+  expect(calls[0].init?.method).toBeUndefined();
+});
+
 test("createSourceControlCredential POSTs the input verbatim, including bitbucket's required username", async () => {
   const { calls, body } = stubFetchCapturing();
   const input = { label: "Origin", connection: { providerId: "bitbucket" as const, token: "tok", username: "leona" } };

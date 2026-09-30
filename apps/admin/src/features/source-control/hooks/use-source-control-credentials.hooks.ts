@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "@/lib/api";
 import { useFetchQuery } from "@/lib/fetch-query";
@@ -7,20 +7,21 @@ import { t as defaultT, sourceControlCredentialSaveErrorMessage, sourceControlCr
 import type { Translate } from "@/lib/dictionary-translator";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
-  SOURCE_CONTROL_PROVIDERS,
   buildSourceControlConnectionInput,
   classifySourceControlCredentialSubmitError,
   defaultSourceControlCredentialForProvider,
   sourceControlCredentialRowReadyToSave,
+  sourceControlProviders,
   type SourceControlCredentialFormFields,
+  type SourceControlProviderInfo,
 } from "../rules";
 import { defaultSourceControlCredentialsPort } from "./source-control-credentials-dependencies.hooks";
 import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
 
 /**
- * @file The Source Control page's credential-management hook — one always-visible row per provider,
- * each with its own token (plus Bitbucket's username) input, save action, and connected/not
- * status. Mirrors `deployment/hooks/use-publish-credentials.hooks.ts` closely — same flat-row shape,
+ * @file The Source Control page's credential-management hook — one always-visible row per host
+ * (the hosts come from plugins, `GET .../system/source-control/providers`), each with its own token
+ * (plus any other declared field) input, save action, and connected/not status. Mirrors `deployment/hooks/use-publish-credentials.hooks.ts` closely — same flat-row shape,
  * same optimistic local-state-after-write pattern, same create-vs-update-by-looking-at-what-exists
  * decision — with two differences: no `executionMode` (this page has no CLI-first alternative path
  * to branch on, unlike static publish), and `username` in place of `accountId` as the one provider
@@ -50,26 +51,32 @@ import type { SourceControlCredentialsPort } from "./source-control-credentials-
  */
 export interface SourceControlCredentialRowState {
   readonly providerId: AdminSourceControlProviderId;
+  /** The host's label, guidance and declared fields; `listed: false` for a saved connection whose
+   *  plugin is off or missing (shown, but no form). */
+  readonly info: SourceControlProviderInfo;
   /** This provider's saved DEFAULT connection, if any — `undefined` means "not connected yet". */
   readonly saved: AdminSourceControlCredentialSummary | undefined;
   readonly token: string;
-  readonly username: string;
+  /** The host's other declared fields, keyed by field name. */
+  readonly values: Readonly<Record<string, string>>;
+  /** Whether Save may be pressed, from `rules.ts`'s readiness gate. */
+  readonly readyToSave: boolean;
   readonly saving: boolean;
   readonly error: string | null;
 }
 
 export interface SourceControlCredentialsController {
-  /** One entry per {@link SOURCE_CONTROL_PROVIDERS} provider, in that fixed order — `undefined`
-   *  until the first load resolves. */
+  /** One entry per listed host, then one per saved connection's unlisted host — `undefined` until
+   *  both the hosts and the saved connections first load. */
   rows: readonly SourceControlCredentialRowState[] | undefined;
   loadError: string | null;
 
   setToken: (providerId: AdminSourceControlProviderId, value: string) => void;
-  setUsername: (providerId: AdminSourceControlProviderId, value: string) => void;
-  /** Creates or replaces one provider's saved connection from its own row's current `token`/
-   *  `username` — see this file's header for the create-vs-update decision. A no-op if
-   *  {@link sourceControlCredentialRowReadyToSave} says this row is not ready. Resolves either way —
-   *  a failure is surfaced through that row's own `error`. */
+  /** Sets one of the host's other declared fields. */
+  setField: (providerId: AdminSourceControlProviderId, name: string, value: string) => void;
+  /** Creates or replaces one provider's saved connection from its own row's current draft — see
+   *  this file's header for the create-vs-update decision. A no-op when the row is not ready.
+   *  Resolves either way — a failure is surfaced through that row's own `error`. */
   save: (providerId: AdminSourceControlProviderId) => Promise<void>;
 
   t: Translate;
@@ -79,18 +86,13 @@ export interface SourceControlCredentialsController {
  *  typing and in-flight save are fully independent of every other row's. */
 interface RowFormState {
   token: string;
-  username: string;
+  values: Record<string, string>;
   saving: boolean;
   error: string | null;
 }
 
 function blankRowFormState(): RowFormState {
-  return { token: "", username: "", saving: false, error: null };
-}
-
-function initialRowFormStates(): Record<AdminSourceControlProviderId, RowFormState> {
-  const entries = SOURCE_CONTROL_PROVIDERS.map((provider) => [provider.id, blankRowFormState()] as const);
-  return Object.fromEntries(entries) as Record<AdminSourceControlProviderId, RowFormState>;
+  return { token: "", values: {}, saving: false, error: null };
 }
 
 /** Translates a rejected create/update into the exact string {@link useSourceControlCredentials}'s
@@ -110,6 +112,8 @@ export function useSourceControlCredentials(
   locale: string
 ): SourceControlCredentialsController {
   const query = useFetchQuery({ key: ["source-control", "credentials"], fetch: () => port.listCredentials() });
+  // The hosts come from plugins. A failed load lists none; saved connections still show, unlisted.
+  const providersQuery = useFetchQuery({ key: ["source-control", "providers"], fetch: () => port.listProviders() });
   const [credentials, setCredentials] = useState<AdminSourceControlCredentialSummary[] | undefined>(undefined);
 
   // Seeds local state from the query's first successful load, exactly once — same shape
@@ -124,25 +128,38 @@ export function useSourceControlCredentials(
 
   const loadError = query.error ? sourceControlCredentialsLoadErrorMessage(locale, describeApiError(query.error, t("unknown error"))) : null;
 
-  const [formStates, setFormStates] = useState<Record<AdminSourceControlProviderId, RowFormState>>(initialRowFormStates);
+  const providers = useMemo(
+    () => sourceControlProviders(providersQuery.data?.providers, credentials ?? []),
+    [providersQuery.data, credentials]
+  );
 
-  function setToken(providerId: AdminSourceControlProviderId, value: string) {
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], token: value } }));
+  const [formStates, setFormStates] = useState<Record<string, RowFormState>>({});
+
+  function patchForm(providerId: AdminSourceControlProviderId, patch: (prev: RowFormState) => Partial<RowFormState>) {
+    setFormStates((prev) => {
+      const current = prev[providerId] ?? blankRowFormState();
+      return { ...prev, [providerId]: { ...current, ...patch(current) } };
+    });
   }
 
-  function setUsername(providerId: AdminSourceControlProviderId, value: string) {
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], username: value } }));
+  function setToken(providerId: AdminSourceControlProviderId, value: string) {
+    patchForm(providerId, () => ({ token: value }));
+  }
+
+  function setField(providerId: AdminSourceControlProviderId, name: string, value: string) {
+    patchForm(providerId, (current) => ({ values: { ...current.values, [name]: value } }));
   }
 
   async function save(providerId: AdminSourceControlProviderId) {
-    const formState = formStates[providerId];
-    const fields: SourceControlCredentialFormFields = { providerId, token: formState.token, username: formState.username };
-    if (!sourceControlCredentialRowReadyToSave(fields)) return;
+    const formState = formStates[providerId] ?? blankRowFormState();
+    const info = providers.find((provider) => provider.id === providerId);
+    const fields: SourceControlCredentialFormFields = { providerId, token: formState.token, values: formState.values };
+    if (info === undefined || !sourceControlCredentialRowReadyToSave(fields, info)) return;
 
     const existing = defaultSourceControlCredentialForProvider(credentials ?? [], providerId);
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], saving: true, error: null } }));
+    patchForm(providerId, () => ({ saving: true, error: null }));
     try {
-      const connection = buildSourceControlConnectionInput(fields);
+      const connection = buildSourceControlConnectionInput(fields, info.fields);
       const result = existing
         ? await port.updateCredential(existing.id, { connection })
         : await port.createCredential({ label: SOURCE_CONTROL_CREDENTIAL_ROW_LABEL, connection });
@@ -152,29 +169,28 @@ export function useSourceControlCredentials(
       });
       setFormStates((prev) => ({ ...prev, [providerId]: blankRowFormState() }));
     } catch (err) {
-      setFormStates((prev) => ({
-        ...prev,
-        [providerId]: { ...prev[providerId], saving: false, error: sourceControlCredentialSubmitErrorMessage(err, t, locale) },
-      }));
+      patchForm(providerId, () => ({ saving: false, error: sourceControlCredentialSubmitErrorMessage(err, t, locale) }));
     }
   }
 
   const rows: readonly SourceControlCredentialRowState[] | undefined =
-    credentials === undefined
+    credentials === undefined || providersQuery.status === "loading"
       ? undefined
-      : SOURCE_CONTROL_PROVIDERS.map((provider) => {
-          const formState = formStates[provider.id];
+      : providers.map((info) => {
+          const formState = formStates[info.id] ?? blankRowFormState();
           return {
-            providerId: provider.id,
-            saved: defaultSourceControlCredentialForProvider(credentials, provider.id),
+            providerId: info.id,
+            info,
+            saved: defaultSourceControlCredentialForProvider(credentials, info.id),
             token: formState.token,
-            username: formState.username,
+            values: formState.values,
+            readyToSave: sourceControlCredentialRowReadyToSave({ providerId: info.id, token: formState.token, values: formState.values }, info),
             saving: formState.saving,
             error: formState.error,
           };
         });
 
-  return { rows, loadError, setToken, setUsername, save, t };
+  return { rows, loadError, setToken, setField, save, t };
 }
 
 /**

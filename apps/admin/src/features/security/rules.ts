@@ -7,7 +7,7 @@ import {
   type AdminPublishTargetDescriptor,
   type AdminPublishTargetField,
   type AdminSourceControlConnectionInput,
-  type AdminSourceControlProviderId,
+  type AdminSourceControlProviderDescriptor,
 } from "../../lib/api";
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
@@ -17,8 +17,8 @@ import {
 } from "../deployment/rules";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
-  SOURCE_CONTROL_PROVIDERS,
   buildSourceControlConnectionInput,
+  sourceControlProviderInfoFromDescriptor,
 } from "../source-control/rules";
 import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -33,7 +33,7 @@ import type { Translate } from "../../lib/dictionary-translator";
  *
  * This page is a UI consolidation over two credential stores that already exist and already work —
  * `publish_credential_sets` (hosts from the deploy registry's descriptors, `GET .../system/publish-targets`)
- * and `source_control_credential_sets` (`source-control/rules.ts`'s `SOURCE_CONTROL_PROVIDERS`). Every
+ * and `source_control_credential_sets` (hosts from plugins, `GET .../system/source-control/providers`). Every
  * provider's display label, token-creation URL, and scope-guidance copy is READ from those two
  * sources, never redeclared here — the owner's 2026-08-15 narrowing of that guidance text
  * (`source-control/rules.ts`'s own header records it) stays the one place it's written. Connection
@@ -201,12 +201,11 @@ export interface AccessTokenProviderInfo {
   /** Publish hosts only: the descriptor's credential spec — the token field's wire name and every
    *  field {@link buildAccessTokenConnectionInput} sends. */
   readonly publishCredential?: AdminPublishTargetCredentialSpec;
-  /** Descriptor fields shown besides Name and the token (a publish host's non-token credential
-   *  fields); a `required` one gates Save. Empty for source-control and custom rows. */
+  /** Descriptor fields shown besides Name and the token (a host's non-token credential fields); a
+   *  `required` one gates Save. Empty for custom rows. */
   readonly extraFields: readonly AdminPublishTargetField[];
-  /** Whether the form shows Username, and whether it gates Save: Bitbucket needs it (`"required"`),
-   *  a custom row may carry one (`"optional"`, brief's own requirement), everything else has none. */
-  readonly username?: "required" | "optional";
+  /** Custom rows only: the form shows an optional Username (brief's own requirement). */
+  readonly username?: "optional";
   /** Set on the bare entry for a saved row whose provider is not listed (its plugin switched off or
    *  missing). The row stays visible and removable, but nothing new can be added for it. */
   readonly unlisted?: true;
@@ -230,31 +229,37 @@ function publishTargetProviderInfo(target: AdminPublishTargetDescriptor, credent
   };
 }
 
+/** One source-control host's Access Tokens entry, built from its plugin's descriptor. @complexity O(f). */
+function sourceControlTargetProviderInfo(descriptor: AdminSourceControlProviderDescriptor): AccessTokenProviderInfo {
+  const info = sourceControlProviderInfoFromDescriptor(descriptor);
+  return {
+    kind: "source-control",
+    providerId: info.id,
+    label: info.label,
+    vendorLabel: info.label,
+    purposeLabel: "Source control",
+    category: "source-control",
+    tokenPageUrl: info.tokenPageUrl,
+    scopeGuidanceKey: info.scopeGuidanceKey,
+    ...(info.tokenLabel !== undefined ? { tokenLabel: info.tokenLabel } : {}),
+    extraFields: info.fields,
+  };
+}
+
 /**
  * The providers this page can save a named token for: every deploy host whose descriptor takes a
- * credential (`publishTargets`, in registry order; none while they load), then the source-control
- * providers (`SOURCE_CONTROL_PROVIDERS`: github, gitlab, bitbucket). Concatenated rather than
- * interleaved so a reader scanning top-to-bottom sees "deploy targets, then source identities" as
- * two recognizable blocks.
+ * credential (`publishTargets`, in registry order), then every source-control host plugins declare
+ * (`sourceControlProviders`); none of either while it loads. Concatenated rather than interleaved
+ * so a reader scanning top-to-bottom sees "deploy targets, then source identities" as two blocks.
  * @complexity O(t + s) in the host and source-control provider counts.
  */
-export function accessTokenProviders(publishTargets: readonly AdminPublishTargetDescriptor[] | undefined): AccessTokenProviderInfo[] {
+export function accessTokenProviders(
+  publishTargets: readonly AdminPublishTargetDescriptor[] | undefined,
+  sourceControlProviders?: readonly AdminSourceControlProviderDescriptor[]
+): AccessTokenProviderInfo[] {
   return [
     ...(publishTargets ?? []).flatMap((target) => (target.credential === undefined ? [] : [publishTargetProviderInfo(target, target.credential)])),
-    ...SOURCE_CONTROL_PROVIDERS.map(
-      (provider): AccessTokenProviderInfo => ({
-        kind: "source-control",
-        providerId: provider.id,
-        label: provider.label,
-        vendorLabel: provider.label,
-        purposeLabel: "Source control",
-        category: "source-control",
-        tokenPageUrl: provider.tokenPageUrl,
-        scopeGuidanceKey: provider.scopeGuidanceKey,
-        extraFields: [],
-        ...(provider.requiredFields.includes("username") ? { username: "required" as const } : {}),
-      })
-    ),
+    ...(sourceControlProviders ?? []).map(sourceControlTargetProviderInfo),
   ];
 }
 
@@ -513,16 +518,14 @@ export interface AccessTokenFormFields {
   readonly username: string;
 }
 
-/** Whether the provider's required extra fields and (when it needs one) Username are filled.
- *  @complexity O(f). */
+/** Whether the provider's required extra fields are filled. @complexity O(f). */
 function accessTokenRequiredFieldsFilled(fields: AccessTokenFormFields, info: AccessTokenProviderInfo): boolean {
-  if (info.username === "required" && fields.username.trim() === "") return false;
   return requiredFieldsFilled(info.extraFields, fields.values);
 }
 
 /** Whether a token form has enough typed to save — a non-empty Name (new here; neither origin store's
  *  own form ever asked for one) PLUS whatever `info` says this provider cannot function without
- *  (`token`, always; a host descriptor's required fields; `username` for Bitbucket). Does not check name uniqueness — that is {@link accessTokenNameTaken}'s job, surfaced
+ *  (`token`, always; a host descriptor's required fields). Does not check name uniqueness — that is {@link accessTokenNameTaken}'s job, surfaced
  *  as its own inline error rather than folded into the Save button's disabled state, so a collision
  *  reads as a specific, fixable reason rather than an unexplained disabled button.
  *  @complexity O(k) in this provider's own required-field count (at most one). */
@@ -564,8 +567,6 @@ export function accessTokenReplaceReadyToSave(fields: AccessTokenFormFields, cur
  * `tokenField`) / `buildSourceControlConnectionInput` by `fields.ref.kind` rather than re-deriving
  * either provider's shape (this file's own header). A publish provider without a credential spec
  * (only the bare fallback entry {@link accessTokenProviderInfo} makes) sends the token as `token`.
- * The source-control cast is safe: `fields.ref.providerId` is only ever populated from
- * {@link accessTokenProviders}, built from that store's own union.
  * @complexity O(f).
  */
 export function buildAccessTokenConnectionInput(
@@ -577,11 +578,7 @@ export function buildAccessTokenConnectionInput(
     const providerId: AdminPublishCredentialProviderId = fields.ref.providerId;
     return buildCredentialConnectionInput(providerId, spec, { ...fields.values, [spec.tokenField]: fields.token });
   }
-  return buildSourceControlConnectionInput({
-    providerId: fields.ref.providerId as AdminSourceControlProviderId,
-    token: fields.token,
-    username: fields.username,
-  });
+  return buildSourceControlConnectionInput({ providerId: fields.ref.providerId, token: fields.token, values: fields.values }, info.extraFields);
 }
 
 /** The DOM/agent id suffix of one extra field's input. `accountId` keeps its old `account` suffix
@@ -776,7 +773,7 @@ export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name:
  * {@link accessTokenReplaceReadyToSave}'s counterpart for a saved CUSTOM credential row — a separate
  * function rather than a widening of that shared one, because the two gates diverge on a case the
  * shared one must never allow: a bare, no-token Username edit. For the seven catalog providers,
- * `fields.username` only exists to satisfy Bitbucket's required Username alongside a FRESH token
+ * `fields.username` is never shown (only custom rows carry a Username)
  * (`replaceToken`'s own header note: `row.username` is always `undefined` for a non-custom row, so
  * there is no persisted value a lone Username edit could even be a change FROM); folding a
  * bare-username check into the shared gate would make a stray character typed into that field on a

@@ -2,6 +2,7 @@ import type {
   AdminSourceControlConnectionInput,
   AdminSourceControlCredentialSummary,
   AdminSourceControlCredentialsSnapshot,
+  AdminSourceControlProvidersSnapshot,
 } from "@/lib/api";
 
 /**
@@ -10,6 +11,8 @@ import type {
  * a test can describe this hook's behavior against a fake port instead of stubbing global `fetch`.
  */
 export interface SourceControlCredentialsPort {
+  /** The hosts switched-on plugins declare, with their credential forms. */
+  listProviders(): Promise<AdminSourceControlProvidersSnapshot>;
   /** Every configured connection for this workspace. */
   listCredentials(): Promise<AdminSourceControlCredentialsSnapshot>;
   /** Creates one named connection. Rejects with an `ApiError` (`code: "DUPLICATE_LABEL"`) if this
