@@ -5,7 +5,8 @@ import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan
 
 /**
  * @file The scanner behind `no-deploy-vendor-in-core.boundary.test.ts`: which core files still
- * name a static-hosting vendor, how many times per vendor, with comments blanked out first.
+ * name a hosting vendor (static hosts, and since T10 the server hosts Fly, Render and Railway), how
+ * many times per vendor, with comments blanked out first.
  *
  * Hosting-vendor knowledge lives in the `deploy` Agent Plugin (`content/agent-plugins/deploy/`,
  * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` T7/T8). Core reads target ids
@@ -16,7 +17,7 @@ import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../../..");
 export const BASELINE_PATH = path.join(import.meta.dirname, "deploy-vendor-baseline.json");
 
-/** The core surfaces the plan's T7 boundary names. Directory entries end in `/`. */
+/** The core surfaces the plan's T7 and T10 boundaries name. Directory entries end in `/`. */
 const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/features/deployments/",
   "apps/website/src/features/site-export/",
@@ -26,6 +27,11 @@ const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts",
   "apps/admin/src/features/deployment/",
   "apps/admin/src/lib/api.ts",
+  // T10 (server-hosting vendors: Fly, Render, Railway): the credential-scheme, publish-trust and
+  // deploy-config surfaces the `deploy` plugin absorbed.
+  "apps/website/src/features/custom-credentials/",
+  "apps/website/src/features/publish-trust/",
+  "apps/website/src/cli/commands/deploy-config.ts",
 ];
 
 /** One rule per vendor, matched case-insensitively on code and string text only. */
@@ -35,6 +41,10 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
   { id: "cloudflare", pattern: /cloudflare|pages\.dev/gi },
   { id: "github-pages", pattern: /github[-_ ]?pages|github\.io/gi },
   { id: "s3-compatible", pattern: /s3[-_ ]?compatible|amazonaws|backblaze|wasabi|digitaloceanspaces/gi },
+  { id: "fly", pattern: /fly\.io|flyctl|fly\.toml|machines\.dev|flyv1|\bfly\b/gi },
+  { id: "railway", pattern: /railway/gi },
+  // "render" is an ordinary word (and a React verb), so only vendor-specific forms count.
+  { id: "render", pattern: /render\.com|render\.yaml|onrender/gi },
 ];
 
 /** Cheap pre-filter: a file with no raw match cannot have one after comments are removed. */

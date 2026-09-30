@@ -87,7 +87,7 @@ export function buildCreateFormResource(spec: { exchangeId: string; prefill: Cre
         kind: "string",
         name: "label",
         label: "Label",
-        hint: "A short display name, e.g. 'github' or 'fly.io'. Must be unique in this workspace.",
+        hint: "A short display name, e.g. 'github' or 'name.com'. Must be unique in this workspace.",
         required: true,
         ...(prefill.label !== undefined ? { value: prefill.label } : {}),
       },

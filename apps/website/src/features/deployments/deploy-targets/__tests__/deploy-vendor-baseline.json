@@ -1,35 +1,23 @@
 {
-  "apps/admin/src/features/deployment/StaticSiteTab.tsx": {
-    "cloudflare": 4,
-    "github-pages": 2,
-    "netlify": 1,
-    "vercel": 3
-  },
   "apps/admin/src/features/deployment/deployment-i18n.tsx": {
     "cloudflare": 105,
-    "github-pages": 23,
     "netlify": 46,
-    "vercel": 128
-  },
-  "apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts": {
-    "vercel": 1
-  },
-  "apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts": {
-    "cloudflare": 2,
-    "github-pages": 3,
-    "netlify": 2,
-    "vercel": 2
+    "vercel": 82
   },
   "apps/admin/src/features/deployment/rules.ts": {
-    "cloudflare": 14,
-    "github-pages": 10,
-    "netlify": 12,
-    "vercel": 18
-  },
-  "apps/admin/src/lib/api.ts": {
-    "cloudflare": 4,
-    "github-pages": 4,
+    "cloudflare": 6,
+    "fly": 2,
+    "github-pages": 2,
     "netlify": 4,
+    "railway": 2,
     "vercel": 4
+  },
+  "apps/website/src/features/deployments/deploy-config.ts": {
+    "fly": 5
+  },
+  "apps/website/src/features/publish-trust/connect.ts": {
+    "fly": 1,
+    "railway": 1,
+    "render": 1
   }
 }
