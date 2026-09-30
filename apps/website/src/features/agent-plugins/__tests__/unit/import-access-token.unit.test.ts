@@ -112,7 +112,9 @@ test("a row that already holds a saved token is never overwritten", async () => 
   const outcome = await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: "sbp_a_different_token" });
   assert.equal(outcome, "already-connected");
   assert.deepEqual((await readRow())?.sealedOAuth, before);
-  assert.deepEqual(connected, []);
+  // The switch-on is re-run (it finishes an interrupted import); the real one is a no-op on a row
+  // whose defaults were already applied (apply-connect-defaults.unit.test.ts).
+  assert.deepEqual(connected, ["supabase"]);
 });
 
 test("a plugin an operator turned off gets the token but stays off", async () => {
@@ -292,4 +294,38 @@ test("env import skips a plugin that still has a token pending from create-site 
   assert.deepEqual(connected, []);
   assert.equal(logs.info.length, 1, "retired env vars are still named");
   assert.match(logs.info[0] ?? "", /TOVU_SUPABASE_MCP_ENABLED is no longer used/);
+});
+
+test("a save whose switch-on failed is switched on by the next import, without touching the saved token", async () => {
+  const { deps, connected, readRow } = await setup();
+  let failOnce = true;
+  const flaky: ImportAgentPluginAccessTokensFromEnvDeps = {
+    ...deps,
+    onConnected: async (serverId) => {
+      if (failOnce) {
+        failOnce = false;
+        throw new Error("activations file busy");
+      }
+      await deps.onConnected?.(serverId);
+    },
+  };
+  await assert.rejects(importAgentPluginAccessToken(flaky, { pluginId: "supabase", token: TOKEN }), /activations file busy/);
+  const saved = await readRow();
+  assert.equal(saved?.authMode, "static_env");
+  assert.equal(saved?.enabled, false);
+
+  assert.equal(await importAgentPluginAccessToken(flaky, { pluginId: "supabase", token: "sbp_other" }), "already-connected");
+  assert.deepEqual(connected, ["supabase"], "the retry must run the switch-on the first attempt missed");
+  const after = await readRow();
+  assert.equal(after?.enabled, true);
+  assert.deepEqual(after?.sealedOAuth, saved?.sealedOAuth, "the saved token must not be replaced");
+});
+
+test("an already-connected row is not switched on when an operator turned the plugin off", async () => {
+  const { deps, connected, readRow } = await setup();
+  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = { ...deps, isPluginOffByOperator: async () => true };
+  await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN });
+  assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "already-connected");
+  assert.deepEqual(connected, []);
+  assert.equal((await readRow())?.enabled, false);
 });

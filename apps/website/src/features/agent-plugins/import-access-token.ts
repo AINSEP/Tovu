@@ -18,7 +18,8 @@ import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedT
  *   env preset (`TOVU_SUPABASE_MCP_*`) was retired in favour of the Supabase plugin.
  * - create-site onboarding's pending tokens (`composition/pending-agent-plugin-tokens.ts`).
  *
- * Never overwrites: a row that already holds a credential (a sign-in or a saved token) is left alone.
+ * Never overwrites: a row that already holds a credential (a sign-in or a saved token) keeps it; the
+ * switch-on still runs, so a save whose switch-on failed is finished by the next import.
  * Not probed: the env token was already in use, and onboarding probes before it seals.
  *
  * The env import trusts only what THIS Tovu build shipped: a declaration is read from a plugin only
@@ -40,7 +41,8 @@ export interface ImportAgentPluginAccessTokenDeps
 export type ImportAgentPluginAccessTokenOutcome = "saved" | "saved-left-off" | "already-connected";
 
 /**
- * Seals `token` onto `pluginId`'s token-auth row unless that row already has a credential.
+ * Seals `token` onto `pluginId`'s token-auth row unless that row already has a credential, then
+ * switches the plugin on (also when it already had one, to finish an earlier interrupted import).
  *
  * @throws {import("@jini-ai/core").ToolInputError} Plugin not installed, or no single token-auth server.
  * @throws Whatever the store throws on save (e.g. an unconfigured secret store).
@@ -59,7 +61,12 @@ export async function importAgentPluginAccessToken(
   const principalId = input.principalId ?? AGENT_PLUGIN_TOKEN_IMPORT_ACTOR;
   const target = await resolveTarget(deps, input.pluginId, principalId);
   const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
-  if (row && hasStoredAgentPluginCredential(row)) return "already-connected";
+  if (row && hasStoredAgentPluginCredential(row)) {
+    // Finishes a switch-on an earlier import saved the token for but did not complete (it threw
+    // after the save): idempotent, and it keeps an operator's off switch (`switch-on-saved-token.ts`).
+    await switchOnSavedTokenConnection(deps, target);
+    return "already-connected";
+  }
   if (input.onlyAtUrl !== undefined && (row?.url ?? target.config.url) !== input.onlyAtUrl) {
     throw new Error(`its '${target.connectionId}' connection points at a different URL than the '${input.pluginId}' plugin declares, so the token is not copied there`);
   }
