@@ -43,7 +43,7 @@ import {
  *
  *  This is a SUGGESTION mechanism, never a trust decision: whatever it finds is shown to the owner
  *  for confirmation and is re-validated as a URL before anything is done with it. That is why a
- *  plain scan is adequate here where a real parser is required in `provisioning.fly-toml.ts` — the
+ *  plain scan is adequate here where a real parser would be required to WRITE one (a provisioning codec) — the
  *  cost of a wrong guess is a pre-filled field the owner corrects, not a misdirected publish. */
 export const DEPLOY_CONFIG_CANDIDATE_PATHS = ["fly.toml", "render.yaml", "railway.toml", "app.json"] as const;
 

@@ -10,9 +10,9 @@
  * THE VENDOR-NEUTRALITY RULE, and how it is enforced structurally rather than by discipline:
  * there is no provider branch anywhere in this feature. A provider is a {@link ProvisioningCodec} —
  * "where in this file does the value live, and how is it quoted" — handed to the one
- * {@link createFileProvisioning} flow that every adapter shares. Fly is a codec
- * (`provisioning.fly-toml.ts`), not an `if`. Adding Render or a bare VPS is a new codec and no
- * change to this file. Nothing here imports a provider SDK, and nothing here shells out; the whole
+ * {@link createFileProvisioning} flow that every adapter shares. A hosting platform's config file is
+ * a codec, not an `if`; adding one is a new codec and no change to this file (the committed-JSON
+ * codec below is the one shipped today). Nothing here imports a provider SDK, and nothing here shells out; the whole
  * port is `read a file, decode, merge, encode, write a file`, which is why it works identically on
  * a laptop, in CI, and on a machine that has never heard of the provider.
  *
@@ -398,7 +398,7 @@ export function describeConnection(input: {
 
 /** Where an adapter puts the grant, in terms an operator can act on. */
 export interface ProvisioningTarget {
-  /** Stable machine-readable adapter name, e.g. `"committed-json"`, `"fly-toml"`. */
+  /** Stable machine-readable adapter name, e.g. `"committed-json"`. */
   readonly kind: string;
   /** Absolute path of the config file this adapter edits. */
   readonly path: string;

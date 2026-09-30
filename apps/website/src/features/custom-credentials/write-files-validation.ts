@@ -45,12 +45,12 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  *
  * - `maxFiles`: the confirmation dialog this tool opens (`write-files-confirmation-ui.ts`) lists
  *   every path by name so a human can actually read and approve each one before anything is written;
- *   past a few dozen rows that review stops being real. The one caller that exists today
- *   (`tovu-deploy-fly`) writes exactly 2 files. 25 is generous headroom above that for any plausible
+ *   past a few dozen rows that review stops being real. The one caller that exists today (the
+ *   `deploy` plugin's skill) writes exactly 2 files. 25 is generous headroom above that for any plausible
  *   future caller while keeping the dialog reviewable.
  * - `maxPathLength`: far beyond any real repository path, while still bounding one hostile field.
  * - `maxFileBytes`: every known caller writes small hand-authored or LLM-authored text config
- *   (`fly.toml`, a GitHub Actions workflow YAML) — 1 MiB is generous for that class of file while
+ *   (a platform config file, a GitHub Actions workflow YAML) — 1 MiB is generous for that class of file while
  *   keeping a single blob-creation request body bounded.
  * - `maxTotalBytes`: bounds the call's AGGREGATE payload independent of how the per-file cap is
  *   split across files — the same "per-item cap AND total cap" shape `agent-plugins/install.ts`'s

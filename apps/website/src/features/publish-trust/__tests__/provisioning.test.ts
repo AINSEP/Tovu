@@ -3,7 +3,6 @@ import test from "node:test";
 
 import type { PublishTrustGrant } from "../grant.js";
 import { PUBLISH_TRUST_GRANT_VERSION } from "../grant.js";
-import { FLY_TOML_CODEC } from "../provisioning.fly-toml.js";
 import type { ProvisioningEvent, ProvisioningFileIo, PublishTrustResolution } from "../provisioning.js";
 import {
   COMMITTED_JSON_CODEC,
@@ -308,137 +307,6 @@ test("a destination whose config cannot be read tells the source that, not 'not 
 });
 
 // ---------------------------------------------------------------------------
-// The Fly adapter is a codec, and edits rather than regenerates
-// ---------------------------------------------------------------------------
-
-const FLY_TOML = [
-  'app = "tovu"',
-  'primary_region = "iad"',
-  "",
-  "[env]",
-  '  TOVU_RUNTIME_MODE = "production"',
-  '  TOVU_PUBLIC_URL = "https://tovu.fly.dev"',
-  "",
-  "[[mounts]]",
-  '  source = "tovu_sites"',
-  "",
-].join("\n");
-
-test("provisioning Fly edits one assignment and leaves the rest of fly.toml byte-identical", async () => {
-  const io = memoryIo({ "/repo/fly.toml": FLY_TOML });
-  const port = createFileProvisioning({ io, codec: FLY_TOML_CODEC, path: "/repo/fly.toml" });
-
-  await port.connect({ grant: grantFor("laptop") });
-
-  const after = io.files["/repo/fly.toml"];
-  for (const line of FLY_TOML.split("\n")) {
-    assert.ok(after.includes(line), `provisioning must not disturb: ${line}`);
-  }
-  assert.match(after, new RegExp(`\\[env\\][\\s\\S]*${PUBLISH_TRUST_ENV_VAR}`), "the key belongs inside [env]");
-});
-
-test("the grant survives a fly.toml round trip, quoting and all", async () => {
-  const io = memoryIo({ "/repo/fly.toml": FLY_TOML });
-  const port = createFileProvisioning({ io, codec: FLY_TOML_CODEC, path: "/repo/fly.toml" });
-  const tricky = grantFor("laptop", { entityTypes: ['post"with\\quotes'] });
-
-  await port.connect({ grant: tricky });
-  const read = await port.readProvisioned();
-
-  assert.equal(read.ok, true);
-  assert.deepEqual(read.ok ? read.grants[0].entityTypes : [], ['post"with\\quotes']);
-});
-
-test("a value ending in a backslash survives the fly.toml round trip", async () => {
-  // The escape sequences a decoder is most likely to mis-pair: a backslash run running straight
-  // into the quote that closes the TOML string.
-  const io = memoryIo({ "/repo/fly.toml": FLY_TOML });
-  const port = createFileProvisioning({ io, codec: FLY_TOML_CODEC, path: "/repo/fly.toml" });
-  const awkward = ["ends-with-backslash\\\\", '\\\\"leading-escaped-quote', "a\\\\\\\\b"];
-
-  await port.connect({ grant: grantFor("laptop", { entityTypes: awkward }) });
-  const read = await port.readProvisioned();
-
-  assert.equal(read.ok, true);
-  assert.deepEqual(read.ok ? read.grants[0].entityTypes : [], awkward);
-});
-
-test("a second Fly provisioning replaces the assignment instead of adding a duplicate key", async () => {
-  const io = memoryIo({ "/repo/fly.toml": FLY_TOML });
-  const port = createFileProvisioning({ io, codec: FLY_TOML_CODEC, path: "/repo/fly.toml" });
-
-  await port.connect({ grant: grantFor("laptop") });
-  await port.connect({ grant: grantFor("desktop") });
-
-  const occurrences = io.files["/repo/fly.toml"].split("\n").filter((l) => l.includes(`${PUBLISH_TRUST_ENV_VAR} =`));
-  assert.equal(occurrences.length, 1, "a duplicate TOML key makes the file unparseable");
-});
-
-test("a new assignment lands beside the other env keys, not under a trailing comment", () => {
-  // The real fly.toml ends its [env] table with a comment block explaining [[mounts]]. Appending
-  // at the end of the table's span put the grant inside that explanation.
-  const withTrailingComment = [
-    "[env]",
-    '  PORT = "3000"',
-    "",
-    "# This comment introduces the mount below, not the env table above.",
-    "[[mounts]]",
-    '  source = "tovu_sites"',
-    "",
-  ].join("\n");
-
-  const encoded = FLY_TOML_CODEC.encode({ fileContents: withTrailingComment, document: "[]" });
-  const lines = (encoded.ok ? encoded.contents : "").split("\n");
-  const at = lines.findIndex((l) => l.includes(PUBLISH_TRUST_ENV_VAR));
-
-  assert.ok(at > 0, "the assignment must be written");
-  assert.match(lines[at - 1], /PORT/, "it belongs directly after the last env assignment");
-  assert.equal(FLY_TOML_CODEC.decode(encoded.ok ? encoded.contents : ""), "[]");
-});
-
-test("an [env] table holding only comments still gets the assignment", () => {
-  const commentsOnly = ["[env]", "# nothing set yet", "", "[[mounts]]", ""].join("\n");
-  const encoded = FLY_TOML_CODEC.encode({ fileContents: commentsOnly, document: "[]" });
-  assert.equal(FLY_TOML_CODEC.decode(encoded.ok ? encoded.contents : ""), "[]");
-});
-
-test("a same-named key outside [env] is not mistaken for the grant", () => {
-  const decoy = [`[build]`, `  ${PUBLISH_TRUST_ENV_VAR} = "not-the-one"`, "", "[env]", ""].join("\n");
-  assert.equal(FLY_TOML_CODEC.decode(decoy), null, "only an assignment inside [env] reaches the deployed process");
-});
-
-test("a fly.toml with no [env] table gets one rather than being refused", () => {
-  const encoded = FLY_TOML_CODEC.encode({ fileContents: 'app = "tovu"\n', document: "[]" });
-  assert.equal(encoded.ok, true);
-  assert.match(encoded.ok ? encoded.contents : "", /\[env\]/);
-  assert.equal(FLY_TOML_CODEC.decode(encoded.ok ? encoded.contents : ""), "[]");
-});
-
-test("the Fly codec writes the document on one line", async () => {
-  const io = memoryIo({ "/repo/fly.toml": FLY_TOML });
-  const port = createFileProvisioning({ io, codec: FLY_TOML_CODEC, path: "/repo/fly.toml" });
-  await port.connect({ grant: grantFor("laptop") });
-
-  const line = io.files["/repo/fly.toml"].split("\n").find((l) => l.includes(PUBLISH_TRUST_ENV_VAR));
-  assert.ok(line !== undefined && line.trim().endsWith('"'), "a multi-line value would not be valid TOML here");
-});
-
-test("both adapters agree on merge semantics", async () => {
-  const run = async (codec: typeof COMMITTED_JSON_CODEC, path: string, seed: Record<string, string>) => {
-    const io = memoryIo(seed);
-    const port = createFileProvisioning({ io, codec, path });
-    await port.connect({ grant: grantFor("laptop") });
-    await port.connect({ grant: grantFor("desktop") });
-    await port.disconnect({ sourceInstallationId: "laptop" });
-    const read = await port.readProvisioned();
-    return read.ok ? read.grants.map((g) => g.sourceInstallationId) : ["<failed>"];
-  };
-
-  assert.deepEqual(await run(COMMITTED_JSON_CODEC, "/repo/deploy/publish-trust.json", {}), ["desktop"]);
-  assert.deepEqual(await run(FLY_TOML_CODEC, "/repo/fly.toml", { "/repo/fly.toml": FLY_TOML }), ["desktop"]);
-});
-
-// ---------------------------------------------------------------------------
 // The port's own behaviour
 // ---------------------------------------------------------------------------
 
@@ -472,10 +340,10 @@ test("the port announces its I/O so the composition root can log it", async () =
 
 test("the port names where the grant went and what to do next", () => {
   const io = memoryIo();
-  const port = createFileProvisioning({ io, codec: FLY_TOML_CODEC, path: "/repo/fly.toml" });
+  const port = createFileProvisioning({ io, codec: COMMITTED_JSON_CODEC, path: "/repo/deploy/publish-trust.json" });
 
-  assert.equal(port.target.kind, "fly-toml");
-  assert.equal(port.target.path, "/repo/fly.toml");
+  assert.equal(port.target.kind, "committed-json");
+  assert.equal(port.target.path, "/repo/deploy/publish-trust.json");
   assert.match(port.target.nextStep, /nothing secret/i);
 });
 
