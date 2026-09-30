@@ -13,6 +13,7 @@ import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exc
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import {
   ExternalMcpValidationError,
+  externalMcpRecordHasStaticAccessToken,
   resolveExternalMcpOAuthStatus,
   type ExternalMcpOAuthService,
   type ExternalMcpServerRecord,
@@ -250,11 +251,11 @@ interface PendingOAuthServer {
 }
 
 /** Whether a plugin's row already holds a credential: a finished sign-in, or a saved access token
- *  (`static_env` with a sealed env block — what `agent_plugin_set_access_token`, the old env var's
- *  boot import, and create-site onboarding all write). Such a row needs no sign-in, and a token
- *  import must never overwrite it. */
-export function hasStoredAgentPluginCredential(row: Pick<ExternalMcpServerRecord, "authMode" | "sealedEnv" | "oauthStatus">): boolean {
-  return resolveExternalMcpOAuthStatus(row) === "connected" || (row.authMode === "static_env" && row.sealedEnv !== null);
+ *  (`static_env` with the token sealed in `sealedOAuth` — what `agent_plugin_set_access_token`, the
+ *  old env var's boot import, and create-site onboarding all write; `sealedEnv` is a stdio row's env
+ *  block and never holds it). Such a row needs no sign-in, and a token import must never overwrite it. */
+export function hasStoredAgentPluginCredential(row: Pick<ExternalMcpServerRecord, "authMode" | "sealedOAuth" | "oauthStatus">): boolean {
+  return resolveExternalMcpOAuthStatus(row) === "connected" || externalMcpRecordHasStaticAccessToken(row);
 }
 
 /** Resolves which of a plugin's declared OAuth servers still need connecting, after provisioning

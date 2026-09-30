@@ -23,6 +23,7 @@ import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../manifest.
 const WORKSPACE = "ws-token-import";
 const TOKEN = "sbp_import_test_token_never_logged";
 const ENV_VAR = "TOVU_SUPABASE_MCP_ACCESS_TOKEN";
+const MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
 const RETIRED = ["TOVU_SUPABASE_MCP_ENABLED", "TOVU_SUPABASE_MCP_PROJECT_REF"];
 
 const SUPABASE_SERVERS: Readonly<Record<string, McpServerConfig>> = {
@@ -90,7 +91,7 @@ test("a token is sealed onto a row with no credential, and the plugin is switche
   assert.equal(outcome, "saved");
   const row = await readRow();
   assert.equal(row?.authMode, "static_env");
-  assert.ok(row?.sealedEnv, "the token must be sealed on the row");
+  assert.ok(row?.sealedOAuth, "the token must be sealed on the row");
   assert.ok(!JSON.stringify(row).includes(TOKEN), "the token must never be stored in plaintext");
   assert.deepEqual(connected, ["supabase"]);
 });
@@ -98,11 +99,11 @@ test("a token is sealed onto a row with no credential, and the plugin is switche
 test("a row that already holds a saved token is never overwritten", async () => {
   const { deps, connected, readRow } = await setup();
   await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: TOKEN });
-  const before = (await readRow())?.sealedEnv;
+  const before = (await readRow())?.sealedOAuth;
   connected.length = 0;
   const outcome = await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: "sbp_a_different_token" });
   assert.equal(outcome, "already-connected");
-  assert.deepEqual((await readRow())?.sealedEnv, before);
+  assert.deepEqual((await readRow())?.sealedOAuth, before);
   assert.deepEqual(connected, []);
 });
 
@@ -121,10 +122,12 @@ test("a plugin an operator turned off gets the token but stays off", async () =>
 });
 
 test("hasStoredAgentPluginCredential: a finished sign-in or a saved token counts; a bare oauth row does not", () => {
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedEnv: null, oauthStatus: "connected" }), true);
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "static_env", sealedEnv: { ciphertext: "x", nonce: "y" } as never, oauthStatus: null }), true);
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedEnv: null, oauthStatus: null }), false);
-  assert.equal(hasStoredAgentPluginCredential({ authMode: "static_env", sealedEnv: null, oauthStatus: null }), false);
+  const blob = { ciphertext: "x", nonce: "y" } as never;
+  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedOAuth: null, oauthStatus: "connected" }), true);
+  assert.equal(hasStoredAgentPluginCredential({ authMode: "static_env", sealedOAuth: blob, oauthStatus: null }), true);
+  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedOAuth: null, oauthStatus: null }), false);
+  assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedOAuth: blob, oauthStatus: "pending" }), false, "an oauth row's client secret is not a credential");
+  assert.equal(hasStoredAgentPluginCredential({ authMode: "static_env", sealedOAuth: null, oauthStatus: null }), false);
 });
 
 test("env import copies the declared env token once, logs once, and is silent on the next boot", async () => {
@@ -167,6 +170,7 @@ test("env import never throws: a failed save is a warning", async () => {
 
 test("manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server", () => {
   const good = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA,
     mcpServers: {
       s: {
         type: "streamable-http",
@@ -186,6 +190,7 @@ test("manifest: importFromEnv and retiredEnv parse; a malformed env name exclude
   });
 
   const bad = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA,
     mcpServers: {
       s: { type: "streamable-http", url: "https://example.com/mcp", tovuTokenAuth: { helpUrl: "https://example.com/t", probeUrl: "https://example.com/p", importFromEnv: "lower case" } },
     },

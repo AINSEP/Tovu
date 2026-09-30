@@ -19,13 +19,15 @@ import { listTokenSignInPlugins } from "../../token-sign-in.js";
  * shape, refusal messages, and reading the bundled plugins a new site will get.
  */
 
+const MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
+
 let root: string;
 
 function writePlugin(dirName: string, name: string, mcp: unknown): void {
   const dir = path.join(root, dirName);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "plugin.json"), JSON.stringify({ name, version: "1.0.0" }));
-  fs.writeFileSync(path.join(dir, "mcp.json"), JSON.stringify(mcp));
+  fs.writeFileSync(path.join(dir, "mcp.json"), JSON.stringify({ $schema: MCP_SCHEMA, ...(mcp as object) }));
 }
 
 before(() => {

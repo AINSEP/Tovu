@@ -226,6 +226,7 @@ export {
   toResolvedFederatedConnections,
   resolveExternalMcpAuthMode,
   resolveExternalMcpOAuthStatus,
+  externalMcpRecordHasStaticAccessToken,
 } from "./external-mcp-store.js";
 export type {
   ExternalMcpAuthMode,
