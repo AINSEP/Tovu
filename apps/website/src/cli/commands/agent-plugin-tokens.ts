@@ -1,15 +1,14 @@
-import path from "node:path";
-
-import { resolveProductRoot, ValidationError } from "../../platform/site-dir/index.js";
+import { ValidationError } from "../../platform/site-dir/index.js";
 import { createDefaultHttpClient } from "../../platform/http/client.js";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY } from "../../platform/http/egress-policies.js";
 import {
+  bundledAgentPluginsSourceRoot,
   firstNewSiteTokenRefusal,
-  listBundledAgentPluginServers,
+  listNewSiteTokenSignInPlugins,
   parseNewSiteAgentPluginTokens,
   resolveBundledAgentPlugin,
 } from "../../features/agent-plugins/new-site-tokens.js";
-import { checkAgentPluginAccessToken, listTokenSignInPlugins, type TokenCheckOutcome } from "../../features/agent-plugins/token-sign-in.js";
+import { checkAgentPluginAccessToken, type TokenCheckOutcome } from "../../features/agent-plugins/token-sign-in.js";
 import { sealPendingAgentPluginTokensForNewSite } from "../../server/runtime/composition/pending-agent-plugin-tokens.js";
 
 /**
@@ -23,10 +22,9 @@ import { sealPendingAgentPluginTokensForNewSite } from "../../server/runtime/com
  * prints a token.
  */
 
-/** The bundled plugins' source dir. Same resolution as `deps.ts`'s `bundledAgentPluginsDir()` (not
- *  imported: that module pulls in the whole server composition graph for one path). @complexity O(1). */
+/** The bundled plugins' source dir (`new-site-tokens.ts`). @complexity O(1). */
 export function bundledAgentPluginsRoot(): string {
-  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  return bundledAgentPluginsSourceRoot();
 }
 
 /** All of stdin as text. */
@@ -99,6 +97,6 @@ export async function storeNewSiteTokens(
  * a pasted token, as `{ "plugins": [{ pluginId, displayName, helpUrl }] }`.
  */
 export async function runTokenSignInPluginsCommand(sourceRoot: string = bundledAgentPluginsRoot()): Promise<void> {
-  const plugins = await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(sourceRoot));
+  const plugins = await listNewSiteTokenSignInPlugins(sourceRoot);
   process.stdout.write(`${JSON.stringify({ plugins })}\n`);
 }

@@ -2,11 +2,13 @@ import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { resolveProductRoot } from "../../platform/site-dir/index.js";
+
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
 import type { InstalledAgentPluginServers } from "./import-access-token.js";
 import { RETIRED_BUNDLED_AGENT_PLUGINS } from "./retire-bundled.js";
-import type { TokenCheckOutcome } from "./token-sign-in.js";
+import { listTokenSignInPlugins, type TokenCheckOutcome, type TokenSignInPlugin } from "./token-sign-in.js";
 
 /**
  * @file The rules for access tokens given while CREATING a site, shared by every create path: the
@@ -113,4 +115,22 @@ export function resolveBundledAgentPlugin(sourceRoot: string): (pluginId: string
     const found = (await listBundledAgentPluginServers(sourceRoot)).find((plugin) => plugin.pluginId === pluginId);
     return found ? { servers: found.servers } : null;
   };
+}
+
+/** The bundled plugins' source dir: `TOVU_BUNDLED_AGENT_PLUGINS_DIR`, else `<product>/content/agent-plugins`.
+ *  Same resolution as `deps.ts`'s `bundledAgentPluginsDir()` (not imported: that module pulls in the
+ *  whole server composition graph for one path). @complexity O(1). */
+export function bundledAgentPluginsSourceRoot(): string {
+  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+}
+
+/**
+ * The plugins a NEW site can be connected to with a pasted token: the bundled ones its first boot
+ * seeds. Not the creating site's installs — a plugin only that site has would be offered, pass the
+ * check, and then never exist on the new site.
+ *
+ * @complexity O(p) bundled plugin dirs.
+ */
+export function listNewSiteTokenSignInPlugins(sourceRoot: string = bundledAgentPluginsSourceRoot()): Promise<readonly TokenSignInPlugin[]> {
+  return listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(sourceRoot));
 }

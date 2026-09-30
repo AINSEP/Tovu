@@ -12,7 +12,13 @@ import {
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
 } from "#src/platform/site-dir/index";
-import { firstNewSiteTokenRefusal, parseNewSiteAgentPluginTokens } from "#src/features/agent-plugins/new-site-tokens";
+import {
+  bundledAgentPluginsSourceRoot,
+  firstNewSiteTokenRefusal,
+  listNewSiteTokenSignInPlugins,
+  parseNewSiteAgentPluginTokens,
+  resolveBundledAgentPlugin,
+} from "#src/features/agent-plugins/new-site-tokens";
 import {
   checkAgentPluginAccessToken as checkAgentPluginAccessTokenReal,
   listTokenSignInPlugins as listTokenSignInPluginsReal,
@@ -82,8 +88,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * server on a click). The response's `restartRequired`/`restartInstructions` fields exist so the
  * UI never has to hardcode that prose itself.
  *
- * `GET .../system/sites/token-sign-in-plugins` (2026-09-29) — the installed Agent Plugins that take a
- * pasted access token (`tovuTokenAuth`), so the create form can offer "connect it now". Create also
+ * `GET .../system/sites/token-sign-in-plugins` (2026-09-29) — the BUNDLED Agent Plugins (what the new
+ * site's first boot seeds, not this site's installs) that take a pasted access token (`tovuTokenAuth`),
+ * so the create form can offer "connect it now". Create also
  * takes an optional `agentPluginTokens: { [pluginId]: token }`: each is checked against the plugin's
  * probe URL first (a rejected one refuses the create, nothing made), then sealed with the NEW site's
  * key into its folder and applied on that site's first boot
@@ -166,8 +173,10 @@ async function checkTokensBeforeCreate(
 ): Promise<{ status: number; body: Record<string, unknown> } | null> {
   const check = deps.checkAgentPluginAccessToken ?? checkAgentPluginAccessTokenReal;
   const httpClient = deps.customCredentialsHttpClient;
+  const resolveInstalledPlugin = resolveBundledAgentPlugin(bundledAgentPluginsSourceRoot());
   const refusal = await firstNewSiteTokenRefusal(
-    async (input) => (httpClient ? check({ workspaceId: deps.workspaceId, httpClient }, input) : "unsupported"),
+    // Checked against the bundled plugin the NEW site's first boot seeds, not this site's install.
+    async (input) => (httpClient ? check({ workspaceId: deps.workspaceId, httpClient, resolveInstalledPlugin }, input) : "unsupported"),
     tokens,
   );
   return refusal ? { status: 400, body: refusal } : null;
@@ -258,7 +267,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         entityType: "site-registry",
       });
       if (!authorized) return;
-      const plugins = await (deps.listTokenSignInPlugins ?? listTokenSignInPluginsReal)(deps.workspaceId);
+      const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteTokenSignInPlugins()))(deps.workspaceId);
       res.status(200).json({ plugins });
     } catch (err) {
       console.error("[system/sites] unexpected error listing token sign-in plugins", err);

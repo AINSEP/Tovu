@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
@@ -122,4 +125,61 @@ test("GET token-sign-in-plugins lists the plugins that take a pasted token", asy
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${env.deps.workspaceId}/system/sites/token-sign-in-plugins`, { headers: { cookie } });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { plugins });
+});
+
+/** A bundled-plugins source dir holding one token-auth plugin, and an EMPTY current workspace: the
+ *  create form must offer (and check against) what the NEW site's first boot seeds, not what this
+ *  site happens to have installed. */
+function withBundledSource(t: { after: (fn: () => void) => void }): void {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "sites-route-bundled-"));
+  const emptyWorkspaces = fs.mkdtempSync(path.join(os.tmpdir(), "sites-route-ws-"));
+  const pluginDir = path.join(root, "fresh-vendor");
+  fs.mkdirSync(pluginDir);
+  fs.writeFileSync(path.join(pluginDir, "plugin.json"), JSON.stringify({ name: "fresh-vendor" }));
+  const tokenPluginServers = {
+    "fresh-vendor": {
+      type: "streamable-http",
+      url: "https://mcp.fresh-vendor.example/mcp",
+      tovuTokenAuth: { helpUrl: "https://fresh-vendor.example/tokens", probeUrl: "https://api.fresh-vendor.example/me" },
+    },
+  };
+  fs.writeFileSync(
+    path.join(pluginDir, "mcp.json"),
+    JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: tokenPluginServers }),
+  );
+  const previous = { bundled: process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR, installed: process.env.TOVU_AGENT_PLUGINS_DIR };
+  process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = root;
+  process.env.TOVU_AGENT_PLUGINS_DIR = emptyWorkspaces;
+  t.after(() => {
+    for (const [name, value] of [["TOVU_BUNDLED_AGENT_PLUGINS_DIR", previous.bundled], ["TOVU_AGENT_PLUGINS_DIR", previous.installed]] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(emptyWorkspaces, { recursive: true, force: true });
+  });
+}
+
+test("GET token-sign-in-plugins offers the bundled plugins a new site will have, not this site's installs", async (t) => {
+  withBundledSource(t);
+  const env = setup();
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(env.deps), t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${env.deps.workspaceId}/system/sites/token-sign-in-plugins`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { plugins: [{ pluginId: "fresh-vendor", displayName: "Fresh Vendor", helpUrl: "https://fresh-vendor.example/tokens" }] });
+});
+
+test("create checks each token against the bundled plugin the new site will have", async (t) => {
+  withBundledSource(t);
+  const resolved: Array<unknown> = [];
+  const env = setup({
+    checkAgentPluginAccessToken: async (deps, input) => {
+      resolved.push(deps.resolveInstalledPlugin ? await deps.resolveInstalledPlugin(input.pluginId) : "no bundled resolver");
+      return "ok";
+    },
+  });
+  const res = await create(env.deps, t, { name: "new-site", agentPluginTokens: { "fresh-vendor": TOKEN } });
+  assert.equal(res.status, 201);
+  assert.equal(resolved.length, 1);
+  assert.equal((resolved[0] as { servers?: Record<string, unknown> } | null)?.servers?.["fresh-vendor"] !== undefined, true, "resolved from the bundled source");
 });
