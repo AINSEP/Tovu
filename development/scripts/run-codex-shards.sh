@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs one Codex (`gpt-6.1-sol`, reasoning medium) job per prompt file, at most 5 at a time.
+# Runs one Codex (`gpt-6.1-sol`, reasoning $CODEX_EFFORT, default medium) job per prompt file, at most 5 at a time.
 #
 # Usage: development/scripts/run-codex-shards.sh <prompt-dir> <read-only|workspace-write> <out-dir>
 #
@@ -18,11 +18,16 @@ PROMPT_DIR=${1:?usage: run-codex-shards.sh <prompt-dir> <read-only|workspace-wri
 SANDBOX=${2:?sandbox mode: read-only | workspace-write}
 OUT_DIR=${3:?output dir}
 MAX_JOBS=${CODEX_SHARD_CONCURRENCY:-5}
+EFFORT=${CODEX_EFFORT:-medium}
 REPO=/Users/la/Programming/Tovu
 
 case "$SANDBOX" in
   read-only|workspace-write) ;;
   *) echo "sandbox must be read-only or workspace-write, got: $SANDBOX" >&2; exit 2 ;;
+esac
+case "$EFFORT" in
+  minimal|low|medium|high|xhigh) ;;
+  *) echo "CODEX_EFFORT must be minimal|low|medium|high|xhigh, got: $EFFORT" >&2; exit 2 ;;
 esac
 [ -d "$PROMPT_DIR" ] || { echo "no such prompt dir: $PROMPT_DIR" >&2; exit 2; }
 mkdir -p "$OUT_DIR"
@@ -63,7 +68,7 @@ run_shard() {
   local jsonl="$OUT_DIR/$shard.jsonl" err="$OUT_DIR/$shard.err"
   { printf '%s\n\n' '<<PEER_DISPATCH>>'; cat "$prompt"; } \
     | codex exec --ignore-rules --ignore-user-config --ephemeral --json -s "$SANDBOX" -m gpt-6.1-sol \
-        -c model_reasoning_effort=medium -C "$REPO" - > "$jsonl" 2> "$err"
+        -c model_reasoning_effort="$EFFORT" -C "$REPO" - > "$jsonl" 2> "$err"
   local rc=$?
   echo "[$shard] exit=$rc $(parse_run "$jsonl" "$OUT_DIR/$shard.md" "$OUT_DIR/$shard.failed")"
 }
