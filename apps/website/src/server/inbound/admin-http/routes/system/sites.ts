@@ -12,7 +12,7 @@ import {
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
 } from "#src/platform/site-dir/index";
-import { titleCaseFromPluginId } from "#src/features/agent-plugins/connect-tool";
+import { firstNewSiteTokenRefusal, parseNewSiteAgentPluginTokens } from "#src/features/agent-plugins/new-site-tokens";
 import {
   checkAgentPluginAccessToken as checkAgentPluginAccessTokenReal,
   listTokenSignInPlugins as listTokenSignInPluginsReal,
@@ -152,45 +152,25 @@ function parseCreateSiteName(
   return { ok: true, name };
 }
 
-const PLUGIN_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
-const MAX_AGENT_PLUGIN_TOKENS = 8;
-const MAX_TOKEN_LENGTH = 4096;
-
-/** The create body's optional `agentPluginTokens`, trimmed, blanks dropped. Never echoes a token.
- *  @complexity O(n) in the entry count (bounded). */
+/** The create body's optional `agentPluginTokens` (`new-site-tokens.ts`, shared with `tovu init`). */
 function parseAgentPluginTokens(body: unknown): { ok: true; tokens: Record<string, string> } | { ok: false; body: ValidationErrorBody } {
-  const raw = (body as Record<string, unknown> | null | undefined)?.agentPluginTokens;
-  if (raw === undefined || raw === null) return { ok: true, tokens: {} };
-  const invalid = { ok: false as const, body: { error: "'agentPluginTokens' must map plugin ids to token strings", code: "VALIDATION_ERROR" as const } };
-  if (typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length > MAX_AGENT_PLUGIN_TOKENS) return invalid;
-  const tokens: Record<string, string> = {};
-  for (const [pluginId, value] of Object.entries(raw)) {
-    if (!PLUGIN_ID_PATTERN.test(pluginId) || typeof value !== "string" || value.length > MAX_TOKEN_LENGTH) return invalid;
-    if (value.trim() !== "") tokens[pluginId] = value.trim();
-  }
-  return { ok: true, tokens };
+  const parsed = parseNewSiteAgentPluginTokens((body as Record<string, unknown> | null | undefined)?.agentPluginTokens);
+  return parsed.ok ? parsed : { ok: false, body: { error: parsed.error, code: "VALIDATION_ERROR" } };
 }
 
-/** The refusal for a token that failed its check, or `null` when every token may be stored. A token
- *  the vendor could not be reached to check is still stored: the new site's first use tells. */
+/** The refusal for a token that failed its check, or `null` when every token may be stored. No
+ *  guarded HTTP client in these deps means no check can run: every token is then `unsupported`. */
 async function checkTokensBeforeCreate(
   deps: AdminSitesDeps,
   tokens: Readonly<Record<string, string>>,
 ): Promise<{ status: number; body: Record<string, unknown> } | null> {
   const check = deps.checkAgentPluginAccessToken ?? checkAgentPluginAccessTokenReal;
-  for (const [pluginId, token] of Object.entries(tokens)) {
-    const name = titleCaseFromPluginId(pluginId);
-    const outcome = deps.customCredentialsHttpClient
-      ? await check({ workspaceId: deps.workspaceId, httpClient: deps.customCredentialsHttpClient }, { pluginId, token })
-      : "unsupported";
-    if (outcome === "invalid") {
-      return { status: 400, body: { error: `That ${name} access token didn't work. Check it, or leave it empty and connect ${name} later from chat. No site was created.`, code: "AGENT_PLUGIN_TOKEN_INVALID", pluginId } };
-    }
-    if (outcome === "unsupported") {
-      return { status: 400, body: { error: `${name} can't be connected with an access token here. Leave it empty and connect it later from chat. No site was created.`, code: "AGENT_PLUGIN_TOKEN_UNSUPPORTED", pluginId } };
-    }
-  }
-  return null;
+  const httpClient = deps.customCredentialsHttpClient;
+  const refusal = await firstNewSiteTokenRefusal(
+    async (input) => (httpClient ? check({ workspaceId: deps.workspaceId, httpClient }, input) : "unsupported"),
+    tokens,
+  );
+  return refusal ? { status: 400, body: refusal } : null;
 }
 
 /** Seals the checked tokens into the new site. The site already exists, so a failure here is

@@ -5,6 +5,14 @@ import { ValidationError } from "../../platform/site-dir/errors.js";
 import { initSite } from "../../platform/site-dir/init-site.js";
 import { readSiteDir } from "../../platform/site-dir/read-site-dir.js";
 import type { SiteStorage } from "../../platform/site-dir/types.js";
+import {
+  assertNewSiteTokensAccepted,
+  defaultNewSiteTokenCheck,
+  readNewSiteTokensFromStdin,
+  storeNewSiteTokens,
+  type NewSiteTokenCheck,
+  type SealNewSiteTokens,
+} from "./agent-plugin-tokens.js";
 
 /**
  * @file SPEC-003 C-001 (`CLI_INIT`) — wires a commander action's parsed arguments to
@@ -24,6 +32,15 @@ export interface RunInitCommandInput {
   storageEnv?: string;
   /** Postgres without `--storage-env`: where the connection string to seal comes from (default: a terminal prompt, else stdin). */
   readConnectionString?: () => Promise<string>;
+  /** `--agent-plugin-tokens-stdin`: read `{ [pluginId]: token }` JSON from stdin, check each token,
+   *  and seal them into the new site for its first boot (`agent-plugin-tokens.ts`). */
+  agentPluginTokensStdin?: boolean;
+  /** Injected for tests. Default: all of stdin. */
+  readAgentPluginTokens?: () => Promise<string>;
+  /** Injected for tests. Default: the bundled plugins' probe over the guarded client. */
+  checkAgentPluginToken?: NewSiteTokenCheck;
+  /** Injected for tests. Default: `sealPendingAgentPluginTokensForNewSite`. */
+  sealAgentPluginTokens?: SealNewSiteTokens;
 }
 
 const STORAGE_KINDS = ["sqlite", "pglite", "postgres"] as const;
@@ -80,6 +97,12 @@ export async function readConnectionStringFromUser(): Promise<string> {
 export async function runInitCommand(input: RunInitCommandInput): Promise<void> {
   const storage = parseInitStorage(input.storage, input.storageEnv);
   const sealed = storage.kind === "postgres" && storage.secretRef === "site";
+  if (sealed && input.agentPluginTokensStdin && !input.readConnectionString) {
+    throw new ValidationError("init: --agent-plugin-tokens-stdin cannot share stdin with a Postgres connection string; use --storage-env");
+  }
+  // Read and checked BEFORE the site is made: a rejected token creates nothing.
+  const tokens = input.agentPluginTokensStdin ? await readNewSiteTokensFromStdin(input.readAgentPluginTokens) : {};
+  if (Object.keys(tokens).length > 0) await assertNewSiteTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteTokenCheck());
   const connectionString = sealed ? (await (input.readConnectionString ?? readConnectionStringFromUser)()).trim() : undefined;
   const result = await initSite({ dir: input.dir, name: input.name, storage, connectionString });
   // Read the ACTUAL written config.json back (rather than re-deriving the name here) so the
@@ -87,4 +110,5 @@ export async function runInitCommand(input: RunInitCommandInput): Promise<void> 
   const { config } = readSiteDir({ dir: result.dir });
   process.stdout.write(`created site '${config.name}' at ${result.dir}\n`);
   process.stdout.write(`next: tovu serve ${result.dir}\n`);
+  await storeNewSiteTokens(result, tokens, input.sealAgentPluginTokens);
 }

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
 import { runAdoptCommand } from "./commands/adopt.js";
+import { runTokenSignInPluginsCommand } from "./commands/agent-plugin-tokens.js";
 import { deployConfigTargetOptionHelp, runDeployConfigCommand } from "./commands/deploy-config.js";
 import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
@@ -48,8 +49,25 @@ export function createProgram(): Command {
     .option("--name <name>", "site display name (defaults to the directory's basename)")
     .option("--storage <kind>", "where the site keeps its data: sqlite (default), pglite, or postgres")
     .option("--storage-env <name>", "postgres: read the connection string from this environment variable (default: asked for once and sealed in the site folder)")
-    .action(async (dir: string, options: { name?: string; storage?: string; storageEnv?: string }) => {
-      await runInitCommand({ dir, name: options.name, storage: options.storage, storageEnv: options.storageEnv });
+    .option("--agent-plugin-tokens-stdin", "read {\"<pluginId>\": \"<access token>\"} JSON from stdin; each token is checked, then connects that plugin when the site first starts")
+    .action(async (dir: string, options: { name?: string; storage?: string; storageEnv?: string; agentPluginTokensStdin?: boolean }) => {
+      await runInitCommand({
+        dir,
+        name: options.name,
+        storage: options.storage,
+        storageEnv: options.storageEnv,
+        agentPluginTokensStdin: options.agentPluginTokensStdin === true,
+      });
+    });
+
+  program
+    .command("agent-plugins")
+    .description("Agent Plugin commands")
+    .command("token-sign-in")
+    .description("list the bundled Agent Plugins a new site can connect with a pasted access token")
+    .option("--json", "print JSON (the only format)")
+    .action(async () => {
+      await runTokenSignInPluginsCommand();
     });
 
   program
