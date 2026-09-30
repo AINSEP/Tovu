@@ -46,6 +46,7 @@ import { executionModeFromEnv } from "#src/features/deployments/publish-credenti
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+import { loadCredentialSchemeRegistryFromSource } from "#src/features/custom-credentials/auth-schemes";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
@@ -1278,6 +1279,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `loadSourceControlProviders` doc.
     loadSourceControlProviders: () =>
       loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "github") }),
+    // And the bundled deploy plugin's credential scheme rules — see `routes/types.ts`'s `loadAuthSchemes` doc.
+    loadAuthSchemes: async () =>
+      (await loadCredentialSchemeRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") })).rules,
     // 2026-08-16 — hermetic double for `server/deps.ts`'s real (also in-memory — see
     // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
     // deliberately never DB-backed) instance.

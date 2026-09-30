@@ -63,6 +63,7 @@ import type { PublishExecutionMode } from "../../features/deployments/publish-cr
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
 import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
+import type { CredentialSchemeRule } from "../../features/custom-credentials/auth-schemes.js";
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
@@ -1802,6 +1803,12 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * Agent Plugins; `server/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
    */
   loadSourceControlProviders?: LoadSourceControlProviders;
+  /**
+   * This workspace's self-describing token scheme rules (`custom-credentials/auth-schemes.ts`), read
+   * by `custom_credential_make_request`/`_verify`. Omitted by `server/deps.ts`, so those read the
+   * installed plugins; `server/app.ts`'s hermetic root reads the bundled `deploy` plugin's source.
+   */
+  loadAuthSchemes?: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
   /**
    * 2026-08-16 — cached, non-secret provider-verification results for the saved publish credentials'
    * (or the env-var fallback's) credentials, keyed by `(workspaceId, target)`. Fixes "ready means a

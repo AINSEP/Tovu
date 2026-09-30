@@ -13,6 +13,7 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../store
 import { InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
 
 /**
  * @file Certification of `custom_credential_make_request`'s DELETE confirmation gate
@@ -91,6 +92,8 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
       return { newId: () => `deps-cred-${++n}` };
     })(),
     customCredentialsHttpClient: httpClient,
+    // The bundled deploy plugin's scheme rules from source, as the hermetic root passes them.
+    loadAuthSchemes: loadBundledAuthSchemes,
     customCredentialsAudit: audit,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -519,6 +522,21 @@ test("GET runs immediately with no confirmation, no emitSurface required, and th
   assert.equal(httpClient.calls[0]!.method, "GET");
   assert.equal(sealer.openCalls, 1);
   assert.equal(surfaceExchanges.size(), 0, "GET must never open a confirmation exchange");
+});
+
+test("the tool reads its token scheme rules through the injected loadAuthSchemes, for this workspace", async () => {
+  const { deps, httpClient, writeDeps } = fakeRouteDeps({ httpResponses: [{ status: 200, headers: {}, bodyText: "{}" }] });
+  await seedFlyIo(writeDeps);
+  const seen: string[] = [];
+  const getTool = tool(
+    buildRegistrations({ ...deps, loadAuthSchemes: async ({ workspaceId }) => (seen.push(workspaceId), loadBundledAuthSchemes()) }, createSurfaceExchangeStore()),
+    TOOL_ID,
+  );
+
+  await call(getTool, { input: { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" } });
+
+  assert.deepEqual(seen, [WORKSPACE_ID]);
+  assert.equal(httpClient.calls.length, 1);
 });
 
 test("POST runs immediately with no confirmation and sends the given body", async () => {

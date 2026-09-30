@@ -40,6 +40,7 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential } from "../store.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
+import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
 
 const WORKSPACE_ID = "ws-cred-model-facing";
 const PRINCIPAL_ID = "principal-under-test";
@@ -87,6 +88,8 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
     idGen,
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
+    // The bundled deploy plugin's scheme rules from source, as the hermetic root passes them.
+    loadAuthSchemes: loadBundledAuthSchemes,
     customCredentialsAudit: new InMemoryCredentialedRequestAuditLog(),
     authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
