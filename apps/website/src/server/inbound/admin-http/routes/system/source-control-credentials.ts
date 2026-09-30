@@ -11,6 +11,7 @@ import {
   updateSourceControlCredential,
   type SourceControlCredentialSummary,
 } from "#src/features/source-control/index";
+import { loadInstalledSourceControlProviders } from "#src/features/source-control/provider-registry";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -18,7 +19,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  * @file Admin Source Control page's credential CRUD backend.
  *
  * Registers `GET`/`POST` on the collection and `PUT`/`DELETE` on a single credential set, all under
- * `/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials`. Deliberately a THIN
+ * `/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials`, plus `GET
+ * .../system/source-control/providers` (the plugin-declared hosts and their credential forms). Deliberately a THIN
  * HTTP adapter over `features/source-control/store.ts` — every validation, uniqueness, and
  * default-slot rule already lives there; this route's only job is: check auth, shape the request
  * into `store.ts`'s input types, map its thrown errors to HTTP status codes, and return
@@ -59,6 +61,8 @@ const PERMISSION = "source-control.credentials.write";
 const ENTITY_TYPE = "source-control";
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials";
+/** The git hosts this workspace's enabled Agent Plugins provide, with each one's credential form. */
+const PROVIDERS_PATH = "/api/admin/v1/workspaces/:workspaceId/system/source-control/providers";
 
 /** Every error this route can produce, shaped once so each handler below stays a thin dispatch.
  *  Mirrors `publish-credentials.ts`'s own `sendStoreError`, including its 2026-08-16 fix: the
@@ -125,6 +129,28 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     }
     return false;
   }
+
+  // The hosts the page renders a row for, from the plugins (the way `publish-targets` lists deploy
+  // hosts): id, label and the declared credential form. `switchedOff` names each host an installed
+  // but switched-off plugin declares, so the page can say which plugin to turn back on. Plugin load
+  // refusals go to the server log, never the response.
+  app.get(PROVIDERS_PATH, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    try {
+      const registry = await (deps.loadSourceControlProviders ?? loadInstalledSourceControlProviders)(deps.workspaceId);
+      for (const refusal of registry.refusals) console.warn(`[source-control-providers] ${refusal}`);
+      res.status(200).json({
+        providers: registry.list().map(({ descriptor }) => ({
+          id: descriptor.id,
+          label: descriptor.label,
+          ...(descriptor.credential !== undefined ? { credential: descriptor.credential } : {}),
+        })),
+        switchedOff: [...(registry.switchedOff ?? [])].map(([id, pluginId]) => ({ id, pluginId })),
+      });
+    } catch (err) {
+      sendStoreError(res, err);
+    }
+  });
 
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;

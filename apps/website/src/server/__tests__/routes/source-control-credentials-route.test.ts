@@ -221,3 +221,26 @@ test("source-control-credentials: a duplicate (provider, label) 409s with DUPLIC
   const list = await (await fetch(base, { headers: { cookie } })).json();
   assert.equal(list.credentials.length, 1);
 });
+
+test("source-control providers: lists the github plugin's host with its declared credential form; a bare principal gets 403", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/source-control/providers`;
+
+  const res = await fetch(url, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { providers: { id: string; label: string; credential?: { tokenPageUrl?: string; help?: string; tokenField: string; fields: { name: string; required: boolean; secret?: true }[] } }[]; switchedOff: unknown[] };
+  assert.deepEqual(body.providers.map((provider) => [provider.id, provider.label]), [["github", "GitHub"]]);
+  const credential = body.providers[0]!.credential!;
+  assert.equal(credential.tokenPageUrl, "https://github.com/settings/personal-access-tokens/new");
+  assert.equal(credential.tokenField, "token");
+  assert.deepEqual(credential.fields, [{ name: "token", label: "Token", required: true, secret: true }]);
+  assert.match(credential.help ?? "", /^Needs a fine-grained personal access token/);
+  assert.deepEqual(body.switchedOff, []);
+  assert.equal(JSON.stringify(body).includes("module"), false, "the plugin's module path is server-internal");
+
+  const bare = await loginAsBarePrincipal(deps, baseUrl);
+  assert.equal((await fetch(url, { headers: { cookie: bare } })).status, 403);
+  assert.equal((await fetch(url.replace(deps.workspaceId, "not-the-real-workspace"), { headers: { cookie } })).status, 404);
+});

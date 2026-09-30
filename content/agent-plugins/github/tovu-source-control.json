@@ -6,8 +6,23 @@
       "label": "GitHub",
       "apiOrigin": "https://api.github.com",
       "maxFileBytes": 104857600,
-      "reservedPaths": [".github"],
-      "module": "source-control/github.mjs"
+      "reservedPaths": [
+        ".github"
+      ],
+      "module": "source-control/github.mjs",
+      "credential": {
+        "tokenPageUrl": "https://github.com/settings/personal-access-tokens/new",
+        "help": "Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the \"repo\" scope also works, but reaches every repository this account can access — prefer the fine-grained token.",
+        "tokenField": "token",
+        "fields": [
+          {
+            "name": "token",
+            "label": "Token",
+            "required": true,
+            "secret": true
+          }
+        ]
+      }
     }
   ]
 }

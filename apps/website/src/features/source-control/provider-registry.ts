@@ -4,6 +4,7 @@ import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile
 
 import type { HttpClientPort } from "#src/platform/http/index";
 
+import { parseSourceControlCredentialForm, type SourceControlCredentialForm } from "./credential-form.js";
 import { createSourceControlProviderKit } from "./provider-kit.js";
 import type { SourceControlHostFacts, SourceControlProvider, SourceControlProviderKit, SourceControlProviderModule } from "./provider-module.js";
 
@@ -14,7 +15,8 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
  * credential form.
  *
  * A plugin opts in by shipping {@link SOURCE_CONTROL_PROVIDERS_FILENAME} at its root: a data-only list
- * of `{ id, label, apiOrigin, maxFileBytes?, reservedPaths?, module }`. `id` is the `source_control_credential_sets.provider_id`
+ * of `{ id, label, apiOrigin, maxFileBytes?, reservedPaths?, module, credential? }` (`credential`: the
+ * admin's saved-credential form, `./credential-form.ts`). `id` is the `source_control_credential_sets.provider_id`
  * the provider serves; `label`, `apiOrigin` and `maxFileBytes` are the host facts core copy and checks
  * name (`SourceControlHostFacts`), so no tool text hard-codes a host; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
  * `SourceControlProviderModule` (`features/source-control/provider-module.ts`).
@@ -35,6 +37,8 @@ const MAX_LABEL_LENGTH = 100;
 export interface SourceControlProviderDescriptor extends SourceControlHostFacts {
   /** Plugin-relative path of the `.mjs` module. */
   readonly module: string;
+  /** The admin's saved-credential form for this host (`./credential-form.ts`). */
+  readonly credential?: SourceControlCredentialForm;
 }
 
 export interface LoadedSourceControlProvider {
@@ -176,12 +180,14 @@ export function parseSourceControlProvidersFile(raw: string): ParseResult {
 function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, label, apiOrigin, maxFileBytes, reservedPaths, module } = entry;
+  const credential = parseSourceControlCredentialForm(entry.credential, `${at}.credential`);
   if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
   if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
   if (typeof apiOrigin !== "string" || !isHttpsOrigin(apiOrigin)) return `${at}.apiOrigin must be an https origin with no path`;
   if (maxFileBytes !== undefined && !(Number.isSafeInteger(maxFileBytes) && (maxFileBytes as number) > 0)) return `${at}.maxFileBytes must be a positive integer`;
   if (reservedPaths !== undefined && !isReservedPathList(reservedPaths)) return `${at}.reservedPaths must be a list of at most ${MAX_RESERVED_PATHS} relative folder paths`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
+  if (typeof credential === "string") return credential;
   return {
     id,
     label,
@@ -189,6 +195,7 @@ function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescr
     ...(maxFileBytes !== undefined ? { maxFileBytes: maxFileBytes as number } : {}),
     ...(reservedPaths !== undefined ? { reservedPaths } : {}),
     module,
+    ...(credential !== undefined ? { credential } : {}),
   };
 }
 
