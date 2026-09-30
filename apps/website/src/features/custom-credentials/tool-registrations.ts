@@ -71,7 +71,7 @@ import {
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
 import { buildWriteFilesConfirmationResource, WRITE_FILES_TOOL_ID, type WriteFilesConfirmationFileSpec } from "./write-files-confirmation-ui.js";
-import { isWorkflowPath, validateWriteFilesInput, type NormalizedWriteFile, type ValidatedWriteFilesInput } from "./write-files-validation.js";
+import { isWorkflowPath, validateRepositoryTarget, validateWriteFilesInput, type NormalizedWriteFile, type ValidatedWriteFilesInput } from "./write-files-validation.js";
 
 /**
  * @file Wires `agent-tools.ts`'s three-tool catalog onto `credentialed-request.ts`'s domain logic (plus
@@ -1344,15 +1344,17 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // Writes one or more named files into a saved credential's repository, in one atomic commit, ALWAYS
     // gated behind an in-chat confirmation naming every path — see this file's header,
     // "custom_credential_write_files", for the full design. Shape/path/size validation
-    // (`validateWriteFilesInput`) and the read-only branch/tree/existence reconnaissance
-    // (the provider's `planFileWrite`) both run BEFORE the dialog is opened, same ordering the DELETE gate above
-    // uses: a malformed call or a nonexistent branch is refused with no dialog and no confirmation spent.
+    // (`validateWriteFilesInput`), the host's owner/repo rules (`validateRepositoryTarget`, once the
+    // credential's base URL names the host, still before any decrypt) and the read-only
+    // branch/tree/existence reconnaissance (the provider's `planFileWrite`) all run BEFORE the dialog is
+    // opened, same ordering the DELETE gate above uses: a malformed call or a nonexistent branch is
+    // refused with no dialog and no confirmation spent.
     custom_credential_write_files: async (ctx): Promise<WriteFilesResult> => {
       const input = requireInputRecord(ctx.input);
       const label = requireString(input, "label");
-      const validated = await withSchemaOnRejection(
-        { toolId: WRITE_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isWriteFilesShapeRejection },
-        async () => validateWriteFilesInput({ owner: input.owner, repo: input.repo, branch: input.branch, commitMessage: input.commitMessage, files: input.files })
+      const shapeRejection = { toolId: WRITE_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isWriteFilesShapeRejection };
+      const request = await withSchemaOnRejection(shapeRejection, async () =>
+        validateWriteFilesInput({ branch: input.branch, commitMessage: input.commitMessage, files: input.files })
       );
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
 
@@ -1368,25 +1370,30 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         );
       }
 
-      // A DECRYPTING resolve — unlike DELETE's non-decrypting `resolveRequestTarget` pre-check, this
-      // tool has no cheaper way to learn whether the label exists: `resolveCustomCredentialByLabel`
-      // itself never decrypts for a label with no matching row (see `store.ts`'s own doc), so a bad
-      // label still costs no decrypt; a real label's own decrypt is unavoidable here because the very
-      // next step (the plan phase's read-only GitHub calls) needs the token regardless of whether the
-      // human goes on to confirm.
-      const resolved = await resolveCustomCredentialByLabel({ repo: routeDeps.customCredentialSetRepo, sealer: routeDeps.siteAssistantSecretSealer }, { workspaceId: routeDeps.workspaceId, label });
-      if (!resolved) {
+      // The host first, from the credential's plaintext base URL (no decrypt): its owner/repo rules
+      // decide whether this call is well formed at all.
+      const summary = await describeCredentialByLabel({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, label });
+      if (!summary) {
         throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
       }
-
       const built = await buildSourceControlProviderForApi({
         ...(routeDeps.loadSourceControlProviders ? { load: routeDeps.loadSourceControlProviders } : {}),
         workspaceId: routeDeps.workspaceId,
-        baseUrl: resolved.baseUrl,
+        baseUrl: summary.baseUrl,
         httpClient: routeDeps.customCredentialsHttpClient,
       });
       if (!built.ok) throw new Error(`custom_credential_write_files: ${built.message}`);
       const provider = built.provider;
+      const target = await withSchemaOnRejection(shapeRejection, async () => validateRepositoryTarget({ owner: input.owner, repo: input.repo }, provider.validateTarget));
+      const validated: ValidatedWriteFilesInput = { ...request, ...target };
+
+      // A DECRYPTING resolve: the plan phase's read-only host calls need the token regardless of
+      // whether the human goes on to confirm. The row was just seen above; one deleted in between
+      // is the same not-found refusal.
+      const resolved = await resolveCustomCredentialByLabel({ repo: routeDeps.customCredentialSetRepo, sealer: routeDeps.siteAssistantSecretSealer }, { workspaceId: routeDeps.workspaceId, label });
+      if (!resolved) {
+        throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
+      }
 
       const planResult = await provider.planFileWrite({ ...writeTarget(resolved, validated), branch: validated.branch, files: validated.files });
       if (!planResult.ok) {

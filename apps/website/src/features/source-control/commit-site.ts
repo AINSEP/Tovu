@@ -7,6 +7,7 @@ import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
 
 import type { CommitFile, RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
+import { repositoryTargetError } from "./repository-target.js";
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
@@ -51,18 +52,10 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  * redundant).
  */
 
-/** Owner and repo, whatever the host: one URL path segment each, so never empty, never `.`/`..`,
- *  never a slash, whitespace or control character. The host's own, stricter rules are its plugin's
- *  (`SourceControlProviderModule.validateTarget`). */
-const GENERIC_SEGMENT_PATTERN = /^[^\s/\\\x00-\x1f\x7f]{1,100}$/;
 /** Git branch name — permissive (real branch names allow far more), but refuses whitespace/control
  *  characters before the value reaches a URL path segment. */
 const BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,250}$/;
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
-
-function isGenericSegment(value: string): boolean {
-  return GENERIC_SEGMENT_PATTERN.test(value) && value !== "." && value !== "..";
-}
 
 /**
  * Validates a commit target's shape. Called twice by design: once by `tool-registrations.ts`'s handler
@@ -71,9 +64,8 @@ function isGenericSegment(value: string): boolean {
  * `validateStaticPublishConfig` call), and again here, defense-in-depth, for any future caller of
  * {@link commitSiteToSourceControl} that skips the tool layer's own check.
  *
- * Owner/repo rules belong to the host: `validateTarget` is the plugin module's own check (GitHub's
- * name patterns and its "invalid GitHub owner" text live in the `github` plugin), run first. The
- * generic one-safe-path-segment rule then applies to every host, with or without its own check.
+ * Owner/repo rules belong to the host: `validateTarget` is the plugin module's own check, run first,
+ * then the generic one-path-segment rule (`./repository-target.ts`, shared with the other writers).
  *
  * @returns `null` when valid, else a human-readable reason safe to return over a tool-result boundary
  *   (never echoes more than the offending field, capped, never a token — there is none in scope here).
@@ -83,10 +75,8 @@ export function validateCommitTarget(
   input: { owner: string; repo: string; branch?: string; commitMessage: string },
   validateTarget?: RepositoryTargetValidator,
 ): string | null {
-  const hostError = validateTarget?.({ owner: input.owner, repo: input.repo }) ?? null;
-  if (hostError !== null) return hostError;
-  if (!isGenericSegment(input.owner)) return `invalid owner '${input.owner.slice(0, 60)}'`;
-  if (!isGenericSegment(input.repo)) return `invalid repo '${input.repo.slice(0, 100)}'`;
+  const targetError = repositoryTargetError({ owner: input.owner, repo: input.repo }, validateTarget);
+  if (targetError !== null) return targetError;
   if (input.branch !== undefined && !BRANCH_PATTERN.test(input.branch)) return `invalid branch name '${input.branch.slice(0, 60)}'`;
   if (input.commitMessage.trim() === "" || input.commitMessage.length > MAX_COMMIT_MESSAGE_LENGTH) {
     return `commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`;

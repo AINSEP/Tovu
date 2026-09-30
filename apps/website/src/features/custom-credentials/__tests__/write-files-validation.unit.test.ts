@@ -1,37 +1,47 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { githubValidateTarget } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { CustomCredentialValidationError } from "../store.js";
-import { isWorkflowPath, normalizeWriteFilePath, validateWriteFilesInput, WRITE_FILES_LIMITS } from "../write-files-validation.js";
+import { isWorkflowPath, normalizeWriteFilePath, validateRepositoryTarget, validateWriteFilesInput, WRITE_FILES_LIMITS } from "../write-files-validation.js";
 
 /**
  * @file `write-files-validation.ts` — every refusal here must fire BEFORE `custom_credential_write_files`
- * ever resolves a credential or makes a network call (this file's own header). Covers: owner/repo/
+ * ever resolves a credential or makes a network call (this file's own header; owner/repo run once the
+ * host is known, before any decrypt). Covers: owner/repo (the host's rules, then the generic one),
  * branch/commitMessage shape, path safety (absolute, `..`, NUL, oversized, reserved `.git`), the
  * per-file/aggregate size caps, the file-count cap, duplicate-path detection, and `isWorkflowPath`'s
  * exact-match contract.
  */
 
-const VALID = { owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
+const VALID = { branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
+const github = await githubValidateTarget();
 
 test("a well-formed call validates and normalizes cleanly", () => {
   const result = validateWriteFilesInput(VALID);
-  assert.deepEqual(result, { owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] });
+  assert.deepEqual(result, { branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] });
+  assert.deepEqual(validateRepositoryTarget({ owner: "octo", repo: "demo" }, github), { owner: "octo", repo: "demo" });
 });
 
 // ---------------------------------------------------------------------------
 // owner / repo / branch / commitMessage shape
 // ---------------------------------------------------------------------------
 
-test("rejects an invalid owner", () => {
-  assert.throws(() => validateWriteFilesInput({ ...VALID, owner: "-bad-owner" }), CustomCredentialValidationError);
-  assert.throws(() => validateWriteFilesInput({ ...VALID, owner: "" }), CustomCredentialValidationError);
-  assert.throws(() => validateWriteFilesInput({ ...VALID, owner: 42 }), CustomCredentialValidationError);
+test("rejects an invalid owner with the host's own text first", () => {
+  assert.throws(() => validateRepositoryTarget({ owner: "-bad-owner", repo: "demo" }, github), new CustomCredentialValidationError("invalid GitHub owner '-bad-owner'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "", repo: "demo" }, github), new CustomCredentialValidationError("invalid GitHub owner ''"));
+  assert.throws(() => validateRepositoryTarget({ owner: 42, repo: "demo" }, github), new CustomCredentialValidationError("invalid owner '42'"));
 });
 
-test("rejects an invalid repo", () => {
-  assert.throws(() => validateWriteFilesInput({ ...VALID, repo: ".." }), CustomCredentialValidationError);
-  assert.throws(() => validateWriteFilesInput({ ...VALID, repo: "has spaces" }), CustomCredentialValidationError);
+test("rejects an invalid repo with the host's own text first", () => {
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ".." }, github), new CustomCredentialValidationError("invalid GitHub repo '..'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: "has spaces" }, github), new CustomCredentialValidationError("invalid GitHub repo 'has spaces'"));
+});
+
+test("a host with no rules of its own still gets the generic one-path-segment rule", () => {
+  assert.throws(() => validateRepositoryTarget({ owner: "a/b", repo: "demo" }), new CustomCredentialValidationError("invalid owner 'a/b'"));
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ".." }), new CustomCredentialValidationError("invalid repo '..'"));
+  assert.deepEqual(validateRepositoryTarget({ owner: "Group.Name", repo: "site" }), { owner: "Group.Name", repo: "site" });
 });
 
 test("rejects an invalid branch", () => {

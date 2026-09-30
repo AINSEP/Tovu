@@ -444,6 +444,18 @@ test("the github plugin's reserved '.github' folder is refused case-insensitivel
   assert.equal(h.github.calls.length, 0);
 });
 
+// 2026-09-29: owner/repo rules are the host's (the github plugin's validateTarget), checked once the
+// credential names the host; the GitHub text is unchanged.
+test("an owner or repo GitHub refuses keeps GitHub's own text, before any GitHub call", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const owner = await rejection(call(h.planTool, { ...PLAN_INPUT, owner: "-bad" }));
+  assert.equal(owner.message, "SITE_BACKUP_INVALID_INPUT: invalid GitHub owner '-bad'");
+  const repo = await rejection(call(h.planTool, { ...PLAN_INPUT, repo: ".." }));
+  assert.equal(repo.message, "SITE_BACKUP_INVALID_INPUT: invalid GitHub repo '..'");
+  assert.equal(h.github.calls.length, 0);
+});
+
 test("a runtime without a site folder answers UNAVAILABLE", async (t) => {
   const h = harness(t, { withoutSources: true });
   await h.seed();

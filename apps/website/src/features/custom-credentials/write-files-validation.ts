@@ -1,3 +1,6 @@
+import type { RepositoryTargetValidator } from "../source-control/provider-module.js";
+import { repositoryTargetError } from "../source-control/repository-target.js";
+
 import { CustomCredentialValidationError } from "./store.js";
 
 /**
@@ -8,17 +11,20 @@ import { CustomCredentialValidationError } from "./store.js";
  * `features/agent-plugins/package-paths.ts`'s "cheap majority of attempts caught before any
  * filesystem call" split.
  *
- * `OWNER_PATTERN`/`REPO_PATTERN`/`BRANCH_PATTERN`/`MAX_COMMIT_MESSAGE_LENGTH` are byte-identical to
+ * Owner and repo are the one exception to "before the credential is resolved": their rules belong to
+ * the git host (`features/source-control/repository-target.ts`: the host plugin's own
+ * `validateTarget`, then a generic one-path-segment rule), and the host is known only from the saved
+ * credential's base URL. So {@link validateRepositoryTarget} runs once the caller has picked the
+ * provider from that URL, still before any decrypt, network call or dialog.
+ *
+ * `BRANCH_PATTERN`/`MAX_COMMIT_MESSAGE_LENGTH` are byte-identical to
  * `features/source-control/commit-site.ts`'s own constants of the same name — copied, not imported,
- * per this codebase's established convention for a tiny cross-feature constant (that file's own
- * `OWNER_PATTERN` doc: "copied, not imported... no dependency on `features/deployments/**`"; the
- * same reasoning applies here in reverse — this domain has no dependency on `features/source-control`,
- * and the dispatch that added this file was explicitly told not to add one).
+ * per this codebase's established convention for a tiny cross-feature constant.
  *
  * The path-safety rule set is the LEXICAL half of `package-paths.ts`'s `normalizePackageEntryPath`
  * (reject NUL, absolute paths, a Windows drive prefix, `..` segments) — never its filesystem half
  * (`assertContainedOnDisk`'s `realpath` containment check), because there is no local filesystem
- * write here to protect: every validated path becomes a `path` field in a GitHub git-tree entry, a
+ * write here to protect: every validated path becomes a `path` field in a git-tree entry on the host, a
  * remote API call this process never resolves against its own disk. One rule has no
  * `package-paths.ts` analog: a normalized path that IS (or is nested under) `.git` — case-insensitively
  * — is refused outright. That directory name is git's own reserved metadata location; committing a
@@ -28,11 +34,6 @@ import { CustomCredentialValidationError } from "./store.js";
  * hole from the other direction for any client that has not been patched.
  */
 
-/** GitHub owner/org name: alphanumeric, may contain single hyphens, cannot start with one, capped at
- *  GitHub's own 39-character username limit. */
-const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-/** GitHub repo name: letters, digits, `.`/`-`/`_`, capped at GitHub's own 100-character limit. */
-const REPO_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
 /** Git branch name — permissive (real branch names allow far more), but refuses whitespace/control
  *  characters before the value reaches a URL path segment. */
 const BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,250}$/;
@@ -69,27 +70,33 @@ export interface NormalizedWriteFile {
   readonly content: string;
 }
 
-/** The fully validated, normalized shape {@link validateWriteFilesInput} returns. */
-export interface ValidatedWriteFilesInput {
-  readonly owner: string;
-  readonly repo: string;
+/** The host-independent half {@link validateWriteFilesInput} returns. */
+export interface WriteFilesRequest {
   readonly branch: string;
   readonly commitMessage: string;
   readonly files: readonly NormalizedWriteFile[];
 }
 
-export function validateOwner(value: unknown): string {
-  if (typeof value !== "string" || !OWNER_PATTERN.test(value)) {
-    throw new CustomCredentialValidationError(`invalid GitHub owner '${typeof value === "string" ? value.slice(0, 60) : String(value)}'`);
-  }
-  return value;
+/** The fully validated call: {@link WriteFilesRequest} plus the {@link validateRepositoryTarget} target. */
+export interface ValidatedWriteFilesInput extends WriteFilesRequest {
+  readonly owner: string;
+  readonly repo: string;
 }
 
-export function validateRepo(value: unknown): string {
-  if (typeof value !== "string" || !REPO_PATTERN.test(value) || value === "." || value === "..") {
-    throw new CustomCredentialValidationError(`invalid GitHub repo '${typeof value === "string" ? value.slice(0, 100) : String(value)}'`);
-  }
-  return value;
+/**
+ * Owner and repo for the git host that will receive the write: the host's own rules (its plugin
+ * module's `validateTarget`, e.g. "invalid GitHub owner 'x'"), then the generic one-path-segment
+ * rule. See this file's header for why this runs after the provider is picked.
+ *
+ * @throws {CustomCredentialValidationError} Either value is not a string or fails a rule.
+ * @complexity O(1).
+ */
+export function validateRepositoryTarget(target: { owner: unknown; repo: unknown }, validateTarget?: RepositoryTargetValidator): { owner: string; repo: string } {
+  if (typeof target.owner !== "string") throw new CustomCredentialValidationError(`invalid owner '${String(target.owner)}'`);
+  if (typeof target.repo !== "string") throw new CustomCredentialValidationError(`invalid repo '${String(target.repo)}'`);
+  const error = repositoryTargetError({ owner: target.owner, repo: target.repo }, validateTarget);
+  if (error !== null) throw new CustomCredentialValidationError(error);
+  return { owner: target.owner, repo: target.repo };
 }
 
 export function validateBranch(value: unknown): string {
@@ -230,18 +237,16 @@ function validateFiles(rawFiles: unknown): readonly NormalizedWriteFile[] {
 }
 
 /**
- * The single entry point every `custom_credential_write_files` call validates through before the
- * credential is resolved or any network call is made — `owner`/`repo`/`branch`/`commitMessage` shape,
- * plus every file's path safety and the count/size caps. Mirrors this domain's own established
+ * The entry point every `custom_credential_write_files` call validates through before the credential
+ * is resolved or any network call is made — `branch`/`commitMessage` shape, plus every file's path
+ * safety and the count/size caps. Owner/repo wait for the host ({@link validateRepositoryTarget}). Mirrors this domain's own established
  * ordering (see this file's header) of "shape/security validation before permission check or I/O".
  *
  * @throws {CustomCredentialValidationError} Any field fails its own validation.
  * @complexity O(n) in the number of files, plus O(m) in each file's own content length.
  */
-export function validateWriteFilesInput(input: { owner: unknown; repo: unknown; branch: unknown; commitMessage: unknown; files: unknown }): ValidatedWriteFilesInput {
+export function validateWriteFilesInput(input: { branch: unknown; commitMessage: unknown; files: unknown }): WriteFilesRequest {
   return {
-    owner: validateOwner(input.owner),
-    repo: validateRepo(input.repo),
     branch: validateBranch(input.branch),
     commitMessage: validateCommitMessage(input.commitMessage),
     files: validateFiles(input.files),

@@ -476,7 +476,8 @@ test("an invalid input (bad owner) is refused before any decrypt or network call
   const surfaceExchanges = createSurfaceExchangeStore();
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  await assert.rejects(() => call(writeTool, { input: { ...VALID_INPUT, owner: "-bad" } }));
+  // The host's (github plugin's) own text, checked once the credential's base URL names the host.
+  await assert.rejects(() => call(writeTool, { input: { ...VALID_INPUT, owner: "-bad" } }), /invalid GitHub owner '-bad'/);
   assert.equal(sealer.openCalls, 0);
   assert.equal(httpClient.calls.length, 0);
   assert.equal(surfaceExchanges.size(), 0);

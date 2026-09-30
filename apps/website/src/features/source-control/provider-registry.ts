@@ -226,11 +226,14 @@ function isHttpsOrigin(value: string): boolean {
   }
 }
 
-/** A loaded provider built over `kit`, carrying its plugin's declared host facts. @complexity O(1). */
+/** A loaded provider built over `kit`, carrying its plugin's declared host facts and its module's
+ *  `validateTarget`. @complexity O(1). */
 export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProvider, kit: SourceControlProviderKit): SourceControlProvider {
   const { id, label, apiOrigin, maxFileBytes, reservedPaths } = loaded.descriptor;
+  const { validateTarget } = loaded.module;
   return {
     ...loaded.module.create({ kit }),
+    ...(validateTarget ? { validateTarget } : {}),
     id,
     label,
     apiOrigin,

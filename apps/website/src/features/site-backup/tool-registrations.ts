@@ -36,7 +36,7 @@ import {
   type CustomProviderConnectionInput,
 } from "../custom-credentials/index.js";
 import { buildAuthorizationHeader } from "../custom-credentials/credentialed-request.js";
-import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateOwner, validateRepo } from "../custom-credentials/write-files-validation.js";
+import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
@@ -404,8 +404,9 @@ async function inspect(
 
 interface ParsedPlanInput {
   readonly credential: string | undefined;
-  readonly owner: string;
-  readonly repo: string;
+  /** Checked against the host's rules once the credential names it ({@link validateRepositoryTarget}). */
+  readonly owner: unknown;
+  readonly repo: unknown;
   readonly branch: string | undefined;
   readonly folder: string | undefined;
   readonly include: SiteBackupInclude;
@@ -456,15 +457,15 @@ function requireUnreservedFolder(folder: string, provider: SourceControlProvider
 }
 
 /** @throws {CustomCredentialValidationError} Any malformed field — before any permission check,
- *  decrypt or network call. */
+ *  decrypt or network call. Owner and repo are the host's to judge, after the credential is resolved. */
 function parsePlanInput(rawInput: unknown): ParsedPlanInput {
   const raw = requireInputRecord(rawInput);
   const branch = optionalString(raw, "branch");
   const commitMessage = optionalString(raw, "commitMessage");
   return {
     credential: optionalString(raw, "credential"),
-    owner: validateOwner(raw.owner),
-    repo: validateRepo(raw.repo),
+    owner: raw.owner,
+    repo: raw.repo,
     branch: branch === undefined ? undefined : validateBranch(branch),
     folder: parseFolder(optionalString(raw, "folder")),
     include: parseInclude(raw.include),
@@ -535,8 +536,9 @@ async function handlePlan(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): 
 
   const folderName = path.basename(sources.siteDir);
   const folder = input.folder ?? normalizeWriteFilePath(folderName);
+  const { owner, repo: repoName } = validateRepositoryTarget({ owner: input.owner, repo: input.repo }, credential.provider.validateTarget);
   requireUnreservedFolder(folder, credential.provider);
-  const target = backupTarget(credential, input.owner, input.repo);
+  const target = backupTarget(credential, owner, repoName);
   const repo = await inspect(deps, credential.provider, PLAN_TOOL_ID, { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder });
   if (!repo.ok) return { planned: false, code: repo.code, message: repo.message };
 
@@ -550,8 +552,8 @@ async function handlePlan(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): 
     workspaceId: deps.workspaceId,
     content: {
       credentialLabel: credential.label,
-      owner: input.owner,
-      repo: input.repo,
+      owner,
+      repo: repoName,
       folder,
       commitMessage: input.commitMessage ?? `Tovu site backup: ${siteName} (${createdAt})`,
       repository: repo.state,

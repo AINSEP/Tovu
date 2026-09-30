@@ -150,8 +150,9 @@ export interface SourceControlProviderOperations {
   commitBackupTree(input: CommitBackupTreeInput): Promise<CommitFilesResult>;
 }
 
-/** A built provider: the module's operations plus the host facts its plugin declares. */
-export type SourceControlProvider = SourceControlProviderOperations & SourceControlHostFacts;
+/** A built provider: the module's operations plus the host facts its plugin declares, and the
+ *  module's own owner/repo rules when it has them. */
+export type SourceControlProvider = SourceControlProviderOperations & SourceControlHostFacts & { readonly validateTarget?: RepositoryTargetValidator };
 
 /** A transport error, described without leaking it: `refusal` is set (caller-safe text) only when the
  *  egress policy refused the request; `logDetail` is for the server log. */
