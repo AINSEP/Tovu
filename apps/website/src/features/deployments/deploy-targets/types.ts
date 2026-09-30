@@ -1,17 +1,5 @@
 import type { DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import type {
-  DeployError,
-  assertNotRedirected,
-  DeployPublishInput,
-  DeployTarget,
-  JsonObject,
-  checkDeploymentUrl,
-  normalizeDeploymentUrl,
-  redirectGuardInit,
-  safeDnsLabel,
-  safeProjectLabel,
-  waitForReachableDeploymentUrl,
-} from "@jini-ai/devops/deploy";
+import type { DeployPublishInput, DeployTargetModule as DevopsDeployTargetModule, JsonObject } from "@jini-ai/devops/deploy";
 
 /**
  * @file The host contract a deploy-target MODULE (shipped inside an Agent Plugin) is written against.
@@ -21,111 +9,37 @@ import type {
  * plugin's module (`registry.ts`), hands it a {@link DeployHostKit}, and gets back a plain devops
  * `DeployTarget`. Nothing in this file names a vendor.
  *
- * Two shapes here belong in `@jini-ai/devops` itself and are declared locally only until it ships
- * them (see `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` §10, J1 and J1b):
- * {@link HostDeployPublishInput}'s `responseHeaders` and the {@link DeployHostKit} /
- * {@link DeployTargetModule} pair. When devops exports them, these become re-exports.
+ * The injection contract itself (the kit, the credential, the create/check contexts, the response
+ * header set) is `@jini-ai/devops/deploy`'s since 0.4.0 and is re-exported here unchanged. Only the
+ * Tovu-specific module extras ({@link DeployTargetModule}'s `summarize`/`hostingSetup`) and the
+ * plugin descriptor shapes are declared locally.
  */
 
-/** A header set the host wants every published page served with. Each target renders it into its
- *  own host format (a `_headers` file, a `vercel.json`, ...) or ignores it where the host has none. */
-export type ResponseHeaderSet = Readonly<Record<string, string>>;
+export type {
+  DeployCredentialCheck,
+  DeployCredentialCheckContext,
+  DeployFetchTimeouts,
+  DeployHostKit,
+  DeployTargetCreateContext,
+  DeployTargetCredential,
+  ResponseHeaderSet,
+  SigV4Client,
+  SigV4ClientOptions,
+} from "@jini-ai/devops/deploy";
 
-/** `DeployPublishInput` plus the J1 field. Structurally a superset, so a target written against it
- *  still satisfies devops' `DeployTarget.publish`. */
-export interface HostDeployPublishInput extends DeployPublishInput {
-  responseHeaders?: ResponseHeaderSet;
-}
-
-/** The resolved saved credential a module builds its target from: always a `token`, plus whatever
- *  extra fields that host's credential carries (an account id, bucket coordinates, ...). */
-export type DeployTargetCredential = { readonly token: string } & Readonly<Record<string, string | undefined>>;
-
-/** The per-call timeout classes the kit's `fetch` is used with. Same values as
- *  `@jini-ai/platform`'s `FETCH_TIMEOUT_MS`, which this app does not depend on directly. */
-export interface DeployFetchTimeouts {
-  readonly QUICK: number;
-  readonly DEPLOY: number;
-  readonly UPLOAD: number;
-}
-
-/** What {@link DeployHostKit.createSigV4Client} takes: an access-key pair scoped to one service and
- *  region, the shape every S3-compatible store (and any other SigV4 API) signs with. */
-export interface SigV4ClientOptions {
-  readonly accessKeyId: string;
-  readonly secretAccessKey: string;
-  readonly service: string;
-  readonly region: string;
-}
-
-/** A client whose `fetch` signs each request with AWS Signature Version 4 before sending it through
- *  the global `fetch`, retrying a 5xx/429 with backoff the way `aws4fetch`'s `AwsClient` does. */
-export interface SigV4Client {
-  fetch(input: string, init?: RequestInit): Promise<Response>;
-  /** Signs a request without sending it, so the caller can send it through `DeployHostKit.fetch`. */
-  sign(input: string, init?: RequestInit): Promise<Request>;
-}
+/** devops' `DeployPublishInput`, which carries `responseHeaders` since 0.4.0. Kept as a name so
+ *  existing call sites read unchanged. */
+export type HostDeployPublishInput = DeployPublishInput;
 
 /**
- * Everything a module may call that is not a Node builtin. A plugin ships no npm dependencies (it is
- * copied verbatim into `packages/sha256/<digest>/`, where nothing could resolve one), so the host
- * passes these in.
+ * A deploy-target module's default export: devops' {@link DevopsDeployTargetModule} plus two
+ * Tovu-only extras. Only `create` is required; the rest have host defaults (no config errors, no
+ * base path, no summary rows, no credential check, no hosting steps).
  */
-export interface DeployHostKit {
-  /** `fetch`, aborted after `options.timeoutMs`. */
-  fetch(url: string, init: RequestInit, options: { readonly timeoutMs: number }): Promise<Response>;
-  readonly timeouts: DeployFetchTimeouts;
-  /** Delay between poll attempts. Injected so a test never waits in real time. */
-  sleep(ms: number): Promise<void>;
-  readonly checkDeploymentUrl: typeof checkDeploymentUrl;
-  readonly waitForReachableDeploymentUrl: typeof waitForReachableDeploymentUrl;
-  readonly normalizeDeploymentUrl: typeof normalizeDeploymentUrl;
-  readonly safeDnsLabel: typeof safeDnsLabel;
-  readonly safeProjectLabel: typeof safeProjectLabel;
-  /** devops' redirect guard: a request built with `redirectGuardInit` never follows a redirect, and
-   *  `assertNotRedirected` fails a 3xx instead of sending the token on to another host. */
-  readonly redirectGuardInit: typeof redirectGuardInit;
-  readonly assertNotRedirected: typeof assertNotRedirected;
-  /** A SigV4-signing client (a protocol, not a vendor: S3, R2, B2, MinIO and others all speak it). */
-  createSigV4Client(options: SigV4ClientOptions): SigV4Client;
-  readonly DeployError: typeof DeployError;
-}
-
-export interface DeployTargetCreateContext {
-  readonly credential: DeployTargetCredential;
-  readonly config: JsonObject;
-  readonly kit: DeployHostKit;
-}
-
-/** One credential check's raw outcome. `rejected`: the host answered and refused the credential (the
- *  person must replace it). `unreachable`: a transport failure, timeout or unexpected status that
- *  says nothing about the credential itself. `accountLabel` is the account's PUBLIC handle only
- *  (never an email, plan or org), and only from a host whose descriptor sets `yieldsAccountLabel`. */
-export type DeployCredentialCheck =
-  | { readonly ok: true; readonly accountLabel?: string }
-  | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number };
-
-export interface DeployCredentialCheckContext {
-  readonly credential: DeployTargetCredential;
-  readonly kit: DeployHostKit;
-}
-
-/**
- * A deploy-target module's default export. Only `create` is required; the rest have host defaults
- * (no config errors, no base path, no summary rows, no credential check).
- */
-export interface DeployTargetModule {
-  create(context: DeployTargetCreateContext): DeployTarget;
-  /** A human-readable config error, or `null` when `config` is usable. */
-  validateConfig?(config: JsonObject): string | null;
-  /** The path prefix the host serves the site from, when it is not the root. */
-  basePath?(config: JsonObject): string | undefined;
+export interface DeployTargetModule extends DevopsDeployTargetModule {
   /** The confirmation/outcome card rows for `config`, when the host reads better than one row per
    *  config field (a repository as `owner/repo`, for example). */
   summarize?(config: JsonObject): readonly { readonly label: string; readonly value: string }[];
-  /** ONE bounded, read-only authenticated request against the host's own API. May throw: the host
-   *  folds any throw into `unreachable`. Never returns the credential or a response body. */
-  verifyCredential?(context: DeployCredentialCheckContext): Promise<DeployCredentialCheck>;
   /** Steps the person applies in their own host console before the site is reachable (making a
    *  storage bucket public, for example). Pure: no request, no credential. `fields` are the non-secret
    *  credential fields the agent passed. Throws a plain `Error` with a person-facing message for a
