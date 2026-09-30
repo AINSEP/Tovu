@@ -2,6 +2,7 @@ import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentP
 import { t } from "./plugins-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
+import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
 
 /**
  * @file Pure logic for the `plugins` feature — everything that computes a value rather than
@@ -446,12 +447,16 @@ export interface PackageFilesViewState {
 }
 
 /**
- * The file whose `relativePath` is `selectedPath`, else the first listed one; `null` only for an
- * empty list. An unknown path falls back to the first file rather than clearing the selection.
- * @complexity O(files).
+ * The file whose `relativePath` is `selectedPath`, else the tree's top file row (what the user sees
+ * first, not the listing's first entry); `null` only for an empty list. An unknown path falls back
+ * the same way rather than clearing the selection.
+ * @complexity O(files log files) on the fallback, O(files) otherwise.
  */
 export function selectPackageFile(files: readonly PackageFileView[], selectedPath: string): PackageFileView | null {
-  return files.find((file) => file.relativePath === selectedPath) ?? files[0] ?? null;
+  const selected = files.find((file) => file.relativePath === selectedPath);
+  if (selected) return selected;
+  const topPath = firstPackageFilePath(buildPackageFileTree(files.map((file) => file.relativePath)));
+  return files.find((file) => file.relativePath === topPath) ?? files[0] ?? null;
 }
 
 /**

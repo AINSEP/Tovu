@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ancestorFolderPaths,
   buildPackageFileTree,
+  firstPackageFilePath,
   packageFileIconKind,
   packageFileTreeKeyAction,
   visiblePackageFileRows,
@@ -85,6 +86,20 @@ describe("ancestorFolderPaths", () => {
 
   it("is empty for a root file", () => {
     expect(ancestorFolderPaths("plugin.json")).toEqual([]);
+  });
+});
+
+describe("firstPackageFilePath", () => {
+  it("picks the top file row: a root file over anything nested", () => {
+    expect(firstPackageFilePath(buildPackageFileTree(["skills/a.md", "tovu.plugin.json", "index.mjs"]))).toBe("index.mjs");
+  });
+
+  it("descends into the first folder when the root holds only folders", () => {
+    expect(firstPackageFilePath(buildPackageFileTree(["z/b.md", "a/x/c.md", "a/d.md"]))).toBe("a/d.md");
+  });
+
+  it("is null for an empty tree", () => {
+    expect(firstPackageFilePath([])).toBeNull();
   });
 });
 

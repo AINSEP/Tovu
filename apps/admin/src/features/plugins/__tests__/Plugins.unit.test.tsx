@@ -535,8 +535,10 @@ describe("package-files viewer: a row's eye button opens it (characterization)",
     const dialog = await screen.findByRole("dialog", { name: /Word Count package files/ });
     expect(String(fetchMock.mock.calls[1]![0])).toContain("/plugins/word-count/files");
     const nav = await within(dialog).findByRole("navigation", { name: "Package files" });
-    await user.click(within(nav).getByRole("treeitem", { name: "index.mjs" }));
+    // Opens on the tree's top file row, not the listing's first entry.
     expect(within(dialog).getByRole("heading", { name: "index.mjs" })).toBeInTheDocument();
+    await user.click(within(nav).getByRole("treeitem", { name: "tovu.plugin.json" }));
+    expect(within(dialog).getByRole("heading", { name: "tovu.plugin.json" })).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: /close/i }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

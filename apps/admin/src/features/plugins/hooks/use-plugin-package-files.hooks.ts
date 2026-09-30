@@ -36,7 +36,7 @@ export interface PluginPackageFilesController {
   files: readonly PackageFileView[];
   /** The selected file, else the first listed one; `null` only while `files` is empty. */
   selectedFile: PackageFileView | null;
-  /** Selects by `relativePath`. An unknown path falls back to the first file rather than clearing. */
+  /** Selects by `relativePath`. An unknown path falls back to the tree's top file rather than clearing. */
   selectFile: (relativePath: string) => void;
   /** Loading, failure (`role: "alert"`), or an empty package — `null` once there are files. */
   status: PackageFilesStatus | null;

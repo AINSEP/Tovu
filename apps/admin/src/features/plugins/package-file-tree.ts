@@ -93,6 +93,19 @@ export function buildPackageFileTree(paths: readonly string[]): PackageFileTreeN
 }
 
 /**
+ * The path of the tree's top file row once every folder on the way is open — the first file in
+ * display order (files before folders, so a root file wins over anything nested); `null` for no files.
+ * @complexity O(nodes).
+ */
+export function firstPackageFilePath(nodes: readonly PackageFileTreeNode[]): string | null {
+  for (const node of nodes) {
+    const path = node.kind === "file" ? node.path : firstPackageFilePath(node.children);
+    if (path !== null) return path;
+  }
+  return null;
+}
+
+/**
  * Every folder path that contains `filePath` — the folders that start expanded so the selected
  * file is visible when the dialog opens.
  * @example ancestorFolderPaths("skills/deploy/SKILL.md") // ["skills", "skills/deploy"]
