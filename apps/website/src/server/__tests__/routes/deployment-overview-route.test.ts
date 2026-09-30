@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
@@ -6,7 +9,6 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../../runtime/lifecycle/readiness-state.js";
 import { defaultContentDbPath, mediaUploadsDir } from "../../runtime/composition/deps.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { inspectRootKeyMaterial } from "../../../features/webhooks/keyring.env.js";
 
 /**
  * @file Admin Deployment panel → Overview tab — `GET /api/admin/v1/workspaces/:workspaceId/
@@ -68,10 +70,16 @@ test("deployment-overview: a mismatched workspaceId in the URL 404s", async (t) 
 test("deployment-overview: the seeded owner gets 200 with real process/env-derived fields, never a fabricated value", async (t) => {
   const previousPassword = process.env.TOVU_ADMIN_PASSWORD;
   const previousDaemonPort = process.env.JINI_AGENT_DAEMON_PORT;
-  // Deliberately unset both: proves the response reports the REAL current process state rather
-  // than always claiming "set".
+  const previousRootKey = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const previousHome = process.env.HOME;
+  // Deliberately unset all three: proves the response reports the REAL current process state rather
+  // than always claiming "set". HOME points at an empty temp dir so a root key file generated on the
+  // machine running the suite (under the real home) cannot make the root-key row active.
   delete process.env.TOVU_ADMIN_PASSWORD;
   delete process.env.JINI_AGENT_DAEMON_PORT;
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const home = mkdtempSync(path.join(tmpdir(), "tovu-deployment-overview-route-home-"));
+  process.env.HOME = home;
   clearAssistantDaemonFailure();
 
   t.after(() => {
@@ -79,6 +87,10 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
     else process.env.TOVU_ADMIN_PASSWORD = previousPassword;
     if (previousDaemonPort === undefined) delete process.env.JINI_AGENT_DAEMON_PORT;
     else process.env.JINI_AGENT_DAEMON_PORT = previousDaemonPort;
+    if (previousRootKey === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+    else process.env.TOVU_INTEGRATIONS_ROOT_KEY = previousRootKey;
+    process.env.HOME = previousHome;
+    rmSync(home, { recursive: true, force: true });
   });
 
   const deps: RouteDeps = { ...createRouteDeps() };
@@ -102,16 +114,10 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   // Real filesystem paths this SAME process would actually use — not placeholders.
   assert.equal(body.dbPath, defaultContentDbPath());
   assert.equal(body.uploadsDir, mediaUploadsDir());
-  const rootKey = inspectRootKeyMaterial();
   assert.deepEqual(body.envVars, [
     { name: "TOVU_ADMIN_PASSWORD", set: false },
     { name: "TOVU_ADMIN_USER", set: Boolean(process.env.TOVU_ADMIN_USER) },
-    {
-      name: "TOVU_INTEGRATIONS_ROOT_KEY",
-      set: rootKey.active,
-      source: rootKey.source,
-      ...(rootKey.invalid ? { invalid: true } : {}),
-    },
+    { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false, source: "none" },
     { name: "JINI_AGENT_DAEMON_PORT", set: false },
   ]);
   // Never echoes a secret VALUE — only ever "set"/"not set" markers, matching every field name
