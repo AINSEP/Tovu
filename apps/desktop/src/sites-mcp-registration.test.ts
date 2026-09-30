@@ -24,6 +24,7 @@ import {
   SITES_MCP_SERVER_ID,
   buildSitesMcpLauncherScript,
   buildSitesMcpRegistration,
+  isTransientAppPath,
   sitesMcpPutPath,
   registerSitesMcpServer,
   writeSitesMcpLauncher,
@@ -132,6 +133,92 @@ test("writeSitesMcpLauncher still writes the POSIX launcher when platform is omi
 
   assert.equal(launcherPath, path.join(userDataDir, SITES_MCP_LAUNCHER_NAME));
   assert.equal(fs.existsSync(launcherPath), true);
+});
+
+/** The owner's 2026-09-29 incident: Tovu 0.1.6 opened straight from its mounted disk image. */
+const DMG_INPUT = Object.freeze({
+  electronPath: "/Volumes/Tovu 0.1.6/Tovu.app/Contents/MacOS/Tovu",
+  bridgePath: "/Volumes/Tovu 0.1.6/Tovu.app/Contents/Resources/app.asar/bin/mcp-bridge.ts",
+  userDataDir: "/Users/la/Library/Application Support/Tovu",
+});
+
+/** A read-only-volume probe that says every `/Volumes/<name>` is a read-only disk image. */
+const ALL_VOLUMES_READ_ONLY = (): boolean => true;
+
+test("isTransientAppPath flags a read-only /Volumes mount and macOS App Translocation, nothing else", () => {
+  assert.equal(isTransientAppPath(DMG_INPUT.electronPath, { isReadOnlyVolume: ALL_VOLUMES_READ_ONLY }), true);
+  assert.equal(
+    isTransientAppPath("/private/var/folders/xy/abc/T/AppTranslocation/1234-5678/d/Tovu.app/Contents/MacOS/Tovu", { isReadOnlyVolume: () => false }),
+    true,
+  );
+  // A writable external drive the operator deliberately installed onto is a durable location.
+  assert.equal(isTransientAppPath("/Volumes/External/Apps/Tovu.app/Contents/MacOS/Tovu", { isReadOnlyVolume: () => false }), false);
+  assert.equal(isTransientAppPath(LAUNCHER_INPUT.electronPath, { isReadOnlyVolume: ALL_VOLUMES_READ_ONLY }), false);
+});
+
+test("isTransientAppPath asks the probe about the volume ROOT, not the whole path", () => {
+  const asked: string[] = [];
+  isTransientAppPath(DMG_INPUT.electronPath, { isReadOnlyVolume: (root) => (asked.push(root), true) });
+  assert.deepEqual(asked, ["/Volumes/Tovu 0.1.6"]);
+});
+
+test("writeSitesMcpLauncher from a disk image never writes the /Volumes path into the durable launcher", () => {
+  const userDataDir = tempDir();
+
+  const launcherPath = writeSitesMcpLauncher({ ...DMG_INPUT, userDataDir, isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  // The incident: the site's daemon exec'd the DMG's Electron binary through this launcher and held
+  // the volume open, so the operator could not eject it. Nothing under /Volumes may be named here.
+  const script = fs.readFileSync(launcherPath, "utf8");
+  assert.equal(script.includes("/Volumes/"), false, script);
+  assert.equal(fs.statSync(launcherPath).mode & 0o777, 0o700);
+});
+
+test("writeSitesMcpLauncher from a disk image with no durable install writes a launcher that exits 1 with a clear reason", async () => {
+  const userDataDir = tempDir();
+
+  const launcherPath = writeSitesMcpLauncher({ ...DMG_INPUT, userDataDir, isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  // Unavailable, not deleted: the row stays, and the daemon's exit reason (adapter.stdio.ts carries the
+  // child's stderr tail into it) tells the operator why and what makes it come back.
+  const { spawnSync } = await import("node:child_process");
+  const run = spawnSync(launcherPath, [], { encoding: "utf8" });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /disk image/);
+  assert.match(run.stderr, /Applications/);
+});
+
+test("writeSitesMcpLauncher from a disk image keeps a launcher an earlier durable install wrote", () => {
+  const userDataDir = tempDir();
+  // A real, existing binary stands in for an installed /Applications/Tovu.app.
+  const durable = { ...LAUNCHER_INPUT, electronPath: process.execPath };
+  const launcherPath = writeSitesMcpLauncher({ ...durable, userDataDir });
+  const before = fs.readFileSync(launcherPath, "utf8");
+
+  writeSitesMcpLauncher({ ...DMG_INPUT, userDataDir, isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  // Opening a newer DMG to look at it must not break the working installed copy's tools.
+  assert.equal(fs.readFileSync(launcherPath, "utf8"), before);
+});
+
+test("writeSitesMcpLauncher from a disk image replaces an older launcher that itself names a disk image", () => {
+  const userDataDir = tempDir();
+  const launcherPath = path.join(userDataDir, SITES_MCP_LAUNCHER_NAME);
+  // Exactly what 0.1.6 left behind on the owner's machine.
+  fs.writeFileSync(launcherPath, buildSitesMcpLauncherScript(DMG_INPUT), { mode: 0o700 });
+
+  writeSitesMcpLauncher({ ...DMG_INPUT, electronPath: "/Volumes/Tovu 0.1.7/Tovu.app/Contents/MacOS/Tovu", userDataDir, isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  assert.equal(fs.readFileSync(launcherPath, "utf8").includes("/Volumes/"), false);
+});
+
+test("a later launch from a durable location rewrites the disk-image stub with the real launcher", () => {
+  const userDataDir = tempDir();
+  writeSitesMcpLauncher({ ...DMG_INPUT, userDataDir, isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  const launcherPath = writeSitesMcpLauncher({ ...LAUNCHER_INPUT, userDataDir, isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  assert.equal(fs.readFileSync(launcherPath, "utf8"), buildSitesMcpLauncherScript({ ...LAUNCHER_INPUT, userDataDir }));
 });
 
 test("the registration allowlists every published tool", () => {
