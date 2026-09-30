@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { describeChildExit, keepStderrTail, resolveStdioChildCwd, spawnMcpStdioChannel } from "../mcp-federation/adapter.stdio.js";
+import { createStderrTail, describeChildExit, keepStderrTail, resolveStdioChildCwd, spawnMcpStdioChannel } from "../mcp-federation/adapter.stdio.js";
 
 /**
  * @file A stdio MCP server that dies at startup must say WHY in its close reason.
@@ -87,4 +87,42 @@ test("resolveStdioChildCwd: every other command keeps inheriting the daemon's cw
   assert.equal(resolveStdioChildCwd({ command: "./bin/server", args: [], env: {}, launchEnv: {} }, "/neutral"), undefined);
   assert.equal(resolveStdioChildCwd({ command: process.execPath, args: ["server.js"], env: {}, launchEnv: {} }, "/neutral"), undefined);
   assert.equal(resolveStdioChildCwd({ command: "uvx", args: ["some-server"], env: {}, launchEnv: {} }, "/neutral"), undefined);
+});
+
+// Codex review 2026-09-29 run1 #2: the tail was cut to its last 600 characters BEFORE redaction, so
+// a child printing a token followed by ~600 characters of diagnostics left the tail starting midway
+// through the token — a fragment no exact-value replacement can match, served to the admin UI.
+test("spawnMcpStdioChannel: a token cut by the tail limit is still redacted, not left as a fragment", async () => {
+  const token = "tok_0123456789abcdef";
+  const channel = spawnMcpStdioChannel({
+    command: process.execPath,
+    args: ["-e", "process.stderr.write('token=' + process.env.TOKEN + ' ' + 'x'.repeat(595)); process.exit(1);"],
+    env: { TOKEN: token },
+    launchEnv: {},
+  });
+
+  const reason = await new Promise<string>((resolve) => channel.onClose(resolve));
+
+  for (let start = 0; start + 4 <= token.length; start += 1) {
+    assert.ok(!reason.includes(token.slice(start)), `reason leaks "${token.slice(start)}": ${reason}`);
+  }
+});
+
+test("createStderrTail: a token split across chunks and cut by the limit leaves no fragment behind", () => {
+  const token = "tok_0123456789abcdef";
+  const tail = createStderrTail([token]);
+  tail.append("token=tok_01234");
+  tail.append(`56789abcdef ${"x".repeat(595)}`);
+  const text = tail.text();
+  assert.equal(text.length, 600);
+  for (let start = 0; start + 4 <= token.length; start += 1) assert.ok(!text.includes(token.slice(start)), text);
+});
+
+test("createStderrTail: a token still arriving when the child exits is redacted too", () => {
+  const tail = createStderrTail(["tok_0123456789abcdef"]);
+  tail.append("auth failed: tok_0123456789abcdef");
+  assert.equal(tail.text(), "auth failed: [redacted]");
+  const partial = createStderrTail(["tok_0123456789abcdef"]);
+  partial.append("auth failed: tok_0123456789");
+  assert.equal(partial.text(), "auth failed: tok_0123456789");
 });

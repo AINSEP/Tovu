@@ -102,6 +102,43 @@ export function keepStderrTail(tail: string, chunk: string): string {
   return (tail + chunk).slice(-STDERR_TAIL_CHARS);
 }
 
+/** Replaces every redactable `secretValues` entry in `text` with `[redacted]`. @complexity O(s · v). */
+function redactSecrets(text: string, secretValues: readonly string[]): string {
+  let said = text;
+  for (const value of secretValues) {
+    if (value.length >= MIN_REDACTED_VALUE_LENGTH) said = said.split(value).join("[redacted]");
+  }
+  return said;
+}
+
+/**
+ * A child's stderr tail that is redacted BEFORE it is truncated.
+ *
+ * Truncating first cut a token printed just before ~600 characters of diagnostics in half, leaving a
+ * fragment no exact-value replacement can match (codex review 2026-09-29). So each chunk is redacted
+ * as it arrives, and the last `longest secret - 1` characters are held back from the kept tail until
+ * the next chunk — they may be the start of a secret split across chunks. Only redacted text is
+ * ever truncated, so the kept tail can begin mid-`[redacted]` but never mid-secret.
+ *
+ * @param secretValues - The child's own `env` values, as spawned.
+ * @complexity O(c · v) per chunk of length c.
+ */
+export function createStderrTail(secretValues: readonly string[]): { append(chunk: string): void; text(): string } {
+  const redactable = secretValues.filter((value) => value.length >= MIN_REDACTED_VALUE_LENGTH);
+  const holdBack = Math.max(0, ...redactable.map((value) => value.length - 1));
+  let kept = "";
+  let pending = "";
+  return {
+    append(chunk) {
+      const redacted = redactSecrets(pending + chunk, redactable);
+      const cut = Math.max(0, redacted.length - holdBack);
+      kept = keepStderrTail(kept, redacted.slice(0, cut));
+      pending = redacted.slice(cut);
+    },
+    text: () => keepStderrTail(kept, redactSecrets(pending, redactable)),
+  };
+}
+
 /**
  * The close reason for a child that exited: code and signal, plus what it last printed to stderr.
  *
@@ -120,11 +157,7 @@ export function describeChildExit(
   secretValues: readonly string[],
 ): string {
   const base = `child process exited (code=${String(code)}, signal=${String(signal)})`;
-  let said = stderrTail;
-  for (const value of secretValues) {
-    if (value.length >= MIN_REDACTED_VALUE_LENGTH) said = said.split(value).join("[redacted]");
-  }
-  said = said.replace(/\s+/g, " ").trim();
+  const said = redactSecrets(stderrTail, secretValues).replace(/\s+/g, " ").trim();
   return said ? `${base}: ${said}` : base;
 }
 
@@ -353,8 +386,8 @@ export function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioCha
   // `send` never writes into a dead pipe — an EPIPE on `stdin` has no listener and would crash the
   // daemon.
   let exited = false;
-  let stderrTail = "";
   const secretValues = Object.values(resolved.env);
+  const stderrTail = createStderrTail(secretValues);
 
   const emitClose = (reason: string): void => {
     if (closed) return;
@@ -388,7 +421,7 @@ export function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioCha
   // failing with npm's EUNSUPPORTEDPROTOCOL reached the operator as a bare "exited (code=1)").
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => {
-    stderrTail = keepStderrTail(stderrTail, chunk);
+    stderrTail.append(chunk);
   });
 
   child.on("error", (error: Error) => emitClose(`child process error: ${error.message}`));
@@ -396,7 +429,7 @@ export function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioCha
     exited = true;
     // `exit` can fire before the child's last stderr bytes are read; `end` means they have been.
     // Bounded, because a grandchild still holding the pipe (npx → node) could postpone `end` forever.
-    const finish = (): void => emitClose(describeChildExit(code, signal, stderrTail, secretValues));
+    const finish = (): void => emitClose(describeChildExit(code, signal, stderrTail.text(), secretValues));
     if (child.stderr.readableEnded) {
       finish();
       return;
