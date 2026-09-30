@@ -73,10 +73,11 @@ test("assertCmdQuotable rejects empty/non-string input and every unsafe characte
 test("writeNodeToolchain writes exactly the three POSIX shims, mode 0o700, with no leftover temp files", () => {
   const userDataDir = tempDir();
   const paths = writeNodeToolchain({ userDataDir, electronPath: ELECTRON, npmRoot: NPM_ROOT, platform: "darwin" });
+  assert.ok(paths, "a durable electronPath always writes the toolchain");
 
   assert.deepEqual(fs.readdirSync(paths.binDir).sort(), ["node", "npm", "npx"]);
   for (const name of ["node", "npm", "npx"]) {
-    const mode = fs.statSync(path.join(paths.binDir, name)).mode & 0o777;
+    const mode: number = fs.statSync(path.join(paths.binDir, name)).mode & 0o777;
     assert.equal(mode, 0o700, `${name} mode`);
   }
   // The dir holding them is prepended to every child's PATH, so only the owner may add to it —
@@ -95,6 +96,7 @@ test("writeNodeToolchain's returned paths are node-toolchain/{bin,npm-cache,npm-
   // rather than failing loudly (plan §2, §3, §6 S3).
   const userDataDir = tempDir();
   const paths = writeNodeToolchain({ userDataDir, electronPath: ELECTRON, npmRoot: NPM_ROOT, platform: "darwin" });
+  assert.ok(paths, "a durable electronPath always writes the toolchain");
   assert.equal(paths.toolchainDir, path.join(userDataDir, "node-toolchain"));
   assert.equal(paths.binDir, path.join(paths.toolchainDir, "bin"));
   assert.equal(paths.npmCacheDir, path.join(paths.toolchainDir, "npm-cache"));
@@ -107,6 +109,7 @@ test("writeNodeToolchain overwrites cleanly on a second call, e.g. after the app
 
   const movedElectron = "/Applications/Tovu 2.app/Contents/MacOS/Tovu";
   const paths = writeNodeToolchain({ userDataDir, electronPath: movedElectron, npmRoot: NPM_ROOT, platform: "darwin" });
+  assert.ok(paths, "a durable electronPath always writes the toolchain");
 
   assert.deepEqual(fs.readdirSync(paths.binDir).sort(), ["node", "npm", "npx"]);
   const nodeShim = fs.readFileSync(path.join(paths.binDir, "node"), "utf8");
@@ -121,4 +124,62 @@ test("buildNodeToolchainEnv returns exactly the two contract keys, nothing else"
     TOVU_BUNDLED_NPM_ROOT: NPM_ROOT,
   });
   assert.deepEqual(Object.keys(env).sort(), ["TOVU_BUNDLED_NPM_ROOT", "TOVU_NODE_TOOLCHAIN_DIR"]);
+});
+
+// --- From a transient location (a mounted disk image, App Translocation) -----------------------
+// Same rule as `writeSitesMcpLauncher` (`sites-mcp-registration.ts`, 4828a054a / ae7846c4a): the
+// shims live in the shared `userData`, so every other copy of the app — and every stdio MCP server
+// any of them launches — would exec a `/Volumes/...` Electron and hold the disk image open.
+
+const DMG_ELECTRON = "/Volumes/Tovu 0.1.7/Tovu.app/Contents/MacOS/Tovu";
+const DMG_NPM_ROOT = "/Volumes/Tovu 0.1.7/Tovu.app/Contents/Resources/npm";
+const ALL_VOLUMES_READ_ONLY = (): boolean => true;
+
+test("writeNodeToolchain from a disk image with no earlier shims writes none and returns null", () => {
+  const userDataDir = tempDir();
+  const paths = writeNodeToolchain({ userDataDir, electronPath: DMG_ELECTRON, npmRoot: DMG_NPM_ROOT, platform: "darwin", isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+  assert.equal(paths, null);
+  assert.equal(fs.existsSync(path.join(userDataDir, "node-toolchain", "bin", "node")), false);
+});
+
+test("writeNodeToolchain from a disk image keeps an installed copy's shims untouched and returns their paths", () => {
+  const userDataDir = tempDir();
+  const installedElectron = path.join(tempDir(), "Tovu");
+  fs.writeFileSync(installedElectron, "");
+  const installed = writeNodeToolchain({ userDataDir, electronPath: installedElectron, npmRoot: NPM_ROOT, platform: "darwin" });
+  assert.ok(installed);
+  const before = fs.readFileSync(path.join(installed.binDir, "npx"), "utf8");
+
+  const paths = writeNodeToolchain({ userDataDir, electronPath: DMG_ELECTRON, npmRoot: DMG_NPM_ROOT, platform: "darwin", isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  assert.deepEqual(paths, installed);
+  assert.equal(fs.readFileSync(path.join(installed.binDir, "npx"), "utf8"), before);
+  for (const name of ["node", "npm", "npx"]) {
+    assert.equal(fs.readFileSync(path.join(installed.binDir, name), "utf8").includes("/Volumes/"), false, name);
+  }
+});
+
+test("writeNodeToolchain from a disk image does not keep shims naming an earlier disk image, and writes no new ones", () => {
+  const userDataDir = tempDir();
+  // Shims written by a build from before this rule, from another disk image.
+  writeNodeToolchain({ userDataDir, electronPath: "/Volumes/Tovu 0.1.6/Tovu.app/Contents/MacOS/Tovu", npmRoot: NPM_ROOT, platform: "darwin", isReadOnlyVolume: () => false });
+
+  const paths = writeNodeToolchain({ userDataDir, electronPath: DMG_ELECTRON, npmRoot: DMG_NPM_ROOT, platform: "darwin", isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+
+  assert.equal(paths, null);
+  assert.equal(fs.readFileSync(path.join(userDataDir, "node-toolchain", "bin", "node"), "utf8").includes(DMG_ELECTRON), false);
+});
+
+test("writeNodeToolchain from App Translocation is transient too", () => {
+  const userDataDir = tempDir();
+  const translocated = "/private/var/folders/xx/T/AppTranslocation/ABC/d/Tovu.app/Contents/MacOS/Tovu";
+  assert.equal(writeNodeToolchain({ userDataDir, electronPath: translocated, npmRoot: NPM_ROOT, platform: "darwin" }), null);
+});
+
+test("the next launch from a real install recovers: it rewrites the shims with its own path", () => {
+  const userDataDir = tempDir();
+  writeNodeToolchain({ userDataDir, electronPath: DMG_ELECTRON, npmRoot: DMG_NPM_ROOT, platform: "darwin", isReadOnlyVolume: ALL_VOLUMES_READ_ONLY });
+  const paths = writeNodeToolchain({ userDataDir, electronPath: ELECTRON, npmRoot: NPM_ROOT, platform: "darwin" });
+  assert.ok(paths);
+  assert.ok(fs.readFileSync(path.join(paths.binDir, "node"), "utf8").includes(ELECTRON));
 });

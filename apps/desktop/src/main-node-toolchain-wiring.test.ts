@@ -72,3 +72,9 @@ test("startTovuServer is called with nodeToolchainEnv, so the write's result act
   const ownCall = body.slice(0, body.indexOf("});") + 3);
   assert.match(ownCall, /nodeToolchainEnv/, "expected the startTovuServer call to pass nodeToolchainEnv");
 });
+
+test("a null writeNodeToolchain result (a launch from a disk image) is guarded, never dereferenced", () => {
+  const writeIndex = source.indexOf("writeNodeToolchain(");
+  const after = source.slice(writeIndex, writeIndex + 600);
+  assert.match(after, /if \(toolchain\) NODE_TOOLCHAIN_ENV = buildNodeToolchainEnv\(\{ toolchainDir: toolchain\.toolchainDir/);
+});

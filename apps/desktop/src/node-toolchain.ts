@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { assertShellQuotable } from "./sites-mcp-registration.ts";
+import { assertShellQuotable, isReadOnlyVolumeRoot, isTransientAppPath, launcherNamesDurableInstall } from "./sites-mcp-registration.ts";
 
 /** {@link buildNodeToolchainShims}'s input. */
 interface BuildNodeToolchainShimsInput {
@@ -33,6 +33,8 @@ interface WriteNodeToolchainInput {
   npmRoot: string;
   /** Test seam; see {@link BuildNodeToolchainShimsInput}. */
   platform?: NodeJS.Platform;
+  /** Test seam: `isTransientAppPath`'s read-only-volume probe. Production never passes it. */
+  isReadOnlyVolume?: (volumeRoot: string) => boolean;
 }
 
 /** {@link writeNodeToolchain}'s result: the directories the env contract and the resolver need. */
@@ -126,13 +128,35 @@ function buildNodeToolchainShims({ electronPath, npmRoot, platform = process.pla
  * `writeSitesMcpLauncher`'s own reasoning (`sites-mcp-registration.ts`) — `electronPath` goes stale
  * the moment the app is moved or updated.
  *
+ * **Except from a transient location** (`isTransientAppPath`: a mounted disk image, App
+ * Translocation) — the same rule as `writeSitesMcpLauncher`. These shims sit in the shared
+ * `userData`, so every other copy of the app, and every stdio MCP server any of them launches, would
+ * exec that `/Volumes/...` Electron and hold the disk image open. So nothing is written: shims that
+ * already name a durable install are kept as they are (their paths returned), and otherwise this
+ * returns `null` — this launch runs without the bundled toolchain, as before it existed. The next
+ * launch from a real install rewrites them.
+ *
+ * @returns the toolchain's paths, or `null` when this launch has no usable toolchain.
  * @complexity O(1) — three fixed-size files and two empty directories.
  */
-function writeNodeToolchain({ userDataDir, electronPath, npmRoot, platform = process.platform }: WriteNodeToolchainInput): NodeToolchainPaths {
+function writeNodeToolchain({
+  userDataDir,
+  electronPath,
+  npmRoot,
+  platform = process.platform,
+  isReadOnlyVolume = isReadOnlyVolumeRoot,
+}: WriteNodeToolchainInput): NodeToolchainPaths | null {
   const toolchainDir = path.join(userDataDir, "node-toolchain");
   const binDir = path.join(toolchainDir, "bin");
   const npmCacheDir = path.join(toolchainDir, "npm-cache");
   const npmPrefixDir = path.join(toolchainDir, "npm-prefix");
+  const paths = { toolchainDir, binDir, npmCacheDir, npmPrefixDir };
+
+  if (isTransientAppPath(electronPath, { isReadOnlyVolume })) {
+    // `node` is the one shim naming Electron alone, in the same `exec '<path>'` form the MCP
+    // launcher uses — so the launcher's own durable-install check reads it unchanged.
+    return launcherNamesDurableInstall(path.join(binDir, "node"), isReadOnlyVolume) ? paths : null;
+  }
 
   // `bin/` goes first on every stdio child's PATH, so only the owner may write into it; chmod too,
   // since `mkdirSync` leaves an existing dir's mode alone and applies the umask to a new one.
@@ -150,7 +174,7 @@ function writeNodeToolchain({ userDataDir, electronPath, npmRoot, platform = pro
     fs.renameSync(tempPath, finalPath);
   }
 
-  return { toolchainDir, binDir, npmCacheDir, npmPrefixDir };
+  return paths;
 }
 
 /**

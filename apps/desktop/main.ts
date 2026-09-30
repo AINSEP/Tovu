@@ -268,7 +268,8 @@ try {
     electronPath: process.execPath,
     npmRoot: DESKTOP_ROOTS.npmRoot,
   });
-  NODE_TOOLCHAIN_ENV = buildNodeToolchainEnv({ toolchainDir: toolchain.toolchainDir, npmRoot: DESKTOP_ROOTS.npmRoot });
+  if (toolchain) NODE_TOOLCHAIN_ENV = buildNodeToolchainEnv({ toolchainDir: toolchain.toolchainDir, npmRoot: DESKTOP_ROOTS.npmRoot });
+  else console.warn("tovu desktop: running from a disk image — the bundled node toolchain is off for this launch; move Tovu to Applications to use it.");
 } catch (error) {
   console.warn(`tovu desktop: could not write the bundled node toolchain — stdio MCP servers naming npx/npm/node will fall back to a system install: ${(error as Error).message}`);
 }
