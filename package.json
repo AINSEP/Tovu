@@ -88,7 +88,7 @@
     "check:default-credential": "tsx apps/website/src/features/identity/default-credential-exposure.ts"
   },
   "overrides": {
-    "@jini-ai/chat@^0.3.10": {
+    "@jini-ai/chat@^0.3.11": {
       "@jini-ai/ui": "$@jini-ai/ui"
     },
     "@jini-ai/http-kit": {
@@ -102,7 +102,7 @@
     "@electric-sql/pglite": "0.5.8",
     "@jini-ai/agent-runtime": "^0.3.10",
     "@jini-ai/agentic": "^0.3.7",
-    "@jini-ai/chat": "^0.3.10",
+    "@jini-ai/chat": "^0.3.11",
     "@jini-ai/cms": "^0.3.11",
     "@jini-ai/core": "^0.3.1",
     "@jini-ai/daemon": "^0.3.8",

@@ -20,7 +20,7 @@
     "@jini-ai/admin": "^0.3.10",
     "@jini-ai/agent-runtime": "^0.3.10",
     "@jini-ai/agentic": "^0.3.7",
-    "@jini-ai/chat": "^0.3.10",
+    "@jini-ai/chat": "^0.3.11",
     "@jini-ai/cms": "^0.3.11",
     "@jini-ai/integrations": "^0.3.6",
     "@jini-ai/protocol": "^0.3.1",

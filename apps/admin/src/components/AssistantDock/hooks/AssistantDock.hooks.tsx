@@ -47,7 +47,6 @@ import { isSelectionNormalizationEcho } from "../local-cli-selection-echo";
 import { applyExecutionConfigChange, persistExecutionConfigWrite, withLocalCliSelection } from "../execution-config-write";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
-import { skipProbeWhileHidden } from "@/lib/hidden-probe-gate";
 
 /**
  * @file `AssistantDock`'s state/effects layer, split out of `AssistantDock.tsx` (2026-08-06
@@ -965,8 +964,8 @@ function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
  * each starting their own fetch.
  *
  * `@jini-ai/chat/react`'s `useChatPaneRuntimeInventory` polls `daemonOnline` on a bare
- * `window.setInterval` every 5s for as long as a dock is mounted (effectively a whole tab's
- * lifetime), and its own de-dup (`useLatestOperation`) only ignores a STALE RESULT — it never
+ * `window.setInterval` every 5s while the tab is visible (0.3.11+ pauses it while hidden), and its
+ * own de-dup (`useLatestOperation`) only ignores a STALE RESULT — it never
  * aborts the underlying fetch. Under connection-pool exhaustion, a `fetch` that queues forever
  * previously meant a brand new permanently-stuck request was added on every single tick, an
  * unbounded leak for as long as the tab stayed open (see
@@ -976,14 +975,7 @@ function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
  */
 let daemonOnlineInFlight: Promise<boolean> | null = null;
 
-/**
- * The probe `useRuntimeAccess` hands `ChatPane`: {@link probeDaemonOnline}, answered from the last
- * result while the page is hidden so a minimized or backgrounded admin stops hitting `/api/agents`
- * every 5s (idle-CPU audit, 2026-09-29) — see `@/lib/hidden-probe-gate`.
- */
-const daemonOnline = skipProbeWhileHidden(probeDaemonOnline);
-
-async function probeDaemonOnline(): Promise<boolean> {
+async function daemonOnline(): Promise<boolean> {
   if (daemonOnlineInFlight) return daemonOnlineInFlight;
   const attempt = (async () => {
     const response = await fetch(AGENTS_URL, {

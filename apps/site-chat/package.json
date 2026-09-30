@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@jini-ai/agentic": "^0.3.7",
-    "@jini-ai/chat": "^0.3.10",
+    "@jini-ai/chat": "^0.3.11",
     "@jini-ai/protocol": "^0.3.0",
     "@jini-ai/ui": "^0.3.14",
     "react": "^19.2.4",
