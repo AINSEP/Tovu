@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { readRelocationId, relocateMovedSites, repointTrackedSite } from "./site-relocation.ts";
+import { createRelocationGate, readRelocationId, relocateMovedSites, repointTrackedSite } from "./site-relocation.ts";
 import { sitesFilePath, readTrackedSites, readDismissedSites, writeTrackedSites } from "./tracked-sites.ts";
 
 function tempDir(): string {
@@ -207,4 +207,43 @@ test("relocateMovedSites leaves a damaged projects file alone — a list poll mu
 
   assert.deepEqual(relocateMovedSites(file), { moved: [], merged: [] });
   assert.equal(fs.readFileSync(file, "utf8"), damaged);
+});
+
+// Idle CPU (2026-09-29): the 4 s list poll no longer re-scans a missing folder's siblings every time.
+test("createRelocationGate runs on the first poll, then only when the rows, their folders' existence or the removals change", () => {
+  const root = tempDir();
+  const here = makeSite(path.join(root, "here"), { siteId: "id-here" });
+  const gone = path.join(root, "gone");
+  let clock = 0;
+  const gate = createRelocationGate({ maxIdleMs: 60_000, now: () => clock });
+  const file = { rows: [{ siteDir: here }, { siteDir: gone }], dismissed: [] as string[] } as never;
+
+  assert.equal(gate.shouldRun(file), true, "the first poll always runs");
+  clock += 4_000;
+  assert.equal(gate.shouldRun(file), false, "same rows, same folders: nothing could have moved");
+
+  fs.renameSync(here, path.join(root, "renamed"));
+  clock += 4_000;
+  assert.equal(gate.shouldRun(file), true, "a folder that disappeared is noticed on the very next poll");
+  clock += 4_000;
+  assert.equal(gate.shouldRun(file), false);
+
+  clock += 4_000;
+  assert.equal(gate.shouldRun({ rows: [{ siteDir: gone }], dismissed: [] } as never), true, "a row removed");
+  clock += 4_000;
+  assert.equal(gate.shouldRun({ rows: [{ siteDir: gone }], dismissed: [here] } as never), true, "the removals changed");
+});
+
+test("createRelocationGate still runs at the slow cadence while nothing changes, so a folder that turns up elsewhere is found", () => {
+  let clock = 0;
+  const gate = createRelocationGate({ maxIdleMs: 60_000, now: () => clock });
+  const file = { rows: [{ siteDir: path.join(tempDir(), "missing") }], dismissed: [] } as never;
+
+  assert.equal(gate.shouldRun(file), true);
+  clock += 59_999;
+  assert.equal(gate.shouldRun(file), false);
+  clock += 1;
+  assert.equal(gate.shouldRun(file), true, "one full idle interval later");
+  clock += 1;
+  assert.equal(gate.shouldRun(file), false, "and the interval restarts from that pass");
 });

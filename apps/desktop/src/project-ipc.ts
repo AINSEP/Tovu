@@ -23,10 +23,10 @@ import fs from "node:fs";
 import path from "node:path";
 import fsp from "node:fs/promises";
 
-import { SITE_ORIGIN, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
+import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
 import { sitePartition } from "./desktop-auth.ts";
-import { relocateMovedSites, repointTrackedSite } from "./site-relocation.ts";
+import { createRelocationGate, relocateMovedSites, repointTrackedSite, type RelocationGate } from "./site-relocation.ts";
 
 const SITE_IPC_CHANNELS = Object.freeze({
   list: "runner:sites:list",
@@ -312,9 +312,18 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
  * (`site-relocation.ts`). The heal is best-effort: a list that cannot be SAVED still has to render,
  * so a failed write is logged and the rows are shown as they stand.
  *
+ * With `relocationGate` (production: {@link registerSiteIpcHandlers}), the heal runs only when the
+ * gate says something could have moved, so a 4 s poll over a missing folder does not rescan its
+ * siblings every time. Without one, it runs on every call.
+ *
  * @complexity O(n) in the tracked-project count, plus `relocateMovedSites`' scan for a missing row.
  */
-function handleList(deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions"> & Partial<Pick<ProjectIpcDeps, "siteScanRoots">>) {
+function handleList(
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions"> &
+    Partial<Pick<ProjectIpcDeps, "siteScanRoots">> & { relocationGate?: RelocationGate },
+) {
+  const file = readProjectsFile(deps.projectsPath);
+  if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return file.rows.map((row) => buildSiteRecord(row, deps));
   try {
     relocateMovedSites(deps.projectsPath, { searchRoots: deps.siteScanRoots ?? [] });
   } catch (error) {
@@ -966,7 +975,8 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @complexity O(1) — eleven registrations.
  */
 function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
+  const relocationGate = createRelocationGate();
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList({ ...deps, relocationGate }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));

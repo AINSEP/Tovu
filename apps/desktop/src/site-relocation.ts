@@ -2,7 +2,8 @@
  * @file A tracked project whose folder was renamed or moved heals itself. Found by the owner on the
  * 0.1.6 dmg: `sites/tovu-com` was renamed to `sites/tovu-dev` (commit bc015d6c5), and the Projects
  * screen kept a card for a folder that no longer existed. The owner's rule is that nobody should
- * have to fix that by hand, so {@link relocateMovedSites} runs on every list:
+ * have to fix that by hand, so {@link relocateMovedSites} runs from the list poll whenever something
+ * could have moved ({@link createRelocationGate}):
  *
  * 1. A row whose folder EXISTS gets that folder's id recorded on it (`relocationId`), once. That is
  *    what lets it be found again later — a folder that is already gone carries no id to read.
@@ -170,8 +171,9 @@ function planRelocations(current: ProjectsFile, searchRoots: string[]): Relocati
  * this file's header for the rules.
  *
  * Planned once WITHOUT the lock, and only when that finds something to do is it planned again inside
- * `updateProjectsFile`'s cross-process lock and written. This runs on every 4 s list poll, and the
- * ordinary answer — nothing to do — must not take a lock every other instance then waits on.
+ * `updateProjectsFile`'s cross-process lock and written. The list poll runs it whenever
+ * {@link createRelocationGate} says something could have moved, and the ordinary answer — nothing to
+ * do — must not take a lock every other instance then waits on.
  *
  * @returns what changed; empty lists when nothing did, in which case nothing was written.
  * @complexity O(n) rows, plus O(r * c) meta reads per missing row that carries an id.
@@ -186,6 +188,49 @@ function relocateMovedSites(projectsPath: string, options: RelocateOptions = {})
     return plan.changed ? { rows: plan.rows, dismissed: current.dismissed } : null;
   });
   return report;
+}
+
+/** {@link createRelocationGate}'s options; both are for tests. */
+interface RelocationGateOptions {
+  /** The longest a list poll goes without a pass. */
+  maxIdleMs?: number;
+  now?: () => number;
+}
+
+/** Decides, per list poll, whether {@link relocateMovedSites} is worth running. */
+interface RelocationGate {
+  shouldRun(file: Pick<ProjectsFile, "rows" | "dismissed">): boolean;
+}
+
+/** One minute: a sibling folder that appears while a row stays missing is picked up within this. */
+const RELOCATION_MAX_IDLE_MS = 60_000;
+
+/**
+ * The list poll runs every 4 s while the window is visible, and a pass for a row whose folder is
+ * missing re-reads every sibling folder's meta each time. Nothing can have moved unless the rows,
+ * which of their folders exist, or the removals changed, so a pass runs only when that picture
+ * differs from the last pass's (a folder renamed away is noticed on the very next poll, as before),
+ * and otherwise at most once per {@link RELOCATION_MAX_IDLE_MS} — the case where a missing row's
+ * folder turns up somewhere new while the row still points at the old path. The first poll always
+ * runs.
+ *
+ * @complexity O(n) `existsSync` per poll — the same checks the list's own `folderMissing` makes.
+ */
+function createRelocationGate(options: RelocationGateOptions = {}): RelocationGate {
+  const maxIdleMs = options.maxIdleMs ?? RELOCATION_MAX_IDLE_MS;
+  const now = options.now ?? Date.now;
+  let lastPicture: string | null = null;
+  let lastRunAt = 0;
+  return {
+    shouldRun(file) {
+      const picture = [...file.rows.map((row) => `${row.siteDir}\u0000${fs.existsSync(row.siteDir) ? 1 : 0}`), "\u0000dismissed", ...file.dismissed].join("\n");
+      const at = now();
+      if (picture === lastPicture && at - lastRunAt < maxIdleMs) return false;
+      lastPicture = picture;
+      lastRunAt = at;
+      return true;
+    },
+  };
 }
 
 /**
@@ -215,5 +260,6 @@ function repointTrackedSite(projectsPath: string, fromDir: string, toDir: string
   return next.rows;
 }
 
-export { readRelocationId, relocateMovedSites, repointTrackedSite };
+export { createRelocationGate, readRelocationId, relocateMovedSites, repointTrackedSite };
+export type { RelocationGate };
 export type { RelocationReport };

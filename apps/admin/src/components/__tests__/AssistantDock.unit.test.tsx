@@ -68,6 +68,9 @@ vi.mock("@jini-ai/chat/react", () => ({
   // fail a single test. Kept as the literal the package exports rather than a placeholder, since
   // the registration key is the value under test if this ever grows an assertion.
   MCP_UI_EXT_EVENT_NAME: "mcp-ui",
+  // Same trap: passed at module scope as the MCP-UI renderer's `slotKey` (one transcript slot per
+  // `ui://` URI), so a factory without it fails the whole file at import.
+  mcpUiSurfaceSlotKey: () => undefined,
 }));
 
 vi.mock("../../lib/execution-settings", async (importOriginal) => {

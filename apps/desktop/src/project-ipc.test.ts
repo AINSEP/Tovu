@@ -234,6 +234,31 @@ test("handleList returns one record per tracked row, joined against openSites", 
   assert.equal(byId.get("/sites/b")!.port, 9000);
 });
 
+// Idle CPU (2026-09-29): the list heals moved folders only when its relocation gate says to.
+test("handleList heals a renamed folder when its relocation gate allows a pass, and skips the pass when it does not", () => {
+  const root = tempDir();
+  const before = writeSite(path.join(root, "before"), "site-gate");
+  const after = path.join(root, "after");
+  const allowed = baseDeps();
+  trackSite(allowed.projectsPath, before);
+  let passes = 0;
+  const open = { shouldRun: () => (passes += 1) > 0 };
+
+  handleList({ ...allowed, relocationGate: open }); // records the folder's id
+  fs.renameSync(before, after);
+  assert.deepEqual(handleList({ ...allowed, relocationGate: open }).map((record) => [record.id, record.folderMissing]), [[after, false]]);
+  assert.equal(passes, 2);
+
+  const root2 = tempDir();
+  const before2 = writeSite(path.join(root2, "before"), "site-gate-2");
+  const skipped = baseDeps();
+  trackSite(skipped.projectsPath, before2);
+  const closed = { shouldRun: () => false };
+  handleList({ ...skipped, relocationGate: closed });
+  fs.renameSync(before2, path.join(root2, "after"));
+  assert.deepEqual(handleList({ ...skipped, relocationGate: closed }).map((record) => [record.id, record.folderMissing]), [[before2, true]], "no pass: the card shows the folder missing");
+});
+
 /** A folder that is a complete Tovu site, via this file's existing {@link writeSite}. */
 function siteFixture(name = "existing-site"): string {
   return writeSite(path.join(tempDir(), name), `id-${name}`);
