@@ -6,6 +6,8 @@ import {
   type AdminPublishCredentialSummary,
   type AdminPublishCredentialVerification,
   type AdminPublishExecutionMode,
+  type AdminPublishTargetCredentialSpec,
+  type AdminPublishTargetDescriptor,
 } from "@/lib/api";
 import { useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -18,15 +20,13 @@ import {
 } from "../deployment-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import {
-  PUBLISH_CREDENTIAL_PROVIDERS,
   PUBLISH_CREDENTIAL_ROW_LABEL,
-  buildPublishConnectionInput,
+  buildCredentialConnectionInput,
   classifyPublishCredentialSubmitError,
+  credentialFormReadyToSave,
   credentialsForProvider,
   defaultCredentialForProvider,
-  publishCredentialRowReadyToSave,
   withPromotedDefault,
-  type PublishCredentialFormFields,
 } from "../rules";
 import { defaultPublishCredentialsPort } from "./publish-credentials-dependencies.hooks";
 import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
@@ -43,8 +43,9 @@ import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
  * edit/delete/make-default actions. The owner's own read: "'Add credential' should be gone. Just
  * list the providers, labels, and access token space, and that's it" — the whole point of an
  * "Add" flow is asking the operator to create and name an object before they can type a token, and
- * there is nothing here to name: {@link PUBLISH_CREDENTIAL_PROVIDERS} already names the fixed set of
- * four things a token can be saved for. So this hook now exposes {@link PublishCredentialRowState}
+ * there is nothing here to name: the deploy registry's descriptors (the `targets` this hook is
+ * given) already name every host a token can be saved for, and each host's credential fields.
+ * So this hook now exposes {@link PublishCredentialRowState}
  * per provider instead of a form's worth of shared state — no `providerId`/`label` picker, no
  * isFormOpen/editingId mode split, no delete or default-promotion affordance (the data model still
  * supports more than one saved connection per provider and un-defaulting one via delete — see
@@ -53,7 +54,7 @@ import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
  * ## A stored credential is NEVER read back — this is why every row's inputs start blank
  *
  * `AdminPublishCredentialSummary` carries no token, no ciphertext, and deliberately no masked suffix
- * (see that type's own doc in `lib/api.ts`). So a row's `token`/`accountId` draft state can only ever
+ * (see that type's own doc in `lib/api.ts`). So a row's field draft state (`values`) can only ever
  * start blank, connected or not — a blank `token` at save time is therefore not "the operator left it
  * empty by mistake"; on an already-connected row it is the ONLY way to express "nothing to change
  * here" (`publishCredentialRowReadyToSave`, `rules.ts`, disables Save in that case rather than
@@ -85,17 +86,21 @@ import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
  *
  * `save` splices its own result into the local `credentials` array rather than re-running
  * `listCredentials()` — one round trip per write instead of two, matching the CRUD hook this
- * replaces. Draft `token`/`accountId` are cleared back to blank on a successful save (there is
+ * replaces. Draft field values are cleared back to blank on a successful save (there is
  * nothing left to keep typed — the row now reads its "Connected" status from the fresh summary).
  */
 export interface PublishCredentialRowState {
   readonly providerId: AdminPublishCredentialProviderId;
+  /** The host's display label, from its descriptor — a proper noun, never translated. */
+  readonly label: string;
+  /** The host's credential form: its fields (in display order), help and token field. */
+  readonly credential: AdminPublishTargetCredentialSpec;
   /** This provider's saved DEFAULT connection, if any (`rules.ts`'s `defaultCredentialForProvider`)
    *  — `undefined` means "not connected yet". Never carries a token or `accountId`; see this file's
    *  header for why every row's connection fields always start blank regardless of this value. */
   readonly saved: AdminPublishCredentialSummary | undefined;
-  readonly token: string;
-  readonly accountId: string;
+  /** Draft values typed into {@link credential}'s fields, keyed by field name. */
+  readonly values: Readonly<Record<string, string>>;
   readonly saving: boolean;
   readonly error: string | null;
   /** True while {@link PublishCredentialsController.verify} has an in-flight request for THIS
@@ -122,8 +127,8 @@ export interface PublishCredentialRowState {
 }
 
 export interface PublishCredentialsController {
-  /** One entry per {@link PUBLISH_CREDENTIAL_PROVIDERS} provider, in that fixed order —
-   *  `undefined` until the first load resolves, same "no data yet" convention every other hook in
+  /** One entry per deploy target that takes a saved credential, in the registry's order —
+   *  `undefined` until both the credentials and the targets have loaded, same "no data yet" convention every other hook in
    *  this panel uses (`StaticExportController.run`, `StaticPublishController.run`). */
   rows: readonly PublishCredentialRowState[] | undefined;
   /** The server's own execution capability for this instance — `undefined` until the same first
@@ -138,11 +143,11 @@ export interface PublishCredentialsController {
    *  Site tab's Publish button is disabled on this. (terra review 2026-09-20, finding 1.) */
   credentialChangePending: boolean;
 
-  setToken: (providerId: AdminPublishCredentialProviderId, value: string) => void;
-  setAccountId: (providerId: AdminPublishCredentialProviderId, value: string) => void;
-  /** Creates or replaces one provider's saved connection from its own row's current `token`/
-   *  `accountId` — see this file's header for the create-vs-update decision. A no-op if
-   *  {@link publishCredentialRowReadyToSave} says this row is not ready (the same guard the row's
+  /** Sets one credential field's draft value on one provider's row. */
+  setField: (providerId: AdminPublishCredentialProviderId, fieldName: string, value: string) => void;
+  /** Creates or replaces one provider's saved connection from its own row's current field values
+   *  — see this file's header for the create-vs-update decision. A no-op if
+   *  `credentialFormReadyToSave` (`rules.ts`) says this row is not ready (the same guard the row's
    *  own Save button is disabled on, kept here too so a direct call — as this file's own tests make —
    *  cannot bypass it). Resolves either way — a failure is surfaced through that row's own `error`. */
   save: (providerId: AdminPublishCredentialProviderId) => Promise<void>;
@@ -181,8 +186,7 @@ export interface PublishCredentialsController {
 /** One row's draft input + busy/error state — kept in a map keyed by provider id so each row's own
  *  typing and in-flight save/verify are fully independent of every other row's. */
 interface RowFormState {
-  token: string;
-  accountId: string;
+  values: Record<string, string>;
   saving: boolean;
   error: string | null;
   verifying: boolean;
@@ -201,7 +205,7 @@ interface SelectionState {
 }
 
 function blankRowFormState(): RowFormState {
-  return { token: "", accountId: "", saving: false, error: null, verifying: false, verification: undefined, verifyError: null, verifiedCredentialId: null };
+  return { values: {}, saving: false, error: null, verifying: false, verification: undefined, verifyError: null, verifiedCredentialId: null };
 }
 
 /**
@@ -212,14 +216,13 @@ function blankRowFormState(): RowFormState {
  * two-field provider's draft stays savable as one piece.
  * @complexity O(1).
  */
-function rowFormStateAfterSave(current: RowFormState, sent: Pick<PublishCredentialFormFields, "token" | "accountId">): RowFormState {
-  const editedMeanwhile = current.token !== sent.token || current.accountId !== sent.accountId;
-  return editedMeanwhile ? { ...blankRowFormState(), token: current.token, accountId: current.accountId } : blankRowFormState();
+function rowFormStateAfterSave(current: RowFormState, sent: Readonly<Record<string, string>>): RowFormState {
+  return current.values === sent ? blankRowFormState() : { ...blankRowFormState(), values: current.values };
 }
 
-function initialRowFormStates(): Record<AdminPublishCredentialProviderId, RowFormState> {
-  const entries = PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => [provider.id, blankRowFormState()] as const);
-  return Object.fromEntries(entries) as Record<AdminPublishCredentialProviderId, RowFormState>;
+/** A provider's form state, blank until its row is first touched. @complexity O(1). */
+function rowFormStateFor(states: Readonly<Record<string, RowFormState>>, providerId: AdminPublishCredentialProviderId): RowFormState {
+  return states[providerId] ?? blankRowFormState();
 }
 
 /** Translates a rejected create/update into the exact string {@link usePublishCredentials}'s `save`
@@ -240,7 +243,12 @@ function publishCredentialSubmitErrorMessage(err: unknown, t: Translate, locale:
   return publishCredentialSaveErrorMessage(locale, describeApiError(err, t("Unknown error")));
 }
 
-export function usePublishCredentials(port: PublishCredentialsPort, t: Translate, locale: string): PublishCredentialsController {
+export function usePublishCredentials(
+  port: PublishCredentialsPort,
+  t: Translate,
+  locale: string,
+  targets: readonly AdminPublishTargetDescriptor[] | undefined
+): PublishCredentialsController {
   const query = useFetchQuery({ key: ["deployment", "publish-credentials"], fetch: () => port.listCredentials() });
   const [credentials, setCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);
   const [executionMode, setExecutionMode] = useState<AdminPublishExecutionMode | undefined>(undefined);
@@ -259,7 +267,7 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
 
   const loadError = query.error ? publishCredentialsLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
 
-  const [formStates, setFormStates] = useState<Record<AdminPublishCredentialProviderId, RowFormState>>(initialRowFormStates);
+  const [formStates, setFormStates] = useState<Record<AdminPublishCredentialProviderId, RowFormState>>({});
   // The picker's promotion state, kept apart from `formStates`: a `save` that lands mid-promotion
   // resets its row's form state to blank, which must not also clear the in-flight flag Publish waits on.
   const [selections, setSelections] = useState<Partial<Record<AdminPublishCredentialProviderId, SelectionState>>>({});
@@ -271,24 +279,25 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
   // (terra review 2026-09-20, finding 5's sibling).
   const savingRef = useRef(new Set<AdminPublishCredentialProviderId>());
 
-  function setToken(providerId: AdminPublishCredentialProviderId, value: string) {
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], token: value } }));
+  // Every write below goes through this, so a row never touched before starts from a blank state.
+  function patchRow(providerId: AdminPublishCredentialProviderId, patch: (current: RowFormState) => RowFormState) {
+    setFormStates((prev) => ({ ...prev, [providerId]: patch(rowFormStateFor(prev, providerId)) }));
   }
 
-  function setAccountId(providerId: AdminPublishCredentialProviderId, value: string) {
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], accountId: value } }));
+  function setField(providerId: AdminPublishCredentialProviderId, fieldName: string, value: string) {
+    patchRow(providerId, (current) => ({ ...current, values: { ...current.values, [fieldName]: value } }));
   }
 
   async function save(providerId: AdminPublishCredentialProviderId) {
-    const formState = formStates[providerId];
-    const fields: PublishCredentialFormFields = { providerId, token: formState.token, accountId: formState.accountId };
-    if (!publishCredentialRowReadyToSave(fields) || savingRef.current.has(providerId)) return;
+    const spec = targets?.find((target) => target.id === providerId)?.credential;
+    const values = rowFormStateFor(formStates, providerId).values;
+    if (spec === undefined || !credentialFormReadyToSave(spec, values) || savingRef.current.has(providerId)) return;
     savingRef.current.add(providerId);
 
     const existing = defaultCredentialForProvider(credentials ?? [], providerId);
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], saving: true, error: null } }));
+    patchRow(providerId, (current) => ({ ...current, saving: true, error: null }));
     try {
-      const connection = buildPublishConnectionInput(fields);
+      const connection = buildCredentialConnectionInput(providerId, spec, values);
       const { verification, ...saved } = existing
         ? await port.updateCredential(existing.id, { connection })
         : await port.createCredential({ label: PUBLISH_CREDENTIAL_ROW_LABEL, connection });
@@ -298,15 +307,9 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
         const base = prev ?? [];
         return existing ? base.map((current) => (current.id === result.id ? result : current)) : [...base, result];
       });
-      setFormStates((prev) => ({
-        ...prev,
-        [providerId]: { ...rowFormStateAfterSave(prev[providerId], fields), verification, verifiedCredentialId: verification ? result.id : null },
-      }));
+      patchRow(providerId, (current) => ({ ...rowFormStateAfterSave(current, values), verification, verifiedCredentialId: verification ? result.id : null }));
     } catch (err) {
-      setFormStates((prev) => ({
-        ...prev,
-        [providerId]: { ...prev[providerId], saving: false, error: publishCredentialSubmitErrorMessage(err, t, locale) },
-      }));
+      patchRow(providerId, (current) => ({ ...current, saving: false, error: publishCredentialSubmitErrorMessage(err, t, locale) }));
     } finally {
       savingRef.current.delete(providerId);
     }
@@ -316,7 +319,7 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
     const connected = defaultCredentialForProvider(credentials ?? [], providerId);
     if (!connected) return; // Nothing saved for this provider yet — no row for `verify`'s button to have come from.
 
-    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], verifying: true, verifyError: null, verifiedCredentialId: connected.id } }));
+    patchRow(providerId, (current) => ({ ...current, verifying: true, verifyError: null, verifiedCredentialId: connected.id }));
     try {
       const result = await port.verifyCredential(connected.id);
       // Mirrors the server's own `healAccountLabel` write (`publish-credentials.ts`'s route doc) —
@@ -327,40 +330,43 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
       if (result.accountLabel !== undefined) {
         setCredentials((prev) => (prev ?? []).map((c) => (c.id === connected.id ? { ...c, accountLabel: result.accountLabel! } : c)));
       }
-      setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], verifying: false, verification: result, verifyError: null } }));
+      patchRow(providerId, (current) => ({ ...current, verifying: false, verification: result, verifyError: null }));
     } catch (err) {
-      setFormStates((prev) => ({
-        ...prev,
-        [providerId]: { ...prev[providerId], verifying: false, verifyError: publishCredentialVerifyErrorMessage(locale, describeApiError(err, "unknown error")) },
+      patchRow(providerId, (current) => ({
+        ...current,
+        verifying: false,
+        verifyError: publishCredentialVerifyErrorMessage(locale, describeApiError(err, "unknown error")),
       }));
     }
   }
 
   const rows: readonly PublishCredentialRowState[] | undefined =
-    credentials === undefined
+    credentials === undefined || targets === undefined
       ? undefined
-      : PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => {
-          const formState = formStates[provider.id];
-          const saved = defaultCredentialForProvider(credentials, provider.id);
+      : targets.flatMap((target) => {
+          if (target.credential === undefined) return [];
+          const formState = rowFormStateFor(formStates, target.id);
+          const saved = defaultCredentialForProvider(credentials, target.id);
           const verdictIsForSaved = saved !== undefined && formState.verifiedCredentialId === saved.id;
           return {
-            providerId: provider.id,
+            providerId: target.id,
+            label: target.label,
+            credential: target.credential,
             saved,
-            token: formState.token,
-            accountId: formState.accountId,
+            values: formState.values,
             saving: formState.saving,
             error: formState.error,
             verifying: formState.verifying,
             verification: verdictIsForSaved ? formState.verification : undefined,
             verifyError: verdictIsForSaved ? formState.verifyError : null,
-            selectingCredentialId: selections[provider.id]?.pendingId ?? null,
-            selectError: selections[provider.id]?.error ?? null,
+            selectingCredentialId: selections[target.id]?.pendingId ?? null,
+            selectError: selections[target.id]?.error ?? null,
           };
         });
 
-  const credentialChangePending = PUBLISH_CREDENTIAL_PROVIDERS.some(
-    (provider) => formStates[provider.id].saving || (selections[provider.id]?.pendingId ?? null) !== null
-  );
+  const credentialChangePending =
+    Object.values(formStates).some((state) => state.saving) ||
+    Object.values(selections).some((selection) => (selection?.pendingId ?? null) !== null);
 
   function credentialsForProviderId(providerId: AdminPublishCredentialProviderId): readonly AdminPublishCredentialSummary[] {
     return credentialsForProvider(credentials ?? [], providerId);
@@ -401,8 +407,7 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
     executionMode,
     loadError,
     credentialChangePending,
-    setToken,
-    setAccountId,
+    setField,
     save,
     credentialsForProvider: credentialsForProviderId,
     selectCredential,
@@ -416,8 +421,8 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
  * locale — the zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, same shape
  * `use-static-publish.hooks.ts`'s `useWiredStaticPublish` documents.
  */
-export function useWiredPublishCredentials(): PublishCredentialsController {
+export function useWiredPublishCredentials(targets: readonly AdminPublishTargetDescriptor[] | undefined): PublishCredentialsController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT(locale, key);
-  return usePublishCredentials(defaultPublishCredentialsPort, t, locale);
+  return usePublishCredentials(defaultPublishCredentialsPort, t, locale, targets);
 }

@@ -30,7 +30,7 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
 
 const { createFakeStaticPublishPort, defaultStaticPublishPort } = await import("../static-publish-dependencies.hooks");
 
-const GITHUB_CONFIG: AdminStaticPublishConfig = { target: "github-pages", owner: "tovu", repo: "tovu-com" };
+const GITHUB_CONFIG: AdminStaticPublishConfig = { target: "github-pages", fields: { owner: "tovu", repo: "tovu-com" } };
 const IDLE_RUN: AdminPublishRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, target: null };
 const RUNNING_RUN: AdminPublishRunSnapshot = { status: "running", startedAtIso: "2026-08-01T00:00:00.000Z", finishedAtIso: null, target: "github-pages" };
 const PREVIEW: AdminStaticPublishPreview = {

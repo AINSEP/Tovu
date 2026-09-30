@@ -29,11 +29,15 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe("useWiredPublishCredentials", () => {
   it("binds the real port and locale, loading rows through it", async () => {
     listPublishCredentials.mockResolvedValue({ credentials: [], executionMode: "self-hosted-cli" });
-    const { result } = renderHook(() => useWiredPublishCredentials(), { wrapper });
+    const targets = [
+      { id: "host-a", label: "Host A", configFields: [], credential: { tokenField: "token", fields: [{ name: "token", label: "Token", required: true, secret: true as const }] } },
+      { id: "host-b", label: "Host B", configFields: [] },
+    ];
+    const { result } = renderHook(() => useWiredPublishCredentials(targets), { wrapper });
 
     await waitFor(() => expect(result.current.rows).not.toBeUndefined());
     expect(listPublishCredentials).toHaveBeenCalledWith();
-    expect(result.current.rows).toHaveLength(4);
+    expect(result.current.rows?.map((row) => row.providerId)).toEqual(["host-a"]); // host-b takes no saved credential
     expect(result.current.t("Copy")).toBe("Copy"); // fakeT-equivalent identity for an untranslated key in "en"
   });
 });

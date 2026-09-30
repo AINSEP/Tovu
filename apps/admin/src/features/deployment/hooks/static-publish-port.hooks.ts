@@ -1,10 +1,13 @@
-import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
+import type { AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
 
 /**
  * @file What `useStaticPublish` needs from the outside world, as an interface rather than a direct
  * `lib/api` import — same shape as `static-export-port.hooks.ts` in this directory.
  */
 export interface StaticPublishPort {
+  /** The deploy targets the server's deploy registry lists, with their form field specs — the
+   *  publish card's host tabs, fields and help all come from this. */
+  listPublishTargets(): Promise<AdminPublishTargetDescriptor[]>;
   /** Pure read: validates `config`, reports the base path a real publish would use, and whether a
    *  credential is configured — never starts a run. */
   getPublishPreview(config: AdminStaticPublishConfig): Promise<AdminStaticPublishPreview>;

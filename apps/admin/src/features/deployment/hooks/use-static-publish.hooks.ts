@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   describeApiError,
   type AdminPublishRunSnapshot,
-  type AdminStaticPublishConfig,
+  type AdminPublishTargetDescriptor,
   type AdminStaticPublishPreview,
   type AdminStaticPublishTargetId,
 } from "@/lib/api";
@@ -17,25 +17,29 @@ import {
   publishTriggerErrorMessage,
 } from "../deployment-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
+import {
+  buildStaticPublishConfig,
+  publishTargetById,
+  staticPublishFormReadyForPreview,
+  staticPublishFormReadyToPublish,
+  staticPublishProjectNameCopy,
+  type StaticPublishProjectNameCopy,
+} from "../rules";
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
 /**
  * @file Everything the Static Site tab's "Getting it online" provider form does — target selection,
- * the owner/repo/branch/teamId/projectName fields, the preview action, and the publish
+ * the host's config fields and projectName, the preview action, and the publish
  * trigger+poll — so `StaticSiteTab.tsx` is only markup. Wired 2026-08-15 against
  * `src/server/routes/admin/system/publish-site.ts`'s three routes (preview, trigger, status).
  *
- * ## One form, four shapes
+ * ## One form, fields from the host's descriptor
  *
- * `owner`/`repo`/`branch` only mean anything for `target === "github-pages"`; `teamId` only for
- * `"vercel"`; netlify and cloudflare-pages use neither — both carry no target-specific field at all
- * (see `AdminStaticPublishConfig`'s own doc in `lib/api.ts`). Rather than four parallel sets of
- * fields (or unmounting/remounting a whole sub-form per target, which would lose whatever the
- * operator already typed if they toggle back), this hook keeps ALL five text fields in state at once
- * and {@link buildConfig} reads only the ones the current `target` uses — switching targets never
- * discards another target's half-filled fields, so a reader who taps between providers while
- * deciding doesn't lose work either way.
+ * The hosts, and each host's config fields, come from `GET .../system/publish-targets` (the deploy
+ * plugin's descriptors) — this hook names no host. Config values are kept per target id, so
+ * switching hosts never discards another host's half-filled fields, and `buildStaticPublishConfig`
+ * (`rules.ts`) sends only the fields the selected host declares.
  *
  * ## `basePath` is never a field here
  *
@@ -53,16 +57,24 @@ import type { StaticPublishPort } from "./static-publish-port.hooks";
  * either reflects the fields currently on screen or is honestly empty.
  */
 export interface StaticPublishController {
+  /** The deploy registry's targets, in its order — `undefined` until the first load resolves. */
+  targets: readonly AdminPublishTargetDescriptor[] | undefined;
+  /** Translated error from loading {@link targets}, `null` otherwise. */
+  targetsError: string | null;
+  /** The selected target's id — the operator's pick, else the first listed target; `""` while the
+   *  list loads. */
   target: AdminStaticPublishTargetId;
+  /** {@link target}'s descriptor, `undefined` while the list loads. */
+  selectedTarget: AdminPublishTargetDescriptor | undefined;
   setTarget: (target: AdminStaticPublishTargetId) => void;
-  owner: string;
-  setOwner: (value: string) => void;
-  repo: string;
-  setRepo: (value: string) => void;
-  branch: string;
-  setBranch: (value: string) => void;
-  teamId: string;
-  setTeamId: (value: string) => void;
+  /** The selected target's config values, keyed by descriptor field name. */
+  configValues: Readonly<Record<string, string>>;
+  setConfigField: (name: string, value: string) => void;
+  /** Whether Preview / Publish may be asked for with the current values (`rules.ts`). */
+  canPreview: boolean;
+  canPublish: boolean;
+  /** The selected host's label and help for {@link projectName}, as dictionary keys. */
+  projectNameCopy: StaticPublishProjectNameCopy;
   projectName: string;
   setProjectName: (value: string) => void;
 
@@ -121,47 +133,15 @@ const PUBLISH_POLL_INTERVAL_MS = 1500;
  *  {@link StaticPublishController.pollError} instead of retrying forever. */
 const PUBLISH_POLL_FAILURE_LIMIT = 3;
 
-/** Builds the wire config from the form's current field values — the one function that decides
- *  which fields matter for which target (everything else in this hook is target-agnostic state).
- *  Blank optional fields (`branch`, `teamId`) are omitted entirely rather than sent as `""`, so an
- *  operator who typed then deleted a branch name gets the server's own default (`"gh-pages"`)
- *  instead of an explicit empty string. One case per target, not an `if (github-pages) ... else
- *  vercel` — the shape this hook replaced silently built a `{target: "vercel", ...}` config for
- *  ANY non-github-pages target, which would have sent a Vercel-shaped publish request for a Netlify
- *  or Cloudflare Pages selection; a switch with an explicit branch per target makes that class of
- *  bug a compile error instead (TypeScript's own exhaustiveness check over `AdminStaticPublishTargetId`
- *  fails the build if a target is ever added here without a matching case).
- *  @complexity O(1). */
-function buildConfig(fields: {
-  target: AdminStaticPublishTargetId;
-  owner: string;
-  repo: string;
-  branch: string;
-  teamId: string;
-}): AdminStaticPublishConfig {
-  switch (fields.target) {
-    case "github-pages":
-      return {
-        target: "github-pages",
-        owner: fields.owner,
-        repo: fields.repo,
-        ...(fields.branch.trim() !== "" ? { branch: fields.branch.trim() } : {}),
-      };
-    case "vercel":
-      return { target: "vercel", ...(fields.teamId.trim() !== "" ? { teamId: fields.teamId.trim() } : {}) };
-    case "netlify":
-      return { target: "netlify" };
-    case "cloudflare-pages":
-      return { target: "cloudflare-pages" };
-  }
-}
-
 export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: string): StaticPublishController {
-  const [target, setTargetRaw] = useState<AdminStaticPublishTargetId>("github-pages");
-  const [owner, setOwnerRaw] = useState("");
-  const [repo, setRepoRaw] = useState("");
-  const [branch, setBranchRaw] = useState("");
-  const [teamId, setTeamIdRaw] = useState("");
+  const targetsQuery = useFetchQuery({ key: ["deployment", "publish-targets"], fetch: () => port.listPublishTargets() });
+  const targets = targetsQuery.data;
+  const targetsError = targetsQuery.error ? publishLoadErrorMessage(locale, describeApiError(targetsQuery.error, "unknown error")) : null;
+  const [chosenTarget, setChosenTarget] = useState<AdminStaticPublishTargetId | null>(null);
+  const target = chosenTarget ?? targets?.[0]?.id ?? "";
+  const selectedTarget = publishTargetById(targets, target);
+  const [valuesByTarget, setValuesByTarget] = useState<Record<AdminStaticPublishTargetId, Record<string, string>>>({});
+  const configValues = valuesByTarget[target] ?? {};
   const [projectName, setProjectName] = useState("");
 
   const [preview, setPreview] = useState<AdminStaticPublishPreview | undefined>(undefined);
@@ -190,23 +170,12 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setPreviewError(null);
   }
   function setTarget(value: AdminStaticPublishTargetId) {
-    setTargetRaw(value);
+    if (publishTargetById(targets, value) === undefined) return;
+    setChosenTarget(value);
     invalidatePreview();
   }
-  function setOwner(value: string) {
-    setOwnerRaw(value);
-    invalidatePreview();
-  }
-  function setRepo(value: string) {
-    setRepoRaw(value);
-    invalidatePreview();
-  }
-  function setBranch(value: string) {
-    setBranchRaw(value);
-    invalidatePreview();
-  }
-  function setTeamId(value: string) {
-    setTeamIdRaw(value);
+  function setConfigField(name: string, value: string) {
+    setValuesByTarget((prev) => ({ ...prev, [target]: { ...prev[target], [name]: value } }));
     invalidatePreview();
   }
 
@@ -217,7 +186,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     // same "ignored outright" idiom `publish()`'s `publishingRef` uses below). Safe against a
     // same-tick double call specifically because it is synchronous: nothing yields between the read
     // and the write, so a second synchronous call always observes this call's claim.
-    if (previewCallRef.current) return;
+    if (previewCallRef.current || selectedTarget === undefined) return;
     previewCallRef.current = true;
     // Captured BEFORE the request starts — if a field edit bumps `previewGenerationRef` while this
     // request is in flight, the comparison below after `await` tells us this result is now stale
@@ -227,7 +196,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setPreviewError(null);
     setPreviewLoading(true);
     try {
-      const result = await port.getPublishPreview(buildConfig({ target, owner, repo, branch, teamId }));
+      const result = await port.getPublishPreview(buildStaticPublishConfig(selectedTarget, configValues));
       // A field edited after this request started already invalidated the preview and moved the
       // generation forward — applying this now-stale result would repopulate the OLD fields over a
       // form the operator has since changed. Discard it silently; the edit's own `invalidatePreview()`
@@ -325,7 +294,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     // This check-then-set is safe against a same-tick double call specifically BECAUSE it is
     // synchronous: nothing yields between the read and the write below, so a second synchronous call
     // always observes this call's write.
-    if (publishingRef.current) return;
+    if (publishingRef.current || selectedTarget === undefined) return;
     publishingRef.current = true;
     // Local action supersedes any still-pending bootstrap read — same C1 fix and same reasoning
     // `use-static-export.hooks.ts`'s own `trigger()` documents: this write is synchronous and
@@ -340,7 +309,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setPublishing(true);
     try {
       const started = await port.triggerPublish({
-        config: buildConfig({ target, owner, repo, branch, teamId }),
+        config: buildStaticPublishConfig(selectedTarget, configValues),
         projectName,
         // Conditional spread, never `credentialId: options.credentialId` — an absent choice must not
         // reach the wire as an explicit `undefined` key.
@@ -356,16 +325,16 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   }
 
   return {
+    targets,
+    targetsError,
     target,
+    selectedTarget,
     setTarget,
-    owner,
-    setOwner,
-    repo,
-    setRepo,
-    branch,
-    setBranch,
-    teamId,
-    setTeamId,
+    configValues,
+    setConfigField,
+    canPreview: staticPublishFormReadyForPreview(selectedTarget, configValues),
+    canPublish: staticPublishFormReadyToPublish(selectedTarget, configValues, projectName),
+    projectNameCopy: staticPublishProjectNameCopy(selectedTarget),
     projectName,
     setProjectName,
     preview,

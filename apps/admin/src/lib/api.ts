@@ -571,32 +571,49 @@ export interface AdminExportRunSnapshot {
   error?: string;
 }
 
-/**
- * Mirrors `StaticPublishTargetId` in `src/features/deployments/static-publish/types.ts` — which is
- * itself a type ALIAS of that feature's `PublishProviderId` (2026-08-15, widened from a github-pages
- * + vercel-only pass to all four Jini targets). Declared here as an alias of
- * {@link AdminPublishCredentialProviderId} for the identical reason the server aliases the two: "what
- * this admin can publish to" and "what provider a credential can be saved for" must never drift into
- * two different sets — see that type's own doc for why it is declared as the wider of the two names
- * even though the two id sets are now equal.
- */
+/** A deploy target's id — whatever the server's deploy registry (the `deploy` agent plugin's
+ *  descriptors) lists. Never a closed union: the admin learns the set from
+ *  {@link AdminPublishTargetDescriptor}, so a host the plugin adds needs no admin change. Kept as an
+ *  alias of {@link AdminPublishCredentialProviderId}: a saved credential is keyed by the same id. */
 export type AdminStaticPublishTargetId = AdminPublishCredentialProviderId;
 
-/** Mirrors `GitHubPagesPublishConfig`/`VercelPublishConfig`/`NetlifyPublishConfig`/
- *  `CloudflarePagesPublishConfig` (same file). `basePath` is deliberately NOT a field on any variant
- *  — the server always derives it from `repo` (github-pages) or omits it entirely (every other
- *  target), never accepts one, so there is no field here a caller could even try to set it through.
- *  Netlify and Cloudflare Pages carry no target-specific field at all: Jini's `NetlifyDeployTarget`
- *  find-or-creates its site, and Cloudflare Pages' `accountId` lives on the CREDENTIAL, not this
- *  config — see `CloudflarePagesPublishConfig`'s own doc server-side for why. Both still find-or-
- *  create their project/site from the SAME `projectName` `triggerPublish` already sends alongside
- *  `config` — see `staticPublishProjectNameCopy` in `features/deployment/rules.ts` for why that one
- *  field means something different per target. */
-export type AdminStaticPublishConfig =
-  | { target: "github-pages"; owner: string; repo: string; branch?: string }
-  | { target: "vercel"; teamId?: string }
-  | { target: "netlify" }
-  | { target: "cloudflare-pages" };
+/** One named string field a person fills in — mirrors the server's `DeployTargetFieldSpec`. */
+export interface AdminPublishTargetField {
+  name: string;
+  label: string;
+  required?: boolean;
+  help?: string;
+  /** Never echoed back once saved (credential fields only). */
+  secret?: true;
+}
+
+/** A host's saved-credential form as `GET .../system/publish-targets` returns it (field specs and
+ *  help only, never a value). `tokenField` names the field that is the token. */
+export interface AdminPublishTargetCredentialSpec {
+  help?: string;
+  tokenField: string;
+  /** Where the person creates a token for this host. */
+  tokenPageUrl?: string;
+  fields: AdminPublishTargetField[];
+}
+
+/** One publish target from the deploy registry: its display label, the per-publish config fields
+ *  (a repository, a team), its credential form, and the per-host label/help for the publish's
+ *  `projectName` (absent: the generic "Project name" copy). */
+export interface AdminPublishTargetDescriptor {
+  id: AdminStaticPublishTargetId;
+  label: string;
+  configFields: AdminPublishTargetField[];
+  credential?: AdminPublishTargetCredentialSpec;
+  projectName?: { label: string; help?: string };
+}
+
+/** A publish's target plus its descriptor-declared config values (blank optional values already
+ *  dropped). The server derives `basePath` itself; there is no field here to set one. */
+export interface AdminStaticPublishConfig {
+  target: AdminStaticPublishTargetId;
+  fields: Readonly<Record<string, string>>;
+}
 
 /** Mirrors `StaticPublishOutcome` (same file) — the terminal result of one publish attempt, present
  *  on an {@link AdminPublishRunSnapshot} once `status` is `"completed"` or `"errored"`. */
@@ -637,17 +654,9 @@ export interface AdminStaticPublishPreview {
   willInjectNojekyll: boolean;
 }
 
-/**
- * A NAMED provider connection for publishing, stored server-side and never read back — see
- * {@link AdminPublishCredentialSummary}. The canonical four-provider union: {@link AdminStaticPublishTargetId}
- * is declared as an ALIAS of this type, not a separate literal list, so "what a credential can be
- * saved for" and "what `triggerPublish` can actually reach" can never drift apart again. They were
- * briefly two different sets (2026-08-15, credential save wired ahead of the publish-target UI for
- * Netlify/Cloudflare Pages — see `ADS-memory/reports/external-audit/runs/
- * 2026-08-15-terra-xhigh-publish-credentials-design.md`); the publish-target UI caught up the same
- * day, closing the gap.
- */
-export type AdminPublishCredentialProviderId = "github-pages" | "vercel" | "netlify" | "cloudflare-pages";
+/** A publish credential's provider id — the deploy target id it publishes with (see
+ *  {@link AdminStaticPublishTargetId}). An open string: the server's deploy registry owns the set. */
+export type AdminPublishCredentialProviderId = string;
 
 /**
  * One saved connection as the credential-management UI is allowed to see it — mirrors the server's
@@ -712,21 +721,10 @@ export interface AdminPublishCredentialVerification {
   accountLabel?: string;
 }
 
-/**
- * The body a create/update sends to configure ONE provider's connection — mirrors the server's
- * closed discriminated union verbatim. A credential holds the secret plus only the account scoping
- * that has nowhere else to live: GitHub Pages' `owner`/`repo`/`branch` and Vercel's `teamId` already
- * live on {@link AdminStaticPublishConfig} (the publish TARGET, chosen per run), so this type does
- * NOT duplicate them — a duplicate copy here would just be a second, driftable place either could be
- * set. Cloudflare Pages is the one provider with a second field: `accountId` is HARD required
- * (Cloudflare Pages has no account-scope-free API surface, and unlike `owner`/`repo` there is no
- * per-run publish target this could otherwise live on).
- */
-export type AdminPublishConnectionInput =
-  | { providerId: "github-pages"; token: string }
-  | { providerId: "vercel"; token: string }
-  | { providerId: "netlify"; token: string }
-  | { providerId: "cloudflare-pages"; token: string; accountId: string };
+/** The body a create/update sends to configure ONE provider's connection: its id plus the flat
+ *  string fields that host's credential descriptor declares ({@link AdminPublishTargetCredentialSpec}).
+ *  The server validates them against the descriptor and drops undeclared keys. */
+export type AdminPublishConnectionInput = { providerId: AdminPublishCredentialProviderId } & Readonly<Record<string, string>>;
 
 /**
  * The server's own execution capability for THIS instance — never derived client-side from
@@ -3925,26 +3923,13 @@ export const api = {
    *  SERVER-derived — see {@link AdminStaticPublishConfig}'s own doc), and whether a credential is
    *  configured for the target (a boolean only, never the credential itself). Never starts a run. */
   getPublishPreview: (config: AdminStaticPublishConfig) => {
-    const query = new URLSearchParams({ target: config.target });
-    // One branch per target, not an else-fallback — a target with no query params of its own
-    // (netlify, cloudflare-pages) gets its own empty branch rather than silently falling through
-    // whatever the last `else` happened to check, so a fifth target can never inherit github-pages'
-    // or vercel's params by accident.
-    switch (config.target) {
-      case "github-pages":
-        query.set("owner", config.owner);
-        query.set("repo", config.repo);
-        if (config.branch !== undefined) query.set("branch", config.branch);
-        break;
-      case "vercel":
-        if (config.teamId !== undefined) query.set("teamId", config.teamId);
-        break;
-      case "netlify":
-      case "cloudflare-pages":
-        break;
-    }
+    const query = new URLSearchParams({ ...config.fields, target: config.target });
     return request<AdminStaticPublishPreview>(`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`);
   },
+  /** The deploy targets the installed deploy plugins provide, with their publish and credential
+   *  form fields — the publish card renders from this. */
+  getPublishTargets: () =>
+    request<{ targets: AdminPublishTargetDescriptor[] }>(`/workspaces/${WORKSPACE_ID}/system/publish-targets`).then((res) => res.targets),
   /** Starts a new publish to `config.target`. `409` (surfaced as a thrown error) if one is already
    *  running — this instance runs at most one publish at a time, independent of a plain export.
    *
@@ -3960,7 +3945,8 @@ export const api = {
     request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`, {
       method: "POST",
       body: JSON.stringify({
-        ...input.config,
+        ...input.config.fields,
+        target: input.config.target,
         projectName: input.projectName,
         ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}),
       }),

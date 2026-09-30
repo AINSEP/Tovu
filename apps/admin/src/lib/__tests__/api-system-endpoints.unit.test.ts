@@ -107,18 +107,18 @@ test("getSiteExportStatus is a bare GET at /system/export, distinct from trigger
 test("triggerPublish POSTs config's own fields merged with projectName as the body", async () => {
   const { calls, body } = stubFetchCapturing();
   await api.triggerPublish({
-    config: { target: "github-pages", owner: "acme", repo: "site" },
+    config: { target: "repo-host", fields: { owner: "acme", repo: "site" } },
     projectName: "my-site",
   });
   expect(calls[0].url).toBe(`${BASE}/system/publish`);
   expect(calls[0].init?.method).toBe("POST");
-  expect(body()).toEqual({ target: "github-pages", owner: "acme", repo: "site", projectName: "my-site" });
+  expect(body()).toEqual({ target: "repo-host", owner: "acme", repo: "site", projectName: "my-site" });
 });
 
-test("triggerPublish merges a vercel config's own fields the same way", async () => {
+test("triggerPublish merges any host's config fields the same way", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerPublish({ config: { target: "vercel", teamId: "team-1" }, projectName: "my-site" });
-  expect(body()).toEqual({ target: "vercel", teamId: "team-1", projectName: "my-site" });
+  await api.triggerPublish({ config: { target: "team-host", fields: { teamId: "team-1" } }, projectName: "my-site" });
+  expect(body()).toEqual({ target: "team-host", teamId: "team-1", projectName: "my-site" });
 });
 
 // terra review 2026-09-20, finding 1 (Critical) — the publish must name the connection the operator
@@ -127,17 +127,17 @@ test("triggerPublish merges a vercel config's own fields the same way", async ()
 test("triggerPublish sends the chosen credential's id so the server publishes with THAT connection", async () => {
   const { body } = stubFetchCapturing();
   await api.triggerPublish({
-    config: { target: "github-pages", owner: "acme", repo: "site" },
+    config: { target: "repo-host", fields: { owner: "acme", repo: "site" } },
     projectName: "my-site",
     credentialId: "cred-chosen",
   });
-  expect(body()).toEqual({ target: "github-pages", owner: "acme", repo: "site", projectName: "my-site", credentialId: "cred-chosen" });
+  expect(body()).toEqual({ target: "repo-host", owner: "acme", repo: "site", projectName: "my-site", credentialId: "cred-chosen" });
 });
 
 test("triggerPublish omits credentialId entirely when there is no chosen connection — never sends an explicit undefined", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerPublish({ config: { target: "vercel" }, projectName: "my-site" });
-  expect(body()).toEqual({ target: "vercel", projectName: "my-site" });
+  await api.triggerPublish({ config: { target: "plain-host", fields: {} }, projectName: "my-site" });
+  expect(body()).toEqual({ target: "plain-host", projectName: "my-site" });
   expect(Object.keys(body() as object)).not.toContain("credentialId");
 });
 

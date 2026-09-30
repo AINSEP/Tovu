@@ -5,9 +5,14 @@ import {
   FULL_SITE_PROVIDERS,
   PUBLISH_CREDENTIAL_PROVIDERS,
   PUBLISH_CREDENTIAL_ROW_LABEL,
-  STATIC_HOSTS,
-  STATIC_PUBLISH_TARGETS,
+  buildCredentialConnectionInput,
   buildPublishConnectionInput,
+  buildStaticPublishConfig,
+  credentialFieldHandleId,
+  credentialFormReadyToSave,
+  fieldLabelParts,
+  publishConfigFieldHandleId,
+  publishTargetById,
   classifyPublishCredentialSubmitError,
   credentialsForProvider,
   daemonStatusLabelKey,
@@ -30,6 +35,7 @@ import {
   staticPublishProjectNameCopy,
   type PublishCredentialFormFields,
 } from "../rules";
+import { CLOUDFLARE_PAGES_TARGET, GITHUB_PAGES_TARGET, PLAIN_TARGET, PUBLISH_TARGETS, VERCEL_TARGET } from "./publish-targets.fixture";
 
 /** A blank form for one provider — every test below overrides only the fields it cares about,
  *  same "start from a known-empty baseline" convention the hook itself follows on `startAdd`. */
@@ -159,20 +165,6 @@ describe("FULL_SITE_PROVIDERS", () => {
   });
 });
 
-describe("STATIC_HOSTS", () => {
-  it("lists exactly the four static hosts named in the brief", () => {
-    expect(STATIC_HOSTS).toEqual(["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"]);
-  });
-});
-
-describe("STATIC_PUBLISH_TARGETS", () => {
-  it("lists exactly the four publish targets, matching PUBLISH_CREDENTIAL_PROVIDERS' own id set", () => {
-    expect(STATIC_PUBLISH_TARGETS).toHaveLength(4);
-    expect(STATIC_PUBLISH_TARGETS.map((target) => target.id)).toEqual(["github-pages", "vercel", "netlify", "cloudflare-pages"]);
-    expect(new Set(STATIC_PUBLISH_TARGETS.map((t) => t.id))).toEqual(new Set(PUBLISH_CREDENTIAL_PROVIDERS.map((p) => p.id)));
-  });
-});
-
 describe("runStatusTone", () => {
   it("maps idle to neutral, running to warning, errored to error", () => {
     expect(runStatusTone("idle", undefined)).toBe("neutral");
@@ -220,45 +212,97 @@ describe("publishRunStatusLabelKey", () => {
 });
 
 describe("staticPublishFormReadyForPreview / staticPublishFormReadyToPublish", () => {
-  it("github-pages needs owner AND repo for a preview; every other target needs neither", () => {
-    expect(staticPublishFormReadyForPreview("github-pages", { owner: "", repo: "" })).toBe(false);
-    expect(staticPublishFormReadyForPreview("github-pages", { owner: "octo", repo: "" })).toBe(false);
-    expect(staticPublishFormReadyForPreview("github-pages", { owner: "octo", repo: "demo" })).toBe(true);
-    expect(staticPublishFormReadyForPreview("vercel", { owner: "", repo: "" })).toBe(true);
-    expect(staticPublishFormReadyForPreview("netlify", { owner: "", repo: "" })).toBe(true);
-    expect(staticPublishFormReadyForPreview("cloudflare-pages", { owner: "", repo: "" })).toBe(true);
+  it("a preview needs every REQUIRED config field the host's descriptor declares, and nothing else", () => {
+    expect(staticPublishFormReadyForPreview(GITHUB_PAGES_TARGET, {})).toBe(false);
+    expect(staticPublishFormReadyForPreview(GITHUB_PAGES_TARGET, { owner: "octo", repo: " " })).toBe(false);
+    expect(staticPublishFormReadyForPreview(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" })).toBe(true);
+    expect(staticPublishFormReadyForPreview(VERCEL_TARGET, {})).toBe(true); // teamId is optional
+    expect(staticPublishFormReadyForPreview(PLAIN_TARGET, {})).toBe(true);
+  });
+
+  it("is never ready before the target list has loaded", () => {
+    expect(staticPublishFormReadyForPreview(undefined, {})).toBe(false);
+    expect(staticPublishFormReadyToPublish(undefined, {}, "demo")).toBe(false);
   });
 
   it("publishing additionally requires a non-blank projectName for EVERY target", () => {
-    expect(staticPublishFormReadyToPublish("github-pages", { owner: "octo", repo: "demo", projectName: "" })).toBe(false);
-    expect(staticPublishFormReadyToPublish("github-pages", { owner: "octo", repo: "demo", projectName: "demo" })).toBe(true);
-    expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "" })).toBe(false);
-    expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "demo" })).toBe(true);
-    expect(staticPublishFormReadyToPublish("netlify", { owner: "", repo: "", projectName: "" })).toBe(false);
-    expect(staticPublishFormReadyToPublish("netlify", { owner: "", repo: "", projectName: "my-site" })).toBe(true);
-    expect(staticPublishFormReadyToPublish("cloudflare-pages", { owner: "", repo: "", projectName: "" })).toBe(false);
-    expect(staticPublishFormReadyToPublish("cloudflare-pages", { owner: "", repo: "", projectName: "my-project" })).toBe(true);
+    expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "")).toBe(false);
+    expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "demo")).toBe(true);
+    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "  ")).toBe(false);
+    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "my-site")).toBe(true);
+  });
+});
+
+describe("buildStaticPublishConfig", () => {
+  it("sends only the host's declared fields, trimmed, dropping blank ones so the server applies its own default", () => {
+    expect(buildStaticPublishConfig(GITHUB_PAGES_TARGET, { owner: " octo ", repo: "demo", branch: "  ", teamId: "stray" })).toEqual({
+      target: "github-pages",
+      fields: { owner: "octo", repo: "demo" },
+    });
+    expect(buildStaticPublishConfig(PLAIN_TARGET, { owner: "stray" })).toEqual({ target: "plain-host", fields: {} });
   });
 });
 
 describe("staticPublishProjectNameCopy", () => {
-  it("gives each of the four targets a distinct label naming what the field really is", () => {
-    const copies = (["github-pages", "vercel", "netlify", "cloudflare-pages"] as const).map(staticPublishProjectNameCopy);
-    expect(new Set(copies.map((c) => c.labelKey)).size).toBe(4);
-    expect(new Set(copies.map((c) => c.helpKey)).size).toBe(4);
+  it("uses the host's own label and help when its descriptor names the field", () => {
+    expect(staticPublishProjectNameCopy(GITHUB_PAGES_TARGET)).toEqual({
+      labelKey: "Commit message",
+      helpKey: "Used as the commit message on the gh-pages branch.",
+    });
   });
 
-  it("github-pages calls it a commit message, never a 'project name' — the field is not a project on GitHub", () => {
-    expect(staticPublishProjectNameCopy("github-pages").labelKey).toBe("Commit message");
+  it("falls back to the generic copy for a host that doesn't, and while the list loads", () => {
+    const generic = { labelKey: "Project name", helpKey: "The host finds or creates a project with this name on every publish." };
+    expect(staticPublishProjectNameCopy(PLAIN_TARGET)).toEqual(generic);
+    expect(staticPublishProjectNameCopy(undefined)).toEqual(generic);
+  });
+});
+
+describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
+  const spec = CLOUDFLARE_PAGES_TARGET.credential!;
+
+  it("needs a non-blank token plus every required credential field", () => {
+    expect(credentialFormReadyToSave(spec, {})).toBe(false);
+    expect(credentialFormReadyToSave(spec, { token: "tok" })).toBe(false);
+    expect(credentialFormReadyToSave(spec, { token: " ", accountId: "acct" })).toBe(false);
+    expect(credentialFormReadyToSave(spec, { token: "tok", accountId: "acct" })).toBe(true);
   });
 
-  it("netlify calls its resource a 'site', matching Netlify's own terminology, not Vercel's/Cloudflare's 'project'", () => {
-    expect(staticPublishProjectNameCopy("netlify").labelKey).toMatch(/site/i);
+  it("reads the token from the descriptor's tokenField, whatever it is named", () => {
+    const keyed = { tokenField: "secretKey", fields: [{ name: "secretKey", label: "Secret key", required: true }] };
+    expect(credentialFormReadyToSave(keyed, { secretKey: "s" })).toBe(true);
+    expect(credentialFormReadyToSave(keyed, { token: "s" })).toBe(false);
   });
 
-  it("vercel and cloudflare-pages each name their own provider in the label — never a generic, unattributed 'Project name'", () => {
-    expect(staticPublishProjectNameCopy("vercel").labelKey).toMatch(/vercel/i);
-    expect(staticPublishProjectNameCopy("cloudflare-pages").helpKey).toMatch(/cloudflare/i);
+  it("builds the connection from declared fields only, trimmed, with providerId", () => {
+    expect(buildCredentialConnectionInput("cloudflare-pages", spec, { token: " tok ", accountId: " acct ", stray: "x" })).toEqual({
+      providerId: "cloudflare-pages",
+      token: "tok",
+      accountId: "acct",
+    });
+  });
+});
+
+describe("agent handle ids", () => {
+  it("keeps the ids agent tooling already uses for config and credential inputs", () => {
+    expect(publishConfigFieldHandleId("owner")).toBe("deployment-static-site-publish-owner");
+    expect(publishConfigFieldHandleId("teamId")).toBe("deployment-static-site-publish-team");
+    expect(credentialFieldHandleId("host", "token", "token")).toBe("deployment-static-site-credentials-token-host");
+    expect(credentialFieldHandleId("host", "accountId", "token")).toBe("deployment-static-site-credentials-account-host");
+    expect(credentialFieldHandleId("host", "region", "secretKey")).toBe("deployment-static-site-credentials-region-host");
+  });
+});
+
+describe("publishTargetById / fieldLabelParts", () => {
+  it("finds a listed target and returns undefined for an unknown id or an unloaded list", () => {
+    expect(publishTargetById(PUBLISH_TARGETS, "vercel")).toBe(VERCEL_TARGET);
+    expect(publishTargetById(PUBLISH_TARGETS, "nope")).toBeUndefined();
+    expect(publishTargetById(undefined, "vercel")).toBeUndefined();
+  });
+
+  it("adds the optional suffix key only to optional fields", () => {
+    expect(fieldLabelParts({ name: "owner", label: "Owner", required: true })).toEqual({ label: "Owner", suffixKey: null });
+    expect(fieldLabelParts({ name: "branch", label: "Branch" })).toEqual({ label: "Branch", suffixKey: "(optional)" });
   });
 });
 

@@ -642,39 +642,31 @@ test("triggerSiteExport sends the given options as the body", async () => {
   expect(body()).toEqual({ clean: true, basePath: "/blog" });
 });
 
-test("getPublishPreview for github-pages sets owner/repo, and branch only when given", async () => {
+test("getPublishPreview sends the target plus each config field as a query param", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "github-pages", owner: "acme", repo: "site" });
+  await api.getPublishPreview({ target: "repo-host", fields: { owner: "acme", repo: "site" } });
+  expect(calls[0].url).toContain("target=repo-host");
   expect(calls[0].url).toContain("owner=acme");
   expect(calls[0].url).toContain("repo=site");
   expect(calls[0].url).not.toContain("branch");
-  vi.unstubAllGlobals();
-
-  const { calls: withBranch } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "github-pages", owner: "acme", repo: "site", branch: "gh-pages" });
-  expect(withBranch[0].url).toContain("branch=gh-pages");
 });
 
-test("getPublishPreview for vercel sets teamId only when given", async () => {
+test("getPublishPreview for a host with no config fields sends only the target", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "vercel" });
-  expect(calls[0].url).not.toContain("teamId");
-  vi.unstubAllGlobals();
-
-  const { calls: withTeam } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "vercel", teamId: "team-1" });
-  expect(withTeam[0].url).toContain("teamId=team-1");
+  await api.getPublishPreview({ target: "plain-host", fields: {} });
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/system/publish/preview?target=plain-host`);
 });
 
-test("getPublishPreview for netlify and cloudflare-pages adds no target-specific query params", async () => {
-  const { calls: netlify } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "netlify" });
-  expect(netlify[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/system/publish/preview?target=netlify`);
-  vi.unstubAllGlobals();
-
-  const { calls: cloudflare } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "cloudflare-pages" });
-  expect(cloudflare[0].url).toBe(
-    `/api/admin/v1/workspaces/workspace-local/system/publish/preview?target=cloudflare-pages`
+test("getPublishTargets GETs /system/publish-targets and unwraps the targets list", async () => {
+  const targets = [{ id: "plain-host", label: "Plain Host", configFields: [] }];
+  const calls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      calls.push(url);
+      return okJson({ targets });
+    })
   );
+  await expect(api.getPublishTargets()).resolves.toEqual(targets);
+  expect(calls[0]).toBe(`/api/admin/v1/workspaces/workspace-local/system/publish-targets`);
 });

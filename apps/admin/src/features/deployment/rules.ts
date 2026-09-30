@@ -8,6 +8,10 @@ import {
   type AdminPublishCredentialSummary,
   type AdminPublishCredentialVerification,
   type AdminPublishRunSnapshot,
+  type AdminPublishTargetCredentialSpec,
+  type AdminPublishTargetDescriptor,
+  type AdminPublishTargetField,
+  type AdminStaticPublishConfig,
   type AdminStaticPublishTargetId,
 } from "../../lib/api";
 
@@ -101,34 +105,6 @@ export const FULL_SITE_PROVIDERS: readonly FullSiteProviderRow[] = [
   },
 ] as const;
 
-/** The four static-hosting destinations named in the brief. Proper nouns, never translated. */
-export const STATIC_HOSTS: readonly string[] = ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"] as const;
-
-/** One static-publish destination this tab's provider picker can select — pairs a
- *  `StaticPublishConfig["target"]` wire value with its display name. Order here is the provider
- *  picker's display order. */
-export interface StaticPublishTargetInfo {
-  readonly id: AdminStaticPublishTargetId;
-  /** Proper noun — rendered verbatim, never translated, same treatment `STATIC_HOSTS` gets. */
-  readonly label: string;
-}
-
-/**
- * The four static-publish destinations `triggerPublish` can actually reach — widened 2026-08-15
- * (from a github-pages/vercel-only pass) alongside `static-publish/adapter.ts`'s `buildJiniTarget`,
- * which already wraps Jini's `NetlifyDeployTarget`/`CloudflarePagesDeployTarget` the same way it
- * wraps the first two. This list and {@link PUBLISH_CREDENTIAL_PROVIDERS} now name the SAME four ids
- * — {@link AdminStaticPublishTargetId} is declared as a straight alias of
- * {@link AdminPublishCredentialProviderId} in `lib/api.ts` specifically so these two lists can never
- * list a different provider set again.
- */
-export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
-  { id: "github-pages", label: "GitHub Pages" },
-  { id: "vercel", label: "Vercel" },
-  { id: "netlify", label: "Netlify" },
-  { id: "cloudflare-pages", label: "Cloudflare Pages" },
-] as const;
-
 /**
  * A field the credential form can show for one provider's connection, beyond the universal `token`
  * (rendered unconditionally, never listed as any one provider's field). Cloudflare Pages' `accountId`
@@ -142,19 +118,14 @@ export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
 export type PublishCredentialFieldKey = "accountId";
 
 /**
- * One provider the credential-management section can save a connection for — the SAME four ids
- * {@link STATIC_PUBLISH_TARGETS} publishes to (both trace back to `AdminPublishCredentialProviderId`
- * in `lib/api.ts`, which `AdminStaticPublishTargetId` is a straight alias of). The two lists were
- * briefly different sets (2026-08-15: the server's `static-publish/adapter.ts` and this credential
- * form shipped ahead of the "Publish directly from here" trigger UI's own Netlify/Cloudflare Pages
- * tab) — that gap is closed, and both now list the identical four providers, in the identical order.
- * Order here is the flat per-provider credential list's row order — there is no picker left to
- * order; every provider gets its own always-visible row (see {@link PUBLISH_CREDENTIAL_PROVIDERS}'s
- * own doc).
+ * One provider the Security page's Access Tokens tab can save a publish connection for. The Static
+ * Site tab no longer reads this table: it renders hosts, fields and help from the deploy plugin's
+ * descriptors (`GET .../system/publish-targets`). Remaining work: move the Access Tokens tab onto
+ * the same descriptors and delete this table.
  */
 export interface PublishCredentialProviderInfo {
   readonly id: AdminPublishCredentialProviderId;
-  /** Proper noun — rendered verbatim, never translated, same treatment `StaticPublishTargetInfo.label` gets. */
+  /** Proper noun — rendered verbatim, never translated. */
   readonly label: string;
   /** Where to create a token for this provider. Always opened in a new tab — a third-party
    *  account-security page has no business rendering inside this admin. */
@@ -218,10 +189,8 @@ export const PUBLISH_CREDENTIAL_PROVIDERS: readonly PublishCredentialProviderInf
   },
 ] as const;
 
-/** Looks up one provider's registry entry, falling back to the first (GitHub Pages) — the same
- *  "the picker can never select something absent from its own list" guarantee
- *  `STATIC_PUBLISH_TARGETS.find(...) ?? STATIC_PUBLISH_TARGETS[0]!` already relies on in
- *  `StaticSiteTab.tsx`. @complexity O(1) — the array has exactly four entries. */
+/** Looks up one provider's registry entry, falling back to the first. @complexity O(1) — the array
+ *  has exactly four entries. */
 export function publishCredentialProviderInfo(id: AdminPublishCredentialProviderId): PublishCredentialProviderInfo {
   return PUBLISH_CREDENTIAL_PROVIDERS.find((provider) => provider.id === id) ?? PUBLISH_CREDENTIAL_PROVIDERS[0]!;
 }
@@ -240,10 +209,8 @@ export interface PublishCredentialFormFields {
 
 /**
  * Builds the wire {@link AdminPublishConnectionInput} from the form's current field values — the one
- * function that decides which fields matter for which provider, mirroring `buildConfig` in
- * `use-static-publish.hooks.ts`. `accountId` is trimmed and included only for `cloudflare-pages`
- * (required there, absent everywhere else — there is no blank-omits-it case left since it is the
- * only remaining per-provider field, and it is required whenever it applies).
+ * Access Tokens tab's rule for which fields a provider's connection carries: `accountId` is trimmed
+ * and included only for a provider whose `requiredFields` lists it.
  *
  * Always trims and includes `token`, even when blank — detecting "no new token typed" is
  * {@link publishCredentialRowReadyToSave}'s job (a blank token on an already-connected row means
@@ -253,24 +220,16 @@ export interface PublishCredentialFormFields {
  */
 export function buildPublishConnectionInput(fields: PublishCredentialFormFields): AdminPublishConnectionInput {
   const token = fields.token.trim();
-  switch (fields.providerId) {
-    case "github-pages":
-      return { providerId: "github-pages", token };
-    case "vercel":
-      return { providerId: "vercel", token };
-    case "netlify":
-      return { providerId: "netlify", token };
-    case "cloudflare-pages":
-      return { providerId: "cloudflare-pages", token, accountId: fields.accountId.trim() };
-  }
+  const info = PUBLISH_CREDENTIAL_PROVIDERS.find((provider) => provider.id === fields.providerId);
+  if (info?.requiredFields.includes("accountId")) return { providerId: fields.providerId, token, accountId: fields.accountId.trim() };
+  return { providerId: fields.providerId, token };
 }
 
 /**
  * The single fixed label every connection saved through the flat per-provider credential list uses
  * (2026-08-15 redesign) — the server's `publish_credential_sets` table still enforces a UNIQUE
  * `(workspace_id, provider_id, label)`, so a label is still written on every create, it is just never
- * shown or typed by an operator anymore. Because {@link STATIC_PUBLISH_TARGETS}/
- * {@link PUBLISH_CREDENTIAL_PROVIDERS} name each provider at most once, `(provider_id, "default")` can
+ * shown or typed by an operator anymore. Because the deploy registry names each target at most once, `(provider_id, "default")` can
  * never collide with itself within one workspace — see `use-publish-credentials.hooks.ts`'s header for
  * why a save only ever CREATES with this label when the provider has no saved connection yet, and
  * UPDATEs the existing one (by id, keeping whatever label it already has) otherwise.
@@ -380,82 +339,125 @@ export function classifyPublishCredentialSubmitError(e: unknown): PublishCredent
   return { kind: "generic" };
 }
 
-/** Whether the publish form has enough filled in to ask for a PREVIEW — `owner`/`repo` are the only
- *  fields `validateStaticPublishConfig` (server-side, `static-publish/adapter.ts`) actually requires,
- *  and only for `github-pages`; `branch`/`teamId` are always optional, and vercel/netlify/
- *  cloudflare-pages need nothing at all beyond picking them (netlify/cloudflare-pages carry no
- *  target-specific field whatsoever — see `AdminStaticPublishConfig`'s own doc in `lib/api.ts`).
- *  Mirrors `parsePreviewQuery`'s own required-field set so this button never enables for a request
- *  the server would 400 on shape alone. One case per target, not an `if (target === "github-pages")
- *  ... else`, so a fifth target added here later must be given its own explicit answer rather than
- *  silently inheriting "needs nothing" from the `else` branch. @complexity O(1). */
-export function staticPublishFormReadyForPreview(
-  target: AdminStaticPublishTargetId,
-  fields: { owner: string; repo: string }
+/** The descriptor for `id`, or `undefined` while the list loads or when the id is not listed.
+ *  @complexity O(t) in the (small) target count. */
+export function publishTargetById(
+  targets: readonly AdminPublishTargetDescriptor[] | undefined,
+  id: AdminStaticPublishTargetId
+): AdminPublishTargetDescriptor | undefined {
+  return targets?.find((target) => target.id === id);
+}
+
+/** Whether every field `fields` marks required has a non-blank value in `values` — the one
+ *  readiness rule both the publish form (config fields) and the credential form (credential fields)
+ *  use, mirroring the server's own descriptor validation so a button never enables for a request
+ *  the server would refuse on shape alone. @complexity O(f). */
+export function requiredFieldsFilled(
+  fields: readonly AdminPublishTargetField[],
+  values: Readonly<Record<string, string>>
 ): boolean {
-  switch (target) {
-    case "github-pages":
-      return fields.owner.trim() !== "" && fields.repo.trim() !== "";
-    case "vercel":
-    case "netlify":
-    case "cloudflare-pages":
-      return true;
+  return fields.every((field) => !field.required || (values[field.name] ?? "").trim() !== "");
+}
+
+/** The declared fields' values, trimmed, with blank ones dropped — so a blank optional field (a
+ *  branch, a team) gets the server's own default instead of an explicit empty string, and
+ *  undeclared keys never reach the wire. @complexity O(f). */
+export function declaredFieldValues(
+  fields: readonly AdminPublishTargetField[],
+  values: Readonly<Record<string, string>>
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const field of fields) {
+    const value = (values[field.name] ?? "").trim();
+    if (value !== "") out[field.name] = value;
   }
+  return out;
 }
 
-/** Whether the form has enough to ask for a real PUBLISH — everything
- *  {@link staticPublishFormReadyForPreview} requires, plus a non-blank `projectName` (required for
- *  every target — see {@link staticPublishProjectNameCopy} for why that one field means something
- *  different per target; the preview endpoint has no equivalent field at all, since it never starts
- *  a run). @complexity O(1). */
-export function staticPublishFormReadyToPublish(
-  target: AdminStaticPublishTargetId,
-  fields: { owner: string; repo: string; projectName: string }
+/** The wire config for one publish/preview: the target plus its declared config values.
+ *  @complexity O(f). */
+export function buildStaticPublishConfig(
+  target: AdminPublishTargetDescriptor,
+  values: Readonly<Record<string, string>>
+): AdminStaticPublishConfig {
+  return { target: target.id, fields: declaredFieldValues(target.configFields, values) };
+}
+
+/** Whether the publish form can ask for a PREVIEW: a known target with its required config
+ *  fields filled. @complexity O(f). */
+export function staticPublishFormReadyForPreview(
+  target: AdminPublishTargetDescriptor | undefined,
+  values: Readonly<Record<string, string>>
 ): boolean {
-  return fields.projectName.trim() !== "" && staticPublishFormReadyForPreview(target, fields);
+  return target !== undefined && requiredFieldsFilled(target.configFields, values);
 }
 
-/** The "Project name" field's label and help text — split per target because the SAME field means a
- *  genuinely different thing to each provider's own API, not one universal concept with four names:
- *  GitHub Pages uses it as the commit message subject on the `gh-pages` branch (never a "project" in
- *  any GitHub sense); Vercel, Netlify, and Cloudflare Pages each find-or-create their own
- *  project/site named after it (`adapter.ts`'s `publishStaticSite` passes the SAME `projectName`
- *  string to `jiniTarget.publish()` for all four — this function only changes what the FORM calls
- *  that string for the currently selected target, never the wire value itself). Netlify calls its
- *  own resource a "site", not a "project" — copying Vercel's "project" wording onto Netlify would be
- *  a fabricated claim about Netlify's own terminology, so it gets its own label rather than sharing
- *  Vercel's or Cloudflare Pages'. One case per target, matching every other per-target function in
- *  this file (`buildPublishConnectionInput`, `staticPublishFormReadyForPreview`) — a fifth target
- *  must get its own explicit copy, never inherit another provider's by falling through an `else`.
- *  @complexity O(1). */
+/** Whether the form can ask for a real PUBLISH — everything a preview needs plus a non-blank
+ *  `projectName` (required for every target; the preview has no such field). @complexity O(f). */
+export function staticPublishFormReadyToPublish(
+  target: AdminPublishTargetDescriptor | undefined,
+  values: Readonly<Record<string, string>>,
+  projectName: string
+): boolean {
+  return projectName.trim() !== "" && staticPublishFormReadyForPreview(target, values);
+}
+
+/** Whether a credential form has enough typed to save: a non-blank token (a blank one on a
+ *  connected row means "keep the stored secret", so there is nothing to send) plus every required
+ *  field the host's descriptor declares. @complexity O(f). */
+export function credentialFormReadyToSave(
+  spec: AdminPublishTargetCredentialSpec,
+  values: Readonly<Record<string, string>>
+): boolean {
+  return (values[spec.tokenField] ?? "").trim() !== "" && requiredFieldsFilled(spec.fields, values);
+}
+
+/** The wire connection for one host's credential form: its id plus the declared fields' trimmed,
+ *  non-blank values. @complexity O(f). */
+export function buildCredentialConnectionInput(
+  providerId: AdminPublishCredentialProviderId,
+  spec: AdminPublishTargetCredentialSpec,
+  values: Readonly<Record<string, string>>
+): AdminPublishConnectionInput {
+  return { ...declaredFieldValues(spec.fields, values), providerId };
+}
+
+/** The "Project name" field's label and help. The same wire field means a different thing per host
+ *  (a commit message, a site, a project), so a host's descriptor may name it; otherwise the generic
+ *  copy below applies. Both are passed through the translator: the generic copy has dictionary
+ *  entries, a descriptor's copy falls through verbatim. @complexity O(1). */
 export interface StaticPublishProjectNameCopy {
   readonly labelKey: string;
   readonly helpKey: string;
 }
 
-export function staticPublishProjectNameCopy(target: AdminStaticPublishTargetId): StaticPublishProjectNameCopy {
-  switch (target) {
-    case "github-pages":
-      return {
-        labelKey: "Commit message",
-        helpKey: "Used as the commit message when Tovu pushes the export to the gh-pages branch.",
-      };
-    case "vercel":
-      return {
-        labelKey: "Vercel project name",
-        helpKey: "Vercel finds or creates a project with this name on every publish.",
-      };
-    case "netlify":
-      return {
-        labelKey: "Site name",
-        helpKey: "Netlify finds or creates a site with this name on every publish.",
-      };
-    case "cloudflare-pages":
-      return {
-        labelKey: "Project name",
-        helpKey: "Cloudflare Pages finds or creates a project with this name on every publish.",
-      };
-  }
+export function staticPublishProjectNameCopy(target: AdminPublishTargetDescriptor | undefined): StaticPublishProjectNameCopy {
+  return {
+    labelKey: target?.projectName?.label ?? "Project name",
+    helpKey: target?.projectName?.help ?? "The host finds or creates a project with this name on every publish.",
+  };
+}
+
+/** The `agentHandle` id of one publish-config input. Ids predate the descriptors and are pinned by
+ *  agent tooling, so `teamId` keeps its old `team` id; every other field uses its own name.
+ *  @complexity O(1). */
+export function publishConfigFieldHandleId(fieldName: string): string {
+  return `deployment-static-site-publish-${fieldName === "teamId" ? "team" : fieldName}`;
+}
+
+/** The `agentHandle`/DOM id of one credential input. The token field keeps its old `token` id and
+ *  `accountId` its old `account` id (both pinned by agent tooling); every other field uses its own
+ *  name. @complexity O(1). */
+export function credentialFieldHandleId(providerId: string, fieldName: string, tokenField: string): string {
+  if (fieldName === tokenField) return `deployment-static-site-credentials-token-${providerId}`;
+  return `deployment-static-site-credentials-${fieldName === "accountId" ? "account" : fieldName}-${providerId}`;
+}
+
+/** The label a config or credential field shows: the descriptor's label, with the generic
+ *  "(optional)" suffix key when the field is optional. The caller translates `suffixKey`.
+ *  @complexity O(1). */
+export function fieldLabelParts(field: AdminPublishTargetField): { label: string; suffixKey: string | null } {
+  return { label: field.label, suffixKey: field.required ? null : "(optional)" };
 }
 
 /** One row of the two paths' capability comparison. `supported` is a fact about the PATH, not about
