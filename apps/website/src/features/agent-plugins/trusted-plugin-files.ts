@@ -10,8 +10,9 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 
 /**
  * @file The shared trust gate for plugin-contributed files that core reads or runs: deploy targets
- * (`features/deployments/deploy-targets/registry.ts`), deploy-config generators and credential
- * scheme rules. One place decides which installed Agent Plugin packages core may take a contribution
+ * (`features/deployments/deploy-targets/registry.ts`), deploy-config generators, credential
+ * scheme rules, mail adapters (`./mail-adapter-registry.ts`) and git-host providers
+ * (`features/source-control/provider-registry.ts`). One place decides which installed Agent Plugin packages core may take a contribution
  * from, so every seam applies the same rules.
  *
  * A plugin opts in to a seam by shipping that seam's file at its package root (e.g.
@@ -50,17 +51,22 @@ export interface TrustedPluginPackagesQuery {
   readonly contribution: string;
   /** Apply the activation gate (see this file's header, gate 1). */
   readonly requireActive: boolean;
+  /** Return verdicts sorted by plugin id instead of installed order. */
+  readonly orderByPluginId?: boolean;
+  /** Hears each package the activation gate skips as switched off, e.g. to read its seam file as
+   *  data and name the plugin in a refusal. Never called without `requireActive`. */
+  readonly onInactive?: (plugin: TrustedPluginPackage) => Promise<void>;
 }
 
 /** One installed package that ships the seam's file: trusted, or refused with the full refusal line.
- *  Returned in installed order so a seam that interleaves its own per-package refusals keeps them in
+ *  Returned in installed order (or plugin-id order, see `orderByPluginId`) so a seam that interleaves its own per-package refusals keeps them in
  *  the same order as the gate's. */
 export type TrustedPluginVerdict = { readonly trusted: TrustedPluginPackage } | { readonly refusal: string };
 
 /**
  * A verdict for every installed package in this workspace that ships `query.filename`, in
  * installed order (bundled digests preferred when a plugin has more than one installed digest).
- * A switched-off plugin is skipped silently; every other refusal is reported.
+ * A switched-off plugin is skipped silently (only `onInactive` hears it); every other refusal is reported.
  *
  * @throws Nothing for a plugin-level fault; only a filesystem fault listing the workspace's package
  * directory itself propagates.
@@ -69,14 +75,17 @@ export type TrustedPluginVerdict = { readonly trusted: TrustedPluginPackage } | 
 export async function findTrustedPluginPackages(query: TrustedPluginPackagesQuery): Promise<readonly TrustedPluginVerdict[]> {
   const layout = resolveAgentPluginLayout().forWorkspace(query.workspaceId);
   const bundled = await readBundledAgentPluginDigests(layout.root);
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(layout.packages), bundled);
+  const preferred = preferBundledAgentPluginDigests(await listInstalledPlugins(layout.packages), bundled);
+  const installed = query.orderByPluginId ? [...preferred].sort((a, b) => a.pluginId.localeCompare(b.pluginId)) : preferred;
 
   const verdicts: TrustedPluginVerdict[] = [];
   for (const plugin of installed) {
     if (!plugin.files.includes(query.filename)) continue;
     const refusal = await trustRefusal(query, plugin, bundled.get(plugin.pluginId), layout.root);
-    if (refusal === null) verdicts.push({ trusted: { pluginId: plugin.pluginId, packageRoot: plugin.packageRoot } });
-    else if (refusal !== "inactive") verdicts.push({ refusal: `${query.contribution} from '${plugin.pluginId}' were not loaded: ${refusal}` });
+    const trusted = { pluginId: plugin.pluginId, packageRoot: plugin.packageRoot };
+    if (refusal === null) verdicts.push({ trusted });
+    else if (refusal === "inactive") await query.onInactive?.(trusted);
+    else verdicts.push({ refusal: `${query.contribution} from '${plugin.pluginId}' were not loaded: ${refusal}` });
   }
   return verdicts;
 }

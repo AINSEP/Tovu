@@ -1,15 +1,8 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 import type { MailAdapterModule } from "#src/platform/mail/index";
 
-import { resolveAgentPluginActivation } from "./activation.js";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests, type BundledAgentPluginDigests } from "./bundled-digests.js";
-import type { InstalledAgentPlugin } from "./install.js";
-import { resolveAgentPluginLayout } from "./layout.js";
-import { assertContainedOnDisk, PackagePathViolation } from "./package-paths.js";
-import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
+import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "./trusted-plugin-files.js";
 
 /**
  * @file Loads the mail adapters Agent Plugins contribute — the generic seam that lets a plugin (the
@@ -21,10 +14,10 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  * whose default export is a `MailAdapterModule` (`platform/mail/adapter-module.ts`);
  * `credentialLabel` is the exact `custom_credential_sets` label its key is saved under.
  *
- * TRUST RULE (fail closed), the same one `features/deployments/deploy-targets/registry.ts` applies:
- * a module runs in this process, so it loads only when the plugin is ACTIVE by the fail-closed
- * reader, its installed digest is the one `bundled-digests.json` records (only plugins Tovu shipped),
- * and the module path stays inside the plugin root and ends in `.mjs`. A bad plugin drops only its
+ * TRUST RULE (fail closed), the shared gate in `./trusted-plugin-files.ts`: a module runs in this
+ * process, so it loads only when the plugin is ACTIVE by the fail-closed reader, its installed digest
+ * is the one `bundled-digests.json` records (only plugins Tovu shipped), and the module path stays
+ * inside the plugin root and ends in `.mjs`. A bad plugin drops only its
  * own adapters and a bad module only itself; every drop is reported in `refusals`, never thrown.
  */
 
@@ -64,13 +57,8 @@ interface PackageLoad {
   readonly refusals: readonly string[];
 }
 
-const NOTHING: PackageLoad = { adapters: [], refusals: [] };
-
 /** The two facts a package load needs: whose it is and where it lives. */
-interface AdapterPackage {
-  readonly pluginId: string;
-  readonly packageRoot: string;
-}
+type AdapterPackage = TrustedPluginPackage;
 
 /**
  * Builds this workspace's mail-adapter registry from its installed Agent Plugins. Read fresh on each
@@ -80,14 +68,22 @@ interface AdapterPackage {
  * @complexity O(p) installed plugins, one small read plus one import per declared adapter.
  */
 export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: string }): Promise<MailAdapterRegistry> {
-  const layout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
-  const bundled = await readBundledAgentPluginDigests(layout.root);
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(layout.packages), bundled);
+  const verdicts = await findTrustedPluginPackages({
+    workspaceId: ctx.workspaceId,
+    filename: MAIL_ADAPTERS_FILENAME,
+    contribution: "mail adapters",
+    requireActive: true,
+    orderByPluginId: true,
+  });
 
   const adapters: LoadedMailAdapter[] = [];
   const refusals: string[] = [];
-  for (const plugin of [...installed].sort((a, b) => a.pluginId.localeCompare(b.pluginId))) {
-    const load = await loadTrustedPlugin(plugin, bundled, layout.root);
+  for (const verdict of verdicts) {
+    if ("refusal" in verdict) {
+      refusals.push(verdict.refusal);
+      continue;
+    }
+    const load = await loadPackageAdapters(verdict.trusted);
     adapters.push(...load.adapters);
     refusals.push(...load.refusals);
   }
@@ -105,24 +101,9 @@ export async function loadMailAdapterRegistryFromSource(plugin: AdapterPackage):
   return { list: () => load.adapters, refusals: load.refusals };
 }
 
-/** One installed plugin's contribution, after the activation and bundled-digest gates. @complexity O(a). */
-async function loadTrustedPlugin(plugin: InstalledAgentPlugin, bundled: BundledAgentPluginDigests, workspaceRoot: string): Promise<PackageLoad> {
-  if (!plugin.files.includes(MAIL_ADAPTERS_FILENAME)) return NOTHING;
-  const refuse = (reason: string): PackageLoad => ({ adapters: [], refusals: [`mail adapters from '${plugin.pluginId}' were not loaded: ${reason}`] });
-
-  const activation = await resolveAgentPluginActivation(workspaceRoot, plugin.pluginId);
-  if (activation.verdict === "inactive") return NOTHING;
-  if (activation.verdict === "undetermined") return refuse(`its activation could not be read (${activation.reason})`);
-
-  if (bundled.get(plugin.pluginId) !== plugin.archiveDigest) {
-    return refuse(`only plugins shipped with Tovu may add mail adapters (installed digest ${plugin.archiveDigest.slice(0, 12)} is not the one this build shipped)`);
-  }
-  return loadPackageAdapters(plugin);
-}
-
 /** A package's own adapters, trusted by the caller. @complexity O(a) adapters, one import each. */
 async function loadPackageAdapters(plugin: AdapterPackage): Promise<PackageLoad> {
-  const parsed = parseMailAdaptersFile(await readFile(path.join(plugin.packageRoot, MAIL_ADAPTERS_FILENAME), "utf8"));
+  const parsed = parseMailAdaptersFile(await readTrustedPluginFile(plugin, MAIL_ADAPTERS_FILENAME));
   if (!parsed.ok) return { adapters: [], refusals: [`mail adapters from '${plugin.pluginId}' were not loaded: ${MAIL_ADAPTERS_FILENAME} is invalid: ${parsed.reason}`] };
 
   const adapters: LoadedMailAdapter[] = [];
@@ -137,21 +118,9 @@ async function loadPackageAdapters(plugin: AdapterPackage): Promise<PackageLoad>
 
 /** Imports one module after the containment check; the module, or the refusal reason. @complexity O(1). */
 async function loadAdapterModule(plugin: AdapterPackage, descriptor: MailAdapterDescriptor): Promise<MailAdapterModule | string> {
-  let modulePath: string;
-  try {
-    modulePath = await assertContainedOnDisk(plugin.packageRoot, descriptor.module);
-  } catch (error) {
-    if (error instanceof PackagePathViolation) return `module path '${descriptor.module}' escapes the plugin root`;
-    throw error;
-  }
-
-  let imported: { readonly default?: unknown };
-  try {
-    imported = (await import(pathToFileURL(modulePath).href)) as { readonly default?: unknown };
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  const candidate = imported.default;
+  const imported = await importContainedModule(plugin, descriptor.module);
+  if (typeof imported === "string") return imported;
+  const candidate = imported.exported;
   if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
   return candidate as unknown as MailAdapterModule;
 }

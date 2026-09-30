@@ -1,13 +1,6 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
-import { resolveAgentPluginActivation } from "#src/features/agent-plugins/activation";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests, type BundledAgentPluginDigests } from "#src/features/agent-plugins/bundled-digests";
-import type { InstalledAgentPlugin } from "#src/features/agent-plugins/install";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { assertContainedOnDisk, PackagePathViolation } from "#src/features/agent-plugins/package-paths";
-import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
+import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
 
 import type { HttpClientPort } from "#src/platform/http/index";
 
@@ -26,9 +19,8 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
  * name (`SourceControlHostFacts`), so no tool text hard-codes a host; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
  * `SourceControlProviderModule` (`features/source-control/provider-module.ts`).
  *
- * TRUST RULE (fail closed), the same one `features/agent-plugins/mail-adapter-registry.ts` and the
- * deploy-target registry apply: a module runs in this process, so it loads only when the plugin is ACTIVE by the fail-closed
- * reader, its installed digest is the one `bundled-digests.json` records (only plugins Tovu shipped),
+ * TRUST RULE (fail closed), the shared gate in `features/agent-plugins/trusted-plugin-files.ts`: a
+ * module runs in this process, so it loads only when the plugin is ACTIVE by the fail-closed reader, its installed digest is the one `bundled-digests.json` records (only plugins Tovu shipped),
  * and the module path stays inside the plugin root and ends in `.mjs`. A bad plugin drops only its
  * own providers and a bad module only itself; every drop is reported in `refusals`, never thrown.
  */
@@ -68,16 +60,9 @@ type ParseResult = { readonly ok: true; readonly descriptors: readonly SourceCon
 interface PackageLoad {
   readonly providers: readonly LoadedSourceControlProvider[];
   readonly refusals: readonly string[];
-  /** Provider ids an INACTIVE plugin declares (its JSON read as data; no module imported). */
-  readonly switchedOff?: readonly string[];
 }
 
-const NOTHING: PackageLoad = { providers: [], refusals: [] };
-
-interface ProviderPackage {
-  readonly pluginId: string;
-  readonly packageRoot: string;
-}
+type ProviderPackage = TrustedPluginPackage;
 
 function toRegistry(providers: readonly LoadedSourceControlProvider[], refusals: readonly string[], switchedOff?: ReadonlyMap<string, string>): SourceControlProviderRegistry {
   return { list: () => providers, get: (providerId) => providers.find((provider) => provider.descriptor.id === providerId), refusals, ...(switchedOff ? { switchedOff } : {}) };
@@ -91,18 +76,29 @@ function toRegistry(providers: readonly LoadedSourceControlProvider[], refusals:
  * @complexity O(p) installed plugins, one small read plus one import per declared provider.
  */
 export async function loadSourceControlProviderRegistry(ctx: { readonly workspaceId: string }): Promise<SourceControlProviderRegistry> {
-  const layout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
-  const bundled = await readBundledAgentPluginDigests(layout.root);
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(layout.packages), bundled);
+  const switchedOff = new Map<string, string>();
+  const verdicts = await findTrustedPluginPackages({
+    workspaceId: ctx.workspaceId,
+    filename: SOURCE_CONTROL_PROVIDERS_FILENAME,
+    contribution: "source-control providers",
+    requireActive: true,
+    orderByPluginId: true,
+    // A switched-off plugin's JSON is read as data (no module imported) so a refusal can name it.
+    onInactive: async (plugin) => {
+      for (const providerId of await declaredProviderIds(plugin)) if (!switchedOff.has(providerId)) switchedOff.set(providerId, plugin.pluginId);
+    },
+  });
 
   const providers: LoadedSourceControlProvider[] = [];
   const refusals: string[] = [];
-  const switchedOff = new Map<string, string>();
-  for (const plugin of [...installed].sort((a, b) => a.pluginId.localeCompare(b.pluginId))) {
-    const load = await loadTrustedPlugin(plugin, bundled, layout.root);
+  for (const verdict of verdicts) {
+    if ("refusal" in verdict) {
+      refusals.push(verdict.refusal);
+      continue;
+    }
+    const load = await loadPackageProviders(verdict.trusted);
     providers.push(...load.providers);
     refusals.push(...load.refusals);
-    for (const providerId of load.switchedOff ?? []) if (!switchedOff.has(providerId)) switchedOff.set(providerId, plugin.pluginId);
   }
   return toRegistry(providers, refusals, switchedOff);
 }
@@ -118,30 +114,15 @@ export async function loadSourceControlProviderRegistryFromSource(plugin: Provid
   return toRegistry(load.providers, load.refusals);
 }
 
-/** One installed plugin's contribution, after the activation and bundled-digest gates. @complexity O(n). */
-async function loadTrustedPlugin(plugin: InstalledAgentPlugin, bundled: BundledAgentPluginDigests, workspaceRoot: string): Promise<PackageLoad> {
-  if (!plugin.files.includes(SOURCE_CONTROL_PROVIDERS_FILENAME)) return NOTHING;
-  const refuse = (reason: string): PackageLoad => ({ providers: [], refusals: [`source-control providers from '${plugin.pluginId}' were not loaded: ${reason}`] });
-
-  const activation = await resolveAgentPluginActivation(workspaceRoot, plugin.pluginId);
-  if (activation.verdict === "inactive") return { ...NOTHING, switchedOff: await declaredProviderIds(plugin) };
-  if (activation.verdict === "undetermined") return refuse(`its activation could not be read (${activation.reason})`);
-
-  if (bundled.get(plugin.pluginId) !== plugin.archiveDigest) {
-    return refuse(`only plugins shipped with Tovu may add source-control providers (installed digest ${plugin.archiveDigest.slice(0, 12)} is not the one this build shipped)`);
-  }
-  return loadPackageProviders(plugin);
-}
-
 /** The provider ids a package declares, read as data only; none when its file is invalid. @complexity O(n). */
 async function declaredProviderIds(plugin: ProviderPackage): Promise<readonly string[]> {
-  const parsed = parseSourceControlProvidersFile(await readFile(path.join(plugin.packageRoot, SOURCE_CONTROL_PROVIDERS_FILENAME), "utf8"));
+  const parsed = parseSourceControlProvidersFile(await readTrustedPluginFile(plugin, SOURCE_CONTROL_PROVIDERS_FILENAME));
   return parsed.ok ? parsed.descriptors.map((descriptor) => descriptor.id) : [];
 }
 
 /** A package's own providers, trusted by the caller. @complexity O(n) providers, one import each. */
 async function loadPackageProviders(plugin: ProviderPackage): Promise<PackageLoad> {
-  const parsed = parseSourceControlProvidersFile(await readFile(path.join(plugin.packageRoot, SOURCE_CONTROL_PROVIDERS_FILENAME), "utf8"));
+  const parsed = parseSourceControlProvidersFile(await readTrustedPluginFile(plugin, SOURCE_CONTROL_PROVIDERS_FILENAME));
   if (!parsed.ok) {
     return { providers: [], refusals: [`source-control providers from '${plugin.pluginId}' were not loaded: ${SOURCE_CONTROL_PROVIDERS_FILENAME} is invalid: ${parsed.reason}`] };
   }
@@ -158,21 +139,9 @@ async function loadPackageProviders(plugin: ProviderPackage): Promise<PackageLoa
 
 /** Imports one module after the containment check; the module, or the refusal reason. @complexity O(1). */
 async function loadProviderModule(plugin: ProviderPackage, descriptor: SourceControlProviderDescriptor): Promise<SourceControlProviderModule | string> {
-  let modulePath: string;
-  try {
-    modulePath = await assertContainedOnDisk(plugin.packageRoot, descriptor.module);
-  } catch (error) {
-    if (error instanceof PackagePathViolation) return `module path '${descriptor.module}' escapes the plugin root`;
-    throw error;
-  }
-
-  let imported: { readonly default?: unknown };
-  try {
-    imported = (await import(pathToFileURL(modulePath).href)) as { readonly default?: unknown };
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  const candidate = imported.default;
+  const imported = await importContainedModule(plugin, descriptor.module);
+  if (typeof imported === "string") return imported;
+  const candidate = imported.exported;
   if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
   if (candidate.validateTarget !== undefined && typeof candidate.validateTarget !== "function") return "its module's validateTarget is not a function";
   return candidate as unknown as SourceControlProviderModule;
