@@ -9,6 +9,12 @@
  *   cd apps/desktop
  *   npm run build:renderer            # the window loads dist/, never src/
  *   node scripts/verify-find-in-page.ts
+ *   FIND_VERIFY_NATIVE_KEYS=1 node scripts/verify-find-in-page.ts   # + real OS keystrokes
+ *
+ * **Every CDP-typed check here is blind to the 2026-09-29 regression.** Playwright's `keyboard`
+ * delivers keys to the page it targets, bypassing the browser's keyboard routing — so it passed
+ * while the real app took one letter and sent the rest into the `<webview>` guest. Only the
+ * opt-in `*_EVERY_NATIVE_KEYSTROKE_LANDS` checks (see `verifyNativeTyping`) exercise that routing.
  *
  * It always launches an ISOLATED instance with its own `TOVU_DESKTOP_USER_DATA_DIR`, so it never
  * touches a running app's session (this app takes no single-instance lock). Exits non-zero on the
@@ -45,6 +51,7 @@ import { _electron as electron } from 'playwright';
 import type { ElectronApplication, Page } from 'playwright';
 import path from 'node:path';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const DESKTOP = path.resolve(import.meta.dirname, '..');
 const REPO = path.resolve(DESKTOP, '../..');
@@ -207,8 +214,80 @@ async function verifyChromiumAnchor(app: ElectronApplication, win: Page, homeWin
   );
 }
 
+/**
+ * Types `text` as REAL macOS keystrokes (System Events), not CDP. Playwright's `keyboard.type` sends
+ * CDP `Input.dispatchKeyEvent` straight to the page it targets, so it lands in the find input even
+ * when the BROWSER's keyboard routing has moved into a `<webview>` guest — which is exactly the
+ * state the 2026-09-29 regression left the app in, and why every CDP-typed check here passed while
+ * the owner could type one letter. Only an OS keystroke goes through that routing.
+ *
+ * Needs the terminal running this script to hold macOS Accessibility permission; without it
+ * `osascript` fails and the phase reports FAIL (never a silent skip). Before EVERY key it re-checks
+ * that the app under test is still the focused app, and stops typing if not, so a stray click
+ * elsewhere cannot send these keystrokes into some other application.
+ *
+ * @returns `false` when the keys could not be delivered (no permission, or focus left the app).
+ */
+async function typeNative(app: ElectronApplication, win: Page, homeWindowId: number, text: string, msPerKey: number): Promise<{ ok: boolean; why: string }> {
+  await app.evaluate(({ app: electronApp, BrowserWindow }, id) => {
+    electronApp.focus({ steal: true });
+    BrowserWindow.fromId(id)?.focus();
+  }, homeWindowId);
+  await win.waitForTimeout(300);
+  for (const character of text) {
+    const stillOurs = await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getFocusedWindow()?.id === id, homeWindowId);
+    if (!stillOurs) return { ok: false, why: 'the app under test lost OS focus mid-typing; stopped rather than type into another app' };
+    try {
+      execFileSync('osascript', ['-e', `tell application "System Events" to keystroke ${JSON.stringify(character)}`]);
+    } catch (error) {
+      return { ok: false, why: `osascript could not send a keystroke (Accessibility permission?): ${String(error).split('\n')[0]}` };
+    }
+    await win.waitForTimeout(msPerKey);
+  }
+  return { ok: true, why: '' };
+}
+
+/**
+ * Opens the bar, types a MULTI-character query with REAL OS keystrokes at `msPerKey` (see
+ * {@link typeNative}), checks every character landed, then closes the bar. The cycling phases type
+ * a single CDP `'e'`, which can tell neither "every keystroke lands" from "only the first does" nor
+ * the host's own view of focus from where the browser actually routes keys.
+ *
+ * OPT-IN: runs only with `FIND_VERIFY_NATIVE_KEYS=1`, and prints SKIP (never PASS) otherwise.
+ * Real keystrokes go to whatever app is frontmost at the instant they are sent; {@link typeNative}
+ * re-checks focus before every key, but that check and the keystroke are not atomic, so on a machine
+ * someone is using, a focus change in between can type the query into THEIR app. Run it when
+ * nobody is at the keyboard.
+ */
+async function verifyNativeTyping(
+  app: ElectronApplication,
+  win: Page,
+  homeWindowId: number,
+  { label, query, msPerKey }: { label: string; query: string; msPerKey: number },
+): Promise<void> {
+  if (process.env.FIND_VERIFY_NATIVE_KEYS !== '1') {
+    console.log(`SKIP:: ${label}_EVERY_NATIVE_KEYSTROKE_LANDS — set FIND_VERIFY_NATIVE_KEYS=1 to run (sends real OS keystrokes)`);
+    return;
+  }
+  await openBar(app, win, homeWindowId);
+  const typed = await typeNative(app, win, homeWindowId, query, msPerKey);
+  await win.waitForTimeout(500);
+  const afterTyping = await inputState(win);
+  check(
+    `${label}_EVERY_NATIVE_KEYSTROKE_LANDS`,
+    typed.ok && afterTyping.value === query,
+    typed.ok
+      ? `input value = ${JSON.stringify(afterTyping.value)}, typed ${JSON.stringify(query)} as OS keystrokes at ${msPerKey}ms/key — "${query[0]}" alone means the browser routed every later key into the guest`
+      : typed.why,
+  );
+  await shot(win, `${label.toLowerCase()}-native-typed`);
+  await win.keyboard.press('Escape');
+  await win.waitForTimeout(400);
+}
+
 async function verifyTopLevel(app: ElectronApplication, win: Page, homeWindowId: number): Promise<void> {
   await shot(win, 'projects-before-find');
+  await verifyNativeTyping(app, win, homeWindowId, { label: 'TOP', query: 'website', msPerKey: 150 });
   await openBar(app, win, homeWindowId);
   check('BAR_OPENS', await barOpen(win), 'find bar present after the menu channel fired');
 
@@ -345,6 +424,8 @@ async function verifyGuest(app: ElectronApplication, win: Page, homeWindowId: nu
   if (!attached) return;
   await win.waitForTimeout(6000);
   await shot(win, 'tab-loaded');
+
+  await verifyNativeTyping(app, win, homeWindowId, { label: 'GUEST', query: 'the', msPerKey: 150 });
 
   await openBar(app, win, homeWindowId);
   check('GUEST_BAR_OPENS', await barOpen(win), 'find bar present over the project tab');

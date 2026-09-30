@@ -206,6 +206,21 @@ export function runFind(
  * There is no way to keep focus through the search either way; it has to be restored after.
  * Without this the bar accepts exactly one character and Enter reaches nobody.
  *
+ * **`blur()` first, then `focus()` — a bare `focus()` is a no-op exactly when it matters.** After a
+ * guest match the host input is STILL this document's `activeElement` and `document.hasFocus()` is
+ * still `true`: Chromium moved the BROWSER's keyboard routing into the guest without telling this
+ * frame. `focus()` on an element Blink already considers focused changes nothing, so the browser
+ * never hears that this frame wants the keys back, and every later OS keystroke lands in the guest.
+ * Measured live with real OS keystrokes (`scripts/verify-find-in-page.ts`'s native-key phase):
+ * typing "the" left "t" in the bar; a `blur()`+`focus()` between keys let every one land. Playwright's
+ * `keyboard.type` never saw it — CDP delivers keys to the page it targets, not to wherever the
+ * browser's focus routing points — which is why the live verifier passed while the app was broken.
+ *
+ * The `blur()` fires this input's own `blur` event synchronously, which `useFindInPage`'s blur
+ * listener would otherwise read as another Chromium theft and answer with ANOTHER restore — a
+ * blur/focus loop for the whole {@link FIND_FOCUS_RECLAIM_MS} window. `restoring` is raised for
+ * exactly the duration of that `blur()` so the listener can ignore it.
+ *
  * Not keyed on which target was asked, because that and where the result reports come apart: a
  * guest's find is rerouted to the window's own find manager once that manager exists, and only
  * then does the window report instead of the guest. Both sources took focus, so both call this —
@@ -213,8 +228,15 @@ export function runFind(
  *
  * @complexity O(1).
  */
-export function restoreFindInputFocus(input: { focus(): void } | null): void {
-  input?.focus();
+export function restoreFindInputFocus(input: { blur(): void; focus(): void } | null, restoring: { current: boolean } = { current: false }): void {
+  if (!input) return;
+  restoring.current = true;
+  try {
+    input.blur();
+  } finally {
+    restoring.current = false;
+  }
+  input.focus();
 }
 
 /** How long after ISSUING a find a blur on the find input is treated as Chromium's own focus
@@ -233,6 +255,36 @@ export const FIND_FOCUS_RECLAIM_MS = 1000;
 export function shouldReclaimFindFocus(input: { open: boolean; lastFindAt: number | null; now: number }): boolean {
   if (!input.open || input.lastFindAt === null) return false;
   return input.now - input.lastFindAt < FIND_FOCUS_RECLAIM_MS;
+}
+
+/**
+ * Whether `useFindInPage`'s per-frame reclaim should restore focus again on this animation frame.
+ *
+ * **Why every frame, and not just once per result.** Measured live with real OS keystrokes: the
+ * guest takes the keys the moment it selects its FIRST match, but its `found-in-page` only arrives
+ * once it has finished COUNTING every match — 100-600ms later on a real admin page. A key typed in
+ * that gap reaches the find input's `keydown` but its text is inserted into the guest instead, and
+ * nothing at all — no `blur`, no `focusout`, no `document.hasFocus()` change, no main-process
+ * `focus` event — fires on the host when the theft happens, so there is no signal to react to. The
+ * only thing that closes the gap is re-asserting focus on every frame from the moment a find is
+ * issued until it reports.
+ *
+ * `false` once the find has reported (`awaitingReport` — the report's own restore takes over),
+ * outside {@link shouldReclaimFindFocus}'s window, and during IME composition (`composing`): a
+ * `blur()` ends a composition, so reclaiming mid-composition would make the bar untypeable in any
+ * input method that composes.
+ *
+ * @complexity O(1).
+ */
+export function shouldKeepReclaimingFindFocus(input: {
+  open: boolean;
+  lastFindAt: number | null;
+  now: number;
+  awaitingReport: boolean;
+  composing: boolean;
+}): boolean {
+  if (!input.awaitingReport || input.composing) return false;
+  return shouldReclaimFindFocus(input);
 }
 
 /**
@@ -353,6 +405,14 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // The pending deferred reclaim (see the blur listener below), so `close`/unmount can cancel one
   // scheduled for a bar that is no longer open by the time it would run.
   const reclaimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Raised while {@link restoreFindInputFocus} blurs the input itself, so the blur listener below
+  // does not mistake that for a Chromium theft — see that function's doc.
+  const restoringFocus = useRef(false);
+  // Between ISSUING a find and its first reported result — see {@link shouldKeepReclaimingFindFocus}.
+  const awaitingReport = useRef(false);
+  // An IME composition is in progress in the find input — reclaiming would end it.
+  const composing = useRef(false);
+  const reclaimFrame = useRef<number | null>(null);
 
   const registerGuest = useCallback(
     (projectId: string, element: FindableGuest | null) => {
@@ -367,12 +427,47 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // Runs a find and records WHEN, so a blur shortly after can be told apart from the user clicking
   // away — see {@link shouldReclaimFindFocus}. Every call site that starts or steps a search goes
   // through this instead of calling `runFind` directly.
+  const cancelReclaimFrame = useCallback(() => {
+    if (reclaimFrame.current !== null) {
+      cancelAnimationFrame(reclaimFrame.current);
+      reclaimFrame.current = null;
+    }
+  }, []);
+
+  // Re-asserts focus on every frame until the find just issued reports — see
+  // {@link shouldKeepReclaimingFindFocus} for why no single, event-driven restore can do this.
+  const reclaimUntilReported = useCallback(() => {
+    cancelReclaimFrame();
+    const tick = () => {
+      reclaimFrame.current = null;
+      const keepGoing = shouldKeepReclaimingFindFocus({
+        open: inputElement.current !== null,
+        lastFindAt: lastFindAt.current,
+        now: performance.now(),
+        awaitingReport: awaitingReport.current,
+        composing: composing.current,
+      });
+      if (!keepGoing) return;
+      restoreFindInputFocus(inputElement.current, restoringFocus);
+      reclaimFrame.current = requestAnimationFrame(tick);
+    };
+    reclaimFrame.current = requestAnimationFrame(tick);
+  }, [cancelReclaimFrame]);
+
   const issueFind = useCallback(
     (text: string, options: { forward: boolean; findNext: boolean }) => {
       lastFindAt.current = performance.now();
+      awaitingReport.current = true;
       runFind(target, bridge, text, options);
+      // Only for a NEW session (a typed character): Enter/Shift+Enter's step must not be disturbed
+      // mid-flight. Each reclaim's focus() puts the input's caret back as this frame's selection, and
+      // a follow-up find that reads it anchors on the find bar instead of the previous match (see
+      // {@link runFind}) — measured live, the per-frame reclaim turned Enter's 2 -> 3 -> 4 into
+      // 2 -> 3 -> 2. Stepping is keyed on Enter, not on text going into the input, so its keys are
+      // not the ones the gap loses; the report's own restore still covers it.
+      if (options.findNext) reclaimUntilReported();
     },
-    [target, bridge],
+    [target, bridge, reclaimUntilReported],
   );
 
   const clearReclaimTimer = useCallback(() => {
@@ -393,7 +488,11 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // matching Chrome's own Cmd+F, which reselects the existing query for a fast re-type.
   useEffect(() => {
     if (!state.open) return;
-    inputElement.current?.focus();
+    // blur()+focus(), not a bare focus(): Cmd+F pressed while typing in the guest leaves the browser
+    // routing keys into the guest, and on a re-summon the input is already this document's
+    // activeElement — a bare focus() is then a no-op the browser never hears about. See
+    // {@link restoreFindInputFocus}.
+    restoreFindInputFocus(inputElement.current, restoringFocus);
     inputElement.current?.select();
   }, [state.open, state.focusNonce]);
 
@@ -402,7 +501,10 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   useEffect(() => {
     if (!state.open || state.query === '') return undefined;
     return subscribeToFindResults(target, bridge, {
-      onReported: () => restoreFindInputFocus(inputElement.current),
+      onReported: () => {
+        awaitingReport.current = false;
+        if (!composing.current) restoreFindInputFocus(inputElement.current, restoringFocus);
+      },
       onResult: (result) => dispatch({ type: 'result', result }),
     });
     // `target` is a fresh object every render (`resolveFindTarget` builds one), so this depends on
@@ -456,18 +558,32 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   const attachBlurReclaim = useCallback(
     (node: HTMLInputElement) => {
       const onBlur = () => {
+        if (restoringFocus.current) return;
         clearReclaimTimer();
         reclaimTimer.current = setTimeout(() => {
           reclaimTimer.current = null;
           // Re-reads `inputElement.current`, not the closed-over `node`: the bar may have closed
           // (and unmounted the input) by the time this deferred callback runs.
           if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: performance.now() })) {
-            restoreFindInputFocus(inputElement.current);
+            restoreFindInputFocus(inputElement.current, restoringFocus);
           }
         }, 0);
       };
+      const onCompositionStart = () => {
+        composing.current = true;
+      };
+      const onCompositionEnd = () => {
+        composing.current = false;
+      };
       node.addEventListener('blur', onBlur);
-      return () => node.removeEventListener('blur', onBlur);
+      node.addEventListener('compositionstart', onCompositionStart);
+      node.addEventListener('compositionend', onCompositionEnd);
+      return () => {
+        node.removeEventListener('blur', onBlur);
+        node.removeEventListener('compositionstart', onCompositionStart);
+        node.removeEventListener('compositionend', onCompositionEnd);
+        composing.current = false;
+      };
     },
     [clearReclaimTimer],
   );
@@ -487,6 +603,8 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
 
   const close = () => {
     clearReclaimTimer();
+    cancelReclaimFrame();
+    awaitingReport.current = false;
     stopFind(target, bridge);
     dispatch({ type: 'close' });
   };

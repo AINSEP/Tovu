@@ -17,6 +17,7 @@ import {
   restoreFindInputFocus,
   runFind,
   shouldCloseOnGuestChange,
+  shouldKeepReclaimingFindFocus,
   shouldReclaimFindFocus,
   stopFind,
   subscribeToFindResults,
@@ -188,21 +189,47 @@ test('runFind on the top target with no bridge does not clear the selection eith
   assert.deepEqual(order, [], 'no search to anchor, so nothing to clear');
 });
 
-test('restoreFindInputFocus refocuses the input, and tolerates a closed bar', () => {
-  let focused = 0;
+test('restoreFindInputFocus blurs THEN focuses the input on every call, and tolerates a closed bar', () => {
+  const calls: string[] = [];
   const input = {
-    focus: () => {
-      focused += 1;
-    },
+    blur: () => calls.push('blur'),
+    focus: () => calls.push('focus'),
   };
   // Every reported result means Chromium moved focus somewhere: ClearFocusedElement blurred the
   // host input for a top-level match, or SetFocusedFrame moved keyboard focus into the guest frame
   // for a guest match. Both need the identical restore.
+  //
+  // The blur is the load-bearing half. After a guest match the host input is STILL this document's
+  // activeElement (and document.hasFocus() is still true), so a bare focus() is a no-op inside Blink
+  // and never tells the browser to route keys back to this frame — measured live with real OS
+  // keystrokes: typing "the" left "t" in the bar and the rest went into the guest. blur() first
+  // makes the focus() a genuine focus change the browser hears about.
   restoreFindInputFocus(input);
-  assert.equal(focused, 1);
+  assert.deepEqual(calls, ['blur', 'focus']);
   restoreFindInputFocus(input);
-  assert.equal(focused, 2, 'every reported result restores focus, not just the first');
+  assert.deepEqual(calls, ['blur', 'focus', 'blur', 'focus'], 'every reported result restores focus, not just the first');
   assert.doesNotThrow(() => restoreFindInputFocus(null), 'the bar can be closed by the time a result lands');
+});
+
+test('restoreFindInputFocus raises `restoring` for exactly its own blur, so the blur listener cannot loop on it', () => {
+  const restoring = { current: false };
+  const seen: string[] = [];
+  const input = {
+    blur: () => seen.push(`blur restoring=${restoring.current}`),
+    focus: () => seen.push(`focus restoring=${restoring.current}`),
+  };
+  restoreFindInputFocus(input, restoring);
+  assert.deepEqual(seen, ['blur restoring=true', 'focus restoring=false']);
+  assert.equal(restoring.current, false, 'lowered again afterwards');
+
+  const throwing = {
+    blur: () => {
+      throw new Error('boom');
+    },
+    focus: () => {},
+  };
+  assert.throws(() => restoreFindInputFocus(throwing, restoring), /boom/);
+  assert.equal(restoring.current, false, 'lowered even when blur throws, or every later real theft would be ignored');
 });
 
 test('runFind/stopFind on none, or on top with no bridge, are no-ops', () => {
@@ -346,5 +373,21 @@ test('shouldReclaimFindFocus: only while open and within FIND_FOCUS_RECLAIM_MS o
     shouldReclaimFindFocus({ open: true, lastFindAt: null, now: 1000 }),
     false,
     'no find has been issued yet — a user click-away must not be undone',
+  );
+});
+
+test('shouldKeepReclaimingFindFocus: every frame from issuing a find until it reports, never mid-composition', () => {
+  const base = { open: true, lastFindAt: 1000, now: 1100, awaitingReport: true, composing: false };
+  // The guest takes the keys when it selects its FIRST match, long before its found-in-page (which
+  // waits for the full match count) — and nothing fires on the host when it does. Measured live:
+  // a key typed in that gap reached the input's keydown and was inserted into the guest instead.
+  assert.equal(shouldKeepReclaimingFindFocus(base), true, 'issued, not yet reported');
+  assert.equal(shouldKeepReclaimingFindFocus({ ...base, awaitingReport: false }), false, 'reported — the report restores focus itself');
+  assert.equal(shouldKeepReclaimingFindFocus({ ...base, composing: true }), false, 'a blur would end an IME composition');
+  assert.equal(shouldKeepReclaimingFindFocus({ ...base, open: false }), false, 'the bar closed');
+  assert.equal(
+    shouldKeepReclaimingFindFocus({ ...base, now: 1000 + FIND_FOCUS_RECLAIM_MS }),
+    false,
+    'a find that never reports cannot pin focus forever',
   );
 });
