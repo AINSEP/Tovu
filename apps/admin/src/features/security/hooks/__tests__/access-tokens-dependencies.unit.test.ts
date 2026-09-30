@@ -58,6 +58,7 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
       updatePublishCredential,
       deletePublishCredential,
       listSourceControlCredentials,
+      listSourceControlProviders,
       createSourceControlCredential,
       updateSourceControlCredential,
       deleteSourceControlCredential,
