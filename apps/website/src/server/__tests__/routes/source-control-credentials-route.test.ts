@@ -237,6 +237,9 @@ test("source-control providers: lists the github plugin's host with its declared
   assert.equal(credential.tokenField, "token");
   assert.deepEqual(credential.fields, [{ name: "token", label: "Access token", required: true, secret: true }]);
   assert.match(credential.help ?? "", /^Needs a fine-grained personal access token/);
+  // The plugin's own translations cross the response, keyed by locale then by the English text.
+  const i18n = (body.providers[0] as { i18n?: Record<string, Record<string, string>> }).i18n;
+  assert.equal(i18n?.es?.["Access token"], "Token de acceso");
   assert.deepEqual(body.switchedOff, []);
   assert.equal(JSON.stringify(body).includes("module"), false, "the plugin's module path is server-internal");
 

@@ -864,6 +864,19 @@ test("publish-targets: a target with a saved credential carries its form's field
   assert.equal(JSON.stringify(body).includes("vendorId"), false, "a vendor id is server-internal");
 });
 
+test("publish-targets: a target's i18n block crosses the response exactly as its plugin declares it", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { targets: { id: string; i18n?: Record<string, Record<string, string>> }[] };
+  const declared = (await deps.loadDeployTargets(deps.workspaceId)).get("vercel")?.descriptor.i18n;
+  assert.ok(declared?.es, "the bundled vercel target ships Spanish translations");
+  assert.deepEqual(body.targets.find((target) => target.id === "vercel")?.i18n, declared);
+});
+
 test("publish-targets: an unauthorized principal gets 403 and a mismatched workspaceId 404s", async (t) => {
   const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
