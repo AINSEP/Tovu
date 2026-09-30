@@ -71,6 +71,7 @@ async function setup() {
     },
   );
   const connected: string[] = [];
+  const pluginsSwitchedOn: string[] = [];
   const deps: ImportAgentPluginAccessTokensFromEnvDeps = {
     workspaceId: WORKSPACE,
     clock,
@@ -86,11 +87,12 @@ async function setup() {
       if (row) await repo.upsert({ ...row, enabled: true });
     },
     isPluginOffByOperator: async () => false,
+    switchPluginOn: async (pluginId) => (pluginsSwitchedOn.push(pluginId), true),
   };
   const readRow = () => repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" });
   const logs = { info: [] as string[], warn: [] as string[] };
   const log = { info: (m: string) => void logs.info.push(m), warn: (m: string) => void logs.warn.push(m) };
-  return { deps, connected, readRow, logs, log };
+  return { deps, connected, pluginsSwitchedOn, readRow, logs, log };
 }
 
 test("a token is sealed onto a row with no credential, and the plugin is switched on", async () => {
@@ -328,4 +330,21 @@ test("an already-connected row is not switched on when an operator turned the pl
   assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "already-connected");
   assert.deepEqual(connected, []);
   assert.equal((await readRow())?.enabled, false);
+});
+
+test("a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on", async () => {
+  const { deps, connected, pluginsSwitchedOn, readRow } = await setup();
+  const row = await readRow();
+  assert.ok(row);
+  await deps.externalMcpServerRepo.upsert({ ...row, enabled: true, allowedToolNames: '["list_projects"]' });
+  assert.equal(await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: TOKEN }), "saved");
+  assert.deepEqual(connected, ["supabase"]);
+  assert.deepEqual(pluginsSwitchedOn, ["supabase"], "the plugin's own activation must be switched on too");
+
+  const { deps: refusedDeps, readRow: readRefused } = await setup();
+  const refusedRow = await readRefused();
+  assert.ok(refusedRow);
+  await refusedDeps.externalMcpServerRepo.upsert({ ...refusedRow, enabled: true, allowedToolNames: '["list_projects"]' });
+  const refused: ImportAgentPluginAccessTokensFromEnvDeps = { ...refusedDeps, switchPluginOn: async () => false };
+  assert.equal(await importAgentPluginAccessToken(refused, { pluginId: "supabase", token: TOKEN }), "saved-left-off", "an operator's off switch that won the race is reported");
 });

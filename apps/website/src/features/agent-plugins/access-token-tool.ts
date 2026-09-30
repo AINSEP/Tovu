@@ -60,7 +60,7 @@ export type AgentPluginTokenTargetDeps = Pick<
 
 export interface AgentPluginAccessTokenToolDeps
   extends AgentPluginConnectToolDeps,
-    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator"> {
+    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn"> {
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
 }

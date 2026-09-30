@@ -34,7 +34,7 @@ export const AGENT_PLUGIN_TOKEN_IMPORT_ACTOR = "system:token-import";
 
 export interface ImportAgentPluginAccessTokenDeps
   extends AgentPluginTokenTargetDeps,
-    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator"> {}
+    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn"> {}
 
 /** `saved-left-off`: the token is saved but an operator had turned the plugin or its connection off,
  *  so it stays off (`switch-on-saved-token.ts`). */

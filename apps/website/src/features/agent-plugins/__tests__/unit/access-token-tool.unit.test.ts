@@ -99,6 +99,8 @@ async function setup(
       if (row && (row.allowedToolNames ?? "[]") === "[]") await repo.upsert({ ...row, enabled: true, allowedToolNames: JSON.stringify(["list_tables"]) });
     },
     isPluginOffByOperator: async () => options.pluginOffByOperator === true,
+    // Never the real activations file (switch-on-saved-token.unit.test.ts covers that one).
+    switchPluginOn: async () => options.pluginOffByOperator !== true,
   };
   const surfaceExchanges = createSurfaceExchangeStore();
   const tools = new Map(buildAgentPluginConnectRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
