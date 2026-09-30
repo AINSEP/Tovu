@@ -50,29 +50,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Necesaria para iniciar en producción. Si falta en local, aparece como un 503 en la pantalla del Asistente de IA.",
     "Falls back to port 4319.": "Usa el puerto 4319 si falta.",
-    "What Static Site produces": "Qué produce el sitio estático",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Una copia rápida y de solo lectura de las páginas publicadas de este sitio — sin servidor detrás.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Sin pago en línea, sin panel de administración activo, sin asistente, sin nada dinámico.",
     "Not built yet": "Aún no está implementado",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu no tiene un exportador estático, y el mapa del sitio por sí solo no puede generar uno — solo enumera publicaciones publicadas, no la página de inicio, productos, páginas del tema, redirecciones, la página 404 ni los recursos.",
-    "Static hosts": "Alojamientos estáticos",
     "Build it from a terminal": "Constrúyelo desde una terminal",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Ejecuta tovu export <dir> y Tovu escribe una copia estática de este sitio — cada publicación, la página de inicio, los productos y las páginas del tema — en una carpeta.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Aún no disponible desde esta pantalla — ejecuta tovu export desde una terminal.",
     "Build static export": "Generar exportación estática",
-    "Not available yet — see above.": "Aún no disponible — ver arriba.",
     "What Full Site gives you": "Qué te ofrece el sitio completo",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "El servidor completo de Tovu — administración, asistente, pago, todo funciona.",
     Providers: "Proveedores",
     Planned: "Planeado",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Aún no hay campos de credenciales — esta instancia no tiene backend para almacenarlas.",
     "Loading Dockerfile…": "Cargando el Dockerfile…",
-    "Not generated yet": "Aún no generado",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "Todavía no existe un Dockerfile en la raíz del repositorio. En cuanto se agregue uno, su contenido aparecerá aquí.",
     Copy: "Copiar",
@@ -102,8 +90,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Qué se conserva en la exportación",
     "Where it runs": "Dónde se ejecuta",
     "The output is a plain folder of files — any static host will serve it.": "La salida es una carpeta sencilla de archivos — cualquier alojamiento estático puede servirla.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Las compilaciones y despliegues aparecerán aquí una vez que se conecte un alojamiento real.",
   },
   id: {
     Operations: "Operasi",
@@ -141,29 +127,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Wajib untuk boot di produksi. Jika hilang secara lokal, muncul sebagai 503 di layar Asisten AI.",
     "Falls back to port 4319.": "Kembali ke port 4319 jika kosong.",
-    "What Static Site produces": "Apa yang dihasilkan Situs Statis",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Salinan cepat dan hanya-baca dari halaman situs yang dipublikasikan — tanpa server di baliknya.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Tidak ada checkout, tidak ada admin online, tidak ada asisten, tidak ada apa pun yang dinamis.",
     "Not built yet": "Belum dibangun",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu belum memiliki exporter statis, dan sitemap saja tidak bisa menjalankannya — sitemap hanya mendaftar tulisan yang dipublikasikan, bukan halaman utama, produk, halaman tema, redirect, halaman 404, atau aset.",
-    "Static hosts": "Hosting statis",
     "Build it from a terminal": "Bangun dari terminal",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Jalankan tovu export <dir> dan Tovu menulis salinan statis situs ini — setiap tulisan, halaman utama, produk, dan halaman tema — ke sebuah folder.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Belum tersedia dari layar ini — jalankan tovu export dari terminal.",
     "Build static export": "Bangun ekspor statis",
-    "Not available yet — see above.": "Belum tersedia — lihat di atas.",
     "What Full Site gives you": "Apa yang diberikan Situs Lengkap",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Server Tovu yang lengkap — admin, asisten, checkout, semuanya berfungsi.",
     Providers: "Penyedia",
     Planned: "Direncanakan",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Belum ada kolom kredensial — instans ini belum punya backend untuk menyimpannya.",
     "Loading Dockerfile…": "Memuat Dockerfile…",
-    "Not generated yet": "Belum dibuat",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "Belum ada Dockerfile di akar repositori. Setelah ditambahkan, isinya akan muncul di sini.",
     Copy: "Salin",
@@ -193,8 +167,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Yang tetap ada setelah ekspor",
     "Where it runs": "Tempat berjalan",
     "The output is a plain folder of files — any static host will serve it.": "Hasilnya adalah folder berisi file biasa — host statis apa pun dapat menyajikannya.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Build dan deployment akan muncul di sini setelah hosting sungguhan terhubung.",
   },
   de: {
     Operations: "Betrieb",
@@ -232,29 +204,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Für den Start in Produktion erforderlich. Fehlt sie lokal, erscheint stattdessen ein 503 auf dem Bildschirm des KI-Assistenten.",
     "Falls back to port 4319.": "Fällt auf Port 4319 zurück.",
-    "What Static Site produces": "Was Statische Seite erzeugt",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Eine schnelle, schreibgeschützte Kopie der veröffentlichten Seiten dieser Website — kein Server dahinter.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Kein Checkout, kein Admin online, kein Assistent, nichts Dynamisches.",
     "Not built yet": "Noch nicht gebaut",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu hat keinen statischen Exporter, und die Sitemap allein reicht dafür nicht — sie listet nur veröffentlichte Beiträge, nicht die Startseite, Produkte, Theme-Seiten, Weiterleitungen, die 404-Seite oder Assets.",
-    "Static hosts": "Statische Hoster",
     "Build it from a terminal": "Über ein Terminal erstellen",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Führe tovu export <dir> aus, und Tovu schreibt eine statische Kopie dieser Website — jeden Beitrag, die Startseite, Produkte und Theme-Seiten — in einen Ordner.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Von diesem Bildschirm aus noch nicht verfügbar — führe tovu export in einem Terminal aus.",
     "Build static export": "Statischen Export erstellen",
-    "Not available yet — see above.": "Noch nicht verfügbar — siehe oben.",
     "What Full Site gives you": "Was Vollständige Seite bietet",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Der vollständige Tovu-Server — Admin, Assistent, Checkout, alles funktioniert.",
     Providers: "Anbieter",
     Planned: "Geplant",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Noch keine Zugangsdatenfelder — diese Instanz hat kein Backend, um sie zu speichern.",
     "Loading Dockerfile…": "Dockerfile wird geladen…",
-    "Not generated yet": "Noch nicht erzeugt",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "Im Repo-Root existiert noch kein Dockerfile. Sobald eines hinzugefügt wird, erscheint sein Inhalt hier.",
     Copy: "Kopieren",
@@ -284,8 +244,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Was den Export übersteht",
     "Where it runs": "Wo es läuft",
     "The output is a plain folder of files — any static host will serve it.": "Die Ausgabe ist ein einfacher Ordner mit Dateien — jeder statische Host kann ihn bereitstellen.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Builds und Deployments erscheinen hier, sobald ein echter Host angebunden ist.",
   },
   "zh-CN": {
     Operations: "运维",
@@ -323,29 +281,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "生产环境下启动必需。本地缺失时,会改为在 AI 助手页面显示为 503。",
     "Falls back to port 4319.": "未设置时使用端口 4319。",
-    "What Static Site produces": "静态站点会生成什么",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "此站点已发布页面的快速只读副本 — 背后没有服务器。",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "没有结账、没有在线后台、没有助手、没有任何动态功能。",
     "Not built yet": "尚未构建",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu 还没有静态导出器,仅靠站点地图也无法驱动一个 — 它只列出已发布的文章,不包括首页、产品、主题页面、重定向、404 页面或资源文件。",
-    "Static hosts": "静态托管平台",
     "Build it from a terminal": "从终端构建",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "运行 tovu export <dir>,Tovu 会将此站点的静态副本——每篇文章、首页、产品和主题页面——写入一个文件夹。",
-    "Not available from this screen yet — run tovu export from a terminal.": "此界面尚不支持——请在终端中运行 tovu export。",
     "Build static export": "生成静态导出",
-    "Not available yet — see above.": "尚不可用 — 见上文。",
     "What Full Site gives you": "完整站点能带来什么",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "完整的 Tovu 服务器 — 后台、助手、结账,一切都能正常工作。",
     Providers: "服务商",
     Planned: "计划中",
-    "No credential fields yet — this instance has no backend to store them.":
-      "尚无凭据字段 — 此实例没有可安全存储它们的后端。",
     "Loading Dockerfile…": "正在加载 Dockerfile…",
-    "Not generated yet": "尚未生成",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "仓库根目录下还没有 Dockerfile。添加后,其内容将显示在此处。",
     Copy: "复制",
@@ -368,8 +314,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "导出后保留的内容",
     "Where it runs": "运行位置",
     "The output is a plain folder of files — any static host will serve it.": "输出是一个普通文件夹——任何静态托管服务都可以提供它。",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "接入真实主机后,构建和部署记录将显示在此处。",
   },
   "zh-TW": {
     Operations: "維運",
@@ -407,29 +351,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "正式環境啟動時為必要項目。本機缺少時,會改為在 AI 助理畫面顯示為 503。",
     "Falls back to port 4319.": "未設定時會使用連接埠 4319。",
-    "What Static Site produces": "靜態網站會產生什麼",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "此網站已發佈頁面的快速唯讀副本 — 背後沒有伺服器。",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "沒有結帳、沒有上線的管理後台、沒有助理、沒有任何動態功能。",
     "Not built yet": "尚未建置",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu 尚無靜態匯出器,單靠網站地圖也無法驅動一個 — 它只列出已發佈的文章,不含首頁、產品、佈景主題頁面、重新導向、404 頁面或資源檔案。",
-    "Static hosts": "靜態代管平台",
     "Build it from a terminal": "從終端機建置",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "執行 tovu export <dir>,Tovu 會將此網站的靜態副本——每篇文章、首頁、產品與佈景主題頁面——寫入資料夾。",
-    "Not available from this screen yet — run tovu export from a terminal.": "此畫面尚不支援——請在終端機執行 tovu export。",
     "Build static export": "建立靜態匯出",
-    "Not available yet — see above.": "尚未提供 — 見上方說明。",
     "What Full Site gives you": "完整網站能帶來什麼",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "完整的 Tovu 伺服器 — 管理後台、助理、結帳,一切都能運作。",
     Providers: "服務商",
     Planned: "規劃中",
-    "No credential fields yet — this instance has no backend to store them.":
-      "尚無憑證欄位 — 此執行個體沒有可安全儲存它們的後端。",
     "Loading Dockerfile…": "正在載入 Dockerfile…",
-    "Not generated yet": "尚未產生",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "存放庫根目錄下尚無 Dockerfile。新增後,其內容將顯示於此。",
     Copy: "複製",
@@ -452,8 +384,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "匯出後保留的內容",
     "Where it runs": "執行位置",
     "The output is a plain folder of files — any static host will serve it.": "輸出是一個普通檔案資料夾——任何靜態主機都能提供它。",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "接上真實主機後,建置與部署紀錄將顯示於此。",
   },
   "pt-BR": {
     Operations: "Operações",
@@ -491,29 +421,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Necessária para iniciar em produção. Se ausente localmente, aparece como 503 na tela do Assistente de IA.",
     "Falls back to port 4319.": "Usa a porta 4319 quando ausente.",
-    "What Static Site produces": "O que o Site estático produz",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Uma cópia rápida e somente leitura das páginas publicadas deste site — sem servidor por trás.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Sem checkout, sem painel administrativo online, sem assistente, sem nada dinâmico.",
     "Not built yet": "Ainda não implementado",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "O Tovu não tem um exportador estático, e o sitemap sozinho não consegue gerar um — ele lista apenas publicações publicadas, não a página inicial, produtos, páginas do tema, redirecionamentos, a página 404 ou os recursos.",
-    "Static hosts": "Hospedagens estáticas",
     "Build it from a terminal": "Gere pelo terminal",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Execute tovu export <dir> e o Tovu grava uma cópia estática deste site — cada publicação, a página inicial, os produtos e as páginas do tema — em uma pasta.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Ainda não disponível nesta tela — execute tovu export pelo terminal.",
     "Build static export": "Gerar exportação estática",
-    "Not available yet — see above.": "Ainda não disponível — veja acima.",
     "What Full Site gives you": "O que o Site completo oferece",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "O servidor completo do Tovu — admin, assistente, checkout, tudo funciona.",
     Providers: "Provedores",
     Planned: "Planejado",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Ainda não há campos de credenciais — esta instância não tem backend para armazená-las.",
     "Loading Dockerfile…": "Carregando o Dockerfile…",
-    "Not generated yet": "Ainda não gerado",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "Ainda não existe um Dockerfile na raiz do repositório. Assim que um for adicionado, seu conteúdo aparecerá aqui.",
     Copy: "Copiar",
@@ -543,8 +461,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "O que permanece após a exportação",
     "Where it runs": "Onde é executado",
     "The output is a plain folder of files — any static host will serve it.": "A saída é uma pasta simples de arquivos — qualquer hospedagem estática pode servi-la.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Builds e implantações aparecerão aqui assim que uma hospedagem real for conectada.",
   },
   ru: {
     Operations: "Эксплуатация",
@@ -582,29 +498,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Обязательна для запуска в продакшене. Если отсутствует локально, вместо этого на экране ИИ-ассистента появится ошибка 503.",
     "Falls back to port 4319.": "При отсутствии используется порт 4319.",
-    "What Static Site produces": "Что даёт Статичный сайт",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Быстрая копия опубликованных страниц сайта только для чтения — без сервера позади неё.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Нет оформления заказа, нет доступной админки, нет ассистента, нет ничего динамического.",
     "Not built yet": "Пока не реализовано",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "У Tovu нет статического экспортёра, а одной карты сайта недостаточно для его создания — она перечисляет только опубликованные записи, но не главную страницу, товары, страницы темы, редиректы, страницу 404 или ресурсы.",
-    "Static hosts": "Статический хостинг",
     "Build it from a terminal": "Соберите через терминал",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Выполните tovu export <dir>, и Tovu запишет статическую копию этого сайта — каждую запись, главную страницу, товары и страницы темы — в папку.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Пока недоступно с этого экрана — выполните tovu export в терминале.",
     "Build static export": "Собрать статический экспорт",
-    "Not available yet — see above.": "Пока недоступно — см. выше.",
     "What Full Site gives you": "Что даёт Полноценный сайт",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Полноценный сервер Tovu — админка, ассистент, оформление заказа, всё работает.",
     Providers: "Провайдеры",
     Planned: "Запланировано",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Полей для учётных данных пока нет — у этого экземпляра нет backend'а для их хранения.",
     "Loading Dockerfile…": "Загрузка Dockerfile…",
-    "Not generated yet": "Пока не создан",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "В корне репозитория пока нет Dockerfile. Как только он появится, его содержимое будет показано здесь.",
     Copy: "Копировать",
@@ -627,8 +531,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Что сохраняется при экспорте",
     "Where it runs": "Где это работает",
     "The output is a plain folder of files — any static host will serve it.": "Результат — обычная папка с файлами; её может обслуживать любой статический хостинг.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Сборки и развёртывания появятся здесь после подключения реального хостинга.",
   },
   fa: {
     Operations: "عملیات",
@@ -666,29 +568,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "برای راه‌اندازی در محیط تولید لازم است. در صورت نبود در محیط محلی، به‌جای آن روی صفحه دستیار هوش مصنوعی خطای 503 نمایش داده می‌شود.",
     "Falls back to port 4319.": "در صورت نبود، از پورت 4319 استفاده می‌شود.",
-    "What Static Site produces": "سایت ایستا چه چیزی تولید می‌کند",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "یک نسخه سریع و فقط‌خواندنی از صفحات منتشرشده این سایت — بدون سروری در پشت آن.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "بدون تسویه‌حساب، بدون پنل مدیریت آنلاین، بدون دستیار، بدون هیچ چیز پویا.",
     "Not built yet": "هنوز ساخته نشده",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu هیچ صادرکننده ایستایی ندارد و نقشه سایت به‌تنهایی نمی‌تواند یکی بسازد — فقط نوشته‌های منتشرشده را فهرست می‌کند، نه صفحه اصلی، محصولات، صفحات قالب، ریدایرکت‌ها، صفحه 404 یا دارایی‌ها را.",
-    "Static hosts": "میزبان‌های ایستا",
     "Build it from a terminal": "از ترمینال بسازید",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "دستور tovu export <dir> را اجرا کنید تا Tovu یک نسخه ایستا از این سایت — هر نوشته، صفحه اصلی، محصولات و صفحات قالب — را در یک پوشه بنویسد.",
-    "Not available from this screen yet — run tovu export from a terminal.": "هنوز از این صفحه در دسترس نیست — دستور tovu export را از ترمینال اجرا کنید.",
     "Build static export": "ساخت خروجی ایستا",
-    "Not available yet — see above.": "هنوز در دسترس نیست — به بالا مراجعه کنید.",
     "What Full Site gives you": "سایت کامل چه چیزی به شما می‌دهد",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "سرور کامل Tovu — پنل مدیریت، دستیار، تسویه‌حساب، همه‌چیز کار می‌کند.",
     Providers: "ارائه‌دهندگان",
     Planned: "برنامه‌ریزی‌شده",
-    "No credential fields yet — this instance has no backend to store them.":
-      "هنوز فیلدی برای اعتبارنامه وجود ندارد — این نمونه بک‌اندی برای ذخیره آن‌ها ندارد.",
     "Loading Dockerfile…": "در حال بارگذاری Dockerfile…",
-    "Not generated yet": "هنوز ایجاد نشده",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "هنوز Dockerfile‌ای در ریشه مخزن وجود ندارد. به‌محض افزوده شدن، محتوای آن اینجا نمایش داده می‌شود.",
     Copy: "کپی",
@@ -711,8 +601,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "آنچه پس از خروجی باقی می‌ماند",
     "Where it runs": "محل اجرا",
     "The output is a plain folder of files — any static host will serve it.": "خروجی یک پوشه ساده از فایل‌ها است — هر میزبان ایستا می‌تواند آن را ارائه کند.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "ساخت‌ها و استقرارها پس از اتصال یک میزبان واقعی اینجا نمایش داده می‌شوند.",
   },
   ar: {
     Operations: "العمليات",
@@ -750,29 +638,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "مطلوبة للإقلاع في بيئة الإنتاج. إذا كانت غائبة محليًا، يظهر بدلاً من ذلك خطأ 503 في شاشة مساعد الذكاء الاصطناعي.",
     "Falls back to port 4319.": "تستخدم المنفذ 4319 عند غيابها.",
-    "What Static Site produces": "ما الذي ينتجه الموقع الثابت",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "نسخة سريعة للقراءة فقط من صفحات هذا الموقع المنشورة — بلا خادم خلفها.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "لا دفع إلكتروني، ولا لوحة تحكم متصلة، ولا مساعد، ولا أي شيء ديناميكي.",
     "Not built yet": "لم يُبنَ بعد",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "لا يملك Tovu مُصدِّرًا ثابتًا، وخريطة الموقع وحدها لا تكفي لإنشاء واحد — فهي تسرد فقط المقالات المنشورة، دون الصفحة الرئيسية أو المنتجات أو صفحات القالب أو إعادة التوجيه أو صفحة 404 أو الأصول.",
-    "Static hosts": "مضيفو المواقع الثابتة",
     "Build it from a terminal": "أنشئه من الطرفية",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "شغّل الأمر tovu export <dir> ليكتب Tovu نسخة ثابتة من هذا الموقع — كل مقالة، والصفحة الرئيسية، والمنتجات، وصفحات القالب — في مجلد.",
-    "Not available from this screen yet — run tovu export from a terminal.": "غير متاح من هذه الشاشة بعد — شغّل tovu export من الطرفية.",
     "Build static export": "إنشاء تصدير ثابت",
-    "Not available yet — see above.": "غير متاح بعد — انظر أعلاه.",
     "What Full Site gives you": "ما الذي يمنحك إياه الموقع الكامل",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "خادم Tovu الكامل — لوحة التحكم، المساعد، الدفع، كل شيء يعمل.",
     Providers: "مزوّدو الخدمة",
     Planned: "مخطَّط له",
-    "No credential fields yet — this instance has no backend to store them.":
-      "لا توجد حقول بيانات اعتماد بعد — لا تملك هذه النسخة خلفية لتخزينها.",
     "Loading Dockerfile…": "جارٍ تحميل Dockerfile…",
-    "Not generated yet": "لم يُنشأ بعد",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "لا يوجد Dockerfile في جذر المستودع بعد. بمجرد إضافته، سيظهر محتواه هنا.",
     Copy: "نسخ",
@@ -795,8 +671,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "ما يبقى بعد التصدير",
     "Where it runs": "مكان التشغيل",
     "The output is a plain folder of files — any static host will serve it.": "المخرجات مجلد عادي من الملفات — يمكن لأي استضافة ثابتة تقديمه.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "ستظهر عمليات البناء والنشر هنا بمجرد ربط مضيف حقيقي.",
   },
   ja: {
     Operations: "運用",
@@ -834,29 +708,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "本番環境での起動に必要です。ローカルで未設定の場合、代わりにAIアシスタント画面で503として表示されます。",
     "Falls back to port 4319.": "未設定の場合、ポート4319が使われます。",
-    "What Static Site produces": "静的サイトが生成するもの",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "このサイトの公開済みページの高速な読み取り専用コピー — 背後にサーバーはありません。",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "決済なし、管理画面のオンライン稼働なし、アシスタントなし、動的な機能はいっさいありません。",
     "Not built yet": "まだ構築されていません",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovuには静的エクスポーターがなく、サイトマップだけではそれを実現できません — サイトマップは公開済みの投稿のみを列挙し、ホームページ、商品、テーマページ、リダイレクト、404ページ、アセットは含みません。",
-    "Static hosts": "静的ホスティング先",
     "Build it from a terminal": "ターミナルからビルドする",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> を実行すると、Tovuはこのサイトの静的コピー——すべての投稿、ホームページ、商品、テーマページ——をフォルダに書き出します。",
-    "Not available from this screen yet — run tovu export from a terminal.": "この画面からはまだ利用できません — ターミナルでtovu exportを実行してください。",
     "Build static export": "静的エクスポートをビルド",
-    "Not available yet — see above.": "まだ利用できません — 上記を参照してください。",
     "What Full Site gives you": "フルサイトで得られるもの",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "完全なTovuサーバー — 管理画面、アシスタント、決済、すべてが動作します。",
     Providers: "プロバイダー",
     Planned: "予定",
-    "No credential fields yet — this instance has no backend to store them.":
-      "認証情報の入力欄はまだありません — このインスタンスには保存先のバックエンドがありません。",
     "Loading Dockerfile…": "Dockerfileを読み込み中…",
-    "Not generated yet": "まだ生成されていません",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "リポジトリのルートにはまだDockerfileがありません。追加されると、その内容がここに表示されます。",
     Copy: "コピー",
@@ -879,8 +741,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "エクスポート後に残るもの",
     "Where it runs": "実行場所",
     "The output is a plain folder of files — any static host will serve it.": "出力は通常のファイルフォルダーです。どの静的ホストでも配信できます。",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "実際のホストが接続されると、ビルドとデプロイがここに表示されます。",
   },
   ko: {
     Operations: "운영",
@@ -918,29 +778,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "프로덕션에서 부팅하려면 필요합니다. 로컬에서 없으면 대신 AI 어시스턴트 화면에 503으로 표시됩니다.",
     "Falls back to port 4319.": "설정하지 않으면 포트 4319를 사용합니다.",
-    "What Static Site produces": "정적 사이트가 생성하는 것",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "이 사이트의 게시된 페이지를 빠르게 읽기 전용으로 복사한 것 — 그 뒤에 서버는 없습니다.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "결제 없음, 온라인 관리자 없음, 어시스턴트 없음, 동적인 기능 전혀 없음.",
     "Not built yet": "아직 구현되지 않음",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu에는 정적 내보내기 기능이 없으며, 사이트맵만으로는 이를 생성할 수 없습니다 — 사이트맵은 게시된 글만 나열할 뿐, 홈페이지, 제품, 테마 페이지, 리디렉션, 404 페이지, 자산은 포함하지 않습니다.",
-    "Static hosts": "정적 호스팅",
     "Build it from a terminal": "터미널에서 빌드하기",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir>를 실행하면 Tovu가 이 사이트의 정적 사본 — 모든 게시물, 홈페이지, 제품, 테마 페이지 — 을 폴더에 씁니다.",
-    "Not available from this screen yet — run tovu export from a terminal.": "이 화면에서는 아직 사용할 수 없습니다 — 터미널에서 tovu export를 실행하세요.",
     "Build static export": "정적 내보내기 빌드",
-    "Not available yet — see above.": "아직 사용할 수 없습니다 — 위 내용을 참고하세요.",
     "What Full Site gives you": "전체 사이트가 제공하는 것",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "완전한 Tovu 서버 — 관리자, 어시스턴트, 결제까지 모든 것이 작동합니다.",
     Providers: "제공업체",
     Planned: "예정됨",
-    "No credential fields yet — this instance has no backend to store them.":
-      "아직 자격 증명 입력란이 없습니다 — 이 인스턴스에는 이를 저장할 백엔드가 없습니다.",
     "Loading Dockerfile…": "Dockerfile을 불러오는 중…",
-    "Not generated yet": "아직 생성되지 않음",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "저장소 루트에 아직 Dockerfile이 없습니다. 추가되면 이곳에 내용이 표시됩니다.",
     Copy: "복사",
@@ -963,8 +811,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "내보낸 뒤에도 유지되는 항목",
     "Where it runs": "실행 위치",
     "The output is a plain folder of files — any static host will serve it.": "출력은 일반 파일 폴더이며 어떤 정적 호스트에서도 제공할 수 있습니다.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "실제 호스트가 연결되면 빌드와 배포가 이곳에 표시됩니다.",
   },
   pl: {
     Operations: "Operacje",
@@ -1002,29 +848,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Wymagana do uruchomienia w środowisku produkcyjnym. Jeśli brakuje jej lokalnie, zamiast tego na ekranie Asystenta AI pojawia się błąd 503.",
     "Falls back to port 4319.": "Bez ustawienia używany jest port 4319.",
-    "What Static Site produces": "Co tworzy Witryna statyczna",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Szybka, tylko do odczytu kopia opublikowanych stron tej witryny — bez serwera z tyłu.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Brak płatności, brak działającego panelu administracyjnego, brak asystenta, brak czegokolwiek dynamicznego.",
     "Not built yet": "Jeszcze nie zbudowane",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu nie ma eksportera statycznego, a sama mapa witryny nie wystarczy, by go stworzyć — wymienia tylko opublikowane wpisy, a nie stronę główną, produkty, strony motywu, przekierowania, stronę 404 ani zasoby.",
-    "Static hosts": "Hosty statyczne",
     "Build it from a terminal": "Zbuduj z terminala",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Uruchom tovu export <dir>, a Tovu zapisze statyczną kopię tej witryny — każdy wpis, stronę główną, produkty i strony motywu — do folderu.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Jeszcze niedostępne z tego ekranu — uruchom tovu export z terminala.",
     "Build static export": "Zbuduj eksport statyczny",
-    "Not available yet — see above.": "Jeszcze niedostępne — zobacz powyżej.",
     "What Full Site gives you": "Co daje Pełna witryna",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Pełny serwer Tovu — panel administracyjny, asystent, płatności, wszystko działa.",
     Providers: "Dostawcy",
     Planned: "Planowane",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Jeszcze brak pól na dane uwierzytelniające — ta instancja nie ma backendu do ich przechowywania.",
     "Loading Dockerfile…": "Wczytywanie Dockerfile…",
-    "Not generated yet": "Jeszcze niewygenerowany",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "W katalogu głównym repozytorium nie ma jeszcze Dockerfile. Gdy zostanie dodany, jego zawartość pojawi się tutaj.",
     Copy: "Kopiuj",
@@ -1047,8 +881,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Co pozostaje po eksporcie",
     "Where it runs": "Gdzie działa",
     "The output is a plain folder of files — any static host will serve it.": "Wynik to zwykły folder plików — każdy hosting statyczny może go obsłużyć.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Kompilacje i wdrożenia pojawią się tutaj, gdy zostanie podłączony prawdziwy host.",
   },
   hu: {
     Operations: "Üzemeltetés",
@@ -1086,29 +918,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Az éles indításhoz szükséges. Ha helyileg hiányzik, helyette az AI asszisztens képernyőjén 503-as hiba jelenik meg.",
     "Falls back to port 4319.": "Hiányában a 4319-es portot használja.",
-    "What Static Site produces": "Mit hoz létre a Statikus oldal",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Az oldal publikált lapjainak gyors, csak olvasható másolata — szerver nélkül a háttérben.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Nincs fizetés, nincs élő admin felület, nincs asszisztens, semmi dinamikus.",
     "Not built yet": "Még nincs kiépítve",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "A Tovu-nak nincs statikus exportálója, és önmagában a webhelytérkép sem elegendő ehhez — csak a publikált bejegyzéseket sorolja fel, a kezdőlapot, termékeket, sablonoldalakat, átirányításokat, a 404-es oldalt vagy az erőforrásokat nem.",
-    "Static hosts": "Statikus szolgáltatók",
     "Build it from a terminal": "Építsd meg terminálból",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Futtasd a tovu export <dir> parancsot, és a Tovu ebbe a mappába írja ki az oldal statikus másolatát — minden bejegyzést, a kezdőlapot, a termékeket és a sablonoldalakat.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Erről a képernyőről még nem érhető el — futtasd a tovu export parancsot terminálból.",
     "Build static export": "Statikus export létrehozása",
-    "Not available yet — see above.": "Még nem elérhető — lásd fent.",
     "What Full Site gives you": "Mit ad a Teljes oldal",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "A teljes Tovu szerver — admin, asszisztens, fizetés, minden működik.",
     Providers: "Szolgáltatók",
     Planned: "Tervezett",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Még nincsenek hitelesítési mezők — ennek a példánynak nincs háttérrendszere ezek tárolására.",
     "Loading Dockerfile…": "Dockerfile betöltése…",
-    "Not generated yet": "Még nincs legenerálva",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "A repó gyökerében még nincs Dockerfile. Amint hozzáadják, a tartalma itt fog megjelenni.",
     Copy: "Másolás",
@@ -1131,8 +951,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Mi marad meg az exportban",
     "Where it runs": "Hol fut",
     "The output is a plain folder of files — any static host will serve it.": "A kimenet egy egyszerű fájlmappa — bármely statikus tárhely kiszolgálhatja.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "A buildek és telepítések itt jelennek majd meg, ha egy valódi host csatlakoztatva lesz.",
   },
   fr: {
     Operations: "Opérations",
@@ -1170,29 +988,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Requise pour démarrer en production. Si elle est absente en local, une erreur 503 apparaît à la place sur l'écran de l'assistant IA.",
     "Falls back to port 4319.": "Utilise le port 4319 si absente.",
-    "What Static Site produces": "Ce que produit le Site statique",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Une copie rapide et en lecture seule des pages publiées de ce site — sans serveur derrière.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Pas de paiement, pas d'administration en ligne, pas d'assistant, rien de dynamique.",
     "Not built yet": "Pas encore développé",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu n'a pas d'exportateur statique, et le plan du site seul ne peut pas en générer un — il liste uniquement les articles publiés, pas la page d'accueil, les produits, les pages du thème, les redirections, la page 404 ni les ressources.",
-    "Static hosts": "Hébergeurs statiques",
     "Build it from a terminal": "Générez-le depuis un terminal",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Exécutez tovu export <dir> et Tovu écrit une copie statique de ce site — chaque article, la page d'accueil, les produits et les pages du thème — dans un dossier.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Pas encore disponible depuis cet écran — exécutez tovu export depuis un terminal.",
     "Build static export": "Générer l'export statique",
-    "Not available yet — see above.": "Pas encore disponible — voir ci-dessus.",
     "What Full Site gives you": "Ce que vous offre le Site complet",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Le serveur Tovu complet — administration, assistant, paiement, tout fonctionne.",
     Providers: "Fournisseurs",
     Planned: "Prévu",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Pas encore de champs d'identifiants — cette instance n'a pas de backend pour les stocker.",
     "Loading Dockerfile…": "Chargement du Dockerfile…",
-    "Not generated yet": "Pas encore généré",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "Aucun Dockerfile n'existe encore à la racine du dépôt. Une fois ajouté, son contenu apparaîtra ici.",
     Copy: "Copier",
@@ -1222,8 +1028,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Ce qui reste après l'exportation",
     "Where it runs": "Où cela s'exécute",
     "The output is a plain folder of files — any static host will serve it.": "La sortie est un simple dossier de fichiers — tout hébergement statique peut le servir.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Les builds et déploiements apparaîtront ici une fois un hébergeur réel connecté.",
   },
   uk: {
     Operations: "Експлуатація",
@@ -1261,29 +1065,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Обов'язкова для запуску в продакшні. Якщо відсутня локально, натомість на екрані ШІ-асистента з'явиться помилка 503.",
     "Falls back to port 4319.": "За відсутності використовується порт 4319.",
-    "What Static Site produces": "Що дає Статичний сайт",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Швидка копія опублікованих сторінок сайту лише для читання — без сервера позаду неї.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Немає оформлення замовлення, немає доступної адмінки, немає асистента, немає нічого динамічного.",
     "Not built yet": "Ще не реалізовано",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "У Tovu немає статичного експортера, а самої карти сайту недостатньо для його створення — вона перелічує лише опубліковані записи, але не головну сторінку, товари, сторінки теми, редіректи, сторінку 404 чи ресурси.",
-    "Static hosts": "Статичний хостинг",
     "Build it from a terminal": "Зберіть через термінал",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Виконайте tovu export <dir>, і Tovu запише статичну копію цього сайту — кожен запис, головну сторінку, товари та сторінки теми — у папку.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Поки недоступно з цього екрана — виконайте tovu export у терміналі.",
     "Build static export": "Зібрати статичний експорт",
-    "Not available yet — see above.": "Поки недоступно — див. вище.",
     "What Full Site gives you": "Що дає Повноцінний сайт",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Повноцінний сервер Tovu — адмінка, асистент, оформлення замовлення, все працює.",
     Providers: "Провайдери",
     Planned: "Заплановано",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Полів для облікових даних поки немає — цей екземпляр не має бекенду для їх зберігання.",
     "Loading Dockerfile…": "Завантаження Dockerfile…",
-    "Not generated yet": "Ще не створено",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "У корені репозиторію поки немає Dockerfile. Щойно його додадуть, вміст з'явиться тут.",
     Copy: "Копіювати",
@@ -1306,8 +1098,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Що зберігається після експорту",
     "Where it runs": "Де це працює",
     "The output is a plain folder of files — any static host will serve it.": "Результат — звичайна папка з файлами; її може обслуговувати будь-який статичний хостинг.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Збірки та розгортання з'являться тут після підключення реального хостингу.",
   },
   tr: {
     Operations: "Operasyonlar",
@@ -1345,29 +1135,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Üretimde başlatmak için gereklidir. Yerelde eksikse, bunun yerine Yapay Zeka Asistanı ekranında 503 olarak görünür.",
     "Falls back to port 4319.": "Ayarlanmazsa 4319 numaralı port kullanılır.",
-    "What Static Site produces": "Statik Site ne üretir",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Bu sitenin yayınlanmış sayfalarının hızlı, salt okunur bir kopyası — arkasında sunucu yok.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Ödeme yok, çevrimiçi yönetim paneli yok, asistan yok, dinamik hiçbir şey yok.",
     "Not built yet": "Henüz oluşturulmadı",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu'nun statik bir dışa aktarıcısı yok ve site haritası tek başına bunu oluşturamaz — yalnızca yayınlanmış yazıları listeler; ana sayfayı, ürünleri, tema sayfalarını, yönlendirmeleri, 404 sayfasını veya varlıkları listelemez.",
-    "Static hosts": "Statik barındırıcılar",
     "Build it from a terminal": "Terminalden oluşturun",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> komutunu çalıştırın, Tovu bu sitenin statik bir kopyasını — her yazıyı, ana sayfayı, ürünleri ve tema sayfalarını — bir klasöre yazsın.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Bu ekrandan henüz kullanılamıyor — terminalden tovu export komutunu çalıştırın.",
     "Build static export": "Statik dışa aktarma oluştur",
-    "Not available yet — see above.": "Henüz kullanılamıyor — yukarıya bakın.",
     "What Full Site gives you": "Tam Site size ne sağlar",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Eksiksiz Tovu sunucusu — yönetim paneli, asistan, ödeme, her şey çalışır.",
     Providers: "Sağlayıcılar",
     Planned: "Planlandı",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Henüz kimlik bilgisi alanları yok — bu örneğin bunları saklayacak bir arka ucu yok.",
     "Loading Dockerfile…": "Dockerfile yükleniyor…",
-    "Not generated yet": "Henüz oluşturulmadı",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "Depo kök dizininde henüz bir Dockerfile yok. Eklendiğinde içeriği burada görünecek.",
     Copy: "Kopyala",
@@ -1390,8 +1168,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Dışa aktarmada kalanlar",
     "Where it runs": "Çalıştığı yer",
     "The output is a plain folder of files — any static host will serve it.": "Çıktı düz bir dosya klasörüdür — herhangi bir statik barındırma bunu sunabilir.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Gerçek bir sunucu bağlandığında derlemeler ve dağıtımlar burada görünecek.",
   },
   th: {
     Operations: "ปฏิบัติการ",
@@ -1429,29 +1205,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "จำเป็นสำหรับการบูตในโปรดักชัน หากไม่มีในโลคัล จะแสดงเป็น 503 ที่หน้าจอผู้ช่วย AI แทน",
     "Falls back to port 4319.": "ใช้พอร์ต 4319 เมื่อไม่ได้ตั้งค่า",
-    "What Static Site produces": "เว็บไซต์แบบสแตติกสร้างอะไร",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "สำเนาแบบอ่านอย่างเดียวที่รวดเร็วของหน้าที่เผยแพร่ของเว็บไซต์นี้ — ไม่มีเซิร์ฟเวอร์อยู่เบื้องหลัง",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "ไม่มีการชำระเงิน ไม่มีระบบผู้ดูแลออนไลน์ ไม่มีผู้ช่วย ไม่มีสิ่งใดที่เป็นไดนามิก",
     "Not built yet": "ยังไม่ได้สร้าง",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu ยังไม่มีตัวส่งออกแบบสแตติก และแผนผังเว็บไซต์เพียงอย่างเดียวไม่สามารถสร้างสิ่งนี้ได้ — มันแสดงเฉพาะโพสต์ที่เผยแพร่แล้ว ไม่รวมหน้าแรก สินค้า หน้าธีม การเปลี่ยนเส้นทาง หน้า 404 หรือไฟล์ทรัพยากร",
-    "Static hosts": "โฮสต์แบบสแตติก",
     "Build it from a terminal": "สร้างจากเทอร์มินัล",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "รันคำสั่ง tovu export <dir> แล้ว Tovu จะเขียนสำเนาแบบสแตติกของเว็บไซต์นี้ — ทุกโพสต์ หน้าแรก สินค้า และหน้าธีม — ลงในโฟลเดอร์",
-    "Not available from this screen yet — run tovu export from a terminal.": "ยังไม่พร้อมใช้งานจากหน้าจอนี้ — รันคำสั่ง tovu export จากเทอร์มินัล",
     "Build static export": "สร้างการส่งออกแบบสแตติก",
-    "Not available yet — see above.": "ยังไม่พร้อมใช้งาน — ดูด้านบน",
     "What Full Site gives you": "เว็บไซต์แบบเต็มรูปแบบให้อะไรกับคุณ",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "เซิร์ฟเวอร์ Tovu แบบสมบูรณ์ — ระบบผู้ดูแล ผู้ช่วย การชำระเงิน ทุกอย่างทำงานได้",
     Providers: "ผู้ให้บริการ",
     Planned: "วางแผนไว้",
-    "No credential fields yet — this instance has no backend to store them.":
-      "ยังไม่มีช่องกรอกข้อมูลรับรอง — อินสแตนซ์นี้ยังไม่มีแบ็กเอนด์สำหรับจัดเก็บ",
     "Loading Dockerfile…": "กำลังโหลด Dockerfile…",
-    "Not generated yet": "ยังไม่ได้สร้าง",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "ยังไม่มี Dockerfile ที่รากของที่เก็บโค้ด เมื่อมีการเพิ่มแล้ว เนื้อหาจะปรากฏที่นี่",
     Copy: "คัดลอก",
@@ -1474,8 +1238,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "สิ่งที่ยังคงอยู่หลังการส่งออก",
     "Where it runs": "ตำแหน่งที่ทำงาน",
     "The output is a plain folder of files — any static host will serve it.": "ผลลัพธ์คือโฟลเดอร์ไฟล์ธรรมดา — โฮสต์แบบคงที่ใดก็ให้บริการได้",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "การสร้างและการปรับใช้จะปรากฏที่นี่เมื่อมีการเชื่อมต่อโฮสต์จริง",
   },
   it: {
     Operations: "Operazioni",
@@ -1513,29 +1275,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "Necessaria per l'avvio in produzione. Se assente in locale, appare invece come errore 503 nella schermata dell'Assistente IA.",
     "Falls back to port 4319.": "Se assente, usa la porta 4319.",
-    "What Static Site produces": "Cosa produce il Sito statico",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Una copia veloce e di sola lettura delle pagine pubblicate di questo sito — senza server dietro.",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "Nessun checkout, nessun pannello di amministrazione online, nessun assistente, niente di dinamico.",
     "Not built yet": "Non ancora realizzato",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu non ha un esportatore statico, e la sitemap da sola non può generarne uno — elenca solo gli articoli pubblicati, non la home page, i prodotti, le pagine del tema, i redirect, la pagina 404 o le risorse.",
-    "Static hosts": "Host statici",
     "Build it from a terminal": "Generalo da un terminale",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Esegui tovu export <dir> e Tovu scrive una copia statica di questo sito — ogni articolo, la home page, i prodotti e le pagine del tema — in una cartella.",
-    "Not available from this screen yet — run tovu export from a terminal.": "Non ancora disponibile da questa schermata — esegui tovu export da un terminale.",
     "Build static export": "Genera esportazione statica",
-    "Not available yet — see above.": "Non ancora disponibile — vedi sopra.",
     "What Full Site gives you": "Cosa offre il Sito completo",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "Il server Tovu completo — amministrazione, assistente, checkout, tutto funziona.",
     Providers: "Fornitori",
     Planned: "Pianificato",
-    "No credential fields yet — this instance has no backend to store them.":
-      "Ancora nessun campo per le credenziali — questa istanza non ha un backend per archiviarle.",
     "Loading Dockerfile…": "Caricamento del Dockerfile…",
-    "Not generated yet": "Non ancora generato",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "Non esiste ancora un Dockerfile nella radice del repository. Una volta aggiunto, il suo contenuto apparirà qui.",
     Copy: "Copia",
@@ -1565,8 +1315,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Cosa rimane dopo l'esportazione",
     "Where it runs": "Dove viene eseguito",
     "The output is a plain folder of files — any static host will serve it.": "L'output è una semplice cartella di file — qualsiasi hosting statico può servirla.",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "Build e distribuzioni appariranno qui una volta collegato un host reale.",
   },
   hi: {
     Operations: "संचालन",
@@ -1604,29 +1352,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "प्रोडक्शन में बूट के लिए आवश्यक है। लोकल में न होने पर, इसके बजाय AI असिस्टेंट स्क्रीन पर 503 के रूप में दिखता है।",
     "Falls back to port 4319.": "सेट न होने पर पोर्ट 4319 का उपयोग करता है।",
-    "What Static Site produces": "स्थिर साइट क्या उत्पन्न करती है",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "इस साइट के प्रकाशित पृष्ठों की एक तेज़, केवल-पढ़ने योग्य प्रति — इसके पीछे कोई सर्वर नहीं।",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "कोई चेकआउट नहीं, कोई ऑनलाइन एडमिन नहीं, कोई असिस्टेंट नहीं, कुछ भी डायनामिक नहीं।",
     "Not built yet": "अभी नहीं बना",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu के पास कोई स्थिर एक्सपोर्टर नहीं है, और अकेला साइटमैप इसे नहीं बना सकता — यह केवल प्रकाशित पोस्ट सूचीबद्ध करता है, होम पेज, उत्पाद, थीम पेज, रीडायरेक्ट, 404 पेज या एसेट्स नहीं।",
-    "Static hosts": "स्थिर होस्ट",
     "Build it from a terminal": "टर्मिनल से बनाएं",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> चलाएं और Tovu इस साइट की एक स्थिर प्रति — हर पोस्ट, होम पेज, उत्पाद और थीम पेज — एक फ़ोल्डर में लिखेगा।",
-    "Not available from this screen yet — run tovu export from a terminal.": "यह स्क्रीन से अभी उपलब्ध नहीं — टर्मिनल से tovu export चलाएं।",
     "Build static export": "स्थिर एक्सपोर्ट बनाएं",
-    "Not available yet — see above.": "अभी उपलब्ध नहीं — ऊपर देखें।",
     "What Full Site gives you": "पूर्ण साइट आपको क्या देती है",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "संपूर्ण Tovu सर्वर — एडमिन, असिस्टेंट, चेकआउट, सब कुछ काम करता है।",
     Providers: "प्रदाता",
     Planned: "नियोजित",
-    "No credential fields yet — this instance has no backend to store them.":
-      "अभी कोई क्रेडेंशियल फ़ील्ड नहीं — इस इंस्टेंस के पास इन्हें संग्रहीत करने के लिए बैकएंड नहीं है।",
     "Loading Dockerfile…": "Dockerfile लोड हो रहा है…",
-    "Not generated yet": "अभी उत्पन्न नहीं हुआ",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "रेपो रूट में अभी कोई Dockerfile मौजूद नहीं है। एक बार जोड़े जाने पर, इसकी सामग्री यहां दिखाई देगी।",
     Copy: "कॉपी करें",
@@ -1649,8 +1385,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "एक्सपोर्ट के बाद क्या रहता है",
     "Where it runs": "जहाँ यह चलता है",
     "The output is a plain folder of files — any static host will serve it.": "आउटपुट फ़ाइलों का एक साधारण फ़ोल्डर है — कोई भी स्थिर होस्ट इसे उपलब्ध करा सकता है।",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "वास्तविक होस्ट जुड़ने के बाद बिल्ड और डिप्लॉयमेंट यहां दिखाई देंगे।",
   },
   ur: {
     Operations: "کارروائیاں",
@@ -1688,29 +1422,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "پروڈکشن میں بوٹ کے لیے ضروری ہے۔ لوکل میں نہ ہونے کی صورت میں، اس کے بجائے AI اسسٹنٹ اسکرین پر 503 کے طور پر ظاہر ہوتا ہے۔",
     "Falls back to port 4319.": "سیٹ نہ ہونے پر پورٹ 4319 استعمال ہوتا ہے۔",
-    "What Static Site produces": "جامد سائٹ کیا پیدا کرتی ہے",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "اس سائٹ کے شائع شدہ صفحات کی تیز، صرف پڑھنے کے قابل کاپی — اس کے پیچھے کوئی سرور نہیں۔",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "کوئی چیک آؤٹ نہیں، کوئی آن لائن ایڈمن نہیں، کوئی اسسٹنٹ نہیں، کچھ بھی متحرک نہیں۔",
     "Not built yet": "ابھی تک نہیں بنایا گیا",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu کے پاس کوئی جامد ایکسپورٹر نہیں ہے، اور اکیلا سائٹ میپ اسے نہیں بنا سکتا — یہ صرف شائع شدہ پوسٹس درج کرتا ہے، ہوم پیج، پروڈکٹس، تھیم پیجز، ری ڈائریکٹس، 404 پیج یا اثاثے نہیں۔",
-    "Static hosts": "جامد میزبان",
     "Build it from a terminal": "ٹرمینل سے بنائیں",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> چلائیں اور Tovu اس سائٹ کی ایک جامد کاپی — ہر پوسٹ، ہوم پیج، پروڈکٹس اور تھیم پیجز — ایک فولڈر میں لکھے گا۔",
-    "Not available from this screen yet — run tovu export from a terminal.": "یہ اسکرین سے ابھی دستیاب نہیں — ٹرمینل سے tovu export چلائیں۔",
     "Build static export": "جامد ایکسپورٹ بنائیں",
-    "Not available yet — see above.": "ابھی دستیاب نہیں — اوپر دیکھیں۔",
     "What Full Site gives you": "مکمل سائٹ آپ کو کیا دیتی ہے",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "مکمل Tovu سرور — ایڈمن، اسسٹنٹ، چیک آؤٹ، سب کچھ کام کرتا ہے۔",
     Providers: "فراہم کنندگان",
     Planned: "منصوبہ بند",
-    "No credential fields yet — this instance has no backend to store them.":
-      "ابھی تک کوئی کریڈینشل فیلڈز نہیں — اس انسٹنس کے پاس انہیں محفوظ کرنے کے لیے بیک اینڈ نہیں ہے۔",
     "Loading Dockerfile…": "Dockerfile لوڈ ہو رہا ہے…",
-    "Not generated yet": "ابھی تیار نہیں ہوا",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "ریپو کی جڑ میں ابھی تک کوئی Dockerfile موجود نہیں۔ ایک بار شامل ہونے پر، اس کا مواد یہاں ظاہر ہوگا۔",
     Copy: "کاپی کریں",
@@ -1733,8 +1455,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "ایکسپورٹ کے بعد کیا باقی رہتا ہے",
     "Where it runs": "جہاں یہ چلتا ہے",
     "The output is a plain folder of files — any static host will serve it.": "آؤٹ پٹ فائلوں کا ایک سادہ فولڈر ہے — کوئی بھی جامد ہوسٹ اسے پیش کر سکتا ہے۔",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "حقیقی میزبان جڑنے کے بعد بلڈز اور ڈیپلائے منٹس یہاں ظاہر ہوں گے۔",
   },
   bn: {
     Operations: "কার্যক্রম",
@@ -1772,29 +1492,17 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
       "প্রোডাকশনে বুট করার জন্য প্রয়োজনীয়। লোকালে না থাকলে, পরিবর্তে AI সহায়ক স্ক্রিনে 503 হিসেবে দেখা যাবে।",
     "Falls back to port 4319.": "সেট না থাকলে পোর্ট 4319 ব্যবহার করে।",
-    "What Static Site produces": "স্ট্যাটিক সাইট কী তৈরি করে",
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "এই সাইটের প্রকাশিত পৃষ্ঠাগুলোর একটি দ্রুত, শুধুমাত্র-পঠনযোগ্য কপি — এর পিছনে কোনো সার্ভার নেই।",
-    "No checkout, no admin online, no assistant, no dynamic anything.":
-      "কোনো চেকআউট নেই, কোনো অনলাইন অ্যাডমিন নেই, কোনো সহায়ক নেই, কোনো ডায়নামিক কিছু নেই।",
     "Not built yet": "এখনও তৈরি হয়নি",
-    "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
-      "Tovu-এর কোনো স্ট্যাটিক এক্সপোর্টার নেই, এবং একা সাইটম্যাপ এটি তৈরি করতে পারে না — এটি শুধুমাত্র প্রকাশিত পোস্টগুলো তালিকাভুক্ত করে, হোম পেজ, পণ্য, থিম পেজ, রিডাইরেক্ট, 404 পেজ বা অ্যাসেট নয়।",
-    "Static hosts": "স্ট্যাটিক হোস্ট",
     "Build it from a terminal": "টার্মিনাল থেকে তৈরি করুন",
-    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> চালান এবং Tovu এই সাইটের একটি স্ট্যাটিক কপি — প্রতিটি পোস্ট, হোম পেজ, পণ্য এবং থিম পেজ — একটি ফোল্ডারে লিখবে।",
-    "Not available from this screen yet — run tovu export from a terminal.": "এই স্ক্রিন থেকে এখনও উপলব্ধ নয় — টার্মিনাল থেকে tovu export চালান।",
     "Build static export": "স্ট্যাটিক এক্সপোর্ট তৈরি করুন",
-    "Not available yet — see above.": "এখনও উপলব্ধ নয় — উপরে দেখুন।",
     "What Full Site gives you": "সম্পূর্ণ সাইট আপনাকে কী দেয়",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
       "সম্পূর্ণ Tovu সার্ভার — অ্যাডমিন, সহায়ক, চেকআউট, সবকিছু কাজ করে।",
     Providers: "প্রদানকারী",
     Planned: "পরিকল্পিত",
-    "No credential fields yet — this instance has no backend to store them.":
-      "এখনও কোনো পরিচয়পত্র ক্ষেত্র নেই — এই ইনস্ট্যান্সের সেগুলো সংরক্ষণের জন্য কোনো ব্যাকএন্ড নেই।",
     "Loading Dockerfile…": "Dockerfile লোড হচ্ছে…",
-    "Not generated yet": "এখনও তৈরি হয়নি",
     "No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.":
       "রিপোর মূলে এখনও কোনো Dockerfile নেই। একবার যোগ করা হলে, এর বিষয়বস্তু এখানে প্রদর্শিত হবে।",
     Copy: "কপি করুন",
@@ -1817,8 +1525,6 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "এক্সপোর্টের পর যা থাকে",
     "Where it runs": "যেখানে এটি চলে",
     "The output is a plain folder of files — any static host will serve it.": "আউটপুট হলো ফাইলের একটি সাধারণ ফোল্ডার — যেকোনো স্ট্যাটিক হোস্ট এটি পরিবেশন করতে পারে।",
-    "Builds and deploys will show up here once a real host is wired up.":
-      "একটি প্রকৃত হোস্ট সংযুক্ত হলে বিল্ড এবং ডিপ্লয়মেন্ট এখানে প্রদর্শিত হবে।",
   },
 };
 
@@ -1995,7 +1701,7 @@ const DEPLOYMENT_CANDIDATE_GAP_STRINGS: Record<string, string> = {
   "Export finished": "Export finished",
   "Publish failed": "Publish failed",
   "This workspace can't use your computer's terminal — connecting here is the only way to publish.": "This workspace can't use your computer's terminal — connecting here is the only way to publish.",
-  "Save a personal access token so Tovu can publish on your behalf.": "Save a personal access token so Tovu can publish on your behalf.",
+  "Save your {credential} so Tovu can publish on your behalf.": "Save your {credential} so Tovu can publish on your behalf.",
   "(optional)": "(optional)",
   "The host finds or creates a project with this name on every publish.": "The host finds or creates a project with this name on every publish.",
 };
@@ -2011,67 +1717,67 @@ function candidateGapTranslationEntries(entries: readonly string[]): Record<stri
 const DEPLOYMENT_CANDIDATE_GAP_TRANSLATIONS: Record<string, Record<string, string>> = {
   en: DEPLOYMENT_CANDIDATE_GAP_STRINGS,
   es: candidateGapTranslationEntries([
-    "Esta conexión ya se guardó; recarga la página e inténtalo de nuevo.", "Error desconocido", "Páginas, publicaciones y productos", "Pago y pedidos", "Panel de administración, en línea", "Asistente de IA", "Nombre del proyecto", "Sin iniciar", "La exportación falló", "Terminó con errores", "La exportación terminó", "La publicación falló", "Este espacio de trabajo no puede usar el terminal de tu computadora; conectarte aquí es la única forma de publicar.", "Guarda un token de acceso personal para que Tovu pueda publicar en tu nombre.", "(opcional)", "El host busca o crea un proyecto con este nombre en cada publicación."
+    "Esta conexión ya se guardó; recarga la página e inténtalo de nuevo.", "Error desconocido", "Páginas, publicaciones y productos", "Pago y pedidos", "Panel de administración, en línea", "Asistente de IA", "Nombre del proyecto", "Sin iniciar", "La exportación falló", "Terminó con errores", "La exportación terminó", "La publicación falló", "Este espacio de trabajo no puede usar el terminal de tu computadora; conectarte aquí es la única forma de publicar.", "Guarda tu {credential} para que Tovu pueda publicar en tu nombre.", "(opcional)", "El host busca o crea un proyecto con este nombre en cada publicación."
   ]),
   id: candidateGapTranslationEntries([
-    "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.", "Kesalahan tidak diketahui", "Halaman, pos & produk", "Checkout & pesanan", "Panel admin, online", "Asisten AI", "Nama proyek", "Belum dimulai", "Ekspor gagal", "Selesai dengan kegagalan", "Ekspor selesai", "Publikasi gagal", "Ruang kerja ini tidak dapat menggunakan terminal komputer Anda — menghubungkan di sini adalah satu-satunya cara untuk menerbitkan.", "Simpan token akses pribadi agar Tovu dapat menerbitkan atas nama Anda.", "(opsional)", "Host mencari atau membuat proyek dengan nama ini setiap kali memublikasikan."
+    "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.", "Kesalahan tidak diketahui", "Halaman, pos & produk", "Checkout & pesanan", "Panel admin, online", "Asisten AI", "Nama proyek", "Belum dimulai", "Ekspor gagal", "Selesai dengan kegagalan", "Ekspor selesai", "Publikasi gagal", "Ruang kerja ini tidak dapat menggunakan terminal komputer Anda — menghubungkan di sini adalah satu-satunya cara untuk menerbitkan.", "Simpan {credential} Anda agar Tovu dapat memublikasikan atas nama Anda.", "(opsional)", "Host mencari atau membuat proyek dengan nama ini setiap kali memublikasikan."
   ]),
   de: candidateGapTranslationEntries([
-    "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.", "Unbekannter Fehler", "Seiten, Beiträge und Produkte", "Checkout und Bestellungen", "Admin-Bereich, online", "KI-Assistent", "Projektname", "Nicht gestartet", "Export fehlgeschlagen", "Mit Fehlern beendet", "Export abgeschlossen", "Veröffentlichung fehlgeschlagen", "Dieser Arbeitsbereich kann das Terminal Ihres Computers nicht verwenden — die Verbindung hier ist die einzige Möglichkeit zu veröffentlichen.", "Speichern Sie einen persönlichen Zugriffstoken, damit Tovu in Ihrem Namen veröffentlichen kann.", "(optional)", "Der Host sucht oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen."
+    "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.", "Unbekannter Fehler", "Seiten, Beiträge und Produkte", "Checkout und Bestellungen", "Admin-Bereich, online", "KI-Assistent", "Projektname", "Nicht gestartet", "Export fehlgeschlagen", "Mit Fehlern beendet", "Export abgeschlossen", "Veröffentlichung fehlgeschlagen", "Dieser Arbeitsbereich kann das Terminal Ihres Computers nicht verwenden — die Verbindung hier ist die einzige Möglichkeit zu veröffentlichen.", "Speichern Sie die Zugangsdaten ({credential}), damit Tovu in Ihrem Namen veröffentlichen kann.", "(optional)", "Der Host sucht oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen."
   ]),
   fr: candidateGapTranslationEntries([
-    "Cette connexion est déjà enregistrée — rechargez la page et réessayez.", "Erreur inconnue", "Pages, publications et produits", "Paiement et commandes", "Panneau d’administration, en ligne", "Assistant IA", "Nom du projet", "Non démarré", "Échec de l’exportation", "Terminé avec des échecs", "Exportation terminée", "Échec de la publication", "Cet espace de travail ne peut pas utiliser le terminal de votre ordinateur — vous connecter ici est la seule façon de publier.", "Enregistrez un jeton d’accès personnel afin que Tovu puisse publier en votre nom.", "(facultatif)", "L’hébergeur trouve ou crée un projet portant ce nom à chaque publication."
+    "Cette connexion est déjà enregistrée — rechargez la page et réessayez.", "Erreur inconnue", "Pages, publications et produits", "Paiement et commandes", "Panneau d’administration, en ligne", "Assistant IA", "Nom du projet", "Non démarré", "Échec de l’exportation", "Terminé avec des échecs", "Exportation terminée", "Échec de la publication", "Cet espace de travail ne peut pas utiliser le terminal de votre ordinateur — vous connecter ici est la seule façon de publier.", "Enregistrez vos identifiants ({credential}) pour que Tovu puisse publier en votre nom.", "(facultatif)", "L’hébergeur trouve ou crée un projet portant ce nom à chaque publication."
   ]),
   it: candidateGapTranslationEntries([
-    "Questa connessione è già stata salvata — ricarica la pagina e riprova.", "Errore sconosciuto", "Pagine, post e prodotti", "Checkout e ordini", "Pannello di amministrazione, online", "Assistente IA", "Nome del progetto", "Non avviato", "Esportazione non riuscita", "Terminato con errori", "Esportazione terminata", "Pubblicazione non riuscita", "Questo spazio di lavoro non può usare il terminale del tuo computer — collegarti qui è l’unico modo per pubblicare.", "Salva un token di accesso personale affinché Tovu possa pubblicare per tuo conto.", "(facoltativo)", "L'host trova o crea un progetto con questo nome a ogni pubblicazione."
+    "Questa connessione è già stata salvata — ricarica la pagina e riprova.", "Errore sconosciuto", "Pagine, post e prodotti", "Checkout e ordini", "Pannello di amministrazione, online", "Assistente IA", "Nome del progetto", "Non avviato", "Esportazione non riuscita", "Terminato con errori", "Esportazione terminata", "Pubblicazione non riuscita", "Questo spazio di lavoro non può usare il terminale del tuo computer — collegarti qui è l’unico modo per pubblicare.", "Salva le credenziali ({credential}) così Tovu può pubblicare per tuo conto.", "(facoltativo)", "L'host trova o crea un progetto con questo nome a ogni pubblicazione."
   ]),
   "pt-BR": candidateGapTranslationEntries([
-    "Esta conexão já foi salva — recarregue a página e tente novamente.", "Erro desconhecido", "Páginas, posts e produtos", "Checkout e pedidos", "Painel administrativo, online", "Assistente de IA", "Nome do projeto", "Não iniciado", "A exportação falhou", "Terminou com falhas", "Exportação concluída", "A publicação falhou", "Este espaço de trabalho não pode usar o terminal do seu computador — conectar aqui é a única forma de publicar.", "Salve um token de acesso pessoal para que o Tovu possa publicar em seu nome.", "(opcional)", "O host encontra ou cria um projeto com este nome a cada publicação."
+    "Esta conexão já foi salva — recarregue a página e tente novamente.", "Erro desconhecido", "Páginas, posts e produtos", "Checkout e pedidos", "Painel administrativo, online", "Assistente de IA", "Nome do projeto", "Não iniciado", "A exportação falhou", "Terminou com falhas", "Exportação concluída", "A publicação falhou", "Este espaço de trabalho não pode usar o terminal do seu computador — conectar aqui é a única forma de publicar.", "Salve sua credencial ({credential}) para que o Tovu possa publicar em seu nome.", "(opcional)", "O host encontra ou cria um projeto com este nome a cada publicação."
   ]),
   "zh-CN": candidateGapTranslationEntries([
-    "此连接已保存——请重新加载页面后重试。", "未知错误", "页面、文章和产品", "结账和订单", "管理面板，在线", "AI 助手", "项目名称", "尚未开始", "导出失败", "完成但有失败", "导出完成", "发布失败", "此工作区无法使用您计算机的终端——在此连接是唯一的发布方式。", "保存个人访问令牌，以便 Tovu 代表您发布。", "（可选）", "托管服务会在每次发布时查找或创建使用此名称的项目。"
+    "此连接已保存——请重新加载页面后重试。", "未知错误", "页面、文章和产品", "结账和订单", "管理面板，在线", "AI 助手", "项目名称", "尚未开始", "导出失败", "完成但有失败", "导出完成", "发布失败", "此工作区无法使用您计算机的终端——在此连接是唯一的发布方式。", "保存您的{credential}，以便 Tovu 代表您发布。", "（可选）", "托管服务会在每次发布时查找或创建使用此名称的项目。"
   ]),
   "zh-TW": candidateGapTranslationEntries([
-    "此連線已儲存——請重新載入頁面後再試。", "未知錯誤", "頁面、文章與產品", "結帳與訂單", "管理面板，在線", "AI 助理", "專案名稱", "尚未開始", "匯出失敗", "完成但有失敗", "匯出完成", "發佈失敗", "此工作區無法使用您電腦的終端機——在此連線是唯一的發佈方式。", "儲存個人存取權杖，讓 Tovu 能代表您發佈。", "（選填）", "主機服務會在每次發佈時尋找或建立使用此名稱的專案。"
+    "此連線已儲存——請重新載入頁面後再試。", "未知錯誤", "頁面、文章與產品", "結帳與訂單", "管理面板，在線", "AI 助理", "專案名稱", "尚未開始", "匯出失敗", "完成但有失敗", "匯出完成", "發佈失敗", "此工作區無法使用您電腦的終端機——在此連線是唯一的發佈方式。", "儲存您的{credential}，讓 Tovu 能代表您發布。", "（選填）", "主機服務會在每次發佈時尋找或建立使用此名稱的專案。"
   ]),
   ar: candidateGapTranslationEntries([
-    "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.", "خطأ غير معروف", "الصفحات والمنشورات والمنتجات", "الدفع والطلبات", "لوحة الإدارة، متصلة", "مساعد الذكاء الاصطناعي", "اسم المشروع", "لم يبدأ", "فشل التصدير", "انتهى مع إخفاقات", "اكتمل التصدير", "فشل النشر", "لا يمكن لمساحة العمل هذه استخدام طرفية جهازك — الاتصال هنا هو الطريقة الوحيدة للنشر.", "احفظ رمز وصول شخصياً لكي يتمكن Tovu من النشر نيابةً عنك.", "(اختياري)", "يعثر المضيف على مشروع بهذا الاسم أو ينشئه عند كل نشر."
+    "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.", "خطأ غير معروف", "الصفحات والمنشورات والمنتجات", "الدفع والطلبات", "لوحة الإدارة، متصلة", "مساعد الذكاء الاصطناعي", "اسم المشروع", "لم يبدأ", "فشل التصدير", "انتهى مع إخفاقات", "اكتمل التصدير", "فشل النشر", "لا يمكن لمساحة العمل هذه استخدام طرفية جهازك — الاتصال هنا هو الطريقة الوحيدة للنشر.", "احفظ {credential} حتى يتمكن Tovu من النشر نيابةً عنك.", "(اختياري)", "يعثر المضيف على مشروع بهذا الاسم أو ينشئه عند كل نشر."
   ]),
   bn: candidateGapTranslationEntries([
-    "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত হয়েছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।", "অজানা ত্রুটি", "পৃষ্ঠা, পোস্ট ও পণ্য", "চেকআউট ও অর্ডার", "অ্যাডমিন প্যানেল, অনলাইন", "AI সহায়ক", "প্রকল্পের নাম", "শুরু হয়নি", "এক্সপোর্ট ব্যর্থ হয়েছে", "ব্যর্থতা সহ শেষ হয়েছে", "এক্সপোর্ট শেষ হয়েছে", "প্রকাশনা ব্যর্থ হয়েছে", "এই কর্মক্ষেত্রটি আপনার কম্পিউটারের টার্মিনাল ব্যবহার করতে পারে না — এখানে সংযুক্ত করাই প্রকাশের একমাত্র উপায়।", "একটি ব্যক্তিগত অ্যাক্সেস টোকেন সংরক্ষণ করুন যাতে Tovu আপনার হয়ে প্রকাশ করতে পারে।", "(ঐচ্ছিক)", "প্রতিবার প্রকাশের সময় হোস্ট এই নামের একটি প্রকল্প খুঁজে নেয় বা তৈরি করে।"
+    "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত হয়েছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।", "অজানা ত্রুটি", "পৃষ্ঠা, পোস্ট ও পণ্য", "চেকআউট ও অর্ডার", "অ্যাডমিন প্যানেল, অনলাইন", "AI সহায়ক", "প্রকল্পের নাম", "শুরু হয়নি", "এক্সপোর্ট ব্যর্থ হয়েছে", "ব্যর্থতা সহ শেষ হয়েছে", "এক্সপোর্ট শেষ হয়েছে", "প্রকাশনা ব্যর্থ হয়েছে", "এই কর্মক্ষেত্রটি আপনার কম্পিউটারের টার্মিনাল ব্যবহার করতে পারে না — এখানে সংযুক্ত করাই প্রকাশের একমাত্র উপায়।", "আপনার {credential} সংরক্ষণ করুন যাতে Tovu আপনার পক্ষ থেকে প্রকাশ করতে পারে।", "(ঐচ্ছিক)", "প্রতিবার প্রকাশের সময় হোস্ট এই নামের একটি প্রকল্প খুঁজে নেয় বা তৈরি করে।"
   ]),
   fa: candidateGapTranslationEntries([
-    "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.", "خطای ناشناخته", "صفحه‌ها، نوشته‌ها و محصولات", "پرداخت و سفارش‌ها", "پنل مدیریت، آنلاین", "دستیار هوش مصنوعی", "نام پروژه", "شروع نشده", "خروجی ناموفق بود", "با خطاها پایان یافت", "خروجی تمام شد", "انتشار ناموفق بود", "این فضای کاری نمی‌تواند از ترمینال رایانه شما استفاده کند — اتصال در اینجا تنها راه انتشار است.", "یک توکن دسترسی شخصی ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند.", "(اختیاری)", "میزبان در هر انتشار، پروژه‌ای با این نام را پیدا یا ایجاد می‌کند."
+    "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.", "خطای ناشناخته", "صفحه‌ها، نوشته‌ها و محصولات", "پرداخت و سفارش‌ها", "پنل مدیریت، آنلاین", "دستیار هوش مصنوعی", "نام پروژه", "شروع نشده", "خروجی ناموفق بود", "با خطاها پایان یافت", "خروجی تمام شد", "انتشار ناموفق بود", "این فضای کاری نمی‌تواند از ترمینال رایانه شما استفاده کند — اتصال در اینجا تنها راه انتشار است.", "{credential} خود را ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند.", "(اختیاری)", "میزبان در هر انتشار، پروژه‌ای با این نام را پیدا یا ایجاد می‌کند."
   ]),
   hi: candidateGapTranslationEntries([
-    "यह कनेक्शन पहले ही सहेजा जा चुका है — पेज फिर से लोड करें और दोबारा कोशिश करें।", "अज्ञात त्रुटि", "पेज, पोस्ट और उत्पाद", "चेकआउट और ऑर्डर", "एडमिन पैनल, ऑनलाइन", "AI सहायक", "प्रोजेक्ट नाम", "शुरू नहीं हुआ", "एक्सपोर्ट विफल हुआ", "विफलताओं के साथ समाप्त", "एक्सपोर्ट पूरा हुआ", "प्रकाशन विफल हुआ", "यह कार्यक्षेत्र आपके कंप्यूटर का टर्मिनल उपयोग नहीं कर सकता — यहाँ कनेक्ट करना ही प्रकाशित करने का एकमात्र तरीका है।", "व्यक्तिगत एक्सेस टोकन सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।", "(वैकल्पिक)", "होस्ट हर प्रकाशन पर इस नाम का प्रोजेक्ट ढूँढता है या बनाता है।"
+    "यह कनेक्शन पहले ही सहेजा जा चुका है — पेज फिर से लोड करें और दोबारा कोशिश करें।", "अज्ञात त्रुटि", "पेज, पोस्ट और उत्पाद", "चेकआउट और ऑर्डर", "एडमिन पैनल, ऑनलाइन", "AI सहायक", "प्रोजेक्ट नाम", "शुरू नहीं हुआ", "एक्सपोर्ट विफल हुआ", "विफलताओं के साथ समाप्त", "एक्सपोर्ट पूरा हुआ", "प्रकाशन विफल हुआ", "यह कार्यक्षेत्र आपके कंप्यूटर का टर्मिनल उपयोग नहीं कर सकता — यहाँ कनेक्ट करना ही प्रकाशित करने का एकमात्र तरीका है।", "अपना {credential} सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।", "(वैकल्पिक)", "होस्ट हर प्रकाशन पर इस नाम का प्रोजेक्ट ढूँढता है या बनाता है।"
   ]),
   hu: candidateGapTranslationEntries([
-    "Ez a kapcsolat már el van mentve — töltse újra az oldalt, és próbálja meg újra.", "Ismeretlen hiba", "Oldalak, bejegyzések és termékek", "Pénztár és rendelések", "Adminisztrációs panel, online", "MI-asszisztens", "Projekt neve", "Nincs elindítva", "Az export sikertelen", "Hibákkal fejeződött be", "Az export befejeződött", "A közzététel sikertelen", "Ez a munkaterület nem használhatja a számítógépe terminálját — az itt történő csatlakozás az egyetlen közzétételi mód.", "Mentsen személyes hozzáférési tokent, hogy a Tovu az Ön nevében közzétehessen.", "(nem kötelező)", "A tárhely minden közzétételkor megkeresi vagy létrehozza az ilyen nevű projektet."
+    "Ez a kapcsolat már el van mentve — töltse újra az oldalt, és próbálja meg újra.", "Ismeretlen hiba", "Oldalak, bejegyzések és termékek", "Pénztár és rendelések", "Adminisztrációs panel, online", "MI-asszisztens", "Projekt neve", "Nincs elindítva", "Az export sikertelen", "Hibákkal fejeződött be", "Az export befejeződött", "A közzététel sikertelen", "Ez a munkaterület nem használhatja a számítógépe terminálját — az itt történő csatlakozás az egyetlen közzétételi mód.", "Mentse el a hitelesítő adatot ({credential}), hogy a Tovu az Ön nevében publikálhasson.", "(nem kötelező)", "A tárhely minden közzétételkor megkeresi vagy létrehozza az ilyen nevű projektet."
   ]),
   ja: candidateGapTranslationEntries([
-    "この接続はすでに保存されています。ページを再読み込みして、もう一度お試しください。", "不明なエラー", "ページ、投稿、商品", "チェックアウトと注文", "管理パネル、オンライン", "AI アシスタント", "プロジェクト名", "未開始", "エクスポートに失敗しました", "失敗を含めて完了", "エクスポート完了", "公開に失敗しました", "このワークスペースではお使いのコンピューターのターミナルを使用できません。ここで接続することが公開する唯一の方法です。", "Tovu がお客様に代わって公開できるように、個人アクセストークンを保存します。", "（任意）", "ホストは公開のたびにこの名前のプロジェクトを検索または作成します。"
+    "この接続はすでに保存されています。ページを再読み込みして、もう一度お試しください。", "不明なエラー", "ページ、投稿、商品", "チェックアウトと注文", "管理パネル、オンライン", "AI アシスタント", "プロジェクト名", "未開始", "エクスポートに失敗しました", "失敗を含めて完了", "エクスポート完了", "公開に失敗しました", "このワークスペースではお使いのコンピューターのターミナルを使用できません。ここで接続することが公開する唯一の方法です。", "Tovu があなたに代わって公開できるよう、{credential}を保存してください。", "（任意）", "ホストは公開のたびにこの名前のプロジェクトを検索または作成します。"
   ]),
   ko: candidateGapTranslationEntries([
-    "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요.", "알 수 없는 오류", "페이지, 게시물 및 제품", "결제 및 주문", "관리자 패널, 온라인", "AI 도우미", "프로젝트 이름", "시작되지 않음", "내보내기 실패", "실패와 함께 완료", "내보내기 완료", "게시 실패", "이 작업 공간은 컴퓨터의 터미널을 사용할 수 없습니다. 여기에서 연결하는 것이 게시하는 유일한 방법입니다.", "Tovu가 사용자를 대신해 게시할 수 있도록 개인 액세스 토큰을 저장하세요.", "(선택 사항)", "호스트는 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다."
+    "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요.", "알 수 없는 오류", "페이지, 게시물 및 제품", "결제 및 주문", "관리자 패널, 온라인", "AI 도우미", "프로젝트 이름", "시작되지 않음", "내보내기 실패", "실패와 함께 완료", "내보내기 완료", "게시 실패", "이 작업 공간은 컴퓨터의 터미널을 사용할 수 없습니다. 여기에서 연결하는 것이 게시하는 유일한 방법입니다.", "Tovu가 대신 게시할 수 있도록 {credential}을(를) 저장하세요.", "(선택 사항)", "호스트는 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다."
   ]),
   pl: candidateGapTranslationEntries([
-    "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.", "Nieznany błąd", "Strony, wpisy i produkty", "Kasa i zamówienia", "Panel administracyjny, online", "Asystent AI", "Nazwa projektu", "Nie rozpoczęto", "Eksport nie powiódł się", "Zakończono z niepowodzeniami", "Eksport zakończony", "Publikacja nie powiodła się", "Ten obszar roboczy nie może używać terminala Twojego komputera — połączenie tutaj jest jedynym sposobem publikacji.", "Zapisz osobisty token dostępu, aby Tovu mógł publikować w Twoim imieniu.", "(opcjonalnie)", "Host przy każdej publikacji znajduje lub tworzy projekt o tej nazwie."
+    "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.", "Nieznany błąd", "Strony, wpisy i produkty", "Kasa i zamówienia", "Panel administracyjny, online", "Asystent AI", "Nazwa projektu", "Nie rozpoczęto", "Eksport nie powiódł się", "Zakończono z niepowodzeniami", "Eksport zakończony", "Publikacja nie powiodła się", "Ten obszar roboczy nie może używać terminala Twojego komputera — połączenie tutaj jest jedynym sposobem publikacji.", "Zapisz dane uwierzytelniające ({credential}), aby Tovu mógł publikować w Twoim imieniu.", "(opcjonalnie)", "Host przy każdej publikacji znajduje lub tworzy projekt o tej nazwie."
   ]),
   ru: candidateGapTranslationEntries([
-    "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.", "Неизвестная ошибка", "Страницы, записи и товары", "Оформление заказа и заказы", "Панель администратора, онлайн", "ИИ-помощник", "Название проекта", "Не запущено", "Экспорт не удался", "Завершено с ошибками", "Экспорт завершён", "Публикация не удалась", "Это рабочее пространство не может использовать терминал вашего компьютера — подключение здесь является единственным способом публикации.", "Сохраните персональный токен доступа, чтобы Tovu мог публиковать от вашего имени.", "(необязательно)", "Хостинг находит или создаёт проект с этим именем при каждой публикации."
+    "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.", "Неизвестная ошибка", "Страницы, записи и товары", "Оформление заказа и заказы", "Панель администратора, онлайн", "ИИ-помощник", "Название проекта", "Не запущено", "Экспорт не удался", "Завершено с ошибками", "Экспорт завершён", "Публикация не удалась", "Это рабочее пространство не может использовать терминал вашего компьютера — подключение здесь является единственным способом публикации.", "Сохраните учётные данные ({credential}), чтобы Tovu мог публиковать от вашего имени.", "(необязательно)", "Хостинг находит или создаёт проект с этим именем при каждой публикации."
   ]),
   th: candidateGapTranslationEntries([
-    "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง", "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "หน้า โพสต์ และสินค้า", "ชำระเงินและคำสั่งซื้อ", "แผงผู้ดูแลระบบ ออนไลน์", "ผู้ช่วย AI", "ชื่อโปรเจ็กต์", "ยังไม่เริ่ม", "การส่งออกล้มเหลว", "เสร็จสิ้นพร้อมข้อผิดพลาด", "การส่งออกเสร็จสิ้น", "การเผยแพร่ล้มเหลว", "พื้นที่ทำงานนี้ไม่สามารถใช้เทอร์มินัลของคอมพิวเตอร์คุณได้ — การเชื่อมต่อที่นี่เป็นวิธีเดียวในการเผยแพร่", "บันทึกโทเค็นการเข้าถึงส่วนบุคคลเพื่อให้ Tovu เผยแพร่แทนคุณได้", "(ไม่บังคับ)", "โฮสต์จะค้นหาหรือสร้างโปรเจกต์ที่ใช้ชื่อนี้ทุกครั้งที่เผยแพร่"
+    "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง", "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "หน้า โพสต์ และสินค้า", "ชำระเงินและคำสั่งซื้อ", "แผงผู้ดูแลระบบ ออนไลน์", "ผู้ช่วย AI", "ชื่อโปรเจ็กต์", "ยังไม่เริ่ม", "การส่งออกล้มเหลว", "เสร็จสิ้นพร้อมข้อผิดพลาด", "การส่งออกเสร็จสิ้น", "การเผยแพร่ล้มเหลว", "พื้นที่ทำงานนี้ไม่สามารถใช้เทอร์มินัลของคอมพิวเตอร์คุณได้ — การเชื่อมต่อที่นี่เป็นวิธีเดียวในการเผยแพร่", "บันทึก {credential} เพื่อให้ Tovu เผยแพร่แทนคุณได้", "(ไม่บังคับ)", "โฮสต์จะค้นหาหรือสร้างโปรเจกต์ที่ใช้ชื่อนี้ทุกครั้งที่เผยแพร่"
   ]),
   tr: candidateGapTranslationEntries([
-    "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyip tekrar deneyin.", "Bilinmeyen hata", "Sayfalar, gönderiler ve ürünler", "Ödeme ve siparişler", "Yönetici paneli, çevrimiçi", "Yapay zekâ asistanı", "Proje adı", "Başlatılmadı", "Dışa aktarma başarısız", "Hatalarla tamamlandı", "Dışa aktarma tamamlandı", "Yayınlama başarısız", "Bu çalışma alanı bilgisayarınızın terminalini kullanamaz — buradan bağlanmak yayınlamanın tek yoludur.", "Tovu'nun sizin adınıza yayınlayabilmesi için kişisel erişim belirtecini kaydedin.", "(isteğe bağlı)", "Barındırıcı her yayında bu ada sahip bir projeyi bulur veya oluşturur."
+    "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyip tekrar deneyin.", "Bilinmeyen hata", "Sayfalar, gönderiler ve ürünler", "Ödeme ve siparişler", "Yönetici paneli, çevrimiçi", "Yapay zekâ asistanı", "Proje adı", "Başlatılmadı", "Dışa aktarma başarısız", "Hatalarla tamamlandı", "Dışa aktarma tamamlandı", "Yayınlama başarısız", "Bu çalışma alanı bilgisayarınızın terminalini kullanamaz — buradan bağlanmak yayınlamanın tek yoludur.", "Tovu'nun sizin adınıza yayınlayabilmesi için kimlik bilgisini ({credential}) kaydedin.", "(isteğe bağlı)", "Barındırıcı her yayında bu ada sahip bir projeyi bulur veya oluşturur."
   ]),
   uk: candidateGapTranslationEntries([
-    "Це підключення вже збережено — перезавантажте сторінку й спробуйте ще раз.", "Невідома помилка", "Сторінки, дописи й товари", "Оформлення замовлення та замовлення", "Панель адміністратора, онлайн", "ШІ-помічник", "Назва проєкту", "Не запущено", "Експорт не вдався", "Завершено з помилками", "Експорт завершено", "Публікація не вдалася", "Цей робочий простір не може використовувати термінал вашого комп’ютера — підключення тут є єдиним способом публікації.", "Збережіть персональний токен доступу, щоб Tovu міг публікувати від вашого імені.", "(необов’язково)", "Хостинг знаходить або створює проєкт із цією назвою під час кожної публікації."
+    "Це підключення вже збережено — перезавантажте сторінку й спробуйте ще раз.", "Невідома помилка", "Сторінки, дописи й товари", "Оформлення замовлення та замовлення", "Панель адміністратора, онлайн", "ШІ-помічник", "Назва проєкту", "Не запущено", "Експорт не вдався", "Завершено з помилками", "Експорт завершено", "Публікація не вдалася", "Цей робочий простір не може використовувати термінал вашого комп’ютера — підключення тут є єдиним способом публікації.", "Збережіть облікові дані ({credential}), щоб Tovu міг публікувати від вашого імені.", "(необов’язково)", "Хостинг знаходить або створює проєкт із цією назвою під час кожної публікації."
   ]),
   ur: candidateGapTranslationEntries([
-    "یہ کنکشن پہلے ہی محفوظ ہو چکا ہے — صفحہ دوبارہ لوڈ کریں اور پھر کوشش کریں۔", "نامعلوم خرابی", "صفحات، پوسٹس اور مصنوعات", "چیک آؤٹ اور آرڈرز", "ایڈمن پینل، آن لائن", "AI معاون", "پروجیکٹ کا نام", "شروع نہیں ہوا", "ایکسپورٹ ناکام ہوا", "ناکامیوں کے ساتھ ختم ہوا", "ایکسپورٹ مکمل ہوا", "اشاعت ناکام ہوئی", "یہ ورک اسپیس آپ کے کمپیوٹر کا ٹرمینل استعمال نہیں کر سکتی — یہاں کنکشن کرنا شائع کرنے کا واحد طریقہ ہے۔", "ذاتی رسائی ٹوکن محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔", "(اختیاری)", "ہوسٹ ہر اشاعت پر اس نام کا پروجیکٹ تلاش کرتا ہے یا بناتا ہے۔"
+    "یہ کنکشن پہلے ہی محفوظ ہو چکا ہے — صفحہ دوبارہ لوڈ کریں اور پھر کوشش کریں۔", "نامعلوم خرابی", "صفحات، پوسٹس اور مصنوعات", "چیک آؤٹ اور آرڈرز", "ایڈمن پینل، آن لائن", "AI معاون", "پروجیکٹ کا نام", "شروع نہیں ہوا", "ایکسپورٹ ناکام ہوا", "ناکامیوں کے ساتھ ختم ہوا", "ایکسپورٹ مکمل ہوا", "اشاعت ناکام ہوئی", "یہ ورک اسپیس آپ کے کمپیوٹر کا ٹرمینل استعمال نہیں کر سکتی — یہاں کنکشن کرنا شائع کرنے کا واحد طریقہ ہے۔", "اپنا {credential} محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔", "(اختیاری)", "ہوسٹ ہر اشاعت پر اس نام کا پروجیکٹ تلاش کرتا ہے یا بناتا ہے۔"
   ]),
 };
 

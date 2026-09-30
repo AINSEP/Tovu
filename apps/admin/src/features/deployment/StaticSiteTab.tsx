@@ -21,6 +21,7 @@ import {
   credentialFormReadyToSave,
   exportRunStatusLabelKey,
   fieldHelpText,
+  credentialStepSubtitle,
   fieldLabelParts,
   publishConfigFieldHandleId,
   publishRunStatusLabelKey,
@@ -643,7 +644,7 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
  * {@link PublishCredentialsSection}'s four state branches (load error, still loading, not-yet-
  * connected, connected), pulled into its own function so wrapping them in one shared region tag
  * doesn't add a branch to `PublishCredentialsSection` itself — same "extract rather than inline"
- * pattern {@link credentialStepSubtitleKey} already uses in this file for the same complexity-gate
+ * pattern `credentialStepSubtitle` (`rules.ts`) already uses in this file for the same complexity-gate
  * reason (`eslint.config.mjs`'s per-scope cap, `noInlineConfig` on so a disable comment cannot buy
  * the room back).
  */
@@ -701,7 +702,7 @@ function publishCredentialsSectionContent({
  * removed that reason, so this pass removes the hiding along with it: disclosure now depends on
  * `row.saved` (has this actually been done), never on `controller.executionMode` (the OLD gate).
  * `executionMode` still matters — it changes WHY this step is mandatory, in
- * {@link credentialStepSubtitleKey} — just not WHETHER it is shown open.
+ * `credentialStepSubtitle` (`rules.ts`) — just not WHETHER it is shown open.
  *
  * The credential rows are the deploy registry's targets that take a credential, so
  * `selectedProviderId` matches exactly one row unless the selected host takes none; the `undefined`
@@ -740,19 +741,6 @@ function PublishCredentialsSection(props: {
       {publishCredentialsSectionContent(props)}
     </div>
   );
-}
-
-/** Step 1's subtitle key — explains why connecting here is necessary, which depends on
- *  `executionMode` (the server's own fact about whether this WORKSPACE can reach the operator's
- *  terminal at all — see `AdminPublishExecutionMode`'s doc in `lib/api.ts`), not on whether the
- *  currently selected PROVIDER happens to have a CLI route. `"self-hosted-cli"` covers a workspace
- *  where some other provider's CLI works even when this one has none, and the reason to connect
- *  here is the same regardless: it is the only path this specific provider has. */
-function credentialStepSubtitleKey(executionMode: AdminPublishExecutionMode): string {
-  if (executionMode === "hosted-api-only") {
-    return "This workspace can't use your computer's terminal — connecting here is the only way to publish.";
-  }
-  return "Save a personal access token so Tovu can publish on your behalf.";
 }
 
 /**
@@ -930,7 +918,7 @@ function CredentialStepTodo({
           <h3 className="deployment-step-title">
             {translate("Connect")} <span translate="no">{row.label}</span>
           </h3>
-          <p className="deployment-step-subtitle">{translate(credentialStepSubtitleKey(executionMode))}</p>
+          <p className="deployment-step-subtitle">{credentialStepSubtitle(executionMode, row.credential, translate)}</p>
         </div>
       </div>
       <PublishCredentialFields row={row} controller={controller} t={translate} />
@@ -1344,7 +1332,7 @@ function StaticPublishForm({
         )}
       </p>
 
-      <div className="field-row">
+      <div className="field-row field-row-top">
         <StaticPublishTargetFields controller={controller} t={translate} />
         <div className="field">
           <label className="field-label" htmlFor="deployment-static-site-publish-project-name">

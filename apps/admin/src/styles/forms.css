@@ -201,6 +201,13 @@
   align-items: end;
 }
 
+/* A row whose cells carry help text of different lengths UNDER their inputs (Static Site's host
+   config fields): `end` would push each input down by its own help's height, so the inputs no
+   longer line up. Top-align instead; labels there are one line, so the inputs share one top. */
+.field-row.field-row-top {
+  align-items: start;
+}
+
 /* `.widget-config-fields` (`components/WidgetConfigFields/WidgetConfigFields.tsx`) — five widget-type sub-forms plus
    `WidgetPickerDialog`'s "create new" path share this one class, and it had zero CSS anywhere in
    the app before this rule. Every site renders a bare `<label htmlFor>` immediately followed by

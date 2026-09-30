@@ -10,6 +10,8 @@ import {
   fieldNameHandleSegment,
   credentialFormReadyToSave,
   fieldHelpText,
+  credentialNoun,
+  credentialStepSubtitle,
   fieldLabelParts,
   publishConfigFieldHandleId,
   publishTargetById,
@@ -288,6 +290,29 @@ describe("agent handle ids", () => {
     expect(credentialFieldHandleId("s3-compatible", "accessKeyId", "secretAccessKey")).toBe("deployment-static-site-credentials-access-key-id-s3-compatible");
     expect(publishConfigFieldHandleId("basePath")).toBe("deployment-static-site-publish-base-path");
     expect(fieldNameHandleSegment("publicURL")).toBe("public-url");
+  });
+});
+
+describe("credentialNoun / credentialStepSubtitle", () => {
+  const spec = (label: string) => ({ tokenField: "token", fields: [{ name: "token", label, required: true, secret: true as const }] });
+
+  it("names the host's own credential mid-sentence, keeping a leading acronym", () => {
+    expect(credentialNoun(spec("API token"))).toBe("API token");
+    expect(credentialNoun(spec("Secret access key"))).toBe("secret access key");
+    expect(credentialNoun({ tokenField: "token", fields: [] })).toBe("access token");
+  });
+
+  it("says 'Save your <credential>' unless the workspace cannot reach a terminal", () => {
+    const identity = (key: string) => key;
+    expect(credentialStepSubtitle("self-hosted-cli", spec("API token"), identity)).toBe("Save your API token so Tovu can publish on your behalf.");
+    expect(credentialStepSubtitle("hosted-api-only", spec("API token"), identity)).toBe(
+      "This workspace can't use your computer's terminal — connecting here is the only way to publish."
+    );
+  });
+
+  it("fills the host's credential into a translated template", () => {
+    const spanish = (key: string) => (key === "Save your {credential} so Tovu can publish on your behalf." ? "Guarda tu {credential} para que Tovu pueda publicar en tu nombre." : key);
+    expect(credentialStepSubtitle("self-hosted-cli", spec("Access token"), spanish)).toBe("Guarda tu access token para que Tovu pueda publicar en tu nombre.");
   });
 });
 

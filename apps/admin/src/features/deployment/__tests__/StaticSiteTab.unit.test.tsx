@@ -820,12 +820,13 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
   // all — there is no "Advanced" `<details>` left anywhere in this section. It now depends on
   // `row.saved`: not-yet-connected renders open and plain (`CredentialStepTodo`, no `<details>`),
   // connected renders collapsed behind a real `<details>` (`CredentialStepDone`). `executionMode`'s
-  // only remaining job is which SUBTITLE the not-yet-connected step shows (`credentialStepSubtitleKey`
-  // in `StaticSiteTab.tsx`) — see that function's own doc for why it keys off the workspace's terminal
+  // only remaining job is which SUBTITLE the not-yet-connected step shows (`credentialStepSubtitle`
+  // in `rules.ts`) — see that function's own doc for why it keys off the workspace's terminal
   // reachability, not the selected provider's own CLI availability.
   it("self-hosted-cli: the not-yet-connected step is a plain, always-open block — no <details> anywhere, and the CLI-oriented subtitle, not the hosted-only notice", () => {
     renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
-    expect(screen.getByText("Save a personal access token so Tovu can publish on your behalf.")).toBeInTheDocument();
+    expect(screen.getByText(/^Save your .+ so Tovu can publish on your behalf\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/personal access token so Tovu/)).not.toBeInTheDocument();
     expect(
       screen.queryByText("This workspace can't use your computer's terminal — connecting here is the only way to publish.")
     ).not.toBeInTheDocument();
@@ -837,7 +838,7 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
     expect(
       screen.getByText("This workspace can't use your computer's terminal — connecting here is the only way to publish.")
     ).toBeInTheDocument();
-    expect(screen.queryByText("Save a personal access token so Tovu can publish on your behalf.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Save your .+ so Tovu can publish on your behalf\.$/)).not.toBeInTheDocument();
     expect(document.querySelector("details")).toBeNull();
   });
 
@@ -1085,7 +1086,7 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
 
   // REWRITTEN 2026-08-16: the "hosted-mode notice" was its own tagged element under the old
   // "Advanced" disclosure design. It has no equivalent element anymore — the hosted-only wording is
-  // now just `credentialStepSubtitleKey`'s text inside the SAME row region the triad above already
+  // now just `credentialStepSubtitle`'s text inside the SAME row region the triad above already
   // tags, not a second, separately-tagged notice. Pinning the text is `credential section:
   // executionMode disclosure`'s job (above); this keeps only the load-error half, which is still a
   // real, separately-tagged element.

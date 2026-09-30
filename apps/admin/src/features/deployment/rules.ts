@@ -7,6 +7,7 @@ import {
   type AdminPublishCredentialProviderId,
   type AdminPublishCredentialSummary,
   type AdminPublishCredentialVerification,
+  type AdminPublishExecutionMode,
   type AdminPublishRunSnapshot,
   type AdminPublishTargetCredentialSpec,
   type AdminPublishTargetDescriptor,
@@ -326,6 +327,26 @@ export function publishConfigFieldHandleId(fieldName: string): string {
 export function credentialFieldHandleId(providerId: string, fieldName: string, tokenField: string): string {
   if (fieldName === tokenField) return `deployment-static-site-credentials-token-${providerId}`;
   return `deployment-static-site-credentials-${fieldName === "accountId" ? "account" : fieldNameHandleSegment(fieldName)}-${providerId}`;
+}
+
+/** How a host's credential is named mid-sentence: its token field's own label ("API token",
+ *  "Secret access key"), lower-cased unless it starts with an acronym; "access token" when the
+ *  descriptor has no such field. @complexity O(f) in the credential's field count. */
+export function credentialNoun(credential: AdminPublishTargetCredentialSpec): string {
+  const label = credential.fields.find((field) => field.name === credential.tokenField)?.label ?? "access token";
+  return /^[A-Z]{2}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
+}
+
+/** Step 1's subtitle — why connecting here is necessary, which depends on `executionMode` (the
+ *  server's own fact about whether this WORKSPACE can reach the operator's terminal at all — see
+ *  `AdminPublishExecutionMode`'s doc in `lib/api.ts`), not on whether the selected PROVIDER has a
+ *  CLI route. Otherwise it names the host's own credential ({@link credentialNoun}), never a
+ *  "personal access token" a host like Cloudflare or S3 does not issue. @complexity O(f). */
+export function credentialStepSubtitle(executionMode: AdminPublishExecutionMode, credential: AdminPublishTargetCredentialSpec, translate: (key: string) => string): string {
+  if (executionMode === "hosted-api-only") {
+    return translate("This workspace can't use your computer's terminal — connecting here is the only way to publish.");
+  }
+  return translate("Save your {credential} so Tovu can publish on your behalf.").replace("{credential}", credentialNoun(credential));
 }
 
 /** The help a config field, credential field or credential form shows: the descriptor's
