@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "@/lib/api";
+import { localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "../source-control-i18n";
@@ -129,8 +130,12 @@ export function useSourceControlCredentials(
   const loadError = query.error ? sourceControlCredentialsLoadErrorMessage(locale, describeApiError(query.error, t("unknown error"))) : null;
 
   const providers = useMemo(
-    () => sourceControlProviders(providersQuery.data?.providers, credentials ?? []),
-    [providersQuery.data, credentials]
+    // Each host's own text (label, guidance, field labels) in the viewer's locale.
+    () => {
+      const descriptors = providersQuery.data?.providers;
+      return sourceControlProviders(descriptors === undefined ? undefined : localizeSourceControlProviders(descriptors, locale), credentials ?? []);
+    },
+    [providersQuery.data, credentials, locale]
   );
 
   const [formStates, setFormStates] = useState<Record<string, RowFormState>>({});

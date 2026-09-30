@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   describeApiError,
@@ -7,6 +7,7 @@ import {
   type AdminStaticPublishPreview,
   type AdminStaticPublishTargetId,
 } from "@/lib/api";
+import { localizePublishTargets } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
@@ -135,7 +136,9 @@ const PUBLISH_POLL_FAILURE_LIMIT = 3;
 
 export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: string): StaticPublishController {
   const targetsQuery = useFetchQuery({ key: ["deployment", "publish-targets"], fetch: () => port.listPublishTargets() });
-  const targets = targetsQuery.data;
+  // The host's own text in the viewer's locale, once, so every consumer (this form, the credential
+  // rows built from these targets) renders it translated.
+  const targets = useMemo(() => localizePublishTargets(targetsQuery.data, locale), [targetsQuery.data, locale]);
   const targetsError = targetsQuery.error ? publishLoadErrorMessage(locale, describeApiError(targetsQuery.error, "unknown error")) : null;
   const [chosenTarget, setChosenTarget] = useState<AdminStaticPublishTargetId | null>(null);
   const target = chosenTarget ?? targets?.[0]?.id ?? "";

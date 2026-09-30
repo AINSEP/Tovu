@@ -9,6 +9,7 @@ import {
   type AdminSourceControlConnectionInput,
   type AdminSourceControlCredentialSummary,
 } from "@/lib/api";
+import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
@@ -358,8 +359,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   // The source-control hosts come from plugins the same way; a failed load names none of them.
   const sourceControlProvidersQuery = useFetchQuery({ key: ["security", "source-control-providers"], fetch: () => port.sourceControlProviders.list() });
   const providers = useMemo(
-    () => accessTokenProviders(publishTargetsQuery.data, sourceControlProvidersQuery.data),
-    [publishTargetsQuery.data, sourceControlProvidersQuery.data]
+    // Each host's own text (labels, guidance, extra-field labels) in the viewer's locale.
+    () =>
+      accessTokenProviders(
+        localizePublishTargets(publishTargetsQuery.data, locale),
+        sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders(sourceControlProvidersQuery.data, locale)
+      ),
+    [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]
   );
   const publishTargetsSettled = publishTargetsQuery.status !== "loading" && sourceControlProvidersQuery.status !== "loading";
   const [publishCredentials, setPublishCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);

@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { parseDescriptorI18n, type DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
 import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
 
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -15,7 +16,7 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
  * credential form.
  *
  * A plugin opts in by shipping {@link SOURCE_CONTROL_PROVIDERS_FILENAME} at its root: a data-only list
- * of `{ id, label, apiOrigin, maxFileBytes?, reservedPaths?, module, credential? }` (`credential`: the
+ * of `{ id, label, apiOrigin, maxFileBytes?, reservedPaths?, module, credential?, i18n? }` (`credential`: the
  * admin's saved-credential form, `./credential-form.ts`). `id` is the `source_control_credential_sets.provider_id`
  * the provider serves; `label`, `apiOrigin` and `maxFileBytes` are the host facts core copy and checks
  * name (`SourceControlHostFacts`), so no tool text hard-codes a host; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
@@ -39,6 +40,9 @@ export interface SourceControlProviderDescriptor extends SourceControlHostFacts 
   readonly module: string;
   /** The admin's saved-credential form for this host (`./credential-form.ts`). */
   readonly credential?: SourceControlCredentialForm;
+  /** Translations of this host's own person-facing text, keyed by locale then by the English string
+   *  (`features/agent-plugins/descriptor-i18n.ts`). Absent: English only. */
+  readonly i18n?: DescriptorI18n;
 }
 
 export interface LoadedSourceControlProvider {
@@ -181,6 +185,7 @@ function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescr
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, label, apiOrigin, maxFileBytes, reservedPaths, module } = entry;
   const credential = parseSourceControlCredentialForm(entry.credential, `${at}.credential`);
+  const i18n = parseDescriptorI18n(entry.i18n, `${at}.i18n`);
   if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
   if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
   if (typeof apiOrigin !== "string" || !isHttpsOrigin(apiOrigin)) return `${at}.apiOrigin must be an https origin with no path`;
@@ -188,6 +193,7 @@ function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescr
   if (reservedPaths !== undefined && !isReservedPathList(reservedPaths)) return `${at}.reservedPaths must be a list of at most ${MAX_RESERVED_PATHS} relative folder paths`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
   if (typeof credential === "string") return credential;
+  if (typeof i18n === "string") return i18n;
   return {
     id,
     label,
@@ -196,6 +202,7 @@ function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescr
     ...(reservedPaths !== undefined ? { reservedPaths } : {}),
     module,
     ...(credential !== undefined ? { credential } : {}),
+    ...(i18n !== undefined ? { i18n } : {}),
   };
 }
 

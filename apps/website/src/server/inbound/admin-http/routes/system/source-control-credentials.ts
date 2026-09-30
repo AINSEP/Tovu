@@ -131,7 +131,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
   }
 
   // The hosts the page renders a row for, from the plugins (the way `publish-targets` lists deploy
-  // hosts): id, label and the declared credential form. `switchedOff` names each host an installed
+  // hosts): id, label, the declared credential form and its translations (`i18n`). `switchedOff` names each host an installed
   // but switched-off plugin declares, so the page can say which plugin to turn back on. Plugin load
   // refusals go to the server log, never the response.
   app.get(PROVIDERS_PATH, async (req, res) => {
@@ -144,6 +144,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
           id: descriptor.id,
           label: descriptor.label,
           ...(descriptor.credential !== undefined ? { credential: descriptor.credential } : {}),
+          ...(descriptor.i18n !== undefined ? { i18n: descriptor.i18n } : {}),
         })),
         switchedOff: [...(registry.switchedOff ?? [])].map(([id, pluginId]) => ({ id, pluginId })),
       });
