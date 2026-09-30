@@ -23,6 +23,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn as nodeSpawn } from "node:child_process";
 import type { SpawnOptions } from "node:child_process";
+import { finished } from "node:stream";
 import type { Readable, Writable } from "node:stream";
 
 import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
@@ -291,7 +292,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
     env: buildCliEnv(input.baseEnv, input.dir),
     stdio: [withTokens ? "pipe" : "ignore", "pipe", "pipe"],
   });
-  if (withTokens) child.stdin?.end(JSON.stringify(tokens));
+  const tokenDelivery = deliverTokens(child.stdin, withTokens ? JSON.stringify(tokens) : null);
 
   return new Promise((resolve, reject) => {
     let output = "";
@@ -301,15 +302,38 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
     child.stderr.on("data", (chunk) => (output += chunk));
     child.once("error", reject);
     child.once("exit", (code) => {
-      if (code === 0) {
-        input.onInitOutput?.(output);
-        return resolve(input.dir);
+      if (code !== 0) {
+        const cliError = parseCliErrorLine(output);
+        const detail = cliError === null ? output.trim() : `${cliError.code}: ${cliError.message}`;
+        return reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
       }
-      const cliError = parseCliErrorLine(output);
-      const detail = cliError === null ? output.trim() : `${cliError.code}: ${cliError.message}`;
-      reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
+      void tokenDelivery.then((deliveryError) => {
+        if (deliveryError !== null) {
+          return reject(new Error(`tovu init for ${input.dir} could not receive its Agent Plugin tokens: ${deliveryError.message}`));
+        }
+        input.onInitOutput?.(output);
+        resolve(input.dir);
+      });
     });
   });
+}
+
+/**
+ * Writes `payload` to `tovu init`'s stdin and settles with the write's error, or `null` once it is
+ * flushed (immediately when there is nothing to write).
+ *
+ * A child that exits before reading its stdin — an older CLI rejecting the flag, a crash at startup —
+ * turns the write into an EPIPE on the stdin stream, and a stream `error` with no listener is an
+ * uncaught exception: it would take down the Electron main process. `finished` holds an `error`
+ * listener on the stream for its whole life, so that error becomes this promise's value instead.
+ *
+ * @complexity O(1) beyond the write itself.
+ */
+function deliverTokens(stdin: Writable | null | undefined, payload: string | null): Promise<Error | null> {
+  if (payload === null || !stdin) return Promise.resolve(null);
+  const delivered = new Promise<Error | null>((resolve) => finished(stdin, (error) => resolve(error ?? null)));
+  stdin.end(payload);
+  return delivered;
 }
 
 /** `"init"` or `"fail"` — see {@link resolveOrInitSiteDir}'s own param doc. */

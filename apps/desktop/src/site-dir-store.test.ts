@@ -11,7 +11,8 @@ import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
 import { EventEmitter } from "node:events";
-import { PassThrough } from "node:stream";
+import { spawn } from "node:child_process";
+import { PassThrough, Writable } from "node:stream";
 
 import { MAX_RECENT_SITE_DIRS, SiteDirSelectionCancelled, stateFilePath, readDesktopState, rememberSiteDir, existingRecentSiteDirs, classifySiteDir, classifySiteDirSafely, resolveDevFallback, initSiteDir, resolveOrInitSiteDir, adoptSiteDir, resolveSiteDir } from "./site-dir-store.ts";
 import type { RejectedDevFallback } from "./site-dir-store.ts";
@@ -461,6 +462,64 @@ test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", 
     },
   });
   assert.equal(capturedEnv!.TOVU_SITE_DIR, "/operator/pinned");
+});
+
+/** Runs `body` and returns every uncaught exception raised while it — and one macrotask after it — ran. */
+async function uncaughtDuring(body: () => Promise<unknown>): Promise<Error[]> {
+  const caught: Error[] = [];
+  const listener = (error: Error): void => void caught.push(error);
+  process.on("uncaughtException", listener);
+  try {
+    await body().catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  } finally {
+    process.off("uncaughtException", listener);
+  }
+  return caught;
+}
+
+// Codex review 2026-09-29 run2 #2: the token map was written to the child's stdin with no stream
+// `error` listener. A child that exits before reading it (an older CLI rejecting the flag, a
+// startup crash) turned the write into an uncaught EPIPE — which crashes the Electron main process.
+test("initSiteDir: a real child that exits before reading the tokens rejects the create instead of crashing on EPIPE", async () => {
+  let result: unknown;
+  const uncaught = await uncaughtDuring(async () => {
+    result = await initSiteDir({
+      repoRoot: fakeRepoRoot(),
+      dir: "/a/new/site",
+      baseEnv: {},
+      agentPluginTokens: { supabase: "t".repeat(4 * 1024 * 1024) },
+      spawnFn: (_command, _args, options) =>
+        spawn(process.execPath, ["-e", "process.stderr.write('tovu: UNKNOWN_OPTION: --agent-plugin-tokens-stdin\\n'); process.exit(2)"], {
+          stdio: options.stdio,
+        }),
+    }).then(
+      () => "resolved",
+      (error: Error) => error.message,
+    );
+  });
+  assert.deepEqual(uncaught.map((error) => error.message), []);
+  assert.equal(result, "tovu init failed for /a/new/site: UNKNOWN_OPTION: --agent-plugin-tokens-stdin");
+});
+
+test("initSiteDir: tokens that never reached the child fail the create even when the child exits 0", async () => {
+  const child = fakeInitChild(0) as FakeInitChild & { stdin: Writable };
+  child.stdin = new Writable({ write: (_chunk, _encoding, callback) => callback(Object.assign(new Error("write EPIPE"), { code: "EPIPE" })) });
+  let result: unknown;
+  const uncaught = await uncaughtDuring(async () => {
+    result = await initSiteDir({
+      repoRoot: fakeRepoRoot(),
+      dir: "/a/new/site",
+      baseEnv: {},
+      agentPluginTokens: { supabase: "sbp_token" },
+      spawnFn: () => child,
+    }).then(
+      () => "resolved",
+      (error: Error) => error.message,
+    );
+  });
+  assert.deepEqual(uncaught.map((error) => error.message), []);
+  assert.equal(result, "tovu init for /a/new/site could not receive its Agent Plugin tokens: write EPIPE");
 });
 
 test("initSiteDir creates a real, servable site through Tovu's actual CLI", async () => {
