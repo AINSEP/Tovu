@@ -13,6 +13,17 @@ minutes, which is normal during a new sign-up).
 On "done" (or "I'm back"), call `agent_plugin_connect { pluginId: "supabase" }` once more. Never call
 it again on your own.
 
+## Sign-in won't start
+
+`agent_plugin_connect` failed with an error instead of showing the sign-in card. Say:
+
+> Sign-in isn't working right now, so let's use a key instead. [Make a key on Supabase →](https://supabase.com/dashboard/account/tokens)
+> Then paste it in the box below.
+
+Call `agent_plugin_set_access_token { pluginId: "supabase" }` once. It shows the box and waits. On
+`{ saved: true }` go to Step 2. On `reason: "invalid"`: "That key didn't work. Make a new one and try
+again." Never ask for the key in chat.
+
 ## They said no at Supabase
 
 The person says they declined, cancelled, or closed the Supabase page.

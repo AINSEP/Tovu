@@ -6,6 +6,7 @@ import type { SitesPort } from "./sites-port.hooks";
 export const defaultSitesPort: SitesPort = {
   listSites: () => api.listSites(),
   createSite: (input) => api.createSite(input),
+  listTokenSignInPlugins: () => api.listTokenSignInPlugins(),
   activateSite: (name) => api.activateSite(name),
 };
 
@@ -14,6 +15,8 @@ export const defaultSitesPort: SitesPort = {
 export interface FakeSitesPortOverrides {
   createSite?: SitesPort["createSite"];
   activateSite?: SitesPort["activateSite"];
+  /** Defaults to no plugins, so a test that is not about the token fields never sees them. */
+  listTokenSignInPlugins?: SitesPort["listTokenSignInPlugins"];
 }
 
 /**
@@ -32,5 +35,6 @@ export function createFakeSitesPort(
     listSites: () => (typeof snapshot === "function" ? snapshot() : Promise.resolve(snapshot)),
     createSite: overrides.createSite ?? (() => Promise.reject(new Error("createSite was not expected"))),
     activateSite: overrides.activateSite ?? (() => Promise.reject(new Error("activateSite was not expected"))),
+    listTokenSignInPlugins: overrides.listTokenSignInPlugins ?? (() => Promise.resolve({ plugins: [] })),
   };
 }

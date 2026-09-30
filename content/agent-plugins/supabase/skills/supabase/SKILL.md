@@ -36,7 +36,10 @@ It shows the person a card with a sign-in button. Before or with it, say:
 The person signs up for their own Supabase account; you never make one for them and never ask for
 their email or password.
 
-- Result `{ status: "connected" }`: go to Step 2.
+- Result `{ status: "connected" }`: go to Step 2. (It also returns this at once when the person
+  added a Supabase key while creating the site; say nothing about a sign-in then.)
+- It fails with an error (sign-in could not start): see "Sign-in won't start" in
+  `references/failure-modes.md`.
 - Result `{ status: "waiting-for-sign-in" }`: see `references/failure-modes.md`.
 
 ## Step 2. Find their account and databases

@@ -12,6 +12,12 @@ import {
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
 } from "#src/platform/site-dir/index";
+import { titleCaseFromPluginId } from "#src/features/agent-plugins/connect-tool";
+import {
+  checkAgentPluginAccessToken as checkAgentPluginAccessTokenReal,
+  listTokenSignInPlugins as listTokenSignInPluginsReal,
+} from "#src/features/agent-plugins/token-sign-in";
+import { sealPendingAgentPluginTokensForNewSite as sealPendingAgentPluginTokensReal } from "#src/server/runtime/composition/pending-agent-plugin-tokens";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -75,8 +81,21 @@ import type { RouteDeps } from "#src/server/routes/types";
  * it does NOT kill, signal, or re-exec any process (standing rule: no admin API terminates the
  * server on a click). The response's `restartRequired`/`restartInstructions` fields exist so the
  * UI never has to hardcode that prose itself.
+ *
+ * `GET .../system/sites/token-sign-in-plugins` (2026-09-29) — the installed Agent Plugins that take a
+ * pasted access token (`tovuTokenAuth`), so the create form can offer "connect it now". Create also
+ * takes an optional `agentPluginTokens: { [pluginId]: token }`: each is checked against the plugin's
+ * probe URL first (a rejected one refuses the create, nothing made), then sealed with the NEW site's
+ * key into its folder and applied on that site's first boot
+ * (`composition/pending-agent-plugin-tokens.ts`). Leaving it out creates the site exactly as before.
  */
 export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+  /** The guarded outbound client a token check probes through. Absent, a given token is refused as
+   *  not checkable rather than saved unchecked. */
+  customCredentialsHttpClient?: RouteDeps["customCredentialsHttpClient"];
+  checkAgentPluginAccessToken?: typeof checkAgentPluginAccessTokenReal;
+  sealPendingAgentPluginTokens?: typeof sealPendingAgentPluginTokensReal;
+  listTokenSignInPlugins?: typeof listTokenSignInPluginsReal;
   /** Injectable so a route test proves both branches without touching the real filesystem or
    *  `sites/`. Each defaults to the real `site-dir`/`site-switcher-enabled` implementation. */
   listSites?: typeof listSitesReal;
@@ -133,6 +152,65 @@ function parseCreateSiteName(
   return { ok: true, name };
 }
 
+const PLUGIN_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const MAX_AGENT_PLUGIN_TOKENS = 8;
+const MAX_TOKEN_LENGTH = 4096;
+
+/** The create body's optional `agentPluginTokens`, trimmed, blanks dropped. Never echoes a token.
+ *  @complexity O(n) in the entry count (bounded). */
+function parseAgentPluginTokens(body: unknown): { ok: true; tokens: Record<string, string> } | { ok: false; body: ValidationErrorBody } {
+  const raw = (body as Record<string, unknown> | null | undefined)?.agentPluginTokens;
+  if (raw === undefined || raw === null) return { ok: true, tokens: {} };
+  const invalid = { ok: false as const, body: { error: "'agentPluginTokens' must map plugin ids to token strings", code: "VALIDATION_ERROR" as const } };
+  if (typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length > MAX_AGENT_PLUGIN_TOKENS) return invalid;
+  const tokens: Record<string, string> = {};
+  for (const [pluginId, value] of Object.entries(raw)) {
+    if (!PLUGIN_ID_PATTERN.test(pluginId) || typeof value !== "string" || value.length > MAX_TOKEN_LENGTH) return invalid;
+    if (value.trim() !== "") tokens[pluginId] = value.trim();
+  }
+  return { ok: true, tokens };
+}
+
+/** The refusal for a token that failed its check, or `null` when every token may be stored. A token
+ *  the vendor could not be reached to check is still stored: the new site's first use tells. */
+async function checkTokensBeforeCreate(
+  deps: AdminSitesDeps,
+  tokens: Readonly<Record<string, string>>,
+): Promise<{ status: number; body: Record<string, unknown> } | null> {
+  const check = deps.checkAgentPluginAccessToken ?? checkAgentPluginAccessTokenReal;
+  for (const [pluginId, token] of Object.entries(tokens)) {
+    const name = titleCaseFromPluginId(pluginId);
+    const outcome = deps.customCredentialsHttpClient
+      ? await check({ workspaceId: deps.workspaceId, httpClient: deps.customCredentialsHttpClient }, { pluginId, token })
+      : "unsupported";
+    if (outcome === "invalid") {
+      return { status: 400, body: { error: `That ${name} access token didn't work. Check it, or leave it empty and connect ${name} later from chat. No site was created.`, code: "AGENT_PLUGIN_TOKEN_INVALID", pluginId } };
+    }
+    if (outcome === "unsupported") {
+      return { status: 400, body: { error: `${name} can't be connected with an access token here. Leave it empty and connect it later from chat. No site was created.`, code: "AGENT_PLUGIN_TOKEN_UNSUPPORTED", pluginId } };
+    }
+  }
+  return null;
+}
+
+/** Seals the checked tokens into the new site. The site already exists, so a failure here is
+ *  reported, not thrown: the person connects from chat instead. */
+async function storeTokensForNewSite(
+  deps: AdminSitesDeps,
+  site: { dir: string; siteId: string },
+  tokens: Readonly<Record<string, string>>,
+): Promise<{ status: "none" | "saved" | "failed"; pluginIds: string[] }> {
+  const pluginIds = Object.keys(tokens);
+  if (pluginIds.length === 0) return { status: "none", pluginIds };
+  try {
+    await (deps.sealPendingAgentPluginTokens ?? sealPendingAgentPluginTokensReal)({ siteDir: site.dir, siteKeyId: site.siteId, tokens });
+    return { status: "saved", pluginIds };
+  } catch (err) {
+    console.error(`[system/sites] the new site's access tokens could not be stored: ${err instanceof Error ? err.message : String(err)}`);
+    return { status: "failed", pluginIds };
+  }
+}
+
 /** Classifies a thrown `createSite()` error into its HTTP status + body, or `null` for anything
  *  unclassified that should fall through to a generic 500. Keeps the error-to-status-code mapping
  *  in one place so a future site-registry error type has exactly one spot to be taught about.
@@ -186,6 +264,28 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
     }
   });
 
+  app.get("/api/admin/v1/workspaces/:workspaceId/system/sites/token-sign-in-plugins", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
+        principalId: principal.id,
+        permission: "system.read",
+        workspaceId: deps.workspaceId,
+        entityType: "site-registry",
+      });
+      if (!authorized) return;
+      const plugins = await (deps.listTokenSignInPlugins ?? listTokenSignInPluginsReal)(deps.workspaceId);
+      res.status(200).json({ plugins });
+    } catch (err) {
+      console.error("[system/sites] unexpected error listing token sign-in plugins", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
+  });
+
   app.post("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -219,8 +319,20 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         return;
       }
 
+      const parsedTokens = parseAgentPluginTokens(req.body);
+      if (!parsedTokens.ok) {
+        res.status(400).json(parsedTokens.body);
+        return;
+      }
+      const refusal = await checkTokensBeforeCreate(deps, parsedTokens.tokens);
+      if (refusal) {
+        res.status(refusal.status).json(refusal.body);
+        return;
+      }
+
       const result = await createSite({ name: parsed.name });
-      res.status(201).json({ site: { name: result.name, dir: result.dir, siteId: result.siteId } });
+      const agentPluginTokens = await storeTokensForNewSite(deps, result, parsedTokens.tokens);
+      res.status(201).json({ site: { name: result.name, dir: result.dir, siteId: result.siteId }, agentPluginTokens });
     } catch (err) {
       const classified = classifyCreateSiteError(err);
       if (classified) {

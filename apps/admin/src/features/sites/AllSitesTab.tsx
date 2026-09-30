@@ -214,7 +214,7 @@ function SitesEmptyState({ t }: { t: Translate }) {
  *
  *  The name is rendered VERBATIM and never through `t()`: it is data (a folder name), the same
  *  treatment every other site name on this screen gets. */
-function CreatedSiteNotice({ createdName, t }: { createdName: string | null; t: Translate }) {
+function CreatedSiteNotice({ createdName, createdTokens, t }: { createdName: string | null; createdTokens: AllSitesTabProps["createdTokens"]; t: Translate }) {
   if (createdName === null) return null;
   return (
     <p
@@ -225,7 +225,20 @@ function CreatedSiteNotice({ createdName, t }: { createdName: string | null; t: 
       })}
     >
       <strong>{createdName}</strong> {t("was created. Activate it to serve after the next restart.")}
+      <CreatedTokensLine createdTokens={createdTokens} />
     </p>
+  );
+}
+
+/** The follow-on for tokens given with the create ("Supabase will connect when this site first
+ *  starts."), or nothing. Names are plugin display names, rendered verbatim. */
+function CreatedTokensLine({ createdTokens }: { createdTokens: AllSitesTabProps["createdTokens"] }) {
+  if (!createdTokens) return null;
+  return (
+    <>
+      {" "}
+      <strong>{createdTokens.names.join(", ")}</strong> {createdTokens.note}
+    </>
   );
 }
 
@@ -236,6 +249,8 @@ export interface AllSitesTabProps {
   activatingName: string | null;
   /** The site the last successful create made, or `null` — see {@link CreatedSiteNotice}. */
   createdName: string | null;
+  /** Tokens given with that create, from `useSites`'s `createdTokens`. Optional for older callers. */
+  createdTokens?: { names: string[]; note: string } | null;
   onActivate: (name: string) => void;
   t: Translate;
 }
@@ -274,7 +289,7 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
 export function AllSitesTab(props: AllSitesTabProps) {
   return (
     <>
-      <CreatedSiteNotice createdName={props.createdName} t={props.t} />
+      <CreatedSiteNotice createdName={props.createdName} createdTokens={props.createdTokens ?? null} t={props.t} />
       {sitesGridOrEmpty(props)}
     </>
   );

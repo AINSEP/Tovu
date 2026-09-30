@@ -15,7 +15,26 @@ import type { QueryKey } from "../../lib/fetch-query";
 
 /** One cache identity for this screen's single resource, defined once so a write's `invalidates`
  *  and the read's `key` cannot drift apart (`lib/fetch-query/types.ts`'s own `QueryKey` warning). */
-export const KEYS = { list: ["sites"] as QueryKey };
+export const KEYS = { list: ["sites"] as QueryKey, tokenSignInPlugins: ["sites-token-sign-in-plugins"] as QueryKey };
+
+/** The create body's `agentPluginTokens`: trimmed, empty fields dropped, `undefined` when nothing
+ *  was typed — so a create with no token sends exactly the body it always did.
+ *  @complexity O(n) in the offered plugins. */
+export function tokensForCreate(tokens: Readonly<Record<string, string>>): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const [pluginId, value] of Object.entries(tokens)) {
+    if (value.trim() !== "") out[pluginId] = value.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** The line under "was created." for tokens given with the create, or `null` when none were.
+ *  @complexity O(1). */
+export function createdTokensNoteKey(status: "none" | "saved" | "failed" | undefined): string | null {
+  if (status === "saved") return "will connect when this site first starts.";
+  if (status === "failed") return "couldn't be saved. Open the site and ask the assistant to connect it.";
+  return null;
+}
 
 /** This screen's name on `lib/content-refresh-bus.ts` — a plain colocated constant, matching
  *  `REDIRECTS_RESOURCE`/`TAXONOMY_RESOURCE`. `sites/` is filesystem state, so it can change from
@@ -165,6 +184,8 @@ export function siteWriteErrorKey(e: unknown): string | null {
   if (!(e instanceof ApiError)) return null;
   if (e.code === "SITE_SWITCHING_DISABLED") return "Site switching is turned off on this deployment.";
   if (e.code === "SITE_ALREADY_EXISTS") return "A folder with that name already exists under sites/.";
+  if (e.code === "AGENT_PLUGIN_TOKEN_INVALID") return "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created.";
+  if (e.code === "AGENT_PLUGIN_TOKEN_UNSUPPORTED") return "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created.";
   return null;
 }
 

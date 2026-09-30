@@ -2,12 +2,14 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import type { Translate } from "../../lib/dictionary-translator";
 import {
+  resolveConnectServicesVisible,
   resolveCreateInputDisabled,
   resolveCreateSubmitDisabled,
   resolveDatabaseOptionClassName,
   resolveSiteDatabaseOptions,
   type SiteDatabaseOption,
 } from "./Sites.hooks";
+import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 import type { useWiredSites } from "./hooks/use-sites.hooks";
 
 /**
@@ -62,6 +64,14 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
  * reads it. "Chose Supabase, silently received SQLite" has no code path to travel down, which is
  * the standard the rest of this screen is already held to — see `Sites.tsx`'s header.
  *
+ * ## Connect services (2026-09-29)
+ *
+ * Supabase still cannot be the site's CONTENT database, and its database card still says so. What
+ * works is connecting the Supabase Agent Plugin, so the assistant can make and manage a Supabase
+ * database for the site's app data: the "Connect services" section offers an optional access-token
+ * field for every installed plugin that takes one (`use-create-site-plugin-tokens.hooks.ts`). Empty
+ * means skip; the site is created as before and the assistant can connect it later from chat.
+ *
  * ## Chat data
  *
  * "Chats always use SQLite" is literally true and deliberate rather than a simplification: chat
@@ -89,42 +99,17 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
 export interface CreateSiteOnboardingProps {
   controller: Pick<
     ReturnType<typeof useWiredSites>,
-    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "t"
+    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "pluginTokens" | "t"
   >;
   /** Back to the "All sites" tab, creating nothing. Supplied by `Sites.tsx` so this form owns no
    *  routing of its own — same seam Runner's own `onBack` is. */
   onCancel: () => void;
 }
 
-/** The vendor credential fields Runner shows under a selected Supabase option. Rendered here
- *  unconditionally rather than on selection (the option cannot be selected) and every control
- *  `disabled`, so the shape of the eventual flow is visible without a field that could collect a
- *  credential this product has nowhere to put. */
-function SupabaseVendorFields({ t }: { t: Translate }) {
-  return (
-    <span className="site-db-vendor">
-      <span className="field">
-        <label className="field-label" htmlFor="site-db-supabase-url">
-          {t("Supabase project URL")}
-        </label>
-        <input id="site-db-supabase-url" disabled placeholder="https://your-project.supabase.co" inputMode="url" />
-      </span>
-      <span className="field">
-        <label className="field-label" htmlFor="site-db-supabase-key">
-          {t("Supabase API key")}
-        </label>
-        {/* `autoComplete="new-password"`, NOT `"off"` — Chrome deliberately ignores `off` on
-            credential-shaped fields (see `security/AccessTokensTab.tsx`'s token input). This
-            field is `disabled` today, but it is a real password-type credential field, so it
-            gets the same guard the moment it is wired up. */}
-        <input id="site-db-supabase-key" type="password" disabled placeholder={t("Paste your API key")} autoComplete="new-password" />
-        <span className="field-hint">{t("Shown for what's coming. It isn't stored anywhere yet.")}</span>
-      </span>
-    </span>
-  );
-}
-
-/** The same treatment for Runner's third option. */
+/** The vendor fields Runner shows under its "Custom" option, every control `disabled`, so the shape
+ *  of the eventual flow is visible without a field that could collect a credential this product has
+ *  nowhere to put. (Supabase's inert URL/key fields were removed on 2026-09-29: the working way to
+ *  bring Supabase is the token field under "Connect services".) */
 function CustomVendorFields({ t }: { t: Translate }) {
   return (
     <span className="site-db-vendor">
@@ -150,7 +135,6 @@ function CustomVendorFields({ t }: { t: Translate }) {
  *  SQLite has none: there is nothing to configure, which is the point of it.
  *  @complexity O(1) — three mutually exclusive branches. */
 function vendorFieldsFor(option: SiteDatabaseOption, t: Translate) {
-  if (option.id === "supabase") return <SupabaseVendorFields t={t} />;
   if (option.id === "custom") return <CustomVendorFields t={t} />;
   return null;
 }
@@ -219,6 +203,63 @@ function DatabaseSection({ t }: { t: Translate }) {
         ))}
       </div>
       <p className="field-hint">{t("Tovu creates every site's content database as SQLite today, so the other two can't be chosen yet. Chats always use SQLite, in a separate chat.db — restoring content never touches conversation history.")}</p>
+    </div>
+  );
+}
+
+/** One optional service's token field. The token is typed into a password input and sent only with
+ *  the create request. */
+function PluginTokenField({ field, onChange, t }: { field: CreateSitePluginTokenField; onChange: (pluginId: string, value: string) => void; t: Translate }) {
+  const inputId = `site-token-${field.pluginId}`;
+  return (
+    <div className="site-db-option is-token">
+      <span className="site-db-option-text">
+        <span className="site-db-option-head">
+          <label className="site-db-option-name" htmlFor={inputId}>
+            {field.displayName}
+          </label>
+          <span className="status status-neutral">{t("Optional")}</span>
+        </span>
+        <span className="site-db-vendor">
+          <span className="field">
+            {/* `new-password`, not `off` — see `security/AccessTokensTab.tsx`'s token input. */}
+            <input
+              id={inputId}
+              type="password"
+              value={field.token}
+              placeholder={t("Paste an access token")}
+              autoComplete="new-password"
+              onChange={(e) => onChange(field.pluginId, e.target.value)}
+              {...agentHandle(`sites-create-token-${field.pluginId}`, { role: "field", label: `Optional ${field.displayName} access token for the new site` })}
+            />
+            <span className="field-hint">
+              <a href={field.helpUrl} target="_blank" rel="noopener noreferrer">
+                {t("Create a token")}
+              </a>{" "}
+              {t("No token? Leave it empty. You can ask the assistant to connect it later.")}
+            </span>
+          </span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/** "Connect services": one optional token field per installed plugin that takes one. Hidden when
+ *  there are none. */
+function ConnectServicesSection({ pluginTokens, t }: { pluginTokens: CreateSitePluginTokensController; t: Translate }) {
+  if (!resolveConnectServicesVisible(pluginTokens.fields)) return null;
+  return (
+    <div className="onboarding-section">
+      <div className="onboarding-section-head">
+        <h3 className="onboarding-section-title">{t("Connect services")}</h3>
+        <p className="onboarding-section-lead">{t("Optional. Your assistant can use these once the site is running.")}</p>
+      </div>
+      <div className="site-db-options" role="group" aria-label={t("Connect services")}>
+        {pluginTokens.fields.map((field) => (
+          <PluginTokenField key={field.pluginId} field={field} onChange={pluginTokens.setToken} t={t} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -297,6 +338,7 @@ export function CreateSiteOnboarding({ controller, onCancel }: CreateSiteOnboard
       <div className="onboarding-card">
         <DetailsSection controller={controller} />
         <DatabaseSection t={controller.t} />
+        <ConnectServicesSection pluginTokens={controller.pluginTokens} t={controller.t} />
         <OnboardingActions controller={controller} onCancel={onCancel} />
       </div>
     </form>

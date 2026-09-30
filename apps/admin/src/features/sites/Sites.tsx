@@ -289,6 +289,7 @@ function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSi
       switchingEnabled={controller.switchingEnabled}
       activatingName={controller.activatingName}
       createdName={controller.createdName}
+      createdTokens={controller.createdTokens}
       onActivate={controller.activate}
       t={controller.t}
     />

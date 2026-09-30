@@ -8,9 +8,10 @@ import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT } from "../sites-i18n";
-import { KEYS, SITES_RESOURCE, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
+import { KEYS, SITES_RESOURCE, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
 import type { SitesPort } from "./sites-port.hooks";
+import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "./use-create-site-plugin-tokens.hooks";
 
 /**
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
@@ -77,6 +78,12 @@ export interface SitesController {
    *  SitesController.createName} again (via {@link SitesController.setCreateName}), so the banner
    *  can never sit next to an unrelated name. */
   createdName: string | null;
+  /** The optional access-token fields on the create form — see `use-create-site-plugin-tokens.hooks.ts`. */
+  pluginTokens: CreateSitePluginTokensController;
+  /** What happened to tokens given with the last successful create: the services' display names and
+   *  the translated line to show after them, or `null` when none were given. Cleared with
+   *  {@link SitesController.createdName}. */
+  createdTokens: { names: string[]; note: string } | null;
 
   /** Persists `name` as the next boot's site. Never switches anything — see this file's header. */
   activate: (name: string) => void;
@@ -107,9 +114,11 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   const [createdName, setCreatedName] = useState<string | null>(null);
   const [activation, setActivation] = useState<AdminSiteActivation | null>(null);
   const [activatingName, setActivatingName] = useState<string | null>(null);
+  const pluginTokens = useCreateSitePluginTokens(port);
+  const [createdTokens, setCreatedTokens] = useState<{ names: string[]; note: string } | null>(null);
 
   const createMutation = useFetchMutation({
-    run: (name: string) => port.createSite({ name }),
+    run: (input: { name: string; agentPluginTokens?: Record<string, string> }) => port.createSite(input),
     invalidates: [KEYS.list],
   });
   const activateMutation = useFetchMutation({
@@ -147,6 +156,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   const setCreateName = useCallback((value: string) => {
     setCreateNameRaw(value);
     setCreatedName(null);
+    setCreatedTokens(null);
   }, []);
 
   const createSite = useCallback(() => {
@@ -159,13 +169,17 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     // own prior error, so only the sibling mutation needs the explicit reset.
     activateMutation.reset();
     setCreatedName(null);
+    setCreatedTokens(null);
+    const agentPluginTokens = pluginTokens.tokensForCreate();
     // `.catch` is required even though `mutate` itself never raises `unhandledrejection` (see
     // `MutationResult.mutate`'s own doc): `.then` above it produces a NEW promise, and that one
     // has no handler of its own. The failure is reported through `createMutation.error`.
     createMutation
-      .mutate(name)
+      .mutate(agentPluginTokens ? { name, agentPluginTokens } : { name })
       .then((result) => {
         setCreatedName(result.site.name);
+        setCreatedTokens(resolveCreatedTokens(result.agentPluginTokens, pluginTokens.displayNames, t));
+        pluginTokens.clear();
         // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
         // the very name just set on the line above before the banner ever renders it.
         setCreateNameRaw("");
@@ -174,7 +188,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       .finally(() => {
         creatingRef.current = false;
       });
-  }, [activateMutation, createMutation, createName]);
+  }, [activateMutation, createMutation, createName, pluginTokens, t]);
 
   const activate = useCallback(
     (name: string) => {
@@ -221,6 +235,8 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     createSite,
     creating: createMutation.status === "pending",
     createdName,
+    pluginTokens,
+    createdTokens,
     activate,
     activatingName,
     activation,
@@ -244,6 +260,17 @@ function resolveWriteError(error: Error | null, t: Translate): string | null {
   if (error === null) return null;
   const key = siteWriteErrorKey(error);
   return key === null ? describeApiError(error, t("That request failed.")) : t(key);
+}
+
+/** {@link SitesController.createdTokens} from a create response.
+ *  @complexity O(n) in the plugin ids returned. */
+function resolveCreatedTokens(
+  result: { status: "none" | "saved" | "failed"; pluginIds: string[] } | undefined,
+  displayNames: (pluginIds: readonly string[]) => string[],
+  t: Translate,
+): { names: string[]; note: string } | null {
+  const key = createdTokensNoteKey(result?.status);
+  return key === null || !result ? null : { names: displayNames(result.pluginIds), note: t(key) };
 }
 
 /**

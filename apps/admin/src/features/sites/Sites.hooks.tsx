@@ -232,9 +232,16 @@ export interface SiteDatabaseOption {
 export function resolveSiteDatabaseOptions(t: Translate): SiteDatabaseOption[] {
   return [
     { id: "sqlite", title: t("SQLite"), hint: t("Default · created inside this site's own folder"), available: true },
-    { id: "supabase", title: t("Supabase"), hint: t("Hosted · requires a project URL and API key"), available: false },
+    { id: "supabase", title: t("Supabase"), hint: t("Hosted · not for site content yet. Connect it below to use it for your app's data."), available: false },
     { id: "custom", title: t("Custom DB Provider"), hint: t("Any vendor · add its endpoint and credential"), available: false },
   ];
+}
+
+/** Whether the create form shows its "Connect services" section — only when at least one installed
+ *  plugin takes a pasted token. Its own function so the view carries no condition.
+ *  @complexity O(1). */
+export function resolveConnectServicesVisible(fields: readonly unknown[]): boolean {
+  return fields.length > 0;
 }
 
 /** One database option's own class name. `available: false` never combines with `selected: true`:

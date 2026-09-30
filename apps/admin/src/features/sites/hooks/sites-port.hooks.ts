@@ -1,4 +1,4 @@
-import type { AdminCreatedSite, AdminSiteActivation, AdminSitesSnapshot } from "@/lib/api";
+import type { AdminCreatedSite, AdminCreatedSiteTokens, AdminSiteActivation, AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/lib/api";
 
 /**
  * @file What `use-sites.hooks.ts` needs from the outside world, as an interface rather than a direct
@@ -14,6 +14,7 @@ import type { AdminCreatedSite, AdminSiteActivation, AdminSitesSnapshot } from "
  */
 export interface SitesPort {
   listSites(): Promise<AdminSitesSnapshot>;
-  createSite(input: { name: string }): Promise<{ site: AdminCreatedSite }>;
+  createSite(input: { name: string; agentPluginTokens?: Record<string, string> }): Promise<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteTokens }>;
+  listTokenSignInPlugins(): Promise<{ plugins: AdminTokenSignInPlugin[] }>;
   activateSite(name: string): Promise<AdminSiteActivation>;
 }

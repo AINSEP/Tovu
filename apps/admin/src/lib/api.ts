@@ -519,6 +519,22 @@ export interface AdminCreatedSite {
   siteId: string;
 }
 
+/** What happened to the create request's `agentPluginTokens`: `saved` = sealed into the new site,
+ *  connected on its first start; `failed` = the site exists but the tokens were not kept. */
+export interface AdminCreatedSiteTokens {
+  status: "none" | "saved" | "failed";
+  pluginIds: string[];
+}
+
+/** One installed Agent Plugin the create form can connect with a pasted access token
+ *  (`GET .../system/sites/token-sign-in-plugins`). */
+export interface AdminTokenSignInPlugin {
+  pluginId: string;
+  displayName: string;
+  /** The plugin's own page for creating a token. */
+  helpUrl: string;
+}
+
 /** The `200` body of `POST .../system/sites/:name/activate`. Nothing was killed, signalled, or
  *  re-exec'd — `restartInstructions` is the server's own prose for what the human must now do, and
  *  the screen renders it verbatim rather than hardcoding a second copy. */
@@ -3875,11 +3891,15 @@ export const api = {
   /** Create `sites/<name>/` through the same `initSite` path `tovu init` uses. `409`
    *  `SITE_ALREADY_EXISTS` when the directory is occupied, `400` `VALIDATION_ERROR` for a name
    *  outside `[a-z0-9-]{1,100}`. */
-  createSite: (input: { name: string }) =>
-    request<{ site: AdminCreatedSite }>(`/workspaces/${WORKSPACE_ID}/system/sites`, {
+  createSite: (input: { name: string; agentPluginTokens?: Record<string, string> }) =>
+    request<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteTokens }>(`/workspaces/${WORKSPACE_ID}/system/sites`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  /** Installed Agent Plugins that take a pasted access token — the create form's optional
+   *  "connect now" fields. A given token is checked, then applied on the new site's first start. */
+  listTokenSignInPlugins: () =>
+    request<{ plugins: AdminTokenSignInPlugin[] }>(`/workspaces/${WORKSPACE_ID}/system/sites/token-sign-in-plugins`),
   /** Persist `name` as the site the NEXT boot serves. Writes `TOVU_SITE=<name>` to the repo-root
    *  `.env` and returns restart instructions — it does not kill, signal, or re-exec anything, and
    *  this process keeps serving whatever it booted with. See {@link AdminSiteActivation}. */

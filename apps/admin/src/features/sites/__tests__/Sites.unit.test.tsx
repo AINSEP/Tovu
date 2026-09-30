@@ -45,6 +45,8 @@ function controllerFixture(overrides: Partial<SitesController> = {}): SitesContr
     createSite: vi.fn(),
     creating: false,
     createdName: null,
+    pluginTokens: { fields: [], setToken: vi.fn(), tokensForCreate: () => undefined, displayNames: (ids) => [...ids], clear: vi.fn() },
+    createdTokens: null,
     activate: vi.fn(),
     activatingName: null,
     activation: null,

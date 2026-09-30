@@ -5393,6 +5393,8 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .site-db-vendor .field-label { display: block; }
 .site-db-vendor input { width: 100%; box-sizing: border-box; }
 .site-db-vendor .field-hint { display: block; }
+/* An optional service the new site can connect with a pasted token: no radio, so one column. */
+.site-db-option.is-token { grid-template-columns: 1fr; }
 
 @media (max-width: 32rem) {
   .onboarding-section { padding: var(--space-5) var(--space-4); }
