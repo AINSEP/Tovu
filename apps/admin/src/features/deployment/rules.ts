@@ -302,19 +302,30 @@ export function staticPublishProjectNameCopy(target: AdminPublishTargetDescripto
   };
 }
 
+/** A descriptor field name as an `agentHandle` segment: `agentHandle()` throws on anything but
+ *  lowercase words joined by single hyphens, and one throw blanks the whole admin, so a camelCase
+ *  name (`accessKeyId`) becomes `access-key-id`. @complexity O(n) in the name's length. */
+export function fieldNameHandleSegment(fieldName: string): string {
+  return fieldName
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 /** The `agentHandle` id of one publish-config input. Ids predate the descriptors and are pinned by
  *  agent tooling, so `teamId` keeps its old `team` id; every other field uses its own name.
- *  @complexity O(1). */
+ *  @complexity O(n) in the name's length. */
 export function publishConfigFieldHandleId(fieldName: string): string {
-  return `deployment-static-site-publish-${fieldName === "teamId" ? "team" : fieldName}`;
+  return `deployment-static-site-publish-${fieldName === "teamId" ? "team" : fieldNameHandleSegment(fieldName)}`;
 }
 
 /** The `agentHandle`/DOM id of one credential input. The token field keeps its old `token` id and
  *  `accountId` its old `account` id (both pinned by agent tooling); every other field uses its own
- *  name. @complexity O(1). */
+ *  name. @complexity O(n) in the name's length. */
 export function credentialFieldHandleId(providerId: string, fieldName: string, tokenField: string): string {
   if (fieldName === tokenField) return `deployment-static-site-credentials-token-${providerId}`;
-  return `deployment-static-site-credentials-${fieldName === "accountId" ? "account" : fieldName}-${providerId}`;
+  return `deployment-static-site-credentials-${fieldName === "accountId" ? "account" : fieldNameHandleSegment(fieldName)}-${providerId}`;
 }
 
 /** The label a config or credential field shows: the descriptor's label, with the generic

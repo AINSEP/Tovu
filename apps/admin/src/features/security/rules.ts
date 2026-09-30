@@ -12,6 +12,7 @@ import {
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildCredentialConnectionInput,
+  fieldNameHandleSegment,
   requiredFieldsFilled,
 } from "../deployment/rules";
 import {
@@ -567,9 +568,9 @@ export function buildAccessTokenConnectionInput(
 }
 
 /** The DOM/agent id suffix of one extra field's input. `accountId` keeps its old `account` suffix
- *  (pinned by agent tooling); every other field uses its own name. @complexity O(1). */
+ *  (pinned by agent tooling); every other field uses its own name, hyphenated. @complexity O(n). */
 export function accessTokenExtraFieldIdSuffix(fieldName: string): string {
-  return fieldName === "accountId" ? "account" : fieldName;
+  return fieldName === "accountId" ? "account" : fieldNameHandleSegment(fieldName);
 }
 
 /** Every saved row for one provider, in the order the server returned them.

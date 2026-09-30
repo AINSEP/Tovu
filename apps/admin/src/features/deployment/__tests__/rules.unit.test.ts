@@ -7,6 +7,7 @@ import {
   buildCredentialConnectionInput,
   buildStaticPublishConfig,
   credentialFieldHandleId,
+  fieldNameHandleSegment,
   credentialFormReadyToSave,
   fieldLabelParts,
   publishConfigFieldHandleId,
@@ -279,6 +280,13 @@ describe("agent handle ids", () => {
     expect(credentialFieldHandleId("host", "token", "token")).toBe("deployment-static-site-credentials-token-host");
     expect(credentialFieldHandleId("host", "accountId", "token")).toBe("deployment-static-site-credentials-account-host");
     expect(credentialFieldHandleId("host", "region", "secretKey")).toBe("deployment-static-site-credentials-region-host");
+  });
+
+  it("hyphenates a camelCase field name, since agentHandle() throws on capitals and one throw blanks the admin", () => {
+    // S3-compatible's `accessKeyId` crashed the Static Site tab on 2026-09-29 (seen in the browser).
+    expect(credentialFieldHandleId("s3-compatible", "accessKeyId", "secretAccessKey")).toBe("deployment-static-site-credentials-access-key-id-s3-compatible");
+    expect(publishConfigFieldHandleId("basePath")).toBe("deployment-static-site-publish-base-path");
+    expect(fieldNameHandleSegment("publicURL")).toBe("public-url");
   });
 });
 
