@@ -129,7 +129,21 @@ test("a plugin an operator turned off gets the token but stays off", async () =>
   assert.match(envLogs.info[0] ?? "", /stays off because an operator turned it off \(Add-Ons → Agent Plugins\)/);
 });
 
-test("hasStoredAgentPluginCredential: a finished sign-in or a saved token counts; a bare oauth row does not", () => {
+test("a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)", async () => {
+  const { deps, readRow } = await setup();
+  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = { ...deps, isPluginOffByOperator: async () => true };
+  assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "saved-left-off");
+  const saved = await readRow();
+  assert.equal(saved?.enabled, false);
+
+  const outcome = await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: "sbp_an_older_env_token" });
+  assert.equal(outcome, "already-connected");
+  const after = await readRow();
+  assert.equal(after?.authMode, "static_env");
+  assert.deepEqual(after?.sealedOAuth, saved?.sealedOAuth, "the saved token must not be replaced");
+});
+
+test("hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not", () => {
   const blob = { ciphertext: "x", nonce: "y" } as never;
   assert.equal(hasStoredAgentPluginCredential({ authMode: "oauth", sealedOAuth: null, oauthStatus: "connected" }), true);
   assert.equal(hasStoredAgentPluginCredential({ authMode: "static_env", sealedOAuth: blob, oauthStatus: null }), true);

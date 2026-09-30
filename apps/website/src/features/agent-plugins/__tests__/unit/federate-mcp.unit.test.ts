@@ -235,6 +235,39 @@ test("provisionAgentPluginMcpServers: the SAME plugin's untouched row is re-prov
   assert.equal(row?.enabled, false);
 });
 
+test("provisionAgentPluginMcpServers: a disabled row holding a saved access token is kept when the plugin declares token sign-in", async () => {
+  const deps = makeDeps();
+  const server: McpServerConfig = {
+    ...OAUTH_SERVER,
+    tovuTokenAuth: { helpUrl: "https://example.com/tokens", probeUrl: "https://example.com/probe" },
+  };
+  const input = { workspaceId: "ws-1", pluginId: "some-plugin", principalId: "principal-1", servers: { remote: server } };
+  await provisionAgentPluginMcpServers(deps, input);
+  // What agent_plugin_set_access_token writes, with the plugin still off (row disabled, no tools).
+  await saveExternalMcpServer(deps, {
+    workspaceId: "ws-1",
+    serverId: "remote",
+    transport: "streamable_http",
+    authMode: "static_env",
+    enabled: false,
+    command: "",
+    url: "https://mcp.higgsfield.ai/mcp",
+    args: "",
+    allowedToolNames: "",
+    writeAllowedToolNames: "",
+    accessToken: "sbp_saved_token",
+    principalId: "principal-1",
+  });
+  const before = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" });
+  assert.equal(before?.authMode, "static_env");
+  assert.ok(before?.sealedOAuth);
+
+  const result = await provisionAgentPluginMcpServers(deps, input);
+
+  assert.deepEqual(result.alreadyProvisioned, ["remote"]);
+  assert.deepEqual(await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" }), before);
+});
+
 test("provisionAgentPluginMcpServers: the SAME plugin's row at an old url is left alone once it is enabled or has tools granted", async () => {
   for (const edit of [{ enabled: true }, { allowedToolNames: JSON.stringify(["search"]) }]) {
     const deps = makeDeps();

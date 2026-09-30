@@ -1,4 +1,9 @@
-import { saveExternalMcpServer, type ExternalMcpServerRecord, type ExternalMcpStoreDeps } from "#src/assistant/index";
+import {
+  externalMcpRecordHasStaticAccessToken,
+  saveExternalMcpServer,
+  type ExternalMcpServerRecord,
+  type ExternalMcpStoreDeps,
+} from "#src/assistant/index";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
@@ -74,7 +79,9 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  *    provisioning left behind: never enabled, both tool lists empty. Otherwise the new url could
  *    never reach an existing site, and `apply-connect-defaults.ts` (which grants defaults only when
  *    the row's url equals the declared one) would never fire there. Any sign-in state on such a row
- *    was minted for the old endpoint and is dropped with it. A row that is enabled or has any tool
+ *    was minted for the old endpoint and is dropped with it. A saved access token on a server that
+ *    declares `tovuTokenAuth` counts as the declared auth mode, so it is only dropped when the url
+ *    itself changes. A row that is enabled or has any tool
  *    granted is the operator's, and stays byte-identical as above.
  *
  * 2. **SEED DISABLED, LIKE BUNDLED PLUGINS ALREADY DO.** Mirrors `activation.ts`'s
@@ -180,6 +187,9 @@ export interface PlannedAgentPluginMcpUpsert {
   readonly serverKey: string;
   readonly url: string;
   readonly authMode: "oauth" | "none";
+  /** The server declares `tovuTokenAuth`, so a `static_env` row holding a saved access token is one
+   *  of its declared sign-ins, not a changed auth mode. */
+  readonly acceptsAccessToken: boolean;
 }
 
 export interface AgentPluginMcpFederationPlan {
@@ -234,7 +244,10 @@ function classifyAgentPluginMcpServerForFederation(
     return { kind: "skip", reason: `server key '${serverKey}' has no valid characters to derive a connection id from` };
   }
 
-  return { kind: "upsert", planned: { connectionId, serverKey, url: config.url, authMode: config.tovuAuthMode ?? "none" } };
+  return {
+    kind: "upsert",
+    planned: { connectionId, serverKey, url: config.url, authMode: config.tovuAuthMode ?? "none", acceptsAccessToken: config.tovuTokenAuth !== undefined },
+  };
 }
 
 /**
@@ -353,7 +366,11 @@ function buildProvisioningSaveInput(
  *  It is re-provisioned from the current declaration (rule 1b in this file's header).
  *  @complexity O(1) plus two short JSON parses. */
 function isStaleUntouchedProvisioning(existing: ExternalMcpServerRecord, planned: PlannedAgentPluginMcpUpsert): boolean {
-  const declarationChanged = existing.url !== planned.url || existing.authMode !== planned.authMode;
+  // A saved access token on a server that declares token sign-in is that declaration in use, not a
+  // changed auth mode: treating it as stale deleted the token whenever the row was still disabled
+  // (e.g. saved while an operator keeps the plugin off) — Codex review 2026-09-29.
+  const authModeMatches = existing.authMode === planned.authMode || (planned.acceptsAccessToken && externalMcpRecordHasStaticAccessToken(existing));
+  const declarationChanged = existing.url !== planned.url || !authModeMatches;
   return declarationChanged && !existing.enabled && isEmptyJsonList(existing.allowedToolNames) && isEmptyJsonList(existing.writeAllowedToolNames);
 }
 
