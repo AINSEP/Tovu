@@ -63,7 +63,13 @@ export type AdmissionDriftKind =
   // its sealed env because the site token is not available, and the operator was being told to
   // restart the assistant for a problem restarting cannot fix on its own. See
   // {@link isDecryptFailureReason} and the `configFailures` plumbing in {@link describeAdmissionDrift}.
-  | "decrypt-failed";
+  | "decrypt-failed"
+  // The other specific reading of `not-running` (2026-09-29): the daemon DID try this connection at
+  // its last boot and the server failed to start or answer — a crashed stdio child, a timed-out
+  // handshake. Restarting re-runs the same failing launch, so the generic "restart to load it" copy
+  // sent the operator round a loop (observed: namecom's child exiting with code 1 on every boot).
+  // The daemon's own reason is shown instead. See {@link FAILED_TO_START_KEY}.
+  | "failed-to-start";
 
 /** One place the operator's intent and the running assistant disagree. */
 export interface AdmissionDriftEntry {
@@ -179,6 +185,50 @@ const REMOVED_BUT_STILL_RUNNING_KEY =
  */
 const DECRYPT_FAILED_KEY =
   "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.";
+
+/**
+ * A saved, enabled connection the daemon tried at its last boot and could not start (2026-09-29).
+ * Shows the daemon's own reason — for a stdio server that is the child's exit plus the tail of what
+ * it printed to stderr (`adapter.stdio.ts`, with the connection's own env values redacted), which is
+ * the only place a message like npm's "Unsupported URL Type" ever reaches. English-only, same
+ * choice as the keys above.
+ *
+ * This is the one row that surfaces `reason` verbatim, a deliberate exception to
+ * {@link isDecryptFailureReason}'s "translated, predictable copy only" rule: every translated sentence
+ * we could write here ("the server failed") hides the one fact the operator needs to fix it.
+ */
+const FAILED_TO_START_KEY = "The assistant tried to start this server, but it failed: {reason}";
+
+/** Headline for a drift banner where a restart WILL help — something saved since boot. */
+const RESTART_HEADLINE_KEY = "Saved. The assistant is still running with its previous tool list.";
+/** Headline when nothing listed would change on a restart — the server itself does not offer a
+ *  tool, refused it, or failed to start. Saying "still running its previous tool list" there sent
+ *  the operator to restart, see the same list again, and conclude the restart was broken. */
+const NO_RESTART_HEADLINE_KEY = "Some saved tools aren't loaded. Restarting the assistant won't change this — the reasons are below.";
+
+/** The kinds a restart alone never changes: the server does not offer the tool, marks it
+ *  destructive, published it broken, cannot be unlocked, or fails to start. Every OTHER kind is the
+ *  boot-time freeze (`trust.ts` R5) seen from one side or the other — or a write grant, which takes
+ *  effect at the next restart — so it is listed here by exclusion, and a kind added later defaults to
+ *  the pre-existing restart headline. */
+const RESTART_CANNOT_FIX: ReadonlySet<AdmissionDriftKind> = new Set<AdmissionDriftKind>([
+  "not-offered",
+  "destructive",
+  "server-side-defect",
+  "decrypt-failed",
+  "failed-to-start",
+]);
+
+/**
+ * The banner's first line: whether the rows below are waiting on a restart, or are things a restart
+ * cannot change. One row a restart would change is enough for the restart headline.
+ *
+ * @complexity O(c · e) in connections and their rows.
+ */
+export function describeDriftHeadline(connections: readonly AdmissionDriftConnection[]): string {
+  const restartHelps = connections.some((connection) => connection.entries.some((entry) => !RESTART_CANNOT_FIX.has(entry.kind)));
+  return restartHelps ? RESTART_HEADLINE_KEY : NO_RESTART_HEADLINE_KEY;
+}
 
 /**
  * Whether a boot-time config-resolution failure names a decrypt failure specifically, the one case
@@ -327,7 +377,8 @@ function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolC
  * Resolves a `not-running`/`disabled-but-running` connection-level row's final kind and copy, giving
  * the `not-running` arm a more specific reading when a boot-time config-resolution failure names a
  * decrypt problem — see {@link DECRYPT_FAILED_KEY}'s own doc on why the generic "restart the
- * assistant" copy is actively wrong for that one case. A `disabled-but-running` connection never
+ * assistant" copy is actively wrong for that one case — and, for any OTHER reported failure, the
+ * {@link FAILED_TO_START_KEY} reading, where restarting is just as wrong. A `disabled-but-running` connection never
  * takes this branch: it is live by definition, and a config-resolution failure means the connection
  * never got that far. Split out of {@link connectionLevelEntry}, the same "flat chain rather than a
  * nested ternary" extraction {@link resolveConnectionLevelKind} above already models.
@@ -337,11 +388,13 @@ function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolC
 function resolveNotRunningCopy(
   kind: "not-running" | "disabled-but-running",
   configFailureReason: string | undefined,
-): { readonly kind: AdmissionDriftKind; readonly messageKey: string } {
-  if (kind === "not-running" && configFailureReason !== undefined && isDecryptFailureReason(configFailureReason)) {
-    return { kind: "decrypt-failed", messageKey: DECRYPT_FAILED_KEY };
+): { readonly kind: AdmissionDriftKind; readonly messageKey: string; readonly messageVars: Readonly<Record<string, string>> } {
+  if (kind === "not-running" && configFailureReason !== undefined) {
+    return isDecryptFailureReason(configFailureReason)
+      ? { kind: "decrypt-failed", messageKey: DECRYPT_FAILED_KEY, messageVars: {} }
+      : { kind: "failed-to-start", messageKey: FAILED_TO_START_KEY, messageVars: { reason: configFailureReason } };
   }
-  return { kind, messageKey: kind === "not-running" ? NOT_RUNNING_KEY : DISABLED_BUT_RUNNING_KEY };
+  return { kind, messageKey: kind === "not-running" ? NOT_RUNNING_KEY : DISABLED_BUT_RUNNING_KEY, messageVars: {} };
 }
 
 /**
@@ -386,7 +439,7 @@ function connectionLevelEntry(
         remoteName: null,
         kind: resolved.kind,
         messageKey: resolved.messageKey,
-        messageVars: {},
+        messageVars: resolved.messageVars,
       },
     ],
   };

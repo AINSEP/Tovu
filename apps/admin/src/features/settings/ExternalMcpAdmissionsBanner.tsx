@@ -1,7 +1,7 @@
 import type { Translate } from "@/lib/dictionary-translator";
 import { interpolate } from "@/lib/template-i18n";
 
-import type { AdmissionDriftConnection, AdmissionDriftEntry } from "./external-mcp-admissions-rules";
+import { describeDriftHeadline, type AdmissionDriftConnection, type AdmissionDriftEntry } from "./external-mcp-admissions-rules";
 import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-admissions.hooks";
 
 /**
@@ -136,6 +136,14 @@ export interface ExternalMcpAdmissionsBannerProps {
 export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite }: ExternalMcpAdmissionsBannerProps) {
   if (controller.loading) return null;
 
+  if (controller.waitingForAssistant) {
+    return (
+      <p className="external-mcp-status" role="status">
+        {t("The assistant is starting. This list updates on its own when it's ready.")}
+      </p>
+    );
+  }
+
   if (controller.unavailable) {
     return (
       <div className="external-mcp-banner" role="status">
@@ -152,7 +160,7 @@ export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite }: Ext
     // `alert` and its `status`) would make a screen reader announce the whole banner again on every
     // inner change.
     <div className="external-mcp-banner external-mcp-drift">
-      <p>{t("Saved. The assistant is still running with its previous tool list.")}</p>
+      <p>{t(describeDriftHeadline(controller.connections))}</p>
       {controller.connections.map((connection) => (
         <AdmissionConnectionSection key={connection.connectionId} connection={connection} t={t} onAllowWrite={onAllowWrite} />
       ))}

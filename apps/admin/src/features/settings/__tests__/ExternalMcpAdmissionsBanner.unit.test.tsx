@@ -23,6 +23,7 @@ function controller(overrides: Partial<ExternalMcpAdmissionsController> = {}): E
   return {
     loading: false,
     unavailable: null,
+    waitingForAssistant: false,
     connections: [],
     canRestart: true,
     restarting: false,
@@ -214,5 +215,34 @@ describe("ExternalMcpAdmissionsBanner", () => {
 
     expect(screen.getByText("Restarting…")).toBeInTheDocument();
     expect(screen.queryByText(/restarted/i)).not.toBeInTheDocument();
+  });
+
+  // 2026-09-29: the daemon only listens after connecting every saved server, and the dev API
+  // respawns it on every save, so "can't ask it" is usually "it's starting". The owner's rule: wait
+  // and retry, never a red error for that window.
+  it("shows a calm 'starting' line, not the red error, while the assistant is still being waited for", () => {
+    const { container } = render(
+      <ExternalMcpAdmissionsBanner controller={controller({ waitingForAssistant: true })} t={IDENTITY_T} onAllowWrite={() => {}} />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("The assistant is starting. This list updates on its own when it's ready.");
+    expect(container.querySelector(".external-mcp-banner")).toBeNull();
+    expect(screen.queryByText(/not reachable/)).not.toBeInTheDocument();
+  });
+
+  it("does not tell the operator a restart is pending when nothing listed would change on a restart", () => {
+    const notOffered = higgsfieldDrift({
+      connectionId: "supabase",
+      notLoaded: ["get_logs"],
+      entries: [
+        { connectionId: "supabase", remoteName: "get_logs", kind: "not-offered", messageKey: "This server does not offer a tool by that name.", messageVars: {} },
+      ],
+    });
+    render(<ExternalMcpAdmissionsBanner controller={controller({ connections: [notOffered] })} t={IDENTITY_T} onAllowWrite={() => {}} />);
+
+    expect(
+      screen.getByText("Some saved tools aren't loaded. Restarting the assistant won't change this — the reasons are below."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Saved. The assistant is still running with its previous tool list.")).not.toBeInTheDocument();
   });
 });

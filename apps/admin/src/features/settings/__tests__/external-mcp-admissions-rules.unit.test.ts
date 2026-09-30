@@ -5,6 +5,7 @@ import type { AdminFederatedAdmissionEntry } from "@/lib/api";
 import {
   describeAdmissionDrift,
   describeConnectionDrift,
+  describeDriftHeadline,
   grantWriteFieldValue,
   parseSavedToolNames,
 } from "../external-mcp-admissions-rules";
@@ -338,14 +339,21 @@ describe("decrypt-failed — a saved connection that never reached admission", (
     expect(message).not.toContain(rawReason);
   });
 
-  it("falls back to the generic not-running message for a config failure that is not a decrypt problem", () => {
+  // Changed 2026-09-29 (was: the generic "restart to load it" copy). A reported failure means the
+  // daemon already TRIED this server and it failed, so "restart" re-runs the same failure: the owner
+  // restarted, saw namecom "not running" again, and read it as the restart being broken.
+  it("shows the daemon's own reason, not the restart advice, for a reported failure that is not a decrypt problem", () => {
+    const reason =
+      "mcp-federation: session closed before the request completed (child process exited (code=1, signal=null): npm error code EUNSUPPORTEDPROTOCOL)";
     const drifted = describeAdmissionDrift(
-      { connections: [], configFailures: [{ connectionId: "higgsfield", reason: "no command is configured to launch it" }] },
-      { higgsfield: { allowedToolNames: "generate_image", enabled: true } },
+      { connections: [], configFailures: [{ connectionId: "namecom", reason }] },
+      { namecom: { allowedToolNames: "Hello, TldPriceList", enabled: true } },
     );
 
-    expect(drifted[0]?.entries[0]?.kind).toBe("not-running");
-    expect(drifted[0]?.entries[0]?.messageKey).toBe("The assistant isn't running this server at all. Restart the assistant to load it.");
+    expect(drifted[0]?.entries[0]?.kind).toBe("failed-to-start");
+    expect(drifted[0]?.entries[0]?.messageKey).toBe("The assistant tried to start this server, but it failed: {reason}");
+    expect(drifted[0]?.entries[0]?.messageVars).toEqual({ reason });
+    expect(drifted[0]?.notLoaded).toEqual(["Hello", "TldPriceList"]);
   });
 
   it("ignores a config failure for a DIFFERENT connection id", () => {
@@ -420,5 +428,48 @@ describe("a deleted roster connection is not a preset", () => {
     expect(drifted).toHaveLength(1);
     expect(drifted[0]?.entries).toHaveLength(1);
     expect(drifted[0]?.entries[0]?.kind).toBe("removed-but-still-running");
+  });
+});
+
+describe("describeDriftHeadline — does a restart actually help?", () => {
+  const RESTART = "Saved. The assistant is still running with its previous tool list.";
+  const NO_RESTART = "Some saved tools aren't loaded. Restarting the assistant won't change this — the reasons are below.";
+
+  it("does not promise a restart fix when every row is something the server itself decides (the owner's 2026-09-29 screen)", () => {
+    const drifted = describeAdmissionDrift(
+      {
+        connections: [entry({ connectionId: "supabase", admitted: [{ remoteName: "list_projects", writeAuthorized: false }], allowlistedButAbsent: ["get_logs"] })],
+        configFailures: [{ connectionId: "namecom", reason: "child process exited (code=1, signal=null)" }],
+      },
+      {
+        supabase: { allowedToolNames: "list_projects, get_logs", enabled: true },
+        namecom: { allowedToolNames: "Hello", enabled: true },
+      },
+    );
+
+    expect(drifted).toHaveLength(2);
+    expect(describeDriftHeadline(drifted)).toBe(NO_RESTART);
+  });
+
+  it("keeps the restart headline when at least one row is waiting on a restart", () => {
+    const drifted = describeAdmissionDrift(
+      { connections: [entry({ connectionId: "supabase", allowlistedButAbsent: ["get_logs"] })] },
+      {
+        supabase: { allowedToolNames: "get_logs", enabled: true },
+        added_since_boot: { allowedToolNames: "a", enabled: true },
+      },
+    );
+
+    expect(describeDriftHeadline(drifted)).toBe(RESTART);
+  });
+
+  it("keeps the restart headline for a write-grant row, which takes effect at the next restart", () => {
+    const drifted = describeConnectionDrift(
+      entry({ refused: [{ remoteName: "generate_image", reason: "remote-declares-not-read-only" }] }),
+      "generate_image",
+    );
+
+    expect(drifted).not.toBeNull();
+    expect(describeDriftHeadline(drifted ? [drifted] : [])).toBe(RESTART);
   });
 });

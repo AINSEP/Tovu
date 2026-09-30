@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, describeApiError, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  API_UNREACHABLE_CODE,
+  describeApiError,
+  REQUEST_TIMEOUT_CODE,
+  type AdminExternalMcpAdmissionsSnapshot,
+} from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { hasPermission } from "@/lib/permissions";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -40,8 +47,12 @@ export interface ExternalMcpAdmissionsPort {
 
 export interface ExternalMcpAdmissionsController {
   readonly loading: boolean;
-  /** A sentence to render when the daemon could not be asked. `null` when it answered. */
+  /** A sentence to render when the daemon could not be asked AND the automatic wait for it is over.
+   *  `null` when it answered, and `null` while {@link waitingForAssistant} is still true. */
   readonly unavailable: string | null;
+  /** `true` while the daemon cannot be asked for a reason that normally clears on its own (it is
+   *  booting or respawning) and this hook is still re-asking — see {@link useUnavailableRetry}. */
+  readonly waitingForAssistant: boolean;
   /** Only connections with something to say — an agreeing roster renders nothing. */
   readonly connections: readonly AdmissionDriftConnection[];
   /** D-4: whether this principal may actually restart the assistant. */
@@ -74,6 +85,74 @@ export const defaultExternalMcpAdmissionsPort: ExternalMcpAdmissionsPort = {
 function resolveUnavailable(error: unknown, t: Translate): string | null {
   if (!error) return null;
   return describeApiError(error, t("The assistant is not reporting what it loaded — it may not be running."));
+}
+
+/** The admissions route's own 503 code (`routes/external-mcp/admissions.ts`) for "the daemon could
+ *  not be asked". */
+const AGENT_DAEMON_UNAVAILABLE_CODE = "AGENT_DAEMON_UNAVAILABLE";
+
+/**
+ * Whether a failed admissions read is one that normally clears on its own: the daemon is booting or
+ * respawning (the route's 503), or the API in front of it is (unreachable, timed out, or a 5xx from
+ * the dev proxy). A 401/403/404 is not — waiting changes nothing about those.
+ *
+ * Why waiting is the right default (2026-09-29): the daemon only binds its port AFTER it has
+ * connected every saved external MCP server, one after another (`agent-daemon-server.ts` `start()`),
+ * and the dev API respawns it on every source save. A boot was measured at ~80s after the API's own
+ * ~40s. Reading once on mount and showing "not reachable" for that whole window put a red error in
+ * front of an assistant that was simply starting — and nothing re-read it afterwards.
+ *
+ * @complexity O(1).
+ */
+export function isAssistantStartingError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  if (error.code === AGENT_DAEMON_UNAVAILABLE_CODE || error.code === API_UNREACHABLE_CODE || error.code === REQUEST_TIMEOUT_CODE) return true;
+  return error.status >= 500;
+}
+
+/** Gap between automatic re-reads while the assistant is starting. */
+export const UNAVAILABLE_RETRY_INTERVAL_MS = 3_000;
+
+/** How long the automatic wait lasts before the real error is shown: 60 × 3s = three minutes, which
+ *  holds a dev API reload plus a slow daemon boot with room to spare. A daemon that is genuinely
+ *  down still gets reported — just not during the window where "down" is the wrong reading. */
+export const UNAVAILABLE_RETRY_ATTEMPTS = 60;
+
+/**
+ * Re-reads the admissions snapshot while it keeps failing with {@link isAssistantStartingError},
+ * up to {@link UNAVAILABLE_RETRY_ATTEMPTS} times, and resets once a read succeeds (or fails for a
+ * reason waiting cannot fix). Same `setTimeout`-chain-on-a-counter shape as {@link useRestartWatch},
+ * for the same reasons. A read already in flight is never interrupted: `refetch` cancels an in-flight
+ * request, so firing on a timer regardless would starve a slow-but-answering daemon forever.
+ *
+ * @returns `true` while still waiting — the caller shows a calm "starting" line instead of the error.
+ * @complexity O(1) per attempt; at most {@link UNAVAILABLE_RETRY_ATTEMPTS} attempts per outage.
+ */
+function useUnavailableRetry(failingTransiently: boolean, isFetching: boolean, refetch: () => void): boolean {
+  const [attempts, setAttempts] = useState(0);
+  const refetchRef = useRef(refetch);
+  useEffect(() => {
+    refetchRef.current = refetch;
+  });
+
+  useEffect(() => {
+    if (!failingTransiently) setAttempts(0);
+  }, [failingTransiently]);
+
+  const waiting = failingTransiently && attempts < UNAVAILABLE_RETRY_ATTEMPTS;
+
+  useEffect(() => {
+    const handle =
+      !waiting || isFetching
+        ? undefined
+        : setTimeout(() => {
+            refetchRef.current();
+            setAttempts((used) => used + 1);
+          }, UNAVAILABLE_RETRY_INTERVAL_MS);
+    return () => clearTimeout(handle);
+  }, [waiting, isFetching, attempts]);
+
+  return waiting;
 }
 
 /** Gap between post-restart re-reads. The daemon is a child of the API process and comes back in
@@ -201,12 +280,14 @@ export function useExternalMcpAdmissions(deps: {
 
   const { watching, begin: beginRestartWatch } = useRestartWatch(admissions.refetch);
   const restart = useRestartAction(restartCall.mutate, setOutcome, beginRestartWatch);
+  const waitingForAssistant = useUnavailableRetry(isAssistantStartingError(admissions.error), admissions.isFetching, admissions.refetch);
 
   const refusal = resolveRefusal(outcome, t);
 
   return {
     loading: admissions.status === "loading",
-    unavailable: resolveUnavailable(admissions.error, t),
+    unavailable: waitingForAssistant ? null : resolveUnavailable(admissions.error, t),
+    waitingForAssistant,
     connections,
     canRestart: hasPermission(permissions.data?.effectivePermissions ?? [], "system.write"),
     restarting: restartCall.status === "pending",

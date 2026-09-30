@@ -276,3 +276,15 @@
   color: var(--faint);
   font-size: var(--text-2xs);
 }
+
+/* "The assistant is starting" line above the server list (`ExternalMcpAdmissionsBanner.tsx`): a
+   wait, not a fault, so muted text rather than `.external-mcp-banner`'s danger colours. */
+.external-mcp-status {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--jini-text-muted);
+  background: var(--jini-bg-subtle);
+  border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius-sm);
+}

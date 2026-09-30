@@ -1,10 +1,16 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
+import { ApiError, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 
-import { useExternalMcpAdmissions, type ExternalMcpAdmissionsPort } from "../use-external-mcp-admissions.hooks";
+import {
+  isAssistantStartingError,
+  UNAVAILABLE_RETRY_ATTEMPTS,
+  UNAVAILABLE_RETRY_INTERVAL_MS,
+  useExternalMcpAdmissions,
+  type ExternalMcpAdmissionsPort,
+} from "../use-external-mcp-admissions.hooks";
 import type { SavedConnectionIntent } from "../../external-mcp-admissions-rules";
 
 /**
@@ -198,5 +204,136 @@ describe("useExternalMcpAdmissions — post-restart freshness (ADM-002)", () => 
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/** The admissions route's own 503 body for a daemon that is not listening yet. */
+function daemonUnavailable(): ApiError {
+  return new ApiError("the agent daemon is not reachable — the assistant may not be running", 503, "AGENT_DAEMON_UNAVAILABLE", {
+    error: "the agent daemon is not reachable — the assistant may not be running",
+    code: "AGENT_DAEMON_UNAVAILABLE",
+  });
+}
+
+/** A port whose admissions read fails with `failure()` for the first `failures` reads, then answers. */
+function startingPort(failures: number, failure: () => Error = daemonUnavailable) {
+  let reads = 0;
+  const getAdmissions = vi.fn(async (): Promise<AdminExternalMcpAdmissionsSnapshot> => {
+    reads += 1;
+    if (reads <= failures) throw failure();
+    return STALE;
+  });
+  const port: ExternalMcpAdmissionsPort = {
+    getAdmissions,
+    me: async () => ({ effectivePermissions: ["system.write"] }),
+    restartAssistantDaemon: async () => ({ ok: true }),
+  };
+  return { port, getAdmissions };
+}
+
+// 2026-09-29: the owner saw "the agent daemon is not reachable" while the assistant was plainly
+// running. The daemon binds its port only after connecting every saved server (~80s on this box),
+// the dev API respawns it on every source save, and the tab read admissions ONCE on mount. Owner
+// rule: users never fix anything by hand — wait and retry, don't show a scary error.
+describe("useExternalMcpAdmissions — waits for a starting assistant instead of reporting it down", () => {
+  it("does not surface the 503 while the daemon is starting, and loads the real answer once it is up", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { port } = startingPort(5);
+      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+
+      await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
+      expect(result.current.unavailable).toBeNull();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNAVAILABLE_RETRY_INTERVAL_MS * 8);
+      });
+
+      expect(result.current.waitingForAssistant).toBe(false);
+      expect(result.current.unavailable).toBeNull();
+      expect(result.current.connections).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports the daemon as unavailable only after the whole wait is spent", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY);
+      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+
+      await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNAVAILABLE_RETRY_INTERVAL_MS * (UNAVAILABLE_RETRY_ATTEMPTS + 5));
+      });
+
+      expect(result.current.waitingForAssistant).toBe(false);
+      expect(result.current.unavailable).toBe("the agent daemon is not reachable — the assistant may not be running");
+      // One mount read plus exactly the bounded retries — never an unbounded poll.
+      expect(getAdmissions).toHaveBeenCalledTimes(UNAVAILABLE_RETRY_ATTEMPTS + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not wait on an error that waiting cannot fix (403)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY, () => new ApiError("forbidden", 403, "FORBIDDEN"));
+      const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+
+      await waitFor(() => expect(result.current.unavailable).toBe("forbidden"));
+      expect(result.current.waitingForAssistant).toBe(false);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNAVAILABLE_RETRY_INTERVAL_MS * 10);
+      });
+
+      expect(getAdmissions).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops retrying when the panel unmounts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { port, getAdmissions } = startingPort(Number.POSITIVE_INFINITY);
+      const { result, unmount } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+
+      await waitFor(() => expect(result.current.waitingForAssistant).toBe(true));
+      unmount();
+      const readsAtUnmount = getAdmissions.mock.calls.length;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNAVAILABLE_RETRY_INTERVAL_MS * 10);
+      });
+
+      expect(getAdmissions.mock.calls.length).toBe(readsAtUnmount);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("isAssistantStartingError", () => {
+  it.each([
+    ["the admissions route's 503", new ApiError("x", 503, "AGENT_DAEMON_UNAVAILABLE")],
+    ["an API that is itself restarting", new ApiError("x", 0, "API_UNREACHABLE")],
+    ["a request that timed out", new ApiError("x", 0, "REQUEST_TIMEOUT")],
+    ["a bare 500 from the dev proxy", new ApiError("", 500)],
+  ])("treats %s as 'still starting'", (_label, error) => {
+    expect(isAssistantStartingError(error)).toBe(true);
+  });
+
+  it.each([
+    ["a 401", new ApiError("x", 401, "UNAUTHENTICATED")],
+    ["a 403", new ApiError("x", 403, "FORBIDDEN")],
+    ["a plain Error", new Error("x")],
+    ["nothing", null],
+  ])("does not wait on %s", (_label, error) => {
+    expect(isAssistantStartingError(error)).toBe(false);
   });
 });
