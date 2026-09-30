@@ -8,10 +8,10 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createPackageWithOptions } from "@electron/asar";
+import { createPackageWithOptions, getRawHeader } from "@electron/asar";
 
 import {
   VERIFIED_PREFIXES,
@@ -22,6 +22,29 @@ import {
   toArchiveEntryPath,
   verifyAsarAgainstSource,
 } from "./asar-verify.ts";
+
+type RawHeaderNode = { files?: Record<string, RawHeaderNode>; size?: number; unpacked?: boolean };
+
+/** Sum of every packed (not unpacked) file's byte size under a raw asar header node. */
+function packedBytes(node: RawHeaderNode): number {
+  if (node.files) return Object.values(node.files).reduce((sum, child) => sum + packedBytes(child), 0);
+  return node.unpacked ? 0 : node.size ?? 0;
+}
+
+/** `createPackageWithOptions` (@electron/asar 3.4.1) resolves on `out.end()` WITHOUT waiting for the
+ *  write stream to flush, so under a loaded machine (the full `npm run gates` run) a test read the
+ *  archive half-written: file content "not found" or "differs from source". The header is awaited
+ *  before any data is streamed, so the complete size is known — wait until the file reaches it. */
+async function packArchive(root: string, asarPath: string): Promise<void> {
+  await createPackageWithOptions(root, asarPath, {});
+  const { header, headerSize } = getRawHeader(asarPath);
+  const completeSize = 8 + headerSize + packedBytes(header as RawHeaderNode);
+  const deadline = Date.now() + 10_000;
+  while (statSync(asarPath).size < completeSize) {
+    assert.ok(Date.now() < deadline, `app.asar never reached its complete ${completeSize} bytes`);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
 
 // --- filesUnderPrefixes: pure tree-walk, no real archive involved --------------------------------
 
@@ -86,7 +109,7 @@ async function buildFixture() {
   }
 
   const asarPath = path.join(root, "app.asar");
-  await createPackageWithOptions(root, asarPath, {});
+  await packArchive(root, asarPath);
   return { root, asarPath, files };
 }
 
@@ -195,7 +218,7 @@ async function buildFixtureWithDist() {
   }
 
   const asarPath = path.join(outer, "app.asar"); // sibling to `root`, never inside it — see doc comment above
-  await createPackageWithOptions(root, asarPath, {});
+  await packArchive(root, asarPath);
   return { root, asarPath, files, teardown: () => rmSync(outer, { recursive: true, force: true }) };
 }
 
@@ -279,7 +302,7 @@ test("a stale dist/ file left behind by an incremental build (no current .ts sou
     // exactly as `npm run build` -> `electron-builder` would leave it.
     const orphanRel = "dist/contracts/orphaned-old-name.js";
     writeFileSync(path.join(root, orphanRel), "// orphaned build output, no current .ts source\n");
-    await createPackageWithOptions(root, asarPath, {});
+    await packArchive(root, asarPath);
 
     const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, VERIFIED_PREFIXES);
     assert.equal(checkedCount, Object.keys(files).length + 1, "the orphan was genuinely packed, so it IS checked");
