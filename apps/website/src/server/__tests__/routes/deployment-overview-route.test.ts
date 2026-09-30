@@ -89,7 +89,9 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
     else process.env.JINI_AGENT_DAEMON_PORT = previousDaemonPort;
     if (previousRootKey === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
     else process.env.TOVU_INTEGRATIONS_ROOT_KEY = previousRootKey;
-    process.env.HOME = previousHome;
+    // `process.env.HOME = undefined` stores the string "undefined", not an absent HOME.
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
     rmSync(home, { recursive: true, force: true });
   });
 
