@@ -478,7 +478,11 @@ test("an invalid input (bad owner) is refused before any decrypt or network call
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   // The host's (github plugin's) own text, checked once the credential's base URL names the host.
-  await assert.rejects(() => call(writeTool, { input: { ...VALID_INPUT, owner: "-bad" } }), /invalid GitHub owner '-bad'/);
+  // A confirmation channel is present: without one the no-channel refusal comes first (12f9c2b0c).
+  await assert.rejects(
+    () => call(writeTool, { input: { ...VALID_INPUT, owner: "-bad" }, emitSurface: async () => undefined }),
+    /invalid GitHub owner '-bad'/
+  );
   assert.equal(sealer.openCalls, 0);
   assert.equal(httpClient.calls.length, 0);
   assert.equal(surfaceExchanges.size(), 0);
