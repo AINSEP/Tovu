@@ -7,7 +7,14 @@ import type { StaticExportController } from "../hooks/use-static-export.hooks";
 import type { StaticPublishController } from "../hooks/use-static-publish.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
 import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@/lib/api";
-import { PUBLISH_CREDENTIAL_PROVIDERS, STATIC_HOSTS, STATIC_SITE_CAPABILITIES } from "../rules";
+import {
+  STATIC_SITE_CAPABILITIES,
+  publishTargetById,
+  staticPublishFormReadyForPreview,
+  staticPublishFormReadyToPublish,
+  staticPublishProjectNameCopy,
+} from "../rules";
+import { CREDENTIAL_TARGET_IDS, NETLIFY_TARGET, PLAIN_TARGET, PUBLISH_TARGETS } from "./publish-targets.fixture";
 import { usePublishCredentials } from "../hooks/use-publish-credentials.hooks";
 import { createFakePublishCredentialsPort } from "../hooks/publish-credentials-dependencies.hooks";
 import { FetchQueryProvider } from "@/lib/fetch-query";
@@ -45,19 +52,28 @@ function exportControllerFixture(overrides: Partial<StaticExportController> = {}
   };
 }
 
+/** A publish controller over the fixture registry. `selectedTarget`, `canPreview`, `canPublish` and
+ *  `projectNameCopy` are derived from `targets`/`target`/`configValues`/`projectName` with the same
+ *  `rules.ts` functions the real hook uses, so a test sets the inputs and never a derived flag by
+ *  hand (an override still wins, for a test that pins one flag directly). */
 function publishControllerFixture(overrides: Partial<StaticPublishController> = {}): StaticPublishController {
+  const targets = "targets" in overrides ? overrides.targets : PUBLISH_TARGETS;
+  const target = overrides.target ?? "github-pages";
+  const configValues = overrides.configValues ?? {};
+  const projectName = overrides.projectName ?? "";
+  const selectedTarget = publishTargetById(targets, target);
   return {
-    target: "github-pages",
+    targets,
+    targetsError: null,
+    target,
+    selectedTarget,
     setTarget: vi.fn(),
-    owner: "",
-    setOwner: vi.fn(),
-    repo: "",
-    setRepo: vi.fn(),
-    branch: "",
-    setBranch: vi.fn(),
-    teamId: "",
-    setTeamId: vi.fn(),
-    projectName: "",
+    configValues,
+    setConfigField: vi.fn(),
+    canPreview: staticPublishFormReadyForPreview(selectedTarget, configValues),
+    canPublish: staticPublishFormReadyToPublish(selectedTarget, configValues, projectName),
+    projectNameCopy: staticPublishProjectNameCopy(selectedTarget),
+    projectName,
     setProjectName: vi.fn(),
     preview: undefined,
     previewLoading: false,
@@ -88,13 +104,16 @@ const GH_CREDENTIAL: AdminPublishCredentialSummary = {
 
 /** One provider row, blank/not-connected unless overridden — mirrors
  *  `use-publish-credentials.hooks.ts`'s own `PublishCredentialRowState` shape exactly, since the
- *  fixture below builds one row per {@link PUBLISH_CREDENTIAL_PROVIDERS} entry from a list of these. */
+ *  fixture below builds one row per credential-taking fixture target from a list of these. */
 function credentialRowFixture(providerId: AdminPublishCredentialProviderId, overrides: Partial<PublishCredentialRowState> = {}): PublishCredentialRowState {
+  const target = publishTargetById(PUBLISH_TARGETS, providerId);
+  if (target?.credential === undefined) throw new Error(`no credential-taking fixture target '${providerId}'`);
   return {
     providerId,
+    label: target.label,
+    credential: target.credential,
     saved: undefined,
-    token: "",
-    accountId: "",
+    values: {},
     saving: false,
     error: null,
     verifying: false,
@@ -114,20 +133,19 @@ type CredentialsControllerFixtureOverrides = Partial<Omit<PublishCredentialsCont
   rowOverrides?: Partial<Record<AdminPublishCredentialProviderId, Partial<PublishCredentialRowState>>>;
 };
 
-/** Builds the full four-row `rows` array a real hook load would produce, applying `rowOverrides` (by
+/** Builds the full `rows` array a real hook load would produce, applying `rowOverrides` (by
  *  provider id) to just the rows a test cares about — every OTHER row stays a blank, not-connected
  *  default so a test asserting on one provider's row is never accidentally passing because a sibling
  *  row happened to satisfy the same assertion. */
 function credentialsControllerFixture(overrides: CredentialsControllerFixtureOverrides = {}): PublishCredentialsController {
   const { rows, rowOverrides, ...rest } = overrides;
-  const finalRows = rows ?? PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => credentialRowFixture(provider.id, rowOverrides?.[provider.id]));
+  const finalRows = rows ?? CREDENTIAL_TARGET_IDS.map((providerId) => credentialRowFixture(providerId, rowOverrides?.[providerId]));
   return {
     rows: finalRows,
     executionMode: "self-hosted-cli",
     loadError: null,
     credentialChangePending: false,
-    setToken: vi.fn(),
-    setAccountId: vi.fn(),
+    setField: vi.fn(),
     save: vi.fn().mockResolvedValue(undefined),
     // Defaults to "this provider's own row's `saved` credential, if any" — enough for the picker's
     // "renders nothing below two options" default path; a test exercising the picker's multi-option
@@ -159,7 +177,7 @@ function renderTab(overrides: {
 }
 
 describe("StaticSiteTab — card 1, unchanged", () => {
-  it("still states the export is a terminal command, lists what survives it, and the four hosts", () => {
+  it("still states the export is a terminal command, lists what survives it, and every host the registry lists", () => {
     renderTab();
     expect(screen.getByText("Build it from a terminal")).toBeInTheDocument();
     expect(screen.getByText("tovu export <dir>")).toBeInTheDocument();
@@ -167,7 +185,7 @@ describe("StaticSiteTab — card 1, unchanged", () => {
     // `getAllByText` rather than `getByText`: "GitHub Pages" now also appears as the provider
     // picker's own tab label further down the same tab, which is expected (they're two different,
     // correct appearances of the same proper noun), not a collision to fix away.
-    for (const host of STATIC_HOSTS) expect(screen.getAllByText(host).length).toBeGreaterThan(0);
+    for (const target of PUBLISH_TARGETS) expect(screen.getAllByText(target.label).length).toBeGreaterThan(0);
   });
 });
 
@@ -362,9 +380,9 @@ describe("StaticSiteTab — provider picker shows one provider's fields at a tim
   it("defaults to GitHub Pages: shows owner/repo/branch fields and no teamId field", () => {
     renderTab();
     expect(screen.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByLabelText("GitHub owner or org")).toBeInTheDocument();
+    expect(screen.getByLabelText("Owner")).toBeInTheDocument();
     expect(screen.getByLabelText("Repository")).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Vercel team/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Team ID/)).not.toBeInTheDocument();
   });
 
   it("switching to Vercel shows only the teamId field — no GitHub fields", async () => {
@@ -382,8 +400,8 @@ describe("StaticSiteTab — provider picker shows one provider's fields at a tim
         usePublishCredentialsHook={() => credentialsControllerFixture()}
       />,
     );
-    expect(screen.getByLabelText("Vercel team (optional)")).toBeInTheDocument();
-    expect(screen.queryByLabelText("GitHub owner or org")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Team ID (optional)")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Owner")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Repository")).not.toBeInTheDocument();
   });
 
@@ -401,8 +419,8 @@ describe("StaticSiteTab — provider picker shows one provider's fields at a tim
   it("netlify: no target-specific field", () => {
     renderTab({ publishController: { target: "netlify" } });
     expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toHaveTextContent("Netlify");
-    expect(screen.queryByLabelText("GitHub owner or org")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Vercel team/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Owner")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Team ID/)).not.toBeInTheDocument();
   });
 });
 
@@ -451,33 +469,33 @@ describe("StaticSiteTab — publish-target tab bar: connected indicator", () => 
 
 describe("StaticSiteTab — preview and publish gating", () => {
   it("Preview and Publish stay disabled for GitHub Pages until owner and repo are both filled", () => {
-    renderTab({ publishController: { owner: "octo", repo: "" } });
+    renderTab({ publishController: { configValues: { owner: "octo" } } });
     expect(screen.getByRole("button", { name: "Preview" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
   });
 
   it("Preview enables once owner+repo are filled; Publish still needs a projectName too", async () => {
     const user = userEvent.setup();
-    renderTab({ publishController: { owner: "octo", repo: "demo-repo", projectName: "" } });
+    renderTab({ publishController: { configValues: { owner: "octo", repo: "demo-repo" }, projectName: "" } });
     expect(screen.getByRole("button", { name: "Preview" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
 
     const checkPreview = vi.fn().mockResolvedValue(undefined);
-    renderTab({ publishController: { owner: "octo", repo: "demo-repo", checkPreview } });
+    renderTab({ publishController: { configValues: { owner: "octo", repo: "demo-repo" }, checkPreview } });
     await user.click(screen.getAllByRole("button", { name: "Preview" })[1]!);
     expect(checkPreview).toHaveBeenCalledTimes(1);
   });
 
   it("Vercel needs only a projectName — Publish enables with no owner/repo at all", () => {
-    renderTab({ publishController: { target: "vercel", owner: "", repo: "", projectName: "my-site" } });
+    renderTab({ publishController: { target: "vercel", projectName: "my-site" } });
     expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
   });
 
   it("Netlify and Cloudflare Pages each need only a projectName too — no target-specific field to fill first", () => {
-    renderTab({ publishController: { target: "netlify", owner: "", repo: "", projectName: "my-site" } });
+    renderTab({ publishController: { target: "netlify", projectName: "my-site" } });
     expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
 
-    renderTab({ publishController: { target: "cloudflare-pages", owner: "", repo: "", projectName: "my-project" } });
+    renderTab({ publishController: { target: "cloudflare-pages", projectName: "my-project" } });
     expect(screen.getAllByRole("button", { name: "Publish" }).at(-1)).toBeEnabled();
   });
 
@@ -525,8 +543,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
   it("shows the preview's base path and credential status once loaded", () => {
     renderTab({
       publishController: {
-        owner: "octo",
-        repo: "demo-repo",
+        configValues: { owner: "octo", repo: "demo-repo" },
         preview: {
           target: "github-pages",
           valid: true,
@@ -648,28 +665,32 @@ describe("StaticSiteTab — preview and publish gating", () => {
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-poll-error"]')).toBeInTheDocument();
   });
 
-  it("typing into the GitHub Pages owner/repo/branch fields calls the injected setters", async () => {
+  it("typing into the GitHub Pages owner/repo/branch fields calls setConfigField with each descriptor field's name", async () => {
     const user = userEvent.setup();
-    const setOwner = vi.fn();
-    const setRepo = vi.fn();
-    const setBranch = vi.fn();
-    renderTab({ publishController: { target: "github-pages", setOwner, setRepo, setBranch } });
+    const setConfigField = vi.fn();
+    renderTab({ publishController: { target: "github-pages", setConfigField } });
 
-    await user.type(screen.getByLabelText("GitHub owner or org"), "o");
-    expect(setOwner).toHaveBeenCalledWith("o");
+    await user.type(screen.getByLabelText("Owner"), "o");
+    expect(setConfigField).toHaveBeenCalledWith("owner", "o");
     await user.type(screen.getByLabelText("Repository"), "r");
-    expect(setRepo).toHaveBeenCalledWith("r");
+    expect(setConfigField).toHaveBeenCalledWith("repo", "r");
     await user.type(screen.getByLabelText("Branch (optional)"), "b");
-    expect(setBranch).toHaveBeenCalledWith("b");
+    expect(setConfigField).toHaveBeenCalledWith("branch", "b");
   });
 
-  it("typing into the Vercel team field calls the injected setTeamId", async () => {
+  it("typing into the Vercel team field calls setConfigField('teamId', value)", async () => {
     const user = userEvent.setup();
-    const setTeamId = vi.fn();
-    renderTab({ publishController: { target: "vercel", setTeamId } });
+    const setConfigField = vi.fn();
+    renderTab({ publishController: { target: "vercel", setConfigField } });
 
-    await user.type(screen.getByLabelText("Vercel team (optional)"), "t");
-    expect(setTeamId).toHaveBeenCalledWith("t");
+    await user.type(screen.getByLabelText("Team ID (optional)"), "t");
+    expect(setConfigField).toHaveBeenCalledWith("teamId", "t");
+  });
+
+  it("a host with no projectName copy in its descriptor gets the generic label and help", () => {
+    renderTab({ publishController: { targets: [...PUBLISH_TARGETS, PLAIN_TARGET], target: PLAIN_TARGET.id } });
+    expect(screen.getByLabelText("Project name")).toBeInTheDocument();
+    expect(screen.getByText("The host finds or creates a project with this name on every publish.")).toBeInTheDocument();
   });
 
   it("typing into the project name field calls the injected setProjectName", async () => {
@@ -854,8 +875,8 @@ describe("StaticSiteTab — credential section: rows", () => {
     const ghRow = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]');
     expect(ghRow).toBeInTheDocument();
     expect(within(ghRow as HTMLElement).getByText("GitHub Pages")).toBeInTheDocument();
-    for (const provider of PUBLISH_CREDENTIAL_PROVIDERS.filter((p) => p.id !== "github-pages")) {
-      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${provider.id}"]`)).not.toBeInTheDocument();
+    for (const providerId of CREDENTIAL_TARGET_IDS.filter((id) => id !== "github-pages")) {
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${providerId}"]`)).not.toBeInTheDocument();
     }
     expect(screen.queryByRole("button", { name: "Add credential" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Provider")).not.toBeInTheDocument();
@@ -888,7 +909,7 @@ describe("StaticSiteTab — credential section: rows", () => {
   it("a not-connected row shows the 'Connect' step heading and a visibly EMPTY token box — no placeholder text standing in for a value", () => {
     renderTab();
     expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toHaveTextContent("GitHub Pages");
-    const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
+    const ghToken = screen.getByLabelText("Personal access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
     expect(ghToken).toHaveValue("");
     expect(ghToken).not.toHaveAttribute("placeholder");
   });
@@ -907,7 +928,7 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(within(ghRow).getByText(/saved/)).toBeInTheDocument();
     expect(within(ghRow).getByText(/2026-08-15/)).toBeInTheDocument();
     expect(within(ghRow).queryByText(/updated/)).not.toBeInTheDocument();
-    const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
+    const ghToken = screen.getByLabelText("Personal access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
     expect(ghToken).toHaveValue("");
     expect(ghToken).not.toHaveAttribute("placeholder");
   });
@@ -926,12 +947,12 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(screen.getAllByText(/Stored encrypted on the server/).length).toBeGreaterThan(0);
   });
 
-  it("typing into the selected row's token input calls setToken with that provider's own id", async () => {
+  it("typing into the selected row's token input calls setField with that provider's own id and its token field", async () => {
     const user = userEvent.setup();
-    const setToken = vi.fn();
-    renderTab({ publishController: { target: "vercel" }, credentialsController: { setToken } });
+    const setField = vi.fn();
+    renderTab({ publishController: { target: "vercel" }, credentialsController: { setField } });
     await user.type(screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-vercel" }), "x");
-    expect(setToken).toHaveBeenCalledWith("vercel", "x");
+    expect(setField).toHaveBeenCalledWith("vercel", "token", "x");
   });
 
   it("github-pages (the default target) shows no Account ID field — only cloudflare-pages has that second connection field", () => {
@@ -939,15 +960,15 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
   });
 
-  it("cloudflare-pages shows the required Account ID field, and typing into it calls setAccountId('cloudflare-pages', value)", async () => {
+  it("cloudflare-pages shows the required Account ID field, and typing into it calls setField('cloudflare-pages', 'accountId', value)", async () => {
     const user = userEvent.setup();
-    const setAccountId = vi.fn();
-    renderTab({ publishController: { target: "cloudflare-pages" }, credentialsController: { setAccountId } });
+    const setField = vi.fn();
+    renderTab({ publishController: { target: "cloudflare-pages" }, credentialsController: { setField } });
     const accountField = screen.getByLabelText("Account ID");
     expect(accountField).toHaveValue("");
     expect(accountField).not.toHaveAttribute("placeholder");
     await user.type(accountField, "a");
-    expect(setAccountId).toHaveBeenCalledWith("cloudflare-pages", "a");
+    expect(setField).toHaveBeenCalledWith("cloudflare-pages", "accountId", "a");
   });
 
   // REWRITTEN 2026-08-16: `.closest("li")` scoped to the old markup's per-row `<li>` wrapper, which
@@ -957,18 +978,18 @@ describe("StaticSiteTab — credential section: rows", () => {
   it("clicking Save on the selected provider's row calls save with that provider's own id", async () => {
     const user = userEvent.setup();
     const save = vi.fn().mockResolvedValue(undefined);
-    renderTab({ publishController: { target: "netlify" }, credentialsController: { rowOverrides: { netlify: { token: "tok" } }, save } });
+    renderTab({ publishController: { target: "netlify" }, credentialsController: { rowOverrides: { netlify: { values: { token: "tok" } } }, save } });
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(save).toHaveBeenCalledWith("netlify");
   });
 
   it("Save is disabled until the selected row's own required fields are filled — a blank token never enables it", () => {
-    renderTab({ publishController: { target: "vercel" }, credentialsController: { rowOverrides: { vercel: { token: "" } } } });
+    renderTab({ publishController: { target: "vercel" }, credentialsController: { rowOverrides: { vercel: { values: { token: "" } } } } });
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("cloudflare-pages' Save stays disabled with a token but no accountId yet", () => {
-    renderTab({ publishController: { target: "cloudflare-pages" }, credentialsController: { rowOverrides: { "cloudflare-pages": { token: "tok", accountId: "" } } } });
+    renderTab({ publishController: { target: "cloudflare-pages" }, credentialsController: { rowOverrides: { "cloudflare-pages": { values: { token: "tok", accountId: "" } } } } });
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
@@ -978,7 +999,7 @@ describe("StaticSiteTab — credential section: rows", () => {
   // nothing else on screen). What still holds and is worth pinning: the SELECTED row shows its own
   // busy state correctly.
   it("shows the busy label and disables Save on the selected row while it is saving", () => {
-    renderTab({ publishController: { target: "vercel" }, credentialsController: { rowOverrides: { vercel: { token: "tok", saving: true } } } });
+    renderTab({ publishController: { target: "vercel" }, credentialsController: { rowOverrides: { vercel: { values: { token: "tok" }, saving: true } } } });
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
 
@@ -994,6 +1015,12 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
+  it("a host whose descriptor names no token page shows no 'Create a token' link at all", () => {
+    expect(NETLIFY_TARGET.credential?.tokenPageUrl).toBeUndefined();
+    renderTab({ publishController: { target: "netlify" } });
+    expect(screen.queryByRole("link", { name: "Create a token" })).not.toBeInTheDocument();
+  });
+
   it("switching to cloudflare-pages links its OWN token page, not github-pages' leftover from the default tab", () => {
     renderTab({ publishController: { target: "cloudflare-pages" } });
     expect(screen.getByRole("link", { name: "Create a token" })).toHaveAttribute("href", "https://dash.cloudflare.com/profile/api-tokens");
@@ -1007,11 +1034,11 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
   // that provider's own tags each time, which still proves every provider's row carries the right
   // tag, just one render per provider instead of one render for all four.
   it("tags the selected provider's own row/token/save elements, per provider", () => {
-    for (const provider of PUBLISH_CREDENTIAL_PROVIDERS) {
-      const { unmount } = renderTab({ publishController: { target: provider.id } });
-      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${provider.id}"]`)).toBeInTheDocument();
-      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-token-${provider.id}"]`)).toBeInTheDocument();
-      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${provider.id}"]`)).toBeInTheDocument();
+    for (const providerId of CREDENTIAL_TARGET_IDS) {
+      const { unmount } = renderTab({ publishController: { target: providerId } });
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${providerId}"]`)).toBeInTheDocument();
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-token-${providerId}"]`)).toBeInTheDocument();
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${providerId}"]`)).toBeInTheDocument();
       unmount();
     }
   });
@@ -1211,8 +1238,8 @@ describe("StaticSiteTab — Publish waits for a credential switch to land (terra
       <FetchQueryProvider>
         <StaticSiteTab
           useStaticExportHook={() => exportControllerFixture()}
-          useStaticPublishHook={() => publishControllerFixture({ owner: "octo", repo: "demo-repo", projectName: "deploy", publish })}
-          usePublishCredentialsHook={() => usePublishCredentials(port, fakeT, "en")}
+          useStaticPublishHook={() => publishControllerFixture({ configValues: { owner: "octo", repo: "demo-repo" }, projectName: "deploy", publish })}
+          usePublishCredentialsHook={() => usePublishCredentials(port, fakeT, "en", PUBLISH_TARGETS)}
         />
       </FetchQueryProvider>,
     );
@@ -1273,7 +1300,7 @@ describe("StaticSiteTab — Publish names the connection the operator is looking
     const user = userEvent.setup();
     const publish = vi.fn().mockResolvedValue(undefined);
     renderTab({
-      publishController: { target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "my-site", publish },
+      publishController: { target: "github-pages", configValues: { owner: "octo", repo: "demo-repo" }, projectName: "my-site", publish },
       credentialsController: { rowOverrides: { "github-pages": { saved: { ...GH_CREDENTIAL, id: "cred-2", label: "backup" } } } },
     });
 
