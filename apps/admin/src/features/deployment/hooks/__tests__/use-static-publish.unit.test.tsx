@@ -500,7 +500,9 @@ describe("useStaticPublish — publish trigger and poll", () => {
 
     const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
 
-    // The bootstrap read is still in flight — nothing has seeded `run` yet.
+    // The host list is its own query (publish() needs a registry target selected), so let it land;
+    // the bootstrap status read is still in flight — nothing has seeded `run` yet.
+    await waitFor(() => expect(result.current.targets).toBeDefined());
     expect(result.current.run).toBeUndefined();
 
     // The operator clicks Publish before that slow initial read ever comes back.

@@ -66,7 +66,7 @@ describe("defaultStaticPublishPort", () => {
 
 describe("createFakeStaticPublishPort — getPublishPreview default", () => {
   const IDLE_PREVIEW: AdminStaticPublishPreview = {
-    target: "vercel",
+    target: "example-host",
     valid: false,
     validationError: null,
     basePath: null,
@@ -75,7 +75,7 @@ describe("createFakeStaticPublishPort — getPublishPreview default", () => {
     willInjectNojekyll: false,
   };
 
-  it("defaults to a neutral, invalid vercel preview when not overridden", async () => {
+  it("defaults to a neutral, invalid placeholder-host preview when not overridden", async () => {
     const port = createFakeStaticPublishPort();
     await expect(port.getPublishPreview(GITHUB_CONFIG)).resolves.toEqual(IDLE_PREVIEW);
   });

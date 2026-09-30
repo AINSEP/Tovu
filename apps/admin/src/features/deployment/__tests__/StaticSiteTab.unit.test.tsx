@@ -826,8 +826,10 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
   // reachability, not the selected provider's own CLI availability.
   it("self-hosted-cli: the not-yet-connected step is a plain, always-open block — no <details> anywhere, and the CLI-oriented subtitle, not the hosted-only notice", () => {
     renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
-    expect(screen.getByText(/^Save your .+ so Tovu can publish on your behalf\.$/)).toBeInTheDocument();
-    expect(screen.queryByText(/personal access token so Tovu/)).not.toBeInTheDocument();
+    // The default selection is GitHub Pages, whose descriptor's token field really is a "Personal
+    // access token" — so the subtitle names it; the old generic "Save a personal access token" is gone.
+    expect(screen.getByText("Save your personal access token so Tovu can publish on your behalf.")).toBeInTheDocument();
+    expect(screen.queryByText("Save a personal access token so Tovu can publish on your behalf.")).not.toBeInTheDocument();
     expect(
       screen.queryByText("This workspace can't use your computer's terminal — connecting here is the only way to publish.")
     ).not.toBeInTheDocument();
