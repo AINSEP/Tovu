@@ -14,7 +14,7 @@ import {
  * the scope boundary. There is no "which provider am I currently viewing" picker to model here (the
  * three provider rows below all render at once — see that file's header for why), so this file is
  * far smaller than `deployment/rules.ts`'s equivalent: one provider table, and the same
- * connect/validate/build trio `PUBLISH_CREDENTIAL_PROVIDERS` needed, nothing about publish targets,
+ * connect/validate/build trio the publish credential form needs, nothing about publish targets,
  * CLI tools, or execution mode.
  */
 
@@ -49,8 +49,8 @@ export interface SourceControlProviderInfo {
  * The three providers this page connects, verified against each provider's own token-creation
  * docs. `requiredFields` is the single source both {@link buildSourceControlConnectionInput} and
  * {@link sourceControlCredentialRowReadyToSave} read from — a field that should gate saving belongs
- * there, never hardcoded again at either call site (same discipline `PUBLISH_CREDENTIAL_PROVIDERS`
- * documents for its own four rows).
+ * there, never hardcoded again at either call site (same discipline the deploy descriptors' own
+ * `required` flags follow).
  *
  * 2026-08-15 owner decision: every `scopeGuidanceKey` below leads with the NARROWEST credential
  * each provider offers, and `tokenPageUrl` points at that narrow credential's own creation page —
@@ -68,7 +68,7 @@ export interface SourceControlProviderInfo {
  * an origin-pinned client that fails closed — fully implemented and tested, just not yet wired to
  * any caller). This page is a different, narrower thing: an operator manually pasting a token they
  * generated themselves to connect an EXTERNAL identity, the same shape
- * `deployment/rules.ts`'s own `PUBLISH_CREDENTIAL_PROVIDERS` GitHub Pages row already asks for
+ * the deploy registry's GitHub Pages credential already asks for
  * (`deployment/rules.ts:305`, live in production against a real `github-pages` row in
  * `publish_credential_sets`) — this page matches existing, already-shipped practice, not a new
  * precedent, and narrowing ITS guidance does not reopen the App-vs-PAT debate for the deployments
@@ -186,7 +186,7 @@ export function defaultSourceControlCredentialForProvider(
  * directly off {@link AdminSourceControlCredentialSummary} presence, not form state, so a blank
  * token always means "nothing to save" whether or not the row is already connected (leaving it
  * blank on an already-connected row keeps the stored secret untouched). Mirrors
- * `publishCredentialRowReadyToSave` exactly.
+ * `credentialFormReadyToSave` (`deployment/rules.ts`) exactly.
  * @complexity O(k) in this provider's own required-field count (at most one — `username` for
  *   Bitbucket; GitHub and GitLab need nothing beyond the already-checked token).
  */

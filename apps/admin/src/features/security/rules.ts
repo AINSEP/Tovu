@@ -3,13 +3,16 @@ import {
   type AdminCustomConnectionInput,
   type AdminPublishConnectionInput,
   type AdminPublishCredentialProviderId,
+  type AdminPublishTargetCredentialSpec,
+  type AdminPublishTargetDescriptor,
+  type AdminPublishTargetField,
   type AdminSourceControlConnectionInput,
   type AdminSourceControlProviderId,
 } from "../../lib/api";
 import {
-  PUBLISH_CREDENTIAL_PROVIDERS,
   PUBLISH_CREDENTIAL_ROW_LABEL,
-  buildPublishConnectionInput,
+  buildCredentialConnectionInput,
+  requiredFieldsFilled,
 } from "../deployment/rules";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
@@ -28,13 +31,13 @@ import type { Translate } from "../../lib/dictionary-translator";
  * ## What this file does NOT reinvent
  *
  * This page is a UI consolidation over two credential stores that already exist and already work —
- * `publish_credential_sets` (`deployment/rules.ts`'s `PUBLISH_CREDENTIAL_PROVIDERS`) and
- * `source_control_credential_sets` (`source-control/rules.ts`'s `SOURCE_CONTROL_PROVIDERS`). Every
+ * `publish_credential_sets` (hosts from the deploy registry's descriptors, `GET .../system/publish-targets`)
+ * and `source_control_credential_sets` (`source-control/rules.ts`'s `SOURCE_CONTROL_PROVIDERS`). Every
  * provider's display label, token-creation URL, and scope-guidance copy is READ from those two
- * files, never redeclared here — the owner's 2026-08-15 narrowing of that guidance text
+ * sources, never redeclared here — the owner's 2026-08-15 narrowing of that guidance text
  * (`source-control/rules.ts`'s own header records it) stays the one place it's written. Connection
  * shaping is the same story: {@link buildAccessTokenConnectionInput} below dispatches to
- * `buildPublishConnectionInput`/`buildSourceControlConnectionInput` rather than re-deriving either
+ * `buildCredentialConnectionInput`/`buildSourceControlConnectionInput` rather than re-deriving either
  * provider's wire shape.
  *
  * ## The two-store "GitHub" trap this file exists to not get wrong
@@ -45,7 +48,7 @@ import type { Translate } from "../../lib/dictionary-translator";
  * `ADS-memory/reports/continuity/2026-08-16-session-6-handoff.md`'s "Publish-credential reuse" note
  * for the exact mismatch this has already bitten once. Every {@link AccessTokenProviderRef} and
  * {@link AccessTokenRow} below carries an explicit `kind` precisely so a caller can never merge the
- * two into one row — {@link ACCESS_TOKEN_PROVIDERS} lists both as separate entries even though they
+ * two into one row — {@link accessTokenProviders} lists both as separate entries even though they
  * share the "GitHub" proper noun.
  *
  * ## One list, all eight stores — the 2026-08-16 owner ruling
@@ -141,15 +144,10 @@ export function accessTokenCategoryMatches(rowCategory: AccessTokenRowCategoryId
   return activeCategory === "all" || rowCategory === activeCategory;
 }
 
-/** A provider extra field this page's form can show, beyond the universal Name + Access token —
- *  the union of both stores' own extra-field vocab (`deployment/rules.ts`'s
- *  `PublishCredentialFieldKey`, `source-control/rules.ts`'s `SourceControlCredentialFieldKey`). */
-export type AccessTokenExtraFieldKey = "accountId" | "username";
-
 /** Identifies one provider across either store — the minimal shape enough to look up its
  *  {@link AccessTokenProviderInfo} entry or build its connection input. `providerId` is left as
  *  `string` (not the store's own strict union) deliberately: this ref is a client-side grouping key
- *  built exhaustively from {@link ACCESS_TOKEN_PROVIDERS}' own two fixed source tables, never from
+ *  built exhaustively from {@link accessTokenProviders}' own two sources, never from
  *  free-form input, so the real type safety that matters — the wire shape a create/update actually
  *  sends — lives in {@link buildAccessTokenConnectionInput}'s dispatch to each store's own strictly
  *  typed builder, not in this grouping key. */
@@ -158,7 +156,7 @@ export interface AccessTokenProviderRef {
   readonly providerId: string;
 }
 
-/** One provider row this page can render — a `kind`-tagged merge of `PublishCredentialProviderInfo`/
+/** One provider row this page can render — a `kind`-tagged merge of a deploy host's descriptor /
  *  `SourceControlProviderInfo`, plus `purposeLabel` (new here): the subtitle that keeps `github-pages`
  *  and `github` from reading as the same credential (this file's own header, "the two-store GitHub
  *  trap"). Omitted (undefined) for a provider whose brand name is not shared with any other store
@@ -178,7 +176,7 @@ export interface AccessTokenProviderInfo {
    *  create or revoke a token must read this field; copy that says what a saved credential is FOR
    *  (row/group headings, "Add another X token" affordances) keeps reading {@link label} — collapsing
    *  the two into one field is exactly the bug this one exists to prevent. See
-   *  {@link PROVIDER_VENDOR_LABEL_OVERRIDES} for the two providers where they diverge. */
+   *  For a deploy host this is its descriptor's `credential.vendorLabel` (falling back to its label). */
   readonly vendorLabel: string;
   /** Set for every provider today: `github-pages`/`github` need it to disambiguate, and the other
    *  five get it anyway rather than making disambiguation conditional on which OTHER providers this
@@ -191,83 +189,89 @@ export interface AccessTokenProviderInfo {
    *  deploy target) — the same axis {@link AccessTokenProviderInfo.purposeLabel} already names in
    *  prose for the one provider pair that needs disambiguating (github-pages vs github). */
   readonly category: AccessTokenRowCategoryId;
+  /** Where to create (and revoke) a token; `""` when the provider names no page (the link is then
+   *  not rendered). */
   readonly tokenPageUrl: string;
+  /** What kind of token the provider needs, passed through the translator; `""` when none. */
   readonly scopeGuidanceKey: string;
-  readonly requiredFields: readonly AccessTokenExtraFieldKey[];
-  /** Fields `TokenInputFields` should render but NOT gate readiness on — unset (equivalent to
-   *  empty) for every one of the seven catalog providers, which have no optional-but-shown extra
-   *  field today. {@link accessTokenRowProviderInfo}'s synthetic custom-row info is this field's
-   *  one real user: a custom row's Username is always optional (brief's own requirement), so it
-   *  cannot live in {@link requiredFields} (which gates the Save button), yet still needs to render. */
-  readonly optionalFields?: readonly AccessTokenExtraFieldKey[];
+  /** The secret input's label, a host term from its descriptor ("API token"); absent means the
+   *  generic "Access token". */
+  readonly tokenLabel?: string;
+  /** Publish hosts only: the descriptor's credential spec — the token field's wire name and every
+   *  field {@link buildAccessTokenConnectionInput} sends. */
+  readonly publishCredential?: AdminPublishTargetCredentialSpec;
+  /** Descriptor fields shown besides Name and the token (a publish host's non-token credential
+   *  fields); a `required` one gates Save. Empty for source-control and custom rows. */
+  readonly extraFields: readonly AdminPublishTargetField[];
+  /** Whether the form shows Username, and whether it gates Save: Bitbucket needs it (`"required"`),
+   *  a custom row may carry one (`"optional"`, brief's own requirement), everything else has none. */
+  readonly username?: "required" | "optional";
+}
+
+/** One deploy host's Access Tokens entry, built from its descriptor. @complexity O(f). */
+function publishTargetProviderInfo(target: AdminPublishTargetDescriptor, credential: AdminPublishTargetCredentialSpec): AccessTokenProviderInfo {
+  const tokenField = credential.fields.find((field) => field.name === credential.tokenField);
+  return {
+    kind: "publish",
+    providerId: target.id,
+    label: target.label,
+    vendorLabel: credential.vendorLabel ?? target.label,
+    purposeLabel: "Hosting",
+    category: "hosting",
+    tokenPageUrl: credential.tokenPageUrl ?? "",
+    scopeGuidanceKey: credential.help ?? "",
+    ...(tokenField !== undefined ? { tokenLabel: tokenField.label } : {}),
+    publishCredential: credential,
+    extraFields: credential.fields.filter((field) => field.name !== credential.tokenField),
+  };
 }
 
 /**
- * The seven providers this page can save a named token for — four from `PUBLISH_CREDENTIAL_PROVIDERS`
- * (github-pages, vercel, netlify, cloudflare-pages), three from `SOURCE_CONTROL_PROVIDERS` (github,
- * gitlab, bitbucket). `s3-compatible` (a fifth server-side publish provider,
- * `publish-credentials/types.ts`) is deliberately absent — it has no admin UI anywhere yet
- * (`AdminPublishConnectionInput`, `lib/api.ts`, only declares the same four this page's Tier 1 list
- * mirrors), so this page has nothing to read/write for it either; adding it here ahead of the rest of
- * the admin would let this page claim a capability the product does not have.
- *
- * Order: publish providers first (GitHub Pages, Vercel, Netlify, Cloudflare Pages), then
- * source-control providers (GitHub, GitLab, Bitbucket) — matches each origin table's own order,
- * concatenated rather than interleaved so a reader scanning top-to-bottom sees "deploy targets, then
- * source identities" as two recognizable blocks.
+ * The providers this page can save a named token for: every deploy host whose descriptor takes a
+ * credential (`publishTargets`, in registry order; none while they load), then the source-control
+ * providers (`SOURCE_CONTROL_PROVIDERS`: github, gitlab, bitbucket). Concatenated rather than
+ * interleaved so a reader scanning top-to-bottom sees "deploy targets, then source identities" as
+ * two recognizable blocks.
+ * @complexity O(t + s) in the host and source-control provider counts.
  */
-/** Providers whose {@link AccessTokenProviderInfo.label} names a destination rather than the vendor
- *  itself, keyed by provider id. Every provider NOT listed here already has vendor === label
- *  (Vercel, Netlify, and all three source-control providers are already company names) — verified
- *  against each provider's own `tokenPageUrl` host: `github-pages` and source-control's `github`
- *  both resolve to `github.com`; `cloudflare-pages` resolves to `cloudflare.com`. */
-const PROVIDER_VENDOR_LABEL_OVERRIDES: Readonly<Record<string, string>> = {
-  "github-pages": "GitHub",
-  "cloudflare-pages": "Cloudflare",
-};
-
-/** Resolves {@link AccessTokenProviderInfo.vendorLabel} for one provider — the override table when
- *  this provider's destination name differs from its vendor, `destinationLabel` unchanged otherwise.
- *  @complexity O(1). */
-function vendorLabelFor(providerId: string, destinationLabel: string): string {
-  return PROVIDER_VENDOR_LABEL_OVERRIDES[providerId] ?? destinationLabel;
+export function accessTokenProviders(publishTargets: readonly AdminPublishTargetDescriptor[] | undefined): AccessTokenProviderInfo[] {
+  return [
+    ...(publishTargets ?? []).flatMap((target) => (target.credential === undefined ? [] : [publishTargetProviderInfo(target, target.credential)])),
+    ...SOURCE_CONTROL_PROVIDERS.map(
+      (provider): AccessTokenProviderInfo => ({
+        kind: "source-control",
+        providerId: provider.id,
+        label: provider.label,
+        vendorLabel: provider.label,
+        purposeLabel: "Source control",
+        category: "source-control",
+        tokenPageUrl: provider.tokenPageUrl,
+        scopeGuidanceKey: provider.scopeGuidanceKey,
+        extraFields: [],
+        ...(provider.requiredFields.includes("username") ? { username: "required" as const } : {}),
+      })
+    ),
+  ];
 }
 
-export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
-  ...PUBLISH_CREDENTIAL_PROVIDERS.map(
-    (provider): AccessTokenProviderInfo => ({
-      kind: "publish",
-      providerId: provider.id,
-      label: provider.label,
-      vendorLabel: vendorLabelFor(provider.id, provider.label),
-      purposeLabel: "Hosting",
-      category: "hosting",
-      tokenPageUrl: provider.tokenPageUrl,
-      scopeGuidanceKey: provider.scopeGuidanceKey,
-      requiredFields: provider.requiredFields,
-    })
-  ),
-  ...SOURCE_CONTROL_PROVIDERS.map(
-    (provider): AccessTokenProviderInfo => ({
-      kind: "source-control",
-      providerId: provider.id,
-      label: provider.label,
-      vendorLabel: vendorLabelFor(provider.id, provider.label),
-      purposeLabel: "Source control",
-      category: "source-control",
-      tokenPageUrl: provider.tokenPageUrl,
-      scopeGuidanceKey: provider.scopeGuidanceKey,
-      requiredFields: provider.requiredFields,
-    })
-  ),
-];
-
-/** Looks up one provider's registry entry, falling back to the first (GitHub Pages) — same
- *  "the row list can never render something absent from its own table" guarantee
- *  `publishCredentialProviderInfo`/`sourceControlProviderInfo` rely on in their own files.
- *  @complexity O(1) — the array has exactly seven entries. */
-export function accessTokenProviderInfo(ref: AccessTokenProviderRef): AccessTokenProviderInfo {
-  return ACCESS_TOKEN_PROVIDERS.find((p) => p.kind === ref.kind && p.providerId === ref.providerId) ?? ACCESS_TOKEN_PROVIDERS[0]!;
+/** Looks up one provider's entry in `providers` ({@link accessTokenProviders}). A saved row whose
+ *  provider is not listed (its plugin switched off, or the host list still loading) gets a bare
+ *  entry named by its own id — never another provider's label, guidance or token page.
+ *  @complexity O(n) in the (small) provider count. */
+export function accessTokenProviderInfo(providers: readonly AccessTokenProviderInfo[], ref: AccessTokenProviderRef): AccessTokenProviderInfo {
+  return (
+    providers.find((p) => p.kind === ref.kind && p.providerId === ref.providerId) ?? {
+      kind: ref.kind,
+      providerId: ref.providerId,
+      label: ref.providerId,
+      vendorLabel: ref.providerId,
+      purposeLabel: ref.kind === "source-control" ? "Source control" : "Hosting",
+      category: ref.kind === "source-control" ? "source-control" : "hosting",
+      tokenPageUrl: "",
+      scopeGuidanceKey: "",
+      extraFields: [],
+    }
+  );
 }
 
 /** {@link accessTokenProviderInfo}'s row-aware counterpart — the one `AccessTokensTab.tsx` call
@@ -279,12 +283,11 @@ export function accessTokenProviderInfo(ref: AccessTokenProviderRef): AccessToke
  *  destination-vs-vendor split — see {@link AccessTokenProviderInfo.vendorLabel}'s own doc, which
  *  only applies to the two catalog providers it names), `purposeLabel` is the category's own
  *  display label, `tokenPageUrl` is the operator's own base URL (the closest analog this row has to
- *  "where would I go to get/revoke this token"), `requiredFields` is empty and `optionalFields` is
- *  `["username"]` — a custom row's Replace form asks for Name + Token + an always-optional Username,
+ *  "where would I go to get/revoke this token"), no extra fields and an optional `username` — a custom row's Replace form asks for Name + Token + an always-optional Username,
  *  never re-collects the base URL (see this file's own header on why baseUrl is create-only).
  *  @complexity O(1). */
-export function accessTokenRowProviderInfo(row: AccessTokenRow): AccessTokenProviderInfo {
-  if (row.kind !== "custom") return accessTokenProviderInfo(row);
+export function accessTokenRowProviderInfo(providers: readonly AccessTokenProviderInfo[], row: AccessTokenRow): AccessTokenProviderInfo {
+  if (row.kind !== "custom") return accessTokenProviderInfo(providers, row);
   const category = row.category ?? "general";
   return {
     kind: "custom",
@@ -295,8 +298,8 @@ export function accessTokenRowProviderInfo(row: AccessTokenRow): AccessTokenProv
     category,
     tokenPageUrl: row.baseUrl ?? "",
     scopeGuidanceKey: "Paste the access token this provider issued from its own dashboard.",
-    requiredFields: [],
-    optionalFields: ["username"],
+    extraFields: [],
+    username: "optional",
   };
 }
 
@@ -360,7 +363,7 @@ export interface AccessTokenRow {
   readonly createdAt: string;
   readonly updatedAt: string;
   /** Set only for `kind: "custom"` rows — a catalog provider's category lives on its
-   *  {@link AccessTokenProviderInfo} entry instead (`ACCESS_TOKEN_PROVIDERS`), since every one of
+   *  {@link AccessTokenProviderInfo} entry instead ({@link accessTokenProviders}), since every one of
    *  its rows shares the same provider. A custom row has no catalog entry to read one from (its
    *  `providerId` IS its own row id — see {@link buildCustomCredentialRows}), so the category the
    *  operator picked at creation is carried on the row itself. */
@@ -383,7 +386,11 @@ export interface AccessTokenRow {
  * @complexity O(n) in this store's total saved-credential count (small — see
  *   `PublishCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
  */
-export function buildAccessTokenRows(kind: AccessTokenKind, raws: readonly RawCredentialSummary[]): AccessTokenRow[] {
+export function buildAccessTokenRows(
+  kind: AccessTokenKind,
+  raws: readonly RawCredentialSummary[],
+  providers: readonly AccessTokenProviderInfo[]
+): AccessTokenRow[] {
   const sentinel = legacySentinelLabel(kind);
   const legacyIndexByProvider = new Map<string, number>();
   return raws.map((raw) => {
@@ -392,7 +399,7 @@ export function buildAccessTokenRows(kind: AccessTokenKind, raws: readonly RawCr
     if (isLegacy) {
       const index = legacyIndexByProvider.get(raw.providerId) ?? 0;
       legacyIndexByProvider.set(raw.providerId, index + 1);
-      name = friendlyLegacyName(accessTokenProviderInfo({ kind, providerId: raw.providerId }).label, index);
+      name = friendlyLegacyName(accessTokenProviderInfo(providers, { kind, providerId: raw.providerId }).label, index);
     }
     return { kind, providerId: raw.providerId, id: raw.id, name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
   });
@@ -477,35 +484,41 @@ export function accessTokenNameTaken(rows: readonly AccessTokenRow[], ref: Acces
 
 /** One token form's fields, kept together as one shape so {@link buildAccessTokenConnectionInput}
  *  and {@link accessTokenRowReadyToSave} share a single parameter type — mirrors
- *  `PublishCredentialFormFields`/`SourceControlCredentialFormFields`'s exact role, plus `name` (the
- *  one genuinely new field this page introduces — see `AccessTokenRow.name`'s own doc). */
+ *  `SourceControlCredentialFormFields`'s role, plus `name` (the one genuinely new field this page
+ *  introduces — see `AccessTokenRow.name`'s own doc) and `values`, the draft of the provider's
+ *  {@link AccessTokenProviderInfo.extraFields} keyed by field name. */
 export interface AccessTokenFormFields {
   readonly ref: AccessTokenProviderRef;
   readonly name: string;
   readonly token: string;
-  readonly accountId: string;
+  readonly values: Readonly<Record<string, string>>;
   readonly username: string;
 }
 
+/** Whether the provider's required extra fields and (when it needs one) Username are filled.
+ *  @complexity O(f). */
+function accessTokenRequiredFieldsFilled(fields: AccessTokenFormFields, info: AccessTokenProviderInfo): boolean {
+  if (info.username === "required" && fields.username.trim() === "") return false;
+  return requiredFieldsFilled(info.extraFields, fields.values);
+}
+
 /** Whether a token form has enough typed to save — a non-empty Name (new here; neither origin store's
- *  own form ever asked for one) PLUS whatever {@link accessTokenProviderInfo} says this provider
- *  cannot function without (`token`, always; `accountId` for Cloudflare Pages; `username` for
- *  Bitbucket). Does not check name uniqueness — that is {@link accessTokenNameTaken}'s job, surfaced
+ *  own form ever asked for one) PLUS whatever `info` says this provider cannot function without
+ *  (`token`, always; a host descriptor's required fields; `username` for Bitbucket). Does not check name uniqueness — that is {@link accessTokenNameTaken}'s job, surfaced
  *  as its own inline error rather than folded into the Save button's disabled state, so a collision
  *  reads as a specific, fixable reason rather than an unexplained disabled button.
  *  @complexity O(k) in this provider's own required-field count (at most one). */
-export function accessTokenRowReadyToSave(fields: AccessTokenFormFields): boolean {
+export function accessTokenRowReadyToSave(fields: AccessTokenFormFields, info: AccessTokenProviderInfo): boolean {
   if (fields.name.trim() === "") return false;
   if (fields.token.trim() === "") return false;
-  const info = accessTokenProviderInfo(fields.ref);
-  return info.requiredFields.every((field) => fields[field].trim() !== "");
+  return accessTokenRequiredFieldsFilled(fields, info);
 }
 
 /**
  * The Replace-flow variant of {@link accessTokenRowReadyToSave} — an EXISTING row's Save button,
  * which this page can enable in one more case neither `StaticSiteTab.tsx` nor `ProvidersTab.tsx`
  * supports today: a rename with no new token typed. Both origin pages require a fresh token on every
- * save regardless of connected state (`publishCredentialRowReadyToSave`/
+ * save regardless of connected state (`credentialFormReadyToSave`/
  * `sourceControlCredentialRowReadyToSave` both unconditionally check `token.trim() !== ""`) — this
  * page's own new Name field makes "I just want to rename this, not rotate it" a real, common action
  * (the brief's own "give it whatever name you want" framing), so gating it behind a mandatory token
@@ -515,41 +528,48 @@ export function accessTokenRowReadyToSave(fields: AccessTokenFormFields): boolea
  * blank) → ready, sent as a label-only `PUT` (no `connection` field, so the stored secret is
  * untouched — same "omitting `connection` keeps the secret" contract `updatePublishCredential`'s own
  * doc states). A new token (rename or not) → ready only once this provider's required extra fields
- * are ALSO filled, same as create — a token replace still needs `accountId`/`username` alongside it
+ * are ALSO filled, same as create — a token replace still needs its extra fields/`username` alongside it
  * because a fresh `connection` object is a full replacement, not a per-field patch.
  * @complexity O(k) in this provider's own required-field count (at most one).
  */
-export function accessTokenReplaceReadyToSave(fields: AccessTokenFormFields, currentName: string): boolean {
+export function accessTokenReplaceReadyToSave(fields: AccessTokenFormFields, currentName: string, info: AccessTokenProviderInfo): boolean {
   if (fields.name.trim() === "") return false;
   const nameChanged = fields.name.trim() !== currentName.trim();
   const hasToken = fields.token.trim() !== "";
   if (!hasToken) return nameChanged;
-  const info = accessTokenProviderInfo(fields.ref);
-  return info.requiredFields.every((field) => fields[field].trim() !== "");
+  return accessTokenRequiredFieldsFilled(fields, info);
 }
 
 /**
  * Builds the wire connection input for a create/update call — dispatches to
- * `buildPublishConnectionInput`/`buildSourceControlConnectionInput` by `fields.ref.kind` rather than
- * re-deriving either provider's shape (this file's own header). The cast on `providerId` is safe:
- * both builders switch exhaustively over their own store's literal union, and `fields.ref.providerId`
- * is only ever populated from {@link ACCESS_TOKEN_PROVIDERS}, which is itself built from those same
- * two unions — a value that could not satisfy the target type can never reach this call.
- * @complexity O(1).
+ * `buildCredentialConnectionInput` (a host's descriptor fields, the typed token under its
+ * `tokenField`) / `buildSourceControlConnectionInput` by `fields.ref.kind` rather than re-deriving
+ * either provider's shape (this file's own header). A publish provider without a credential spec
+ * (only the bare fallback entry {@link accessTokenProviderInfo} makes) sends the token as `token`.
+ * The source-control cast is safe: `fields.ref.providerId` is only ever populated from
+ * {@link accessTokenProviders}, built from that store's own union.
+ * @complexity O(f).
  */
-export function buildAccessTokenConnectionInput(fields: AccessTokenFormFields): AdminPublishConnectionInput | AdminSourceControlConnectionInput {
+export function buildAccessTokenConnectionInput(
+  fields: AccessTokenFormFields,
+  info: AccessTokenProviderInfo
+): AdminPublishConnectionInput | AdminSourceControlConnectionInput {
   if (fields.ref.kind === "publish") {
-    return buildPublishConnectionInput({
-      providerId: fields.ref.providerId as AdminPublishCredentialProviderId,
-      token: fields.token,
-      accountId: fields.accountId,
-    });
+    const spec = info.publishCredential ?? { tokenField: "token", fields: [{ name: "token", label: "Access token", required: true }] };
+    const providerId: AdminPublishCredentialProviderId = fields.ref.providerId;
+    return buildCredentialConnectionInput(providerId, spec, { ...fields.values, [spec.tokenField]: fields.token });
   }
   return buildSourceControlConnectionInput({
     providerId: fields.ref.providerId as AdminSourceControlProviderId,
     token: fields.token,
     username: fields.username,
   });
+}
+
+/** The DOM/agent id suffix of one extra field's input. `accountId` keeps its old `account` suffix
+ *  (pinned by agent tooling); every other field uses its own name. @complexity O(1). */
+export function accessTokenExtraFieldIdSuffix(fieldName: string): string {
+  return fieldName === "accountId" ? "account" : fieldName;
 }
 
 /** Every saved row for one provider, in the order the server returned them.
@@ -618,11 +638,12 @@ export function sortAccessTokenGroups<T extends AccessTokenGroupSortInput>(group
 export function buildAccessTokenUpdatePatch(
   fields: AccessTokenFormFields,
   nameChanged: boolean,
-  hasToken: boolean
+  hasToken: boolean,
+  info: AccessTokenProviderInfo
 ): { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput } {
   return {
     ...(nameChanged ? { label: fields.name.trim() } : {}),
-    ...(hasToken ? { connection: buildAccessTokenConnectionInput(fields) } : {}),
+    ...(hasToken ? { connection: buildAccessTokenConnectionInput(fields, info) } : {}),
   };
 }
 
@@ -655,7 +676,7 @@ export function classifyAccessTokenSubmitError(e: unknown): AccessTokenSubmitFai
 /** One "Add custom provider" form's fields — the dedicated dialog's own shape, kept separate from
  *  {@link AccessTokenFormFields} (used by the seven catalog providers' Create/Replace) rather than
  *  widened onto it: a custom row collects `category`/`baseUrl`, which no catalog provider's form
- *  ever asks for, and has no `ref`/`accountId` to carry. */
+ *  ever asks for, and has no `ref`/`values` to carry. */
 export interface CustomCredentialFormFields {
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
@@ -710,7 +731,7 @@ export function invalidAdditionalHostsEntries(raw: string): string[] {
 /** Whether the "Add custom provider" dialog has enough typed to save — Name, a valid `http(s)`
  *  Base URL, and a non-blank Access token are all required; Category always has a value (the select
  *  defaults to one, never blank); Username stays optional (this file's own header on why it can
- *  never gate readiness the way {@link accessTokenRowReadyToSave}'s per-provider `requiredFields`
+ *  never gate readiness the way {@link accessTokenRowReadyToSave}'s per-provider required fields
  *  do); Additional hosts stays optional too, but every entry typed (if any) must itself be a valid
  *  `http(s)` URL — a half-typed host list should not silently save with the bad entry dropped.
  *  @complexity O(n) in the number of typed additional-host entries. */
@@ -737,7 +758,7 @@ export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name:
  * {@link accessTokenReplaceReadyToSave}'s counterpart for a saved CUSTOM credential row — a separate
  * function rather than a widening of that shared one, because the two gates diverge on a case the
  * shared one must never allow: a bare, no-token Username edit. For the seven catalog providers,
- * `fields.username` only exists to satisfy Bitbucket's `requiredFields` alongside a FRESH token
+ * `fields.username` only exists to satisfy Bitbucket's required Username alongside a FRESH token
  * (`replaceToken`'s own header note: `row.username` is always `undefined` for a non-custom row, so
  * there is no persisted value a lone Username edit could even be a change FROM); folding a
  * bare-username check into the shared gate would make a stray character typed into that field on a
@@ -752,7 +773,7 @@ export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name:
  * not ready. A name change, a username change (typed OR cleared — see
  * {@link buildCustomCredentialUpdatePatch}'s own doc for how a cleared field becomes the server's
  * `null` clear sentinel), or both, with no token → ready. A new token → always ready; unlike the
- * catalog gate there is no `info.requiredFields` completeness check left to run here, since a custom
+ * catalog gate there is no required-field completeness check left to run here, since a custom
  * row's synthetic info (`accessTokenRowProviderInfo`) declares none.
  *
  * @complexity O(1).
@@ -771,9 +792,13 @@ export function customCredentialReplaceReadyToSave(fields: AccessTokenFormFields
  *  row keeps {@link accessTokenReplaceReadyToSave}. `ExistingTokenFields` used to call the catalog
  *  gate for every row, so a custom row's username-only fix left Save disabled even though the
  *  controller would have sent it. @complexity O(1). */
-export function accessTokenExistingRowReadyToSave(fields: AccessTokenFormFields, row: Pick<AccessTokenRow, "kind" | "name" | "username">): boolean {
+export function accessTokenExistingRowReadyToSave(
+  fields: AccessTokenFormFields,
+  row: Pick<AccessTokenRow, "kind" | "name" | "username">,
+  info: AccessTokenProviderInfo
+): boolean {
   if (row.kind === "custom") return customCredentialReplaceReadyToSave(fields, row.name, row.username);
-  return accessTokenReplaceReadyToSave(fields, row.name);
+  return accessTokenReplaceReadyToSave(fields, row.name, info);
 }
 
 /** Builds the wire connection input for a custom-provider create/update call — just

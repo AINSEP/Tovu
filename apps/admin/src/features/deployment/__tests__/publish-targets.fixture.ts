@@ -19,6 +19,7 @@ export const GITHUB_PAGES_TARGET: AdminPublishTargetDescriptor = {
   ],
   credential: {
     tokenField: "token",
+    vendorLabel: "GitHub",
     tokenPageUrl: "https://github.com/settings/tokens",
     fields: [{ ...TOKEN, label: "Personal access token", help: "Needs write access to the repository's contents." }],
   },
@@ -47,6 +48,8 @@ export const CLOUDFLARE_PAGES_TARGET: AdminPublishTargetDescriptor = {
   configFields: [],
   credential: {
     tokenField: "token",
+    vendorLabel: "Cloudflare",
+    help: "Needs an API token with Cloudflare Pages Edit permission, plus the account ID.",
     tokenPageUrl: "https://dash.cloudflare.com/profile/api-tokens",
     fields: [
       { ...TOKEN, label: "API token" },

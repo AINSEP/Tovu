@@ -6,6 +6,7 @@ import type {
   AdminPublishConnectionInput,
   AdminPublishCredentialSummary,
   AdminPublishCredentialsSnapshot,
+  AdminPublishTargetDescriptor,
   AdminSourceControlConnectionInput,
   AdminSourceControlCredentialSummary,
   AdminSourceControlCredentialsSnapshot,
@@ -21,6 +22,11 @@ import type {
  * that distinction into a runtime branch this interface can otherwise let the type system carry.
  */
 export interface AccessTokensPort {
+  /** The deploy registry's hosts (`GET .../system/publish-targets`) — every host whose descriptor
+   *  takes a credential is a publish provider on this page, with its label, fields and help. */
+  readonly publishTargets: {
+    list(): Promise<readonly AdminPublishTargetDescriptor[]>;
+  };
   readonly publish: {
     list(): Promise<AdminPublishCredentialsSnapshot>;
     create(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }): Promise<AdminPublishCredentialSummary>;

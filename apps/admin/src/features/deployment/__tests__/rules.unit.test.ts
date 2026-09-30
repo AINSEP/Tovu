@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ApiError, type AdminPublishCredentialSummary } from "@/lib/api";
 import {
   FULL_SITE_PROVIDERS,
-  PUBLISH_CREDENTIAL_PROVIDERS,
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildCredentialConnectionInput,
-  buildPublishConnectionInput,
   buildStaticPublishConfig,
   credentialFieldHandleId,
   credentialFormReadyToSave,
@@ -25,23 +23,14 @@ import {
   isEnvVarRowUnsafe,
   ownerPasswordLabelKey,
   productionGateLabelKey,
-  publishCredentialProviderInfo,
-  publishCredentialRowReadyToSave,
   publishRunStatusLabelKey,
   runStatusTone,
   runtimeModeLabelKey,
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
   staticPublishProjectNameCopy,
-  type PublishCredentialFormFields,
 } from "../rules";
 import { CLOUDFLARE_PAGES_TARGET, GITHUB_PAGES_TARGET, PLAIN_TARGET, PUBLISH_TARGETS, VERCEL_TARGET } from "./publish-targets.fixture";
-
-/** A blank form for one provider — every test below overrides only the fields it cares about,
- *  same "start from a known-empty baseline" convention the hook itself follows on `startAdd`. */
-function blankCredentialFields(providerId: PublishCredentialFormFields["providerId"]): PublishCredentialFormFields {
-  return { providerId, token: "", accountId: "" };
-}
 
 /**
  * @file `rules.ts` — the Deployment panel's pure label/tone helpers. Every function here returns a
@@ -303,84 +292,6 @@ describe("publishTargetById / fieldLabelParts", () => {
   it("adds the optional suffix key only to optional fields", () => {
     expect(fieldLabelParts({ name: "owner", label: "Owner", required: true })).toEqual({ label: "Owner", suffixKey: null });
     expect(fieldLabelParts({ name: "branch", label: "Branch" })).toEqual({ label: "Branch", suffixKey: "(optional)" });
-  });
-});
-
-describe("PUBLISH_CREDENTIAL_PROVIDERS", () => {
-  it("lists exactly the four providers the brief names, each with a unique id and a token page", () => {
-    expect(PUBLISH_CREDENTIAL_PROVIDERS).toHaveLength(4);
-    expect(new Set(PUBLISH_CREDENTIAL_PROVIDERS.map((p) => p.id)).size).toBe(4);
-    expect(PUBLISH_CREDENTIAL_PROVIDERS.every((p) => p.tokenPageUrl.startsWith("https://"))).toBe(true);
-  });
-
-  it("matches the v2 contract's verified field split — a credential holds the secret plus only the account scoping with nowhere else to live", () => {
-    // GitHub Pages' owner/repo and Vercel's teamId are NOT credential fields — they already live on
-    // the publish target config (AdminStaticPublishConfig), chosen per run.
-    expect(publishCredentialProviderInfo("github-pages").requiredFields).toEqual([]);
-    expect(publishCredentialProviderInfo("vercel").requiredFields).toEqual([]);
-    expect(publishCredentialProviderInfo("netlify").requiredFields).toEqual([]);
-    // Cloudflare Pages is the ONLY provider with a second field — accountId, hard required, since
-    // Cloudflare Pages has no per-run publish target this could otherwise live on.
-    expect(publishCredentialProviderInfo("cloudflare-pages").requiredFields).toEqual(["accountId"]);
-  });
-
-  it("publishCredentialProviderInfo falls back to the first entry for an unrecognized id, never throws", () => {
-    expect(publishCredentialProviderInfo("not-a-real-provider" as never)).toBe(PUBLISH_CREDENTIAL_PROVIDERS[0]);
-  });
-});
-
-describe("buildPublishConnectionInput", () => {
-  it("github-pages: sends only token, trimmed — owner/repo/branch belong to publish config, not a credential", () => {
-    const fields = { ...blankCredentialFields("github-pages"), token: " ghp_abc " };
-    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "github-pages", token: "ghp_abc" });
-  });
-
-  it("vercel: sends only token, trimmed — teamId belongs to publish config, not a credential", () => {
-    const fields = { ...blankCredentialFields("vercel"), token: " tok " };
-    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "vercel", token: "tok" });
-    expect(buildPublishConnectionInput(fields)).not.toHaveProperty("teamId");
-  });
-
-  it("netlify: sends only token, trimmed", () => {
-    expect(buildPublishConnectionInput({ ...blankCredentialFields("netlify"), token: " tok " })).toEqual({
-      providerId: "netlify",
-      token: "tok",
-    });
-  });
-
-  it("cloudflare-pages: always sends accountId (required, trimmed) alongside token — no projectName, that's inert on the credential", () => {
-    const fields = { ...blankCredentialFields("cloudflare-pages"), token: "tok", accountId: " acct-1 " };
-    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "cloudflare-pages", token: "tok", accountId: "acct-1" });
-    expect(buildPublishConnectionInput(fields)).not.toHaveProperty("projectName");
-  });
-});
-
-describe("publishCredentialRowReadyToSave", () => {
-  it("requires a non-blank token — a blank token is never ready to save, connected or not", () => {
-    const fields = { ...blankCredentialFields("vercel"), token: "" };
-    expect(publishCredentialRowReadyToSave(fields)).toBe(false);
-    expect(publishCredentialRowReadyToSave({ ...fields, token: "   " })).toBe(false);
-  });
-
-  it("github-pages/vercel/netlify need nothing beyond a non-blank token — no per-provider field left to gate on", () => {
-    expect(publishCredentialRowReadyToSave({ ...blankCredentialFields("github-pages"), token: "tok" })).toBe(true);
-    expect(publishCredentialRowReadyToSave({ ...blankCredentialFields("vercel"), token: "tok" })).toBe(true);
-    expect(publishCredentialRowReadyToSave({ ...blankCredentialFields("netlify"), token: "tok" })).toBe(true);
-  });
-
-  it("cloudflare-pages requires accountId too, even with a non-blank token", () => {
-    const cf = { ...blankCredentialFields("cloudflare-pages"), token: "tok" };
-    expect(publishCredentialRowReadyToSave(cf)).toBe(false);
-    expect(publishCredentialRowReadyToSave({ ...cf, accountId: "acct-1" })).toBe(true);
-  });
-
-  it("there is no add-vs-edit distinction left — the exact same fields are ready or not ready regardless of whether the row is already connected", () => {
-    // publishCredentialRowReadyToSave itself has no notion of "connected"; StaticSiteTab.tsx reads
-    // that separately off `row.saved`. This test only pins that the gate's own answer for one fixed
-    // set of fields never varies by an argument it no longer takes.
-    const fields = { ...blankCredentialFields("github-pages"), token: "tok" };
-    expect(publishCredentialRowReadyToSave(fields)).toBe(true);
-    expect(publishCredentialRowReadyToSave({ ...fields })).toBe(true);
   });
 });
 

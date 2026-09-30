@@ -25,10 +25,11 @@ import {
 } from "../security-i18n";
 import {
   ACCESS_TOKENS_RESOURCE,
-  ACCESS_TOKEN_PROVIDERS,
   accessTokenCategoryMatches,
+  accessTokenExistingRowReadyToSave,
   accessTokenNameTaken,
   accessTokenProviderInfo,
+  accessTokenProviders,
   accessTokenRowMatchesQuery,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
@@ -111,11 +112,12 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
 interface DraftFields {
   readonly name: string;
   readonly token: string;
-  readonly accountId: string;
+  /** The provider's extra descriptor fields, keyed by field name. */
+  readonly values: Readonly<Record<string, string>>;
   readonly username: string;
 }
 function blankDraft(): DraftFields {
-  return { name: "", token: "", accountId: "", username: "" };
+  return { name: "", token: "", values: {}, username: "" };
 }
 
 interface BusyState {
@@ -162,8 +164,11 @@ export interface AccessTokenExistingRowState {
   readonly row: AccessTokenRow;
   readonly name: string;
   readonly token: string;
-  readonly accountId: string;
+  /** The provider's extra descriptor fields, keyed by field name. */
+  readonly values: Readonly<Record<string, string>>;
   readonly username: string;
+  /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
+  readonly readyToSave: boolean;
   readonly saving: boolean;
   readonly error: string | null;
 }
@@ -173,25 +178,35 @@ export interface AccessTokenExistingRowState {
  *  AccessTokenRow.username}'s own doc), with Token/Account left blank, same "never read a secret
  *  back" posture every credential form in this app already has.
  *  @complexity O(1). */
-function existingRowState(row: AccessTokenRow, draft: DraftFields | undefined, busy: BusyState | undefined): AccessTokenExistingRowState {
+function existingRowState(
+  row: AccessTokenRow,
+  draft: DraftFields | undefined,
+  busy: BusyState | undefined,
+  info: AccessTokenProviderInfo
+): AccessTokenExistingRowState {
   const d = draft ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
   const b = busy ?? IDLE;
-  return { row, name: d.name, token: d.token, accountId: d.accountId, username: d.username, saving: b.saving, error: b.error };
+  const readyToSave = accessTokenExistingRowReadyToSave({ ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info);
+  return { row, name: d.name, token: d.token, values: d.values, username: d.username, readyToSave, saving: b.saving, error: b.error };
 }
 
 export interface AccessTokenAddFormState {
   readonly visible: boolean;
   readonly name: string;
   readonly token: string;
-  readonly accountId: string;
+  /** The provider's extra descriptor fields, keyed by field name. */
+  readonly values: Readonly<Record<string, string>>;
   readonly username: string;
+  /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
+  readonly readyToSave: boolean;
   readonly saving: boolean;
   readonly error: string | null;
 }
 /** @complexity O(1). */
-function addFormState(entry: AddFormEntry | undefined): AccessTokenAddFormState {
+function addFormState(entry: AddFormEntry | undefined, info: AccessTokenProviderInfo): AccessTokenAddFormState {
   const e = entry ?? blankAddFormEntry();
-  return { visible: e.visible, name: e.draft.name, token: e.draft.token, accountId: e.draft.accountId, username: e.draft.username, saving: e.saving, error: e.error };
+  const readyToSave = accessTokenRowReadyToSave({ ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info);
+  return { visible: e.visible, name: e.draft.name, token: e.draft.token, values: e.draft.values, username: e.draft.username, readyToSave, saving: e.saving, error: e.error };
 }
 
 export interface AccessTokenProviderGroupState {
@@ -217,7 +232,7 @@ export interface AccessTokenCustomAddFormState {
 }
 
 export interface AccessTokensController {
-  /** One entry per {@link ACCESS_TOKEN_PROVIDERS} provider plus one per saved custom credential,
+  /** One entry per {@link accessTokenProviders} provider plus one per saved custom credential,
    *  ordered by `rules.ts`'s `sortAccessTokenGroups` (saved-before-unsaved, then category-chip
    *  order, then alphabetical by label — the owner's 2026-09-21 ruling) — `undefined` until BOTH
    *  stores' first load resolves. Unlike `PublishCredentialsController.rows`, a provider's own
@@ -336,6 +351,11 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const publishQuery = useFetchQuery({ key: ["security", "publish-credentials"], fetch: () => port.publish.list() });
   const sourceControlQuery = useFetchQuery({ key: ["security", "source-control-credentials"], fetch: () => port.sourceControl.list() });
   const customQuery = useFetchQuery({ key: ["security", "custom-credentials"], fetch: () => port.custom.list() });
+  // The deploy hosts are data from the deploy registry. A failed load leaves only source-control
+  // and custom providers named; saved publish rows still list, under their own ids.
+  const publishTargetsQuery = useFetchQuery({ key: ["security", "publish-targets"], fetch: () => port.publishTargets.list() });
+  const providers = useMemo(() => accessTokenProviders(publishTargetsQuery.data), [publishTargetsQuery.data]);
+  const publishTargetsSettled = publishTargetsQuery.status !== "loading";
   const [publishCredentials, setPublishCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);
   const [sourceControlCredentials, setSourceControlCredentials] = useState<AdminSourceControlCredentialSummary[] | undefined>(undefined);
   const [customCredentials, setCustomCredentials] = useState<AdminCustomCredentialSummary[] | undefined>(undefined);
@@ -448,13 +468,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     : (accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale) ?? reloadError);
 
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
-    if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined) return undefined;
+    if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined || !publishTargetsSettled) return undefined;
     return [
-      ...buildAccessTokenRows("publish", publishCredentials),
-      ...buildAccessTokenRows("source-control", sourceControlCredentials),
+      ...buildAccessTokenRows("publish", publishCredentials, providers),
+      ...buildAccessTokenRows("source-control", sourceControlCredentials, providers),
       ...buildCustomCredentialRows(customCredentials),
     ];
-  }, [publishCredentials, sourceControlCredentials, customCredentials]);
+  }, [publishCredentials, sourceControlCredentials, customCredentials, publishTargetsSettled, providers]);
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<AccessTokenCategoryId>("all");
@@ -498,7 +518,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }
 
   /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `AccessTokenFormFields`
-   *  shape to build (no `ref`-keyed catalog lookup, no `accountId`), so it reuses only what genuinely
+   *  shape to build (no `ref`-keyed catalog lookup, no descriptor `values`), so it reuses only what genuinely
    *  applies: {@link customCredentialReplaceReadyToSave}'s readiness rule (rename-alone, username-alone,
    *  or either together is ready, same as a new token — see that function's own doc for why this is
    *  NOT {@link accessTokenReplaceReadyToSave}) and {@link customCredentialNameTaken}'s workspace-wide
@@ -542,8 +562,9 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     // blank the same way custom rows used to.
     const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
     const fields: AccessTokenFormFields = { ref, ...draft };
-    if (!accessTokenReplaceReadyToSave(fields, row.name)) return;
-    const providerLabel = accessTokenProviderInfo(ref).label;
+    const info = accessTokenProviderInfo(providers, ref);
+    if (!accessTokenReplaceReadyToSave(fields, row.name, info)) return;
+    const providerLabel = info.label;
     if (accessTokenNameTaken(rows ?? [], ref, fields.name, row.id)) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), providerLabel) } }));
       return;
@@ -552,7 +573,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const patch = buildAccessTokenUpdatePatch(fields, nameChanged, hasToken);
+      const patch = buildAccessTokenUpdatePatch(fields, nameChanged, hasToken, info);
       const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, patch);
       mergeCredential(row.kind, result, false);
       // Same symmetry note as this function's draft fallback above: `result` (a publish/source-control
@@ -646,15 +667,16 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const key = addFormKey(ref);
     const entry = addForms[key] ?? blankAddFormEntry();
     const fields: AccessTokenFormFields = { ref, ...entry.draft };
-    if (!accessTokenRowReadyToSave(fields)) return;
-    const providerLabel = accessTokenProviderInfo(ref).label;
+    const info = accessTokenProviderInfo(providers, ref);
+    if (!accessTokenRowReadyToSave(fields, info)) return;
+    const providerLabel = info.label;
     if (accessTokenNameTaken(rows ?? [], ref, fields.name)) {
       setAddForms((prev) => ({ ...prev, [key]: { ...entry, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), providerLabel) } }));
       return;
     }
     setAddForms((prev) => ({ ...prev, [key]: { ...entry, saving: true, error: null } }));
     try {
-      const connection = buildAccessTokenConnectionInput(fields);
+      const connection = buildAccessTokenConnectionInput(fields, info);
       const result = await writeCredential(port, ref.kind, { type: "create", label: fields.name.trim() }, { connection });
       mergeCredential(ref.kind, result, true);
       setAddForms((prev) => ({ ...prev, [key]: blankAddFormEntry() }));
@@ -674,24 +696,23 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const customGroups = useMemo<readonly AccessTokenProviderGroupState[]>(() => {
     if (rows === undefined) return [];
     return rows
-      .filter((row) => row.kind === "custom" && accessTokenCategoryMatches(row.category ?? "general", category) && accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(row), query))
-      .map((row) => ({
-        info: accessTokenRowProviderInfo(row),
-        rows: [existingRowState(row, existingDrafts[row.id], existingBusy[row.id])],
-        addForm: addFormState(undefined),
-      }));
-  }, [rows, existingDrafts, existingBusy, query, category]);
+      .filter((row) => row.kind === "custom" && accessTokenCategoryMatches(row.category ?? "general", category) && accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query))
+      .map((row) => {
+        const info = accessTokenRowProviderInfo(providers, row);
+        return { info, rows: [existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)], addForm: addFormState(undefined, info) };
+      });
+  }, [rows, existingDrafts, existingBusy, query, category, providers]);
 
   const groups = useMemo<readonly AccessTokenProviderGroupState[] | undefined>(() => {
     if (rows === undefined) return undefined;
     // A provider outside the active category is dropped here, before the query filter ever runs —
     // see this file's header for why that keeps `totalCount`/`matchCount` a global fact instead.
-    const catalogGroups = ACCESS_TOKEN_PROVIDERS.filter((info) => accessTokenCategoryMatches(info.category, category)).map((info) => {
+    const catalogGroups = providers.filter((info) => accessTokenCategoryMatches(info.category, category)).map((info) => {
       const providerRows = accessTokenRowsForProvider(rows, info).filter((row) => accessTokenRowMatchesQuery(row, info, query));
       return {
         info,
-        rows: providerRows.map((row) => existingRowState(row, existingDrafts[row.id], existingBusy[row.id])),
-        addForm: addFormState(addForms[addFormKey(info)]),
+        rows: providerRows.map((row) => existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)),
+        addForm: addFormState(addForms[addFormKey(info)], info),
       };
     });
     // Saved-before-unsaved, then category-chip order, then alphabetical by label — the owner's
@@ -699,10 +720,10 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     // already-category-and-query-filtered list above, so it holds for the "All" chip, any single
     // category chip, and an active search query alike.
     return sortAccessTokenGroups([...catalogGroups, ...customGroups]);
-  }, [rows, existingDrafts, existingBusy, addForms, query, category, customGroups]);
+  }, [rows, existingDrafts, existingBusy, addForms, query, category, customGroups, providers]);
 
   const totalCount = rows?.length ?? 0;
-  const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(row), query)).length;
+  const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query)).length;
 
   function setCustomAddField(patch: Partial<CustomDraftFields>): void {
     setCustomAddDraft((prev) => ({ ...prev, ...patch }));

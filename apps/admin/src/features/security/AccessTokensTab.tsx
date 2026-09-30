@@ -5,18 +5,16 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBa
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
+import type { AdminPublishTargetField } from "../../lib/api";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
-  accessTokenExistingRowReadyToSave,
-  accessTokenRowProviderInfo,
-  accessTokenRowReadyToSave,
+  accessTokenExtraFieldIdSuffix,
   accessTokensCountText,
   invalidAdditionalHostsEntries,
   providerGroupHandleLabel,
   tokenRowHandleLabel,
   type AccessTokenCategoryId,
-  type AccessTokenFormFields,
   type AccessTokenProviderInfo,
   type AccessTokenProviderRef,
   type AccessTokenRow,
@@ -269,7 +267,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
         <span className="access-tokens-provider-purpose"> · {controller.t(group.info.purposeLabel)}</span>
       </h3>
       {group.rows.map((row) => (
-        <TokenRow key={row.row.id} state={row} controller={controller} groupRowCount={group.rows.length} t={controller.t} />
+        <TokenRow key={row.row.id} state={row} info={group.info} controller={controller} groupRowCount={group.rows.length} t={controller.t} />
       ))}
       {!hasRows && !group.addForm.visible ? <NotConnectedRow ref={ref} label={group.info.label} onConnect={() => controller.openAddForm(ref)} t={controller.t} /> : null}
       {group.addForm.visible ? <AddTokenForm info={group.info} state={group.addForm} controller={controller} t={controller.t} /> : null}
@@ -328,8 +326,19 @@ function NotConnectedRow({ ref, label, onConnect, t: translate }: { ref: AccessT
   );
 }
 
-function TokenRow({ state, controller, groupRowCount, t: translate }: { state: AccessTokenExistingRowState; controller: AccessTokensController; groupRowCount: number; t: Translate }) {
-  const info = accessTokenRowProviderInfo(state.row);
+function TokenRow({
+  state,
+  info,
+  controller,
+  groupRowCount,
+  t: translate,
+}: {
+  state: AccessTokenExistingRowState;
+  info: AccessTokenProviderInfo;
+  controller: AccessTokensController;
+  groupRowCount: number;
+  t: Translate;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const showDefaultUi = groupRowCount >= 2;
   return (
@@ -405,11 +414,11 @@ function TokenInputFields({
   info,
   name,
   token,
-  accountId,
+  values,
   username,
   onNameChange,
   onTokenChange,
-  onAccountIdChange,
+  onFieldChange,
   onUsernameChange,
   connected,
   t: translate,
@@ -418,20 +427,18 @@ function TokenInputFields({
   info: AccessTokenProviderInfo;
   name: string;
   token: string;
-  accountId: string;
+  values: Readonly<Record<string, string>>;
   username: string;
   onNameChange: (value: string) => void;
   onTokenChange: (value: string) => void;
-  onAccountIdChange: (value: string) => void;
+  onFieldChange: (name: string, value: string) => void;
   onUsernameChange: (value: string) => void;
   connected: boolean;
   t: Translate;
 }) {
-  const needsAccountId = info.requiredFields.includes("accountId");
-  // `optionalFields` (e.g. a custom row's Username — `rules.ts`'s `AccessTokenProviderInfo` doc)
-  // shows the field WITHOUT gating readiness on it — only `requiredFields` does that (see
-  // `accessTokenRowReadyToSave`/`accessTokenReplaceReadyToSave`, which never read this field).
-  const needsUsername = info.requiredFields.includes("username") || (info.optionalFields ?? []).includes("username");
+  // An `"optional"` Username (a custom row — `rules.ts`'s `AccessTokenProviderInfo` doc) shows the
+  // field WITHOUT gating readiness on it; only `"required"` gates Save.
+  const needsUsername = info.username !== undefined;
   return (
     <div className="access-tokens-row-fields">
       <div className="field">
@@ -449,7 +456,7 @@ function TokenInputFields({
       </div>
       <div className="field">
         <label className="field-label" htmlFor={`${idPrefix}-token`}>
-          {translate("Access token")}
+          {info.tokenLabel ?? translate("Access token")}
         </label>
         {/* `autoComplete="new-password"`, NOT `"off"` — Chrome deliberately ignores `off` on
             credential-shaped fields (a long-standing intentional decision, not a bug), and `off`
@@ -476,39 +483,38 @@ function TokenInputFields({
         <p className="field-hint">
           {connected ? translate("Leave blank to keep the current token.") : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
         </p>
-        <details className="access-tokens-scope-guidance">
-          <summary className="access-tokens-scope-guidance-summary">
-            {translate("Which token do I need?")}
-            <DisclosureChevronIcon size={10} />
-          </summary>
-          <p className="field-hint">
-            {translate(info.scopeGuidanceKey)}{" "}
-            <a
-              href={info.tokenPageUrl}
-              target="_blank"
-              rel="noreferrer"
-              {...agentHandle(`${idPrefix}-token-page`, { role: "link", label: `Open ${info.label}'s own page for creating a personal access token` })}
-            >
-              {translate("Create a token")}
-            </a>
-          </p>
-        </details>
+        {info.scopeGuidanceKey !== "" || info.tokenPageUrl !== "" ? (
+          <details className="access-tokens-scope-guidance">
+            <summary className="access-tokens-scope-guidance-summary">
+              {translate("Which token do I need?")}
+              <DisclosureChevronIcon size={10} />
+            </summary>
+            <p className="field-hint">
+              {info.scopeGuidanceKey !== "" ? <>{translate(info.scopeGuidanceKey)} </> : null}
+              {info.tokenPageUrl !== "" ? (
+                <a
+                  href={info.tokenPageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  {...agentHandle(`${idPrefix}-token-page`, { role: "link", label: `Open ${info.label}'s own page for creating a personal access token` })}
+                >
+                  {translate("Create a token")}
+                </a>
+              ) : null}
+            </p>
+          </details>
+        ) : null}
       </div>
-      {needsAccountId ? (
-        <div className="field">
-          <label className="field-label" htmlFor={`${idPrefix}-account`}>
-            {translate("Account ID")}
-          </label>
-          <input
-            id={`${idPrefix}-account`}
-            type="text"
-            value={accountId}
-            onChange={(e) => onAccountIdChange(e.target.value)}
-            {...agentHandle(`${idPrefix}-account`, { role: "field", label: "This provider's account id" })}
-          />
-          <p className="field-hint">{translate("Shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.")}</p>
-        </div>
-      ) : null}
+      {info.extraFields.map((field) => (
+        <ExtraFieldInput
+          key={field.name}
+          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix(field.name)}`}
+          field={field}
+          value={values[field.name] ?? ""}
+          onChange={(value) => onFieldChange(field.name, value)}
+          t={translate}
+        />
+      ))}
       {needsUsername ? (
         <div className="field">
           <label className="field-label" htmlFor={`${idPrefix}-username`}>
@@ -532,6 +538,40 @@ function TokenInputFields({
   );
 }
 
+/** One of a provider's descriptor fields (a host's account ID, bucket, region…): the descriptor's
+ *  label (a host term, verbatim) plus the translated "(optional)" suffix, and its help below. */
+function ExtraFieldInput({
+  id,
+  field,
+  value,
+  onChange,
+  t: translate,
+}: {
+  id: string;
+  field: AdminPublishTargetField;
+  value: string;
+  onChange: (value: string) => void;
+  t: Translate;
+}) {
+  return (
+    <div className="field">
+      <label className="field-label" htmlFor={id}>
+        {field.label}
+        {field.required ? null : ` ${translate("(optional)")}`}
+      </label>
+      <input
+        id={id}
+        type={field.secret ? "password" : "text"}
+        autoComplete={field.secret ? "new-password" : "off"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        {...agentHandle(id, { role: "field", label: `This provider's ${field.label}` })}
+      />
+      {field.help ? <p className="field-hint">{field.help}</p> : null}
+    </div>
+  );
+}
+
 function ExistingTokenFields({
   state,
   controller,
@@ -545,14 +585,7 @@ function ExistingTokenFields({
   onRemoveClick: () => void;
   t: Translate;
 }) {
-  const fields: AccessTokenFormFields = {
-    ref: { kind: state.row.kind, providerId: state.row.providerId },
-    name: state.name,
-    token: state.token,
-    accountId: state.accountId,
-    username: state.username,
-  };
-  const readyToSave = accessTokenExistingRowReadyToSave(fields, state.row);
+  const readyToSave = state.readyToSave;
   return (
     <>
       <TokenInputFields
@@ -560,11 +593,11 @@ function ExistingTokenFields({
         info={info}
         name={state.name}
         token={state.token}
-        accountId={state.accountId}
+        values={state.values}
         username={state.username}
         onNameChange={(v) => controller.setExistingField(state.row.id, { name: v })}
         onTokenChange={(v) => controller.setExistingField(state.row.id, { token: v })}
-        onAccountIdChange={(v) => controller.setExistingField(state.row.id, { accountId: v })}
+        onFieldChange={(name, v) => controller.setExistingField(state.row.id, { values: { ...state.values, [name]: v } })}
         onUsernameChange={(v) => controller.setExistingField(state.row.id, { username: v })}
         connected
         t={translate}
@@ -610,8 +643,7 @@ function ExistingTokenFields({
 
 function AddTokenForm({ info, state, controller, t: translate }: { info: AccessTokenProviderInfo; state: AccessTokenAddFormState; controller: AccessTokensController; t: Translate }) {
   const ref: AccessTokenProviderRef = { kind: info.kind, providerId: info.providerId };
-  const fields: AccessTokenFormFields = { ref, name: state.name, token: state.token, accountId: state.accountId, username: state.username };
-  const readyToSave = accessTokenRowReadyToSave(fields);
+  const readyToSave = state.readyToSave;
   return (
     <div className="access-tokens-row">
       <TokenInputFields
@@ -619,11 +651,11 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
         info={info}
         name={state.name}
         token={state.token}
-        accountId={state.accountId}
+        values={state.values}
         username={state.username}
         onNameChange={(v) => controller.setAddField(ref, { name: v })}
         onTokenChange={(v) => controller.setAddField(ref, { token: v })}
-        onAccountIdChange={(v) => controller.setAddField(ref, { accountId: v })}
+        onFieldChange={(name, v) => controller.setAddField(ref, { values: { ...state.values, [name]: v } })}
         onUsernameChange={(v) => controller.setAddField(ref, { username: v })}
         connected={false}
         t={translate}

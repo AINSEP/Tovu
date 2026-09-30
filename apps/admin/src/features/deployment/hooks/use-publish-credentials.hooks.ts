@@ -57,7 +57,7 @@ import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
  * (see that type's own doc in `lib/api.ts`). So a row's field draft state (`values`) can only ever
  * start blank, connected or not — a blank `token` at save time is therefore not "the operator left it
  * empty by mistake"; on an already-connected row it is the ONLY way to express "nothing to change
- * here" (`publishCredentialRowReadyToSave`, `rules.ts`, disables Save in that case rather than
+ * here" (`credentialFormReadyToSave`, `rules.ts`, disables Save in that case rather than
  * sending a no-op write).
  *
  * ## Save decides CREATE vs. UPDATE by looking at what is already there, not at UI mode

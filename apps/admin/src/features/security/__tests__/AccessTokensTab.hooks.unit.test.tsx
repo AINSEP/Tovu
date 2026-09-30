@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { useMergedSecretsOrder } from "../AccessTokensTab.hooks";
 import { accessTokenProviderInfo, otherCredentialStoreInfo } from "../rules";
+import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokenKind, AccessTokenRow } from "../rules";
 import type { AccessTokenAddFormState, AccessTokenExistingRowState, AccessTokenProviderGroupState, AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
@@ -74,14 +75,14 @@ function row(overrides: Partial<AccessTokenRow> = {}): AccessTokenRow {
 }
 
 function rowState(overrides: Partial<AccessTokenExistingRowState> = {}): AccessTokenExistingRowState {
-  return { row: row(), name: "Production", token: "", accountId: "", username: "", saving: false, error: null, ...overrides };
+  return { row: row(), name: "Production", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null, ...overrides };
 }
 
-const BLANK_ADD_FORM: AccessTokenAddFormState = { visible: false, name: "", token: "", accountId: "", username: "", saving: false, error: null };
+const BLANK_ADD_FORM: AccessTokenAddFormState = { visible: false, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null };
 
 /** One Tier-1 provider group — `rows` empty means "Not connected". */
 function providerGroup(kind: AccessTokenKind, providerId: string, rows: AccessTokenExistingRowState[] = []): AccessTokenProviderGroupState {
-  return { info: accessTokenProviderInfo({ kind, providerId }), rows, addForm: BLANK_ADD_FORM };
+  return { info: accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind, providerId }), rows, addForm: BLANK_ADD_FORM };
 }
 
 function otherRow(storeId: OtherCredentialGroupState["store"]["id"], overrides: Partial<OtherCredentialRowState> = {}): OtherCredentialRowState {

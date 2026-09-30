@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { AccessTokensTab } from "../AccessTokensTab";
-import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "../rules";
+import {
+  accessTokenExistingRowReadyToSave,
+  accessTokenProviderInfo,
+  accessTokenRowProviderInfo,
+  accessTokenRowReadyToSave,
+} from "../rules";
+import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokenKind, AccessTokenRow } from "../rules";
 import type {
   AccessTokenAddFormState,
@@ -103,8 +109,9 @@ function rowState(overrides: Partial<AccessTokenExistingRowState> = {}): AccessT
     row: row(),
     name: "Production",
     token: "",
-    accountId: "",
+    values: {},
     username: "",
+    readyToSave: false,
     saving: false,
     error: null,
     ...overrides,
@@ -112,21 +119,29 @@ function rowState(overrides: Partial<AccessTokenExistingRowState> = {}): AccessT
 }
 
 function addForm(overrides: Partial<AccessTokenAddFormState> = {}): AccessTokenAddFormState {
-  return { visible: false, name: "", token: "", accountId: "", username: "", saving: false, error: null, ...overrides };
+  return { visible: false, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null, ...overrides };
 }
 
 /** Builds one provider group — for `kind: "custom"`, `info` is the row's own SYNTHETIC info
- *  (`accessTokenRowProviderInfo`), matching what `useAccessTokens`'s real `customGroups` builds;
- *  `accessTokenProviderInfo` alone would silently fall back to GitHub Pages for a `providerId` not
- *  in the seven-provider catalog. */
+ *  (`accessTokenRowProviderInfo`), matching what `useAccessTokens`'s real `customGroups` builds.
+ *  Every row's and the add form's `readyToSave` is derived with the same `rules.ts` gates the hook
+ *  uses, so a test sets typed values and never the flag by hand. */
 function groupFor(
   kind: AccessTokenKind,
   providerId: string,
   rows: AccessTokenExistingRowState[] = [],
   addFormState: AccessTokenAddFormState = addForm()
 ): AccessTokenProviderGroupState {
-  const info = kind === "custom" && rows[0] ? accessTokenRowProviderInfo(rows[0].row) : accessTokenProviderInfo({ kind, providerId });
-  return { info, rows, addForm: addFormState };
+  const info =
+    kind === "custom" && rows[0]
+      ? accessTokenRowProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, rows[0].row)
+      : accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind, providerId });
+  const ref = { kind: info.kind, providerId: info.providerId };
+  return {
+    info,
+    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ ref, ...state }, state.row, info) })),
+    addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ ref, ...addFormState }, info) },
+  };
 }
 
 function renderTab(overrides: Partial<AccessTokensController> = {}, otherOverrides: Partial<OtherCredentialsController> = {}) {
@@ -411,7 +426,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Prod 2" } });
     expect(setExistingField).toHaveBeenCalledWith("row-1", { name: "Prod 2" });
 
-    fireEvent.change(screen.getByLabelText("Access token"), { target: { value: "ghp_new" } });
+    fireEvent.change(screen.getByLabelText("Personal access token"), { target: { value: "ghp_new" } });
     expect(setExistingField).toHaveBeenCalledWith("row-1", { token: "ghp_new" });
   });
 
@@ -420,7 +435,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
     renderTab({ groups: [groupFor("publish", "cloudflare-pages", [rowState({ row: row({ id: "row-1", providerId: "cloudflare-pages" }) })])], setExistingField });
 
     fireEvent.change(screen.getByLabelText("Account ID"), { target: { value: "acct-9" } });
-    expect(setExistingField).toHaveBeenCalledWith("row-1", { accountId: "acct-9" });
+    expect(setExistingField).toHaveBeenCalledWith("row-1", { values: { accountId: "acct-9" } });
   });
 
   it("typing into Username calls setExistingField for this row (Bitbucket's own required field)", () => {
@@ -533,7 +548,7 @@ describe("AccessTokensTab — TokenInputFields: provider-specific extra fields",
     const field = screen.getByLabelText("Account ID");
     expect(field).toBeInTheDocument();
     fireEvent.change(field, { target: { value: "acct-123" } });
-    expect(setAddField).toHaveBeenCalledWith({ kind: "publish", providerId: "cloudflare-pages" }, { accountId: "acct-123" });
+    expect(setAddField).toHaveBeenCalledWith({ kind: "publish", providerId: "cloudflare-pages" }, { values: { accountId: "acct-123" } });
   });
 
   it("does not show Account ID for a provider that doesn't require it", () => {
@@ -566,7 +581,7 @@ describe("AccessTokensTab — TokenInputFields: provider-specific extra fields",
   it("typing into the Access token field calls onTokenChange (setAddField)", () => {
     const setAddField = vi.fn();
     renderTab({ groups: [groupFor("publish", "netlify", [], addForm({ visible: true }))], setAddField });
-    fireEvent.change(screen.getByLabelText("Access token"), { target: { value: "tok-123" } });
+    fireEvent.change(screen.getByLabelText("Personal access token"), { target: { value: "tok-123" } });
     expect(setAddField).toHaveBeenCalledWith({ kind: "publish", providerId: "netlify" }, { token: "tok-123" });
   });
 });

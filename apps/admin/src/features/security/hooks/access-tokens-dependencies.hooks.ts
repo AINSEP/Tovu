@@ -11,6 +11,7 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
  *  thin bind onto an existing `api.*` call already used by `Static Site`/`Source Control` — this page
  *  adds no new HTTP surface, only a second reader/writer of the same two endpoints. */
 export const defaultAccessTokensPort: AccessTokensPort = {
+  publishTargets: { list: () => api.getPublishTargets() },
   publish: {
     list: () => api.listPublishCredentials(),
     create: (input) => api.createPublishCredential(input).then((res) => res.credential),
@@ -73,9 +74,16 @@ function fakeCustomPort(overrides: Partial<AccessTokensPort["custom"]> | undefin
  *  stub — matches `createFakePublishCredentialsPort`'s per-call override shape.
  *  @complexity O(1). */
 export function createFakeAccessTokensPort(
-  overrides: Partial<{ publish: Partial<AccessTokensPort["publish"]>; sourceControl: Partial<AccessTokensPort["sourceControl"]>; custom: Partial<AccessTokensPort["custom"]> }> = {}
+  overrides: Partial<{
+    publishTargets: Partial<AccessTokensPort["publishTargets"]>;
+    publish: Partial<AccessTokensPort["publish"]>;
+    sourceControl: Partial<AccessTokensPort["sourceControl"]>;
+    custom: Partial<AccessTokensPort["custom"]>;
+  }> = {}
 ): AccessTokensPort {
   return {
+    // No hosts unless a test lists some: the admin names none of its own.
+    publishTargets: { list: overrides.publishTargets?.list ?? (() => Promise.resolve([])) },
     publish: fakePublishPort(overrides.publish),
     sourceControl: fakeSourceControlPort(overrides.sourceControl),
     custom: fakeCustomPort(overrides.custom),

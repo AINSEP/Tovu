@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { AccessTokensTab } from "../AccessTokensTab";
 import { accessTokenProviderInfo } from "../rules";
+import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokensController, AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
 
@@ -40,8 +41,9 @@ function githubPagesRow(): AccessTokenExistingRowState {
     },
     name: "Production",
     token: "",
-    accountId: "",
+    values: {},
     username: "",
+    readyToSave: false,
     saving: false,
     error: null,
   };
@@ -49,9 +51,9 @@ function githubPagesRow(): AccessTokenExistingRowState {
 
 function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): AccessTokensController {
   const group: AccessTokenProviderGroupState = {
-    info: accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" }),
+    info: accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind: "publish", providerId: "github-pages" }),
     rows: [githubPagesRow()],
-    addForm: { visible: false, name: "", token: "", accountId: "", username: "", saving: false, error: null },
+    addForm: { visible: false, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null },
   };
   return {
     groups: [group],

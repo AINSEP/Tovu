@@ -702,10 +702,9 @@ function publishCredentialsSectionContent({
  * `executionMode` still matters — it changes WHY this step is mandatory, in
  * {@link credentialStepSubtitleKey} — just not WHETHER it is shown open.
  *
- * `PUBLISH_CREDENTIAL_PROVIDERS`/`STATIC_PUBLISH_TARGETS` share the same id set in the same order
- * (`rules.ts`'s own doc on both), so `selectedProviderId` — always one of `STATIC_PUBLISH_TARGETS`'s
- * own ids — is guaranteed to match exactly one row; the `undefined` fallback in
- * {@link publishCredentialsSectionContent} is defensive only.
+ * The credential rows are the deploy registry's targets that take a credential, so
+ * `selectedProviderId` matches exactly one row unless the selected host takes none; the `undefined`
+ * fallback in {@link publishCredentialsSectionContent} covers that host.
  *
  * Renders only a brief "Loading…" line until BOTH `rows` and `executionMode` have resolved — showing
  * either step state for one render before the real data arrives would be a worse false impression

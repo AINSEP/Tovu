@@ -591,6 +591,9 @@ export interface AdminPublishTargetField {
  *  help only, never a value). `tokenField` names the field that is the token. */
 export interface AdminPublishTargetCredentialSpec {
   help?: string;
+  /** The company whose console issues and revokes the token, when it differs from the host's own
+   *  label (a host named for a place, not a vendor). */
+  vendorLabel?: string;
   tokenField: string;
   /** Where the person creates a token for this host. */
   tokenPageUrl?: string;
