@@ -289,7 +289,11 @@ test("sites: Create — flag ON, seeded owner, 201 with the created site's name/
     body: JSON.stringify({ name: "new-site" }),
   });
   assert.equal(res.status, 201);
-  assert.deepEqual(await res.json(), { site: { name: "new-site", dir: "/repo/sites/new-site", siteId: "generated-id" } });
+  assert.deepEqual(await res.json(), {
+    site: { name: "new-site", dir: "/repo/sites/new-site", siteId: "generated-id" },
+    // No token given: nothing sealed (sites-route-agent-plugin-tokens.test.ts covers the rest).
+    agentPluginTokens: { status: "none", pluginIds: [] },
+  });
 });
 
 test("sites: Create — a missing 'name' in the body is a 400 VALIDATION_ERROR, before createSite is ever called", async (t) => {
