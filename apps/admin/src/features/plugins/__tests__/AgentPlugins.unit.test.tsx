@@ -518,7 +518,7 @@ describe("AgentPlugins inspector (stateful)", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
     // The inspector lists the plugin's installed files from AGENT_PLUGIN_FILES (2026-09-13), not a
     // compile-time catalog — so any installed plugin, switched on or off, shows its real files.
-    expect(await within(dialog).findByRole("button", { name: "plugin.json" })).toBeInTheDocument();
+    expect(await within(dialog).findByRole("treeitem", { name: "plugin.json" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("status")).not.toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "plugin.json" })).toBeInTheDocument();
 

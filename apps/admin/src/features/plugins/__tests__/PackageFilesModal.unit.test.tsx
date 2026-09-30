@@ -59,8 +59,58 @@ describe("PackageFilesModal", () => {
 
     const nav = screen.getByRole("navigation", { name: "Package files" });
     expect(within(nav).getByRole("note")).toHaveTextContent("Some files are not listed.");
-    await userEvent.click(within(nav).getByRole("button", { name: "server/index.mjs" }));
+    // `server/` doesn't hold the selected file, so it starts collapsed; clicking opens it.
+    const folder = within(nav).getByRole("treeitem", { name: "server" });
+    expect(folder).toHaveAttribute("aria-expanded", "false");
+    expect(within(nav).queryByRole("treeitem", { name: "index.mjs" })).not.toBeInTheDocument();
+    await userEvent.click(folder);
+    expect(folder).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(within(nav).getByRole("treeitem", { name: "index.mjs" }));
     expect(props.onSelectFile).toHaveBeenCalledWith("server/index.mjs");
+  });
+
+  it("lists folders before files, marks the selected file, and names each row's full path in its tooltip", () => {
+    const files = [
+      { relativePath: "plugin.json", content: "{}" },
+      { relativePath: "skills/deploy/SKILL.md", content: "# Deploy" },
+      { relativePath: "a.md", content: "a" },
+    ];
+    renderModal({ files, selectedFile: files[1]! });
+
+    const tree = screen.getByRole("tree", { name: "Package files" });
+    const rows = within(tree).getAllByRole("treeitem");
+    expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual(["skills", "deploy", "SKILL.md", "a.md", "plugin.json"]);
+    expect(rows.map((row) => row.getAttribute("aria-level"))).toEqual(["1", "2", "3", "1", "1"]);
+    expect(within(tree).getByRole("treeitem", { name: "SKILL.md" })).toHaveAttribute("aria-selected", "true");
+    expect(within(tree).getByRole("treeitem", { name: "SKILL.md" })).toHaveAttribute("title", "skills/deploy/SKILL.md");
+    expect(within(tree).getByRole("treeitem", { name: "a.md" })).toHaveAttribute("aria-selected", "false");
+    // Roving tabindex: only the selected row is in the Tab order.
+    expect(rows.filter((row) => row.tabIndex === 0)).toEqual([within(tree).getByRole("treeitem", { name: "SKILL.md" })]);
+  });
+
+  it("moves with the arrow keys, collapses and expands with Left and Right, and opens with Enter", async () => {
+    const files = [
+      { relativePath: "plugin.json", content: "{}" },
+      { relativePath: "targets/vercel.mjs", content: "export {}" },
+    ];
+    const props = renderModal({ files, selectedFile: files[0]! });
+    const tree = screen.getByRole("tree", { name: "Package files" });
+    const row = (name: string) => within(tree).getByRole("treeitem", { name });
+
+    row("plugin.json").focus();
+    await userEvent.keyboard("{ArrowUp}");
+    expect(row("targets")).toHaveFocus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(row("targets")).toHaveAttribute("aria-expanded", "true");
+    await userEvent.keyboard("{ArrowRight}");
+    expect(row("vercel.mjs")).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(props.onSelectFile).toHaveBeenCalledWith("targets/vercel.mjs");
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(row("targets")).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(row("targets")).toHaveAttribute("aria-expanded", "false");
+    expect(within(tree).queryByRole("treeitem", { name: "vercel.mjs" })).not.toBeInTheDocument();
   });
 
   it("takes every piece of its own copy through t", () => {

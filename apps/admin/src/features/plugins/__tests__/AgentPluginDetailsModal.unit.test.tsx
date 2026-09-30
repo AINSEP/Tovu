@@ -33,7 +33,9 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
 
     render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
 
-    expect(screen.getByRole("button", { name: "fake/only.md" })).toBeInTheDocument();
+    // The selected file's folder starts expanded, so the file row is visible under it.
+    expect(screen.getByRole("treeitem", { name: "fake" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("treeitem", { name: "only.md" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("fake content body")).toBeInTheDocument();
   });
 
@@ -88,7 +90,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
     expect(container.querySelector(".code-viewer--wrap")).toBeInTheDocument();
     expect(container.querySelector(".gutter")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "plugin.json" }));
+    await user.click(screen.getByRole("treeitem", { name: "plugin.json" }));
 
     // plugin.json is not markdown, but defaults wrapped too now — the extension no longer decides
     // the default (owner correction, 2026-09-10).
@@ -147,7 +149,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
 
     // beta.md is also markdown, the same true default alpha.md started from — if the override had
     // carried across instead of resetting per file, this would incorrectly read false too.
-    await user.click(screen.getByRole("button", { name: "beta.md" }));
+    await user.click(screen.getByRole("treeitem", { name: "beta.md" }));
     expect(screen.getByRole("button", { name: WRAP_TOGGLE_NAME })).toHaveAttribute("aria-pressed", "true");
   });
 

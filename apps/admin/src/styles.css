@@ -4574,17 +4574,47 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .agent-plugin-source-browser { display: grid; grid-template-columns: minmax(14rem, min(16rem, 24%)) minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; }
 .agent-plugin-source-files {
   display: flex; flex-direction: column; gap: 2px;
-  min-width: 0; padding: var(--space-3); overflow: auto;
+  min-width: 0; padding: var(--space-2) 0; overflow: auto;
   border-right: 1px solid var(--border); background: var(--surface-2);
 }
-.agent-plugin-source-files button {
-  width: 100%; padding: 0.5rem 0.6rem;
-  color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: var(--r-sm);
-  font: inherit; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.4;
-  overflow-wrap: anywhere; text-align: left; cursor: pointer;
+.agent-plugin-source-files > .page-description { margin: 0 var(--space-3) var(--space-2); }
+/* VS Code-style file tree (2026-09-29, `PackageFileTree` in `PackageFilesModal.tsx`): flat 24px
+   rows, full-width highlight, indent guides drawn by one gradient on the indent spacer (a 1px line
+   centred under each ancestor's chevron), names truncated with the full path as the tooltip. */
+.agent-plugin-source-tree {
+  --tree-indent: 12px;
+  --tree-guide: var(--border-strong);
+  display: flex; flex-direction: column; min-width: 0;
+  font-family: var(--font-mono); font-size: var(--text-xs);
 }
-.agent-plugin-source-files button:hover,
-.agent-plugin-source-files button[aria-pressed="true"] { color: var(--fg); background: var(--surface); border-color: var(--border); opacity: 1; }
+.agent-plugin-source-tree-row {
+  display: flex; align-items: center; gap: 4px;
+  height: 24px; min-width: 0; padding: 0 var(--space-3) 0 var(--space-2);
+  color: var(--fg-2); cursor: pointer; user-select: none; outline: none;
+}
+.agent-plugin-source-tree-row:hover { color: var(--fg); background: var(--surface-3); }
+.agent-plugin-source-tree-row[aria-selected="true"] { color: var(--fg); background: var(--accent-dim); font-weight: 600; }
+.agent-plugin-source-tree-row:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.agent-plugin-source-tree-indent {
+  flex-shrink: 0; align-self: stretch;
+  background: repeating-linear-gradient(to right,
+    transparent 0 calc(var(--tree-indent) / 2 + 1.5px),
+    var(--tree-guide) calc(var(--tree-indent) / 2 + 1.5px) calc(var(--tree-indent) / 2 + 2.5px),
+    transparent calc(var(--tree-indent) / 2 + 2.5px) var(--tree-indent));
+}
+.agent-plugin-source-tree-twistie { flex-shrink: 0; width: 16px; color: var(--muted); }
+.agent-plugin-source-tree-icon { flex-shrink: 0; color: var(--muted); }
+.agent-plugin-source-tree-icon.is-folder { color: oklch(72% 0.12 75); }
+.agent-plugin-source-tree-icon.is-json { color: oklch(72% 0.13 90); }
+.agent-plugin-source-tree-icon.is-markdown { color: oklch(62% 0.12 245); }
+.agent-plugin-source-tree-icon.is-javascript { color: oklch(76% 0.15 95); }
+.agent-plugin-source-tree-icon.is-typescript { color: oklch(60% 0.13 250); }
+.agent-plugin-source-tree-icon.is-config { color: oklch(62% 0.14 20); }
+.agent-plugin-source-tree-icon.is-html { color: oklch(64% 0.17 40); }
+.agent-plugin-source-tree-icon.is-css { color: oklch(62% 0.13 280); }
+.agent-plugin-source-tree-icon.is-image { color: oklch(64% 0.12 160); }
+.agent-plugin-source-tree-icon.is-shell { color: oklch(64% 0.12 145); }
+.agent-plugin-source-tree-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-plugin-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 /* Header bar: title + the wrap toggle (item 1, 2026-08-31). The padding/border that used to sit
    directly on the bare `h3` now live on this row instead, so the toggle shares the same bar rather
@@ -4626,6 +4656,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    putting it on `.line-number`/`.line-content` instead would pad every single line. */
 .agent-plugin-source-content .code-viewer--wrap {
   grid-template-columns: auto minmax(0, 1fr);
+  /* Rows pack at the top. Without this the grid's default `align-content: stretch` shares the
+     pane's spare height across every line, so a 5-line file spread its lines down the whole pane
+     (owner screenshot, 2026-09-29). */
+  align-content: start;
   padding: var(--space-4) 0;
 }
 .agent-plugin-source-content .code-viewer--wrap .line-number {
