@@ -5,7 +5,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import type { RouteDeps } from "../routes/types.js";
-import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/index.js";
+import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types.js";
 import type { CommentIngressPolicy, CommentWriteService } from "#src/features/comments/index";
 import { registerPaymentsWebhookRoute } from "../inbound/public-http/routes/site/payments-webhook.js";
@@ -74,7 +74,7 @@ function withThrowingMethods<T extends object>(real: T, brokenMethodNames: reado
 
 test("publish-credentials: GET responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
-  deps.publishCredentialSetRepo = withThrowingMethods(deps.publishCredentialSetRepo as PublishCredentialSetRepoPort, ["listByWorkspace"]);
+  deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["listByWorkspace"]);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -88,7 +88,7 @@ test("publish-credentials: GET responds 500 (not a hang) when the repo throws an
 
 test("publish-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
-  deps.publishCredentialSetRepo = withThrowingMethods(deps.publishCredentialSetRepo as PublishCredentialSetRepoPort, ["delete"]);
+  deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["delete"]);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -111,7 +111,7 @@ test("publish-credentials: DELETE responds 500 (not a hang) when the repo throws
  */
 test("publish-credentials: POST responds 500 (not a hang) when the store throws an error none of the four typed classes match", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
-  deps.publishCredentialSetRepo = withThrowingMethods(deps.publishCredentialSetRepo as PublishCredentialSetRepoPort, ["insert"]);
+  deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["insert"]);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

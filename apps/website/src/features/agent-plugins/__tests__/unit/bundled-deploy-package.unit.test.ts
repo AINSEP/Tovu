@@ -52,11 +52,12 @@ test("target ids are byte-identical to the legacy provider ids (sealed credentia
   for (const target of descriptor.targets) assert.ok(legacyIds.has(target.id), `'${target.id}' is not a legacy provider id`);
   assert.deepEqual(
     descriptor.targets.map((target) => [target.id, target.module]),
+    // Listed in the admin's display order (ecf8e7b7e); the registry, and so every host picker, keeps it.
     [
+      ["github-pages", "targets/github-pages.mjs"],
+      ["vercel", "targets/vercel.mjs"],
       ["netlify", "targets/netlify.mjs"],
       ["cloudflare-pages", "targets/cloudflare-pages.mjs"],
-      ["vercel", "targets/vercel.mjs"],
-      ["github-pages", "targets/github-pages.mjs"],
       ["s3-compatible", "targets/s3-compatible.mjs"],
     ],
   );
