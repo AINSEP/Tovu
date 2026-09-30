@@ -66,9 +66,11 @@ function gitDirtyPaths(): string[] {
     ["-C", REPO_ROOT, "status", "--porcelain", "--", ...VERIFIED_RELATIVE_PATHS],
     { encoding: "utf8" }
   );
+  // Never trim before slicing: the porcelain XY status is two fixed columns and a leading space is
+  // one of them (" M path" = unstaged modify). Trimming it shifts the path left, and slice(3) then
+  // eats the path's first character ("pps/desktop/..." for "apps/desktop/...").
   return output
     .split("\n")
-    .map((line) => line.trim())
     .filter((line) => line.length > 0)
     .map((line) => line.slice(3));
 }
