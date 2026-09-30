@@ -140,7 +140,18 @@ import { windowBoundsFilePath, readWindowBounds, writeWindowBounds, resolveWindo
 import { registerSpellCheckContextMenu } from "./src/spellcheck-menu.ts";
 import { updaterSkipReason } from "./src/update-policy.ts";
 import { createAutoUpdateController } from "./src/auto-update-controller.ts";
-import { presenceDirPath } from "./src/instance-presence.ts";
+import { presenceDirPath, readLiveInstances } from "./src/instance-presence.ts";
+import {
+  MOVE_PROMPT,
+  applicationsTargetPath,
+  bundlePathFromExecPath,
+  moveDeclineFilePath,
+  movePromptSkipReason,
+  readBundleVersion,
+  readDeclinedVersion,
+  recordDeclinedVersion,
+  runMoveToApplicationsPrompt,
+} from "./src/move-to-applications.ts";
 import type { AutoUpdateController } from "./src/auto-update-controller.ts";
 import type { MenuItemConstructorOptions } from "electron";
 import type { QuitPhase } from "./src/quit-drain-gate.ts";
@@ -1438,6 +1449,57 @@ function explainOthersOpen(count: number): void {
   });
 }
 
+/**
+ * Offers to move a packaged macOS copy launched from outside Applications (a disk image, Downloads)
+ * into it, once per version — every rule is in `move-to-applications.ts`; this only supplies
+ * Electron. Runs before the updater and any site server, so a successful move (Electron relaunches
+ * from Applications and quits this process) leaves nothing behind. Its caller logs any throw (an
+ * unwritable `userData` on "Not Now") and boots on.
+ */
+async function offerMoveToApplications(): Promise<void> {
+  const userDataDir = app.getPath("userData");
+  const declinePath = moveDeclineFilePath(userDataDir);
+  const bundlePath = bundlePathFromExecPath(process.execPath);
+  const skip = movePromptSkipReason({
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    isMas: process.mas === true,
+    selftest: SELFTEST,
+    unattended: isUnattendedSiteLaunch(),
+    inApplications: process.platform === "darwin" && app.isInApplicationsFolder(),
+    otherInstancesOpen: readLiveInstances(presenceDirPath(userDataDir)).filter((record) => record.pid !== process.pid).length,
+    currentVersion: app.getVersion(),
+    declinedVersion: readDeclinedVersion(declinePath),
+  });
+  if (skip !== null || bundlePath === null) {
+    console.log(`[tovu-desktop] move to Applications not offered: ${skip ?? "not inside an .app bundle"}`);
+    return;
+  }
+  const outcome = await runMoveToApplicationsPrompt({
+    currentVersion: app.getVersion(),
+    targetPath: applicationsTargetPath(bundlePath),
+    ask: async () => {
+      const { response } = await dialog.showMessageBox({
+        type: "question",
+        buttons: [MOVE_PROMPT.moveButton, MOVE_PROMPT.notNowButton],
+        defaultId: 0,
+        cancelId: 1,
+        message: MOVE_PROMPT.message,
+        detail: MOVE_PROMPT.detail,
+      });
+      return response === 0 ? "move" : "not-now";
+    },
+    move: (conflictHandler) => app.moveToApplicationsFolder({ conflictHandler }),
+    readExistingVersion: readBundleVersion,
+    openExisting: (appPath) => void shell.openPath(appPath),
+    quit: () => app.quit(),
+    recordDeclined: () => recordDeclinedVersion(declinePath, app.getVersion()),
+    showError: (message) => dialog.showErrorBox("Tovu", message),
+    showInfo: (message) => void dialog.showMessageBoxSync({ type: "info", message }),
+  });
+  console.log(`[tovu-desktop] move to Applications: ${outcome}`);
+}
+
 app
   .whenReady()
   .then(async () => {
@@ -1451,6 +1513,9 @@ app
       forceExit: () => app.exit(1),
       deadlineMs: QUIT_DEADLINE_MS,
     });
+
+    // Before the updater and any site server: a successful move quits this process at once.
+    await offerMoveToApplications().catch((error: Error) => console.error(`[tovu-desktop] move to Applications failed: ${error.message}`));
 
     // Registered before either boot-mode branch below so a window's very first `isAvailable()`
     // call (fired from the preload the instant the page mounts) never races an unregistered
