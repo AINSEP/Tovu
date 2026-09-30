@@ -489,10 +489,13 @@ test("initSiteDir: a real child that exits before reading the tokens rejects the
       dir: "/a/new/site",
       baseEnv: {},
       agentPluginTokens: { supabase: "t".repeat(4 * 1024 * 1024) },
-      spawnFn: (_command, _args, options) =>
-        spawn(process.execPath, ["-e", "process.stderr.write('tovu: UNKNOWN_OPTION: --agent-plugin-tokens-stdin\\n'); process.exit(2)"], {
-          stdio: options.stdio,
-        }),
+      spawnFn: (_command, _args, options) => {
+        // Spelled as a literal (not `options.stdio`) so `spawn` types the child's streams as non-null.
+        assert.deepEqual(options.stdio, ["pipe", "pipe", "pipe"]);
+        return spawn(process.execPath, ["-e", "process.stderr.write('tovu: UNKNOWN_OPTION: --agent-plugin-tokens-stdin\\n'); process.exit(2)"], {
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+      },
     }).then(
       () => "resolved",
       (error: Error) => error.message,
