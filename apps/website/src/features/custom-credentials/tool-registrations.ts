@@ -56,7 +56,7 @@ import { buildCreateFormResource, buildCreateOutcomeResource, CREATE_TOOL_ID, ty
 import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
 import type { FileWritePlan, FileWriteState, SourceControlProvider } from "../source-control/provider-module.js";
-import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
+import { buildSourceControlProviderForApi, isUnderWorkflowPath, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
@@ -71,7 +71,7 @@ import {
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
 import { buildWriteFilesConfirmationResource, WRITE_FILES_TOOL_ID, type WriteFilesConfirmationFileSpec } from "./write-files-confirmation-ui.js";
-import { isWorkflowPath, validateRepositoryTarget, validateWriteFilesInput, type NormalizedWriteFile, type ValidatedWriteFilesInput } from "./write-files-validation.js";
+import { validateRepositoryTarget, validateWriteFilesInput, type NormalizedWriteFile, type ValidatedWriteFilesInput } from "./write-files-validation.js";
 
 /**
  * @file Wires `agent-tools.ts`'s three-tool catalog onto `credentialed-request.ts`'s domain logic (plus
@@ -591,11 +591,11 @@ function buildWriteFilesContentExcerpt(content: string): string {
  *
  * @complexity O(1) in the excerpt cap; O(n) only for content shorter than the cap.
  */
-function buildWriteFilesConfirmationFileSpec(fileState: FileWriteState, content: string): WriteFilesConfirmationFileSpec {
+function buildWriteFilesConfirmationFileSpec(fileState: FileWriteState, content: string, workflowPaths: readonly string[] | undefined): WriteFilesConfirmationFileSpec {
   return {
     path: fileState.path,
     exists: fileState.exists,
-    isWorkflow: isWorkflowPath(fileState.path),
+    isWorkflow: isUnderWorkflowPath(fileState.path, workflowPaths),
     contentExcerpt: buildWriteFilesContentExcerpt(content),
     sizeBytes: Buffer.byteLength(content, "utf8"),
   };
@@ -618,6 +618,8 @@ function buildWriteFilesConfirmationFileSpec(fileState: FileWriteState, content:
  *
  * @param input.fileStates - the provider's `planFileWrite`'s per-file create/update reconnaissance.
  * @param input.files - The same validated files that plan was built from.
+ * @param input.workflowPaths - The host's declared `workflowPaths` (`SourceControlHostFacts`): a file
+ * under one is flagged `isWorkflow`. Absent: no file is.
  * @throws {Error} A planned path is absent from `files`. Deliberately a plain `Error`, not a
  * `ToolInputError`: no different input from the caller would fix it.
  * @complexity O(files) — one map insertion and one lookup per file, plus each file's own capped excerpt.
@@ -625,6 +627,7 @@ function buildWriteFilesConfirmationFileSpec(fileState: FileWriteState, content:
 export function buildWriteFilesConfirmationFileSpecs(input: {
   fileStates: readonly FileWriteState[];
   files: readonly NormalizedWriteFile[];
+  workflowPaths?: readonly string[];
 }): WriteFilesConfirmationFileSpec[] {
   const contentByPath = new Map(input.files.map((file): [string, string] => [file.path, file.content]));
   return input.fileStates.map((fileState) => {
@@ -635,7 +638,7 @@ export function buildWriteFilesConfirmationFileSpecs(input: {
           "refusing to raise a confirmation dialog that cannot say what would be written there. Nothing was written."
       );
     }
-    return buildWriteFilesConfirmationFileSpec(fileState, content);
+    return buildWriteFilesConfirmationFileSpec(fileState, content, input.workflowPaths);
   });
 }
 
@@ -1414,7 +1417,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         owner: validated.owner,
         repo: validated.repo,
         branch: validated.branch,
-        files: buildWriteFilesConfirmationFileSpecs({ fileStates: planResult.plan.fileStates, files: validated.files }),
+        files: buildWriteFilesConfirmationFileSpecs({ fileStates: planResult.plan.fileStates, files: validated.files, workflowPaths: provider.workflowPaths }),
         exchangeId: exchange.id,
       });
 

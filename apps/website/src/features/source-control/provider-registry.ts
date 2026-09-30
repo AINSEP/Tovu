@@ -16,7 +16,7 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
  * credential form.
  *
  * A plugin opts in by shipping {@link SOURCE_CONTROL_PROVIDERS_FILENAME} at its root: a data-only list
- * of `{ id, label, apiOrigin, maxFileBytes?, reservedPaths?, module, credential?, i18n? }` (`credential`: the
+ * of `{ id, label, apiOrigin, maxFileBytes?, reservedPaths?, workflowPaths?, module, credential?, i18n? }` (`credential`: the
  * admin's saved-credential form, `./credential-form.ts`). `id` is the `source_control_credential_sets.provider_id`
  * the provider serves; `label`, `apiOrigin` and `maxFileBytes` are the host facts core copy and checks
  * name (`SourceControlHostFacts`), so no tool text hard-codes a host; `module` is a plain-JS `.mjs` file inside the plugin whose default export is a
@@ -183,7 +183,7 @@ export function parseSourceControlProvidersFile(raw: string): ParseResult {
 /** One descriptor entry, or the reason it is invalid. @complexity O(1). */
 function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { id, label, apiOrigin, maxFileBytes, reservedPaths, module } = entry;
+  const { id, label, apiOrigin, maxFileBytes, reservedPaths, workflowPaths, module } = entry;
   const credential = parseSourceControlCredentialForm(entry.credential, `${at}.credential`);
   const i18n = parseDescriptorI18n(entry.i18n, `${at}.i18n`);
   if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
@@ -191,6 +191,7 @@ function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescr
   if (typeof apiOrigin !== "string" || !isHttpsOrigin(apiOrigin)) return `${at}.apiOrigin must be an https origin with no path`;
   if (maxFileBytes !== undefined && !(Number.isSafeInteger(maxFileBytes) && (maxFileBytes as number) > 0)) return `${at}.maxFileBytes must be a positive integer`;
   if (reservedPaths !== undefined && !isReservedPathList(reservedPaths)) return `${at}.reservedPaths must be a list of at most ${MAX_RESERVED_PATHS} relative folder paths`;
+  if (workflowPaths !== undefined && !isReservedPathList(workflowPaths)) return `${at}.workflowPaths must be a list of at most ${MAX_RESERVED_PATHS} relative folder paths`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
   if (typeof credential === "string") return credential;
   if (typeof i18n === "string") return i18n;
@@ -200,6 +201,7 @@ function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescr
     apiOrigin,
     ...(maxFileBytes !== undefined ? { maxFileBytes: maxFileBytes as number } : {}),
     ...(reservedPaths !== undefined ? { reservedPaths } : {}),
+    ...(workflowPaths !== undefined ? { workflowPaths } : {}),
     module,
     ...(credential !== undefined ? { credential } : {}),
     ...(i18n !== undefined ? { i18n } : {}),
@@ -230,6 +232,17 @@ export function findReservedPath(folder: string, reservedPaths: readonly string[
   });
 }
 
+/**
+ * True when `filePath` (normalized, repository-relative) sits under one of the host's
+ * `SourceControlHostFacts.workflowPaths`. Exact and case-sensitive, from the repository root: the
+ * host runs only files at that exact path, so this never over- or under-matches what controls CI.
+ *
+ * @complexity O(w) workflow paths.
+ */
+export function isUnderWorkflowPath(filePath: string, workflowPaths: readonly string[] | undefined): boolean {
+  return workflowPaths?.some((workflowPath) => filePath.startsWith(`${workflowPath}/`)) ?? false;
+}
+
 /** True for `https://host[:port]` exactly — what `new URL(x).origin` gives back. @complexity O(1). */
 function isHttpsOrigin(value: string): boolean {
   try {
@@ -243,7 +256,7 @@ function isHttpsOrigin(value: string): boolean {
 /** A loaded provider built over `kit`, carrying its plugin's declared host facts and its module's
  *  `validateTarget`. @complexity O(1). */
 export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProvider, kit: SourceControlProviderKit): SourceControlProvider {
-  const { id, label, apiOrigin, maxFileBytes, reservedPaths } = loaded.descriptor;
+  const { id, label, apiOrigin, maxFileBytes, reservedPaths, workflowPaths } = loaded.descriptor;
   const { validateTarget } = loaded.module;
   return {
     ...loaded.module.create({ kit }),
@@ -253,6 +266,7 @@ export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProv
     apiOrigin,
     ...(maxFileBytes !== undefined ? { maxFileBytes } : {}),
     ...(reservedPaths !== undefined ? { reservedPaths } : {}),
+    ...(workflowPaths !== undefined ? { workflowPaths } : {}),
   };
 }
 

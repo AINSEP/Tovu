@@ -31,7 +31,7 @@ export function writeFilesConfirmationUri(exchangeId: string): UIResourceUri {
 
 /** One file the confirmation dialog names — `exists` (create vs. update) and `isWorkflow` are both
  *  facts the caller must have already resolved (the provider's plan phase,
- *  `write-files-validation.ts`'s `isWorkflowPath`) — this module only renders them, it never decides
+ *  the host's declared `workflowPaths` via `source-control/provider-registry.ts`'s `isUnderWorkflowPath`) — this module only renders them, it never decides
  *  them. `contentExcerpt`/`sizeBytes` are supplied by the caller the same way: the caller truncates
  *  the excerpt to a short, reviewable length (see `tool-registrations.ts`'s own
  *  `buildWriteFilesContentExcerpt`) so the detail row gives the human something real to review

@@ -167,14 +167,6 @@ export function normalizeWriteFilePath(rawPath: string): string {
   return normalized;
 }
 
-/** `true` when `normalizedPath` is a GitHub Actions workflow file — the exact, case-sensitive
- *  directory GitHub itself recognizes (workflows outside this exact path are never executed), so
- *  this check can never over- or under-match what actually controls CI. Used by
- *  `write-files-confirmation-ui.ts` to render an extra, more emphatic warning for this path class. */
-export function isWorkflowPath(normalizedPath: string): boolean {
-  return normalizedPath.startsWith(".github/workflows/");
-}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

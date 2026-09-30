@@ -365,6 +365,7 @@ test("each planned path is paired with its OWN content, matched by path rather t
       { path: ".github/workflows/deploy.yml", content: "name: deploy" },
       { path: "a.txt", content: "hello" },
     ],
+    workflowPaths: [".github/workflows"],
   });
 
   assert.deepEqual(specs, [

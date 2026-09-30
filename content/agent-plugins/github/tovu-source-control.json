@@ -9,6 +9,9 @@
       "reservedPaths": [
         ".github"
       ],
+      "workflowPaths": [
+        ".github/workflows"
+      ],
       "module": "source-control/github.mjs",
       "credential": {
         "tokenPageUrl": "https://github.com/settings/personal-access-tokens/new",

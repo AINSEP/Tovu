@@ -3,15 +3,15 @@ import test from "node:test";
 
 import { githubValidateTarget } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { CustomCredentialValidationError } from "../store.js";
-import { isWorkflowPath, normalizeWriteFilePath, validateRepositoryTarget, validateWriteFilesInput, WRITE_FILES_LIMITS } from "../write-files-validation.js";
+import { normalizeWriteFilePath, validateRepositoryTarget, validateWriteFilesInput, WRITE_FILES_LIMITS } from "../write-files-validation.js";
 
 /**
  * @file `write-files-validation.ts` — every refusal here must fire BEFORE `custom_credential_write_files`
  * ever resolves a credential or makes a network call (this file's own header; owner/repo run once the
  * host is known, before any decrypt). Covers: owner/repo (the host's rules, then the generic one),
  * branch/commitMessage shape, path safety (absolute, `..`, NUL, oversized, reserved `.git`), the
- * per-file/aggregate size caps, the file-count cap, duplicate-path detection, and `isWorkflowPath`'s
- * exact-match contract.
+ * per-file/aggregate size caps, the file-count cap, and duplicate-path detection. The workflow-path
+ * check moved to the github plugin's declared `workflowPaths` (`provider-registry.unit.test.ts`).
  */
 
 const VALID = { branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
@@ -150,15 +150,4 @@ test("rejects a malformed file entry (missing content, wrong type, non-object)",
   assert.throws(() => validateWriteFilesInput({ ...VALID, files: [{ path: "a.txt" }] }), CustomCredentialValidationError);
   assert.throws(() => validateWriteFilesInput({ ...VALID, files: [{ path: "a.txt", content: 123 }] }), CustomCredentialValidationError);
   assert.throws(() => validateWriteFilesInput({ ...VALID, files: ["not-an-object"] }), CustomCredentialValidationError);
-});
-
-// ---------------------------------------------------------------------------
-// isWorkflowPath — exact match, no over/under-matching
-// ---------------------------------------------------------------------------
-
-test("isWorkflowPath matches exactly the GitHub-recognized directory", () => {
-  assert.equal(isWorkflowPath(".github/workflows/fly-deploy.yml"), true);
-  assert.equal(isWorkflowPath("fly.toml"), false);
-  assert.equal(isWorkflowPath(".github/workflow/fly-deploy.yml"), false, "singular 'workflow' is not the real directory GitHub reads");
-  assert.equal(isWorkflowPath("sub/.github/workflows/fly-deploy.yml"), false, "a nested .github is not the repo-root one GitHub Actions reads");
 });

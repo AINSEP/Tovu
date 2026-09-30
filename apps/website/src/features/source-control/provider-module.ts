@@ -133,6 +133,10 @@ export interface SourceControlHostFacts {
    *  `.github/workflows`), so a site backup is never written into or under one. Compared
    *  case-insensitively. */
   readonly reservedPaths?: readonly string[];
+  /** Repository folders whose files the host RUNS automatically (GitHub: `.github/workflows`), so a
+   *  write confirmation names such a file with an extra warning. Compared exactly and
+   *  case-sensitively, from the repository root: the host recognizes no other spelling. */
+  readonly workflowPaths?: readonly string[];
 }
 
 /** What a provider module's `create()` returns: the operations only. */

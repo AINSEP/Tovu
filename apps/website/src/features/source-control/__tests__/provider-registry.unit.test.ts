@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,8 +11,9 @@ import { recordBundledAgentPluginDigests } from "#src/features/agent-plugins/bun
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
-import { buildLoadedSourceControlProvider, findReservedPath, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
+import { buildLoadedSourceControlProvider, findReservedPath, isUnderWorkflowPath, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
 import type { SourceControlProvider } from "../provider-module.js";
+import { GITHUB_PACKAGE_ROOT } from "./fixtures/github-from-source.js";
 
 /**
  * @file `provider-registry.ts` — the seam that lets an Agent Plugin add a git host. Loading a module
@@ -199,6 +200,40 @@ test("findReservedPath matches the folder itself or anything under it, case-inse
   assert.equal(findReservedPath(".github-backup", [".github"]), undefined);
   assert.equal(findReservedPath("site/.github", [".github"]), undefined);
   assert.equal(findReservedPath(".github", undefined), undefined);
+});
+
+test("workflowPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file", () => {
+  const entry = { id: "a", label: "A", apiOrigin: "https://a.test", module: "a.mjs" };
+  const parsed = parseSourceControlProvidersFile(descriptorJson([{ ...entry, workflowPaths: [".ci/pipelines"] }]));
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.descriptors[0]?.workflowPaths, [".ci/pipelines"]);
+  const provider = buildLoadedSourceControlProvider({ descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, {} as never);
+  assert.deepEqual(provider.workflowPaths, [".ci/pipelines"]);
+
+  const noneDeclared = parseSourceControlProvidersFile(descriptorJson([entry]));
+  assert.ok(noneDeclared.ok);
+  assert.equal("workflowPaths" in noneDeclared.descriptors[0]!, false);
+
+  const reason = "providers[0].workflowPaths must be a list of at most 20 relative folder paths";
+  for (const workflowPaths of ["x", [""], ["/abs"], ["a/../b"], [1]]) {
+    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, workflowPaths }])), { ok: false, reason });
+  }
+});
+
+test("the bundled github plugin declares .github/workflows as its workflow path", async () => {
+  const parsed = parseSourceControlProvidersFile(await readFile(path.join(GITHUB_PACKAGE_ROOT, SOURCE_CONTROL_PROVIDERS_FILENAME), "utf8"));
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.descriptors.find((descriptor) => descriptor.id === "github")?.workflowPaths, [".github/workflows"]);
+});
+
+test("isUnderWorkflowPath matches exactly the declared directory, from the repository root, case-sensitively", () => {
+  const github = [".github/workflows"];
+  assert.equal(isUnderWorkflowPath(".github/workflows/fly-deploy.yml", github), true);
+  assert.equal(isUnderWorkflowPath("fly.toml", github), false);
+  assert.equal(isUnderWorkflowPath(".github/workflow/fly-deploy.yml", github), false, "singular 'workflow' is not the real directory GitHub reads");
+  assert.equal(isUnderWorkflowPath("sub/.github/workflows/fly-deploy.yml", github), false, "a nested .github is not the repo-root one GitHub Actions reads");
+  assert.equal(isUnderWorkflowPath(".GitHub/workflows/fly-deploy.yml", github), false, "GitHub reads only the exact spelling");
+  assert.equal(isUnderWorkflowPath(".github/workflows/fly-deploy.yml", undefined), false, "a host that declares none flags nothing");
 });
 
 test("a module whose validateTarget is not a function is refused", async () => {
