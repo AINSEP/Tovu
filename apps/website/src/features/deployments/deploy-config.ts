@@ -4,10 +4,12 @@ import { join } from "node:path";
 import { ValidationError } from "#src/platform/site-dir/index";
 
 /**
- * @file The ONE `DeploymentDescriptor` every platform renderer (`./deploy-config-fly.ts`,
- * `./deploy-config-render.ts`, `./deploy-config-railway.ts`) is a thin, pure function over —
- * `tovu deploy config --target <fly|render|railway>`'s single source of truth (`cli/commands/
- * deploy-config.ts`).
+ * @file The ONE `DeploymentDescriptor` every platform config generator is a thin, pure function over —
+ * `tovu deploy config --target <id>`'s single source of truth (`cli/commands/deploy-config.ts`). The
+ * generators themselves are plugin modules (the bundled `deploy` plugin's `deploy-configs/*.mjs`,
+ * declared in its `tovu-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
+ * keeps only the vendor-neutral half: the descriptor, the injection guard, the migrations note, and
+ * the {@link DeployConfigGeneratorModule} port with the {@link DeployConfigKit} the host passes in.
  *
  * Purpose:
  * Every emitted config states the same small set of facts (image built from `./Dockerfile`, the
@@ -15,8 +17,8 @@ import { ValidationError } from "#src/platform/site-dir/index";
  * vars must be set through the platform's own secret mechanism) — only the SERIALIZATION differs
  * per platform. Four independent generators each hardcoding these facts would mean four copies of
  * the same knowledge, silently rotting three at a time the day one of them changes. This module is
- * the fix: build the descriptor once, here, then hand it to whichever renderer the caller asked
- * for. A fifth platform is one new renderer file, never a change to this one.
+ * the fix: build the descriptor once, here, then hand it to whichever generator the caller asked
+ * for. Another platform is one new plugin module plus one manifest line, never a change to this one.
  *
  * Derivation over hardcoding, wherever that's reasonably possible: {@link buildDeploymentDescriptor}
  * reads the repo's own already-committed files (`Dockerfile`, `fly.toml`, the `/readyz` route's own
@@ -30,8 +32,6 @@ import { ValidationError } from "#src/platform/site-dir/index";
  * `features/deployments` (a `PROMOTED_NO_DEEP_IMPORTS` module — `.dependency-cruiser.mjs`): reached
  * only through `./index.ts`, never by a deep import into this file directly.
  */
-
-export type DeploymentTarget = "fly" | "render" | "railway";
 
 /** One env var a production Tovu deployment needs set through the platform's OWN secret
  *  mechanism — a NAME only. No renderer in this module ever holds, and none may ever emit, a
@@ -81,18 +81,43 @@ export interface RenderDeployConfigOptions {
 
 /** One platform's generated config, plus whatever it could NOT express inside the file itself
  *  (creating a volume out of band, prompting for a secret's real value through the platform's own
- *  UI/CLI) — every renderer returns this same shape so `cli/commands/deploy-config.ts` needs no
- *  per-platform branch beyond picking which render function to call. */
+ *  UI/CLI) — every generator returns this same shape so `cli/commands/deploy-config.ts` needs no
+ *  per-platform branch beyond picking which generator to call. */
 export interface RenderedDeployConfig {
   /** The filename this platform expects at its own conventional location (repo root). */
   readonly filename: string;
   /** The full file contents. Never contains a secret VALUE — only names, when a platform's own
-   *  format has a way to declare "this key exists, prompt for it" (Render's `sync: false`); Fly's
-   *  and Railway's formats have no such field at all, so their secrets appear only in `notes`. */
+   *  format has a way to declare "this key exists, prompt for it"; formats with no such field put
+   *  their secrets only in `notes`. */
   readonly contents: string;
   /** Human-readable follow-up steps the file itself cannot express — volume creation, where to go
    *  set each secret's real value. Printed by the CLI, not written into any generated file. */
   readonly notes: readonly string[];
+}
+
+/** What the host passes a generator module, because a plugin module has no dependencies of its own:
+ *  the shared injection guard, a constructor for the host's own `ValidationError` (so a bad
+ *  `--region` surfaces exactly as it did when the generators lived in core), and the shared
+ *  migrations note every generator prints. */
+export interface DeployConfigKit {
+  readonly assertNoConfigInjection: (fieldLabel: string, value: string) => void;
+  readonly validationError: (message: string) => Error;
+  readonly migrationsNote: string;
+}
+
+/** A plugin generator module's default export. `render` is pure: no I/O, throws the kit's
+ *  `validationError` for a bad option. */
+export interface DeployConfigGeneratorModule {
+  render(descriptor: DeploymentDescriptor, options: RenderDeployConfigOptions, kit: DeployConfigKit): RenderedDeployConfig;
+}
+
+/** The kit every generator gets. @complexity O(1). */
+export function createDeployConfigKit(): DeployConfigKit {
+  return {
+    assertNoConfigInjection,
+    validationError: (message) => new ValidationError(message),
+    migrationsNote: MIGRATIONS_NOTE,
+  };
 }
 
 /**
@@ -208,34 +233,34 @@ export const MIGRATIONS_NOTE =
   "content.db's schema (including new tables — e.g. gated_mutation_tokens, added by the SPEC-022 gated-mutations durability fix, migration 0052) migrates automatically on every boot. No separate migration command is needed before or after this deploy.";
 
 /**
- * Guards a value about to be interpolated, unescaped, into a generated TOML/YAML config file
- * (`./deploy-config-fly.ts`'s `fly.toml`, `./deploy-config-render.ts`'s `render.yaml`) — unlike
- * `./deploy-config-railway.ts`'s `renderRailwayConfig`, which is safe by construction because it
- * builds its config through `JSON.stringify` rather than a hand-written template string. Two
+ * Guards a value about to be interpolated, unescaped, into a generated TOML/YAML config file (the
+ * `deploy` plugin's `deploy-configs/fly.mjs` and `deploy-configs/render.mjs`; passed to them in the
+ * {@link DeployConfigKit}) — unlike its `deploy-configs/railway.mjs`, which is safe by construction
+ * because it builds its config through `JSON.stringify` rather than a hand-written template string. Two
  * distinct sink shapes call this, so it covers two distinct hazards:
  *
- * 1. QUOTED sinks (`deploy-config-fly.ts`'s `app = "${...}"`, `source = "${...}"`,
- *    `primary_region = "${...}"`; `deploy-config-render.ts`'s `region: ${...}` after it already
+ * 1. QUOTED sinks (`fly.mjs`'s `app = "${...}"`, `source = "${...}"`,
+ *    `primary_region = "${...}"`; `render.mjs`'s `region: ${...}` after it already
  *    passed `RENDER_VALID_REGIONS`). A value containing a double-quote can close the quoted
  *    string early; one also containing a newline can then inject an entirely new top-level key on
  *    the next line (reproduced with `--region 'iad"\nprimary_region_evil="x'`, which emits a real
  *    extra `primary_region_evil` key into `fly.toml`).
- * 2. UNQUOTED YAML plain-scalar sinks (`deploy-config-render.ts`'s `name: ${descriptor.appName}`
+ * 2. UNQUOTED YAML plain-scalar sinks (`render.mjs`'s `name: ${descriptor.appName}`
  *    and the disk's `name: ${descriptor.volumeName}` — YAML, unlike the TOML sinks above, is
  *    rendered with no surrounding quotes at all). Here a `"`/newline isn't the only hazard: `:`,
  *    `#`, `{`, `[`, `&`, `*`, a leading `-`, or leading/trailing whitespace are each YAML
  *    indicator/structural characters that change what an unquoted plain scalar means (`:` or `#`
  *    can end the scalar and start a new key or a comment mid-line; `{`/`[` open a flow collection;
  *    `&`/`*` are anchor/alias indicators; a leading `-` reads as a block-sequence entry) — the
- *    guard passing these through was this task's bug (`deploy-config-render.ts:65-78`).
+ *    guard passing these through was this task's bug (then `deploy-config-render.ts:65-78`).
  *
  * Rejecting outright is the reliable fix for both — a Fly region allow-list (the shape
- * `deploy-config-render.ts`'s `RENDER_VALID_REGIONS` uses) was considered too, but Fly's ~30-region
+ * `render.mjs`'s `RENDER_VALID_REGIONS` uses) was considered too, but Fly's ~30-region
  * catalog had no authoritative source to enumerate against without risking rejecting a real region;
  * the same reasoning extends to app/volume names here — quoting the two unquoted YAML sinks at
  * render time was considered instead of widening this check, but every renderer's own exact-string
  * golden test already pins the CURRENT unquoted rendering for a safe name (e.g.
- * `deploy-config-render.unit.test.ts`'s `name: acme-app`), so unconditionally quoting would change
+ * `bundled-deploy-config-render.unit.test.ts`'s `name: acme-app`), so unconditionally quoting would change
  * output for every already-safe app/volume name, not just unsafe ones — a real caller-visible
  * behavior change this task's own instructions rule out. Widening the reject-list here instead never
  * changes what an already-accepted value renders as; it only ever accepts fewer values, which is

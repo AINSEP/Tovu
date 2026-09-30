@@ -1,14 +1,25 @@
 import assert from "node:assert/strict";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { ValidationError } from "#src/platform/site-dir/index";
 
-import { RENDER_VALID_REGIONS, renderRenderYaml } from "../deploy-config-render.js";
-import type { DeploymentDescriptor } from "../deploy-config.js";
+import { createDeployConfigKit, type DeployConfigGeneratorModule, type DeploymentDescriptor, type RenderDeployConfigOptions, type RenderedDeployConfig } from "#src/features/deployments/deploy-config";
+
+/** The bundled `deploy` plugin's generator module, imported from its source like the other bundled-deploy tests. */
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/deploy-configs/render.mjs");
+const imported = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployConfigGeneratorModule; RENDER_VALID_REGIONS: readonly string[] };
+const RENDER_VALID_REGIONS = imported.RENDER_VALID_REGIONS;
+
+/** The module's `render` with the real host kit, under the name the core renderer had before it moved. */
+function renderRenderYaml(descriptor: DeploymentDescriptor, options: RenderDeployConfigOptions): RenderedDeployConfig {
+  return imported.default.render(descriptor, options, createDeployConfigKit());
+}
 
 /**
  * @file `renderRenderYaml` against a KNOWN, hand-fixed descriptor — exact-string assertions, same
- * discipline as `deploy-config-fly.unit.test.ts`.
+ * discipline as `bundled-deploy-config-fly.unit.test.ts`.
  */
 
 const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {

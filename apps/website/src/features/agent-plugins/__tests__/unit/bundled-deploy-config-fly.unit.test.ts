@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { ValidationError } from "#src/platform/site-dir/index";
 
-import { renderFlyToml } from "../deploy-config-fly.js";
-import { MIGRATIONS_NOTE } from "../deploy-config.js";
-import type { DeploymentDescriptor } from "../deploy-config.js";
+import { createDeployConfigKit, MIGRATIONS_NOTE, type DeployConfigGeneratorModule, type DeploymentDescriptor, type RenderDeployConfigOptions, type RenderedDeployConfig } from "#src/features/deployments/deploy-config";
+
+/** The bundled `deploy` plugin's generator module, imported from its source like the other bundled-deploy tests. */
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/deploy-configs/fly.mjs");
+const imported = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployConfigGeneratorModule };
+
+/** The module's `render` with the real host kit, under the name the core renderer had before it moved. */
+function renderFlyToml(descriptor: DeploymentDescriptor, options: RenderDeployConfigOptions): RenderedDeployConfig {
+  return imported.default.render(descriptor, options, createDeployConfigKit());
+}
 
 /**
  * @file `renderFlyToml` against a KNOWN, hand-fixed descriptor (not the real repo's) — exact-string

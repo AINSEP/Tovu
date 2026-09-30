@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "generators": [
+    { "id": "fly", "label": "Fly.io", "module": "deploy-configs/fly.mjs" },
+    { "id": "render", "label": "Render", "module": "deploy-configs/render.mjs" },
+    { "id": "railway", "label": "Railway", "module": "deploy-configs/railway.mjs" }
+  ]
+}

@@ -64,6 +64,9 @@ test("tovu deploy config --target <bad>: rejected as VALIDATION (exit 2), not a 
   assert.equal(result.status, 2, `stderr: ${result.stderr}`);
   assert.match(result.stderr, /^tovu: VALIDATION:/m);
   assert.match(result.stderr, /fly, render, railway/);
+  // Exact text, unchanged since the generators moved into the deploy plugin: the id list is the
+  // plugin's declared order.
+  assert.ok(result.stderr.includes('--target must be one of: fly, render, railway (got "heroku")'), result.stderr);
 });
 
 test("tovu deploy config --target render (no --region): rejected as VALIDATION (exit 2), no silent default region", () => {

@@ -80,22 +80,27 @@ export {
   type DockerfileSourceSnapshot,
 } from "./dockerfile.js";
 
-// `buildDeploymentDescriptor` + the three platform renderers back `tovu deploy config --target
-// <fly|render|railway>` (`cli/commands/deploy-config.ts`) — see `deploy-config.ts`'s own header for
-// why this is one descriptor and three thin renderers rather than four independent generators. Each
-// renderer's own region-allow-list constant is exported alongside it so the CLI layer never needs to
-// duplicate that platform knowledge.
+// `buildDeploymentDescriptor` + the generator port back `tovu deploy config --target <id>`
+// (`cli/commands/deploy-config.ts`). The platform generators themselves are plugin modules (the
+// bundled `deploy` plugin's `deploy-configs/*.mjs`), loaded by `./deploy-config-registry.ts` — see
+// `deploy-config.ts`'s own header for why this is one descriptor and thin generators.
 export {
   buildDeploymentDescriptor,
+  createDeployConfigKit,
+  type DeployConfigGeneratorModule,
+  type DeployConfigKit,
   type DeploymentDescriptor,
   type DeploymentSecret,
-  type DeploymentTarget,
   type RenderDeployConfigOptions,
   type RenderedDeployConfig,
 } from "./deploy-config.js";
-export { renderFlyToml } from "./deploy-config-fly.js";
-export { RENDER_VALID_REGIONS, renderRenderYaml } from "./deploy-config-render.js";
-export { RAILWAY_VALID_REGIONS, renderRailwayConfig } from "./deploy-config-railway.js";
+export {
+  DEPLOY_CONFIGS_FILENAME,
+  loadDeployConfigGeneratorsFromSource,
+  type DeployConfigGeneratorDescriptor,
+  type DeployConfigGeneratorRegistry,
+  type LoadedDeployConfigGenerator,
+} from "./deploy-config-registry.js";
 
 // `buildStaticPublishRegistrations`/`StaticPublishToolDeps` (`./publish-agent-tools.ts`) are NOT
 // re-exported here — that file itself imports `RouteDeps` from `server/routes/types.ts` (the

@@ -3,31 +3,32 @@ import { writeFileSync } from "node:fs";
 
 import {
   buildDeploymentDescriptor,
-  renderFlyToml,
-  renderRailwayConfig,
-  renderRenderYaml,
-  type DeploymentDescriptor,
-  type DeploymentTarget,
+  createDeployConfigKit,
+  loadDeployConfigGeneratorsFromSource,
+  type DeployConfigGeneratorRegistry,
   type RenderDeployConfigOptions,
-  type RenderedDeployConfig,
 } from "../../features/deployments/index.js";
-import { ValidationError } from "../../platform/site-dir/index.js";
+import { resolveProductRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**
- * @file `tovu deploy config --target <fly|render|railway> --region <region> [--out <file>]` —
- * wires parsed argv to `features/deployments`'s single `DeploymentDescriptor` and its three
- * platform renderers (`features/deployments/deploy-config.ts`'s own header explains why there is
- * exactly one descriptor and three thin renderers, never four independent generators).
+ * @file `tovu deploy config --target <id> --region <region> [--out <file>]` — wires parsed argv to
+ * `features/deployments`'s single `DeploymentDescriptor` and the platform generators the bundled
+ * `deploy` Agent Plugin ships (`content/agent-plugins/deploy/tovu-deploy-configs.json`, loaded by
+ * `features/deployments/deploy-config-registry.ts`). `features/deployments/deploy-config.ts`'s own
+ * header explains why there is exactly one descriptor and thin generators, never independent ones.
  *
  * Purpose:
  * `--target` is this command's own value-level validation (same pattern `theme validate`'s
- * `--profile` already establishes — an enum commander itself cannot type-check from argv alone).
- * `--region` is NOT validated here: each renderer validates it itself (presence, and — where a real
+ * `--profile` already establishes), against the ids the plugin declares, in declared order.
+ * `--region` is NOT validated here: each generator validates it itself (presence, and — where a real
  * platform enum exists — membership), so the exact same check applies whether this CLI calls a
- * renderer or a future admin route does. Prints the rendered config to stdout by default (composable
- * with shell redirection, e.g. `tovu deploy config --target fly --region iad > fly.toml`), or writes
- * it straight to `--out` when given. Every renderer's own follow-up `notes` (volume creation, where
+ * generator or a future admin route does. Prints the rendered config to stdout by default (composable
+ * with shell redirection, e.g. `tovu deploy config --target <id> --region <r> > <file>`), or writes
+ * it straight to `--out` when given. Every generator's own follow-up `notes` (volume creation, where
  * to set a secret's real value) print to stderr — never mixed into the file contents on stdout.
+ *
+ * Generators load from the product's OWN bundled plugin source, the same trust basis as the
+ * hermetic composition root: the CLI runs at the repo root, with no workspace install to consult.
  *
  * Architectural role:
  * `cli` layer. Never maps errors to exit codes itself — lets `ValidationError` (bad `--target`, bad
@@ -41,57 +42,43 @@ export interface RunDeployConfigCommandInput {
   out?: string;
 }
 
-const VALID_TARGETS: ReadonlySet<string> = new Set<DeploymentTarget>(["fly", "render", "railway"]);
-
-function isDeploymentTarget(value: string): value is DeploymentTarget {
-  return VALID_TARGETS.has(value);
+/** The bundled `deploy` plugin's source directory. Same resolution as
+ *  `server/runtime/composition/deps.ts`'s `bundledAgentPluginsDir()` (not imported: that module
+ *  pulls in the whole server composition graph for one path). @complexity O(1). */
+function bundledDeployPluginRoot(): string {
+  return path.join(process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins"), "deploy");
 }
 
-/** Dispatches to the one renderer `target` names. A `switch` over the narrowed
- *  {@link DeploymentTarget} union (not a lookup object) so adding a fourth target without adding its
- *  `case` here is a compile error, not a silent `undefined` — the same exhaustiveness guarantee
- *  `deploy-config.ts`'s own header promises ("a fifth platform is one new renderer file"). The
- *  trailing `default` is dead code today (TS already proves the three cases above are exhaustive
- *  over {@link DeploymentTarget}) — it exists only so every path explicitly returns or throws,
- *  rather than leaving an ESLint-visible implicit-`undefined` fall-through. */
-function renderForTarget(
-  target: DeploymentTarget,
-  descriptor: DeploymentDescriptor,
-  options: RenderDeployConfigOptions
-): RenderedDeployConfig {
-  switch (target) {
-    case "fly":
-      return renderFlyToml(descriptor, options);
-    case "render":
-      return renderRenderYaml(descriptor, options);
-    case "railway":
-      return renderRailwayConfig(descriptor, options);
-    default: {
-      const unreachable: never = target;
-      throw new Error(`tovu deploy config: unhandled target "${String(unreachable)}"`);
-    }
-  }
+/** Loads the generators, printing any refused one to stderr so a missing `--target` is explainable.
+ *  @complexity O(g) generators, one import each. */
+async function loadGenerators(): Promise<DeployConfigGeneratorRegistry> {
+  const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "deploy", packageRoot: bundledDeployPluginRoot() });
+  for (const refusal of registry.refusals) process.stderr.write(`tovu deploy config: ${refusal}\n`);
+  return registry;
 }
 
 /**
  * Run `tovu deploy config --target <t> --region <r> [--out <file>]`.
  *
  * @throws {ValidationError} an unknown `--target`, a missing/invalid `--region` (raised by the
- *   chosen renderer itself).
+ *   chosen generator itself, through the kit).
  * @throws {Error} `buildDeploymentDescriptor`'s own derivation-failure error, if a source file
  *   (`Dockerfile`, `fly.toml`, the readyz route) has drifted out of sync with this command's own
  *   extraction patterns.
- * @complexity O(1) beyond `buildDeploymentDescriptor`'s and the chosen renderer's own bounded costs.
+ * @complexity O(g) generator imports, plus `buildDeploymentDescriptor`'s and the chosen generator's own bounded costs.
  */
 export async function runDeployConfigCommand(input: RunDeployConfigCommandInput): Promise<void> {
   const targetRaw = input.target ?? "";
-  if (!isDeploymentTarget(targetRaw)) {
-    throw new ValidationError(`--target must be one of: fly, render, railway (got "${targetRaw}")`);
+  const generators = await loadGenerators();
+  const generator = generators.get(targetRaw);
+  if (generator === undefined) {
+    const ids = generators.list().map((loaded) => loaded.descriptor.id);
+    throw new ValidationError(`--target must be one of: ${ids.join(", ")} (got "${targetRaw}")`);
   }
 
   const descriptor = buildDeploymentDescriptor();
   const options: RenderDeployConfigOptions = { region: input.region ?? "" };
-  const rendered = renderForTarget(targetRaw, descriptor, options);
+  const rendered = generator.module.render(descriptor, options, createDeployConfigKit());
 
   if (input.out !== undefined) {
     const outPath = path.resolve(input.out);

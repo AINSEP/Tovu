@@ -52,7 +52,7 @@ test("buildDeploymentDescriptor: called twice returns the same values (no hidden
 /**
  * `assertNoConfigInjection` is a guard: it must actually be able to fail. Direct coverage of the
  * guard itself, in addition to the exact-string regressions already exercised end-to-end through
- * `deploy-config-render.unit.test.ts`/`deploy-config-fly.unit.test.ts` — each of this function's
+ * `agent-plugins/__tests__/unit/bundled-deploy-config-{render,fly}.unit.test.ts` — each of this function's
  * three checks proven to throw, plus the happy path proven NOT to throw.
  */
 test("assertNoConfigInjection: a safe value never throws", () => {
