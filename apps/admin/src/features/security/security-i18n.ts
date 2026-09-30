@@ -30,6 +30,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Clave de modelo del asistente del sitio", "Admin AI Assistant key (BYOK)": "Clave del asistente de IA de administración (BYOK)", "Media provider keys": "Claves de proveedores de medios",
     "AI Assistant": "Asistente de IA", "Settings · Execution mode": "Configuración · Modo de ejecución", "Providers · Media": "Proveedores · Medios",
     "A key is created automatically when this site starts.": "La clave se crea automáticamente cuando este sitio se inicia.", "(optional)": "(opcional)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Su plugin está desactivado o no existe. Aún puedes quitar los tokens guardados.",
   },
   de: {
     "Access Tokens": "Zugriffstoken", "Site Token": "Website-Token", Operations: "Vorgänge", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Ein Ort, um alle Zugriffstoken dieser Installation zu sehen und eines zu erstellen, zu rotieren oder zu entfernen, ohne die Bildschirme durchsuchen zu müssen, die es erstellt haben.",
@@ -52,6 +53,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Modellschlüssel des Website-Assistenten", "Admin AI Assistant key (BYOK)": "Admin-KI-Assistent-Schlüssel (BYOK)", "Media provider keys": "Medienanbieter-Schlüssel",
     "AI Assistant": "KI-Assistent", "Settings · Execution mode": "Einstellungen · Ausführungsmodus", "Providers · Media": "Anbieter · Medien",
     "A key is created automatically when this site starts.": "Ein Schlüssel wird automatisch erstellt, wenn diese Website startet.", "(optional)": "(optional)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Sein Plugin ist ausgeschaltet oder fehlt. Gespeicherte Token können Sie weiterhin entfernen.",
   },
   fr: {
     "Access Tokens": "Jetons d’accès", "Site Token": "Jeton du site", Operations: "Opérations", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un seul endroit pour voir tous les jetons d’accès de cette installation et en créer, renouveler ou supprimer un sans chercher parmi les écrans qui l’ont créé.",
@@ -74,6 +76,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Clé de modèle de l'assistant du site", "Admin AI Assistant key (BYOK)": "Clé de l'assistant IA d'administration (BYOK)", "Media provider keys": "Clés des fournisseurs de médias",
     "AI Assistant": "Assistant IA", "Settings · Execution mode": "Paramètres · Mode d'exécution", "Providers · Media": "Fournisseurs · Médias",
     "A key is created automatically when this site starts.": "Une clé est créée automatiquement au démarrage de ce site.", "(optional)": "(facultatif)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Son plugin est désactivé ou absent. Vous pouvez toujours supprimer les jetons enregistrés.",
   },
   it: {
     "Access Tokens": "Token di accesso", "Site Token": "Token del sito", Operations: "Operazioni", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un unico posto per vedere tutti i token di accesso di questa installazione e crearne, ruotarne o rimuoverne uno senza cercare nelle schermate che lo hanno creato.",
@@ -96,6 +99,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Chiave del modello dell'assistente del sito", "Admin AI Assistant key (BYOK)": "Chiave dell'assistente IA di amministrazione (BYOK)", "Media provider keys": "Chiavi dei provider multimediali",
     "AI Assistant": "Assistente IA", "Settings · Execution mode": "Impostazioni · Modalità di esecuzione", "Providers · Media": "Provider · Media",
     "A key is created automatically when this site starts.": "Una chiave viene creata automaticamente all'avvio di questo sito.", "(optional)": "(facoltativo)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Il suo plugin è disattivato o mancante. Puoi comunque rimuovere i token salvati.",
   },
   "pt-BR": {
     "Access Tokens": "Tokens de acesso", "Site Token": "Token do site", Operations: "Operações", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Um só lugar para ver todos os tokens de acesso desta instalação e criar, alternar ou remover um sem procurar nas telas que o criaram.",
@@ -118,6 +122,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Chave de modelo do assistente do site", "Admin AI Assistant key (BYOK)": "Chave do assistente de IA de administração (BYOK)", "Media provider keys": "Chaves de provedores de mídia",
     "AI Assistant": "Assistente de IA", "Settings · Execution mode": "Configurações · Modo de execução", "Providers · Media": "Provedores · Mídia",
     "A key is created automatically when this site starts.": "Uma chave é criada automaticamente quando este site é iniciado.", "(optional)": "(opcional)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "O plugin dele está desativado ou ausente. Você ainda pode remover os tokens salvos.",
   },
   pl: {
     "Access Tokens": "Tokeny dostępu", "Site Token": "Token witryny", Operations: "Operacje", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Jedno miejsce, aby zobaczyć wszystkie tokeny dostępu tej instalacji oraz utworzyć, zmienić lub usunąć token bez przeszukiwania ekranów, na których go utworzono.",
@@ -140,6 +145,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Klucz modelu asystenta witryny", "Admin AI Assistant key (BYOK)": "Klucz asystenta AI administratora (BYOK)", "Media provider keys": "Klucze dostawców mediów",
     "AI Assistant": "Asystent AI", "Settings · Execution mode": "Ustawienia · Tryb wykonania", "Providers · Media": "Dostawcy · Media",
     "A key is created automatically when this site starts.": "Klucz jest tworzony automatycznie podczas uruchamiania tej witryny.", "(optional)": "(opcjonalnie)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Jego wtyczka jest wyłączona lub jej brak. Nadal możesz usunąć zapisane tokeny.",
   },
   hu: {
     "Access Tokens": "Hozzáférési tokenek", "Site Token": "Webhelytoken", Operations: "Műveletek", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Egy helyen láthatja a telepítés összes hozzáférési tokenjét, és létrehozhat, lecserélhet vagy eltávolíthat egyet anélkül, hogy végig kellene keresnie a létrehozó képernyőket.",
@@ -162,6 +168,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Webhelyasszisztens modellkulcsa", "Admin AI Assistant key (BYOK)": "Admin AI-asszisztens kulcs (BYOK)", "Media provider keys": "Médiaszolgáltatói kulcsok",
     "AI Assistant": "AI-asszisztens", "Settings · Execution mode": "Beállítások · Végrehajtási mód", "Providers · Media": "Szolgáltatók · Média",
     "A key is created automatically when this site starts.": "A kulcs automatikusan létrejön, amikor ez a webhely elindul.", "(optional)": "(nem kötelező)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "A bővítménye ki van kapcsolva vagy hiányzik. A mentett tokeneket továbbra is eltávolíthatja.",
   },
   tr: {
     "Access Tokens": "Erişim belirteçleri", "Site Token": "Site belirteci", Operations: "İşlemler", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Bu kurulumdaki tüm erişim belirteçlerini görebileceğiniz ve onu oluşturan ekranlarda aramadan bir belirteç oluşturabileceğiniz, değiştirebileceğiniz veya kaldırabileceğiniz tek yer.",
@@ -223,6 +230,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "Sağlayıcılar · Medya",
 
     "A key is created automatically when this site starts.": "Bu site başladığında bir anahtar otomatik olarak oluşturulur.", "(optional)": "(isteğe bağlı)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Eklentisi kapalı veya eksik. Kayıtlı belirteçleri yine de kaldırabilirsiniz.",
   },
   ru: {
     "Access Tokens": "Токены доступа", "Site Token": "Токен сайта", Operations: "Операции", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одно место, где можно увидеть все токены доступа этой установки, создать, заменить или удалить токен без поиска по экранам, в которых он был создан.",
@@ -284,6 +292,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "Провайдеры · Медиа",
 
     "A key is created automatically when this site starts.": "Ключ создаётся автоматически при запуске этого сайта.", "(optional)": "(необязательно)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Его плагин отключён или отсутствует. Сохранённые токены по-прежнему можно удалить.",
   },
   uk: {
     "Access Tokens": "Токени доступу", "Site Token": "Токен сайту", Operations: "Операції", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одне місце, щоб переглянути всі токени доступу цієї інсталяції та створити, замінити чи вилучити токен без пошуку на екранах, де його створено.",
@@ -345,6 +354,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "Провайдери · Медіа",
 
     "A key is created automatically when this site starts.": "Ключ створюється автоматично під час запуску цього сайту.", "(optional)": "(необов’язково)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Його плагін вимкнено або він відсутній. Збережені токени все одно можна видалити.",
   },
   id: {
     "Access Tokens": "Token akses", "Site Token": "Token situs", Operations: "Operasi", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Satu tempat untuk melihat setiap token akses yang dimiliki instalasi ini, serta membuat, merotasi, atau menghapusnya tanpa mencari di layar yang membuatnya.",
@@ -406,6 +416,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "Penyedia · Media",
 
     "A key is created automatically when this site starts.": "Kunci dibuat secara otomatis saat situs ini dimulai.", "(optional)": "(opsional)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "Pluginnya nonaktif atau tidak ada. Anda tetap dapat menghapus token yang tersimpan.",
   },
   ar: {
     "Access Tokens": "رموز الوصول", "Site Token": "رمز الموقع", Operations: "العمليات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "مكان واحد لرؤية كل رموز الوصول التي يحتفظ بها هذا التثبيت، وإنشاء أحدها أو تدويره أو إزالته دون البحث في الشاشات التي أنشأته.",
@@ -467,6 +478,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "المزوّدون · الوسائط",
 
     "A key is created automatically when this site starts.": "يتم إنشاء مفتاح تلقائيًا عند بدء تشغيل هذا الموقع.", "(optional)": "(اختياري)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "المكوّن الإضافي الخاص به متوقف أو مفقود. لا يزال بإمكانك إزالة الرموز المحفوظة.",
   },
   fa: {
     "Access Tokens": "توکن‌های دسترسی", "Site Token": "توکن سایت", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "یک جا برای دیدن همهٔ توکن‌های دسترسی این نصب و ایجاد، چرخش یا حذف یکی از آن‌ها، بدون جست‌وجو در صفحه‌هایی که آن را ساخته‌اند.",
@@ -528,6 +540,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "ارائه‌دهندگان · رسانه",
 
     "A key is created automatically when this site starts.": "کلید هنگام شروع این سایت به‌طور خودکار ایجاد می‌شود.", "(optional)": "(اختیاری)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "افزونهٔ آن خاموش است یا وجود ندارد. همچنان می‌توانید توکن‌های ذخیره‌شده را حذف کنید.",
   },
   hi: {
     "Access Tokens": "एक्सेस टोकन", "Site Token": "साइट टोकन", Operations: "संचालन", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "इस इंस्टॉलेशन के सभी एक्सेस टोकन देखने और उन्हें बनाने, बदलने या हटाने के लिए एक जगह, बिना उन्हें बनाने वाली स्क्रीन खोजे।",
@@ -589,6 +602,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "प्रदाता · मीडिया",
 
     "A key is created automatically when this site starts.": "यह साइट शुरू होने पर कुंजी स्वचालित रूप से बन जाती है।", "(optional)": "(वैकल्पिक)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "इसका प्लगइन बंद है या मौजूद नहीं है। आप सहेजे गए टोकन अब भी हटा सकते हैं।",
   },
   bn: {
     "Access Tokens": "অ্যাক্সেস টোকেন", "Site Token": "সাইট টোকেন", Operations: "কার্যক্রম", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "এই ইনস্টলেশনের সব অ্যাক্সেস টোকেন দেখার এবং যে স্ক্রিনে তৈরি হয়েছে তা খুঁজে না বেড়িয়ে টোকেন তৈরি, পরিবর্তন বা সরানোর একটি জায়গা।",
@@ -650,6 +664,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "প্রদানকারী · মিডিয়া",
 
     "A key is created automatically when this site starts.": "এই সাইট শুরু হলে একটি কী স্বয়ংক্রিয়ভাবে তৈরি হয়।", "(optional)": "(ঐচ্ছিক)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "এর প্লাগইন বন্ধ বা অনুপস্থিত। আপনি এখনও সংরক্ষিত টোকেন সরাতে পারেন।",
   },
   ur: {
     "Access Tokens": "رسائی ٹوکن", "Site Token": "سائٹ ٹوکن", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "اس انسٹالیشن کے تمام رسائی ٹوکن دیکھنے اور انہیں بنانے، تبدیل کرنے یا ہٹانے کے لیے ایک جگہ، انہیں بنانے والی اسکرینیں ڈھونڈے بغیر۔",
@@ -711,6 +726,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "فراہم کنندگان · میڈیا",
 
     "A key is created automatically when this site starts.": "جب یہ سائٹ شروع ہوتی ہے تو ایک کی خودکار طور پر بن جاتی ہے۔", "(optional)": "(اختیاری)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "اس کا پلگ ان بند ہے یا موجود نہیں۔ آپ اب بھی محفوظ کردہ ٹوکن ہٹا سکتے ہیں۔",
   },
   ja: {
     "Access Tokens": "アクセストークン", "Site Token": "サイトトークン", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "このインストールが保持するすべてのアクセストークンを確認し、作成元の画面を探し回らずに作成、ローテーション、削除できる場所です。",
@@ -772,6 +788,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "プロバイダー · メディア",
 
     "A key is created automatically when this site starts.": "このサイトが起動すると、キーが自動的に作成されます。", "(optional)": "（任意）",
+    "Its plugin is off or missing. You can still remove saved tokens.": "このプラグインはオフか、見つかりません。保存済みのトークンは引き続き削除できます。",
   },
   ko: {
     "Access Tokens": "액세스 토큰", "Site Token": "사이트 토큰", Operations: "작업", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "이 설치에 있는 모든 액세스 토큰을 보고, 생성한 화면을 찾지 않아도 토큰을 만들고 교체하거나 제거할 수 있는 곳입니다.",
@@ -833,6 +850,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "공급자 · 미디어",
 
     "A key is created automatically when this site starts.": "이 사이트가 시작되면 키가 자동으로 생성됩니다.", "(optional)": "(선택 사항)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "플러그인이 꺼져 있거나 없습니다. 저장된 토큰은 계속 제거할 수 있습니다.",
   },
   th: {
     "Access Tokens": "โทเค็นการเข้าถึง", "Site Token": "โทเค็นเว็บไซต์", Operations: "การดำเนินการ", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "ที่เดียวสำหรับดูโทเค็นการเข้าถึงทั้งหมดของการติดตั้งนี้ และสร้าง หมุนเวียน หรือลบโทเค็นโดยไม่ต้องค้นหาจากหน้าจอที่สร้างโทเค็นนั้น",
@@ -894,6 +912,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "ผู้ให้บริการ · สื่อ",
 
     "A key is created automatically when this site starts.": "คีย์จะถูกสร้างขึ้นโดยอัตโนมัติเมื่อไซต์นี้เริ่มทำงาน", "(optional)": "(ไม่บังคับ)",
+    "Its plugin is off or missing. You can still remove saved tokens.": "ปลั๊กอินของผู้ให้บริการนี้ปิดอยู่หรือไม่มีอยู่ คุณยังคงลบโทเค็นที่บันทึกไว้ได้",
   },
   "zh-CN": {
     "Access Tokens": "访问令牌", "Site Token": "站点令牌", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在一个位置查看此安装保存的所有访问令牌，并可创建、轮换或删除令牌，无需在创建它的各个界面中查找。",
@@ -955,6 +974,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "提供商 · 媒体",
 
     "A key is created automatically when this site starts.": "此站点启动时会自动创建密钥。", "(optional)": "（可选）",
+    "Its plugin is off or missing. You can still remove saved tokens.": "其插件已关闭或缺失。你仍可移除已保存的令牌。",
   },
   "zh-TW": {
     "Access Tokens": "存取權杖", "Site Token": "網站權杖", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在同一處查看此安裝保有的所有存取權杖，並可建立、輪替或移除權杖，不必在建立它的各個畫面中尋找。",
@@ -1016,6 +1036,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Providers · Media": "供應商 · 媒體",
 
     "A key is created automatically when this site starts.": "此網站啟動時會自動建立金鑰。", "(optional)": "（選填）",
+    "Its plugin is off or missing. You can still remove saved tokens.": "其外掛已關閉或不存在。你仍可移除已儲存的權杖。",
   },
 };
 

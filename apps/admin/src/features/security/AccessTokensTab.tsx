@@ -267,6 +267,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
         <span translate="no">{group.info.label}</span>
         <span className="access-tokens-provider-purpose"> · {controller.t(group.info.purposeLabel)}</span>
       </h3>
+      {group.info.unlisted ? <p className="field-hint">{controller.t("Its plugin is off or missing. You can still remove saved tokens.")}</p> : null}
       {group.rows.map((row) => (
         <TokenRow key={row.row.id} state={row} info={group.info} controller={controller} groupRowCount={group.rows.length} t={controller.t} />
       ))}
@@ -275,7 +276,8 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
       {/* No `[+ Add another]` for a `"custom"` group — it has no shared provider identity a second
           saved row could join; a second custom credential is a wholly new one, created through the
           standalone "Add custom provider" dialog, not this per-provider affordance. */}
-      {hasRows && !group.addForm.visible && group.info.kind !== "custom" ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
+      {/* Nor for an unlisted provider (plugin off or missing): it takes no new token. */}
+      {hasRows && !group.addForm.visible && group.info.kind !== "custom" && !group.info.unlisted ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
     </section>
   );
 }
@@ -723,7 +725,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
         <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
         <p className="confirm-dialog-body">{removeDialogBody(locale, info.label, info.vendorLabel)}</p>
-        <p>
+        {info.tokenPageUrl === "" ? null : <p>
           {/* `info.vendorLabel`, NOT `info.label` — this line says WHERE to revoke, and "GitHub
               Pages"/"Cloudflare Pages" are destinations with no revoke console of their own. See
               `rules.ts`'s `AccessTokenProviderInfo.vendorLabel` doc for the full reasoning; every
@@ -736,7 +738,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
           >
             {translate("Revoke it on")} <span translate="no">{info.vendorLabel}</span> ↗
           </a>
-        </p>
+        </p>}
         {isLastForProvider ? <p className="confirm-dialog-body">{removeDialogLastRowNote(locale, info.label)}</p> : null}
         <div className="confirm-dialog-actions">
           <button

@@ -30,6 +30,7 @@ import {
   accessTokenNameTaken,
   accessTokenProviderInfo,
   accessTokenProviders,
+  accessTokenProvidersWithSavedRows,
   accessTokenRowMatchesQuery,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
@@ -707,7 +708,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     if (rows === undefined) return undefined;
     // A provider outside the active category is dropped here, before the query filter ever runs —
     // see this file's header for why that keeps `totalCount`/`matchCount` a global fact instead.
-    const catalogGroups = providers.filter((info) => accessTokenCategoryMatches(info.category, category)).map((info) => {
+    // A saved row whose provider is not listed still gets its group, so it can be removed.
+    const catalogGroups = accessTokenProvidersWithSavedRows(providers, rows).filter((info) => accessTokenCategoryMatches(info.category, category)).map((info) => {
       const providerRows = accessTokenRowsForProvider(rows, info).filter((row) => accessTokenRowMatchesQuery(row, info, query));
       return {
         info,

@@ -1281,3 +1281,39 @@ describe("useWiredAccessTokens", () => {
     expect(result.current.t("Loading access tokens…")).toBe("Loading access tokens…");
   });
 });
+
+describe("useAccessTokens: a saved credential whose provider is not listed (IRON RULE: every saved credential stays visible and revocable)", () => {
+  it("keeps a saved publish row for a switched-off host visible, under a fallback group marked unlisted, and it can still be removed", async () => {
+    const remove = vi.fn(() => Promise.resolve());
+    const lists = [
+      { credentials: [publishCredential({ id: "fly-1", providerId: "fly", label: "Fly prod" })], executionMode: "self-hosted-cli" as const },
+      { credentials: [], executionMode: "self-hosted-cli" as const },
+    ];
+    const port = fakePort({ publish: { list: () => Promise.resolve(lists.shift() ?? lists[0]!), remove } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const group = findGroup(result.current.groups, "publish", "fly");
+    expect(group?.info.unlisted).toBe(true);
+    expect(group?.info.label).toBe("fly");
+    expect(group?.rows.map((r) => r.row.id)).toEqual(["fly-1"]);
+    await act(() => result.current.removeToken(group!.rows[0]!.row));
+    expect(remove).toHaveBeenCalledWith("fly-1");
+  });
+
+  it("keeps a saved source-control row whose provider is not listed visible, marked unlisted", async () => {
+    const port = fakePort({
+      sourceControl: { list: () => Promise.resolve({ credentials: [sourceControlCredential({ id: "sc-9", providerId: "sourcehut" as never })] }) },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const group = findGroup(result.current.groups, "source-control", "sourcehut");
+    expect(group?.info.unlisted).toBe(true);
+    expect(group?.rows.map((r) => r.row.id)).toEqual(["sc-9"]);
+  });
+
+  it("marks no listed provider as unlisted", async () => {
+    const { result } = renderHook(() => useAccessTokens(fakePort(), T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    expect(result.current.groups!.filter((g) => g.info.unlisted)).toEqual([]);
+  });
+});

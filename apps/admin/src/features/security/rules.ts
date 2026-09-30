@@ -207,6 +207,9 @@ export interface AccessTokenProviderInfo {
   /** Whether the form shows Username, and whether it gates Save: Bitbucket needs it (`"required"`),
    *  a custom row may carry one (`"optional"`, brief's own requirement), everything else has none. */
   readonly username?: "required" | "optional";
+  /** Set on the bare entry for a saved row whose provider is not listed (its plugin switched off or
+   *  missing). The row stays visible and removable, but nothing new can be added for it. */
+  readonly unlisted?: true;
 }
 
 /** One deploy host's Access Tokens entry, built from its descriptor. @complexity O(f). */
@@ -271,8 +274,22 @@ export function accessTokenProviderInfo(providers: readonly AccessTokenProviderI
       tokenPageUrl: "",
       scopeGuidanceKey: "",
       extraFields: [],
+      unlisted: true,
     }
   );
+}
+
+/** `providers` plus a bare {@link accessTokenProviderInfo} entry for every saved publish or
+ *  source-control row whose provider is not listed, so no saved credential ever drops off the page
+ *  (IRON RULE: it must stay visible and removable). Custom rows group on their own.
+ *  @complexity O(r * p) in the saved-row and provider counts (both small). */
+export function accessTokenProvidersWithSavedRows(providers: readonly AccessTokenProviderInfo[], rows: readonly AccessTokenRow[]): AccessTokenProviderInfo[] {
+  const all = [...providers];
+  for (const row of rows) {
+    if (row.kind === "custom" || all.some((p) => p.kind === row.kind && p.providerId === row.providerId)) continue;
+    all.push(accessTokenProviderInfo(providers, row));
+  }
+  return all;
 }
 
 /** {@link accessTokenProviderInfo}'s row-aware counterpart — the one `AccessTokensTab.tsx` call

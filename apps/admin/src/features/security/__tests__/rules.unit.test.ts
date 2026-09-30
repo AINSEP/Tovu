@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api";
 import { t as translateSecurity } from "../security-i18n";
 import {
+  accessTokenProvidersWithSavedRows,
   ACCESS_TOKEN_CATEGORIES,
   OTHER_CREDENTIAL_STORES,
   accessTokenCategoryLabel,
@@ -862,5 +863,27 @@ describe("buildCustomCredentialUpdatePatch", () => {
   it("sends label, connection, and username together when all three changed", () => {
     const patch = buildCustomCredentialUpdatePatch(blankCustomRowFields({ name: "New Name", username: "new-user", token: "tok" }), true, true, "old-user");
     expect(patch).toEqual({ label: "New Name", connection: { token: "tok", username: "new-user" }, username: "new-user" });
+  });
+});
+
+describe("accessTokenProvidersWithSavedRows (IRON RULE: a saved credential never drops off the page)", () => {
+  const row = (kind: "publish" | "source-control" | "custom", providerId: string) => ({
+    kind, providerId, id: `${kind}-${providerId}`, name: providerId, rawLabel: providerId, isDefault: true, createdAt: "", updatedAt: "",
+  });
+
+  it("appends one bare unlisted entry per unlisted provider that has saved rows, named by its id", () => {
+    const listed = accessTokenProviders(undefined);
+    const all = accessTokenProvidersWithSavedRows(listed, [row("publish", "fly"), row("publish", "fly"), row("source-control", "sourcehut")]);
+    const extra = all.slice(listed.length);
+    expect(extra.map((p) => [p.kind, p.providerId, p.label, p.unlisted])).toEqual([
+      ["publish", "fly", "fly", true],
+      ["source-control", "sourcehut", "sourcehut", true],
+    ]);
+    expect(extra.every((p) => p.tokenPageUrl === "")).toBe(true);
+  });
+
+  it("adds nothing for listed providers or custom rows", () => {
+    const listed = accessTokenProviders(undefined);
+    expect(accessTokenProvidersWithSavedRows(listed, [row("source-control", listed.find((p) => p.kind === "source-control")!.providerId), row("custom", "c-1")])).toEqual(listed);
   });
 });
