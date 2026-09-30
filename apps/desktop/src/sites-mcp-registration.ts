@@ -351,7 +351,7 @@ function launcherNamesDurableInstall(launcherPath: string, isReadOnlyVolume: (vo
     return false;
   }
   const electron = /^exec '([^']+)'/m.exec(existing)?.[1];
-  return electron !== undefined && fs.existsSync(electron) && !isTransientAppPath(electron, { isReadOnlyVolume });
+  return electron !== undefined && !isTransientAppPath(electron, { isReadOnlyVolume }) && fs.existsSync(electron);
 }
 
 /** Wraps one win32 path for {@link buildSitesMcpRegistration}'s `args`, in the only quoting form
