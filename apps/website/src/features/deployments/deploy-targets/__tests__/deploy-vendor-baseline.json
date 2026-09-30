@@ -11,13 +11,5 @@
     "netlify": 4,
     "railway": 2,
     "vercel": 4
-  },
-  "apps/website/src/features/deployments/deploy-config.ts": {
-    "fly": 5
-  },
-  "apps/website/src/features/publish-trust/connect.ts": {
-    "fly": 1,
-    "railway": 1,
-    "render": 1
   }
 }

@@ -47,6 +47,23 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
   { id: "render", pattern: /render\.com|render\.yaml|onrender/gi },
 ];
 
+/**
+ * Vendor names core keeps on purpose, each with its reason. The scan leaves exactly this many hits
+ * per (file, vendor) out of its result; any hit above it still counts, and the boundary test fails
+ * when an entry no longer matches the file (so a stale entry cannot hide a later addition).
+ */
+export const DEPLOY_VENDOR_ALLOWLIST: ReadonlyArray<{ file: string; rule: string; count: number; reason: string }> = [
+  {
+    file: "apps/website/src/features/deployments/deploy-config.ts",
+    rule: "fly",
+    count: 5,
+    reason: "reads this repo's own committed fly.toml (Tovu's deployment file) as the descriptor's source of facts; no vendor branch",
+  },
+  { file: "apps/website/src/features/publish-trust/connect.ts", rule: "fly", count: 1, reason: "a file name only: where to look for a committed TOVU_PUBLIC_URL to pre-fill" },
+  { file: "apps/website/src/features/publish-trust/connect.ts", rule: "railway", count: 1, reason: "a file name only: where to look for a committed TOVU_PUBLIC_URL to pre-fill" },
+  { file: "apps/website/src/features/publish-trust/connect.ts", rule: "render", count: 1, reason: "a file name only: where to look for a committed TOVU_PUBLIC_URL to pre-fill" },
+];
+
 /** Cheap pre-filter: a file with no raw match cannot have one after comments are removed. */
 const ANY_RULE = new RegExp(RULES.map((rule) => rule.pattern.source).join("|"), "i");
 
@@ -80,8 +97,9 @@ export function countDeployVendors(text: string): Record<string, number> {
   return counts;
 }
 
-/** Every scanned file that names a vendor outside comments, keyed by repo-relative path. */
-export function scanDeployVendors(): Counts {
+/** Every scanned file that names a vendor outside comments, keyed by repo-relative path, before the
+ *  allowlist is applied. */
+export function scanDeployVendorsRaw(): Counts {
   const found: Counts = {};
   for (const root of SCAN_ROOTS) {
     for (const file of listSourceFiles(root)) {
@@ -90,6 +108,20 @@ export function scanDeployVendors(): Counts {
       const counts = countDeployVendors(stripComments(file, text));
       if (Object.keys(counts).length > 0) found[path.relative(REPO_ROOT, file).split(path.sep).join("/")] = counts;
     }
+  }
+  return found;
+}
+
+/** {@link scanDeployVendorsRaw} minus {@link DEPLOY_VENDOR_ALLOWLIST}: what the ratchet judges. */
+export function scanDeployVendors(): Counts {
+  const found = scanDeployVendorsRaw();
+  for (const entry of DEPLOY_VENDOR_ALLOWLIST) {
+    const counts = found[entry.file];
+    if (counts?.[entry.rule] === undefined) continue;
+    const left = counts[entry.rule]! - entry.count;
+    if (left > 0) counts[entry.rule] = left;
+    else delete counts[entry.rule];
+    if (Object.keys(counts).length === 0) delete found[entry.file];
   }
   return found;
 }

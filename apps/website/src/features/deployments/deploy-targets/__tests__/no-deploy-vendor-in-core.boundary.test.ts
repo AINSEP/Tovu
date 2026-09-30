@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan";
 
-import { BASELINE_PATH, type Counts, countDeployVendors, scanDeployVendors, sortedCounts } from "./deploy-vendor-scan.js";
+import { BASELINE_PATH, type Counts, countDeployVendors, DEPLOY_VENDOR_ALLOWLIST, scanDeployVendors, scanDeployVendorsRaw, sortedCounts } from "./deploy-vendor-scan.js";
 
 /**
  * @file Ratchet: no NEW static-hosting vendor names in core (deploy plan T7, the boundary that
@@ -57,4 +57,12 @@ test("no new deploy-vendor names in core (ratchet: the baseline only shrinks)", 
   }
   assert.deepEqual(grew, [], "New hosting-vendor names in core. Put them in the deploy Agent Plugin and read them through the deploy-target registry.");
   assert.deepEqual(shrank, [], "Vendor names went down — lock it in: rerun this test with UPDATE_DEPLOY_VENDOR_BASELINE=1 and commit the baseline.");
+});
+
+test("every allowlist entry still matches its file exactly and gives a reason", () => {
+  const raw = scanDeployVendorsRaw();
+  const stale = DEPLOY_VENDOR_ALLOWLIST.filter((entry) => entry.reason.trim() === "" || (raw[entry.file]?.[entry.rule] ?? 0) < entry.count).map(
+    (entry) => `${entry.file}: ${entry.rule} allowlists ${entry.count}, file has ${raw[entry.file]?.[entry.rule] ?? 0}`,
+  );
+  assert.deepEqual(stale, [], "An allowlist entry outlived its hits. Lower or remove it in deploy-vendor-scan.ts.");
 });
