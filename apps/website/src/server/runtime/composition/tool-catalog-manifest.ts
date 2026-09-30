@@ -57,9 +57,8 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * Shape: `server composition manifest -> feature contribution installers -> assistant registry ->
  * final tool catalog` (2026-08-17 design, following the `assistant/mcp-federation/presets.ts` precedent
  * already in this codebase — see `tool-contribution-registry.ts`'s header for the full rationale).
- * This file plays the role `agent-daemon-server.ts` plays for MCP federation presets
- * (`registerSupabaseMcpPreset()`), just for AI-tool contributions and shared by BOTH real
- * composition roots instead of being called from one.
+ * This file plays the role `agent-daemon-server.ts` plays for MCP federation presets, just for
+ * AI-tool contributions and shared by BOTH real composition roots instead of being called from one.
  *
  * `server` is the right layer for this, not `assistant`: `assistant` must not import a feature by
  * name (that is precisely the edge that used to close the `[assistant, comments, features/plugins,

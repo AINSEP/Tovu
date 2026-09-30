@@ -121,9 +121,9 @@ export interface McpStdioChannel {
  * `allowedToolNames` is the load-bearing field and has NO safe default at this layer: an empty
  * allowlist yields zero federated tools, which is the correct behaviour for a misconfigured
  * connection. A DEFAULT is a per-vendor judgement and therefore belongs to a vendor preset, not
- * here — see `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`, whose default was authored
- * from that server's real, inspected tool surface, which is what makes it an independent
- * classification rather than a restatement of the remote's own claims.
+ * here — an Agent Plugin's `mcp.json` `tovuDefaultTools` is the current example, authored from the
+ * server's real tool surface, which is what makes it an independent classification rather than a
+ * restatement of the remote's own claims.
  */
 /**
  * Where one connection's config came from — stamped once, at admission, and carried unchanged into
@@ -155,7 +155,7 @@ export interface FederatedMcpConnectionConfig {
    * Same "no safe default at this layer" rule as {@link allowedToolNames}: every connection that has
    * never been told to allow a write must resolve to an empty list here, and a vendor preset that
    * wants a non-empty default authors it itself, on purpose, the same way
-   * `supabase-mcp-plugin.ts`'s default allowlist is authored rather than inherited from the remote.
+   * an Agent Plugin's `tovuDefaultTools.write` is authored rather than inherited from the remote.
    *
    * Does NOT reach a tool declaring `destructiveHint: true` — that refusal is unconditional in this
    * slice, regardless of either list. See `trust.ts`'s R3 header for the full argument, including

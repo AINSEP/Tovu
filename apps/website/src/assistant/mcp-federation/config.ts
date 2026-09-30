@@ -5,9 +5,9 @@ import type { FederatedMcpConnectionConfig, McpLaunchSpec } from "./ports.js";
  * vendor preset needs and none of which names a vendor.
  *
  * What this file deliberately does NOT contain, as of 2026-07-30: any specific vendor's preset. The
- * Supabase preset this capability was designed and verified against used to live here; it now lives
- * at `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts` and registers itself through
- * `presets.ts`. The reasoning is the same one that keeps `store-plugin.ts` and `deploy-plugin.ts` out
+ * Supabase preset this capability was designed and verified against used to live here; it moved to
+ * `src/features/plugins/supabase-mcp/` on 2026-07-30 and was retired on 2026-09-29 (Supabase is now
+ * the `content/agent-plugins/supabase` Agent Plugin). The reasoning is the same one that keeps `store-plugin.ts` and `deploy-plugin.ts` out
  * of `src/server` proper: a concrete vendor integration that ships by default is still an OPTIONAL
  * module, and a reader who finds it inside `src/assistant/` reasonably concludes the assistant
  * REQUIRES it. Nothing in `mcp-federation/` should be readable as "Tovu's assistant needs Supabase".

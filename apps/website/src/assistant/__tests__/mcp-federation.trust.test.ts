@@ -563,8 +563,5 @@ test("refusalForAdmittedToolUnderCurrentGrants: a tool present only on the write
   assert.equal(refusal, "not-in-operator-allowlist");
 });
 
-// The concrete Supabase cases these rules were designed against — that its `execute_sql` is stopped
-// by R2 and not by R3, and what its Tovu-authored default allowlist does and does not contain — live
-// with the preset they are about, in
-// `src/features/plugins/supabase-mcp/__tests__/supabase-mcp-plugin.test.ts`. Nothing in this file
-// imports a vendor module; the rules above hold for any remote.
+// Nothing in this file imports a vendor module; the rules above hold for any remote. (The Supabase
+// env preset whose cases used to be tested beside it was retired on 2026-09-29.)

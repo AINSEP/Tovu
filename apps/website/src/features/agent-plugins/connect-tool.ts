@@ -15,6 +15,7 @@ import {
   ExternalMcpValidationError,
   resolveExternalMcpOAuthStatus,
   type ExternalMcpOAuthService,
+  type ExternalMcpServerRecord,
   type ExternalMcpServerRepoPort,
 } from "#src/assistant/index";
 
@@ -248,6 +249,14 @@ interface PendingOAuthServer {
   readonly connectionId: string;
 }
 
+/** Whether a plugin's row already holds a credential: a finished sign-in, or a saved access token
+ *  (`static_env` with a sealed env block — what `agent_plugin_set_access_token`, the old env var's
+ *  boot import, and create-site onboarding all write). Such a row needs no sign-in, and a token
+ *  import must never overwrite it. */
+export function hasStoredAgentPluginCredential(row: Pick<ExternalMcpServerRecord, "authMode" | "sealedEnv" | "oauthStatus">): boolean {
+  return resolveExternalMcpOAuthStatus(row) === "connected" || (row.authMode === "static_env" && row.sealedEnv !== null);
+}
+
 /** Resolves which of a plugin's declared OAuth servers still need connecting, after provisioning
  *  every one of them as an external-MCP row (idempotent — a row already `connected` is left alone).
  *  @throws {ToolInputError} A declared OAuth server has no row after provisioning (provisioning
@@ -266,7 +275,8 @@ async function resolvePendingOAuthServers(
     if (!connectionId || !row) {
       throw new ToolInputError(`agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.`);
     }
-    if (resolveExternalMcpOAuthStatus(row) === "connected") continue;
+    // A saved access token counts too: starting a sign-in here would switch the row back to OAuth.
+    if (hasStoredAgentPluginCredential(row)) continue;
     pending.push({ serverKey, connectionId });
   }
   return pending;

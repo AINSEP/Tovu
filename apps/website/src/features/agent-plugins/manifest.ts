@@ -199,10 +199,17 @@ export interface RemoteMcpServerConfig {
 
 /** Where a human makes the token (`helpUrl`, linked from the form) and the URL a pasted token is
  *  checked against before it is saved (`probeUrl`: one GET, 401/403 means the token was rejected).
- *  Both https. */
+ *  Both https.
+ *
+ *  `importFromEnv` names an env var whose token is copied onto this server's row at boot when the row
+ *  has no credential yet (`import-access-token.ts`); `retiredEnv` names old env vars that are no
+ *  longer read, so boot can say so once. Both let a plugin take over an old env-configured
+ *  integration without core naming the vendor. */
 export interface AgentPluginTokenAuth {
   readonly helpUrl: string;
   readonly probeUrl: string;
+  readonly importFromEnv?: string;
+  readonly retiredEnv?: readonly string[];
 }
 
 export interface AgentPluginDefaultTools {
@@ -299,11 +306,32 @@ function isHttpsUrl(value: unknown): value is string {
   }
 }
 
+/** An env var name a manifest may point at: upper-case, digits and `_`. */
+const ENV_VAR_NAME_PATTERN = /^[A-Z][A-Z0-9_]{0,127}$/;
+const MAX_RETIRED_ENV = 32;
+
+function isEnvVarName(value: unknown): value is string {
+  return typeof value === "string" && ENV_VAR_NAME_PATTERN.test(value);
+}
+
+function parseRetiredEnv(value: unknown): readonly string[] | null {
+  return Array.isArray(value) && value.length <= MAX_RETIRED_ENV && value.every(isEnvVarName) ? value : null;
+}
+
 /** Validates a remote entry's `tovuTokenAuth` extension, or `null` for any shape violation — the
  *  caller excludes the whole server, same as a malformed `tovuDefaultTools`. */
 function parseTokenAuth(value: unknown): AgentPluginTokenAuth | null {
   if (!isJsonObject(value) || !isHttpsUrl(value.helpUrl) || !isHttpsUrl(value.probeUrl)) return null;
-  return { helpUrl: value.helpUrl, probeUrl: value.probeUrl };
+  const { importFromEnv } = value;
+  if (importFromEnv !== undefined && !isEnvVarName(importFromEnv)) return null;
+  const retiredEnv = value.retiredEnv === undefined ? undefined : parseRetiredEnv(value.retiredEnv);
+  if (retiredEnv === null) return null;
+  return {
+    helpUrl: value.helpUrl,
+    probeUrl: value.probeUrl,
+    ...(importFromEnv !== undefined ? { importFromEnv } : {}),
+    ...(retiredEnv !== undefined ? { retiredEnv } : {}),
+  };
 }
 
 /**

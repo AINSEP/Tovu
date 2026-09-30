@@ -29,8 +29,7 @@ import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION } from "../mcp-federat
  *
  * Vendor-blind by construction: nothing here imports a preset module. Where a preset is needed, the
  * test registers its own fake one through `presets.ts`, which is also the most direct check that the
- * seam works for a vendor core has never heard of. The real Supabase preset's own resolution is
- * covered by `src/features/plugins/supabase-mcp/__tests__/supabase-mcp-plugin.test.ts`.
+ * seam works for a vendor core has never heard of.
  *
  * The `fakeDeps` here follows `tool-registrations.database-recovery.test.ts`'s technique exactly:
  * an `order` array recording every authorize call and every outbound tool call, so "authorized

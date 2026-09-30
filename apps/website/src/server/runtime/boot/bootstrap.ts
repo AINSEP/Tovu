@@ -1,9 +1,13 @@
+import path from "node:path";
+
 import { bootstrapStore } from "#src/features/plugins/store/store-plugin";
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { seedBundledAgentPlugins } from "#src/features/agent-plugins/seed-bundled";
+import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
+import { applyPendingAgentPluginTokens } from "../composition/pending-agent-plugin-tokens.js";
 import { startPluginActivationPolling } from "../composition/agent-daemon-deps.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
@@ -22,6 +26,29 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
  */
 
 const noop = async (): Promise<void> => {};
+
+/* eslint-disable no-console */
+const tokenImportLog = { info: (message: string) => console.info(message), warn: (message: string) => console.warn(message) };
+/* eslint-enable no-console */
+
+/**
+ * After the bundled plugins are seeded (a token needs its plugin installed): connects plugins from
+ * an old env token (`tovuTokenAuth.importFromEnv`, e.g. the retired `TOVU_SUPABASE_MCP_ACCESS_TOKEN`)
+ * and from tokens typed into create-site onboarding for this site. Neither overwrites a connection
+ * the site already has, and neither can fail boot.
+ */
+async function importAgentPluginTokensAtBoot(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): Promise<void> {
+  await importAgentPluginAccessTokensFromEnv(deps, process.env, tokenImportLog);
+  if (options.useMemory) return;
+  try {
+    await applyPendingAgentPluginTokens(
+      { siteDir: path.dirname(options.defaultContentDbPath()), sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },
+      tokenImportLog,
+    );
+  } catch (err) {
+    tokenImportLog.warn(`[agent-plugins] could not apply this site's pending access tokens: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
 
 export interface BuildBootModulesOptions {
   useMemory: boolean;
@@ -149,6 +176,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
             }
           }
         }
+        await importAgentPluginTokensAtBoot(deps, options);
       },
       start: noop,
       stop: noop,

@@ -48,6 +48,13 @@ const AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION = "admin.integrations.manage";
 /** Per-request bound; the guarded client's egress policy separately caps connect time and body size. */
 const PROBE_TIMEOUT_MS = 10_000;
 
+/** What resolving and saving onto a plugin's token row needs — no permission check, no HTTP client.
+ *  Shared with `import-access-token.ts`, which saves a token that did not come from this form. */
+export type AgentPluginTokenTargetDeps = Pick<
+  AgentPluginConnectToolDeps,
+  "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "resolveInstalledPlugin"
+>;
+
 export interface AgentPluginAccessTokenToolDeps extends AgentPluginConnectToolDeps {
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
@@ -98,7 +105,7 @@ type SetAccessTokenResult =
 type AnswerOutcome = { result: SetAccessTokenResult; outcome?: SurfaceEmission };
 
 /** The one declared token-auth server this call saves onto. */
-interface TokenAuthTarget {
+export interface TokenAuthTarget {
   readonly pluginId: string;
   readonly displayName: string;
   readonly connectionId: string;
@@ -120,7 +127,7 @@ function hostOf(url: string | null): string | null {
  *
  * @throws {ToolInputError}
  */
-async function requireTargetRow(routeDeps: AgentPluginAccessTokenToolDeps, target: TokenAuthTarget): Promise<ExternalMcpServerRecord> {
+export async function requireTargetRow(routeDeps: AgentPluginTokenTargetDeps, target: TokenAuthTarget): Promise<ExternalMcpServerRecord> {
   const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: target.connectionId });
   if (row === null) {
     throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${target.pluginId}''s connection could not be set up in this Tovu version. Nothing was changed.`);
@@ -137,7 +144,7 @@ async function requireTargetRow(routeDeps: AgentPluginAccessTokenToolDeps, targe
  *
  * @throws {ToolInputError} Not installed; no or several token-auth servers.
  */
-async function resolveTarget(routeDeps: AgentPluginAccessTokenToolDeps, pluginId: string, principalId: string): Promise<TokenAuthTarget> {
+export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, pluginId: string, principalId: string): Promise<TokenAuthTarget> {
   const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin(routeDeps.workspaceId, id));
   const plugin = await resolvePlugin(pluginId);
   if (!plugin) throw new ToolInputError(`${AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID}: '${pluginId}' is not an installed Agent Plugin in this workspace.`);
@@ -159,7 +166,7 @@ async function resolveTarget(routeDeps: AgentPluginAccessTokenToolDeps, pluginId
 }
 
 /** One GET with the token as a Bearer header. Never throws, never returns the token or the body. */
-async function probeToken(httpClient: HttpClientPort, probeUrl: string, token: string): Promise<"ok" | "invalid" | "unavailable"> {
+export async function probeToken(httpClient: HttpClientPort, probeUrl: string, token: string): Promise<"ok" | "invalid" | "unavailable"> {
   let response;
   try {
     response = await httpClient.send({
@@ -185,7 +192,7 @@ function joinStoredList(raw: string | null): string {
  * operator-set field forward unchanged. Re-read at write time because the human may sit on the form
  * while the operator edits the allowlists.
  */
-async function saveStaticAccessToken(routeDeps: AgentPluginAccessTokenToolDeps, target: TokenAuthTarget, principalId: string, token: string): Promise<void> {
+export async function saveStaticAccessToken(routeDeps: AgentPluginTokenTargetDeps, target: TokenAuthTarget, principalId: string, token: string): Promise<void> {
   const row = await requireTargetRow(routeDeps, target);
   await saveExternalMcpServer(
     { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring, clock: routeDeps.clock },

@@ -84,6 +84,18 @@ test("mcp.json offers the access-token fallback: Supabase's tokens page, probed 
   assert.deepEqual(server.tovuTokenAuth, {
     helpUrl: "https://supabase.com/dashboard/account/tokens",
     probeUrl: "https://api.supabase.com/v1/projects",
+    // 2026-09-29: the retired env preset's token is copied onto this plugin's row at boot.
+    importFromEnv: "TOVU_SUPABASE_MCP_ACCESS_TOKEN",
+    retiredEnv: [
+      "TOVU_SUPABASE_MCP_ENABLED",
+      "TOVU_SUPABASE_MCP_PROJECT_REF",
+      "TOVU_SUPABASE_MCP_ALLOWED_TOOLS",
+      "TOVU_SUPABASE_MCP_FEATURES",
+      "TOVU_SUPABASE_MCP_PACKAGE",
+      "TOVU_SUPABASE_MCP_CONNECT_TIMEOUT_MS",
+      "TOVU_SUPABASE_MCP_CALL_TIMEOUT_MS",
+      "TOVU_SUPABASE_MCP_MAX_RESULT_BYTES",
+    ],
   });
 });
 

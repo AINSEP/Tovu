@@ -466,10 +466,10 @@ export function createByokToolSurface(
      */
     readonly registerInstalledExtensions?: InstalledExtensionRegistrar;
     /**
-     * Registers the first-party federated MCP presets (today: `supabase-mcp-plugin.ts`'s
-     * `registerSupabaseMcpPreset`) before this surface is built — injected by the composition root
-     * for the same module-cycle reason as `registerInstalledExtensions`. Omitted, nothing is
-     * registered; the preset is itself a no-op unless `TOVU_SUPABASE_MCP_ENABLED` is set.
+     * Registers first-party federated MCP presets before this surface is built — injected by the
+     * composition root for the same module-cycle reason as `registerInstalledExtensions`. No root
+     * passes one today (the Supabase env preset was retired on 2026-09-29; vendors now arrive as
+     * Agent Plugin rows in the stored roster). Omitted, nothing is registered.
      */
     readonly registerFederationPresets?: () => void;
     /**
@@ -530,10 +530,8 @@ export function createByokToolSurface(
   // forwarded verbatim — omitted, the shared factory skips its own audit wrap the identical way this
   // function's inline one used to, matching this option's documented "neither half is logged"
   // contract.
-  // Injected (see the option's doc). The real one is idempotent (`supabase-mcp-plugin.ts`'s own
-  // doc), and cheap when `TOVU_SUPABASE_MCP_ENABLED` is unset — safe to call unconditionally,
-  // matching `agent-daemon-server.ts`'s own `start()`: nothing is spawned unless an operator has
-  // actually opted in.
+  // Injected (see the option's doc); a registrar must be idempotent and spawn nothing unless an
+  // operator has opted in.
   options.registerFederationPresets?.();
 
   // The stored-roster half of `external-mcp-connection-source.ts` — reads Settings → External

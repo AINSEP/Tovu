@@ -93,7 +93,6 @@ import { attachAssistantToolExtensions, type AssistantToolExtensions } from "#sr
 import { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
 import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
-import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import {
@@ -1168,15 +1167,14 @@ frontendControl.httpExtension(app, { adapter });
  * site owner's configured external MCP server and registers whatever clears
  * `mcp-federation/trust.ts`'s separate, more restricted trust tier.
  *
- * The MECHANISM is core (`mcp-federation/`); which VENDORS exist is not. Each vendor preset is a
- * first-party plugin module that registers itself through `mcp-federation/presets.ts`, and this
- * function is the composition root that installs the default-included ones — today just Supabase,
- * the same wiring posture `store-plugin.ts` has. A second vendor is one more `register*Preset()`
- * call here plus its own module; core federation never learns any vendor's name.
+ * The MECHANISM is core (`mcp-federation/`); which VENDORS exist is not. Vendors arrive as Agent
+ * Plugins (`content/agent-plugins/<id>/mcp.json`), whose servers become rows in the stored roster
+ * read below; no env-var vendor preset is registered any more (the Supabase one was retired on
+ * 2026-09-29 — its env token is copied onto the Supabase plugin's row at boot instead, see
+ * `features/agent-plugins/import-access-token.ts`). `mcp-federation/presets.ts` stays as the seam.
  *
- * Registration is not activation. Off unless configured: with no `TOVU_SUPABASE_MCP_ENABLED` the
- * Supabase resolver returns `null`, `attachFederatedMcpTools` resolves zero connections, and this
- * boot is byte-for-byte the one that ran before the capability existed. It never rejects — a third
+ * Off unless configured: with no enabled roster row `attachFederatedMcpTools` resolves zero
+ * connections, and this boot is byte-for-byte the one that ran before the capability existed. It never rejects — a third
  * party's server must not be able to stop Tovu's daemon booting — so there is no failure branch to
  * handle here; see `mcp-federation/bootstrap.ts` for the fail-open rationale and why it is the
  * opposite of `daemon-auth.ts`'s fail-closed posture.
@@ -1229,8 +1227,6 @@ const externalMcpOAuth = createExternalMcpOAuthService({
 });
 
 async function start(): Promise<void> {
-  registerSupabaseMcpPreset();
-
   /**
    * Reads the operator-editable roster (Settings → External MCP) into federation's connection
    * shape, boot-time and every reload pass alike — see `createStoredExternalMcpConnectionSource`'s

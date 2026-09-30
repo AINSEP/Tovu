@@ -21,8 +21,8 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  * Every registration is an explicit call, made by a composition root (today:
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors`, and the two real boot
  * paths that call it — `server/agent-daemon/agent-daemon-server.ts` and
- * `server/modules/assistant-byok.ts`) — the same posture `supabase-mcp-plugin.ts`'s own
- * `registerSupabaseMcpPreset()` already established for MCP federation.
+ * `server/modules/assistant-byok.ts`) — the same posture `mcp-federation/presets.ts`'s registrars
+ * established for MCP federation.
  *
  * Why `assistant/` owns this file rather than `server/`: `AssistantToolRegistryDeps` (the deps bag
  * every contributor's `build` reads) is assembled here from every domain's own `*ToolDeps`

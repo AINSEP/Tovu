@@ -26,7 +26,6 @@
  * from the same deliberately-kept seam (see `assistant/index.ts`'s own "E — External MCP
  * Federation" section) instead of calling `registerToolContributor`, to exactly the named symbols
  * that file imports today — as of 2026-09-20/21 (two agent-plugins connect files added 2026-09-27):
- * `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`,
  * `src/features/agent-plugins/federate-mcp.ts`,
  * `src/features/agent-plugins/access-token-tool.ts` (was `supabase-connect/tool-registrations.ts`), and
  * `src/features/external-mcp/tool-registrations.ts`. A value-import of any OTHER symbol from
@@ -50,21 +49,6 @@ const GUARDED_TOP_LEVEL_DIRS = ["analytics", "features", "identity", "media", "n
  *  imports today; growing it back out to a real production need is a deliberate, reviewable edit
  *  here, not something a future rename or a copy-pasted import can slip past silently. */
 const EXEMPT_FILE_SYMBOLS = new Map<string, Set<string>>([
-  [
-    path.join(REPO_ROOT, "apps", "website", "src", "features", "plugins", "supabase-mcp", "supabase-mcp-plugin.ts"),
-    // Added 2026-09-20: value-imports the federated-connection config readers and the preset
-    // registrar (not `registerToolContributor`) from `assistant/index.ts`'s own "E — External MCP
-    // Federation (registry)" section, which its header comment calls "the designed extension point,
-    // not a leak; kept exposed here on purpose rather than chased to 0" and explicitly credits by
-    // name.
-    new Set([
-      "FEDERATED_CONNECTION_DEFAULTS",
-      "isFederationEnabled",
-      "parseAllowedToolNames",
-      "positiveIntOrDefault",
-      "registerFederatedMcpPreset",
-    ]),
-  ],
   [
     // Added 2026-09-10 (feaf69d08, "wire auto-admitted plugin MCP servers into the external-MCP
     // store") — confirmed via `assistant/index.ts`'s own comment naming this file. Imports only the

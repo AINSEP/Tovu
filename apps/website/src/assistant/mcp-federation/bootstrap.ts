@@ -37,8 +37,8 @@ import type { FederatedAdmissionReport } from "./trust.js";
  * acceptable outcome.
  *
  * VENDOR-BLIND. Nothing in this file names a vendor: which servers exist is whatever registered
- * itself with `presets.ts`, populated by first-party plugin modules such as
- * `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`. Before 2026-07-30 this file imported
+ * itself with `presets.ts` (none today: the Supabase env preset was retired on 2026-09-29), plus the
+ * stored roster. Before 2026-07-30 this file imported
  * Supabase's resolver directly, which meant adding a second vendor was an edit to core federation.
  * See `presets.ts` for the seam's rationale.
  */

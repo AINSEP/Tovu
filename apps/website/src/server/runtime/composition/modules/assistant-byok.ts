@@ -65,7 +65,6 @@ import {
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -367,7 +366,6 @@ export function createAssistantByokModule(
       toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
       // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
       registerInstalledExtensions: registerInstalledExtensionTools,
-      registerFederationPresets: registerSupabaseMcpPreset,
     });
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
