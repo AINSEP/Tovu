@@ -2,7 +2,7 @@ import type { UUID } from "@jini-ai/cms/core";
 
 import { issueToolFailureDiagnostic, type ToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
-import { detectSelfDescribingAuthScheme } from "./providers/index.js";
+import { detectSelfDescribingAuthScheme, loadCredentialSchemeRegistry, type CredentialSchemeRule } from "./auth-schemes.js";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import { allowedOriginsFor, type CustomCredentialSetRepoPort, type CustomProviderConnectionInput } from "./types.js";
 // `EgressRefusedError` is a runtime import (used for `instanceof` in `makeCredentialedRequest`'s
@@ -13,7 +13,7 @@ import { EgressRefusedError, type HttpClientPort } from "../../platform/http/ind
 /**
  * @file Closes the "the agent can SAVE a custom credential but can never USE one" gap:
  * `custom_credential_sets` (the Access Tokens page's "Add custom provider" rows — an operator-typed
- * label, API base URL, and token, e.g. "name.com", "fly.io") had a write path
+ * label, API base URL, and token, e.g. "name.com", "example-host") had a write path
  * (`createCustomCredential`/`updateCustomCredential`, `store.ts`) and, since 2026-08-31, exactly one
  * decrypting reader (`resolveCustomCredentialByLabel`, added for the mail adapter) — but nothing that
  * ever turned a saved credential into a live authenticated call. This module is the second real
@@ -93,33 +93,33 @@ import { EgressRefusedError, type HttpClientPort } from "../../platform/http/ind
  * the module has no honest hypothesis to offer there, matching the same "omit rather than mislead"
  * discipline the stored-username case already used.
  *
- * **Self-describing token schemes (2026-09-03 — the Fly.io incident this addition fixes).** Every
+ * **Self-describing token schemes (2026-09-03 — the live incident this addition fixes).** Every
  * case above assumes {@link buildAuthorizationHeader} always sends either `Bearer <token>` or
- * `Basic <username:token>` — an assumption a saved fly.io credential breaks: fly.io's own token
- * string is self-describing, e.g. `FlyV1fm2_...` (a macaroon), and `FlyV1` is not incidental
+ * `Basic <username:token>` — an assumption some vendors' tokens break: the token string is
+ * self-describing, e.g. `<Scheme>fm2_...` (a macaroon), and the leading scheme word is not incidental
  * content — it IS the correct `Authorization` HTTP scheme name, with the rest of the token string as
- * the value. See `./providers/fly-io.ts`'s own header for the full live verification.
+ * the value. The live verification is recorded with the rule itself, in the `deploy` plugin's
+ * `tovu-credential-schemes.json` (`note`).
  *
  * {@link resolveAuthorizationScheme} is the one place THIS module decides which of the three shapes
  * (self-describing, Basic, Bearer) to send; {@link buildAuthorizationHeader} and
  * {@link buildAuthFailureDiagnostic} both call it rather than each re-deriving the precedence, so the
  * scheme a 401/403 diagnostic REPORTS can never drift from the scheme that was actually SENT.
- * RECOGNIZING a self-describing scheme, however, is deliberately NOT this module's own logic:
- * {@link detectSelfDescribingAuthScheme} delegates to `./providers/index.ts`, a small per-vendor
- * registry (one file per provider, e.g. `./providers/fly-io.ts`) rather than an inline allow-list
- * living here. A first pass of this fix special-cased `"FlyV1"` directly in this file; that was
- * rejected in review because it does not scale — every future vendor with the same quirk would mean
- * editing this shared file and growing a shared conditional a new vendor has no reason to know
- * exists. See `./providers/index.ts`'s header for the full registry design, including why dispatch
- * there is try-each-in-turn (recognize by the token's own content) rather than keyed by the
- * credential's saved host — this module's job stays exactly "ask the registry, then apply the fixed
+ * RECOGNIZING a self-describing scheme, however, is deliberately NOT this module's own logic, and
+ * core names no vendor: the scheme rules are data that bundled Agent Plugins ship
+ * (`tovu-credential-schemes.json`), loaded once per call at each entry point
+ * ({@link verifyCustomCredential}, {@link makeCredentialedRequest}) through
+ * `CredentialedRequestDeps.loadAuthSchemes` and passed down to {@link detectSelfDescribingAuthScheme}
+ * (`./auth-schemes.ts`). See that file's header for the rule format, the trust gates, and why
+ * dispatch is try-each-in-turn (recognize by the token's own content) rather than keyed by the
+ * credential's saved host. This module's job stays exactly "apply the loaded rules, then the fixed
  * three-way precedence below," never "know which vendors exist."
  *
  * A self-describing scheme takes priority over a saved `username` (Basic auth): if a token embeds its
  * own scheme, the token itself dictates its own transport — a stored username on that same credential
  * would be a leftover from before the scheme was recognized, not a signal to prefer Basic instead. No
- * saved credential exercises this combination as of this writing (fly.io's own saved credential has
- * no username), so this is a forward-looking precedence decision, not a fix for a live conflict.
+ * saved credential exercises this combination as of this writing (the one known self-describing
+ * credential has no username), so this is a forward-looking precedence decision, not a fix for a live conflict.
  *
  * Neither function reinterprets or hides the provider's own response: {@link makeCredentialedRequest}'s
  * `bodyText` is unaffected by this addition, and this diagnostic is additive alongside it, never a
@@ -164,12 +164,12 @@ import { EgressRefusedError, type HttpClientPort } from "../../platform/http/ind
  * matched substring is replaced with a fixed marker and everything else the provider actually said
  * still reaches the model unchanged.
  *
- * **Per-credential host binding — the control that stops "send my fly.io token to
+ * **Per-credential host binding — the control that stops "send my hosting token to
  * evil.example.com".** A credential's allowed origins ({@link allowedOriginsFor}: its saved `baseUrl`
  * plus any `additionalHosts`) are plaintext operator input, set through the Access Tokens "Add custom
  * provider" form — never through either tool call here (2026-08-31: widened from a single `baseUrl`
  * to a SET of origins so one credential can cover a provider with more than one real API host, e.g.
- * fly.io's `api.fly.io` GraphQL endpoint and `api.machines.dev` REST endpoint — a real functional gap
+ * a hosting vendor's separate GraphQL and REST API hosts — a real functional gap
  * the single-host design had, not merely a hypothetical one). The caller supplies a full absolute
  * `url`; {@link resolveAllowedRequestUrl} parses it and checks its `.origin` against that set
  * EXACTLY — no prefix/substring match, no path-based reasoning. A `url` whose origin is not on the
@@ -531,8 +531,8 @@ function validateOptionalBody(raw: unknown): string | undefined {
 /** The three shapes {@link buildAuthorizationHeader} can send for one connection — see
  *  {@link resolveAuthorizationScheme}'s own doc for the precedence order this discriminates.
  *  `"self-describing"`'s `scheme` is a plain `string`, not a closed literal union: it is whatever
- *  scheme word the matching entry in {@link CUSTOM_CREDENTIAL_AUTH_SCHEME_PROVIDERS} returned, and
- *  that registry is meant to grow without this file changing — see `./providers/index.ts`'s header. */
+ *  scheme word the matching plugin-declared rule names, and that rule set is meant to grow without
+ *  this file changing — see `./auth-schemes.ts`'s header. */
 type ResolvedAuthorizationScheme =
   | { readonly kind: "self-describing"; readonly scheme: string; readonly value: string }
   | { readonly kind: "basic"; readonly username: string; readonly token: string }
@@ -541,7 +541,7 @@ type ResolvedAuthorizationScheme =
 /**
  * Resolves which of the three shapes {@link buildAuthorizationHeader} sends for one connection, in
  * the exact precedence this module applies: (1) a self-describing scheme when
- * {@link detectSelfDescribingAuthScheme} (the `./providers/` registry — see this file's header,
+ * {@link detectSelfDescribingAuthScheme} (with the plugin-declared `schemes` — see this file's header,
  * "Self-describing token schemes") recognizes the token itself — the token dictates its own
  * transport, so this wins even over a saved username; (2) HTTP Basic (`username:token`, base64) when
  * the connection carries a `username` — the same convention `store.ts`'s own
@@ -553,8 +553,8 @@ type ResolvedAuthorizationScheme =
  *
  * @complexity O(1) beyond {@link detectSelfDescribingAuthScheme}'s own cost.
  */
-function resolveAuthorizationScheme(connection: CustomProviderConnectionInput): ResolvedAuthorizationScheme {
-  const selfDescribing = detectSelfDescribingAuthScheme(connection.token);
+function resolveAuthorizationScheme(connection: CustomProviderConnectionInput, schemes: readonly CredentialSchemeRule[]): ResolvedAuthorizationScheme {
+  const selfDescribing = detectSelfDescribingAuthScheme(connection.token, schemes);
   if (selfDescribing) {
     return { kind: "self-describing", scheme: selfDescribing.scheme, value: selfDescribing.value };
   }
@@ -574,10 +574,14 @@ function resolveAuthorizationScheme(connection: CustomProviderConnectionInput): 
  *  reused rather than re-derived so the scheme a future 401/403 there could report can never drift
  *  from the scheme this module actually sends.
  *
- * @complexity O(1) beyond {@link resolveAuthorizationScheme}'s own cost.
+ *  `schemes` are the plugin-declared self-describing scheme rules (`./auth-schemes.ts`). This
+ *  module's own entry points always pass the loaded set; an external caller that omits it (the
+ *  git-host callers, whose tokens never embed a scheme word) gets Basic/Bearer only.
+ *
+ * @complexity O(r) scheme rules beyond {@link resolveAuthorizationScheme}'s own cost.
  */
-export function buildAuthorizationHeader(connection: CustomProviderConnectionInput): string {
-  const resolved = resolveAuthorizationScheme(connection);
+export function buildAuthorizationHeader(connection: CustomProviderConnectionInput, schemes: readonly CredentialSchemeRule[] = []): string {
+  const resolved = resolveAuthorizationScheme(connection, schemes);
   if (resolved.kind === "self-describing") return `${resolved.scheme} ${resolved.value}`;
   if (resolved.kind === "basic") return `Basic ${buildBasicAuthPayload(resolved.username, resolved.token)}`;
   return `Bearer ${resolved.token}`;
@@ -612,9 +616,9 @@ const SET_USERNAME_TOOL_ID = "custom_credential_set_username";
 export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
   /** Which scheme {@link buildAuthorizationHeader} actually sent for this call — never the header's
    *  own value, only which of the three shapes it took: a saved token's own self-describing scheme
-   *  word (e.g. `"FlyV1"` — see this file's header, "Self-describing token schemes"), `"Basic"`, or
+   *  word (see this file's header, "Self-describing token schemes"), `"Basic"`, or
    *  `"Bearer"`. Typed as a plain `string`, not a closed literal union, because the self-describing
-   *  case is driven by `./providers/index.ts`'s open-ended vendor registry — see
+   *  case is driven by plugin-declared scheme rules (`./auth-schemes.ts`) — see
    *  {@link ResolvedAuthorizationScheme}'s own doc. This module's own "what failed" fact (facet 1 of
    *  the general contract — see that file's header for why facts are not modeled there). */
   readonly schemeSent: string;
@@ -653,9 +657,9 @@ export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
  *
  * @complexity O(1) beyond {@link resolveAuthorizationScheme}'s own cost.
  */
-function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, status: 401 | 403): AuthFailureDiagnostic {
+function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, status: 401 | 403, schemes: readonly CredentialSchemeRule[]): AuthFailureDiagnostic {
   const usernameStored = connection.username !== undefined;
-  const resolved = resolveAuthorizationScheme(connection);
+  const resolved = resolveAuthorizationScheme(connection, schemes);
   const schemeSent = resolved.kind === "self-describing" ? resolved.scheme : resolved.kind === "basic" ? "Basic" : "Bearer";
   if (resolved.kind !== "bearer" || status !== 401) {
     // Either a different, un-guessable failure (a username IS already saved, or the token embeds its
@@ -738,6 +742,18 @@ export interface CredentialedRequestDeps {
   readonly clock: { nowIso(): string };
   /** Defaults to {@link ConsoleCredentialedRequestAuditLog}. */
   readonly audit?: CredentialedRequestAuditPort;
+  /** The self-describing token scheme rules for this workspace (see this file's header,
+   *  "Self-describing token schemes"). Defaults to the workspace's installed, bundled-digest-trusted
+   *  plugins (`loadCredentialSchemeRegistry`); the hermetic root and tests pass the bundled plugin's
+   *  source rules instead. */
+  readonly loadAuthSchemes?: (ctx: { readonly workspaceId: UUID }) => Promise<readonly CredentialSchemeRule[]>;
+}
+
+/** The scheme rules one call applies, loaded once at the entry point and passed down.
+ *  @complexity One registry read (see `./auth-schemes.ts`). */
+async function loadAuthSchemes(deps: Pick<CredentialedRequestDeps, "loadAuthSchemes">, workspaceId: UUID): Promise<readonly CredentialSchemeRule[]> {
+  if (deps.loadAuthSchemes) return deps.loadAuthSchemes({ workspaceId });
+  return (await loadCredentialSchemeRegistry({ workspaceId })).rules;
 }
 
 /**
@@ -845,13 +861,14 @@ export async function verifyCustomCredential(deps: CredentialedRequestDeps, inpu
   const { baseUrl, connection } = await resolveCredentialOrThrow(deps, { workspaceId: input.workspaceId, label });
   const url = new URL(`${new URL(baseUrl).origin}/`);
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
+  const schemes = await loadAuthSchemes(deps, input.workspaceId);
 
   let status: number;
   try {
     const response = await deps.httpClient.send({
       method: "GET",
       url: url.toString(),
-      headers: { Authorization: buildAuthorizationHeader(connection) },
+      headers: { Authorization: buildAuthorizationHeader(connection, schemes) },
       timeoutMs: CREDENTIALED_REQUEST_TIMEOUT_MS,
     });
     status = response.status;
@@ -862,7 +879,7 @@ export async function verifyCustomCredential(deps: CredentialedRequestDeps, inpu
 
   audit.record({ label, host: url.hostname, method: "GET", status, bodyBytes: 0, at: checkedAt });
   const outcome = classifyCustomCredentialStatus(status);
-  const authDiagnostic = outcome === "invalid" ? buildAuthFailureDiagnostic(connection, status as 401 | 403) : undefined;
+  const authDiagnostic = outcome === "invalid" ? buildAuthFailureDiagnostic(connection, status as 401 | 403, schemes) : undefined;
   return { status: outcome, message: buildVerificationMessage(label, status, outcome), checkedAt, ...(authDiagnostic ? { authDiagnostic } : {}) };
 }
 
@@ -941,7 +958,7 @@ export interface MakeCredentialedRequestInput {
  * listing it explicitly, an endpoint that echoes just the bare payload back would slip past both
  * {@link redactResponseHeaders} and {@link resolveRedactedResponseBody} undetected.
  *
- * A self-describing scheme (e.g. fly.io's `FlyV1<macaroon>`) has the identical shape of gap, for the
+ * A self-describing scheme (e.g. `<Scheme><macaroon>`) has the identical shape of gap, for the
  * identical reason: `connection.token` is the WHOLE stored string, scheme word and all (that is what
  * "self-describing" means — see this file's header, "Self-describing token schemes"), so it is
  * exactly as prefixed as `authorizationHeader` and never matches a response that reflects only the
@@ -972,8 +989,8 @@ export interface MakeCredentialedRequestInput {
  *
  * @complexity O(1).
  */
-function buildResponseSecrets(connection: CustomProviderConnectionInput, authorizationHeader: string): readonly string[] {
-  const resolvedScheme = resolveAuthorizationScheme(connection);
+function buildResponseSecrets(connection: CustomProviderConnectionInput, authorizationHeader: string, schemes: readonly CredentialSchemeRule[]): readonly string[] {
+  const resolvedScheme = resolveAuthorizationScheme(connection, schemes);
   if (resolvedScheme.kind === "self-describing") return [authorizationHeader, connection.token, resolvedScheme.value];
   if (resolvedScheme.kind === "basic") return [authorizationHeader, connection.token, buildBasicAuthPayload(resolvedScheme.username, resolvedScheme.token)];
   return [authorizationHeader, connection.token];
@@ -1001,8 +1018,9 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor({ baseUrl, additionalHosts }));
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
   const bodyBytes = body !== undefined ? Buffer.byteLength(body, "utf8") : 0;
-  const authorizationHeader = buildAuthorizationHeader(connection);
-  const responseSecrets = buildResponseSecrets(connection, authorizationHeader);
+  const schemes = await loadAuthSchemes(deps, input.workspaceId);
+  const authorizationHeader = buildAuthorizationHeader(connection, schemes);
+  const responseSecrets = buildResponseSecrets(connection, authorizationHeader, schemes);
 
   let response;
   try {
@@ -1027,7 +1045,7 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
 
   audit.record({ label, host: url.hostname, method, status: response.status, bodyBytes, at });
   const authDiagnostic =
-    response.status === 401 || response.status === 403 ? buildAuthFailureDiagnostic(connection, response.status) : undefined;
+    response.status === 401 || response.status === 403 ? buildAuthFailureDiagnostic(connection, response.status, schemes) : undefined;
   return {
     executed: true,
     status: response.status,

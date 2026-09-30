@@ -17,6 +17,7 @@ import {
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
+import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
 
 /**
  * @file `credentialed-request.ts` — the two capabilities that let the agent actually USE a saved
@@ -84,6 +85,8 @@ function makeDeps(overrides: Partial<CredentialedRequestDeps> & { httpClient: Ht
     repo: base.repo,
     sealer: base.sealer,
     clock: base.clock,
+    // The bundled deploy plugin's shipped scheme rules (FlyV1), as the hermetic root passes them.
+    loadAuthSchemes: loadBundledAuthSchemes,
     ...overrides,
   };
 }

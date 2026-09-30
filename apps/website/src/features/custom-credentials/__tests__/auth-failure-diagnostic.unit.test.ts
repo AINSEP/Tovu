@@ -8,6 +8,7 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../store
 import { makeCredentialedRequest, verifyCustomCredential, type CredentialedRequestDeps } from "../credentialed-request.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import type { ToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
+import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
 
 /**
  * @file The 401/403 authentication-failure diagnostic (2026-09-01) — the fix for the live name.com
@@ -89,7 +90,7 @@ async function seedWithUsername(): Promise<CustomCredentialWriteDeps> {
 }
 
 function makeDeps(httpClient: HttpClientPort, base: CustomCredentialWriteDeps): CredentialedRequestDeps {
-  return { repo: base.repo, sealer: base.sealer, clock: base.clock, httpClient };
+  return { repo: base.repo, sealer: base.sealer, clock: base.clock, httpClient, loadAuthSchemes: loadBundledAuthSchemes };
 }
 
 // ---------------------------------------------------------------------------------------------
