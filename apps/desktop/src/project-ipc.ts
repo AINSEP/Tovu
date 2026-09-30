@@ -27,6 +27,7 @@ import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
 import { sitePartition } from "./desktop-auth.ts";
 import { createRelocationGate, relocateMovedSites, repointTrackedSite, type RelocationGate } from "./site-relocation.ts";
+import { assertTokensCanReachFolder, cleanCreateTokens, initTokenOptions, listTokenSignInPlugins as listTokenSignInPluginsReal, withCreatedTokens, type TokenSignInPlugin } from "./agent-plugin-tokens.ts";
 
 const SITE_IPC_CHANNELS = Object.freeze({
   list: "runner:sites:list",
@@ -40,6 +41,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
   locate: "runner:sites:locate",
+  tokenSignInPlugins: "runner:sites:token-sign-in-plugins",
 });
 
 /**
@@ -178,6 +180,8 @@ interface Serializer {
 interface CreateSiteInput {
   displayName: string;
   database?: { kind: string };
+  /** Optional "Connect services" tokens, `{ [pluginId]: token }` — see `agent-plugin-tokens.ts`. */
+  agentPluginTokens?: unknown;
 }
 
 /** {@link handleRename}'s input — mirrors `contracts/project.ts`'s `RenameSiteInput`. */
@@ -201,6 +205,8 @@ interface AdoptSiteDirInput {
   statePath: string;
   name?: string;
   cliMode?: "source" | "compiled";
+  agentPluginTokens?: Readonly<Record<string, string>>;
+  onInitOutput?: (output: string) => void;
 }
 
 /** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.ts`'s real
@@ -393,6 +399,9 @@ async function handleCreate(
   if (kind !== undefined && kind !== "sqlite") {
     throw new Error(`This app only creates SQLite sites, which live in the folder you choose. "${kind}" needs a hosted-database provisioner this app does not have.`);
   }
+  // Checked before the dialog for the same reason as the database choice: a malformed map is refused
+  // before anyone picks a folder.
+  const agentPluginTokens = cleanCreateTokens(input.agentPluginTokens);
 
   const picked = await deps.dialog.showOpenDialog({
     title: "Choose a folder for your new site",
@@ -409,12 +418,15 @@ async function handleCreate(
   // see `project-delete-guard.ts`. `adoptSiteDir` refuses "occupied"/"incomplete" outright, so the
   // only two classifications that reach `trackSite` are the two this maps.
   const wasEmpty = deps.classifySiteDir(picked.filePaths[0]!) === "empty"; // just checked `filePaths.length === 0` above, so index 0 exists
+  assertTokensCanReachFolder(agentPluginTokens, wasEmpty);
+  const init = { output: "" };
   const siteDir = await deps.adoptSiteDir({
     dir: picked.filePaths[0]!, // same non-empty check as above
     repoRoot: deps.repoRoot,
     statePath: deps.statePath,
     name: input.displayName,
     cliMode: deps.cliMode,
+    ...initTokenOptions(agentPluginTokens, init),
   });
   const origin = wasEmpty ? SITE_ORIGIN.created : SITE_ORIGIN.adopted;
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
@@ -424,7 +436,22 @@ async function handleCreate(
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readSiteIdentity(siteDir);
   trackSite(deps.projectsPath, siteDir, origin, { siteId });
-  return buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps);
+  return withCreatedTokens(buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps), init.output);
+}
+
+/**
+ * The services "+ Create website" can offer a token field for (`agent-plugin-tokens.ts`). A failure
+ * is an empty list, never an error: the form then offers no services and creates the site as before.
+ *
+ * @complexity One CLI spawn.
+ */
+async function handleTokenSignInPlugins(deps: Pick<ProjectIpcDeps, "repoRoot" | "cliMode" | "listTokenSignInPlugins">): Promise<TokenSignInPlugin[]> {
+  try {
+    return await (deps.listTokenSignInPlugins ?? listTokenSignInPluginsReal)({ repoRoot: deps.repoRoot, cliMode: deps.cliMode });
+  } catch (error) {
+    console.warn(`[desktop] could not list the services a new site can connect: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
 }
 
 /**
@@ -972,7 +999,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — eleven registrations.
+ * @complexity O(1) — twelve registrations.
  */
 function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   const relocationGate = createRelocationGate();
@@ -987,6 +1014,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
 }
 
 /**
@@ -1012,6 +1040,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
   deletePreview: (id: string) => void;
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
+  /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */
+  listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
   // `SiteClassification`. The throwing `classifySiteDir` and the tests' fakes return a subset.
   classifySiteDir: (dir: string) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
@@ -1049,6 +1079,7 @@ export {
   handleRename,
   handleGetPreview,
   handleLocate,
+  handleTokenSignInPlugins,
   rescanSites,
   registerSiteIpcHandlers,
 };

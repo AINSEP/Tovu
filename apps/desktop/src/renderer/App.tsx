@@ -29,7 +29,8 @@ import { useZoom, type ZoomableGuest } from './use-zoom.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { STATUS_LABEL } from './site-status.js';
-import type { CreateSiteInput, SiteRecord, SiteSurface } from '../contracts/project.js';
+import type { CreateSiteInput, CreatedSiteRecord, SiteRecord, SiteSurface } from '../contracts/project.js';
+import { createdTokensNote } from './use-create-site-plugin-tokens.hooks.js';
 
 const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 
@@ -928,7 +929,7 @@ function MainArea({
   activeId: RunnerSectionId;
   isCreating: boolean;
   active: RunnerSection | undefined;
-  lastCreated: SiteRecord | null;
+  lastCreated: CreatedSiteRecord | null;
   projectsLoading: boolean;
   loadError: string | null;
   projects: readonly SiteRecord[];
@@ -1127,7 +1128,7 @@ function MainContent({
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
-  lastCreated: SiteRecord | null;
+  lastCreated: CreatedSiteRecord | null;
   projectsLoading: boolean;
   loadError: string | null;
   rescanError: string | null;
@@ -1171,6 +1172,7 @@ function MainContent({
               {lastCreated.templateVersion ? ` from Tovu ${lastCreated.templateVersion}` : ''}.
             </>
           )}
+          {createdTokensNote(lastCreated) ? <> {createdTokensNote(lastCreated)}</> : null}
         </p>
       )}
       <ProjectsBody

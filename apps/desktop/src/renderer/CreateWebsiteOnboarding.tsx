@@ -5,6 +5,7 @@
  * and markup on top of that hook's return value.
  */
 import { useCreateWebsiteForm } from './App.hooks.js';
+import { useCreateSitePluginTokens, type CreateSitePluginTokens } from './use-create-site-plugin-tokens.hooks.js';
 import type { CreateSiteInput, DatabaseProviderKind } from '../contracts/project.js';
 import type { RefObject } from 'react';
 
@@ -146,6 +147,42 @@ function DatabasePicker({
 }
 
 /**
+ * "Connect services" (2026-09-29): one optional access-token field per service Tovu can connect a
+ * new site to with a pasted token (`use-create-site-plugin-tokens.hooks.ts`). Hidden when there are
+ * none. Empty means skip; the site is created exactly as before and its assistant can connect the
+ * service later. Uncontrolled password inputs, like the credential fields above.
+ */
+function ConnectServicesSection({ pluginTokens }: { pluginTokens: CreateSitePluginTokens }) {
+  if (pluginTokens.plugins.length === 0) return null;
+  return (
+    <div className="onboarding-section">
+      <div>
+        <h3>Connect services</h3>
+        <p>Optional. Your site's assistant can use these once the site is running.</p>
+      </div>
+      {pluginTokens.plugins.map((plugin) => (
+        <label key={plugin.pluginId} className="create-field">
+          <span className="create-field__label">
+            {plugin.displayName} access token <em>(optional)</em>
+          </span>
+          <input
+            ref={pluginTokens.inputRef(plugin.pluginId)}
+            defaultValue=""
+            placeholder="Paste an access token"
+            type="password"
+            autoComplete="new-password"
+          />
+          <span className="create-field__hint">
+            <a href={plugin.helpUrl} target="_blank" rel="noopener noreferrer">Create a token</a>. No token? Leave it empty. You can ask
+            the site's assistant to connect {plugin.displayName} later.
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/**
  * `useForm` is the form hook itself, defaulted to the real one — the function, never its result
  * (a default of `useCreateWebsiteForm(onCreate)` would run only when the prop is omitted, making
  * hook order depend on the caller).
@@ -165,11 +202,15 @@ export function CreateWebsiteOnboarding({
   onBack,
   onCreate,
   useForm = useCreateWebsiteForm,
+  usePluginTokens = useCreateSitePluginTokens,
 }: {
   onBack: () => void;
   onCreate: (input: CreateSiteInput) => Promise<void>;
   useForm?: typeof useCreateWebsiteForm;
+  /** Same injection pattern as `useForm`: the hook itself, defaulted to the real one. */
+  usePluginTokens?: typeof useCreateSitePluginTokens;
 }) {
+  const pluginTokens = usePluginTokens();
   const {
     name,
     setName,
@@ -190,7 +231,7 @@ export function CreateWebsiteOnboarding({
     isSubmitting,
     formError,
     handleSubmit,
-  } = useForm(onCreate);
+  } = useForm(pluginTokens.withTokens(onCreate));
 
   return (
     <section className="onboarding" aria-labelledby="create-website-title">
@@ -246,6 +287,8 @@ export function CreateWebsiteOnboarding({
               onCustomCredentialChange={setHasCustomCredential}
             />
           </div>
+
+          <ConnectServicesSection pluginTokens={pluginTokens} />
 
           <div className="onboarding-section onboarding-section--instance">
             <div>

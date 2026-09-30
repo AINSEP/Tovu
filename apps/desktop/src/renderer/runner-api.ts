@@ -3,6 +3,8 @@ import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
 import type {
   SiteRecord,
   CreateSiteInput,
+  CreatedSiteRecord,
+  TokenSignInPlugin,
   OpenSiteSurfaceInput,
   RenameSiteInput,
   SiteHistoryCommand,
@@ -38,7 +40,10 @@ export interface RunnerInventoryBridge {
    *  operator-facing reason that names the fix. Surface that message verbatim; see
    *  `use-add-site.hooks.ts`. */
   addSite: () => Promise<SiteRecord>;
-  createSite: (input: CreateSiteInput) => Promise<SiteRecord>;
+  createSite: (input: CreateSiteInput) => Promise<CreatedSiteRecord>;
+  /** The services the create form can offer a token field for. Never rejects; `[]` on failure.
+   *  Optional so an older preload without it simply offers none. */
+  listTokenSignInPlugins?: () => Promise<readonly TokenSignInPlugin[]>;
   /** Changes a site's display name (`config.json`'s `name`) and resolves the refreshed record.
    *  Rejects with an operator-facing reason — surface it verbatim; see `use-rename-site.hooks.ts`. */
   renameSite: (input: RenameSiteInput) => Promise<SiteRecord>;

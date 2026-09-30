@@ -23,7 +23,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn as nodeSpawn } from "node:child_process";
 import type { SpawnOptions } from "node:child_process";
-import type { Readable } from "node:stream";
+import type { Readable, Writable } from "node:stream";
 
 import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
 import { readJsonFile, quarantineUnreadableFile, withFileLock, writeJsonFileAtomic } from "./durable-json-file.ts";
@@ -68,6 +68,8 @@ type CliMode = "source" | "compiled";
  * reads its output and waits for one `exit`.
  */
 interface InitChildLike {
+  /** Present when spawned with a piped stdin — only when there are Agent Plugin tokens to hand over. */
+  stdin?: Writable | null;
   stdout: Readable;
   stderr: Readable;
   once(event: "exit", listener: (code: number | null) => void): void;
@@ -248,6 +250,12 @@ interface InitSiteDirInput {
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
+  /** Optional `{ [pluginId]: token }` from the create form's "Connect services" fields. Handed to
+   *  `tovu init --agent-plugin-tokens-stdin` on stdin — never argv or env, which other processes can
+   *  read — and checked there before anything is created. */
+  agentPluginTokens?: Readonly<Record<string, string>>;
+  /** Called with `tovu init`'s output once it succeeds (its `agent-plugin-tokens:` line). */
+  onInitOutput?: (output: string) => void;
 }
 
 /**
@@ -274,12 +282,16 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
   const spawnFn = input.spawnFn ?? nodeSpawn as InitSpawnFn;
   const cliArgs = ["init", input.dir];
   if (input.name) cliArgs.push("--name", input.name);
+  const tokens = input.agentPluginTokens ?? {};
+  const withTokens = Object.keys(tokens).length > 0;
+  if (withTokens) cliArgs.push("--agent-plugin-tokens-stdin");
   const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs });
 
   const child = spawnFn(plan.command, plan.args, {
     env: buildCliEnv(input.baseEnv, input.dir),
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: [withTokens ? "pipe" : "ignore", "pipe", "pipe"],
   });
+  if (withTokens) child.stdin?.end(JSON.stringify(tokens));
 
   return new Promise((resolve, reject) => {
     let output = "";
@@ -289,7 +301,10 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
     child.stderr.on("data", (chunk) => (output += chunk));
     child.once("error", reject);
     child.once("exit", (code) => {
-      if (code === 0) return resolve(input.dir);
+      if (code === 0) {
+        input.onInitOutput?.(output);
+        return resolve(input.dir);
+      }
       const cliError = parseCliErrorLine(output);
       const detail = cliError === null ? output.trim() : `${cliError.code}: ${cliError.message}`;
       reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
@@ -309,6 +324,9 @@ interface ResolveOrInitSiteDirInput {
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
+  /** See {@link InitSiteDirInput}. Used only when this call runs `tovu init`. */
+  agentPluginTokens?: Readonly<Record<string, string>>;
+  onInitOutput?: (output: string) => void;
 }
 
 /**
@@ -353,7 +371,16 @@ async function resolveOrInitSiteDir(input: ResolveOrInitSiteDirInput): Promise<s
     // `repoRoot` is required by `initSiteDir` itself; every real caller on the "init" path supplies
     // one (the picker and "+ Create website" always know the repo root), so this is a non-null
     // assertion on an already-existing contract rather than a new one.
-    await initSiteDir({ repoRoot: input.repoRoot!, dir: input.dir, name: input.name, baseEnv: input.baseEnv, spawnFn: input.spawnFn, cliMode: input.cliMode });
+    await initSiteDir({
+      repoRoot: input.repoRoot!,
+      dir: input.dir,
+      name: input.name,
+      baseEnv: input.baseEnv,
+      spawnFn: input.spawnFn,
+      cliMode: input.cliMode,
+      agentPluginTokens: input.agentPluginTokens,
+      onInitOutput: input.onInitOutput,
+    });
   }
   return input.dir;
 }
@@ -367,6 +394,9 @@ interface AdoptSiteDirInput {
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
+  /** See {@link InitSiteDirInput}. */
+  agentPluginTokens?: Readonly<Record<string, string>>;
+  onInitOutput?: (output: string) => void;
 }
 
 /**

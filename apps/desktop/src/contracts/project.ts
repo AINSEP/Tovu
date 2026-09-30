@@ -90,6 +90,28 @@ export interface CreateSiteDatabaseInput {
 export interface CreateSiteInput {
   displayName: string;
   database: CreateSiteDatabaseInput;
+  /**
+   * Optional "Connect services" access tokens, `{ [pluginId]: token }` (2026-09-29). Main hands them
+   * to `tovu init` on stdin, which checks each BEFORE creating the site (a rejected token creates
+   * nothing) and applies them when the site first starts. Omitted or `{}` = the create is unchanged.
+   */
+  agentPluginTokens?: Record<string, string>;
+}
+
+/** One service "+ Create website" can offer a token field for — a bundled Agent Plugin that takes a
+ *  pasted access token. See `SITE_IPC_CHANNELS.tokenSignInPlugins`. */
+export interface TokenSignInPlugin {
+  pluginId: string;
+  displayName: string;
+  /** Where the person creates a token (the plugin's own tokens page). */
+  helpUrl: string;
+}
+
+/** `createSite`'s answer: the new record, plus what happened to any tokens given with it. */
+export interface CreatedSiteRecord extends SiteRecord {
+  /** `saved`: applied when the site first starts. `failed`: the site was made but the tokens could
+   *  not be stored; connect from the site's assistant instead. Absent when no token was given. */
+  agentPluginTokens?: { status: 'saved' | 'failed'; pluginIds: string[] };
 }
 
 /** Which of a project's two web surfaces a workspace is showing: its admin, or its public site. */
@@ -220,6 +242,12 @@ export const SITE_IPC_CHANNELS = {
    *   operator-facing, so surface it verbatim.
    */
   locate: 'runner:sites:locate',
+  /**
+   * The services "+ Create website" can offer an optional access-token field for
+   * ({@link TokenSignInPlugin}[], from `tovu agent-plugins token-sign-in`). Never rejects: a failure
+   * is an empty list, and the form then offers no services.
+   */
+  tokenSignInPlugins: 'runner:sites:token-sign-in-plugins',
 } as const;
 
 /** One step through a project tab's own history. */

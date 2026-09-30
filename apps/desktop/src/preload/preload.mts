@@ -91,6 +91,8 @@ contextBridge.exposeInMainWorld(
      *  verbatim, it names the fix. See `SITE_IPC_CHANNELS.addSite`. */
     addSite: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite),
     createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
+    /** The services "+ Create website" can offer a token field for. See `SITE_IPC_CHANNELS.tokenSignInPlugins`. */
+    listTokenSignInPlugins: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.tokenSignInPlugins),
     /** Change a site's display name — `config.json`'s `name`. Rejects with an operator-facing
      *  reason when the row is unknown, the folder is no longer a Tovu site, its recorded identity
      *  no longer matches, or the name is empty/blank/over 200 chars after trimming. Surface that

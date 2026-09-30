@@ -54,7 +54,7 @@ import {
 } from './expanded-mode.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
 import type { ThemePreference } from './theme.js';
-import type { CreateSiteInput, DatabaseProviderKind, SiteRecord } from '../contracts/project.js';
+import type { CreateSiteInput, CreatedSiteRecord, DatabaseProviderKind, SiteRecord } from '../contracts/project.js';
 import type { WorkspaceConversationSummary } from '../contracts/workspace-conversations.js';
 
 /**
@@ -301,7 +301,7 @@ export interface SiteMutationsState {
    * The created record, not just its name: the notice reports the port and template version the
    * provisioner actually produced, which is the only place those are known to be true.
    */
-  lastCreated: SiteRecord | null;
+  lastCreated: CreatedSiteRecord | null;
   openCreateWebsite: () => void;
   handleCreate: (input: CreateSiteInput) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
@@ -378,7 +378,7 @@ export function useProjectMutations(deps: {
   stopCreating: () => void;
   startCreating: () => void;
 }): SiteMutationsState {
-  const [lastCreated, setLastCreated] = useState<SiteRecord | null>(null);
+  const [lastCreated, setLastCreated] = useState<CreatedSiteRecord | null>(null);
   // See `createFormKey` on `SiteMutationsState`. Starts at 0 and only ever goes up; the actual
   // number carries no meaning beyond "changed since the form last mounted".
   const [createFormKey, setCreateFormKey] = useState(0);
@@ -406,7 +406,9 @@ export function useProjectMutations(deps: {
       throw new Error('Runner desktop connection required to create a website.');
     }
     const result = await bridge.createSite(input);
-    deps.setProjects((current) => [...current, result]);
+    // The token outcome is for the notice only; the grid keeps plain records.
+    const { agentPluginTokens: _tokens, ...record } = result;
+    deps.setProjects((current) => [...current, record]);
     setLastCreated(result);
     deps.stopCreating();
     // A successful create is a deliberate exit exactly like Cancel: bumping the key here is what
