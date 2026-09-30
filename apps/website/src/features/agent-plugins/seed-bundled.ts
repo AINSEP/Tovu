@@ -86,6 +86,7 @@ import { recordBundledAgentPluginDigests } from "./bundled-digests.js";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "./bundled-source-archive.js";
 import { installAgentPlugin } from "./install.js";
 import type { AgentPluginLayout } from "./layout.js";
+import { RETIRED_BUNDLED_AGENT_PLUGINS, type RetiredAgentPluginOutcome, retireBundledAgentPlugins } from "./retire-bundled.js";
 
 /**
  * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
@@ -123,6 +124,9 @@ export interface SeedBundledAgentPluginsResult {
    *  back to refusing a multi-digest plugin id, which is exactly the behaviour that predates the
    *  ledger. */
   readonly ledgerFailure?: string;
+  /** One outcome per retired bundled plugin (`retire-bundled.ts`), run after seeding and the ledger so
+   *  each successor's own record already exists. Empty when the activation pre-flight refused. */
+  readonly retirements: readonly RetiredAgentPluginOutcome[];
 }
 
 export interface SeedBundledAgentPluginsRequired {
@@ -162,7 +166,11 @@ export async function seedBundledAgentPlugins(
   // identical fault p times.
   const refusal = await activationsRefusal(layout, workspaceId);
   if (refusal !== undefined) {
-    return { sourceRoot, outcomes: pluginDirNames.map((dirName): SeededAgentPluginOutcome => ({ pluginId: dirName, status: "failed", reason: refusal })) };
+    return {
+      sourceRoot,
+      outcomes: pluginDirNames.map((dirName): SeededAgentPluginOutcome => ({ pluginId: dirName, status: "failed", reason: refusal })),
+      retirements: [],
+    };
   }
 
   const outcomes: SeededAgentPluginOutcome[] = [];
@@ -174,7 +182,11 @@ export async function seedBundledAgentPlugins(
   // once its bytes are actually on disk for this workspace.
   const ledgerFailure = await recordSeededDigests(layout.forWorkspace(workspaceId).root, outcomes);
 
-  return { sourceRoot, outcomes, ...(ledgerFailure !== undefined ? { ledgerFailure } : {}) };
+  // AFTER seeding and the ledger: a retired plugin's successor is itself bundled, so its record and
+  // its ledger entry exist by now, and the retirement only has to decide whether to switch it on.
+  const retirements = await retireBundledAgentPlugins({ layout, workspaceId });
+
+  return { sourceRoot, outcomes, retirements, ...(ledgerFailure !== undefined ? { ledgerFailure } : {}) };
 }
 
 /** Records which digest this boot published for each plugin that seeded successfully, and returns
@@ -272,6 +284,9 @@ async function listBundledPluginDirs(sourceRoot: string): Promise<readonly strin
   const dirs: string[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
+    // A retired id is never seeded, even from a stale build that still carries its directory —
+    // otherwise every boot would reinstall it only for `retire-bundled.ts` to remove it again.
+    if (RETIRED_BUNDLED_AGENT_PLUGINS.has(entry.name)) continue;
     try {
       const manifest = await stat(path.join(sourceRoot, entry.name, "plugin.json"));
       if (manifest.isFile()) dirs.push(entry.name);

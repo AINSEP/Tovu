@@ -169,8 +169,8 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
     assert.equal(outcome.activationRecorded, false, "a boot after the operator enabled it must not rewrite their decision");
 
     // Scoped to PLUGIN_ID, not a raw count of `packages/sha256/*`: that directory is shared by
-    // EVERY bundled plugin in this workspace (`tovu-deploy-fly` is a second one as of
-    // `content/agent-plugins/tovu-deploy-fly/`), so a bare digest count grows with the bundle and
+    // EVERY bundled plugin in this workspace (everything under `content/agent-plugins/`), so a bare
+    // digest count grows with the bundle and
     // re-breaks this assertion on the next addition. `listInstalledPlugins` already does the
     // digest -> pluginId walk (same one `test 1` above uses) — filtering its result to PLUGIN_ID is
     // what actually answers "did THIS plugin get a second digest published for it".

@@ -11,7 +11,7 @@ import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
  * @file The `higgsfield-media` bundled Agent Plugin's package is VALID, INSTALLABLE, and still says
  * the specific things it was built to say.
  *
- * Mirrors `bundled-tovu-deploy-fly-package.unit.test.ts` and
+ * Mirrors `bundled-deploy-fly-server.unit.test.ts` and
  * `bundled-site-compliance-package.unit.test.ts` deliberately — same three kinds of assertion, for
  * the same reasons.
  *
@@ -130,7 +130,7 @@ test("SKILL.md says EARLY and plainly that generate_image returns a job id, not 
   assert.match(skill, /job id/i);
 
   // "Early" is part of the rule: an assistant that reads the pipeline before the warning will have
-  // already decided the call succeeded. Same discipline as tovu-deploy-fly's code-not-content rule.
+  // already decided the call succeeded. Same discipline as the deploy plugin's fly code-not-content rule.
   const position = skill.search(/does not return an image/i);
   assert.ok(position >= 0 && position < skill.length / 4, "the async warning must appear in the first quarter of SKILL.md");
 });

@@ -1,9 +1,7 @@
----
-name: tovu-deploy-fly
-description: Deploy this Tovu instance to fly.io without the operator installing flyctl, Docker, or any other CLI. Encodes the Tovu-and-fly-specific rules that generic fly.io knowledge gets wrong — one machine only (SQLite), the volume shadowing the image's whole sites/ tree, secrets never in fly.toml, the sealed-credential master key, and the fact that deploying ships code and not content. The deploy runs through a GitHub Actions workflow, so flyctl only ever runs on GitHub's runner; every GitHub step it needs — writing the two files, the repository secret, the dispatch, following the run — belongs to the separate `github` plugin and is not repeated here.
----
+# Deploying the Tovu server to fly.io
 
-# Deploying Tovu to fly.io
+This is a different job from publishing the site's static export (the rest of this skill). It deploys
+the Tovu server itself: the app, admin, and database on one fly.io machine.
 
 ## The one thing to say before anything else
 
@@ -35,7 +33,7 @@ job from this one. Do not improvise one inside a deploy.
 
 ---
 
-## What this plugin does, and what it refuses to do
+## What this procedure does, and what it refuses to do
 
 It deploys via **CI**: two files go into the operator's repo (`fly.toml` and
 `.github/workflows/fly-deploy.yml`), the operator adds one repository secret by hand, and the
@@ -43,7 +41,7 @@ workflow is fired through the workspace's saved GitHub credential. `flyctl` runs
 runner. Fly's remote builder builds the image. **Nobody downloads or installs anything locally** —
 that is the whole point.
 
-**This plugin does not describe the GitHub half.** Writing files into a repository, repository
+**This procedure does not describe the GitHub half.** Writing files into a repository, repository
 secrets, dispatching a workflow, following a run, and reading a failed run belong to the separate
 bundled **`github`** plugin, which owns all of it in one place. Read that plugin's skill for every
 GitHub step below; this document names *what* has to happen and *why it is Fly-specific*, and
@@ -65,7 +63,7 @@ half-building a deploy that has no image to run.
 
 ## The five rules
 
-These are the reason this plugin exists. Generic fly.io advice gets every one of them wrong.
+These are the reason this procedure exists. Generic fly.io advice gets every one of them wrong.
 
 ### Rule 1 — Exactly one machine. Never autoscale.
 
@@ -240,7 +238,7 @@ failure; follow the remedy it names, and retry at most **once**.
 
 ### Step 2 — Write the two files into the repo
 
-Both templates live beside this file:
+Both templates live beside this file, in the skill's `references/` directory:
 
 - `references/fly.template.toml` → the repo root, as `fly.toml`
 - `references/fly-deploy.template.yml` → `.github/workflows/fly-deploy.yml`
@@ -308,7 +306,7 @@ plus a 503 `/readyz` is a deploy that has not landed yet, not a deploy that fail
 - **Repeat the code-not-content rule at the end**, once the site is up and they are about to go
   looking for their pages.
 
-## References
+## Files this procedure uses
 
 - `references/fly.template.toml` — the `fly.toml` to write, placeholders marked.
 - `references/fly-deploy.template.yml` — the workflow to write, placeholders marked.

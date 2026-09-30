@@ -52,7 +52,7 @@ afternoon building steps 1-3 and 5 before discovering that step 4 has nothing to
 If an operator asks for a CLI-free deploy that skips GitHub: the honest answer is that the
 mechanism is ready and the image is not. Say that, and use the CI path.
 
-**Every rule in the parent SKILL.md still applies to this path** — one machine, the volume
+**Every rule in `references/fly-server.md` still applies to this path** — one machine, the volume
 shadowing `sites/`, secrets never in committed config, `TOVU_INTEGRATIONS_ROOT_KEY` set
 explicitly, and code-not-content. Rule 1 in particular becomes *more* load-bearing here, since
 `POST /v1/apps/<app>/machines` will happily create a second machine with no warning at all.

@@ -1,116 +1,101 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
+import { parseAgentPluginManifest } from "../../manifest.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
 /**
- * @file The `tovu-deploy-fly` bundled Agent Plugin's package is VALID, INSTALLABLE, and still says
- * the specific things it was built to say.
+ * @file The bundled `deploy` Agent Plugin carries the fly.io SERVER deploy procedure that used to be
+ * its own bundled plugin, `tovu-deploy-fly` (merged 2026-09-29: one deploy plugin for every host,
+ * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` §10, T10).
  *
- * Mirrors `bundled-site-compliance-package.unit.test.ts` deliberately — same three kinds of
- * assertion, for the same reasons — with one addition that plugin does not need:
+ * The procedure lives in `skills/deploy/references/fly-server.md`, beside its two templates and
+ * `machines-api-path.md`; the deploy skill points at it. Three kinds of assertion, kept from the old
+ * package test for the same reasons:
  *
- * 1. **Schema validity** — the manifests parse under this repo's own v1.0.0 validators, and
- *    `mcp.json` declares ZERO servers. Same reasoning as `site-compliance`: this plugin ships no
- *    server at all (every step it describes runs through the ALREADY-EXISTING
- *    `custom_credential_make_request` native tool), so a server declared here would be inert
- *    decoration that looks like a capability.
- *
- * 2. **Installability** — this package actually packs through `packAgentPluginDirectory`, the real
- *    first half of `seed-bundled.ts`'s install path, and the pack carries the non-markdown template
- *    assets. That last part is the point: this plugin's whole delivery mechanism is that the
- *    assistant READS `fly.template.toml` / `fly-deploy.template.yml` off disk and writes them into
- *    the operator's repo. `resolve-agent-plugin-refs.ts` lists every non-SKILL.md package file by
- *    absolute path for exactly that. A packer change that started filtering by extension would
- *    silently gut this plugin while leaving its SKILL.md perfectly intact — so it gets a test.
- *
- * 3. **Content contract** — the five rules survive. These are the entire reason the plugin exists:
- *    generic fly.io knowledge gets every one of them wrong, and they are the kind of prose that
- *    erodes silently during an unrelated edit.
+ * 1. **Manifest** — `plugin.json` still parses and carries the fly vocabulary an operator searches
+ *    for, so the merged plugin surfaces for "deploy to fly".
+ * 2. **Installability** — the fly references actually pack through `packAgentPluginDirectory`, the
+ *    real first half of `seed-bundled.ts`'s install path. The assistant READS the templates off disk
+ *    and writes them into the operator's repo; a packer change that filtered by extension would
+ *    gut the procedure while leaving its prose intact.
+ * 3. **Content contract** — the five Fly rules survive the move. Generic fly.io knowledge gets every
+ *    one of them wrong, and they are the kind of prose that erodes silently during an unrelated edit.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/tovu-deploy-fly");
-const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "tovu-deploy-fly");
+const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+const PACKAGE_ROOT = path.join(CONTENT_ROOT, "deploy");
+const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "deploy");
+const FLY_REFERENCES = ["fly-server.md", "fly.template.toml", "fly-deploy.template.yml", "machines-api-path.md"] as const;
 
 async function readPackageFile(relativePath: string): Promise<string> {
   return readFile(path.join(PACKAGE_ROOT, relativePath), "utf8");
 }
 
+/** The Fly server procedure — what the old plugin's SKILL.md said, now a reference of `deploy`. */
 async function readSkill(): Promise<string> {
-  return readFile(path.join(SKILL_DIR, "SKILL.md"), "utf8");
+  return readFile(path.join(SKILL_DIR, "references", "fly-server.md"), "utf8");
 }
 
-test("plugin.json parses under the Agent Plugins v1.0.0 validator", async () => {
-  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
-  assert.equal(parsed.ok, true);
-  assert.equal(parsed.ok && parsed.manifest.name, "tovu-deploy-fly");
-  assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
+test("the old tovu-deploy-fly package is gone — retire-bundled.ts removes it from workspaces", async () => {
+  await assert.rejects(() => access(path.join(CONTENT_ROOT, "tovu-deploy-fly")), (error: unknown) => (error as { code?: string }).code === "ENOENT");
 });
 
-test("plugin.json's keywords carry the vocabulary an operator would actually search for", async () => {
+test("plugin.json still parses and carries the fly vocabulary an operator would search for", async () => {
   const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
   assert.equal(parsed.ok, true);
+  assert.equal(parsed.ok && parsed.manifest.name, "deploy");
+  assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
+  assert.match(parsed.ok ? (parsed.manifest.description ?? "") : "", /fly\.io/);
+
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
-  for (const expected of ["deploy", "fly.io", "flyctl", "hosting", "sqlite", "volume"]) {
+  for (const expected of ["deploy", "hosting", "fly", "fly.io", "flyctl", "machines", "volume"]) {
     assert.ok(keywords.has(expected), `plugin.json keywords must include '${expected}' — it is a primary discovery term`);
   }
 
-  // The GitHub vocabulary moved OUT with the procedure it described (2026-09-10). Leaving these
-  // here would surface this plugin for a bare "github actions" query it can no longer answer, and
-  // would rank it against the `github` plugin that now owns exactly that.
+  // The GitHub vocabulary belongs to the `github` plugin, which owns that half of the procedure.
   for (const moved of ["ci", "github-actions", "workflow-dispatch"]) {
-    assert.ok(!keywords.has(moved), `plugin.json must NOT keyword '${moved}' — the bundled 'github' plugin owns that vocabulary now`);
+    assert.ok(!keywords.has(moved), `plugin.json must NOT keyword '${moved}' — the bundled 'github' plugin owns that vocabulary`);
   }
 });
 
-test("mcp.json declares ZERO servers — this plugin ships no server, it drives existing native tools", async () => {
-  const parsed = parseAgentPluginMcpConfig(JSON.parse(await readPackageFile("mcp.json")));
-  assert.equal(parsed.ok, true);
-  assert.deepEqual(
-    parsed.ok ? parsed.config.serverIds : ["unreachable"],
-    [],
-    "adding a server here would declare a capability nothing in this repo can run — every deploy step " +
-      "goes through custom_credential_make_request, which is a NATIVE tool (features/custom-credentials)",
-  );
+test("the deploy skill triggers for a Fly server deploy and points at the procedure", async () => {
+  const skill = await readFile(path.join(SKILL_DIR, "SKILL.md"), "utf8");
+  const frontmatter = skill.slice(0, skill.indexOf("\n---", 4));
+  assert.match(frontmatter, /fly\.io/);
+  assert.match(frontmatter, /flyctl/);
+  assert.match(frontmatter, /code, not content/i);
+  assert.ok(skill.includes("references/fly-server.md"), "SKILL.md must point at references/fly-server.md");
 });
 
-test("the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name", async () => {
-  assert.ok((await readSkill()).length > 0);
-});
-
-test("the package packs through the real installer's own packer, templates included", async () => {
+test("the package packs through the real installer's own packer, fly references and templates included", async () => {
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
 
   assert.ok(packed.files.includes("plugin.json"));
-  assert.ok(packed.files.includes("skills/tovu-deploy-fly/SKILL.md"));
-
-  // The delivery mechanism itself. `resolve-agent-plugin-refs.ts` lists every non-SKILL.md file by
-  // absolute path so the agent can Read it; if these stop being packed, the plugin can still
-  // describe a deploy but can no longer produce the two files it exists to write.
-  for (const asset of [
-    "skills/tovu-deploy-fly/references/fly.template.toml",
-    "skills/tovu-deploy-fly/references/fly-deploy.template.yml",
-  ]) {
-    assert.ok(packed.files.includes(asset), `${asset} must survive packing — the assistant writes it into the operator's repo`);
+  assert.ok(packed.files.includes("skills/deploy/SKILL.md"));
+  for (const reference of FLY_REFERENCES) {
+    const asset = `skills/deploy/references/${reference}`;
+    assert.ok(packed.files.includes(asset), `${asset} must survive packing — the assistant reads it off disk`);
   }
-
+  assert.ok(!packed.files.some((file) => file.includes("tovu-deploy-fly")), "no file may still live under the old plugin's skill folder");
   assert.match(packed.sha256, /^[a-f0-9]{64}$/);
 });
 
-test("the templates are separate asset files, not inlined into SKILL.md, and SKILL.md points at each", async () => {
-  const references = (await readdir(path.join(SKILL_DIR, "references"))).sort();
-  assert.deepEqual(references, ["fly-deploy.template.yml", "fly.template.toml", "machines-api-path.md"]);
-
-  const skill = await readSkill();
-  for (const reference of references) {
+test("the templates are separate asset files, not inlined, and fly-server.md points at each", async () => {
+  const procedure = await readSkill();
+  for (const reference of FLY_REFERENCES.filter((name) => name !== "fly-server.md")) {
     assert.ok(
-      skill.includes(`references/${reference}`),
-      `SKILL.md must point at references/${reference} — an asset nothing references is an asset nothing writes`,
+      procedure.includes(`references/${reference}`),
+      `fly-server.md must point at references/${reference} — an asset nothing references is an asset nothing writes`,
     );
   }
+
+  // The Machines API note points back at the procedure by its new name, not the deleted SKILL.md.
+  const machines = await readFile(path.join(SKILL_DIR, "references", "machines-api-path.md"), "utf8");
+  assert.ok(machines.includes("references/fly-server.md"));
+  assert.doesNotMatch(machines, /parent SKILL\.md/);
 });
 
 test("every operator-supplied value in both templates is marked as a placeholder", async () => {
@@ -129,7 +114,7 @@ test("every operator-supplied value in both templates is marked as a placeholder
   assert.ok(!/^\s*app\s*=\s*"tovu"/m.test(flyToml), "fly.template.toml must not hardcode this repo's own production app name");
 });
 
-test("SKILL.md encodes the single-machine rule and forbids autoscaling", async () => {
+test("fly-server.md encodes the single-machine rule and forbids autoscaling", async () => {
   const skill = await readSkill();
   assert.match(skill, /exactly one machine/i);
   assert.match(skill, /fly scale count/i);
@@ -137,7 +122,7 @@ test("SKILL.md encodes the single-machine rule and forbids autoscaling", async (
   assert.match(skill, /SQLite/);
 });
 
-test("SKILL.md states that the volume shadows the image's ENTIRE sites/ tree", async () => {
+test("fly-server.md states that the volume shadows the image's ENTIRE sites/ tree", async () => {
   const skill = await readSkill();
   assert.match(skill, /\/workspace\/Tovu\/sites/);
   assert.match(skill, /shadows/i);
@@ -146,7 +131,7 @@ test("SKILL.md states that the volume shadows the image's ENTIRE sites/ tree", a
   assert.match(skill, /hydrateBlobStoreFromSeed/);
 });
 
-test("SKILL.md keeps secrets out of fly.toml and names all three as boot-blocking", async () => {
+test("fly-server.md keeps secrets out of fly.toml and names all three as boot-blocking", async () => {
   const skill = await readSkill();
   assert.match(skill, /TOVU_ADMIN_PASSWORD/);
   assert.match(skill, /ANALYTICS_ROOT_KEY_SEED/);
@@ -163,7 +148,7 @@ test("SKILL.md keeps secrets out of fly.toml and names all three as boot-blockin
   assert.match(skill, /undecryptable/i);
 });
 
-test("SKILL.md says plainly and EARLY that deploying ships code, not content", async () => {
+test("fly-server.md says plainly and EARLY that deploying ships code, not content", async () => {
   const skill = await readSkill();
   assert.match(skill, /ships \*\*CODE, not CONTENT\*\*|CODE, not CONTENT/);
   assert.match(skill, /content\.db/);
@@ -172,10 +157,10 @@ test("SKILL.md says plainly and EARLY that deploying ships code, not content", a
   // "Early" is part of the rule — the plugin's own instruction is to say it before touching a
   // file, so it must not be buried at the end of a long document.
   const position = skill.indexOf("CODE, not CONTENT");
-  assert.ok(position >= 0 && position < skill.length / 4, "the code-not-content warning must appear in the first quarter of SKILL.md");
+  assert.ok(position >= 0 && position < skill.length / 4, "the code-not-content warning must appear in the first quarter of fly-server.md");
 });
 
-test("SKILL.md forbids org-wide or account-wide Fly API listing calls during pre-flight", async () => {
+test("fly-server.md forbids org-wide or account-wide Fly API listing calls during pre-flight", async () => {
   const skill = await readSkill();
 
   // A live run hit `GET /v1/apps?org_slug=personal` mid pre-flight — undocumented, and 403'd on
@@ -189,7 +174,7 @@ test("SKILL.md forbids org-wide or account-wide Fly API listing calls during pre
   assert.match(skill, /403/);
 });
 
-test("SKILL.md documents the Machines API path as BLOCKED and never as a procedure to run", async () => {
+test("fly-server.md documents the Machines API path as BLOCKED and never as a procedure to run", async () => {
   const machines = await readFile(path.join(SKILL_DIR, "references", "machines-api-path.md"), "utf8");
   assert.match(machines, /NOT implemented|Do not implement/i);
   assert.match(machines, /config\.image/);
@@ -201,7 +186,7 @@ test("SKILL.md documents the Machines API path as BLOCKED and never as a procedu
   assert.match(skill, /Do not improvise the Machines API path/i);
 });
 
-test("SKILL.md defers every GitHub step to the `github` plugin instead of restating the procedure", async () => {
+test("fly-server.md defers every GitHub step to the `github` plugin instead of restating the procedure", async () => {
   const skill = await readSkill();
 
   // Both plugins' skills reach the assistant's prompt at the SAME TIME, so the same rule written
@@ -212,7 +197,7 @@ test("SKILL.md defers every GitHub step to the `github` plugin instead of restat
 
   // The concrete procedure that moved. Its RE-APPEARANCE here is the drift this test exists to
   // catch — a well-meaning edit that "helpfully" inlines the dispatch call again.
-  assert.ok(!skill.includes("api.github.com"), "SKILL.md must not hand-roll a GitHub API URL — the `github` plugin owns every GitHub call");
+  assert.ok(!skill.includes("api.github.com"), "fly-server.md must not hand-roll a GitHub API URL — the `github` plugin owns every GitHub call");
   assert.ok(!/actions\/workflows\/[^\s]*\/dispatches/.test(skill), "the workflow-dispatch procedure belongs to the `github` plugin, not here");
   assert.ok(!/204 with an empty body/.test(skill), "the 204-means-queued rule is the `github` plugin's — restating it here creates two sources of truth");
 
@@ -222,7 +207,7 @@ test("SKILL.md defers every GitHub step to the `github` plugin instead of restat
   assert.match(skill, /no dependency\s+field/i);
 });
 
-test("SKILL.md never tells the assistant to handle a secret value itself", async () => {
+test("fly-server.md never tells the assistant to handle a secret value itself", async () => {
   const skill = await readSkill();
 
   // Deliberately checks the IMPERATIVE forms a drifting edit would introduce, not the mere
@@ -234,7 +219,7 @@ test("SKILL.md never tells the assistant to handle a secret value itself", async
     /paste the token into/i,
     /echo the token/i,
   ]) {
-    assert.ok(!forbidden.test(skill), `SKILL.md must not contain an instruction matching ${forbidden}`);
+    assert.ok(!forbidden.test(skill), `fly-server.md must not contain an instruction matching ${forbidden}`);
   }
 
   // And the positive half: it must actively say this step is the human's.

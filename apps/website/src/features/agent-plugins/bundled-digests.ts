@@ -51,7 +51,8 @@
  *
  * Architectural role:
  * Owns one small JSON file and one pure selection rule. No knowledge of activation, installation, or
- * tools — `seed-bundled.ts` is the only writer, and the read side is two call sites that already
+ * tools — `seed-bundled.ts` is the only writer (plus `retire-bundled.ts`, which it calls in the same
+ * boot step), and the read side is two call sites that already
  * hold both a workspace root and a list of installed packages.
  */
 import { open, readFile, rename, rm } from "node:fs/promises";
@@ -193,10 +194,42 @@ function resolveThisBootsDigests(
   return thisBoot;
 }
 
+/**
+ * Drops one plugin id from the ledger — for `retire-bundled.ts`, once a retired bundled plugin's
+ * packages are gone and no build will ever seed it again.
+ *
+ * Every other entry is kept byte-for-byte, `seededAt` included: this rewrites the raw `plugins` bag
+ * rather than the normalized map, so it cannot lose a field a later schema adds. A missing,
+ * unreadable, malformed, or wrong-version ledger, or one with no entry for `pluginId`, writes
+ * nothing — there is nothing to drop, and a fail-closed reader already treats such a file as empty.
+ *
+ * @returns Whether an entry was removed.
+ * @throws {Error} Any filesystem fault from the write. `retire-bundled.ts` captures it into its report.
+ * @complexity One file read and at most one atomic write, O(p) in the recorded plugin count.
+ */
+export async function removeBundledAgentPluginDigest(required: {
+  readonly workspaceRoot: string;
+  readonly pluginId: string;
+}): Promise<boolean> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(path.join(required.workspaceRoot, BUNDLED_DIGESTS_FILENAME), "utf8"));
+  } catch {
+    return false;
+  }
+  if (!isPlainObject(parsed) || parsed.schemaVersion !== 1 || !isPlainObject(parsed.plugins)) return false;
+  if (!Object.hasOwn(parsed.plugins, required.pluginId)) return false;
+
+  const remaining: Record<string, unknown> = { ...parsed.plugins };
+  delete remaining[required.pluginId];
+  await writeLedgerAtomically(required.workspaceRoot, remaining);
+  return true;
+}
+
 /** Temp-file-then-`rename`, so a reader never observes a half-written ledger and a crash mid-write
  *  leaves the previous one intact — the same durability shape `activation.ts`'s
  *  `writeActivationsAtomically` uses, minus its cross-process lock: this file has exactly one writer
- *  (the boot seeder), and two concurrent boots of the SAME build write byte-identical content.
+ *  (the boot seeder, retirement included), and two concurrent boots of the SAME build write byte-identical content.
  *  @complexity One write and one rename. */
 async function writeLedgerAtomically(workspaceRoot: string, plugins: Readonly<Record<string, unknown>>): Promise<void> {
   const finalPath = path.join(workspaceRoot, BUNDLED_DIGESTS_FILENAME);

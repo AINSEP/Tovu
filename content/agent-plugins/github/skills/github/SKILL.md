@@ -12,8 +12,9 @@ semantics behind all of them. It owns nothing else.
 
 It knows nothing about where a build is *deployed to*. Fly, Render, Railway, a container registry,
 a VPS — none of that is here, and a rule that only makes sense for one host does not belong here.
-A host-specific plugin (`tovu-deploy-fly` is the one that ships today) is expected to describe its
-own hosting rules and then hand the GitHub half to this document. That split is deliberate: every
+A host-specific procedure (the bundled `deploy` plugin's Fly server deploy is the one that ships
+today) is expected to describe its own hosting rules and then hand the GitHub half to this
+document. That split is deliberate: every
 skill of every enabled plugin reaches the assistant's prompt at the same time, so the same rule
 written twice, slightly differently, becomes a contradiction rather than emphasis.
 

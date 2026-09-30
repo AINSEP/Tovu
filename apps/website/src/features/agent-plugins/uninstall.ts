@@ -137,6 +137,11 @@ export interface UninstallAgentPluginOptional {
    *  resolves now are exactly this preview's `archiveDigests`: a confirmation is consent to remove what was
    *  resolved for the dialog, not whatever the id names by the time the answer arrives (t91 F2.2). */
   readonly confirmedPreview?: AgentPluginUninstallPreview;
+  /** INTERNAL — `retire-bundled.ts` only, never an agent tool or HTTP route. Skips the bundled refusal
+   *  (this file's header, item 2) and nothing else: that refusal exists because a bundled plugin is
+   *  re-seeded on every boot, which stops being true once Tovu no longer ships its source
+   *  (`RETIRED_BUNDLED_AGENT_PLUGINS`). The malformed-entry refusal still applies. */
+  readonly retiredBundled?: boolean;
 }
 
 export interface UninstallAgentPluginResult {
@@ -212,7 +217,7 @@ export async function uninstallAgentPlugin(
   required: UninstallAgentPluginRequired,
   optional: UninstallAgentPluginOptional = {},
 ): Promise<UninstallAgentPluginResult> {
-  const { workspaceRoot, packagesDir, matches } = await resolveUninstallTargets(required);
+  const { workspaceRoot, packagesDir, matches } = await resolveUninstallTargets(required, optional.retiredBundled === true);
   assertUnchangedSincePreview(required.pluginId, optional.confirmedPreview, matches);
 
   // Reversible work first — see this file's header, "Why removal stages first". Nothing on this
@@ -321,7 +326,7 @@ async function restoreStagedTrees(staged: readonly StagedTree[], cause: unknown)
  * read, so whether it says `origin: "bundled"` cannot be established.
  * @complexity O(d) in the installed-digest count.
  */
-async function resolveUninstallTargets(required: UninstallAgentPluginRequired): Promise<UninstallTargets> {
+async function resolveUninstallTargets(required: UninstallAgentPluginRequired, retiredBundled = false): Promise<UninstallTargets> {
   const { layout, workspaceId, pluginId } = required;
 
   // The one call that turns (instance layout, workspaceId) into real, internally-consistent
@@ -335,7 +340,7 @@ async function resolveUninstallTargets(required: UninstallAgentPluginRequired): 
     throw new AgentPluginNotFoundError(`Agent Plugin '${pluginId}' is not installed in this workspace — nothing to uninstall`);
   }
 
-  if (await isAgentPluginRecordedAsBundled(workspaceLayout.root, pluginId)) {
+  if (!retiredBundled && (await isAgentPluginRecordedAsBundled(workspaceLayout.root, pluginId))) {
     throw new AgentPluginNotUninstallableError(bundledRefusalMessage(pluginId));
   }
   // The bundled read above answers `false` for a present-but-malformed entry (a non-object, a non-boolean

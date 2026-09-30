@@ -695,6 +695,52 @@ function isUntouchedDisabledSeed(entry: unknown): boolean {
   return isPlainObject(entry) && entry.enabled === false && entry.updatedBy === SEED_ACTOR;
 }
 
+/** What {@link enableBundledAgentPluginUnlessOperatorDisabled} found and did. */
+export type BundledAgentPluginEnableOutcome = "enabled" | "already-enabled" | "left-disabled-by-operator";
+
+/**
+ * Switches a bundled plugin ON unless an operator has explicitly turned it off — for
+ * `retire-bundled.ts`, which moves a retired plugin's users onto its successor.
+ *
+ * Enables when there is no record, or the record is the seeder's own untouched disabled one (the
+ * same exception {@link recordBundledAgentPluginIfAbsent} makes). A disabled record anyone else wrote
+ * is an operator decision and is left exactly as it is; the caller reports it rather than
+ * overriding it. Decided and written inside one locked turn, so a toggle racing the boot cannot be
+ * overwritten by a decision made on a stale read.
+ *
+ * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar.
+ * @throws {AgentPluginActivationsUnreadableError} The file, or `pluginId`'s own entry, cannot be read.
+ * @throws {AgentPluginActivationsBusyError} The cross-process write lock could not be taken or was
+ * lost; nothing was written.
+ * @complexity O(p) in the recorded plugin count.
+ */
+export async function enableBundledAgentPluginUnlessOperatorDisabled(required: {
+  readonly workspaceRoot: string;
+  readonly pluginId: string;
+  /** Recorded as `updatedBy` when this call writes. */
+  readonly actor: string;
+  readonly now?: () => Date;
+}): Promise<BundledAgentPluginEnableOutcome> {
+  assertPluginId(required.pluginId);
+  const { workspaceRoot, pluginId, actor } = required;
+
+  return lockedActivationsWrite(workspaceRoot, async (lock) => {
+    const current = await readPluginsBagStrict(workspaceRoot);
+    if (Object.hasOwn(current, pluginId) && !isUntouchedDisabledSeed(current[pluginId])) {
+      assertTargetEntryReadable(workspaceRoot, current, pluginId);
+      return normalizeActivationEntry(pluginId, current[pluginId])?.enabled === true ? "already-enabled" : "left-disabled-by-operator";
+    }
+
+    await writeActivationDecision(
+      current,
+      { workspaceRoot, pluginId, enabled: true, actor },
+      { origin: "bundled", ...(required.now !== undefined ? { now: required.now } : {}) },
+      lock,
+    );
+    return "enabled";
+  });
+}
+
 export interface DeleteAgentPluginActivationRequired {
   readonly workspaceRoot: string;
   readonly pluginId: string;
@@ -703,8 +749,9 @@ export interface DeleteAgentPluginActivationRequired {
 /**
  * Removes a plugin's activation record entirely, rather than leaving a disabled tombstone.
  *
- * The ONLY caller (2026-09-09) is `uninstall.ts`'s `uninstallAgentPlugin()`, on a successful
- * uninstall of an operator-installed plugin — see that file's own header for the full decision.
+ * Callers: `uninstall.ts`'s `uninstallAgentPlugin()`, on a successful uninstall (see that file's own
+ * header for the full decision), and `retire-bundled.ts`, for a retired bundled plugin's leftover
+ * record when no package of it is installed (2026-09-29).
  * Short version: a tombstone (`enabled: false` left behind after the bytes are gone) would invert
  * this file's own "absent means active, because an operator's own install IS the consent" rule
  * (this file's header, above) the moment the SAME plugin id is ever reinstalled — the fresh install

@@ -10,16 +10,16 @@ import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
  * @file The `github` bundled Agent Plugin's package is VALID, INSTALLABLE, host-AGNOSTIC, and still
  * says the specific things it was built to say.
  *
- * Mirrors `bundled-tovu-deploy-fly-package.unit.test.ts` and
+ * Mirrors `bundled-deploy-fly-server.unit.test.ts` and
  * `bundled-site-compliance-package.unit.test.ts` deliberately — same kinds of assertion, for the
  * same reasons — with one whole class those two do not need:
  *
  * **Host-agnosticism is a CONTENT CONTRACT here, not a style preference.** This plugin exists
  * because GitHub know-how was previously entangled with fly.io deploy procedure inside
- * `tovu-deploy-fly`, which made it unreusable by any future host plugin (Render, Railway) and made
- * two plugins' skills overlap in the assistant's prompt. Every enabled plugin's skill reaches that
- * prompt SIMULTANEOUSLY, so an overlapping instruction is a contradiction rather than emphasis. A
- * later edit that "helpfully" adds one fly.toml example back here would silently undo both
+ * the old `tovu-deploy-fly` plugin (merged into `deploy` 2026-09-29), which made it unreusable by
+ * any future host plugin (Render, Railway) and made two plugins' skills overlap in the assistant's
+ * prompt. Every enabled plugin's skill reaches that prompt SIMULTANEOUSLY, so an overlapping
+ * instruction is a contradiction rather than emphasis. A later edit that "helpfully" adds one fly.toml example back here would silently undo both
  * properties while every other assertion in this file still passed — so the absence gets its own
  * test, across every file in the package rather than SKILL.md alone.
  *
@@ -51,7 +51,7 @@ test("plugin.json parses under the Agent Plugins v1.0.0 validator", async () => 
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
-test("plugin.json's keywords carry the vocabulary that moved off tovu-deploy-fly", async () => {
+test("plugin.json's keywords carry the vocabulary that moved off the fly deploy procedure", async () => {
   const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
   assert.equal(parsed.ok, true);
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
@@ -107,7 +107,7 @@ test("SKILL.md points at every reference file, and every reference file is point
 
 test("the package knows NOTHING about fly.io — every file, not just SKILL.md", async () => {
   // The owner's hard constraint. This plugin must stay reusable by a future Render/Railway host
-  // plugin, and `tovu-deploy-fly` must stay the ONE place fly-specific rules live. A single
+  // plugin, and the `deploy` plugin must stay the ONE place fly-specific rules live. A single
   // fly.toml example added back here re-entangles the two and reintroduces the prompt-level
   // contradiction this split exists to end.
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
