@@ -31,6 +31,8 @@ import {
   customCredentialReplaceReadyToSave,
   accessTokenExistingRowReadyToSave,
   envNamesFact,
+  extraFieldsAroundToken,
+  providerGroupSubtitleKeys,
   invalidAdditionalHostsEntries,
   isValidHttpUrl,
   parseAdditionalHostsInput,
@@ -665,6 +667,54 @@ describe("accessTokenRowProviderInfo", () => {
     expect(info.tokenPageUrl).toBe("https://api.name.com");
     expect(info.extraFields).toEqual([]);
     expect(info.username).toBe("optional");
+  });
+});
+
+describe("providerGroupSubtitleKeys", () => {
+  it("marks a custom credential as custom, so one named 'github' never reads as the GitHub source-control group", () => {
+    const [row] = buildCustomCredentialRows([rawCustomSummary({ label: "github", category: "source-control" })]);
+    const custom = accessTokenRowProviderInfo(PROVIDERS, row!);
+    expect(providerGroupSubtitleKeys(custom)).toEqual(["Custom credential", "Source control"]);
+    const github = accessTokenProviders(undefined, [{ id: "github", label: "GitHub" }])[0]!;
+    expect(providerGroupSubtitleKeys(github)).toEqual(["Source control"]);
+  });
+
+  it("'Custom credential' is translated in every admin locale", () => {
+    for (const locale of ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"]) {
+      expect(translateSecurity(locale, "Custom credential"), locale).not.toBe("Custom credential");
+    }
+  });
+});
+
+describe("extraFieldsAroundToken", () => {
+  const s3 = {
+    id: "s3-compatible",
+    label: "S3-compatible storage",
+    configFields: [],
+    credential: {
+      tokenField: "secretAccessKey",
+      fields: [
+        { name: "endpoint", label: "Endpoint" },
+        { name: "accessKeyId", label: "Access key ID", required: true },
+        { name: "secretAccessKey", label: "Secret access key", required: true, secret: true },
+        { name: "publicUrl", label: "Public URL", required: true },
+      ],
+    },
+  };
+
+  it("keeps a host's declared order: fields before its token field render above it, the rest below", () => {
+    const [info] = accessTokenProviders([s3 as never]);
+    const { before, after } = extraFieldsAroundToken(info!);
+    expect(before.map((f) => f.name)).toEqual(["endpoint", "accessKeyId"]);
+    expect(after.map((f) => f.name)).toEqual(["publicUrl"]);
+  });
+
+  it("puts every extra field below the token when the token is declared first, or the provider declares no order", () => {
+    const cloudflare = accessTokenProviderInfo(accessTokenProviders(PUBLISH_TARGETS), { kind: "publish", providerId: "cloudflare-pages" });
+    expect(extraFieldsAroundToken(cloudflare).before).toEqual([]);
+    expect(extraFieldsAroundToken(cloudflare).after.map((f) => f.name)).toEqual(["accountId"]);
+    const github = accessTokenProviders(undefined, [{ id: "github", label: "GitHub" }])[0]!;
+    expect(extraFieldsAroundToken(github)).toEqual({ before: [], after: github.extraFields });
   });
 });
 

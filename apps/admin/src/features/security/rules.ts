@@ -326,6 +326,30 @@ export function accessTokenRowProviderInfo(providers: readonly AccessTokenProvid
   };
 }
 
+/** The dictionary keys `ProviderGroup` shows after a group's name, joined with " · ". A custom
+ *  credential gets "Custom credential" first, so one the operator named after a listed host
+ *  ("github") never reads as that host's own group. @complexity O(1). */
+export function providerGroupSubtitleKeys(info: AccessTokenProviderInfo): string[] {
+  return info.kind === "custom" ? ["Custom credential", info.purposeLabel] : [info.purposeLabel];
+}
+
+/** A provider's extra fields split around the secret input, keeping the host's declared order: a
+ *  deploy host's fields declared before its token field (S3's Access key ID before its Secret access
+ *  key) render above it, the rest below. Other kinds declare no token position, so every extra field
+ *  goes below. @complexity O(f) in the field count. */
+export function extraFieldsAroundToken(info: AccessTokenProviderInfo): {
+  before: readonly AdminPublishTargetField[];
+  after: readonly AdminPublishTargetField[];
+} {
+  const declared = info.publishCredential?.fields ?? [];
+  const tokenIndex = declared.findIndex((field) => field.name === info.publishCredential?.tokenField);
+  const beforeNames = new Set(declared.slice(0, Math.max(tokenIndex, 0)).map((field) => field.name));
+  return {
+    before: info.extraFields.filter((field) => beforeNames.has(field.name)),
+    after: info.extraFields.filter((field) => !beforeNames.has(field.name)),
+  };
+}
+
 /** `ProviderGroup`'s own `agentHandle` label (`AccessTokensTab.tsx`) — moved here alongside this
  *  file's other label/fact builders (house rule: no functions in a `.tsx` component; a pure
  *  formatter with no hook state belongs in `rules.ts`, not `*.hooks.ts`, matching

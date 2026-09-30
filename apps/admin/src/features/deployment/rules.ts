@@ -258,13 +258,21 @@ export function staticPublishFormReadyForPreview(
 }
 
 /** Whether the form can ask for a real PUBLISH — everything a preview needs plus a non-blank
- *  `projectName` (required for every target; the preview has no such field). @complexity O(f). */
+ *  `projectName` when the host declares one (the preview has no such field). @complexity O(f). */
 export function staticPublishFormReadyToPublish(
   target: AdminPublishTargetDescriptor | undefined,
   values: Readonly<Record<string, string>>,
   projectName: string
 ): boolean {
-  return projectName.trim() !== "" && staticPublishFormReadyForPreview(target, values);
+  const projectNameReady = target?.projectName === undefined || projectName.trim() !== "";
+  return projectNameReady && staticPublishFormReadyForPreview(target, values);
+}
+
+/** The `projectName` the publish request carries. The server requires a non-blank one on every
+ *  publish, but a host that declares no project name (S3-compatible storage) ignores it, so the
+ *  admin hides the field and sends the host's id instead. @complexity O(1). */
+export function staticPublishProjectNameToSend(target: AdminPublishTargetDescriptor, projectName: string): string {
+  return target.projectName === undefined ? target.id : projectName;
 }
 
 /** Whether a credential form has enough typed to save: a non-blank token (a blank one on a
@@ -287,20 +295,19 @@ export function buildCredentialConnectionInput(
   return { ...declaredFieldValues(spec.fields, values), providerId };
 }
 
-/** The "Project name" field's label and help. The same wire field means a different thing per host
- *  (a commit message, a site, a project), so a host's descriptor may name it; otherwise the generic
- *  copy below applies. Both are passed through the translator: the generic copy has dictionary
- *  entries, a descriptor's copy falls through verbatim. @complexity O(1). */
+/** The project-name field's label and help. The same wire field means a different thing per host
+ *  (a commit message, a site, a project), so each host's descriptor names it; a host that declares
+ *  none takes no project name and gets no field (`null`). Both strings are already in the viewer's
+ *  locale (`localizePublishTargets`); the translator passes them through. @complexity O(1). */
 export interface StaticPublishProjectNameCopy {
   readonly labelKey: string;
-  readonly helpKey: string;
+  readonly helpKey: string | undefined;
 }
 
-export function staticPublishProjectNameCopy(target: AdminPublishTargetDescriptor | undefined): StaticPublishProjectNameCopy {
-  return {
-    labelKey: target?.projectName?.label ?? "Project name",
-    helpKey: target?.projectName?.help ?? "The host finds or creates a project with this name on every publish.",
-  };
+export function staticPublishProjectNameCopy(target: AdminPublishTargetDescriptor | undefined): StaticPublishProjectNameCopy | null {
+  const copy = target?.projectName;
+  if (copy === undefined) return null;
+  return { labelKey: copy.label, helpKey: copy.help };
 }
 
 /** A descriptor field name as an `agentHandle` segment: `agentHandle()` throws on anything but

@@ -957,7 +957,8 @@
             "label": "Secret access key",
             "required": true,
             "secret": true,
-            "help": "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save."
+            "help": "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.",
+            "userHelp": "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key."
           },
           {
             "name": "publicUrl",
@@ -982,7 +983,8 @@
           "Secret access key": "Clave de acceso secreta",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Solo se muestra una vez, al crear el par de claves: cópiala enseguida. Si la pierdes, tu proveedor no puede volver a mostrártela y tendrás que crear una clave nueva. Tovu la guarda cifrada y nunca vuelve a mostrarla después de guardarla.",
           "Public URL": "URL pública",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "La dirección que abren los visitantes: la URL pública de tu bucket o un dominio propio que apunte al bucket. Tovu la comprueba después de cada publicación y te avisa si no se puede acceder."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "La dirección que abren los visitantes: la URL pública de tu bucket o un dominio propio que apunte al bucket. Tovu la comprueba después de cada publicación y te avisa si no se puede acceder.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Solo se muestra una vez, al crear el par de claves: cópiala enseguida. Si la pierdes, tu proveedor no puede volver a mostrártela y tendrás que crear una clave nueva."
         },
         "id": {
           "S3-compatible storage": "Penyimpanan kompatibel S3",
@@ -996,7 +998,8 @@
           "Secret access key": "Kunci akses rahasia",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Hanya ditampilkan sekali, saat pasangan kunci dibuat — segera salin. Jika hilang, penyedia Anda tidak dapat menampilkannya lagi; Anda harus membuat kunci baru. Tovu menyimpannya terenkripsi dan tidak pernah menampilkannya lagi setelah Anda simpan.",
           "Public URL": "URL publik",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Alamat yang dibuka pengunjung: URL publik bucket Anda, atau domain kustom yang diarahkan ke bucket. Tovu memeriksanya setelah setiap publikasi dan memberi tahu Anda jika tidak dapat dijangkau."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Alamat yang dibuka pengunjung: URL publik bucket Anda, atau domain kustom yang diarahkan ke bucket. Tovu memeriksanya setelah setiap publikasi dan memberi tahu Anda jika tidak dapat dijangkau.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Hanya ditampilkan sekali, saat pasangan kunci dibuat — segera salin. Jika hilang, penyedia Anda tidak dapat menampilkannya lagi; Anda harus membuat kunci baru."
         },
         "de": {
           "S3-compatible storage": "S3-kompatibler Speicher",
@@ -1011,7 +1014,8 @@
           "Secret access key": "Geheimer Zugriffsschlüssel",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Wird nur einmal angezeigt, beim Erstellen des Schlüsselpaars — kopieren Sie ihn sofort. Wenn er verloren geht, kann Ihr Anbieter ihn nicht erneut anzeigen; Sie müssen dann einen neuen Schlüssel erstellen. Tovu speichert ihn verschlüsselt und zeigt ihn nach dem Speichern nie wieder an.",
           "Public URL": "Öffentliche URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Die Adresse, die Besucher öffnen: die öffentliche URL Ihres Buckets oder eine eigene Domain, die auf den Bucket zeigt. Tovu prüft sie nach jeder Veröffentlichung und sagt Ihnen, wenn sie nicht erreichbar ist."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Die Adresse, die Besucher öffnen: die öffentliche URL Ihres Buckets oder eine eigene Domain, die auf den Bucket zeigt. Tovu prüft sie nach jeder Veröffentlichung und sagt Ihnen, wenn sie nicht erreichbar ist.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Wird nur einmal angezeigt, beim Erstellen des Schlüsselpaars — kopieren Sie ihn sofort. Wenn er verloren geht, kann Ihr Anbieter ihn nicht erneut anzeigen; Sie müssen dann einen neuen Schlüssel erstellen."
         },
         "zh-CN": {
           "S3-compatible storage": "S3 兼容存储",
@@ -1028,7 +1032,8 @@
           "Secret access key": "秘密访问密钥",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "仅在创建密钥对时显示一次——请立即复制。如果丢失，提供商无法再次显示，您需要创建新密钥。Tovu 会加密存储它，保存后不再显示。",
           "Public URL": "公开 URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "访问者打开的地址：存储桶的公开 URL，或指向该存储桶的自定义域名。Tovu 会在每次发布后检查它，无法访问时会告诉您。"
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "访问者打开的地址：存储桶的公开 URL，或指向该存储桶的自定义域名。Tovu 会在每次发布后检查它，无法访问时会告诉您。",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "仅在创建密钥对时显示一次——请立即复制。如果丢失，提供商无法再次显示，您需要创建新密钥。"
         },
         "zh-TW": {
           "S3-compatible storage": "S3 相容儲存空間",
@@ -1045,7 +1050,8 @@
           "Secret access key": "秘密存取金鑰",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "只在建立金鑰組時顯示一次——請立即複製。若遺失，供應商無法再次顯示，您必須建立新金鑰。Tovu 會加密儲存，儲存後不再顯示。",
           "Public URL": "公開 URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "訪客開啟的位址：儲存貯體的公開 URL，或指向該儲存貯體的自訂網域。Tovu 會在每次發佈後檢查，無法連線時會告訴您。"
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "訪客開啟的位址：儲存貯體的公開 URL，或指向該儲存貯體的自訂網域。Tovu 會在每次發佈後檢查，無法連線時會告訴您。",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "只在建立金鑰組時顯示一次——請立即複製。若遺失，供應商無法再次顯示，您必須建立新金鑰。"
         },
         "pt-BR": {
           "S3-compatible storage": "Armazenamento compatível com S3",
@@ -1060,7 +1066,8 @@
           "Secret access key": "Chave de acesso secreta",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Aparece só uma vez, no momento em que o par de chaves é criado — copie na hora. Se perder, o seu provedor não consegue mostrá-la de novo; você precisará criar uma chave nova. O Tovu a armazena criptografada e nunca mais a exibe depois que você salva.",
           "Public URL": "URL pública",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "O endereço que os visitantes abrem: a URL pública do seu bucket ou um domínio próprio apontado para o bucket. O Tovu verifica após cada publicação e avisa se não estiver acessível."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "O endereço que os visitantes abrem: a URL pública do seu bucket ou um domínio próprio apontado para o bucket. O Tovu verifica após cada publicação e avisa se não estiver acessível.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Aparece só uma vez, no momento em que o par de chaves é criado — copie na hora. Se perder, o seu provedor não consegue mostrá-la de novo; você precisará criar uma chave nova."
         },
         "ru": {
           "S3-compatible storage": "S3-совместимое хранилище",
@@ -1077,7 +1084,8 @@
           "Secret access key": "Секретный ключ доступа",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Показывается только один раз, в момент создания пары ключей, — скопируйте его сразу. Если вы его потеряете, поставщик не сможет показать его снова, и придётся создать новый ключ. Tovu хранит его в зашифрованном виде и никогда не показывает после сохранения.",
           "Public URL": "Публичный URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Адрес, который открывают посетители: публичный URL вашего бакета или собственный домен, направленный на бакет. Tovu проверяет его после каждой публикации и сообщит, если он недоступен."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Адрес, который открывают посетители: публичный URL вашего бакета или собственный домен, направленный на бакет. Tovu проверяет его после каждой публикации и сообщит, если он недоступен.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Показывается только один раз, в момент создания пары ключей, — скопируйте его сразу. Если вы его потеряете, поставщик не сможет показать его снова, и придётся создать новый ключ."
         },
         "fa": {
           "S3-compatible storage": "فضای ذخیره‌سازی سازگار با S3",
@@ -1094,7 +1102,8 @@
           "Secret access key": "کلید دسترسی مخفی",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "فقط یک بار، هنگام ساخت جفت‌کلید، نمایش داده می‌شود — فوراً آن را کپی کنید. اگر گمش کنید، ارائه‌دهنده نمی‌تواند دوباره نشانش دهد و باید کلید تازه‌ای بسازید. Tovu آن را رمزنگاری‌شده ذخیره می‌کند و پس از ذخیره دیگر نمایش نمی‌دهد.",
           "Public URL": "نشانی عمومی",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "نشانی‌ای که بازدیدکنندگان باز می‌کنند: نشانی عمومی باکت، یا دامنه سفارشی که به باکت اشاره می‌کند. Tovu پس از هر انتشار آن را بررسی می‌کند و اگر در دسترس نباشد به شما می‌گوید."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "نشانی‌ای که بازدیدکنندگان باز می‌کنند: نشانی عمومی باکت، یا دامنه سفارشی که به باکت اشاره می‌کند. Tovu پس از هر انتشار آن را بررسی می‌کند و اگر در دسترس نباشد به شما می‌گوید.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "فقط یک بار، هنگام ساخت جفت‌کلید، نمایش داده می‌شود — فوراً آن را کپی کنید. اگر گمش کنید، ارائه‌دهنده نمی‌تواند دوباره نشانش دهد و باید کلید تازه‌ای بسازید."
         },
         "ar": {
           "S3-compatible storage": "تخزين متوافق مع S3",
@@ -1111,7 +1120,8 @@
           "Secret access key": "مفتاح الوصول السري",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "يُعرض مرة واحدة فقط، لحظة إنشاء زوج المفاتيح — انسخه فورًا. إذا فقدته، فلن يستطيع مزوّدك عرضه مجددًا وستحتاج إلى إنشاء مفتاح جديد. يخزّنه Tovu مشفّرًا ولا يعرضه مرة أخرى بعد الحفظ.",
           "Public URL": "العنوان العام",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "العنوان الذي يفتحه الزوار: عنوان URL العام لحاويتك، أو نطاق مخصص يشير إلى الحاوية. يتحقق Tovu منه بعد كل نشر ويخبرك إذا تعذّر الوصول إليه."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "العنوان الذي يفتحه الزوار: عنوان URL العام لحاويتك، أو نطاق مخصص يشير إلى الحاوية. يتحقق Tovu منه بعد كل نشر ويخبرك إذا تعذّر الوصول إليه.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "يُعرض مرة واحدة فقط، لحظة إنشاء زوج المفاتيح — انسخه فورًا. إذا فقدته، فلن يستطيع مزوّدك عرضه مجددًا وستحتاج إلى إنشاء مفتاح جديد."
         },
         "ja": {
           "S3-compatible storage": "S3 互換ストレージ",
@@ -1128,7 +1138,8 @@
           "Secret access key": "シークレットアクセスキー",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "キーペアを作成したときに一度だけ表示されます。すぐにコピーしてください。紛失するとプロバイダーでも再表示できず、新しいキーの作成が必要になります。Tovu は暗号化して保存し、保存後に再び表示することはありません。",
           "Public URL": "公開 URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "訪問者が開くアドレス: バケットの公開 URL、またはバケットを指すカスタムドメイン。Tovu は公開のたびに確認し、到達できない場合はお知らせします。"
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "訪問者が開くアドレス: バケットの公開 URL、またはバケットを指すカスタムドメイン。Tovu は公開のたびに確認し、到達できない場合はお知らせします。",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "キーペアを作成したときに一度だけ表示されます。すぐにコピーしてください。紛失するとプロバイダーでも再表示できず、新しいキーの作成が必要になります。"
         },
         "ko": {
           "S3-compatible storage": "S3 호환 스토리지",
@@ -1145,7 +1156,8 @@
           "Secret access key": "비밀 액세스 키",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "키 쌍을 만드는 순간 한 번만 표시되니 바로 복사하세요. 잃어버리면 제공업체도 다시 보여 줄 수 없어 새 키를 만들어야 합니다. Tovu는 암호화해 저장하며 저장한 뒤에는 다시 표시하지 않습니다.",
           "Public URL": "공개 URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "방문자가 여는 주소입니다. 버킷의 공개 URL 또는 버킷을 가리키는 사용자 지정 도메인입니다. Tovu는 게시할 때마다 확인하고 접근할 수 없으면 알려 드립니다."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "방문자가 여는 주소입니다. 버킷의 공개 URL 또는 버킷을 가리키는 사용자 지정 도메인입니다. Tovu는 게시할 때마다 확인하고 접근할 수 없으면 알려 드립니다.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "키 쌍을 만드는 순간 한 번만 표시되니 바로 복사하세요. 잃어버리면 제공업체도 다시 보여 줄 수 없어 새 키를 만들어야 합니다."
         },
         "pl": {
           "S3-compatible storage": "Magazyn zgodny z S3",
@@ -1160,7 +1172,8 @@
           "Secret access key": "Tajny klucz dostępu",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Wyświetlany tylko raz, w chwili tworzenia pary kluczy — skopiuj go od razu. Jeśli go zgubisz, dostawca nie pokaże go ponownie i trzeba będzie utworzyć nowy klucz. Tovu przechowuje go zaszyfrowany i po zapisaniu nigdy go nie wyświetla.",
           "Public URL": "Publiczny URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Adres, który otwierają odwiedzający: publiczny URL Twojego bucketu lub własna domena wskazująca na bucket. Tovu sprawdza go po każdej publikacji i powie Ci, jeśli jest nieosiągalny."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Adres, który otwierają odwiedzający: publiczny URL Twojego bucketu lub własna domena wskazująca na bucket. Tovu sprawdza go po każdej publikacji i powie Ci, jeśli jest nieosiągalny.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Wyświetlany tylko raz, w chwili tworzenia pary kluczy — skopiuj go od razu. Jeśli go zgubisz, dostawca nie pokaże go ponownie i trzeba będzie utworzyć nowy klucz."
         },
         "hu": {
           "S3-compatible storage": "S3-kompatibilis tárhely",
@@ -1176,7 +1189,8 @@
           "Secret access key": "Titkos hozzáférési kulcs",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Csak egyszer jelenik meg, a kulcspár létrehozásakor — azonnal másolja ki. Ha elveszíti, a szolgáltató sem tudja újra megmutatni; új kulcsot kell létrehoznia. A Tovu titkosítva tárolja, és mentés után többé nem jeleníti meg.",
           "Public URL": "Nyilvános URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "A cím, amelyet a látogatók megnyitnak: a bucket nyilvános URL-je, vagy a bucketre mutató saját domain. A Tovu minden közzététel után ellenőrzi, és szól, ha nem érhető el."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "A cím, amelyet a látogatók megnyitnak: a bucket nyilvános URL-je, vagy a bucketre mutató saját domain. A Tovu minden közzététel után ellenőrzi, és szól, ha nem érhető el.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Csak egyszer jelenik meg, a kulcspár létrehozásakor — azonnal másolja ki. Ha elveszíti, a szolgáltató sem tudja újra megmutatni; új kulcsot kell létrehoznia."
         },
         "fr": {
           "S3-compatible storage": "Stockage compatible S3",
@@ -1192,7 +1206,8 @@
           "Secret access key": "Clé d’accès secrète",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Affichée une seule fois, au moment où la paire de clés est créée — copiez-la tout de suite. Si vous la perdez, votre fournisseur ne peut pas vous la réafficher ; il faudra créer une nouvelle clé. Tovu la stocke chiffrée et ne l’affiche plus jamais après l’enregistrement.",
           "Public URL": "URL publique",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "L’adresse que les visiteurs ouvrent : l’URL publique de votre bucket, ou un domaine personnalisé pointant vers le bucket. Tovu la vérifie après chaque publication et vous prévient si elle est inaccessible."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "L’adresse que les visiteurs ouvrent : l’URL publique de votre bucket, ou un domaine personnalisé pointant vers le bucket. Tovu la vérifie après chaque publication et vous prévient si elle est inaccessible.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Affichée une seule fois, au moment où la paire de clés est créée — copiez-la tout de suite. Si vous la perdez, votre fournisseur ne peut pas vous la réafficher ; il faudra créer une nouvelle clé."
         },
         "uk": {
           "S3-compatible storage": "S3-сумісне сховище",
@@ -1209,7 +1224,8 @@
           "Secret access key": "Секретний ключ доступу",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Показується лише один раз, у момент створення пари ключів, — скопіюйте його одразу. Якщо ви його втратите, постачальник не зможе показати його знову, і доведеться створити новий ключ. Tovu зберігає його в зашифрованому вигляді й ніколи не показує після збереження.",
           "Public URL": "Публічний URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Адреса, яку відкривають відвідувачі: публічний URL вашого бакета або власний домен, спрямований на бакет. Tovu перевіряє її після кожної публікації й повідомить, якщо вона недоступна."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Адреса, яку відкривають відвідувачі: публічний URL вашого бакета або власний домен, спрямований на бакет. Tovu перевіряє її після кожної публікації й повідомить, якщо вона недоступна.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Показується лише один раз, у момент створення пари ключів, — скопіюйте його одразу. Якщо ви його втратите, постачальник не зможе показати його знову, і доведеться створити новий ключ."
         },
         "tr": {
           "S3-compatible storage": "S3 uyumlu depolama",
@@ -1225,7 +1241,8 @@
           "Secret access key": "Gizli erişim anahtarı",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Yalnızca bir kez, anahtar çifti oluşturulduğu anda gösterilir — hemen kopyalayın. Kaybederseniz sağlayıcınız onu tekrar gösteremez; yeni bir anahtar oluşturmanız gerekir. Tovu bunu şifrelenmiş olarak saklar ve kaydettikten sonra bir daha göstermez.",
           "Public URL": "Genel URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Ziyaretçilerin açtığı adres: bucket'ınızın genel URL'si veya bucket'a yönlendirilmiş özel bir alan adı. Tovu her yayından sonra bunu kontrol eder ve erişilemiyorsa size bildirir."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "Ziyaretçilerin açtığı adres: bucket'ınızın genel URL'si veya bucket'a yönlendirilmiş özel bir alan adı. Tovu her yayından sonra bunu kontrol eder ve erişilemiyorsa size bildirir.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Yalnızca bir kez, anahtar çifti oluşturulduğu anda gösterilir — hemen kopyalayın. Kaybederseniz sağlayıcınız onu tekrar gösteremez; yeni bir anahtar oluşturmanız gerekir."
         },
         "th": {
           "S3-compatible storage": "พื้นที่จัดเก็บที่เข้ากันได้กับ S3",
@@ -1242,7 +1259,8 @@
           "Secret access key": "คีย์การเข้าถึงลับ",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "แสดงเพียงครั้งเดียวตอนสร้างคู่คีย์ — คัดลอกทันที หากทำหาย ผู้ให้บริการจะแสดงให้อีกไม่ได้ และคุณต้องสร้างคีย์ใหม่ Tovu จัดเก็บแบบเข้ารหัสและไม่แสดงอีกหลังจากคุณบันทึก",
           "Public URL": "URL สาธารณะ",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "ที่อยู่ที่ผู้เยี่ยมชมเปิด: URL สาธารณะของบัคเก็ต หรือโดเมนที่กำหนดเองซึ่งชี้ไปที่บัคเก็ต Tovu ตรวจสอบหลังการเผยแพร่ทุกครั้งและแจ้งคุณหากเข้าถึงไม่ได้"
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "ที่อยู่ที่ผู้เยี่ยมชมเปิด: URL สาธารณะของบัคเก็ต หรือโดเมนที่กำหนดเองซึ่งชี้ไปที่บัคเก็ต Tovu ตรวจสอบหลังการเผยแพร่ทุกครั้งและแจ้งคุณหากเข้าถึงไม่ได้",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "แสดงเพียงครั้งเดียวตอนสร้างคู่คีย์ — คัดลอกทันที หากทำหาย ผู้ให้บริการจะแสดงให้อีกไม่ได้ และคุณต้องสร้างคีย์ใหม่"
         },
         "it": {
           "S3-compatible storage": "Storage compatibile con S3",
@@ -1257,7 +1275,8 @@
           "Secret access key": "Chiave di accesso segreta",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "Viene mostrata una sola volta, quando si crea la coppia di chiavi: copiala subito. Se la perdi, il provider non può mostrartela di nuovo e dovrai crearne una nuova. Tovu la conserva crittografata e non la mostra mai più dopo il salvataggio.",
           "Public URL": "URL pubblico",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "L’indirizzo che aprono i visitatori: l’URL pubblico del bucket o un dominio personalizzato che punta al bucket. Tovu lo controlla dopo ogni pubblicazione e ti avvisa se non è raggiungibile."
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "L’indirizzo che aprono i visitatori: l’URL pubblico del bucket o un dominio personalizzato che punta al bucket. Tovu lo controlla dopo ogni pubblicazione e ti avvisa se non è raggiungibile.",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "Viene mostrata una sola volta, quando si crea la coppia di chiavi: copiala subito. Se la perdi, il provider non può mostrartela di nuovo e dovrai crearne una nuova."
         },
         "hi": {
           "S3-compatible storage": "S3-संगत स्टोरेज",
@@ -1274,7 +1293,8 @@
           "Secret access key": "गुप्त एक्सेस कुंजी",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "केवल एक बार, कुंजी जोड़ी बनाते समय दिखाई जाती है — तुरंत कॉपी करें। खो जाने पर आपका प्रदाता इसे दोबारा नहीं दिखा सकता; आपको नई कुंजी बनानी होगी। Tovu इसे एन्क्रिप्ट करके संग्रहीत करता है और सहेजने के बाद फिर कभी नहीं दिखाता।",
           "Public URL": "सार्वजनिक URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "वह पता जिसे आगंतुक खोलते हैं: आपके बकेट का सार्वजनिक URL, या बकेट की ओर इंगित कस्टम डोमेन। Tovu हर प्रकाशन के बाद इसकी जाँच करता है और पहुँच न होने पर आपको बताता है।"
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "वह पता जिसे आगंतुक खोलते हैं: आपके बकेट का सार्वजनिक URL, या बकेट की ओर इंगित कस्टम डोमेन। Tovu हर प्रकाशन के बाद इसकी जाँच करता है और पहुँच न होने पर आपको बताता है।",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "केवल एक बार, कुंजी जोड़ी बनाते समय दिखाई जाती है — तुरंत कॉपी करें। खो जाने पर आपका प्रदाता इसे दोबारा नहीं दिखा सकता; आपको नई कुंजी बनानी होगी।"
         },
         "ur": {
           "S3-compatible storage": "S3 سے مطابقت رکھنے والا اسٹوریج",
@@ -1291,7 +1311,8 @@
           "Secret access key": "خفیہ رسائی کلید",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "صرف ایک بار، کلیدی جوڑا بنتے وقت دکھائی جاتی ہے — فوراً کاپی کریں۔ کھو جانے پر آپ کا فراہم کنندہ اسے دوبارہ نہیں دکھا سکتا؛ آپ کو نئی کلید بنانی ہوگی۔ Tovu اسے خفیہ کاری کے ساتھ محفوظ کرتا ہے اور محفوظ کرنے کے بعد دوبارہ کبھی نہیں دکھاتا۔",
           "Public URL": "عوامی URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "وہ پتہ جو ملاحظہ کار کھولتے ہیں: آپ کے بکٹ کا عوامی URL، یا بکٹ کی طرف اشارہ کرنے والا حسبِ ضرورت ڈومین۔ Tovu ہر اشاعت کے بعد اسے چیک کرتا ہے اور قابلِ رسائی نہ ہو تو آپ کو بتاتا ہے۔"
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "وہ پتہ جو ملاحظہ کار کھولتے ہیں: آپ کے بکٹ کا عوامی URL، یا بکٹ کی طرف اشارہ کرنے والا حسبِ ضرورت ڈومین۔ Tovu ہر اشاعت کے بعد اسے چیک کرتا ہے اور قابلِ رسائی نہ ہو تو آپ کو بتاتا ہے۔",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "صرف ایک بار، کلیدی جوڑا بنتے وقت دکھائی جاتی ہے — فوراً کاپی کریں۔ کھو جانے پر آپ کا فراہم کنندہ اسے دوبارہ نہیں دکھا سکتا؛ آپ کو نئی کلید بنانی ہوگی۔"
         },
         "bn": {
           "S3-compatible storage": "S3-সামঞ্জস্যপূর্ণ স্টোরেজ",
@@ -1308,7 +1329,8 @@
           "Secret access key": "গোপন অ্যাক্সেস কী",
           "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save.": "কী জোড়া তৈরির মুহূর্তে শুধু একবার দেখানো হয় — সঙ্গে সঙ্গে কপি করুন। হারিয়ে গেলে আপনার প্রদানকারী আর দেখাতে পারবে না; নতুন কী তৈরি করতে হবে। Tovu এটি এনক্রিপ্ট করে সংরক্ষণ করে এবং সংরক্ষণের পর আর কখনো দেখায় না।",
           "Public URL": "সর্বজনীন URL",
-          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "দর্শকেরা যে ঠিকানা খোলেন: আপনার বাকেটের সর্বজনীন URL, বা বাকেটের দিকে নির্দেশিত একটি কাস্টম ডোমেন। Tovu প্রতিটি প্রকাশের পরে এটি যাচাই করে এবং পৌঁছানো না গেলে আপনাকে জানায়।"
+          "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached.": "দর্শকেরা যে ঠিকানা খোলেন: আপনার বাকেটের সর্বজনীন URL, বা বাকেটের দিকে নির্দেশিত একটি কাস্টম ডোমেন। Tovu প্রতিটি প্রকাশের পরে এটি যাচাই করে এবং পৌঁছানো না গেলে আপনাকে জানায়।",
+          "Shown only once, when the key pair is created — copy it right away. If you lose it, your provider cannot show it again; you will need to create a new key.": "কী জোড়া তৈরির মুহূর্তে শুধু একবার দেখানো হয় — সঙ্গে সঙ্গে কপি করুন। হারিয়ে গেলে আপনার প্রদানকারী আর দেখাতে পারবে না; নতুন কী তৈরি করতে হবে।"
         }
       }
     }

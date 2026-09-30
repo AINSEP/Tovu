@@ -687,10 +687,11 @@ describe("StaticSiteTab — preview and publish gating", () => {
     expect(setConfigField).toHaveBeenCalledWith("teamId", "t");
   });
 
-  it("a host with no projectName copy in its descriptor gets the generic label and help", () => {
+  it("a host that declares no projectName (S3-compatible storage) shows no project-name field at all", () => {
     renderTab({ publishController: { targets: [...PUBLISH_TARGETS, PLAIN_TARGET], target: PLAIN_TARGET.id } });
-    expect(screen.getByLabelText("Project name")).toBeInTheDocument();
-    expect(screen.getByText("The host finds or creates a project with this name on every publish.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Project name")).not.toBeInTheDocument();
+    expect(screen.queryByText("The host finds or creates a project with this name on every publish.")).not.toBeInTheDocument();
+    expect(document.getElementById("deployment-static-site-publish-project-name")).toBeNull();
   });
 
   it("typing into the project name field calls the injected setProjectName", async () => {

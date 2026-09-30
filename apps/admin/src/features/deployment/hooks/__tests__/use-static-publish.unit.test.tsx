@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useStaticPublish } from "../use-static-publish.hooks";
 import { createFakeStaticPublishPort } from "../static-publish-dependencies.hooks";
-import { PUBLISH_TARGETS } from "../../__tests__/publish-targets.fixture";
+import { PLAIN_TARGET, PUBLISH_TARGETS } from "../../__tests__/publish-targets.fixture";
 import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
 
 /**
@@ -99,7 +99,7 @@ describe("useStaticPublish — field state", () => {
     await waitFor(() => expect(result.current.targets).not.toBeUndefined());
 
     expect(result.current.canPreview).toBe(false); // owner + repo required
-    expect(result.current.projectNameCopy.labelKey).toBe("Commit message");
+    expect(result.current.projectNameCopy?.labelKey).toBe("Commit message");
     act(() => result.current.setConfigField("owner", "octo"));
     act(() => result.current.setConfigField("repo", "demo"));
     expect(result.current.canPreview).toBe(true);
@@ -109,7 +109,7 @@ describe("useStaticPublish — field state", () => {
 
     act(() => result.current.setTarget("netlify"));
     expect(result.current.canPreview).toBe(true); // no config fields at all
-    expect(result.current.projectNameCopy.labelKey).toBe("Project name");
+    expect(result.current.projectNameCopy?.labelKey).toBe("Site name");
   });
 });
 
@@ -800,5 +800,22 @@ describe("useStaticPublish — the publish names the chosen credential", () => {
     });
 
     expect(triggerPublish).toHaveBeenCalledWith({ config: { target: "vercel", fields: {} }, projectName: "demo" });
+  });
+
+  it("a host that declares no projectName can publish with the field empty and sends its own id as the projectName", async () => {
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "plain-host" };
+    const triggerPublish = vi.fn().mockResolvedValue(runningRun);
+    const port = portWith({ triggerPublish, listPublishTargets: () => Promise.resolve([...PUBLISH_TARGETS, PLAIN_TARGET]) });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
+
+    act(() => result.current.setTarget("plain-host"));
+    expect(result.current.projectNameCopy).toBeNull();
+    expect(result.current.canPublish).toBe(true);
+    await act(async () => {
+      await result.current.publish();
+    });
+
+    expect(triggerPublish).toHaveBeenCalledWith({ config: { target: "plain-host", fields: {} }, projectName: "plain-host" });
   });
 });

@@ -13,7 +13,9 @@ import {
   accessTokenExtraFieldIdSuffix,
   accessTokensCountText,
   invalidAdditionalHostsEntries,
+  extraFieldsAroundToken,
   providerGroupHandleLabel,
+  providerGroupSubtitleKeys,
   tokenRowHandleLabel,
   type AccessTokenCategoryId,
   type AccessTokenProviderInfo,
@@ -265,7 +267,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
     >
       <h3 className="access-tokens-provider-heading">
         <span translate="no">{group.info.label}</span>
-        <span className="access-tokens-provider-purpose"> · {controller.t(group.info.purposeLabel)}</span>
+        <span className="access-tokens-provider-purpose"> · {providerGroupSubtitleKeys(group.info).map(controller.t).join(" · ")}</span>
       </h3>
       {group.info.unlisted ? <p className="field-hint">{controller.t("Its plugin is off or missing. You can still remove saved tokens.")}</p> : null}
       {group.rows.map((row) => (
@@ -441,6 +443,7 @@ function TokenInputFields({
 }) {
   // Only a custom row shows Username, always optional (`rules.ts`'s `AccessTokenProviderInfo` doc).
   const needsUsername = info.username !== undefined;
+  const extraFields = extraFieldsAroundToken(info);
   return (
     <div className="access-tokens-row-fields">
       <div className="field">
@@ -456,6 +459,7 @@ function TokenInputFields({
         />
         <p className="field-hint">{translate("A short label so you can tell this token apart from others for the same provider.")}</p>
       </div>
+      <ExtraFieldInputs fields={extraFields.before} idPrefix={idPrefix} values={values} onFieldChange={onFieldChange} t={translate} />
       <div className="field">
         <label className="field-label" htmlFor={`${idPrefix}-token`}>
           {info.tokenLabel ?? translate("Access token")}
@@ -507,16 +511,7 @@ function TokenInputFields({
           </details>
         ) : null}
       </div>
-      {info.extraFields.map((field) => (
-        <ExtraFieldInput
-          key={field.name}
-          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix(field.name)}`}
-          field={field}
-          value={values[field.name] ?? ""}
-          onChange={(value) => onFieldChange(field.name, value)}
-          t={translate}
-        />
-      ))}
+      <ExtraFieldInputs fields={extraFields.after} idPrefix={idPrefix} values={values} onFieldChange={onFieldChange} t={translate} />
       {needsUsername ? (
         <div className="field">
           <label className="field-label" htmlFor={`${idPrefix}-username`}>
@@ -533,6 +528,36 @@ function TokenInputFields({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** A run of {@link ExtraFieldInput}s, in the order given. */
+function ExtraFieldInputs({
+  fields,
+  idPrefix,
+  values,
+  onFieldChange,
+  t: translate,
+}: {
+  fields: readonly AdminPublishTargetField[];
+  idPrefix: string;
+  values: Readonly<Record<string, string>>;
+  onFieldChange: (name: string, value: string) => void;
+  t: Translate;
+}) {
+  return (
+    <>
+      {fields.map((field) => (
+        <ExtraFieldInput
+          key={field.name}
+          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix(field.name)}`}
+          field={field}
+          value={values[field.name] ?? ""}
+          onChange={(value) => onFieldChange(field.name, value)}
+          t={translate}
+        />
+      ))}
+    </>
   );
 }
 

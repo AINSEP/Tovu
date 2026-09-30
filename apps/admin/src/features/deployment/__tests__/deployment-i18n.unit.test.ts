@@ -15,6 +15,7 @@ import {
   publishCredentialSaveErrorMessage,
   publishCredentialVerifyErrorMessage,
   publishCredentialSelectErrorMessage,
+  t,
 } from "../deployment-i18n";
 
 /**
@@ -66,5 +67,53 @@ describe("deployment-i18n error-message templates — unsupported-locale fallbac
 
   it.each(CASES)("$name still renders the requested locale when it IS covered (en itself)", ({ fn, en }) => {
     expect(fn("en", "disk full")).toBe(en.replace("{error}", "disk full"));
+  });
+});
+
+const ADMIN_LOCALES = ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"];
+
+describe("deployment-i18n — Static Site credential row and publish step", () => {
+  const plain = [
+    "Leave blank to keep the current token.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.",
+    "Create a token",
+    "Connect",
+    "Replace token",
+    "token stored, encrypted",
+    "Preview",
+    "Publish",
+    "Configured",
+    "Not configured",
+    "Verify",
+    "Which saved token publishes",
+    "Getting it online",
+  ];
+  const templates: Record<string, string> = {
+    "{host} connected": "{host}",
+    "saved {time}": "{time}",
+    "connected as {account}": "{account}",
+  };
+
+  it.each(ADMIN_LOCALES)("%s translates every string the Static Site tab shows", (locale) => {
+    for (const key of plain) expect(t(locale, key), `${locale}: ${key}`).not.toBe(key);
+  });
+
+  it.each(ADMIN_LOCALES)("%s keeps each summary template's placeholder, so the host, time and account land where its grammar puts them", (locale) => {
+    for (const [key, token] of Object.entries(templates)) {
+      const value = t(locale, key);
+      expect(value, `${locale}: ${key}`).not.toBe(key);
+      expect(value, `${locale}: ${key}`).toContain(token);
+    }
+  });
+
+  it("the connected line says 'as' once: '{host} connected' carries no 'as'", () => {
+    expect(t("es", "{host} connected")).toBe("{host} conectado");
+    expect(t("es", "connected as {account}")).toBe("conectado como {account}");
+  });
+
+  it("drops the generic project-name copy: every host names its own field or has none", () => {
+    expect(t("es", "The host finds or creates a project with this name on every publish.")).toBe(
+      "The host finds or creates a project with this name on every publish."
+    );
   });
 });

@@ -33,6 +33,7 @@ import {
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
   staticPublishProjectNameCopy,
+  staticPublishProjectNameToSend,
 } from "../rules";
 import { CLOUDFLARE_PAGES_TARGET, GITHUB_PAGES_TARGET, PLAIN_TARGET, PUBLISH_TARGETS, VERCEL_TARGET } from "./publish-targets.fixture";
 
@@ -218,11 +219,26 @@ describe("staticPublishFormReadyForPreview / staticPublishFormReadyToPublish", (
     expect(staticPublishFormReadyToPublish(undefined, {}, "demo")).toBe(false);
   });
 
-  it("publishing additionally requires a non-blank projectName for EVERY target", () => {
+  it("publishing additionally requires a non-blank projectName when the host declares one", () => {
     expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "")).toBe(false);
+    expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "  ")).toBe(false);
     expect(staticPublishFormReadyToPublish(GITHUB_PAGES_TARGET, { owner: "octo", repo: "demo" }, "demo")).toBe(true);
-    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "  ")).toBe(false);
-    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "my-site")).toBe(true);
+  });
+
+  it("a host that declares no projectName (S3-compatible storage) publishes without one", () => {
+    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "")).toBe(true);
+    expect(staticPublishFormReadyToPublish(PLAIN_TARGET, {}, "stray")).toBe(true);
+  });
+});
+
+describe("staticPublishProjectNameToSend", () => {
+  it("sends the typed name to a host that declares one", () => {
+    expect(staticPublishProjectNameToSend(GITHUB_PAGES_TARGET, "Publish from Tovu")).toBe("Publish from Tovu");
+  });
+
+  it("sends the host's id to a host that declares none, since the server requires a non-blank value", () => {
+    expect(staticPublishProjectNameToSend(PLAIN_TARGET, "")).toBe("plain-host");
+    expect(staticPublishProjectNameToSend(PLAIN_TARGET, "stray")).toBe("plain-host");
   });
 });
 
@@ -244,10 +260,13 @@ describe("staticPublishProjectNameCopy", () => {
     });
   });
 
-  it("falls back to the generic copy for a host that doesn't, and while the list loads", () => {
-    const generic = { labelKey: "Project name", helpKey: "The host finds or creates a project with this name on every publish." };
-    expect(staticPublishProjectNameCopy(PLAIN_TARGET)).toEqual(generic);
-    expect(staticPublishProjectNameCopy(undefined)).toEqual(generic);
+  it("is null for a host that declares no project name, and while the list loads, so the tab shows no field", () => {
+    expect(staticPublishProjectNameCopy(PLAIN_TARGET)).toBeNull();
+    expect(staticPublishProjectNameCopy(undefined)).toBeNull();
+  });
+
+  it("keeps a declared label with no help, leaving helpKey undefined", () => {
+    expect(staticPublishProjectNameCopy({ ...PLAIN_TARGET, projectName: { label: "Site name" } })).toEqual({ labelKey: "Site name", helpKey: undefined });
   });
 });
 

@@ -612,7 +612,7 @@ export interface AdminPublishTargetCredentialSpec {
 
 /** One publish target from the deploy registry: its display label, the per-publish config fields
  *  (a repository, a team), its credential form, and the per-host label/help for the publish's
- *  `projectName` (absent: the generic "Project name" copy). */
+ *  `projectName` (absent: the host takes no project name, so the admin hides that field). */
 export interface AdminPublishTargetDescriptor {
   id: AdminStaticPublishTargetId;
   label: string;

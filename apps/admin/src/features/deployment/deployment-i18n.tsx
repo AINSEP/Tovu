@@ -1568,7 +1568,6 @@ const DEPLOYMENT_AUDIT_STRINGS: Record<string, string> = {
   "Create access token": "Create access token",
   "Loading credentials…": "Loading credentials…",
   "Account ID": "Account ID",
-  "connected": "connected as",
   "Verify": "Verify",
   "Verifying…": "Verifying…",
   "Which saved token publishes": "Which saved token publishes",
@@ -1623,7 +1622,6 @@ const DEPLOYMENT_AUDIT_ES: Record<string, string> = {
   "Create access token": "Crear token de acceso",
   "Loading credentials…": "Cargando credenciales…",
   "Account ID": "ID de cuenta",
-  "connected": "conectado como",
   "Verify": "Verificar",
   "Verifying…": "Verificando…",
   "Which saved token publishes": "Qué token guardado publica",
@@ -1658,31 +1656,64 @@ const DEPLOYMENT_AUDIT_TRANSLATIONS: Record<string, Record<string, string>> = {
   en: DEPLOYMENT_AUDIT_STRINGS,
   es: DEPLOYMENT_AUDIT_ES,
   id: auditTranslationEntries([
-    "{count} baris", "Tidak didukung", "Didukung", "Belum ada Dockerfile", "Orang lain menyimpan versi Dockerfile yang berbeda saat Anda mengedit — perubahan Anda di bawah TIDAK disimpan.", "Isi saat ini di server adalah:", "File itu dihapus di server.", "Suntingan Anda di bawah tidak berubah. Bandingkan dengan isi saat ini di atas, selaraskan secara manual, lalu Simpan lagi.", "Muat versi saat ini", "Tersedia dari terminal", "Berjalan di host statis apa pun, termasuk yang gratis. Tidak ada yang dinamis yang bertahan setelah ekspor.", "Lihat detail Situs Statis", "Belum terhubung", "Memerlukan host untuk berjalan — penyiapan penyedia direncanakan, tetapi belum terhubung.", "Lihat detail Situs Lengkap", "Diatur", "Rute", "berhasil", "gagal", "Ditulis ke", "Rute gagal", "Aset gagal", "Tovu menulis setiap pos yang diterbitkan, halaman utama, produk, dan halaman tema ke dalam folder yang Anda namai.", "Salin perintah ekspor", "Ganti <dir> dengan folder tujuan penulisan. Ini argumen wajib — tidak ada nilai bawaan.", "Timpa file yang ada di folder keluaran", "Nonaktif secara bawaan. Pengekspor menolak menulis ke folder yang tidak kosong kecuali ini dicentang — ia tidak pernah menghapus file yang tidak dikenal secara diam-diam.", "Mengekspor…", "Memeriksa…", "Membawanya online", "Ekspor hanyalah folder berisi file. Pilih tujuannya, lalu publikasikan langsung dari sini.", "Target publikasi", "Terhubung", "Perlu menyimpan lebih dari satu token, mengganti namanya, atau mengelola semua kredensial tersimpan di satu tempat?", "Buat token akses", "Memuat kredensial…", "ID akun", "terhubung sebagai", "Verifikasi", "Memverifikasi…", "Token tersimpan mana yang menerbitkan", "Ruang kerja ini memiliki lebih dari satu", "token tersimpan. Pilih token yang digunakan Tovu untuk menerbitkan.", "Repositori", "Menerbitkan…", "Ini langsung aktif di internet publik setelah selesai — tidak ada tahap draf atau peninjauan.", "Tujuan publikasi ini", "Akun di atas hanya membuktikan bahwa Anda diizinkan menerbitkan — ini menjelaskan tepatnya tujuan publikasi ini.", "Jalur dasar", "Tidak ada — disajikan dari akar domain", "Kredensial", "Diterbitkan:"
+    "{count} baris", "Tidak didukung", "Didukung", "Belum ada Dockerfile", "Orang lain menyimpan versi Dockerfile yang berbeda saat Anda mengedit — perubahan Anda di bawah TIDAK disimpan.", "Isi saat ini di server adalah:", "File itu dihapus di server.", "Suntingan Anda di bawah tidak berubah. Bandingkan dengan isi saat ini di atas, selaraskan secara manual, lalu Simpan lagi.", "Muat versi saat ini", "Tersedia dari terminal", "Berjalan di host statis apa pun, termasuk yang gratis. Tidak ada yang dinamis yang bertahan setelah ekspor.", "Lihat detail Situs Statis", "Belum terhubung", "Memerlukan host untuk berjalan — penyiapan penyedia direncanakan, tetapi belum terhubung.", "Lihat detail Situs Lengkap", "Diatur", "Rute", "berhasil", "gagal", "Ditulis ke", "Rute gagal", "Aset gagal", "Tovu menulis setiap pos yang diterbitkan, halaman utama, produk, dan halaman tema ke dalam folder yang Anda namai.", "Salin perintah ekspor", "Ganti <dir> dengan folder tujuan penulisan. Ini argumen wajib — tidak ada nilai bawaan.", "Timpa file yang ada di folder keluaran", "Nonaktif secara bawaan. Pengekspor menolak menulis ke folder yang tidak kosong kecuali ini dicentang — ia tidak pernah menghapus file yang tidak dikenal secara diam-diam.", "Mengekspor…", "Memeriksa…", "Membawanya online", "Ekspor hanyalah folder berisi file. Pilih tujuannya, lalu publikasikan langsung dari sini.", "Target publikasi", "Terhubung", "Perlu menyimpan lebih dari satu token, mengganti namanya, atau mengelola semua kredensial tersimpan di satu tempat?", "Buat token akses", "Memuat kredensial…", "ID akun", "Verifikasi", "Memverifikasi…", "Token tersimpan mana yang menerbitkan", "Ruang kerja ini memiliki lebih dari satu", "token tersimpan. Pilih token yang digunakan Tovu untuk menerbitkan.", "Repositori", "Menerbitkan…", "Ini langsung aktif di internet publik setelah selesai — tidak ada tahap draf atau peninjauan.", "Tujuan publikasi ini", "Akun di atas hanya membuktikan bahwa Anda diizinkan menerbitkan — ini menjelaskan tepatnya tujuan publikasi ini.", "Jalur dasar", "Tidak ada — disajikan dari akar domain", "Kredensial", "Diterbitkan:"
   ]),
   de: auditTranslationEntries([
-    "{count} Zeilen", "Nicht unterstützt", "Unterstützt", "Noch kein Dockerfile", "Während Sie dieses Dockerfile bearbeitet haben, hat jemand anderes eine andere Version gespeichert — Ihre Änderungen unten wurden NICHT gespeichert.", "Der aktuelle Inhalt auf dem Server ist:", "Es wurde auf dem Server gelöscht.", "Ihre eigenen Änderungen unten sind unverändert. Vergleichen Sie sie mit dem aktuellen Inhalt oben, führen Sie sie von Hand zusammen und speichern Sie dann erneut.", "Aktuelle Version laden", "Über ein Terminal verfügbar", "Läuft auf jedem statischen Host, auch auf kostenlosen. Beim Export bleibt nichts Dynamisches erhalten.", "Details der statischen Website anzeigen", "Noch nicht verbunden", "Benötigt einen Host zum Ausführen — die Anbieter-Einrichtung ist geplant, aber noch nicht verbunden.", "Details der vollständigen Website anzeigen", "Festgelegt", "Routen", "erfolgreich", "fehlgeschlagen", "Geschrieben nach", "Fehlgeschlagene Routen", "Fehlgeschlagene Assets", "Tovu schreibt jeden veröffentlichten Beitrag, die Startseite, Produkte und Themenseiten in den von Ihnen benannten Ordner.", "Exportbefehl kopieren", "Ersetzen Sie <dir> durch den Ordner, in den geschrieben werden soll. Dies ist ein Pflichtargument — es gibt keinen Standardwert.", "Vorhandene Dateien im Ausgabeordner überschreiben", "Standardmäßig aus. Der Exporter weigert sich, in einen nicht leeren Ordner zu schreiben, solange dies nicht aktiviert ist — unbekannte Dateien werden niemals stillschweigend gelöscht.", "Wird exportiert…", "Wird geprüft…", "Online bringen", "Der Export ist nur ein Ordner mit Dateien. Wähle das Ziel und veröffentliche ihn direkt von hier.", "Veröffentlichungsziel", "Verbunden", "Möchten Sie mehr als einen Token speichern, einen umbenennen oder alle gespeicherten Zugangsdaten an einem Ort verwalten?", "Zugriffstoken erstellen", "Zugangsdaten werden geladen…", "Konto-ID", "verbunden als", "Überprüfen", "Wird überprüft…", "Welcher gespeicherte Token veröffentlicht", "Dieser Arbeitsbereich hat mehr als einen gespeicherten", "Token. Wählen Sie, welchen Tovu zum Veröffentlichen verwendet.", "Repository", "Wird veröffentlicht…", "Sobald dies fertig ist, ist es sofort im öffentlichen Internet verfügbar — es gibt keinen Entwurfs- oder Prüfschritt.", "Wohin diese Veröffentlichung geht", "Das Konto oben beweist nur, dass Sie veröffentlichen dürfen — dies zeigt genau, wohin diese Veröffentlichung geht.", "Basispfad", "Keiner — wird vom Stammverzeichnis der Domain bereitgestellt", "Zugangsdaten", "Veröffentlicht:"
+    "{count} Zeilen", "Nicht unterstützt", "Unterstützt", "Noch kein Dockerfile", "Während Sie dieses Dockerfile bearbeitet haben, hat jemand anderes eine andere Version gespeichert — Ihre Änderungen unten wurden NICHT gespeichert.", "Der aktuelle Inhalt auf dem Server ist:", "Es wurde auf dem Server gelöscht.", "Ihre eigenen Änderungen unten sind unverändert. Vergleichen Sie sie mit dem aktuellen Inhalt oben, führen Sie sie von Hand zusammen und speichern Sie dann erneut.", "Aktuelle Version laden", "Über ein Terminal verfügbar", "Läuft auf jedem statischen Host, auch auf kostenlosen. Beim Export bleibt nichts Dynamisches erhalten.", "Details der statischen Website anzeigen", "Noch nicht verbunden", "Benötigt einen Host zum Ausführen — die Anbieter-Einrichtung ist geplant, aber noch nicht verbunden.", "Details der vollständigen Website anzeigen", "Festgelegt", "Routen", "erfolgreich", "fehlgeschlagen", "Geschrieben nach", "Fehlgeschlagene Routen", "Fehlgeschlagene Assets", "Tovu schreibt jeden veröffentlichten Beitrag, die Startseite, Produkte und Themenseiten in den von Ihnen benannten Ordner.", "Exportbefehl kopieren", "Ersetzen Sie <dir> durch den Ordner, in den geschrieben werden soll. Dies ist ein Pflichtargument — es gibt keinen Standardwert.", "Vorhandene Dateien im Ausgabeordner überschreiben", "Standardmäßig aus. Der Exporter weigert sich, in einen nicht leeren Ordner zu schreiben, solange dies nicht aktiviert ist — unbekannte Dateien werden niemals stillschweigend gelöscht.", "Wird exportiert…", "Wird geprüft…", "Online bringen", "Der Export ist nur ein Ordner mit Dateien. Wähle das Ziel und veröffentliche ihn direkt von hier.", "Veröffentlichungsziel", "Verbunden", "Möchten Sie mehr als einen Token speichern, einen umbenennen oder alle gespeicherten Zugangsdaten an einem Ort verwalten?", "Zugriffstoken erstellen", "Zugangsdaten werden geladen…", "Konto-ID", "Überprüfen", "Wird überprüft…", "Welcher gespeicherte Token veröffentlicht", "Dieser Arbeitsbereich hat mehr als einen gespeicherten", "Token. Wählen Sie, welchen Tovu zum Veröffentlichen verwendet.", "Repository", "Wird veröffentlicht…", "Sobald dies fertig ist, ist es sofort im öffentlichen Internet verfügbar — es gibt keinen Entwurfs- oder Prüfschritt.", "Wohin diese Veröffentlichung geht", "Das Konto oben beweist nur, dass Sie veröffentlichen dürfen — dies zeigt genau, wohin diese Veröffentlichung geht.", "Basispfad", "Keiner — wird vom Stammverzeichnis der Domain bereitgestellt", "Zugangsdaten", "Veröffentlicht:"
   ]),
   fr: auditTranslationEntries([
-    "{count} lignes", "Non pris en charge", "Pris en charge", "Pas encore de Dockerfile", "Quelqu’un d’autre a enregistré une version différente de ce Dockerfile pendant que vous le modifiiez — vos modifications ci-dessous n’ont PAS été enregistrées.", "Son contenu actuel sur le serveur est :", "Il a été supprimé sur le serveur.", "Vos propres modifications ci-dessous sont intactes. Comparez-les au contenu actuel ci-dessus, réconciliez-les à la main, puis enregistrez à nouveau.", "Charger la version actuelle", "Disponible depuis un terminal", "Fonctionne sur n’importe quel hébergeur statique, y compris gratuit. Rien de dynamique ne survit à l’exportation.", "Voir les détails du site statique", "Pas encore connecté", "Nécessite un hébergeur pour fonctionner — la configuration du fournisseur est prévue, mais pas encore connectée.", "Voir les détails du site complet", "Défini", "Routes", "réussi", "échoué", "Écrit dans", "Routes échouées", "Ressources échouées", "Tovu écrit chaque publication, la page d’accueil, les produits et les pages de thème publiés dans le dossier que vous indiquez.", "Copier la commande d’exportation", "Remplacez <dir> par le dossier dans lequel écrire. C’est un argument obligatoire — il n’y a pas de valeur par défaut.", "Écraser les fichiers existants dans le dossier de sortie", "Désactivé par défaut. L’exportateur refuse d’écrire dans un dossier non vide sauf si cette option est cochée — il ne supprime jamais silencieusement des fichiers inconnus.", "Exportation…", "Vérification…", "Mettre en ligne", "L'export n'est qu'un dossier de fichiers. Choisissez sa destination, puis publiez-le directement d'ici.", "Cible de publication", "Connecté", "Besoin d’enregistrer plus d’un jeton, d’en renommer un ou de gérer tous les identifiants enregistrés au même endroit ?", "Créer un jeton d’accès", "Chargement des identifiants…", "ID de compte", "connecté en tant que", "Vérifier", "Vérification…", "Quel jeton enregistré publie", "Cet espace de travail contient plus d’un", "jeton enregistré. Choisissez celui que Tovu utilise pour publier.", "Dépôt", "Publication…", "Ce sera immédiatement en ligne sur Internet public une fois terminé — il n’y a aucune étape de brouillon ou de révision.", "Où va cette publication", "Le compte ci-dessus prouve seulement que vous êtes autorisé à publier — ceci indique exactement où va celle-ci.", "Chemin de base", "Aucun — servi depuis la racine du domaine", "Identifiant", "Publié :"
+    "{count} lignes", "Non pris en charge", "Pris en charge", "Pas encore de Dockerfile", "Quelqu’un d’autre a enregistré une version différente de ce Dockerfile pendant que vous le modifiiez — vos modifications ci-dessous n’ont PAS été enregistrées.", "Son contenu actuel sur le serveur est :", "Il a été supprimé sur le serveur.", "Vos propres modifications ci-dessous sont intactes. Comparez-les au contenu actuel ci-dessus, réconciliez-les à la main, puis enregistrez à nouveau.", "Charger la version actuelle", "Disponible depuis un terminal", "Fonctionne sur n’importe quel hébergeur statique, y compris gratuit. Rien de dynamique ne survit à l’exportation.", "Voir les détails du site statique", "Pas encore connecté", "Nécessite un hébergeur pour fonctionner — la configuration du fournisseur est prévue, mais pas encore connectée.", "Voir les détails du site complet", "Défini", "Routes", "réussi", "échoué", "Écrit dans", "Routes échouées", "Ressources échouées", "Tovu écrit chaque publication, la page d’accueil, les produits et les pages de thème publiés dans le dossier que vous indiquez.", "Copier la commande d’exportation", "Remplacez <dir> par le dossier dans lequel écrire. C’est un argument obligatoire — il n’y a pas de valeur par défaut.", "Écraser les fichiers existants dans le dossier de sortie", "Désactivé par défaut. L’exportateur refuse d’écrire dans un dossier non vide sauf si cette option est cochée — il ne supprime jamais silencieusement des fichiers inconnus.", "Exportation…", "Vérification…", "Mettre en ligne", "L'export n'est qu'un dossier de fichiers. Choisissez sa destination, puis publiez-le directement d'ici.", "Cible de publication", "Connecté", "Besoin d’enregistrer plus d’un jeton, d’en renommer un ou de gérer tous les identifiants enregistrés au même endroit ?", "Créer un jeton d’accès", "Chargement des identifiants…", "ID de compte", "Vérifier", "Vérification…", "Quel jeton enregistré publie", "Cet espace de travail contient plus d’un", "jeton enregistré. Choisissez celui que Tovu utilise pour publier.", "Dépôt", "Publication…", "Ce sera immédiatement en ligne sur Internet public une fois terminé — il n’y a aucune étape de brouillon ou de révision.", "Où va cette publication", "Le compte ci-dessus prouve seulement que vous êtes autorisé à publier — ceci indique exactement où va celle-ci.", "Chemin de base", "Aucun — servi depuis la racine du domaine", "Identifiant", "Publié :"
   ]),
   it: auditTranslationEntries([
-    "{count} righe", "Non supportato", "Supportato", "Nessun Dockerfile ancora", "Qualcun altro ha salvato una versione diversa di questo Dockerfile mentre lo modificavi — le modifiche qui sotto NON sono state salvate.", "Il contenuto attuale sul server è:", "È stato eliminato sul server.", "Le tue modifiche qui sotto sono intatte. Confrontale con il contenuto attuale sopra, riconciliale a mano, quindi salva di nuovo.", "Carica la versione attuale", "Disponibile da un terminale", "Funziona su qualsiasi host statico, inclusi quelli gratuiti. Nulla di dinamico sopravvive all’esportazione.", "Visualizza i dettagli del sito statico", "Non ancora collegato", "Richiede un host su cui eseguire — la configurazione del provider è pianificata, ma non ancora collegata.", "Visualizza i dettagli del sito completo", "Impostato", "Percorsi", "riuscito", "non riuscito", "Scritto in", "Percorsi non riusciti", "Risorse non riuscite", "Tovu scrive ogni post pubblicato, la home page, i prodotti e le pagine del tema nella cartella che indichi.", "Copia il comando di esportazione", "Sostituisci <dir> con la cartella in cui scrivere. È un argomento obbligatorio — non esiste un valore predefinito.", "Sovrascrivi i file esistenti nella cartella di output", "Disattivato per impostazione predefinita. L’esportatore rifiuta di scrivere in una cartella non vuota a meno che questa opzione non sia selezionata — non elimina mai silenziosamente file sconosciuti.", "Esportazione…", "Verifica…", "Mettilo online", "L'esportazione è solo una cartella di file. Scegli dove va, poi pubblicala direttamente da qui.", "Destinazione di pubblicazione", "Connesso", "Devi salvare più di un token, rinominarne uno o gestire tutte le credenziali salvate in un unico posto?", "Crea token di accesso", "Caricamento credenziali…", "ID account", "connesso come", "Verifica", "Verifica in corso…", "Quale token salvato pubblica", "Questo spazio di lavoro ha più di un", "token salvato. Scegli quale usa Tovu per pubblicare.", "Repository", "Pubblicazione…", "Sarà immediatamente online su Internet pubblico al termine — non esiste una fase di bozza o revisione.", "Dove va questa pubblicazione", "L’account sopra dimostra solo che puoi pubblicare — questo indica esattamente dove va questa pubblicazione.", "Percorso di base", "Nessuno — servito dalla radice del dominio", "Credenziale", "Pubblicato:"
+    "{count} righe", "Non supportato", "Supportato", "Nessun Dockerfile ancora", "Qualcun altro ha salvato una versione diversa di questo Dockerfile mentre lo modificavi — le modifiche qui sotto NON sono state salvate.", "Il contenuto attuale sul server è:", "È stato eliminato sul server.", "Le tue modifiche qui sotto sono intatte. Confrontale con il contenuto attuale sopra, riconciliale a mano, quindi salva di nuovo.", "Carica la versione attuale", "Disponibile da un terminale", "Funziona su qualsiasi host statico, inclusi quelli gratuiti. Nulla di dinamico sopravvive all’esportazione.", "Visualizza i dettagli del sito statico", "Non ancora collegato", "Richiede un host su cui eseguire — la configurazione del provider è pianificata, ma non ancora collegata.", "Visualizza i dettagli del sito completo", "Impostato", "Percorsi", "riuscito", "non riuscito", "Scritto in", "Percorsi non riusciti", "Risorse non riuscite", "Tovu scrive ogni post pubblicato, la home page, i prodotti e le pagine del tema nella cartella che indichi.", "Copia il comando di esportazione", "Sostituisci <dir> con la cartella in cui scrivere. È un argomento obbligatorio — non esiste un valore predefinito.", "Sovrascrivi i file esistenti nella cartella di output", "Disattivato per impostazione predefinita. L’esportatore rifiuta di scrivere in una cartella non vuota a meno che questa opzione non sia selezionata — non elimina mai silenziosamente file sconosciuti.", "Esportazione…", "Verifica…", "Mettilo online", "L'esportazione è solo una cartella di file. Scegli dove va, poi pubblicala direttamente da qui.", "Destinazione di pubblicazione", "Connesso", "Devi salvare più di un token, rinominarne uno o gestire tutte le credenziali salvate in un unico posto?", "Crea token di accesso", "Caricamento credenziali…", "ID account", "Verifica", "Verifica in corso…", "Quale token salvato pubblica", "Questo spazio di lavoro ha più di un", "token salvato. Scegli quale usa Tovu per pubblicare.", "Repository", "Pubblicazione…", "Sarà immediatamente online su Internet pubblico al termine — non esiste una fase di bozza o revisione.", "Dove va questa pubblicazione", "L’account sopra dimostra solo che puoi pubblicare — questo indica esattamente dove va questa pubblicazione.", "Percorso di base", "Nessuno — servito dalla radice del dominio", "Credenziale", "Pubblicato:"
   ]),
   "pt-BR": auditTranslationEntries([
-    "{count} linhas", "Não compatível", "Compatível", "Ainda não há Dockerfile", "Outra pessoa salvou uma versão diferente deste Dockerfile enquanto você editava — suas alterações abaixo NÃO foram salvas.", "O conteúdo atual no servidor é:", "Ele foi excluído no servidor.", "Suas próprias edições abaixo permanecem intactas. Compare-as com o conteúdo atual acima, reconcilie manualmente e salve novamente.", "Carregar a versão atual", "Disponível em um terminal", "Funciona em qualquer hospedagem estática, inclusive gratuita. Nada dinâmico sobrevive à exportação.", "Ver detalhes do site estático", "Ainda não conectado", "Precisa de uma hospedagem para executar — a configuração do provedor está planejada, mas ainda não está conectada.", "Ver detalhes do site completo", "Definido", "Rotas", "bem-sucedido", "falhou", "Gravado em", "Rotas com falha", "Recursos com falha", "O Tovu grava cada post publicado, a página inicial, os produtos e as páginas do tema na pasta que você nomear.", "Copiar o comando de exportação", "Substitua <dir> pela pasta onde gravar. É um argumento obrigatório — não há padrão.", "Substituir arquivos existentes na pasta de saída", "Desativado por padrão. O exportador se recusa a gravar em uma pasta não vazia a menos que isto seja marcado — ele nunca exclui arquivos desconhecidos silenciosamente.", "Exportando…", "Verificando…", "Colocar online", "A exportação é só uma pasta de arquivos. Escolha para onde vai e publique direto daqui.", "Destino de publicação", "Conectado", "Precisa salvar mais de um token, renomear um ou gerenciar todas as credenciais salvas em um só lugar?", "Criar token de acesso", "Carregando credenciais…", "ID da conta", "conectado como", "Verificar", "Verificando…", "Qual token salvo publica", "Este espaço de trabalho tem mais de um", "token salvo. Escolha qual o Tovu usa para publicar.", "Repositório", "Publicando…", "Isto fica imediatamente ativo na internet pública quando termina — não há etapa de rascunho ou revisão.", "Para onde vai esta publicação", "A conta acima apenas prova que você tem permissão para publicar — isto informa exatamente para onde esta publicação vai.", "Caminho base", "Nenhum — servido a partir da raiz do domínio", "Credencial", "Publicado:"
+    "{count} linhas", "Não compatível", "Compatível", "Ainda não há Dockerfile", "Outra pessoa salvou uma versão diferente deste Dockerfile enquanto você editava — suas alterações abaixo NÃO foram salvas.", "O conteúdo atual no servidor é:", "Ele foi excluído no servidor.", "Suas próprias edições abaixo permanecem intactas. Compare-as com o conteúdo atual acima, reconcilie manualmente e salve novamente.", "Carregar a versão atual", "Disponível em um terminal", "Funciona em qualquer hospedagem estática, inclusive gratuita. Nada dinâmico sobrevive à exportação.", "Ver detalhes do site estático", "Ainda não conectado", "Precisa de uma hospedagem para executar — a configuração do provedor está planejada, mas ainda não está conectada.", "Ver detalhes do site completo", "Definido", "Rotas", "bem-sucedido", "falhou", "Gravado em", "Rotas com falha", "Recursos com falha", "O Tovu grava cada post publicado, a página inicial, os produtos e as páginas do tema na pasta que você nomear.", "Copiar o comando de exportação", "Substitua <dir> pela pasta onde gravar. É um argumento obrigatório — não há padrão.", "Substituir arquivos existentes na pasta de saída", "Desativado por padrão. O exportador se recusa a gravar em uma pasta não vazia a menos que isto seja marcado — ele nunca exclui arquivos desconhecidos silenciosamente.", "Exportando…", "Verificando…", "Colocar online", "A exportação é só uma pasta de arquivos. Escolha para onde vai e publique direto daqui.", "Destino de publicação", "Conectado", "Precisa salvar mais de um token, renomear um ou gerenciar todas as credenciais salvas em um só lugar?", "Criar token de acesso", "Carregando credenciais…", "ID da conta", "Verificar", "Verificando…", "Qual token salvo publica", "Este espaço de trabalho tem mais de um", "token salvo. Escolha qual o Tovu usa para publicar.", "Repositório", "Publicando…", "Isto fica imediatamente ativo na internet pública quando termina — não há etapa de rascunho ou revisão.", "Para onde vai esta publicação", "A conta acima apenas prova que você tem permissão para publicar — isto informa exatamente para onde esta publicação vai.", "Caminho base", "Nenhum — servido a partir da raiz do domínio", "Credencial", "Publicado:"
   ]),
   "zh-CN": auditTranslationEntries([
-    "{count} 行", "不支持", "支持", "尚无 Dockerfile", "您编辑此 Dockerfile 时，其他人保存了不同版本——您下方的更改未保存。", "服务器上的当前内容为：", "它已在服务器上删除。", "您下方的编辑未受影响。请与上方当前内容比较，手动协调后再次保存。", "加载当前版本", "可在终端中使用", "可在任何静态主机上运行，包括免费主机。导出后不会保留任何动态内容。", "查看静态站点详情", "尚未连接", "需要主机才能运行——已计划配置提供商，但尚未连接。", "查看完整站点详情", "已设置", "路由", "成功", "失败", "写入到", "失败的路由", "失败的资源", "Tovu 会将每篇已发布文章、主页、产品和主题页面写入您指定的文件夹。", "复制导出命令", "将 <dir> 替换为要写入的文件夹。这是必填参数——没有默认值。", "覆盖输出文件夹中的现有文件", "默认关闭。除非选中此项，否则导出器拒绝写入非空文件夹——它绝不会悄悄删除未知文件。", "正在导出…", "正在检查…", "上线发布", "导出只是一个文件夹。选择发布位置，然后直接在这里发布。", "发布目标", "已连接", "需要保存多个令牌、重命名令牌，或在一处管理所有已保存凭据？", "创建访问令牌", "正在加载凭据…", "账户 ID", "连接为", "验证", "正在验证…", "哪个已保存令牌用于发布", "此工作区保存了多个", "令牌。请选择 Tovu 用于发布的令牌。", "仓库", "正在发布…", "完成后会立即在公共互联网上上线——没有草稿或审核步骤。", "此次发布的去向", "上方账户仅证明您有发布权限——这里明确说明此次发布的确切去向。", "基础路径", "无——从域名根目录提供服务", "凭据", "已发布："
+    "{count} 行", "不支持", "支持", "尚无 Dockerfile", "您编辑此 Dockerfile 时，其他人保存了不同版本——您下方的更改未保存。", "服务器上的当前内容为：", "它已在服务器上删除。", "您下方的编辑未受影响。请与上方当前内容比较，手动协调后再次保存。", "加载当前版本", "可在终端中使用", "可在任何静态主机上运行，包括免费主机。导出后不会保留任何动态内容。", "查看静态站点详情", "尚未连接", "需要主机才能运行——已计划配置提供商，但尚未连接。", "查看完整站点详情", "已设置", "路由", "成功", "失败", "写入到", "失败的路由", "失败的资源", "Tovu 会将每篇已发布文章、主页、产品和主题页面写入您指定的文件夹。", "复制导出命令", "将 <dir> 替换为要写入的文件夹。这是必填参数——没有默认值。", "覆盖输出文件夹中的现有文件", "默认关闭。除非选中此项，否则导出器拒绝写入非空文件夹——它绝不会悄悄删除未知文件。", "正在导出…", "正在检查…", "上线发布", "导出只是一个文件夹。选择发布位置，然后直接在这里发布。", "发布目标", "已连接", "需要保存多个令牌、重命名令牌，或在一处管理所有已保存凭据？", "创建访问令牌", "正在加载凭据…", "账户 ID", "验证", "正在验证…", "哪个已保存令牌用于发布", "此工作区保存了多个", "令牌。请选择 Tovu 用于发布的令牌。", "仓库", "正在发布…", "完成后会立即在公共互联网上上线——没有草稿或审核步骤。", "此次发布的去向", "上方账户仅证明您有发布权限——这里明确说明此次发布的确切去向。", "基础路径", "无——从域名根目录提供服务", "凭据", "已发布："
   ]),
   "zh-TW": auditTranslationEntries([
-    "{count} 行", "不支援", "支援", "尚無 Dockerfile", "您編輯此 Dockerfile 時，其他人儲存了不同版本——您下方的變更未儲存。", "伺服器上的目前內容為：", "它已在伺服器上刪除。", "您下方的編輯未受影響。請與上方目前內容比較，手動協調後再次儲存。", "載入目前版本", "可從終端機使用", "可在任何靜態主機上執行，包括免費主機。匯出後不會保留任何動態內容。", "檢視靜態網站詳細資料", "尚未連線", "需要主機才能執行——已規劃設定供應商，但尚未連線。", "檢視完整網站詳細資料", "已設定", "路由", "成功", "失敗", "寫入至", "失敗的路由", "失敗的資源", "Tovu 會將每篇已發佈文章、首頁、產品和佈景主題頁面寫入您指定的資料夾。", "複製匯出命令", "將 <dir> 替換為要寫入的資料夾。這是必要引數——沒有預設值。", "覆寫輸出資料夾中的現有檔案", "預設為關閉。除非勾選此項，否則匯出工具會拒絕寫入非空資料夾——它絕不會悄悄刪除未知檔案。", "正在匯出…", "正在檢查…", "上線發佈", "匯出只是一個資料夾。選擇發布位置，然後直接在這裡發布。", "發佈目標", "已連線", "需要儲存多個權杖、重新命名權杖，或在一處管理所有已儲存憑證嗎？", "建立存取權杖", "正在載入憑證…", "帳戶 ID", "連線身分", "驗證", "正在驗證…", "哪個已儲存權杖用於發佈", "此工作區儲存了多個", "權杖。請選擇 Tovu 用於發佈的權杖。", "儲存庫", "正在發佈…", "完成後會立即在公開網際網路上線——沒有草稿或審核步驟。", "此次發佈的去向", "上方帳戶僅證明您有發佈權限——這裡明確說明此次發佈的確切去向。", "基礎路徑", "無——從網域根目錄提供服務", "憑證", "已發佈："
+    "{count} 行", "不支援", "支援", "尚無 Dockerfile", "您編輯此 Dockerfile 時，其他人儲存了不同版本——您下方的變更未儲存。", "伺服器上的目前內容為：", "它已在伺服器上刪除。", "您下方的編輯未受影響。請與上方目前內容比較，手動協調後再次儲存。", "載入目前版本", "可從終端機使用", "可在任何靜態主機上執行，包括免費主機。匯出後不會保留任何動態內容。", "檢視靜態網站詳細資料", "尚未連線", "需要主機才能執行——已規劃設定供應商，但尚未連線。", "檢視完整網站詳細資料", "已設定", "路由", "成功", "失敗", "寫入至", "失敗的路由", "失敗的資源", "Tovu 會將每篇已發佈文章、首頁、產品和佈景主題頁面寫入您指定的資料夾。", "複製匯出命令", "將 <dir> 替換為要寫入的資料夾。這是必要引數——沒有預設值。", "覆寫輸出資料夾中的現有檔案", "預設為關閉。除非勾選此項，否則匯出工具會拒絕寫入非空資料夾——它絕不會悄悄刪除未知檔案。", "正在匯出…", "正在檢查…", "上線發佈", "匯出只是一個資料夾。選擇發布位置，然後直接在這裡發布。", "發佈目標", "已連線", "需要儲存多個權杖、重新命名權杖，或在一處管理所有已儲存憑證嗎？", "建立存取權杖", "正在載入憑證…", "帳戶 ID", "驗證", "正在驗證…", "哪個已儲存權杖用於發佈", "此工作區儲存了多個", "權杖。請選擇 Tovu 用於發佈的權杖。", "儲存庫", "正在發佈…", "完成後會立即在公開網際網路上線——沒有草稿或審核步驟。", "此次發佈的去向", "上方帳戶僅證明您有發佈權限——這裡明確說明此次發佈的確切去向。", "基礎路徑", "無——從網域根目錄提供服務", "憑證", "已發佈："
   ]),
   ja: auditTranslationEntries([
-    "{count} 行", "非対応", "対応", "Dockerfile はまだありません", "編集中に別のユーザーがこの Dockerfile の別バージョンを保存しました。下の変更は保存されていません。", "サーバー上の現在の内容:", "サーバー上で削除されました。", "下の編集内容はそのままです。上の現在の内容と比較して手動で調整し、もう一度保存してください。", "現在のバージョンを読み込む", "ターミナルから利用可能", "無料のものを含む任意の静的ホストで動作します。エクスポート後に動的な機能は残りません。", "静的サイトの詳細を見る", "まだ接続されていません", "実行するにはホストが必要です。プロバイダー設定は予定されていますが、まだ接続されていません。", "完全なサイトの詳細を見る", "設定済み", "ルート", "成功", "失敗", "書き込み先", "失敗したルート", "失敗したアセット", "Tovu は公開済みの各投稿、ホームページ、商品、テーマページを指定したフォルダーに書き出します。", "エクスポートコマンドをコピー", "<dir> を書き込み先フォルダーに置き換えてください。必須の引数で、既定値はありません。", "出力フォルダー内の既存ファイルを上書きする", "既定ではオフです。これを選択しない限り、エクスポーターは空でないフォルダーへの書き込みを拒否します。不明なファイルを黙って削除することはありません。", "エクスポート中…", "確認中…", "オンラインにする", "エクスポートはファイルのフォルダーにすぎません。公開先を選び、ここから直接公開します。", "公開先", "接続済み", "複数のトークンを保存、名前変更、または保存済み資格情報を一か所で管理しますか？", "アクセストークンを作成", "資格情報を読み込み中…", "アカウント ID", "接続先", "検証", "検証中…", "どの保存済みトークンで公開するか", "このワークスペースには複数の保存済み", "トークンがあります。Tovu が公開に使うものを選んでください。", "リポジトリ", "公開中…", "完了するとすぐに公開インターネット上で公開されます。下書きやレビューの手順はありません。", "この公開先", "上のアカウントは公開の権限を示すだけです。ここでは今回の公開先を正確に指定します。", "ベースパス", "なし — ドメインのルートから提供", "資格情報", "公開済み:"
+    "{count} 行", "非対応", "対応", "Dockerfile はまだありません", "編集中に別のユーザーがこの Dockerfile の別バージョンを保存しました。下の変更は保存されていません。", "サーバー上の現在の内容:", "サーバー上で削除されました。", "下の編集内容はそのままです。上の現在の内容と比較して手動で調整し、もう一度保存してください。", "現在のバージョンを読み込む", "ターミナルから利用可能", "無料のものを含む任意の静的ホストで動作します。エクスポート後に動的な機能は残りません。", "静的サイトの詳細を見る", "まだ接続されていません", "実行するにはホストが必要です。プロバイダー設定は予定されていますが、まだ接続されていません。", "完全なサイトの詳細を見る", "設定済み", "ルート", "成功", "失敗", "書き込み先", "失敗したルート", "失敗したアセット", "Tovu は公開済みの各投稿、ホームページ、商品、テーマページを指定したフォルダーに書き出します。", "エクスポートコマンドをコピー", "<dir> を書き込み先フォルダーに置き換えてください。必須の引数で、既定値はありません。", "出力フォルダー内の既存ファイルを上書きする", "既定ではオフです。これを選択しない限り、エクスポーターは空でないフォルダーへの書き込みを拒否します。不明なファイルを黙って削除することはありません。", "エクスポート中…", "確認中…", "オンラインにする", "エクスポートはファイルのフォルダーにすぎません。公開先を選び、ここから直接公開します。", "公開先", "接続済み", "複数のトークンを保存、名前変更、または保存済み資格情報を一か所で管理しますか？", "アクセストークンを作成", "資格情報を読み込み中…", "アカウント ID", "検証", "検証中…", "どの保存済みトークンで公開するか", "このワークスペースには複数の保存済み", "トークンがあります。Tovu が公開に使うものを選んでください。", "リポジトリ", "公開中…", "完了するとすぐに公開インターネット上で公開されます。下書きやレビューの手順はありません。", "この公開先", "上のアカウントは公開の権限を示すだけです。ここでは今回の公開先を正確に指定します。", "ベースパス", "なし — ドメインのルートから提供", "資格情報", "公開済み:"
   ]),
   ko: auditTranslationEntries([
-    "{count}줄", "지원되지 않음", "지원됨", "Dockerfile이 아직 없습니다", "편집하는 동안 다른 사용자가 이 Dockerfile의 다른 버전을 저장했습니다. 아래 변경 사항은 저장되지 않았습니다.", "서버의 현재 내용:", "서버에서 삭제되었습니다.", "아래의 편집 내용은 그대로입니다. 위의 현재 내용과 비교하여 수동으로 조정한 후 다시 저장하세요.", "현재 버전 불러오기", "터미널에서 사용 가능", "무료 호스트를 포함한 모든 정적 호스트에서 실행됩니다. 내보낸 뒤에는 동적 기능이 남지 않습니다.", "정적 사이트 세부 정보 보기", "아직 연결되지 않음", "실행하려면 호스트가 필요합니다. 제공업체 설정은 계획되어 있지만 아직 연결되지 않았습니다.", "전체 사이트 세부 정보 보기", "설정됨", "경로", "성공", "실패", "작성 위치", "실패한 경로", "실패한 자산", "Tovu는 게시된 모든 글, 홈 페이지, 제품 및 테마 페이지를 지정한 폴더에 씁니다.", "내보내기 명령 복사", "<dir>을 쓸 폴더로 바꾸세요. 필수 인수이며 기본값은 없습니다.", "출력 폴더의 기존 파일 덮어쓰기", "기본적으로 꺼져 있습니다. 이를 선택하지 않으면 내보내기가 비어 있지 않은 폴더에 쓰기를 거부하며, 알 수 없는 파일을 조용히 삭제하지 않습니다.", "내보내는 중…", "확인 중…", "온라인으로 게시", "내보내기는 파일 폴더일 뿐입니다. 게시할 곳을 고른 다음 여기서 바로 게시하세요.", "게시 대상", "연결됨", "토큰을 둘 이상 저장하거나 이름을 바꾸거나, 저장된 모든 자격 증명을 한 곳에서 관리해야 하나요?", "액세스 토큰 만들기", "자격 증명 불러오는 중…", "계정 ID", "다음으로 연결됨", "확인", "확인 중…", "어떤 저장된 토큰으로 게시할지", "이 작업 공간에는 저장된", "토큰이 둘 이상 있습니다. Tovu가 게시에 사용할 토큰을 선택하세요.", "리포지토리", "게시 중…", "완료되면 즉시 공개 인터넷에 게시됩니다. 초안이나 검토 단계는 없습니다.", "이번 게시의 대상", "위 계정은 게시 권한이 있음을 증명할 뿐입니다. 여기에서 이번 게시가 정확히 어디로 가는지 지정합니다.", "기본 경로", "없음 — 도메인 루트에서 제공", "자격 증명", "게시됨:"
+    "{count}줄", "지원되지 않음", "지원됨", "Dockerfile이 아직 없습니다", "편집하는 동안 다른 사용자가 이 Dockerfile의 다른 버전을 저장했습니다. 아래 변경 사항은 저장되지 않았습니다.", "서버의 현재 내용:", "서버에서 삭제되었습니다.", "아래의 편집 내용은 그대로입니다. 위의 현재 내용과 비교하여 수동으로 조정한 후 다시 저장하세요.", "현재 버전 불러오기", "터미널에서 사용 가능", "무료 호스트를 포함한 모든 정적 호스트에서 실행됩니다. 내보낸 뒤에는 동적 기능이 남지 않습니다.", "정적 사이트 세부 정보 보기", "아직 연결되지 않음", "실행하려면 호스트가 필요합니다. 제공업체 설정은 계획되어 있지만 아직 연결되지 않았습니다.", "전체 사이트 세부 정보 보기", "설정됨", "경로", "성공", "실패", "작성 위치", "실패한 경로", "실패한 자산", "Tovu는 게시된 모든 글, 홈 페이지, 제품 및 테마 페이지를 지정한 폴더에 씁니다.", "내보내기 명령 복사", "<dir>을 쓸 폴더로 바꾸세요. 필수 인수이며 기본값은 없습니다.", "출력 폴더의 기존 파일 덮어쓰기", "기본적으로 꺼져 있습니다. 이를 선택하지 않으면 내보내기가 비어 있지 않은 폴더에 쓰기를 거부하며, 알 수 없는 파일을 조용히 삭제하지 않습니다.", "내보내는 중…", "확인 중…", "온라인으로 게시", "내보내기는 파일 폴더일 뿐입니다. 게시할 곳을 고른 다음 여기서 바로 게시하세요.", "게시 대상", "연결됨", "토큰을 둘 이상 저장하거나 이름을 바꾸거나, 저장된 모든 자격 증명을 한 곳에서 관리해야 하나요?", "액세스 토큰 만들기", "자격 증명 불러오는 중…", "계정 ID", "확인", "확인 중…", "어떤 저장된 토큰으로 게시할지", "이 작업 공간에는 저장된", "토큰이 둘 이상 있습니다. Tovu가 게시에 사용할 토큰을 선택하세요.", "리포지토리", "게시 중…", "완료되면 즉시 공개 인터넷에 게시됩니다. 초안이나 검토 단계는 없습니다.", "이번 게시의 대상", "위 계정은 게시 권한이 있음을 증명할 뿐입니다. 여기에서 이번 게시가 정확히 어디로 가는지 지정합니다.", "기본 경로", "없음 — 도메인 루트에서 제공", "자격 증명", "게시됨:"
+  ]),
+  ru: auditTranslationEntries([
+    "{count} строк", "Не поддерживается", "Поддерживается", "Dockerfile пока нет", "Кто-то другой сохранил другую версию этого Dockerfile, пока вы его редактировали, — ваши изменения ниже НЕ сохранены.", "Текущее содержимое на сервере:", "Он был удалён на сервере.", "Ваши правки ниже не тронуты. Сравните их с текущим содержимым выше, согласуйте вручную и снова нажмите «Сохранить».", "Загрузить текущую версию", "Доступно из терминала", "Работает на любом статическом хостинге, включая бесплатные. Ничего динамического после экспорта не остаётся.", "Подробнее о статическом сайте", "Пока не подключено", "Нужен хостинг для запуска — настройка провайдера запланирована, но пока не подключена.", "Подробнее о полном сайте", "Задана", "Маршруты", "успешно", "с ошибкой", "Записано в", "Маршруты с ошибкой", "Ресурсы с ошибкой", "Tovu записывает каждую опубликованную запись, главную страницу, товары и страницы темы в указанную вами папку.", "Скопировать команду экспорта", "Замените <dir> папкой для записи. Это обязательный аргумент — значения по умолчанию нет.", "Перезаписывать существующие файлы в папке вывода", "По умолчанию выключено. Экспорт не пишет в непустую папку, если этот флажок не установлен, — и никогда молча не удаляет незнакомые файлы.", "Экспорт…", "Проверка…", "Публикация в интернете", "Экспорт — это просто папка с файлами. Выберите, куда она пойдёт, и публикуйте прямо отсюда.", "Куда публиковать", "Подключено", "Нужно сохранить несколько токенов, переименовать токен или управлять всеми сохранёнными учётными данными в одном месте?", "Создать токен доступа", "Загрузка учётных данных…", "ID аккаунта", "Проверить", "Проверка…", "Каким сохранённым токеном публиковать", "В этом рабочем пространстве несколько сохранённых токенов", "— выберите, каким из них Tovu публикует.", "Репозиторий", "Публикация…", "Сразу после завершения это будет доступно всем в интернете — черновика или проверки нет.", "Куда идёт эта публикация", "Аккаунт выше лишь подтверждает, что вам можно публиковать, — здесь указано, куда именно идёт эта публикация.", "Базовый путь", "Нет — с корня домена", "Учётные данные", "Опубликовано:"
+  ]),
+  fa: auditTranslationEntries([
+    "{count} خط", "پشتیبانی نمی‌شود", "پشتیبانی می‌شود", "هنوز Dockerfile وجود ندارد", "شخص دیگری هنگام ویرایش شما نسخهٔ دیگری از این Dockerfile را ذخیره کرد — تغییرات شما در پایین ذخیره نشدند.", "محتوای فعلی آن روی سرور:", "روی سرور حذف شد.", "ویرایش‌های شما در پایین دست‌نخورده‌اند. آن‌ها را با محتوای فعلی بالا مقایسه کنید، به‌صورت دستی هماهنگ کنید و دوباره ذخیره کنید.", "بارگیری نسخهٔ فعلی", "از طریق ترمینال در دسترس است", "روی هر میزبان ایستا، حتی رایگان، اجرا می‌شود. هیچ بخش پویایی پس از خروجی‌گیری باقی نمی‌ماند.", "مشاهدهٔ جزئیات سایت ایستا", "هنوز راه‌اندازی نشده", "برای اجرا به یک میزبان نیاز دارد — راه‌اندازی ارائه‌دهنده برنامه‌ریزی شده اما هنوز راه‌اندازی نشده است.", "مشاهدهٔ جزئیات سایت کامل", "تنظیم شده", "مسیرها", "موفق", "ناموفق", "نوشته شد در", "مسیرهای ناموفق", "فایل‌های ناموفق", "Tovu هر نوشتهٔ منتشرشده، صفحهٔ اصلی، محصولات و صفحه‌های پوسته را در پوشه‌ای که نام می‌برید می‌نویسد.", "کپی فرمان خروجی‌گیری", "به‌جای <dir> پوشهٔ مقصد را بنویسید. این آرگومان الزامی است — مقدار پیش‌فرض ندارد.", "بازنویسی فایل‌های موجود در پوشهٔ خروجی", "به‌طور پیش‌فرض خاموش است. تا این گزینه تیک نخورد، خروجی‌گیر در پوشهٔ غیرخالی نمی‌نویسد — و هرگز فایل‌های ناشناخته را بی‌صدا حذف نمی‌کند.", "در حال خروجی‌گیری…", "در حال بررسی…", "آنلاین کردن آن", "خروجی فقط یک پوشه از فایل‌هاست. مقصد را انتخاب کنید و مستقیم از همین‌جا منتشر کنید.", "مقصد انتشار", "متصل", "می‌خواهید بیش از یک توکن ذخیره کنید، نام یکی را عوض کنید یا همهٔ اعتبارنامه‌های ذخیره‌شده را یک‌جا مدیریت کنید؟", "ساخت توکن دسترسی", "در حال بارگیری اعتبارنامه‌ها…", "شناسهٔ حساب", "بررسی", "در حال بررسی…", "کدام توکن ذخیره‌شده منتشر می‌کند", "این فضای کاری بیش از یک توکن ذخیره‌شدهٔ", "دارد. انتخاب کنید Tovu با کدام منتشر کند.", "مخزن", "در حال انتشار…", "به‌محض پایان، این بلافاصله روی اینترنت عمومی در دسترس است — پیش‌نویس یا مرحلهٔ بازبینی ندارد.", "مقصد این انتشار", "حساب بالا فقط نشان می‌دهد که اجازهٔ انتشار دارید — این‌جا دقیقاً می‌گوید این انتشار کجا می‌رود.", "مسیر پایه", "هیچ — از ریشهٔ دامنه ارائه می‌شود", "اعتبارنامه", "منتشر شد:"
+  ]),
+  ar: auditTranslationEntries([
+    "{count} سطر", "غير مدعوم", "مدعوم", "لا يوجد Dockerfile بعد", "حفظ شخص آخر نسخة مختلفة من ملف Dockerfile هذا أثناء تحريرك — لم تُحفظ تغييراتك أدناه.", "محتواه الحالي على الخادم:", "حُذف على الخادم.", "تعديلاتك أدناه لم تُمس. قارنها بالمحتوى الحالي أعلاه، ووفّق بينها يدويًا، ثم احفظ مجددًا.", "تحميل النسخة الحالية", "متاح من الطرفية", "يعمل على أي استضافة ثابتة، بما فيها المجانية. لا يبقى أي محتوى ديناميكي بعد التصدير.", "عرض تفاصيل الموقع الثابت", "غير موصول بعد", "يحتاج إلى استضافة ليعمل — إعداد المزوّد مخطط له لكنه غير موصول بعد.", "عرض تفاصيل الموقع الكامل", "مُعيَّن", "المسارات", "نجحت", "فشلت", "كُتب في", "المسارات الفاشلة", "الملفات الفاشلة", "يكتب Tovu كل منشور منشور والصفحة الرئيسية والمنتجات وصفحات السمة في المجلد الذي تحدده.", "نسخ أمر التصدير", "استبدل <dir> بالمجلد الذي تريد الكتابة فيه. إنه وسيط مطلوب — لا توجد قيمة افتراضية.", "الكتابة فوق الملفات الموجودة في مجلد الإخراج", "مُعطّل افتراضيًا. يرفض المُصدِّر الكتابة في مجلد غير فارغ ما لم يُحدَّد هذا — ولا يحذف أبدًا ملفات غير معروفة بصمت.", "جارٍ التصدير…", "جارٍ التحقق…", "نشره على الإنترنت", "التصدير مجرد مجلد من الملفات. اختر وجهته ثم انشر مباشرة من هنا.", "وجهة النشر", "متصل", "هل تحتاج إلى حفظ أكثر من رمز، أو إعادة تسمية أحدها، أو إدارة كل بيانات الاعتماد المحفوظة في مكان واحد؟", "إنشاء رمز وصول", "جارٍ تحميل بيانات الاعتماد…", "معرّف الحساب", "تحقق", "جارٍ التحقق…", "أي رمز محفوظ ينشر", "تحتوي مساحة العمل هذه على أكثر من رمز محفوظ لـ", "— اختر الرمز الذي ينشر به Tovu.", "المستودع", "جارٍ النشر…", "سيصبح هذا متاحًا فورًا على الإنترنت العام بمجرد انتهائه — لا توجد مسودة ولا خطوة مراجعة.", "وجهة هذا النشر", "الحساب أعلاه يثبت فقط أنه مسموح لك بالنشر — وهنا تحديد وجهة هذا النشر بالضبط.", "المسار الأساسي", "لا شيء — يُقدَّم من جذر النطاق", "بيانات الاعتماد", "نُشر:"
+  ]),
+  pl: auditTranslationEntries([
+    "{count} wierszy", "Nieobsługiwane", "Obsługiwane", "Brak pliku Dockerfile", "Ktoś inny zapisał inną wersję tego pliku Dockerfile, gdy go edytowałeś — Twoje zmiany poniżej NIE zostały zapisane.", "Jego obecna zawartość na serwerze:", "Został usunięty na serwerze.", "Twoje zmiany poniżej są nietknięte. Porównaj je z obecną zawartością powyżej, uzgodnij ręcznie i zapisz ponownie.", "Wczytaj obecną wersję", "Dostępne z terminala", "Działa na każdym hostingu statycznym, także darmowym. Nic dynamicznego nie przetrwa eksportu.", "Zobacz szczegóły strony statycznej", "Jeszcze niepodłączone", "Wymaga hostingu — konfiguracja dostawcy jest planowana, ale jeszcze niepodłączona.", "Zobacz szczegóły pełnej strony", "Ustawiona", "Trasy", "udane", "nieudane", "Zapisano w", "Nieudane trasy", "Nieudane zasoby", "Tovu zapisuje każdy opublikowany wpis, stronę główną, produkty i strony motywu w folderze, który wskażesz.", "Kopiuj polecenie eksportu", "Zastąp <dir> folderem docelowym. To wymagany argument — nie ma wartości domyślnej.", "Nadpisz istniejące pliki w folderze wyjściowym", "Domyślnie wyłączone. Eksport nie zapisze do niepustego folderu, dopóki tego nie zaznaczysz — i nigdy po cichu nie usuwa nieznanych plików.", "Eksportowanie…", "Sprawdzanie…", "Publikacja w sieci", "Eksport to po prostu folder z plikami. Wybierz, gdzie trafi, i publikuj prosto stąd.", "Cel publikacji", "Połączono", "Chcesz zapisać więcej niż jeden token, zmienić nazwę tokena lub zarządzać wszystkimi zapisanymi danymi logowania w jednym miejscu?", "Utwórz token dostępu", "Wczytywanie danych logowania…", "ID konta", "Sprawdź", "Sprawdzanie…", "Którym zapisanym tokenem publikować", "Ten obszar roboczy ma więcej niż jeden zapisany token", "— wybierz, którym Tovu ma publikować.", "Repozytorium", "Publikowanie…", "Po zakończeniu będzie to od razu publicznie dostępne w internecie — nie ma wersji roboczej ani przeglądu.", "Dokąd trafia ta publikacja", "Konto powyżej potwierdza tylko, że możesz publikować — tu widać, dokąd dokładnie trafia ta publikacja.", "Ścieżka bazowa", "Brak — serwowane z katalogu głównego domeny", "Dane logowania", "Opublikowano:"
+  ]),
+  hu: auditTranslationEntries([
+    "{count} sor", "Nem támogatott", "Támogatott", "Még nincs Dockerfile", "Valaki más elmentette a Dockerfile egy másik változatát, miközben szerkesztette — az alábbi módosításai NEM lettek mentve.", "A jelenlegi tartalma a szerveren:", "A szerveren törölték.", "Az alábbi módosításai érintetlenek. Vesse össze őket a fenti jelenlegi tartalommal, egyeztesse kézzel, majd mentse újra.", "A jelenlegi változat betöltése", "Terminálból érhető el", "Bármilyen statikus tárhelyen fut, az ingyeneseken is. Semmi dinamikus nem éli túl az exportot.", "A statikus oldal részletei", "Még nincs bekötve", "Futtatáshoz tárhely kell — a szolgáltató beállítása tervben van, de még nincs bekötve.", "A teljes oldal részletei", "Beállítva", "Útvonalak", "sikeres", "sikertelen", "Ide írva", "Sikertelen útvonalak", "Sikertelen fájlok", "A Tovu minden közzétett bejegyzést, a kezdőlapot, a termékeket és a téma oldalait a megadott mappába írja.", "Az exportparancs másolása", "Cserélje a <dir> részt a célmappára. Kötelező argumentum — nincs alapértéke.", "A kimeneti mappában lévő fájlok felülírása", "Alapból ki van kapcsolva. Az exportáló nem ír nem üres mappába, amíg ezt be nem jelöli — és ismeretlen fájlokat soha nem töröl csendben.", "Exportálás…", "Ellenőrzés…", "Közzététel az interneten", "Az export csak egy mappa fájlokkal. Válassza ki, hová kerüljön, és tegye közzé innen.", "Közzététel célja", "Csatlakoztatva", "Több tokent mentene, átnevezne egyet, vagy minden mentett hitelesítő adatot egy helyen kezelne?", "Hozzáférési token létrehozása", "Hitelesítő adatok betöltése…", "Fiókazonosító", "Ellenőrzés", "Ellenőrzés…", "Melyik mentett token tesz közzé", "Ebben a munkaterületben több mentett", "token van. Válassza ki, melyikkel tegyen közzé a Tovu.", "Tároló", "Közzététel…", "Amint elkészül, azonnal elérhető a nyilvános interneten — nincs piszkozat vagy ellenőrzési lépés.", "Hová kerül ez a közzététel", "A fenti fiók csak azt igazolja, hogy közzétehet — ez pontosan megmondja, hová kerül ez a közzététel.", "Alapútvonal", "Nincs — a domain gyökeréből szolgálja ki", "Hitelesítő adat", "Közzétéve:"
+  ]),
+  uk: auditTranslationEntries([
+    "{count} рядків", "Не підтримується", "Підтримується", "Dockerfile ще немає", "Хтось інший зберіг іншу версію цього Dockerfile, поки ви його редагували, — ваші зміни нижче НЕ збережено.", "Його поточний вміст на сервері:", "Його видалено на сервері.", "Ваші правки нижче не змінено. Порівняйте їх із поточним вмістом вище, узгодьте вручну й знову збережіть.", "Завантажити поточну версію", "Доступно з термінала", "Працює на будь-якому статичному хостингу, зокрема безкоштовному. Нічого динамічного після експорту не лишається.", "Докладніше про статичний сайт", "Ще не підключено", "Потрібен хостинг для запуску — налаштування постачальника заплановано, але ще не підключено.", "Докладніше про повний сайт", "Задано", "Маршрути", "успішно", "з помилкою", "Записано в", "Маршрути з помилкою", "Ресурси з помилкою", "Tovu записує кожен опублікований допис, головну сторінку, товари та сторінки теми у вказану вами теку.", "Копіювати команду експорту", "Замініть <dir> текою для запису. Це обов’язковий аргумент — типового значення немає.", "Перезаписувати наявні файли в теці виводу", "Типово вимкнено. Експорт не пише в непорожню теку, доки це не позначено, — і ніколи мовчки не видаляє невідомі файли.", "Експорт…", "Перевірка…", "Публікація в інтернеті", "Експорт — це просто тека з файлами. Виберіть, куди її розмістити, і публікуйте просто звідси.", "Куди публікувати", "Підключено", "Потрібно зберегти кілька токенів, перейменувати токен або керувати всіма збереженими обліковими даними в одному місці?", "Створити токен доступу", "Завантаження облікових даних…", "ID облікового запису", "Перевірити", "Перевірка…", "Яким збереженим токеном публікувати", "У цьому робочому просторі кілька збережених токенів", "— виберіть, яким із них Tovu публікує.", "Репозиторій", "Публікація…", "Щойно завершиться, це одразу стане доступним у публічному інтернеті — чернетки чи перевірки немає.", "Куди йде ця публікація", "Обліковий запис вище лише підтверджує, що вам можна публікувати, — тут указано, куди саме йде ця публікація.", "Базовий шлях", "Немає — з кореня домену", "Облікові дані", "Опубліковано:"
+  ]),
+  tr: auditTranslationEntries([
+    "{count} satır", "Desteklenmiyor", "Destekleniyor", "Henüz Dockerfile yok", "Siz düzenlerken başka biri bu Dockerfile'ın farklı bir sürümünü kaydetti — aşağıdaki değişiklikleriniz KAYDEDİLMEDİ.", "Sunucudaki mevcut içeriği:", "Sunucuda silindi.", "Aşağıdaki düzenlemeleriniz değişmedi. Yukarıdaki mevcut içerikle karşılaştırın, elle uzlaştırın ve yeniden kaydedin.", "Mevcut sürümü yükle", "Terminalden kullanılabilir", "Ücretsizler dahil her statik barındırıcıda çalışır. Dışa aktarmada dinamik hiçbir şey kalmaz.", "Statik Site ayrıntılarını gör", "Henüz bağlanmadı", "Çalışmak için bir barındırıcı gerekir — sağlayıcı kurulumu planlandı ama henüz bağlanmadı.", "Tam Site ayrıntılarını gör", "Ayarlı", "Yollar", "başarılı", "başarısız", "Yazıldığı yer", "Başarısız yollar", "Başarısız dosyalar", "Tovu yayımlanan her gönderiyi, ana sayfayı, ürünleri ve tema sayfalarını belirttiğiniz klasöre yazar.", "Dışa aktarma komutunu kopyala", "<dir> yerine yazılacak klasörü koyun. Zorunlu bir argümandır — varsayılanı yoktur.", "Çıktı klasöründeki mevcut dosyaların üzerine yaz", "Varsayılan olarak kapalı. Bu işaretlenmedikçe dışa aktarıcı boş olmayan bir klasöre yazmaz — bilinmeyen dosyaları asla sessizce silmez.", "Dışa aktarılıyor…", "Denetleniyor…", "Çevrimiçi yayımlama", "Dışa aktarma yalnızca bir dosya klasörüdür. Nereye gideceğini seçin, sonra doğrudan buradan yayımlayın.", "Yayın hedefi", "Bağlı", "Birden fazla token kaydetmeniz, birini yeniden adlandırmanız veya tüm kayıtlı kimlik bilgilerini tek yerden yönetmeniz mi gerekiyor?", "Erişim tokenı oluştur", "Kimlik bilgileri yükleniyor…", "Hesap kimliği", "Doğrula", "Doğrulanıyor…", "Hangi kayıtlı token yayımlar", "Bu çalışma alanında birden fazla kayıtlı", "tokenı var. Tovu'nun hangisiyle yayımlayacağını seçin.", "Depo", "Yayımlanıyor…", "Bitince hemen herkese açık internette yayında olur — taslak veya inceleme adımı yoktur.", "Bu yayın nereye gidiyor", "Yukarıdaki hesap yalnızca yayımlama izniniz olduğunu gösterir — burası bu yayının tam olarak nereye gittiğini söyler.", "Temel yol", "Yok — alan adının kökünden sunulur", "Kimlik bilgisi", "Yayımlandı:"
+  ]),
+  th: auditTranslationEntries([
+    "{count} บรรทัด", "ไม่รองรับ", "รองรับ", "ยังไม่มี Dockerfile", "มีคนอื่นบันทึก Dockerfile นี้เวอร์ชันอื่นระหว่างที่คุณแก้ไข — การเปลี่ยนแปลงของคุณด้านล่างยังไม่ได้บันทึก", "เนื้อหาปัจจุบันบนเซิร์ฟเวอร์คือ:", "ถูกลบบนเซิร์ฟเวอร์แล้ว", "การแก้ไขของคุณด้านล่างยังอยู่ครบ เทียบกับเนื้อหาปัจจุบันด้านบน ปรับให้ตรงกันด้วยตนเอง แล้วบันทึกอีกครั้ง", "โหลดเวอร์ชันปัจจุบัน", "ใช้ได้จากเทอร์มินัล", "ทำงานบนโฮสต์แบบสแตติกใดก็ได้ รวมถึงแบบฟรี ส่วนที่เป็นไดนามิกจะไม่อยู่หลังส่งออก", "ดูรายละเอียดเว็บไซต์สแตติก", "ยังไม่ได้เชื่อมต่อ", "ต้องมีโฮสต์เพื่อรัน — การตั้งค่าผู้ให้บริการอยู่ในแผน แต่ยังไม่ได้เชื่อมต่อ", "ดูรายละเอียดเว็บไซต์เต็มรูปแบบ", "ตั้งค่าแล้ว", "เส้นทาง", "สำเร็จ", "ล้มเหลว", "เขียนไปที่", "เส้นทางที่ล้มเหลว", "ไฟล์ที่ล้มเหลว", "Tovu เขียนโพสต์ที่เผยแพร่ทุกโพสต์ หน้าแรก สินค้า และหน้าของธีมลงในโฟลเดอร์ที่คุณระบุ", "คัดลอกคำสั่งส่งออก", "แทนที่ <dir> ด้วยโฟลเดอร์ที่จะเขียนลงไป เป็นอาร์กิวเมนต์ที่จำเป็น — ไม่มีค่าเริ่มต้น", "เขียนทับไฟล์ที่มีอยู่ในโฟลเดอร์ผลลัพธ์", "ปิดไว้โดยค่าเริ่มต้น ตัวส่งออกจะไม่เขียนลงโฟลเดอร์ที่ไม่ว่างจนกว่าจะเลือกตัวเลือกนี้ — และไม่ลบไฟล์ที่ไม่รู้จักแบบเงียบ ๆ", "กำลังส่งออก…", "กำลังตรวจสอบ…", "นำขึ้นออนไลน์", "การส่งออกเป็นเพียงโฟลเดอร์ไฟล์ เลือกปลายทาง แล้วเผยแพร่จากที่นี่ได้เลย", "ปลายทางการเผยแพร่", "เชื่อมต่อแล้ว", "ต้องการบันทึกโทเค็นมากกว่าหนึ่งรายการ เปลี่ยนชื่อ หรือจัดการข้อมูลรับรองที่บันทึกไว้ทั้งหมดในที่เดียวหรือไม่", "สร้างโทเค็นการเข้าถึง", "กำลังโหลดข้อมูลรับรอง…", "รหัสบัญชี", "ตรวจสอบ", "กำลังตรวจสอบ…", "โทเค็นที่บันทึกไว้ตัวใดใช้เผยแพร่", "พื้นที่ทำงานนี้มีโทเค็น", "ที่บันทึกไว้มากกว่าหนึ่งรายการ เลือกว่าจะให้ Tovu เผยแพร่ด้วยรายการใด", "ที่เก็บ", "กำลังเผยแพร่…", "เมื่อเสร็จจะออนไลน์บนอินเทอร์เน็ตสาธารณะทันที — ไม่มีฉบับร่างหรือขั้นตอนตรวจทาน", "การเผยแพร่นี้ไปที่ไหน", "บัญชีด้านบนแค่ยืนยันว่าคุณเผยแพร่ได้ — ส่วนนี้บอกว่าการเผยแพร่นี้ไปที่ใดแน่ชัด", "พาธฐาน", "ไม่มี — ให้บริการจากรากของโดเมน", "ข้อมูลรับรอง", "เผยแพร่แล้ว:"
+  ]),
+  hi: auditTranslationEntries([
+    "{count} पंक्तियाँ", "समर्थित नहीं", "समर्थित", "अभी कोई Dockerfile नहीं", "आपके संपादन के दौरान किसी और ने इस Dockerfile का अलग संस्करण सहेज दिया — नीचे आपके बदलाव सहेजे नहीं गए।", "सर्वर पर इसकी मौजूदा सामग्री:", "इसे सर्वर पर हटा दिया गया।", "नीचे आपके संपादन जस के तस हैं। ऊपर की मौजूदा सामग्री से तुलना करें, हाथ से मिलाएँ, फिर दोबारा सहेजें।", "मौजूदा संस्करण लोड करें", "टर्मिनल से उपलब्ध", "किसी भी स्टैटिक होस्ट पर चलता है, मुफ़्त वाले भी। एक्सपोर्ट में कुछ भी डायनेमिक नहीं बचता।", "स्टैटिक साइट का विवरण देखें", "अभी जुड़ा नहीं", "चलाने के लिए होस्ट चाहिए — प्रदाता सेटअप योजना में है, पर अभी जुड़ा नहीं।", "फ़ुल साइट का विवरण देखें", "सेट है", "रूट", "सफल", "विफल", "यहाँ लिखा गया", "विफल रूट", "विफल एसेट", "Tovu हर प्रकाशित पोस्ट, होम पेज, उत्पाद और थीम पेज आपके बताए फ़ोल्डर में लिखता है।", "एक्सपोर्ट कमांड कॉपी करें", "<dir> की जगह वह फ़ोल्डर लिखें जिसमें लिखना है। यह ज़रूरी आर्ग्युमेंट है — कोई डिफ़ॉल्ट नहीं है।", "आउटपुट फ़ोल्डर की मौजूदा फ़ाइलें अधिलेखित करें", "डिफ़ॉल्ट रूप से बंद। जब तक यह चुना न जाए, एक्सपोर्टर खाली न होने वाले फ़ोल्डर में नहीं लिखता — और अनजानी फ़ाइलें चुपचाप कभी नहीं हटाता।", "एक्सपोर्ट हो रहा है…", "जाँच हो रही है…", "इसे ऑनलाइन लाना", "एक्सपोर्ट बस फ़ाइलों का एक फ़ोल्डर है। चुनें कि यह कहाँ जाए, फिर यहीं से प्रकाशित करें।", "प्रकाशन लक्ष्य", "जुड़ा हुआ", "एक से ज़्यादा टोकन सहेजने, किसी का नाम बदलने या सभी सहेजे गए क्रेडेंशियल एक जगह संभालने की ज़रूरत है?", "एक्सेस टोकन बनाएँ", "क्रेडेंशियल लोड हो रहे हैं…", "खाता ID", "सत्यापित करें", "सत्यापित हो रहा है…", "कौन-सा सहेजा गया टोकन प्रकाशित करता है", "इस वर्कस्पेस में एक से ज़्यादा सहेजे गए", "टोकन हैं। चुनें कि Tovu किससे प्रकाशित करे।", "रिपॉज़िटरी", "प्रकाशित हो रहा है…", "पूरा होते ही यह तुरंत सार्वजनिक इंटरनेट पर लाइव हो जाता है — कोई ड्राफ़्ट या समीक्षा चरण नहीं है।", "यह प्रकाशन कहाँ जाता है", "ऊपर का खाता सिर्फ़ यह साबित करता है कि आप प्रकाशित कर सकते हैं — यह बताता है कि यह प्रकाशन ठीक कहाँ जाता है।", "बेस पाथ", "कोई नहीं — डोमेन रूट से परोसा जाता है", "क्रेडेंशियल", "प्रकाशित:"
+  ]),
+  ur: auditTranslationEntries([
+    "{count} سطریں", "معاون نہیں", "معاون", "ابھی کوئی Dockerfile نہیں", "آپ کی ترمیم کے دوران کسی اور نے اس Dockerfile کا مختلف ورژن محفوظ کر دیا — نیچے آپ کی تبدیلیاں محفوظ نہیں ہوئیں۔", "سرور پر اس کا موجودہ مواد:", "اسے سرور پر حذف کر دیا گیا۔", "نیچے آپ کی ترامیم جوں کی توں ہیں۔ اوپر کے موجودہ مواد سے موازنہ کریں، ہاتھ سے ملائیں، پھر دوبارہ محفوظ کریں۔", "موجودہ ورژن لوڈ کریں", "ٹرمینل سے دستیاب", "کسی بھی اسٹیٹک ہوسٹ پر چلتا ہے، مفت والوں پر بھی۔ ایکسپورٹ میں کچھ بھی ڈائنامک باقی نہیں رہتا۔", "اسٹیٹک سائٹ کی تفصیلات دیکھیں", "ابھی منسلک نہیں", "چلانے کے لیے ہوسٹ درکار ہے — فراہم کنندہ کا سیٹ اپ منصوبے میں ہے مگر ابھی منسلک نہیں۔", "مکمل سائٹ کی تفصیلات دیکھیں", "سیٹ ہے", "راستے", "کامیاب", "ناکام", "یہاں لکھا گیا", "ناکام راستے", "ناکام فائلیں", "Tovu ہر شائع شدہ پوسٹ، ہوم پیج، مصنوعات اور تھیم کے صفحات آپ کے بتائے فولڈر میں لکھتا ہے۔", "ایکسپورٹ کمانڈ کاپی کریں", "<dir> کی جگہ وہ فولڈر لکھیں جس میں لکھنا ہے۔ یہ لازمی آرگیومنٹ ہے — کوئی ڈیفالٹ نہیں۔", "آؤٹ پٹ فولڈر کی موجودہ فائلیں اوور رائٹ کریں", "ڈیفالٹ طور پر بند۔ جب تک یہ منتخب نہ ہو، ایکسپورٹر غیر خالی فولڈر میں نہیں لکھتا — اور نامعلوم فائلیں کبھی خاموشی سے حذف نہیں کرتا۔", "ایکسپورٹ ہو رہا ہے…", "جانچ ہو رہی ہے…", "اسے آن لائن لانا", "ایکسپورٹ بس فائلوں کا ایک فولڈر ہے۔ منتخب کریں کہ یہ کہاں جائے، پھر یہیں سے شائع کریں۔", "اشاعت کی منزل", "منسلک", "ایک سے زیادہ ٹوکن محفوظ کرنے، کسی کا نام بدلنے یا تمام محفوظ اسناد ایک جگہ سنبھالنے کی ضرورت ہے؟", "رسائی ٹوکن بنائیں", "اسناد لوڈ ہو رہی ہیں…", "اکاؤنٹ ID", "تصدیق کریں", "تصدیق ہو رہی ہے…", "کون سا محفوظ ٹوکن شائع کرتا ہے", "اس ورک اسپیس میں ایک سے زیادہ محفوظ", "ٹوکن ہیں۔ منتخب کریں کہ Tovu کس سے شائع کرے۔", "ریپوزٹری", "شائع ہو رہا ہے…", "ختم ہوتے ہی یہ فوراً عوامی انٹرنیٹ پر لائیو ہو جاتا ہے — کوئی مسودہ یا جائزے کا مرحلہ نہیں۔", "یہ اشاعت کہاں جاتی ہے", "اوپر والا اکاؤنٹ صرف یہ ثابت کرتا ہے کہ آپ شائع کر سکتے ہیں — یہ بتاتا ہے کہ یہ اشاعت ٹھیک کہاں جاتی ہے۔", "بیس پاتھ", "کوئی نہیں — ڈومین روٹ سے پیش کیا جاتا ہے", "سند", "شائع ہوا:"
+  ]),
+  bn: auditTranslationEntries([
+    "{count} লাইন", "সমর্থিত নয়", "সমর্থিত", "এখনো কোনো Dockerfile নেই", "আপনি সম্পাদনা করার সময় অন্য কেউ এই Dockerfile-এর আলাদা সংস্করণ সংরক্ষণ করেছেন — নিচে আপনার পরিবর্তনগুলো সংরক্ষিত হয়নি।", "সার্ভারে এর বর্তমান বিষয়বস্তু:", "এটি সার্ভারে মুছে ফেলা হয়েছে।", "নিচে আপনার সম্পাদনা অক্ষত আছে। উপরের বর্তমান বিষয়বস্তুর সঙ্গে মিলিয়ে দেখুন, হাতে মিলিয়ে নিন, তারপর আবার সংরক্ষণ করুন।", "বর্তমান সংস্করণ লোড করুন", "টার্মিনাল থেকে পাওয়া যায়", "যেকোনো স্ট্যাটিক হোস্টে চলে, ফ্রিগুলোতেও। এক্সপোর্টের পর ডায়নামিক কিছুই থাকে না।", "স্ট্যাটিক সাইটের বিস্তারিত দেখুন", "এখনো যুক্ত হয়নি", "চালাতে একটি হোস্ট লাগে — প্রদানকারীর সেটআপ পরিকল্পনায় আছে, তবে এখনো যুক্ত হয়নি।", "ফুল সাইটের বিস্তারিত দেখুন", "সেট করা", "রুট", "সফল", "ব্যর্থ", "লেখা হয়েছে", "ব্যর্থ রুট", "ব্যর্থ অ্যাসেট", "Tovu প্রতিটি প্রকাশিত পোস্ট, হোম পেজ, পণ্য ও থিম পেজ আপনার বলা ফোল্ডারে লেখে।", "এক্সপোর্ট কমান্ড কপি করুন", "<dir>-এর জায়গায় যে ফোল্ডারে লিখবেন সেটি দিন। এটি আবশ্যক আর্গুমেন্ট — কোনো ডিফল্ট নেই।", "আউটপুট ফোল্ডারের বিদ্যমান ফাইল ওভাররাইট করুন", "ডিফল্টভাবে বন্ধ। এটি চেক না করলে এক্সপোর্টার খালি নয় এমন ফোল্ডারে লেখে না — এবং অজানা ফাইল কখনো নীরবে মোছে না।", "এক্সপোর্ট হচ্ছে…", "যাচাই হচ্ছে…", "অনলাইনে আনা", "এক্সপোর্ট কেবল ফাইলের একটি ফোল্ডার। কোথায় যাবে বেছে নিন, তারপর এখান থেকেই প্রকাশ করুন।", "প্রকাশের গন্তব্য", "সংযুক্ত", "একাধিক টোকেন সংরক্ষণ, কোনোটির নাম বদলানো বা সব সংরক্ষিত ক্রেডেনশিয়াল এক জায়গায় পরিচালনা করতে চান?", "অ্যাক্সেস টোকেন তৈরি করুন", "ক্রেডেনশিয়াল লোড হচ্ছে…", "অ্যাকাউন্ট ID", "যাচাই করুন", "যাচাই হচ্ছে…", "কোন সংরক্ষিত টোকেন দিয়ে প্রকাশ হবে", "এই ওয়ার্কস্পেসে একাধিক সংরক্ষিত", "টোকেন আছে। Tovu কোনটি দিয়ে প্রকাশ করবে বেছে নিন।", "রিপোজিটরি", "প্রকাশ হচ্ছে…", "শেষ হওয়া মাত্র এটি সর্বজনীন ইন্টারনেটে লাইভ হয় — কোনো খসড়া বা পর্যালোচনার ধাপ নেই।", "এই প্রকাশ কোথায় যায়", "উপরের অ্যাকাউন্ট শুধু প্রমাণ করে যে আপনি প্রকাশ করতে পারেন — এটি বলে দেয় এই প্রকাশ ঠিক কোথায় যায়।", "বেস পাথ", "কিছু না — ডোমেইনের রুট থেকে পরিবেশিত", "ক্রেডেনশিয়াল", "প্রকাশিত:"
   ]),
 };
 
@@ -1694,7 +1725,6 @@ const DEPLOYMENT_CANDIDATE_GAP_STRINGS: Record<string, string> = {
   "Checkout & orders": "Checkout & orders",
   "Admin panel, online": "Admin panel, online",
   "AI assistant": "AI assistant",
-  "Project name": "Project name",
   "Not started": "Not started",
   "Export failed": "Export failed",
   "Finished with failures": "Finished with failures",
@@ -1703,7 +1733,6 @@ const DEPLOYMENT_CANDIDATE_GAP_STRINGS: Record<string, string> = {
   "This workspace can't use your computer's terminal — connecting here is the only way to publish.": "This workspace can't use your computer's terminal — connecting here is the only way to publish.",
   "Save your {credential} so Tovu can publish on your behalf.": "Save your {credential} so Tovu can publish on your behalf.",
   "(optional)": "(optional)",
-  "The host finds or creates a project with this name on every publish.": "The host finds or creates a project with this name on every publish.",
 };
 
 function candidateGapTranslationEntries(entries: readonly string[]): Record<string, string> {
@@ -1717,68 +1746,410 @@ function candidateGapTranslationEntries(entries: readonly string[]): Record<stri
 const DEPLOYMENT_CANDIDATE_GAP_TRANSLATIONS: Record<string, Record<string, string>> = {
   en: DEPLOYMENT_CANDIDATE_GAP_STRINGS,
   es: candidateGapTranslationEntries([
-    "Esta conexión ya se guardó; recarga la página e inténtalo de nuevo.", "Error desconocido", "Páginas, publicaciones y productos", "Pago y pedidos", "Panel de administración, en línea", "Asistente de IA", "Nombre del proyecto", "Sin iniciar", "La exportación falló", "Terminó con errores", "La exportación terminó", "La publicación falló", "Este espacio de trabajo no puede usar el terminal de tu computadora; conectarte aquí es la única forma de publicar.", "Guarda tu {credential} para que Tovu pueda publicar en tu nombre.", "(opcional)", "El host busca o crea un proyecto con este nombre en cada publicación."
+    "Esta conexión ya se guardó; recarga la página e inténtalo de nuevo.", "Error desconocido", "Páginas, publicaciones y productos", "Pago y pedidos", "Panel de administración, en línea", "Asistente de IA", "Sin iniciar", "La exportación falló", "Terminó con errores", "La exportación terminó", "La publicación falló", "Este espacio de trabajo no puede usar el terminal de tu computadora; conectarte aquí es la única forma de publicar.", "Guarda tu {credential} para que Tovu pueda publicar en tu nombre.", "(opcional)"
   ]),
   id: candidateGapTranslationEntries([
-    "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.", "Kesalahan tidak diketahui", "Halaman, pos & produk", "Checkout & pesanan", "Panel admin, online", "Asisten AI", "Nama proyek", "Belum dimulai", "Ekspor gagal", "Selesai dengan kegagalan", "Ekspor selesai", "Publikasi gagal", "Ruang kerja ini tidak dapat menggunakan terminal komputer Anda — menghubungkan di sini adalah satu-satunya cara untuk menerbitkan.", "Simpan {credential} Anda agar Tovu dapat memublikasikan atas nama Anda.", "(opsional)", "Host mencari atau membuat proyek dengan nama ini setiap kali memublikasikan."
+    "Koneksi ini sudah disimpan — muat ulang halaman dan coba lagi.", "Kesalahan tidak diketahui", "Halaman, pos & produk", "Checkout & pesanan", "Panel admin, online", "Asisten AI", "Belum dimulai", "Ekspor gagal", "Selesai dengan kegagalan", "Ekspor selesai", "Publikasi gagal", "Ruang kerja ini tidak dapat menggunakan terminal komputer Anda — menghubungkan di sini adalah satu-satunya cara untuk menerbitkan.", "Simpan {credential} Anda agar Tovu dapat memublikasikan atas nama Anda.", "(opsional)"
   ]),
   de: candidateGapTranslationEntries([
-    "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.", "Unbekannter Fehler", "Seiten, Beiträge und Produkte", "Checkout und Bestellungen", "Admin-Bereich, online", "KI-Assistent", "Projektname", "Nicht gestartet", "Export fehlgeschlagen", "Mit Fehlern beendet", "Export abgeschlossen", "Veröffentlichung fehlgeschlagen", "Dieser Arbeitsbereich kann das Terminal Ihres Computers nicht verwenden — die Verbindung hier ist die einzige Möglichkeit zu veröffentlichen.", "Speichern Sie die Zugangsdaten ({credential}), damit Tovu in Ihrem Namen veröffentlichen kann.", "(optional)", "Der Host sucht oder erstellt bei jeder Veröffentlichung ein Projekt mit diesem Namen."
+    "Diese Verbindung wurde bereits gespeichert — laden Sie die Seite neu und versuchen Sie es erneut.", "Unbekannter Fehler", "Seiten, Beiträge und Produkte", "Checkout und Bestellungen", "Admin-Bereich, online", "KI-Assistent", "Nicht gestartet", "Export fehlgeschlagen", "Mit Fehlern beendet", "Export abgeschlossen", "Veröffentlichung fehlgeschlagen", "Dieser Arbeitsbereich kann das Terminal Ihres Computers nicht verwenden — die Verbindung hier ist die einzige Möglichkeit zu veröffentlichen.", "Speichern Sie die Zugangsdaten ({credential}), damit Tovu in Ihrem Namen veröffentlichen kann.", "(optional)"
   ]),
   fr: candidateGapTranslationEntries([
-    "Cette connexion est déjà enregistrée — rechargez la page et réessayez.", "Erreur inconnue", "Pages, publications et produits", "Paiement et commandes", "Panneau d’administration, en ligne", "Assistant IA", "Nom du projet", "Non démarré", "Échec de l’exportation", "Terminé avec des échecs", "Exportation terminée", "Échec de la publication", "Cet espace de travail ne peut pas utiliser le terminal de votre ordinateur — vous connecter ici est la seule façon de publier.", "Enregistrez vos identifiants ({credential}) pour que Tovu puisse publier en votre nom.", "(facultatif)", "L’hébergeur trouve ou crée un projet portant ce nom à chaque publication."
+    "Cette connexion est déjà enregistrée — rechargez la page et réessayez.", "Erreur inconnue", "Pages, publications et produits", "Paiement et commandes", "Panneau d’administration, en ligne", "Assistant IA", "Non démarré", "Échec de l’exportation", "Terminé avec des échecs", "Exportation terminée", "Échec de la publication", "Cet espace de travail ne peut pas utiliser le terminal de votre ordinateur — vous connecter ici est la seule façon de publier.", "Enregistrez vos identifiants ({credential}) pour que Tovu puisse publier en votre nom.", "(facultatif)"
   ]),
   it: candidateGapTranslationEntries([
-    "Questa connessione è già stata salvata — ricarica la pagina e riprova.", "Errore sconosciuto", "Pagine, post e prodotti", "Checkout e ordini", "Pannello di amministrazione, online", "Assistente IA", "Nome del progetto", "Non avviato", "Esportazione non riuscita", "Terminato con errori", "Esportazione terminata", "Pubblicazione non riuscita", "Questo spazio di lavoro non può usare il terminale del tuo computer — collegarti qui è l’unico modo per pubblicare.", "Salva le credenziali ({credential}) così Tovu può pubblicare per tuo conto.", "(facoltativo)", "L'host trova o crea un progetto con questo nome a ogni pubblicazione."
+    "Questa connessione è già stata salvata — ricarica la pagina e riprova.", "Errore sconosciuto", "Pagine, post e prodotti", "Checkout e ordini", "Pannello di amministrazione, online", "Assistente IA", "Non avviato", "Esportazione non riuscita", "Terminato con errori", "Esportazione terminata", "Pubblicazione non riuscita", "Questo spazio di lavoro non può usare il terminale del tuo computer — collegarti qui è l’unico modo per pubblicare.", "Salva le credenziali ({credential}) così Tovu può pubblicare per tuo conto.", "(facoltativo)"
   ]),
   "pt-BR": candidateGapTranslationEntries([
-    "Esta conexão já foi salva — recarregue a página e tente novamente.", "Erro desconhecido", "Páginas, posts e produtos", "Checkout e pedidos", "Painel administrativo, online", "Assistente de IA", "Nome do projeto", "Não iniciado", "A exportação falhou", "Terminou com falhas", "Exportação concluída", "A publicação falhou", "Este espaço de trabalho não pode usar o terminal do seu computador — conectar aqui é a única forma de publicar.", "Salve sua credencial ({credential}) para que o Tovu possa publicar em seu nome.", "(opcional)", "O host encontra ou cria um projeto com este nome a cada publicação."
+    "Esta conexão já foi salva — recarregue a página e tente novamente.", "Erro desconhecido", "Páginas, posts e produtos", "Checkout e pedidos", "Painel administrativo, online", "Assistente de IA", "Não iniciado", "A exportação falhou", "Terminou com falhas", "Exportação concluída", "A publicação falhou", "Este espaço de trabalho não pode usar o terminal do seu computador — conectar aqui é a única forma de publicar.", "Salve sua credencial ({credential}) para que o Tovu possa publicar em seu nome.", "(opcional)"
   ]),
   "zh-CN": candidateGapTranslationEntries([
-    "此连接已保存——请重新加载页面后重试。", "未知错误", "页面、文章和产品", "结账和订单", "管理面板，在线", "AI 助手", "项目名称", "尚未开始", "导出失败", "完成但有失败", "导出完成", "发布失败", "此工作区无法使用您计算机的终端——在此连接是唯一的发布方式。", "保存您的{credential}，以便 Tovu 代表您发布。", "（可选）", "托管服务会在每次发布时查找或创建使用此名称的项目。"
+    "此连接已保存——请重新加载页面后重试。", "未知错误", "页面、文章和产品", "结账和订单", "管理面板，在线", "AI 助手", "尚未开始", "导出失败", "完成但有失败", "导出完成", "发布失败", "此工作区无法使用您计算机的终端——在此连接是唯一的发布方式。", "保存您的{credential}，以便 Tovu 代表您发布。", "（可选）"
   ]),
   "zh-TW": candidateGapTranslationEntries([
-    "此連線已儲存——請重新載入頁面後再試。", "未知錯誤", "頁面、文章與產品", "結帳與訂單", "管理面板，在線", "AI 助理", "專案名稱", "尚未開始", "匯出失敗", "完成但有失敗", "匯出完成", "發佈失敗", "此工作區無法使用您電腦的終端機——在此連線是唯一的發佈方式。", "儲存您的{credential}，讓 Tovu 能代表您發布。", "（選填）", "主機服務會在每次發佈時尋找或建立使用此名稱的專案。"
+    "此連線已儲存——請重新載入頁面後再試。", "未知錯誤", "頁面、文章與產品", "結帳與訂單", "管理面板，在線", "AI 助理", "尚未開始", "匯出失敗", "完成但有失敗", "匯出完成", "發佈失敗", "此工作區無法使用您電腦的終端機——在此連線是唯一的發佈方式。", "儲存您的{credential}，讓 Tovu 能代表您發布。", "（選填）"
   ]),
   ar: candidateGapTranslationEntries([
-    "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.", "خطأ غير معروف", "الصفحات والمنشورات والمنتجات", "الدفع والطلبات", "لوحة الإدارة، متصلة", "مساعد الذكاء الاصطناعي", "اسم المشروع", "لم يبدأ", "فشل التصدير", "انتهى مع إخفاقات", "اكتمل التصدير", "فشل النشر", "لا يمكن لمساحة العمل هذه استخدام طرفية جهازك — الاتصال هنا هو الطريقة الوحيدة للنشر.", "احفظ {credential} حتى يتمكن Tovu من النشر نيابةً عنك.", "(اختياري)", "يعثر المضيف على مشروع بهذا الاسم أو ينشئه عند كل نشر."
+    "تم حفظ هذا الاتصال بالفعل — أعد تحميل الصفحة وحاول مرة أخرى.", "خطأ غير معروف", "الصفحات والمنشورات والمنتجات", "الدفع والطلبات", "لوحة الإدارة، متصلة", "مساعد الذكاء الاصطناعي", "لم يبدأ", "فشل التصدير", "انتهى مع إخفاقات", "اكتمل التصدير", "فشل النشر", "لا يمكن لمساحة العمل هذه استخدام طرفية جهازك — الاتصال هنا هو الطريقة الوحيدة للنشر.", "احفظ {credential} حتى يتمكن Tovu من النشر نيابةً عنك.", "(اختياري)"
   ]),
   bn: candidateGapTranslationEntries([
-    "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত হয়েছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।", "অজানা ত্রুটি", "পৃষ্ঠা, পোস্ট ও পণ্য", "চেকআউট ও অর্ডার", "অ্যাডমিন প্যানেল, অনলাইন", "AI সহায়ক", "প্রকল্পের নাম", "শুরু হয়নি", "এক্সপোর্ট ব্যর্থ হয়েছে", "ব্যর্থতা সহ শেষ হয়েছে", "এক্সপোর্ট শেষ হয়েছে", "প্রকাশনা ব্যর্থ হয়েছে", "এই কর্মক্ষেত্রটি আপনার কম্পিউটারের টার্মিনাল ব্যবহার করতে পারে না — এখানে সংযুক্ত করাই প্রকাশের একমাত্র উপায়।", "আপনার {credential} সংরক্ষণ করুন যাতে Tovu আপনার পক্ষ থেকে প্রকাশ করতে পারে।", "(ঐচ্ছিক)", "প্রতিবার প্রকাশের সময় হোস্ট এই নামের একটি প্রকল্প খুঁজে নেয় বা তৈরি করে।"
+    "এই সংযোগটি ইতিমধ্যেই সংরক্ষিত হয়েছে — পৃষ্ঠাটি পুনরায় লোড করে আবার চেষ্টা করুন।", "অজানা ত্রুটি", "পৃষ্ঠা, পোস্ট ও পণ্য", "চেকআউট ও অর্ডার", "অ্যাডমিন প্যানেল, অনলাইন", "AI সহায়ক", "শুরু হয়নি", "এক্সপোর্ট ব্যর্থ হয়েছে", "ব্যর্থতা সহ শেষ হয়েছে", "এক্সপোর্ট শেষ হয়েছে", "প্রকাশনা ব্যর্থ হয়েছে", "এই কর্মক্ষেত্রটি আপনার কম্পিউটারের টার্মিনাল ব্যবহার করতে পারে না — এখানে সংযুক্ত করাই প্রকাশের একমাত্র উপায়।", "আপনার {credential} সংরক্ষণ করুন যাতে Tovu আপনার পক্ষ থেকে প্রকাশ করতে পারে।", "(ঐচ্ছিক)"
   ]),
   fa: candidateGapTranslationEntries([
-    "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.", "خطای ناشناخته", "صفحه‌ها، نوشته‌ها و محصولات", "پرداخت و سفارش‌ها", "پنل مدیریت، آنلاین", "دستیار هوش مصنوعی", "نام پروژه", "شروع نشده", "خروجی ناموفق بود", "با خطاها پایان یافت", "خروجی تمام شد", "انتشار ناموفق بود", "این فضای کاری نمی‌تواند از ترمینال رایانه شما استفاده کند — اتصال در اینجا تنها راه انتشار است.", "{credential} خود را ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند.", "(اختیاری)", "میزبان در هر انتشار، پروژه‌ای با این نام را پیدا یا ایجاد می‌کند."
+    "این اتصال قبلاً ذخیره شده است — صفحه را دوباره بارگیری کنید و دوباره تلاش کنید.", "خطای ناشناخته", "صفحه‌ها، نوشته‌ها و محصولات", "پرداخت و سفارش‌ها", "پنل مدیریت، آنلاین", "دستیار هوش مصنوعی", "شروع نشده", "خروجی ناموفق بود", "با خطاها پایان یافت", "خروجی تمام شد", "انتشار ناموفق بود", "این فضای کاری نمی‌تواند از ترمینال رایانه شما استفاده کند — اتصال در اینجا تنها راه انتشار است.", "{credential} خود را ذخیره کنید تا Tovu بتواند از طرف شما منتشر کند.", "(اختیاری)"
   ]),
   hi: candidateGapTranslationEntries([
-    "यह कनेक्शन पहले ही सहेजा जा चुका है — पेज फिर से लोड करें और दोबारा कोशिश करें।", "अज्ञात त्रुटि", "पेज, पोस्ट और उत्पाद", "चेकआउट और ऑर्डर", "एडमिन पैनल, ऑनलाइन", "AI सहायक", "प्रोजेक्ट नाम", "शुरू नहीं हुआ", "एक्सपोर्ट विफल हुआ", "विफलताओं के साथ समाप्त", "एक्सपोर्ट पूरा हुआ", "प्रकाशन विफल हुआ", "यह कार्यक्षेत्र आपके कंप्यूटर का टर्मिनल उपयोग नहीं कर सकता — यहाँ कनेक्ट करना ही प्रकाशित करने का एकमात्र तरीका है।", "अपना {credential} सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।", "(वैकल्पिक)", "होस्ट हर प्रकाशन पर इस नाम का प्रोजेक्ट ढूँढता है या बनाता है।"
+    "यह कनेक्शन पहले ही सहेजा जा चुका है — पेज फिर से लोड करें और दोबारा कोशिश करें।", "अज्ञात त्रुटि", "पेज, पोस्ट और उत्पाद", "चेकआउट और ऑर्डर", "एडमिन पैनल, ऑनलाइन", "AI सहायक", "शुरू नहीं हुआ", "एक्सपोर्ट विफल हुआ", "विफलताओं के साथ समाप्त", "एक्सपोर्ट पूरा हुआ", "प्रकाशन विफल हुआ", "यह कार्यक्षेत्र आपके कंप्यूटर का टर्मिनल उपयोग नहीं कर सकता — यहाँ कनेक्ट करना ही प्रकाशित करने का एकमात्र तरीका है।", "अपना {credential} सहेजें ताकि Tovu आपकी ओर से प्रकाशित कर सके।", "(वैकल्पिक)"
   ]),
   hu: candidateGapTranslationEntries([
-    "Ez a kapcsolat már el van mentve — töltse újra az oldalt, és próbálja meg újra.", "Ismeretlen hiba", "Oldalak, bejegyzések és termékek", "Pénztár és rendelések", "Adminisztrációs panel, online", "MI-asszisztens", "Projekt neve", "Nincs elindítva", "Az export sikertelen", "Hibákkal fejeződött be", "Az export befejeződött", "A közzététel sikertelen", "Ez a munkaterület nem használhatja a számítógépe terminálját — az itt történő csatlakozás az egyetlen közzétételi mód.", "Mentse el a hitelesítő adatot ({credential}), hogy a Tovu az Ön nevében publikálhasson.", "(nem kötelező)", "A tárhely minden közzétételkor megkeresi vagy létrehozza az ilyen nevű projektet."
+    "Ez a kapcsolat már el van mentve — töltse újra az oldalt, és próbálja meg újra.", "Ismeretlen hiba", "Oldalak, bejegyzések és termékek", "Pénztár és rendelések", "Adminisztrációs panel, online", "MI-asszisztens", "Nincs elindítva", "Az export sikertelen", "Hibákkal fejeződött be", "Az export befejeződött", "A közzététel sikertelen", "Ez a munkaterület nem használhatja a számítógépe terminálját — az itt történő csatlakozás az egyetlen közzétételi mód.", "Mentse el a hitelesítő adatot ({credential}), hogy a Tovu az Ön nevében publikálhasson.", "(nem kötelező)"
   ]),
   ja: candidateGapTranslationEntries([
-    "この接続はすでに保存されています。ページを再読み込みして、もう一度お試しください。", "不明なエラー", "ページ、投稿、商品", "チェックアウトと注文", "管理パネル、オンライン", "AI アシスタント", "プロジェクト名", "未開始", "エクスポートに失敗しました", "失敗を含めて完了", "エクスポート完了", "公開に失敗しました", "このワークスペースではお使いのコンピューターのターミナルを使用できません。ここで接続することが公開する唯一の方法です。", "Tovu があなたに代わって公開できるよう、{credential}を保存してください。", "（任意）", "ホストは公開のたびにこの名前のプロジェクトを検索または作成します。"
+    "この接続はすでに保存されています。ページを再読み込みして、もう一度お試しください。", "不明なエラー", "ページ、投稿、商品", "チェックアウトと注文", "管理パネル、オンライン", "AI アシスタント", "未開始", "エクスポートに失敗しました", "失敗を含めて完了", "エクスポート完了", "公開に失敗しました", "このワークスペースではお使いのコンピューターのターミナルを使用できません。ここで接続することが公開する唯一の方法です。", "Tovu があなたに代わって公開できるよう、{credential}を保存してください。", "（任意）"
   ]),
   ko: candidateGapTranslationEntries([
-    "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요.", "알 수 없는 오류", "페이지, 게시물 및 제품", "결제 및 주문", "관리자 패널, 온라인", "AI 도우미", "프로젝트 이름", "시작되지 않음", "내보내기 실패", "실패와 함께 완료", "내보내기 완료", "게시 실패", "이 작업 공간은 컴퓨터의 터미널을 사용할 수 없습니다. 여기에서 연결하는 것이 게시하는 유일한 방법입니다.", "Tovu가 대신 게시할 수 있도록 {credential}을(를) 저장하세요.", "(선택 사항)", "호스트는 게시할 때마다 이 이름의 프로젝트를 찾거나 만듭니다."
+    "이 연결은 이미 저장되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요.", "알 수 없는 오류", "페이지, 게시물 및 제품", "결제 및 주문", "관리자 패널, 온라인", "AI 도우미", "시작되지 않음", "내보내기 실패", "실패와 함께 완료", "내보내기 완료", "게시 실패", "이 작업 공간은 컴퓨터의 터미널을 사용할 수 없습니다. 여기에서 연결하는 것이 게시하는 유일한 방법입니다.", "Tovu가 대신 게시할 수 있도록 {credential}을(를) 저장하세요.", "(선택 사항)"
   ]),
   pl: candidateGapTranslationEntries([
-    "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.", "Nieznany błąd", "Strony, wpisy i produkty", "Kasa i zamówienia", "Panel administracyjny, online", "Asystent AI", "Nazwa projektu", "Nie rozpoczęto", "Eksport nie powiódł się", "Zakończono z niepowodzeniami", "Eksport zakończony", "Publikacja nie powiodła się", "Ten obszar roboczy nie może używać terminala Twojego komputera — połączenie tutaj jest jedynym sposobem publikacji.", "Zapisz dane uwierzytelniające ({credential}), aby Tovu mógł publikować w Twoim imieniu.", "(opcjonalnie)", "Host przy każdej publikacji znajduje lub tworzy projekt o tej nazwie."
+    "To połączenie zostało już zapisane — odśwież stronę i spróbuj ponownie.", "Nieznany błąd", "Strony, wpisy i produkty", "Kasa i zamówienia", "Panel administracyjny, online", "Asystent AI", "Nie rozpoczęto", "Eksport nie powiódł się", "Zakończono z niepowodzeniami", "Eksport zakończony", "Publikacja nie powiodła się", "Ten obszar roboczy nie może używać terminala Twojego komputera — połączenie tutaj jest jedynym sposobem publikacji.", "Zapisz dane uwierzytelniające ({credential}), aby Tovu mógł publikować w Twoim imieniu.", "(opcjonalnie)"
   ]),
   ru: candidateGapTranslationEntries([
-    "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.", "Неизвестная ошибка", "Страницы, записи и товары", "Оформление заказа и заказы", "Панель администратора, онлайн", "ИИ-помощник", "Название проекта", "Не запущено", "Экспорт не удался", "Завершено с ошибками", "Экспорт завершён", "Публикация не удалась", "Это рабочее пространство не может использовать терминал вашего компьютера — подключение здесь является единственным способом публикации.", "Сохраните учётные данные ({credential}), чтобы Tovu мог публиковать от вашего имени.", "(необязательно)", "Хостинг находит или создаёт проект с этим именем при каждой публикации."
+    "Это подключение уже сохранено — перезагрузите страницу и попробуйте снова.", "Неизвестная ошибка", "Страницы, записи и товары", "Оформление заказа и заказы", "Панель администратора, онлайн", "ИИ-помощник", "Не запущено", "Экспорт не удался", "Завершено с ошибками", "Экспорт завершён", "Публикация не удалась", "Это рабочее пространство не может использовать терминал вашего компьютера — подключение здесь является единственным способом публикации.", "Сохраните учётные данные ({credential}), чтобы Tovu мог публиковать от вашего имени.", "(необязательно)"
   ]),
   th: candidateGapTranslationEntries([
-    "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง", "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "หน้า โพสต์ และสินค้า", "ชำระเงินและคำสั่งซื้อ", "แผงผู้ดูแลระบบ ออนไลน์", "ผู้ช่วย AI", "ชื่อโปรเจ็กต์", "ยังไม่เริ่ม", "การส่งออกล้มเหลว", "เสร็จสิ้นพร้อมข้อผิดพลาด", "การส่งออกเสร็จสิ้น", "การเผยแพร่ล้มเหลว", "พื้นที่ทำงานนี้ไม่สามารถใช้เทอร์มินัลของคอมพิวเตอร์คุณได้ — การเชื่อมต่อที่นี่เป็นวิธีเดียวในการเผยแพร่", "บันทึก {credential} เพื่อให้ Tovu เผยแพร่แทนคุณได้", "(ไม่บังคับ)", "โฮสต์จะค้นหาหรือสร้างโปรเจกต์ที่ใช้ชื่อนี้ทุกครั้งที่เผยแพร่"
+    "บันทึกการเชื่อมต่อนี้แล้ว — โหลดหน้าใหม่แล้วลองอีกครั้ง", "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "หน้า โพสต์ และสินค้า", "ชำระเงินและคำสั่งซื้อ", "แผงผู้ดูแลระบบ ออนไลน์", "ผู้ช่วย AI", "ยังไม่เริ่ม", "การส่งออกล้มเหลว", "เสร็จสิ้นพร้อมข้อผิดพลาด", "การส่งออกเสร็จสิ้น", "การเผยแพร่ล้มเหลว", "พื้นที่ทำงานนี้ไม่สามารถใช้เทอร์มินัลของคอมพิวเตอร์คุณได้ — การเชื่อมต่อที่นี่เป็นวิธีเดียวในการเผยแพร่", "บันทึก {credential} เพื่อให้ Tovu เผยแพร่แทนคุณได้", "(ไม่บังคับ)"
   ]),
   tr: candidateGapTranslationEntries([
-    "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyip tekrar deneyin.", "Bilinmeyen hata", "Sayfalar, gönderiler ve ürünler", "Ödeme ve siparişler", "Yönetici paneli, çevrimiçi", "Yapay zekâ asistanı", "Proje adı", "Başlatılmadı", "Dışa aktarma başarısız", "Hatalarla tamamlandı", "Dışa aktarma tamamlandı", "Yayınlama başarısız", "Bu çalışma alanı bilgisayarınızın terminalini kullanamaz — buradan bağlanmak yayınlamanın tek yoludur.", "Tovu'nun sizin adınıza yayınlayabilmesi için kimlik bilgisini ({credential}) kaydedin.", "(isteğe bağlı)", "Barındırıcı her yayında bu ada sahip bir projeyi bulur veya oluşturur."
+    "Bu bağlantı zaten kaydedildi — sayfayı yeniden yükleyip tekrar deneyin.", "Bilinmeyen hata", "Sayfalar, gönderiler ve ürünler", "Ödeme ve siparişler", "Yönetici paneli, çevrimiçi", "Yapay zekâ asistanı", "Başlatılmadı", "Dışa aktarma başarısız", "Hatalarla tamamlandı", "Dışa aktarma tamamlandı", "Yayınlama başarısız", "Bu çalışma alanı bilgisayarınızın terminalini kullanamaz — buradan bağlanmak yayınlamanın tek yoludur.", "Tovu'nun sizin adınıza yayınlayabilmesi için kimlik bilgisini ({credential}) kaydedin.", "(isteğe bağlı)"
   ]),
   uk: candidateGapTranslationEntries([
-    "Це підключення вже збережено — перезавантажте сторінку й спробуйте ще раз.", "Невідома помилка", "Сторінки, дописи й товари", "Оформлення замовлення та замовлення", "Панель адміністратора, онлайн", "ШІ-помічник", "Назва проєкту", "Не запущено", "Експорт не вдався", "Завершено з помилками", "Експорт завершено", "Публікація не вдалася", "Цей робочий простір не може використовувати термінал вашого комп’ютера — підключення тут є єдиним способом публікації.", "Збережіть облікові дані ({credential}), щоб Tovu міг публікувати від вашого імені.", "(необов’язково)", "Хостинг знаходить або створює проєкт із цією назвою під час кожної публікації."
+    "Це підключення вже збережено — перезавантажте сторінку й спробуйте ще раз.", "Невідома помилка", "Сторінки, дописи й товари", "Оформлення замовлення та замовлення", "Панель адміністратора, онлайн", "ШІ-помічник", "Не запущено", "Експорт не вдався", "Завершено з помилками", "Експорт завершено", "Публікація не вдалася", "Цей робочий простір не може використовувати термінал вашого комп’ютера — підключення тут є єдиним способом публікації.", "Збережіть облікові дані ({credential}), щоб Tovu міг публікувати від вашого імені.", "(необов’язково)"
   ]),
   ur: candidateGapTranslationEntries([
-    "یہ کنکشن پہلے ہی محفوظ ہو چکا ہے — صفحہ دوبارہ لوڈ کریں اور پھر کوشش کریں۔", "نامعلوم خرابی", "صفحات، پوسٹس اور مصنوعات", "چیک آؤٹ اور آرڈرز", "ایڈمن پینل، آن لائن", "AI معاون", "پروجیکٹ کا نام", "شروع نہیں ہوا", "ایکسپورٹ ناکام ہوا", "ناکامیوں کے ساتھ ختم ہوا", "ایکسپورٹ مکمل ہوا", "اشاعت ناکام ہوئی", "یہ ورک اسپیس آپ کے کمپیوٹر کا ٹرمینل استعمال نہیں کر سکتی — یہاں کنکشن کرنا شائع کرنے کا واحد طریقہ ہے۔", "اپنا {credential} محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔", "(اختیاری)", "ہوسٹ ہر اشاعت پر اس نام کا پروجیکٹ تلاش کرتا ہے یا بناتا ہے۔"
+    "یہ کنکشن پہلے ہی محفوظ ہو چکا ہے — صفحہ دوبارہ لوڈ کریں اور پھر کوشش کریں۔", "نامعلوم خرابی", "صفحات، پوسٹس اور مصنوعات", "چیک آؤٹ اور آرڈرز", "ایڈمن پینل، آن لائن", "AI معاون", "شروع نہیں ہوا", "ایکسپورٹ ناکام ہوا", "ناکامیوں کے ساتھ ختم ہوا", "ایکسپورٹ مکمل ہوا", "اشاعت ناکام ہوئی", "یہ ورک اسپیس آپ کے کمپیوٹر کا ٹرمینل استعمال نہیں کر سکتی — یہاں کنکشن کرنا شائع کرنے کا واحد طریقہ ہے۔", "اپنا {credential} محفوظ کریں تاکہ Tovu آپ کی طرف سے شائع کر سکے۔", "(اختیاری)"
   ]),
+};
+
+/** The Static Site credential row and publish step: the token hints and actions (the same wording
+ *  Security's Access tokens uses), the connected summary's templates, and the Preview/Publish
+ *  buttons. `{host}`, `{account}` and `{time}` sit where each locale's grammar puts them. */
+const DEPLOYMENT_CREDENTIAL_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: {
+    "Leave blank to keep the current token.": "Déjalo en blanco para conservar el token actual.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Se almacena cifrado en el servidor. Una vez guardado, Tovu nunca vuelve a mostrarlo.",
+    "Create a token": "Crear un token",
+    "Connect": "Conectar",
+    "Replace token": "Reemplazar token",
+    "Assets": "Recursos",
+    "Configured": "Configurada",
+    "Not configured": "Sin configurar",
+    "{host} connected": "{host} conectado",
+    "token stored, encrypted": "token guardado cifrado",
+    "saved {time}": "guardado {time}",
+    "connected as {account}": "conectado como {account}",
+    "Preview": "Vista previa",
+    "Publish": "Publicar",
+  },
+  id: {
+    "Leave blank to keep the current token.": "Biarkan kosong untuk mempertahankan token saat ini.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Disimpan terenkripsi di server. Setelah disimpan, Tovu tidak akan pernah menampilkannya lagi.",
+    "Create a token": "Buat token",
+    "Connect": "Hubungkan",
+    "Replace token": "Ganti token",
+    "Assets": "Aset",
+    "Configured": "Dikonfigurasi",
+    "Not configured": "Belum dikonfigurasi",
+    "{host} connected": "{host} terhubung",
+    "token stored, encrypted": "token disimpan terenkripsi",
+    "saved {time}": "disimpan {time}",
+    "connected as {account}": "terhubung sebagai {account}",
+    "Preview": "Pratinjau",
+    "Publish": "Terbitkan",
+  },
+  de: {
+    "Leave blank to keep the current token.": "Leer lassen, um das aktuelle Token beizubehalten.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Wird verschlüsselt auf dem Server gespeichert. Nach dem Speichern zeigt Tovu es nie wieder an.",
+    "Create a token": "Ein Token erstellen",
+    "Connect": "Verbinden",
+    "Replace token": "Token ersetzen",
+    "Assets": "Assets",
+    "Configured": "Konfiguriert",
+    "Not configured": "Nicht konfiguriert",
+    "{host} connected": "{host} verbunden",
+    "token stored, encrypted": "Token verschlüsselt gespeichert",
+    "saved {time}": "gespeichert {time}",
+    "connected as {account}": "verbunden als {account}",
+    "Preview": "Vorschau",
+    "Publish": "Veröffentlichen",
+  },
+  "zh-CN": {
+    "Leave blank to keep the current token.": "留空以保留当前令牌。",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "以加密方式存储在服务器上。保存后，Tovu 将不再显示它。",
+    "Create a token": "创建令牌",
+    "Connect": "连接",
+    "Replace token": "替换令牌",
+    "Assets": "资源",
+    "Configured": "已配置",
+    "Not configured": "未配置",
+    "{host} connected": "{host} 已连接",
+    "token stored, encrypted": "令牌已加密存储",
+    "saved {time}": "保存于 {time}",
+    "connected as {account}": "已连接为 {account}",
+    "Preview": "预览",
+    "Publish": "发布",
+  },
+  "zh-TW": {
+    "Leave blank to keep the current token.": "留空以保留目前的權杖。",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "以加密方式儲存於伺服器。儲存後，Tovu 將不再顯示它。",
+    "Create a token": "建立權杖",
+    "Connect": "連線",
+    "Replace token": "取代權杖",
+    "Assets": "資源",
+    "Configured": "已設定",
+    "Not configured": "未設定",
+    "{host} connected": "{host} 已連線",
+    "token stored, encrypted": "權杖已加密儲存",
+    "saved {time}": "儲存於 {time}",
+    "connected as {account}": "已連線為 {account}",
+    "Preview": "預覽",
+    "Publish": "發佈",
+  },
+  "pt-BR": {
+    "Leave blank to keep the current token.": "Deixe em branco para manter o token atual.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Armazenado criptografado no servidor. Depois de salvo, o Tovu nunca mais o exibe.",
+    "Create a token": "Criar um token",
+    "Connect": "Conectar",
+    "Replace token": "Substituir token",
+    "Assets": "Recursos",
+    "Configured": "Configurada",
+    "Not configured": "Não configurada",
+    "{host} connected": "{host} conectado",
+    "token stored, encrypted": "token armazenado criptografado",
+    "saved {time}": "salvo {time}",
+    "connected as {account}": "conectado como {account}",
+    "Preview": "Pré-visualizar",
+    "Publish": "Publicar",
+  },
+  ru: {
+    "Leave blank to keep the current token.": "Оставьте пустым, чтобы сохранить текущий токен.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Хранится в зашифрованном виде на сервере. После сохранения Tovu больше никогда его не покажет.",
+    "Create a token": "Создать токен",
+    "Connect": "Подключить",
+    "Replace token": "Заменить токен",
+    "Assets": "Ресурсы",
+    "Configured": "Настроено",
+    "Not configured": "Не настроено",
+    "{host} connected": "{host} подключён",
+    "token stored, encrypted": "токен хранится в зашифрованном виде",
+    "saved {time}": "сохранено {time}",
+    "connected as {account}": "подключено как {account}",
+    "Preview": "Предпросмотр",
+    "Publish": "Опубликовать",
+  },
+  fa: {
+    "Leave blank to keep the current token.": "برای نگه‌داشتن توکن فعلی، خالی بگذارید.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "به‌صورت رمزنگاری‌شده روی سرور ذخیره می‌شود. پس از ذخیره، Tovu دیگر هرگز آن را نمایش نمی‌دهد.",
+    "Create a token": "ایجاد توکن",
+    "Connect": "اتصال",
+    "Replace token": "جایگزینی توکن",
+    "Assets": "فایل‌ها",
+    "Configured": "پیکربندی شده",
+    "Not configured": "پیکربندی نشده",
+    "{host} connected": "{host} متصل است",
+    "token stored, encrypted": "توکن رمزنگاری‌شده ذخیره شد",
+    "saved {time}": "ذخیره‌شده {time}",
+    "connected as {account}": "متصل با نام {account}",
+    "Preview": "پیش‌نمایش",
+    "Publish": "انتشار",
+  },
+  ar: {
+    "Leave blank to keep the current token.": "اتركه فارغًا للاحتفاظ بالرمز الحالي.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "يُخزَّن مشفّرًا على الخادم. بعد الحفظ، لن تعرضه Tovu مرة أخرى أبدًا.",
+    "Create a token": "إنشاء رمز",
+    "Connect": "اتصال",
+    "Replace token": "استبدال الرمز",
+    "Assets": "الملفات",
+    "Configured": "مُهيّأ",
+    "Not configured": "غير مُهيّأ",
+    "{host} connected": "{host} متصل",
+    "token stored, encrypted": "الرمز مخزّن مشفّرًا",
+    "saved {time}": "حُفظ {time}",
+    "connected as {account}": "متصل باسم {account}",
+    "Preview": "معاينة",
+    "Publish": "نشر",
+  },
+  ja: {
+    "Leave blank to keep the current token.": "現在のトークンを保持する場合は空欄のままにしてください。",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "サーバー上に暗号化して保存されます。保存後、Tovu が再び表示することはありません。",
+    "Create a token": "トークンを作成",
+    "Connect": "接続",
+    "Replace token": "トークンを置き換え",
+    "Assets": "アセット",
+    "Configured": "設定済み",
+    "Not configured": "未設定",
+    "{host} connected": "{host} に接続済み",
+    "token stored, encrypted": "トークンは暗号化して保存済み",
+    "saved {time}": "{time} に保存",
+    "connected as {account}": "{account} として接続",
+    "Preview": "プレビュー",
+    "Publish": "公開",
+  },
+  ko: {
+    "Leave blank to keep the current token.": "현재 토큰을 유지하려면 비워 두세요.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "서버에 암호화되어 저장됩니다. 저장 후에는 Tovu가 다시는 표시하지 않습니다.",
+    "Create a token": "토큰 생성",
+    "Connect": "연결",
+    "Replace token": "토큰 교체",
+    "Assets": "애셋",
+    "Configured": "구성됨",
+    "Not configured": "구성 안 됨",
+    "{host} connected": "{host} 연결됨",
+    "token stored, encrypted": "토큰 암호화 저장됨",
+    "saved {time}": "{time}에 저장됨",
+    "connected as {account}": "{account}(으)로 연결됨",
+    "Preview": "미리 보기",
+    "Publish": "게시",
+  },
+  pl: {
+    "Leave blank to keep the current token.": "Pozostaw puste, aby zachować bieżący token.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Przechowywany zaszyfrowany na serwerze. Po zapisaniu Tovu nigdy więcej go nie wyświetli.",
+    "Create a token": "Utwórz token",
+    "Connect": "Połącz",
+    "Replace token": "Zamień token",
+    "Assets": "Zasoby",
+    "Configured": "Skonfigurowano",
+    "Not configured": "Nie skonfigurowano",
+    "{host} connected": "{host} połączono",
+    "token stored, encrypted": "token zapisany w postaci zaszyfrowanej",
+    "saved {time}": "zapisano {time}",
+    "connected as {account}": "połączono jako {account}",
+    "Preview": "Podgląd",
+    "Publish": "Opublikuj",
+  },
+  hu: {
+    "Leave blank to keep the current token.": "Hagyja üresen a jelenlegi token megtartásához.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Titkosítva tárolva a szerveren. Mentés után a Tovu többé nem jeleníti meg.",
+    "Create a token": "Token létrehozása",
+    "Connect": "Csatlakozás",
+    "Replace token": "Token cseréje",
+    "Assets": "Fájlok",
+    "Configured": "Beállítva",
+    "Not configured": "Nincs beállítva",
+    "{host} connected": "{host} csatlakoztatva",
+    "token stored, encrypted": "token titkosítva tárolva",
+    "saved {time}": "mentve: {time}",
+    "connected as {account}": "csatlakozva mint {account}",
+    "Preview": "Előnézet",
+    "Publish": "Közzététel",
+  },
+  fr: {
+    "Leave blank to keep the current token.": "Laissez vide pour conserver le jeton actuel.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Stocké chiffré sur le serveur. Une fois enregistré, Tovu ne l'affiche plus jamais.",
+    "Create a token": "Créer un jeton",
+    "Connect": "Connecter",
+    "Replace token": "Remplacer le jeton",
+    "Assets": "Ressources",
+    "Configured": "Configurée",
+    "Not configured": "Non configurée",
+    "{host} connected": "{host} connecté",
+    "token stored, encrypted": "jeton stocké chiffré",
+    "saved {time}": "enregistré {time}",
+    "connected as {account}": "connecté en tant que {account}",
+    "Preview": "Aperçu",
+    "Publish": "Publier",
+  },
+  uk: {
+    "Leave blank to keep the current token.": "Залиште порожнім, щоб зберегти поточний токен.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Зберігається в зашифрованому вигляді на сервері. Після збереження Tovu більше ніколи його не покаже.",
+    "Create a token": "Створити токен",
+    "Connect": "Підключити",
+    "Replace token": "Замінити токен",
+    "Assets": "Ресурси",
+    "Configured": "Налаштовано",
+    "Not configured": "Не налаштовано",
+    "{host} connected": "{host} підключено",
+    "token stored, encrypted": "токен зберігається в зашифрованому вигляді",
+    "saved {time}": "збережено {time}",
+    "connected as {account}": "підключено як {account}",
+    "Preview": "Попередній перегляд",
+    "Publish": "Опублікувати",
+  },
+  tr: {
+    "Leave blank to keep the current token.": "Mevcut jetonu korumak için boş bırakın.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Sunucuda şifrelenmiş olarak saklanır. Kaydedildikten sonra Tovu onu bir daha göstermez.",
+    "Create a token": "Bir jeton oluştur",
+    "Connect": "Bağlan",
+    "Replace token": "Jetonu değiştir",
+    "Assets": "Dosyalar",
+    "Configured": "Yapılandırıldı",
+    "Not configured": "Yapılandırılmadı",
+    "{host} connected": "{host} bağlı",
+    "token stored, encrypted": "token şifrelenmiş olarak saklanıyor",
+    "saved {time}": "kaydedildi {time}",
+    "connected as {account}": "{account} olarak bağlı",
+    "Preview": "Önizle",
+    "Publish": "Yayımla",
+  },
+  th: {
+    "Leave blank to keep the current token.": "เว้นว่างไว้เพื่อคงโทเคนปัจจุบัน",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "จัดเก็บแบบเข้ารหัสไว้บนเซิร์ฟเวอร์ เมื่อบันทึกแล้ว Tovu จะไม่แสดงอีก",
+    "Create a token": "สร้างโทเคน",
+    "Connect": "เชื่อมต่อ",
+    "Replace token": "แทนที่โทเคน",
+    "Assets": "ไฟล์",
+    "Configured": "กำหนดค่าแล้ว",
+    "Not configured": "ยังไม่ได้กำหนดค่า",
+    "{host} connected": "{host} เชื่อมต่อแล้ว",
+    "token stored, encrypted": "จัดเก็บโทเค็นแบบเข้ารหัสแล้ว",
+    "saved {time}": "บันทึกเมื่อ {time}",
+    "connected as {account}": "เชื่อมต่อในชื่อ {account}",
+    "Preview": "ดูตัวอย่าง",
+    "Publish": "เผยแพร่",
+  },
+  it: {
+    "Leave blank to keep the current token.": "Lascia vuoto per mantenere il token attuale.",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "Archiviato in modo crittografato sul server. Una volta salvato, Tovu non lo mostra mai più.",
+    "Create a token": "Crea un token",
+    "Connect": "Connetti",
+    "Replace token": "Sostituisci token",
+    "Assets": "Risorse",
+    "Configured": "Configurata",
+    "Not configured": "Non configurata",
+    "{host} connected": "{host} connesso",
+    "token stored, encrypted": "token archiviato crittografato",
+    "saved {time}": "salvato {time}",
+    "connected as {account}": "connesso come {account}",
+    "Preview": "Anteprima",
+    "Publish": "Pubblica",
+  },
+  hi: {
+    "Leave blank to keep the current token.": "मौजूदा टोकन बनाए रखने के लिए खाली छोड़ें।",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "सर्वर पर एन्क्रिप्टेड रूप में संग्रहीत। सहेजे जाने के बाद, Tovu इसे फिर कभी नहीं दिखाएगा।",
+    "Create a token": "एक टोकन बनाएं",
+    "Connect": "कनेक्ट करें",
+    "Replace token": "टोकन बदलें",
+    "Assets": "एसेट",
+    "Configured": "कॉन्फ़िगर किया गया",
+    "Not configured": "कॉन्फ़िगर नहीं",
+    "{host} connected": "{host} जुड़ा है",
+    "token stored, encrypted": "टोकन एन्क्रिप्ट करके संग्रहीत",
+    "saved {time}": "{time} को सहेजा गया",
+    "connected as {account}": "{account} के रूप में जुड़ा",
+    "Preview": "पूर्वावलोकन",
+    "Publish": "प्रकाशित करें",
+  },
+  ur: {
+    "Leave blank to keep the current token.": "موجودہ ٹوکن برقرار رکھنے کے لیے خالی چھوڑیں۔",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "سرور پر خفیہ کاری کے ساتھ محفوظ ہوتا ہے۔ محفوظ ہونے کے بعد، Tovu اسے دوبارہ کبھی نہیں دکھائے گا۔",
+    "Create a token": "ایک ٹوکن بنائیں",
+    "Connect": "منسلک کریں",
+    "Replace token": "ٹوکن تبدیل کریں",
+    "Assets": "فائلیں",
+    "Configured": "کنفیگر شدہ",
+    "Not configured": "کنفیگر نہیں",
+    "{host} connected": "{host} منسلک ہے",
+    "token stored, encrypted": "ٹوکن خفیہ کاری کے ساتھ محفوظ",
+    "saved {time}": "{time} کو محفوظ کیا گیا",
+    "connected as {account}": "{account} کے طور پر منسلک",
+    "Preview": "پیش نظارہ",
+    "Publish": "شائع کریں",
+  },
+  bn: {
+    "Leave blank to keep the current token.": "বর্তমান টোকেন রাখতে খালি রাখুন।",
+    "Stored encrypted on the server. Once saved, Tovu never displays it again.": "সার্ভারে এনক্রিপ্ট করা অবস্থায় সংরক্ষিত থাকে। সংরক্ষণের পর, Tovu এটি আর কখনো দেখাবে না।",
+    "Create a token": "একটি টোকেন তৈরি করুন",
+    "Connect": "সংযোগ করুন",
+    "Replace token": "টোকেন প্রতিস্থাপন করুন",
+    "Assets": "অ্যাসেট",
+    "Configured": "কনফিগার করা",
+    "Not configured": "কনফিগার করা হয়নি",
+    "{host} connected": "{host} সংযুক্ত",
+    "token stored, encrypted": "টোকেন এনক্রিপ্ট করে সংরক্ষিত",
+    "saved {time}": "{time}-এ সংরক্ষিত",
+    "connected as {account}": "{account} হিসেবে সংযুক্ত",
+    "Preview": "প্রাকদর্শন",
+    "Publish": "প্রকাশ করুন",
+  },
 };
 
 const DEPLOYMENT_DICT: Record<string, Record<string, string>> = Object.fromEntries(
@@ -1788,6 +2159,7 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = Object.fromEntri
       ...entries,
       ...DEPLOYMENT_AUDIT_TRANSLATIONS[locale],
       ...DEPLOYMENT_CANDIDATE_GAP_TRANSLATIONS[locale],
+      ...DEPLOYMENT_CREDENTIAL_TRANSLATIONS[locale],
     },
   ]),
 );

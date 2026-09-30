@@ -24,6 +24,7 @@ import {
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
   staticPublishProjectNameCopy,
+  staticPublishProjectNameToSend,
   type StaticPublishProjectNameCopy,
 } from "../rules";
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
@@ -74,8 +75,9 @@ export interface StaticPublishController {
   /** Whether Preview / Publish may be asked for with the current values (`rules.ts`). */
   canPreview: boolean;
   canPublish: boolean;
-  /** The selected host's label and help for {@link projectName}, as dictionary keys. */
-  projectNameCopy: StaticPublishProjectNameCopy;
+  /** The selected host's label and help for {@link projectName}; `null` when the host takes no
+   *  project name, so the tab shows no such field. */
+  projectNameCopy: StaticPublishProjectNameCopy | null;
   projectName: string;
   setProjectName: (value: string) => void;
 
@@ -313,7 +315,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     try {
       const started = await port.triggerPublish({
         config: buildStaticPublishConfig(selectedTarget, configValues),
-        projectName,
+        projectName: staticPublishProjectNameToSend(selectedTarget, projectName),
         // Conditional spread, never `credentialId: options.credentialId` — an absent choice must not
         // reach the wire as an explicit `undefined` key.
         ...(options.credentialId !== undefined ? { credentialId: options.credentialId } : {}),

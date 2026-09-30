@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import { formatTimestamp } from "../../lib/format-timestamp";
+import { interpolate, splitOnPlaceholders } from "../../lib/template-i18n";
 import type {
   AdminExportRunSnapshot,
   AdminPublishExecutionMode,
@@ -980,6 +981,20 @@ function CredentialStepTodo({
  * who verifies once should not have to re-verify again just to keep seeing which account this token
  * belongs to.
  */
+
+/** One translated template with a single placeholder rendered as a React node (a name that must
+ *  stay untranslated), so each locale places the name where its own grammar needs it. */
+function TemplateWithNode({ template, token, children }: { template: string; token: string; children: ReactNode }) {
+  const [before, after] = splitOnPlaceholders(template, [token]);
+  return (
+    <>
+      {before}
+      {children}
+      {after}
+    </>
+  );
+}
+
 function CredentialStepDone({
   row,
   controller,
@@ -1002,12 +1017,18 @@ function CredentialStepDone({
           <StepDoneIcon />
         </span>
         <span className="deployment-step-summary-text">
-          <span translate="no">{row.label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-          {translate("saved")} {formatTimestamp(row.saved!.updatedAt)}
+          <TemplateWithNode template={translate("{host} connected")} token="{host}">
+            <span translate="no">{row.label}</span>
+          </TemplateWithNode>{" "}
+          · {translate("token stored, encrypted")} ·{" "}
+          {interpolate(translate("saved {time}"), { time: formatTimestamp(row.saved!.updatedAt) })}
           {row.saved!.accountLabel ? (
             <>
               {" "}
-              · {translate("connected as")} <span translate="no">{row.saved!.accountLabel}</span>
+              ·{" "}
+              <TemplateWithNode template={translate("connected as {account}")} token="{account}">
+                <span translate="no">{row.saved!.accountLabel}</span>
+              </TemplateWithNode>
             </>
           ) : null}
         </span>
@@ -1334,22 +1355,26 @@ function StaticPublishForm({
 
       <div className="field-row field-row-top">
         <StaticPublishTargetFields controller={controller} t={translate} />
-        <div className="field">
-          <label className="field-label" htmlFor="deployment-static-site-publish-project-name">
-            {translate(projectNameCopy.labelKey)}
-          </label>
-          <input
-            id="deployment-static-site-publish-project-name"
-            type="text"
-            value={controller.projectName}
-            onChange={(e) => controller.setProjectName(e.target.value)}
-            {...agentHandle("deployment-static-site-publish-project-name", {
-              role: "field",
-              label: `Human-facing label for this publish — ${projectNameCopy.helpKey}`,
-            })}
-          />
-          <p className="deployment-action-reason">{translate(projectNameCopy.helpKey)}</p>
-        </div>
+        {projectNameCopy ? (
+          <div className="field">
+            <label className="field-label" htmlFor="deployment-static-site-publish-project-name">
+              {translate(projectNameCopy.labelKey)}
+            </label>
+            <input
+              id="deployment-static-site-publish-project-name"
+              type="text"
+              value={controller.projectName}
+              onChange={(e) => controller.setProjectName(e.target.value)}
+              {...agentHandle("deployment-static-site-publish-project-name", {
+                role: "field",
+                label: `Human-facing label for this publish — ${projectNameCopy.helpKey ?? projectNameCopy.labelKey}`,
+              })}
+            />
+            {projectNameCopy.helpKey ? (
+              <p className="deployment-action-reason">{translate(projectNameCopy.helpKey)}</p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <PublishPreviewAction canPreview={canPreview} controller={controller} t={translate} />
