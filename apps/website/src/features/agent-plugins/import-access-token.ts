@@ -20,6 +20,12 @@ import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedT
  *
  * Never overwrites: a row that already holds a credential (a sign-in or a saved token) is left alone.
  * Not probed: the env token was already in use, and onboarding probes before it seals.
+ *
+ * The env import trusts only what THIS Tovu build shipped: a declaration is read from a plugin only
+ * when its installed digest is the one `seed-bundled.ts` recorded (`bundled-digests.ts`), and the
+ * token only goes to a row still at that declaration's URL. Any installed package can declare
+ * `importFromEnv`, so without this an operator-installed plugin could name `OPENAI_API_KEY` and an
+ * endpoint of its own and be handed that secret at boot (Codex review 2026-09-29).
  */
 
 /** Recorded as `updatedBy`/principal on what an import writes. */
@@ -42,12 +48,21 @@ export type ImportAgentPluginAccessTokenOutcome = "saved" | "saved-left-off" | "
  */
 export async function importAgentPluginAccessToken(
   deps: ImportAgentPluginAccessTokenDeps,
-  input: { readonly pluginId: string; readonly token: string; readonly principalId?: string },
+  input: {
+    readonly pluginId: string;
+    readonly token: string;
+    readonly principalId?: string;
+    /** When set, the token is saved only onto a row at exactly this URL (the env import's rule). */
+    readonly onlyAtUrl?: string;
+  },
 ): Promise<ImportAgentPluginAccessTokenOutcome> {
   const principalId = input.principalId ?? AGENT_PLUGIN_TOKEN_IMPORT_ACTOR;
   const target = await resolveTarget(deps, input.pluginId, principalId);
   const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
   if (row && hasStoredAgentPluginCredential(row)) return "already-connected";
+  if (input.onlyAtUrl !== undefined && (row?.url ?? target.config.url) !== input.onlyAtUrl) {
+    throw new Error(`its '${target.connectionId}' connection points at a different URL than the '${input.pluginId}' plugin declares, so the token is not copied there`);
+  }
 
   await saveStaticAccessToken(deps, target, principalId, input.token);
   const switched = await switchOnSavedTokenConnection(deps, target);
@@ -58,21 +73,22 @@ export async function importAgentPluginAccessToken(
 export interface InstalledAgentPluginServers {
   readonly pluginId: string;
   readonly servers: Readonly<Record<string, McpServerConfig>>;
+  /** True only when this is the digest this Tovu build seeded for the id (`bundled-digests.ts`).
+   *  Absent reads as not bundled. */
+  readonly bundled?: boolean;
 }
 
 /** Every installed plugin in the workspace, one per id (the bundled-preferred digest). */
 export async function listInstalledAgentPluginServers(workspaceId: string): Promise<readonly InstalledAgentPluginServers[]> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
-  const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.packages),
-    await readBundledAgentPluginDigests(workspaceLayout.root),
-  );
+  const ledger = await readBundledAgentPluginDigests(workspaceLayout.root);
+  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(workspaceLayout.packages), ledger);
   const seen = new Set<string>();
   const out: InstalledAgentPluginServers[] = [];
   for (const plugin of installed) {
     if (seen.has(plugin.pluginId)) continue;
     seen.add(plugin.pluginId);
-    out.push({ pluginId: plugin.pluginId, servers: await readInstalledMcpServers(plugin.packageRoot) });
+    out.push({ pluginId: plugin.pluginId, servers: await readInstalledMcpServers(plugin.packageRoot), bundled: ledger.get(plugin.pluginId) === plugin.archiveDigest });
   }
   return out;
 }
@@ -87,15 +103,17 @@ export interface ImportAgentPluginAccessTokensFromEnvDeps extends ImportAgentPlu
   readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]>;
 }
 
-/** The env declarations of every token-auth server across the installed plugins. */
+/** The env declarations of every token-auth server across the BUNDLED plugins (see this file's header). */
 function envDeclarations(plugins: readonly InstalledAgentPluginServers[]) {
-  return plugins.flatMap(({ pluginId, servers }) =>
-    Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tovuTokenAuth ? [{ pluginId, auth: config.tovuTokenAuth }] : [])),
+  return plugins.flatMap(({ pluginId, servers, bundled }) =>
+    bundled === true
+      ? Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tovuTokenAuth ? [{ pluginId, url: config.url, auth: config.tovuTokenAuth }] : []))
+      : [],
   );
 }
 
 /**
- * Boot: for each installed plugin whose token-auth server names `importFromEnv`, copies a set env
+ * Boot: for each bundled plugin whose token-auth server names `importFromEnv`, copies a set env
  * token onto its row (logged once, on the boot that copies it — later boots find the row connected
  * and say nothing), and names any set `retiredEnv` vars as no longer used. Never throws: a failed
  * import is a warning and the next boot tries again.
@@ -115,7 +133,7 @@ export async function importAgentPluginAccessTokensFromEnv(
     return;
   }
 
-  for (const { pluginId, auth } of envDeclarations(plugins)) {
+  for (const { pluginId, url, auth } of envDeclarations(plugins)) {
     const retiredSet = (auth.retiredEnv ?? []).filter((name) => (env[name] ?? "").trim() !== "");
     if (retiredSet.length > 0) {
       log.info(`[agent-plugins] ${retiredSet.join(", ")} ${retiredSet.length === 1 ? "is" : "are"} no longer used; the '${pluginId}' plugin's connection replaces them. You can remove them.`);
@@ -123,7 +141,7 @@ export async function importAgentPluginAccessTokensFromEnv(
     const token = auth.importFromEnv ? (env[auth.importFromEnv] ?? "").trim() : "";
     if (!auth.importFromEnv || token === "") continue;
     try {
-      const outcome = await importAgentPluginAccessToken(deps, { pluginId, token });
+      const outcome = await importAgentPluginAccessToken(deps, { pluginId, token, onlyAtUrl: url });
       if (outcome === "saved") {
         log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection and switched it on. The env var is no longer needed.`);
       } else if (outcome === "saved-left-off") {
