@@ -53,8 +53,8 @@ test("mcp.json declares exactly one streamable-http OAuth server at Supabase's a
 
   assert.deepEqual(parsed.config.serverIds, ["supabase"]);
   const server = parsed.config.servers.supabase;
+  // `assert.ok` is an assertion function, so this line alone narrows `server` to a remote config.
   assert.ok(server && server.type !== "stdio");
-  if (!server || server.type === "stdio") return;
   assert.deepEqual(
     { type: server.type, url: server.url, tovuAuthMode: server.tovuAuthMode },
     { type: "streamable-http", url: FEATURES_URL, tovuAuthMode: "oauth" },
