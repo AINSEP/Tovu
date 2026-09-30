@@ -15,7 +15,7 @@
           "label": "Owner",
           "required": true,
           "help": "The GitHub user or organization that owns the repository. Default it to the verified account (accountLabel) and confirm it; never guess it.",
-          "userHelp": "The GitHub user or organization that owns the repository. It starts as the account your token belongs to; change it if the repository belongs to an organization."
+          "userHelp": "The GitHub user or organization that owns the repository. Enter your own username, or the organization's name if the organization owns it."
         },
         {
           "name": "repo",
@@ -140,7 +140,7 @@
       "credential": {
         "vendorId": "cloudflare",
         "vendorLabel": "Cloudflare",
-        "help": "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.",
+        "help": "Needs an API token with the Cloudflare Pages: Edit permission, plus your Cloudflare account ID. Cloudflare cannot find a project without the account ID.",
         "tokenPageUrl": "https://dash.cloudflare.com/profile/api-tokens",
         "fields": [
           {
@@ -154,7 +154,7 @@
             "name": "accountId",
             "label": "Account ID",
             "required": true,
-            "help": "Shown on the Cloudflare dashboard's account home page."
+            "help": "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/."
           }
         ]
       }
@@ -167,6 +167,7 @@
         "vendorId": "s3-compatible",
         "vendorLabel": "the storage provider",
         "help": "S3-compatible storage needs three things, not just these fields: a bucket you've already created, public access or hosting set up in front of it — ask me to generate the exact steps and the exact policy for your bucket, then apply them yourself in your provider's console — and an access key scoped to just that bucket. If you haven't done the first two yet, do that before filling this in.",
+        "userHelp": "Before you fill this in: create the bucket, make it reachable on the web, and create an access key limited to that bucket. The assistant can give you the exact steps for your provider.",
         "tokenField": "secretAccessKey",
         "fields": [
           {
@@ -203,7 +204,8 @@
             "name": "publicUrl",
             "label": "Public URL",
             "required": true,
-            "help": "The web address people will actually visit once this is live, e.g. https://my-site.pages.dev, a custom domain pointed at this bucket, or your provider's public bucket URL. Not sure how to set this up? Ask me to generate the exact steps for your bucket, then apply them yourself in your provider's console. Once it's live, paste the address here; Tovu checks it after every publish and will tell you plainly if it isn't reachable, rather than reporting success anyway."
+            "help": "The web address people will actually visit once this is live, e.g. https://my-site.pages.dev, a custom domain pointed at this bucket, or your provider's public bucket URL. Not sure how to set this up? Ask me to generate the exact steps for your bucket, then apply them yourself in your provider's console. Once it's live, paste the address here; Tovu checks it after every publish and will tell you plainly if it isn't reachable, rather than reporting success anyway.",
+            "userHelp": "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached."
           }
         ]
       }
