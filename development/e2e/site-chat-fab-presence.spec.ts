@@ -1,3 +1,4 @@
+import path from "node:path";
 import { test, expect, type Page } from "@playwright/test";
 
 /**
@@ -38,6 +39,9 @@ const MOUNT_ID = "tovu-site-assistant-root";
 const SCRIPT_SRC = "/site-chat/site-assistant.js";
 /** Size of the square corner region screenshotted — the 56px FAB at 24px insets plus margin. */
 const CORNER_SIZE = 120;
+/** Hides everything but `#${MOUNT_ID}` during the corner capture. Anchored to this file's directory:
+ *  a relative `stylePath` resolves against however the suite was invoked. */
+const CORNER_SCREENSHOT_CSS = path.resolve(import.meta.dirname, "site-chat-fab-presence.screenshot.css");
 
 /** Half-open `[start, end)` ranges of every `<!-- ... -->` in `html`; an unterminated comment runs to
  *  the end, as the HTML parser treats it. */
@@ -131,6 +135,7 @@ test.describe("site-chat FAB is present on every public page that ships it", () 
         clip: { x: viewport.width - CORNER_SIZE, y: viewport.height - CORNER_SIZE, width: CORNER_SIZE, height: CORNER_SIZE },
         animations: "disabled",
         caret: "hide",
+        stylePath: CORNER_SCREENSHOT_CSS,
       });
     });
   }
