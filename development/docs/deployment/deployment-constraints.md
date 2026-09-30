@@ -80,8 +80,10 @@ JS and admin authority are incompatible trust levels. The admin needs a **separa
 (`/admin` may redirect to it), or arbitrary theme scripts must be prohibited.
 
 **4.4 — The Supabase MCP PAT is not a database credential.** It is an account-level *management*
-credential, explicitly distinct from project data-plane credentials
-(`src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts:45-53`). Postgres connectivity needs real
+credential, explicitly distinct from project data-plane credentials: the Supabase agent plugin's
+token is an account access token checked against the Management API
+(`content/agent-plugins/supabase/mcp.json:8-11`, `tovuTokenAuth.helpUrl` / `probeUrl`; the old
+env preset `supabase-mcp-plugin.ts` was removed in ec07d7d6e). Postgres connectivity needs real
 connection credentials.
 
 ## 5. Theme tiers and the render sandbox
