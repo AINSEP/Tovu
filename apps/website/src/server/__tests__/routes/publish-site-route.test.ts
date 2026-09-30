@@ -854,7 +854,8 @@ test("publish-targets: a target with a saved credential carries its form's field
   assert.equal(cloudflare.credential.tokenField, "token");
   assert.deepEqual(
     cloudflare.credential.fields.map((field) => [field.name, field.required, field.secret === true]),
-    [["token", true, true], ["accountId", true, false], ["projectName", false, false]],
+    // No credential `projectName`: the host module never read it, so 53c8fddec stopped declaring it.
+    [["token", true, true], ["accountId", true, false]],
   );
   const s3 = body.targets.find((target) => target.id === "s3-compatible");
   assert.equal(s3?.credential?.tokenField, "secretAccessKey");

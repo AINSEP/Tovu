@@ -146,7 +146,9 @@ test("resolveForPublish decrypts the exact connection that was sealed", async ()
   });
 
   const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
-  assert.deepEqual(resolved?.connection, { providerId: "cloudflare-pages", token: "cf_token", accountId: "acct-1", projectName: "my-site" });
+  // Only the host's declared credential fields are sealed: Cloudflare Pages stopped declaring a
+  // credential `projectName` (53c8fddec — its module never read it), so the extra key is dropped.
+  assert.deepEqual(resolved?.connection, { providerId: "cloudflare-pages", token: "cf_token", accountId: "acct-1" });
 });
 
 test("resolveForPublish returns null for a non-existent id — not an error", async () => {

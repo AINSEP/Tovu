@@ -1503,7 +1503,7 @@ test("deployment_preview_static_publish: an unrecognized target throws before an
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), {
-    message: "publish target 'bogus-provider' is not available; choose one of: netlify, cloudflare-pages, vercel, github-pages, s3-compatible",
+    message: "publish target 'bogus-provider' is not available; choose one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible",
   });
 });
 
