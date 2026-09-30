@@ -1,15 +1,6 @@
 {
-  "apps/admin/src/features/deployment/deployment-i18n.tsx": {
-    "cloudflare": 105,
-    "netlify": 46,
-    "vercel": 82
-  },
   "apps/admin/src/features/deployment/rules.ts": {
-    "cloudflare": 6,
     "fly": 2,
-    "github-pages": 2,
-    "netlify": 4,
-    "railway": 2,
-    "vercel": 4
+    "railway": 2
   }
 }

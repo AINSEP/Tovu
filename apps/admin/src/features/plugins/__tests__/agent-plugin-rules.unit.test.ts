@@ -73,23 +73,15 @@ describe("humanizeAgentPluginId", () => {
     expect(humanizeAgentPluginId("apiary-sync")).toBe("Apiary Sync");
   });
 
-  it("returns the hand-curated override for tovu-deploy-fly instead of the id-derived title-case", () => {
-    // Owner correction, 2026-09-10: the id-derived "Tovu Deploy Fly" neither led with nor spelled
-    // the actual product (Fly.io) this plugin deploys to.
-    expect(humanizeAgentPluginId("tovu-deploy-fly")).toBe("Fly.io Deploy");
-  });
-
-  it("leaves an id resembling but not matching an override to the generic transform", () => {
-    expect(humanizeAgentPluginId("tovu-deploy-fly-v2")).toBe("Tovu Deploy Fly V2");
+  it("names no plugin by hand: every id takes the generic transform", () => {
+    expect(humanizeAgentPluginId("tovu-deploy-fly")).toBe("Tovu Deploy Fly");
   });
 });
 
 describe("agentPluginToggleAriaLabel", () => {
   it("names the target action and the plugin, so two rows' switches are distinguishable", () => {
     expect(agentPluginToggleAriaLabel({ pluginId: "site-compliance", enabled: true }, "en")).toBe("Disable Site Compliance");
-    // The overridden display name, not the id-derived "Tovu Deploy Fly" — see
-    // `humanizeAgentPluginId`'s own override map.
-    expect(agentPluginToggleAriaLabel({ pluginId: "tovu-deploy-fly", enabled: false }, "en")).toBe("Enable Fly.io Deploy");
+    expect(agentPluginToggleAriaLabel({ pluginId: "tovu-deploy-fly", enabled: false }, "en")).toBe("Enable Tovu Deploy Fly");
   });
 
   it("uses the locale's own verb", () => {

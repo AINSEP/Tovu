@@ -125,7 +125,7 @@ describe("AgentPlugins", () => {
 
     // No version chip for a plugin whose installed package carries none — honest omission, not a
     // stale placeholder (same "no invented value" rule the old card's own comment stated).
-    expect(within(row("Fly.io Deploy")).queryByText(/^v\d/)).not.toBeInTheDocument();
+    expect(within(row("Tovu Deploy Fly")).queryByText(/^v\d/)).not.toBeInTheDocument();
 
     await userEvent.click(downloadedTab);
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
@@ -174,7 +174,7 @@ describe("AgentPlugins", () => {
     renderAgentPlugins();
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    expect(within(row("Fly.io Deploy")).getByRole("button", { name: "Enable Fly.io Deploy" })).toBeInTheDocument();
+    expect(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" })).toBeInTheDocument();
   });
 
   it("calls the controller with the row's own plugin when Downloaded's Enable button is activated", async () => {
@@ -182,7 +182,7 @@ describe("AgentPlugins", () => {
     renderAgentPlugins({ onToggleEnabled });
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    await userEvent.click(within(row("Fly.io Deploy")).getByRole("button", { name: "Enable Fly.io Deploy" }));
+    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" }));
 
     expect(onToggleEnabled).toHaveBeenCalledTimes(1);
     expect(onToggleEnabled).toHaveBeenCalledWith(TOVU_DEPLOY_FLY);
@@ -200,7 +200,7 @@ describe("AgentPlugins", () => {
     renderAgentPlugins({ togglingIds: new Set(["tovu-deploy-fly"]) });
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    const busy = within(row("Fly.io Deploy")).getByRole("button", { name: "Enable Fly.io Deploy" });
+    const busy = within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" });
     expect(busy).toBeDisabled();
     expect(busy).toHaveAttribute("aria-busy", "true");
     expect(within(row("Site Compliance")).getByRole("button", { name: "Turn off Site Compliance" })).toBeEnabled();
@@ -252,7 +252,7 @@ describe("AgentPlugins", () => {
 
     // An MCP server id is shown only by the package that declares one — an empty "MCP servers"
     // heading would assert the question was asked and answered "none".
-    expect(within(row("Fly.io Deploy")).getByText("fly-deploy")).toBeInTheDocument();
+    expect(within(row("Tovu Deploy Fly")).getByText("fly-deploy")).toBeInTheDocument();
     expect(within(expandedRow).queryByText("MCP servers")).not.toBeInTheDocument();
 
     // The full description repeats, UNCLAMPED, at the top of the expanded area — the same text the
@@ -280,8 +280,8 @@ describe("AgentPlugins", () => {
     renderAgentPlugins({ expandedIds: new Set(["tovu-deploy-fly"]) });
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    const flyRow = row("Fly.io Deploy");
-    expect(within(flyRow).getByRole("button", { name: "Fly.io Deploy" })).toHaveAttribute("aria-expanded", "true");
+    const flyRow = row("Tovu Deploy Fly");
+    expect(within(flyRow).getByRole("button", { name: "Tovu Deploy Fly" })).toHaveAttribute("aria-expanded", "true");
     expect(flyRow.querySelector(".agent-plugin-row-desc")).toBeNull();
     expect(flyRow.querySelector(".agent-plugin-detail-description")).toBeNull();
   });
@@ -291,7 +291,7 @@ describe("AgentPlugins", () => {
     renderAgentPlugins({ onToggleExpanded });
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    await userEvent.click(within(row("Fly.io Deploy")).getByRole("button", { name: "Fly.io Deploy" }));
+    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Tovu Deploy Fly" }));
 
     expect(onToggleExpanded).toHaveBeenCalledWith("tovu-deploy-fly");
   });
@@ -389,7 +389,7 @@ describe("AgentPlugins disable-confirm dialog", () => {
     renderAgentPlugins({ onToggleEnabled });
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    await userEvent.click(within(row("Fly.io Deploy")).getByRole("button", { name: "Enable Fly.io Deploy" }));
+    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" }));
 
     expect(onToggleEnabled).toHaveBeenCalledTimes(1);
     expect(onToggleEnabled).toHaveBeenCalledWith(TOVU_DEPLOY_FLY);
