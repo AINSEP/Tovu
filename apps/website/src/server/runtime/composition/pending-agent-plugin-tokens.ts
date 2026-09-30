@@ -68,6 +68,23 @@ function writePendingTokensFile(siteDir: string, file: PendingTokensFile): void 
   fs.renameSync(temp, target);
 }
 
+/**
+ * The plugin ids `siteDir`'s pending file holds a token for, without opening any. Empty for a
+ * missing or unreadable file. Boot keeps the env token import off these (`bootstrap.ts`), so an
+ * ambient token never takes the place of the one chosen at create time.
+ *
+ * @complexity One small file read.
+ */
+export function listPendingAgentPluginTokenIds(siteDir: string): ReadonlySet<string> {
+  try {
+    const file = JSON.parse(fs.readFileSync(path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), "utf8")) as Partial<PendingTokensFile> | null;
+    const tokens = file?.tokens;
+    return new Set(tokens && typeof tokens === "object" && !Array.isArray(tokens) ? Object.keys(tokens) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export interface PendingTokenLog {
   info(message: string): void;
   warn(message: string): void;

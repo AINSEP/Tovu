@@ -284,3 +284,12 @@ test("manifest: importFromEnv and retiredEnv parse; a malformed env name exclude
   assert.ok(bad.ok);
   assert.equal(bad.ok ? bad.config.servers.s : "x", undefined);
 });
+
+test("env import skips a plugin that still has a token pending from create-site onboarding", async () => {
+  const { deps, connected, readRow, logs, log } = await setup();
+  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN, TOVU_SUPABASE_MCP_ENABLED: "1" }, log, { skipPluginIds: new Set(["supabase"]) });
+  assert.equal((await readRow())?.authMode, "oauth", "the env token must not be saved over the pending one's place");
+  assert.deepEqual(connected, []);
+  assert.equal(logs.info.length, 1, "retired env vars are still named");
+  assert.match(logs.info[0] ?? "", /TOVU_SUPABASE_MCP_ENABLED is no longer used/);
+});

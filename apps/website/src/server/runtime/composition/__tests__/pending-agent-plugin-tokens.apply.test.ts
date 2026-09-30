@@ -7,7 +7,7 @@ import { afterEach, beforeEach, test } from "node:test";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { applyPendingAgentPluginTokens, PENDING_AGENT_PLUGIN_TOKENS_FILENAME } from "../pending-agent-plugin-tokens.js";
+import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds, PENDING_AGENT_PLUGIN_TOKENS_FILENAME } from "../pending-agent-plugin-tokens.js";
 
 /**
  * @file `applyPendingAgentPluginTokens`: the new site's first boot opens the tokens create-site
@@ -135,4 +135,12 @@ test("a file that is not valid JSON is removed with a warning", async () => {
   assert.equal(fs.existsSync(target()), false);
   assert.equal(logs.warn.length, 1);
   assert.match(logs.warn[0] ?? "", /is not valid JSON; removing it/);
+});
+
+test("listPendingAgentPluginTokenIds: the plugin ids in the file, without opening a token; none for a missing or unreadable file", async () => {
+  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)], []);
+  await writePending({ supabase: TOKEN, other: "tok-other" });
+  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)].sort(), ["other", "supabase"]);
+  fs.writeFileSync(target(), "{not json");
+  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)], []);
 });

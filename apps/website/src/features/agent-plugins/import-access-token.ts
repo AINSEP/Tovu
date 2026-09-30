@@ -124,6 +124,11 @@ export async function importAgentPluginAccessTokensFromEnv(
   deps: ImportAgentPluginAccessTokensFromEnvDeps,
   env: Readonly<Record<string, string | undefined>>,
   log: TokenImportLog,
+  options: {
+    /** Plugins with a create-site onboarding token still pending: that explicit token wins over the
+     *  env one, so the env token is not copied onto them (`bootstrap.ts`). */
+    readonly skipPluginIds?: ReadonlySet<string>;
+  } = {},
 ): Promise<void> {
   let plugins: readonly InstalledAgentPluginServers[];
   try {
@@ -139,7 +144,7 @@ export async function importAgentPluginAccessTokensFromEnv(
       log.info(`[agent-plugins] ${retiredSet.join(", ")} ${retiredSet.length === 1 ? "is" : "are"} no longer used; the '${pluginId}' plugin's connection replaces them. You can remove them.`);
     }
     const token = auth.importFromEnv ? (env[auth.importFromEnv] ?? "").trim() : "";
-    if (!auth.importFromEnv || token === "") continue;
+    if (!auth.importFromEnv || token === "" || options.skipPluginIds?.has(pluginId)) continue;
     try {
       const outcome = await importAgentPluginAccessToken(deps, { pluginId, token, onlyAtUrl: url });
       if (outcome === "saved") {

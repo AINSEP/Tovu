@@ -8,7 +8,7 @@ import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } fr
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
-import { applyPendingAgentPluginTokens } from "../composition/pending-agent-plugin-tokens.js";
+import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";
 import { startPluginActivationPolling } from "../composition/agent-daemon-deps.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
@@ -32,23 +32,51 @@ const noop = async (): Promise<void> => {};
 const tokenImportLog = { info: (message: string) => console.info(message), warn: (message: string) => console.warn(message) };
 /* eslint-enable no-console */
 
+/** The three steps of {@link importAgentPluginTokensAtBoot}, injectable for tests. */
+export interface AgentPluginTokenBootSteps {
+  /** Plugin ids with a create-site onboarding token waiting in `siteDir`. */
+  readonly pendingPluginIds: (siteDir: string) => ReadonlySet<string>;
+  readonly applyPending: (siteDir: string) => Promise<void>;
+  readonly importFromEnv: (skipPluginIds: ReadonlySet<string>) => Promise<void>;
+}
+
+function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPluginTokenBootSteps {
+  return {
+    pendingPluginIds: listPendingAgentPluginTokenIds,
+    applyPending: (siteDir) =>
+      applyPendingAgentPluginTokens(
+        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },
+        tokenImportLog,
+      ),
+    importFromEnv: (skipPluginIds) => importAgentPluginAccessTokensFromEnv(deps, process.env, tokenImportLog, { skipPluginIds }),
+  };
+}
+
 /**
  * After the bundled plugins are seeded (a token needs its plugin installed): connects plugins from
- * an old env token (`tovuTokenAuth.importFromEnv`, e.g. the retired `TOVU_SUPABASE_MCP_ACCESS_TOKEN`)
- * and from tokens typed into create-site onboarding for this site. Neither overwrites a connection
- * the site already has, and neither can fail boot.
+ * tokens typed into create-site onboarding for this site, then from an old env token
+ * (`tovuTokenAuth.importFromEnv`, e.g. the retired `TOVU_SUPABASE_MCP_ACCESS_TOKEN`). The onboarding
+ * token goes first and the env import skips every plugin that had one: the person chose that token
+ * for this site, and an ambient env token (possibly another account's) saved first would make the
+ * pending import find the row connected and drop it. Neither overwrites a connection the site
+ * already has, and neither can fail boot.
  */
-async function importAgentPluginTokensAtBoot(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): Promise<void> {
-  await importAgentPluginAccessTokensFromEnv(deps, process.env, tokenImportLog);
-  if (options.useMemory) return;
-  try {
-    await applyPendingAgentPluginTokens(
-      { siteDir: path.dirname(options.defaultContentDbPath()), sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },
-      tokenImportLog,
-    );
-  } catch (err) {
-    tokenImportLog.warn(`[agent-plugins] could not apply this site's pending access tokens: ${err instanceof Error ? err.message : String(err)}`);
+export async function importAgentPluginTokensAtBoot(
+  deps: NewsletterRouteDeps,
+  options: BuildBootModulesOptions,
+  steps: AgentPluginTokenBootSteps = defaultAgentPluginTokenBootSteps(deps),
+): Promise<void> {
+  let pending: ReadonlySet<string> = new Set();
+  if (!options.useMemory) {
+    const siteDir = path.dirname(options.defaultContentDbPath());
+    pending = steps.pendingPluginIds(siteDir);
+    try {
+      await steps.applyPending(siteDir);
+    } catch (err) {
+      tokenImportLog.warn(`[agent-plugins] could not apply this site's pending access tokens: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
+  await steps.importFromEnv(pending);
 }
 
 export interface BuildBootModulesOptions {
