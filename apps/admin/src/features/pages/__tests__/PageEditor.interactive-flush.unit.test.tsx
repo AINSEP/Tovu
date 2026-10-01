@@ -1,9 +1,11 @@
-import { forwardRef, type Ref } from "react";
-import { cleanup, render } from "@testing-library/react";
+import { forwardRef, useState, type Ref } from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";
-import type { PageEditorController } from "../hooks/use-page-editor.hooks";
+import { usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
+import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
+import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
 import { api, type AdminPost } from "@/lib/api";
 
@@ -31,9 +33,11 @@ vi.mock("@jini-ai/ui/html-editor", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@jini-ai/ui/html-editor")>();
   return {
     ...actual,
-    InteractiveHtmlEditor: forwardRef<InteractiveHtmlEditorHandle, Record<string, unknown>>((_props, ref) => {
+    InteractiveHtmlEditor: forwardRef<InteractiveHtmlEditorHandle, Record<string, unknown>>((props, ref) => {
       captured = ref;
-      return <div data-testid="gjs-stub" />;
+      // Like the real canvas, consume the HTML at mount rather than following prop updates.
+      const [initialHtml] = useState(() => String(props.html));
+      return <div data-testid="gjs-stub">{initialHtml}</div>;
     }),
   };
 });
@@ -140,5 +144,61 @@ describe("PageEditor — Interactive flush ref wiring", () => {
     render(<PageEditor slug="pg1" usePageEditorHook={usePageEditorHook} />);
 
     expect(captured).toBe(ctrl.interactiveEditorRef);
+  });
+});
+
+
+describe("PageEditor — scroll event routing", () => {
+  it("passes the rendered HTML textarea's scroll position to its controller", () => {
+    const ctrl = controller({ view: "html" });
+    render(<PageEditor slug="about" usePageEditorHook={() => ctrl} />);
+    const textarea = screen.getByRole("textbox", { name: "Page HTML" });
+    expect(ctrl.htmlTextareaRef).toHaveBeenCalledWith(textarea);
+    textarea.scrollTop = 220;
+    fireEvent.scroll(textarea);
+    expect(ctrl.onHtmlScroll).toHaveBeenCalledExactlyOnceWith(220);
+    expect(ctrl.onPreviewFrameLoad).not.toHaveBeenCalled();
+  });
+
+  it.each(["draft", "published"] as const)("passes the %s preview iframe's load to its controller", (status) => {
+    const ctrl = controller({ view: "preview", page: { ...BASE_PAGE, status }, status });
+    render(<PageEditor slug="about" usePageEditorHook={() => ctrl} />);
+    const iframe = screen.getByTitle("Page preview");
+    fireEvent.load(iframe);
+    expect(ctrl.onPreviewFrameLoad).toHaveBeenCalledExactlyOnceWith(iframe);
+    expect(ctrl.onHtmlScroll).not.toHaveBeenCalled();
+  });
+});
+
+describe("PageEditor — recovered content remount", () => {
+  it("remounts the Interactive canvas with recovered HTML using the real editor hook", async () => {
+    const port = createFakePageEditorPort({
+      page: BASE_PAGE,
+      autosave: {
+        bodyFormat: "html",
+        bodyHtml: "<p>Recovered canvas</p>",
+        title: "Recovered title",
+        slug: "about",
+        baseVersion: BASE_PAGE.version,
+        savedAt: "2026-09-06T00:00:00.000Z",
+        savedByPrincipalId: "user-local",
+      },
+    });
+    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (_locale: string, key: string) => key, locale: "en" };
+    const usePageEditorHook = (slug: string) => usePageEditor(slug, deps);
+    const view = render(<PageEditor slug="about" usePageEditorHook={usePageEditorHook} />);
+    try {
+      await screen.findByRole("button", { name: "Restore", exact: true });
+      fireEvent.click(screen.getByRole("tab", { name: "Interactive" }));
+      const originalCanvas = await screen.findByTestId("gjs-stub");
+      expect(originalCanvas).toHaveTextContent("<p>Hello</p>");
+      fireEvent.click(screen.getByRole("button", { name: "Restore", exact: true }));
+      await waitFor(() => expect(screen.getByTestId("gjs-stub")).not.toBe(originalCanvas));
+      expect(originalCanvas).not.toBeInTheDocument();
+      expect(screen.getByTestId("gjs-stub")).toHaveTextContent("<p>Recovered canvas</p>");
+    } finally {
+      view.unmount();
+      localStorage.clear();
+    }
   });
 });

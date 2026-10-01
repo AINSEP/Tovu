@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentPlugins } from "../AgentPlugins";
-import type { AgentPluginsController, InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
+import { useWiredAgentPlugins, type AgentPluginsController, type InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
 import type { AdminAgentPlugin } from "@/lib/api";
 
 /**
@@ -545,6 +545,40 @@ describe("AgentPlugins inspector (stateful)", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     fireEvent.click(dialog);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+
+describe("AgentPlugins — real wired hook and HTTP adapter", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("confirms the switch then PATCHes the selected plugin with the enabled boolean", async () => {
+    const serverRow = { ...SITE_COMPLIANCE, enabled: false };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      let body: unknown;
+      if (url.endsWith("/agent-plugins")) body = { agentPlugins: [SITE_COMPLIANCE] };
+      else if (url.endsWith("/agent-plugins/site-compliance")) body = { agentPlugin: serverRow };
+      else if (url.includes("/settings/effective")) body = { data: [] };
+      else throw new Error(`Unexpected request: ${url}`);
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AgentPlugins useAgentPluginsHook={useWiredAgentPlugins} />);
+    const pluginRow = await screen.findByRole("listitem", { name: "Site Compliance" });
+    expect(within(pluginRow).getByRole("switch")).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(within(pluginRow).getByRole("switch"));
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/agent-plugins/site-compliance"))).toHaveLength(0);
+    const dialog = screen.getByRole("dialog", { name: "Disable Site Compliance for this site?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disable", exact: true }));
+    await waitFor(() => expect(within(pluginRow).getByRole("switch")).toHaveAttribute("aria-checked", "false"));
+    const writes = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/agent-plugins/site-compliance"));
+    expect(writes).toHaveLength(1);
+    expect(String(writes[0]![0])).toMatch(/\/workspaces\/workspace-local\/agent-plugins\/site-compliance$/);
+    const init = writes[0]![1]!;
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(String(init.body))).toEqual({ enabled: false });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

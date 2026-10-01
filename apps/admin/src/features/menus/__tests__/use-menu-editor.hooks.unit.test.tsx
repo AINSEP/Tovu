@@ -40,6 +40,84 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     expect(getSpy).not.toHaveBeenCalled();
   });
 
+  it("appends children and roots without replacing existing items or the other parent", async () => {
+    const child = { id: "child", label: "Child", target: { kind: "url" as const, href: "/child" } };
+    const parent = { ...MENU.items[0]!, children: [child] };
+    const other = { ...MENU.items[0]!, id: "other", children: [child] };
+    const port = createFakeMenusPort({ menus: [{ ...MENU, items: [parent, other] }] });
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.addChildAt([0]));
+    expect(result.current.items[0]?.children).toHaveLength(2);
+    expect(result.current.items[0]?.children?.[0]).toEqual(child);
+    expect(result.current.items[0]?.children?.[1]).toEqual({ id: expect.any(String), label: "", target: { kind: "url", href: "" } });
+    expect(result.current.items[1]).toEqual(other);
+    const existing = result.current.items;
+    act(() => result.current.addRootItem());
+    expect(result.current.items).toHaveLength(3);
+    expect(result.current.items.slice(0, 2)).toEqual(existing);
+    expect(result.current.items[2]).toEqual({ id: expect.any(String), label: "", target: { kind: "url", href: "" } });
+  });
+
+  it.each([new Error("Load denied"), "unknown failure"])("surfaces a load rejection and clears loading (%s)", async (failure) => {
+    const port = createFakeMenusPort();
+    port.getMenu = vi.fn().mockRejectedValue(failure);
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe(failure instanceof Error ? failure.message : "failed to load menu");
+    expect(result.current.menu).toBeNull();
+    expect(result.current.message).toBeNull();
+  });
+
+  it("reports save failure without success and keeps unsaved edits dirty", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.updateMenuTree = vi.fn().mockRejectedValue(new Error("Version conflict"));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.setTitle("Renamed"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("Version conflict");
+    expect(result.current.message).toBeNull();
+    expect(result.current.saving).toBe(false);
+    expect(result.current.menu?.version).toBe(1);
+    expect(result.current.confirmLeave()).toBe(false);
+    expect(confirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves the edited metadata and tree with the loaded version, then re-baselines the dirty guard", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    const update = vi.spyOn(port, "updateMenuTree");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => {
+      result.current.setTitle("Renamed");
+      result.current.setSlug("renamed-menu");
+      result.current.changeAt([0], (item) => ({ ...item, label: "Start" }));
+    });
+    expect(result.current.confirmLeave()).toBe(false);
+    confirm.mockClear();
+    const items = result.current.items;
+    await act(async () => { await result.current.save(); });
+    expect(update).toHaveBeenCalledExactlyOnceWith(
+      { id: "m1", expectedVersion: 1, items },
+      { title: "Renamed", slug: "renamed-menu" }
+    );
+    expect(result.current.message).toBe("Saved · version 2");
+    expect(result.current.error).toBeNull();
+    expect(result.current.confirmLeave()).toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+
+    // The next update must use the newly saved version too.
+    await act(async () => { await result.current.save(); });
+    expect(update).toHaveBeenLastCalledWith(
+      { id: "m1", expectedVersion: 2, items },
+      { title: "Renamed", slug: "renamed-menu" }
+    );
+  });
+
   it("routes create through the injected port and calls the injected navigate, never the real router", async () => {
     const createSpy = vi.spyOn(api, "createMenu");
     const port = createFakeMenusPort();
@@ -55,8 +133,10 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
 
     expect(port.menus).toHaveLength(1);
     expect(port.menus[0]?.title).toBe("New menu");
+    expect(port.menus[0]?.slug).toBe("new-menu");
     // readable-slugs S6b: address bar after "New menu" reads the slug, not the raw id.
     expect(fakeNavigate).toHaveBeenCalledWith(`/menus/${port.menus[0]?.slug}`);
+    expect(fakeNavigate).toHaveBeenCalledWith("/menus/new-menu");
     expect(createSpy).not.toHaveBeenCalled();
   });
 
@@ -73,6 +153,33 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
     expect(result.current.loading).toBe(true);
     expect(result.current.menu).toBeNull();
+  });
+
+  it("ignores an older getMenu response that arrives after the next menu has loaded", async () => {
+    const menuB: AdminMenu = { ...MENU, id: "m2", title: "Menu B", slug: "menu-b", items: [] };
+    const port = createFakeMenusPort();
+    let resolveA!: (value: { menu: AdminMenu }) => void;
+    let resolveB!: (value: { menu: AdminMenu }) => void;
+    const pendingA = new Promise<{ menu: AdminMenu }>((resolve) => { resolveA = resolve; });
+    const pendingB = new Promise<{ menu: AdminMenu }>((resolve) => { resolveB = resolve; });
+    port.getMenu = (id) => id === "m1" ? pendingA : pendingB;
+    const navigate = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ id }) => useMenuEditor(id, { port, navigate, t: (k) => k }),
+      { initialProps: { id: "m1" } }
+    );
+    rerender({ id: "m2" });
+    expect(result.current.loading).toBe(true);
+    await act(async () => { resolveB({ menu: menuB }); await pendingB; });
+    expect(result.current.loading).toBe(false);
+    expect(result.current.title).toBe("Menu B");
+    await act(async () => { resolveA({ menu: MENU }); await pendingA; });
+    expect(result.current.menu).toEqual(menuB);
+    expect(result.current.title).toBe("Menu B");
+    expect(result.current.slug).toBe("menu-b");
+    expect(result.current.items).toEqual([]);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 
   /**

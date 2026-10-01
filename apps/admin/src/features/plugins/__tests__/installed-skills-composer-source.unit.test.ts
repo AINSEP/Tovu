@@ -68,6 +68,15 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     const binding = capability?.resolve?.(undefined);
     expect(binding?.kind).toBe("compose-text");
     expect((binding as { text: string }).text).toContain("skill_incident_response");
+    expect(binding).toEqual({
+      kind: "compose-text",
+      text: `Use the "incident-response" skill — call:
+
+  skill_incident_response({})
+
+If your tools are proxied, that call is:
+  mcp__jini__execute_delegated_tool({ "toolId": "skill_incident_response", "input": {} })`,
+    });
 
     // The route this source actually calls, same-origin, workspace-scoped.
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];

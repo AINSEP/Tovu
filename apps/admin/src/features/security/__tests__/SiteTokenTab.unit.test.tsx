@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import userEvent from "@testing-library/user-event";
 
 import { SiteTokenTab } from "../SiteTokenTab";
 import type { SiteTokenController } from "../hooks/use-site-token.hooks";
@@ -222,6 +224,38 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
     expect(screen.getByLabelText("Type START FRESH to confirm")).toHaveValue("START");
     expect(screen.getByRole("button", { name: "Start fresh" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("forwards the typed token and Unlock and Start fresh actions", async () => {
+    const user = userEvent.setup();
+    const setToken = vi.fn();
+    const unlock = vi.fn(async () => {});
+    const openStartFresh = vi.fn(async () => {});
+    renderLocked(MISMATCH_STATUS, { token: "old-token", setToken, unlock, openStartFresh });
+    await user.type(screen.getByLabelText("Paste your old token"), "x");
+    expect(setToken).toHaveBeenCalledWith("old-tokenx");
+    await user.click(screen.getByRole("button", { name: "Unlock" }));
+    expect(unlock).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Start fresh…" }));
+    expect(openStartFresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards the confirmation text, enables Start fresh when allowed, and wires Cancel", async () => {
+    const user = userEvent.setup();
+    const setConfirmText = vi.fn();
+    const startFresh = vi.fn(async () => {});
+    const cancelStartFresh = vi.fn();
+    renderLocked(MISMATCH_STATUS, { startFreshStep: "confirm", canConfirmStartFresh: true, setConfirmText, startFresh, cancelStartFresh });
+    fireEvent.change(screen.getByLabelText("Type START FRESH to confirm"), { target: { value: "START FRESH" } });
+    expect(setConfirmText).toHaveBeenCalledWith("START FRESH");
+    const confirm = screen.getByRole("button", { name: "Start fresh" });
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    expect(startFresh).toHaveBeenCalledTimes(1);
+    expect(cancelStartFresh).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(cancelStartFresh).toHaveBeenCalledTimes(1);
+    expect(startFresh).toHaveBeenCalledTimes(1);
   });
 
   it("the pasted token field is a password field hidden from the assistant", () => {

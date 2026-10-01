@@ -394,6 +394,21 @@ describe("pageAcceptsHtmlBody", () => {
 describe("buildPageSavePlan", () => {
   const FORM = { title: "About", slug: "about", status: "draft" as const, templateChoice: null, html: "<p>body</p>" };
 
+  it.each([undefined, "published"] as const)("includes the chosen template and slug in the full metadata payload (%s)", (nextStatus) => {
+    const plan = buildPageSavePlan(
+      { bodyFormat: "html", bodyJson: {}, version: 7 },
+      { ...FORM, slug: "new-slug", templateChoice: "blog-post.html" },
+      nextStatus
+    );
+    expect(plan.updatePostPayload).toEqual({
+      title: "About",
+      slug: "new-slug",
+      status: nextStatus ?? "draft",
+      templateChoice: "blog-post.html",
+      expectedVersion: 7,
+    });
+  });
+
   it("omits bodyJson whenever the HTML route will fire — updatePageHtml converts the row first, so the server no longer demands one", () => {
     const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 7 }, FORM);
     expect(plan.canSaveHtml).toBe(true);

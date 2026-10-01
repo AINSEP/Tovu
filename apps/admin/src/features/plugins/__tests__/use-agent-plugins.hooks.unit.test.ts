@@ -67,6 +67,21 @@ describe("useAgentPlugins — injected port (no fetch stub, no api spy)", () => 
     expect(result.current.error).toBe("boom");
   });
 
+  it("expands and collapses each row independently", async () => {
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE, OTHER_PLUGIN] });
+    const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
+    expect([...result.current.expandedIds]).toEqual([]);
+    act(() => result.current.onToggleExpanded("site-compliance"));
+    expect([...result.current.expandedIds]).toEqual(["site-compliance"]);
+    act(() => result.current.onToggleExpanded("tovu-deploy-fly"));
+    expect(new Set(result.current.expandedIds)).toEqual(new Set(["site-compliance", "tovu-deploy-fly"]));
+    act(() => result.current.onToggleExpanded("site-compliance"));
+    expect([...result.current.expandedIds]).toEqual(["tovu-deploy-fly"]);
+    act(() => result.current.onToggleExpanded("tovu-deploy-fly"));
+    expect([...result.current.expandedIds]).toEqual([]);
+  });
+
   it("inspectPlugin/closeInspector track the open inspector without touching the port", async () => {
     const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE] });
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
@@ -103,6 +118,28 @@ describe("useAgentPlugins — onToggleEnabled", () => {
     // skills the row is also rendering.
     expect(result.current.agentPlugins?.[0]?.skills).toHaveLength(1);
     expect(result.current.agentPlugins?.[0]?.description).toBe(SITE_COMPLIANCE.description);
+  });
+
+  it("adopts the full server answer even when it differs from the requested toggle", async () => {
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE, OTHER_PLUGIN] });
+    const serverRow: AdminAgentPlugin = {
+      ...SITE_COMPLIANCE,
+      enabled: true,
+      version: "2.0.0",
+      description: "Updated server description",
+      keywords: ["updated"],
+      skills: [{ name: "new-skill", summary: "Server skill" }],
+      mcpServerIds: ["new-server"],
+    };
+    const toggle = vi.fn(async () => ({ agentPlugin: serverRow }));
+    port.setAgentPluginEnabled = toggle;
+    const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
+    await act(async () => { await result.current.onToggleEnabled(result.current.agentPlugins![0]!); });
+    expect(toggle).toHaveBeenCalledExactlyOnceWith("site-compliance", { enabled: false });
+    expect(result.current.agentPlugins).toEqual([serverRow, OTHER_PLUGIN]);
+    expect(result.current.toggleError).toBeNull();
+    expect(result.current.togglingIds.size).toBe(0);
   });
 
   it("marks only the toggling row as in-flight, and clears it when the request settles", async () => {

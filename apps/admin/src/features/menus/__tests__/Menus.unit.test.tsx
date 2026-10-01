@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +79,11 @@ describe("Move to trash", () => {
     expect(trashCall[1]?.method).toBe("POST");
     expect(String(trashCall[0])).toContain("/trash/items");
     expect(JSON.parse(trashCall[1]?.body as string)).toEqual({ type: "menu", id: "m1" });
+    expect(await screen.findByText("No menus yet.")).toBeInTheDocument();
+    expect(screen.getByText("Create your first menu to get started.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Primary nav" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText('Move "Primary nav" to trash?')).not.toBeInTheDocument();
   });
 
   it("Cancel closes the dialog and calls nothing", async () => {
@@ -118,6 +123,32 @@ describe("Publish section button (plan-publish-sections-2026-09-25.md §2 S3)", 
     fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [ACTIVE_MENU] }));
     render(<Menus />);
     expect(await screen.findByRole("button", { name: "Publish menus" })).toBeInTheDocument();
+  });
+});
+
+describe("list rendering", () => {
+  it("shows the empty copy and links Add New to the menu editor when no menus exist", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [] }));
+    render(<Menus />);
+    expect(await screen.findByText("No menus yet.")).toBeInTheDocument();
+    expect(screen.getByText("Create your first menu to get started.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Add New" })).toHaveAttribute("href", "/admin/menus/new");
+  });
+
+  it("renders the menu status through ServerLabel in the Status column", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/settings/effective")) {
+        return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "es" }] }));
+      }
+      return fetchMock(input, init);
+    });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menus: [ACTIVE_MENU] }));
+    render(<Menus />);
+    const link = await screen.findByRole("link", { name: "Primary nav" });
+    const row = link.closest("tr");
+    expect(row).not.toBeNull();
+    expect(await screen.findByRole("columnheader", { name: "Estado" })).toBeInTheDocument();
+    expect(await within(row!).findByText("publicado")).toBeInTheDocument();
   });
 });
 

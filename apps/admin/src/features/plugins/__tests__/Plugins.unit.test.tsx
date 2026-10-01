@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -177,14 +177,25 @@ describe("row-action split: Installed carries the toggle, Downloaded carries Rem
 
   it("clicking Enable on a disabled Downloaded row PATCHes {enabled:true} directly, with no confirm dialog", async () => {
     const user = userEvent.setup();
+    const listUrl = "/api/admin/v1/workspaces/workspace-local/plugins";
+    const patchUrl = `${listUrl}/valid-site-plugin`;
     fetchMock
-      .mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE)) // initial GET
-      .mockResolvedValueOnce(
-        jsonResponse({ plugin: { id: "valid-site-plugin", version: "1.0.0", enabled: true, updatedAt: "now" }, changeSetId: "cs-2" }),
-      ) // PATCH
-      .mockResolvedValueOnce(
-        jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "valid-site-plugin" ? { ...p, enabled: true } : p)) }),
-      ); // re-fetch GET
+      .mockImplementation(() => { throw new Error("unexpected plugin request"); })
+      .mockImplementationOnce((url, init) => {
+        expect(String(url)).toBe(listUrl);
+        expect(init?.method ?? "GET").toBe("GET");
+        return Promise.resolve(jsonResponse(AC11_PLUGINS_RESPONSE));
+      })
+      .mockImplementationOnce((url, init) => {
+        expect(String(url)).toBe(patchUrl);
+        expect(init?.method).toBe("PATCH");
+        return Promise.resolve(jsonResponse({ plugin: { id: "valid-site-plugin", version: "1.0.0", enabled: true, updatedAt: "now" }, changeSetId: "cs-2" }));
+      })
+      .mockImplementationOnce((url, init) => {
+        expect(String(url)).toBe(listUrl);
+        expect(init?.method ?? "GET").toBe("GET");
+        return Promise.resolve(jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "valid-site-plugin" ? { ...p, enabled: true } : p)) }));
+      });
 
     render(<Plugins tabId="downloaded" />);
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
@@ -195,6 +206,7 @@ describe("row-action split: Installed carries the toggle, Downloaded carries Rem
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(patchCall).toBeTruthy();
+    expect(String(patchCall![0])).toBe(patchUrl);
     expect(JSON.parse(String(patchCall![1].body))).toEqual({ enabled: true });
 
     // Once it's on, the re-fetched row drops Enable, and its Remove turns unavailable: PLUGIN_UNINSTALL
@@ -218,7 +230,9 @@ describe("REQ-15/AC-23: loading and error states", () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     render(<Plugins />);
 
-    expect(await screen.findByText(/network down|failed/i)).toBeInTheDocument();
+    const notice = await screen.findByText("network down", { exact: true });
+    expect(notice).toHaveClass("notice", "error");
+    expect(notice).toHaveTextContent(/^network down$/);
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 });
@@ -329,12 +343,27 @@ describe("REQ-18/AC-26: row subline shows source · tier · status verbatim, not
 describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — redirected to the Disable direction (see this file's own header for why Enable is not reachable here)", () => {
   it("activating Disable on Word Count PATCHes {enabled:false}, shows in-flight, re-fetches, and the row leaves Installed", async () => {
     const user = userEvent.setup();
+    let resolvePatch!: (value: Response) => void;
+    const patchPromise = new Promise<Response>((resolve) => { resolvePatch = resolve; });
+    const listUrl = "/api/admin/v1/workspaces/workspace-local/plugins";
+    const patchUrl = `${listUrl}/word-count`;
     fetchMock
-      .mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE)) // initial GET
-      .mockResolvedValueOnce(jsonResponse({ plugin: { id: "word-count", version: "1.0.0", enabled: false, updatedAt: "now" }, changeSetId: "cs-1" })) // PATCH
-      .mockResolvedValueOnce(
-        jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "word-count" ? { ...p, enabled: false } : p)) }),
-      ); // re-fetch GET
+      .mockImplementation(() => { throw new Error("unexpected plugin request"); })
+      .mockImplementationOnce((url, init) => {
+        expect(String(url)).toBe(listUrl);
+        expect(init?.method ?? "GET").toBe("GET");
+        return Promise.resolve(jsonResponse(AC11_PLUGINS_RESPONSE));
+      })
+      .mockImplementationOnce((url, init) => {
+        expect(String(url)).toBe(patchUrl);
+        expect(init?.method).toBe("PATCH");
+        return patchPromise;
+      })
+      .mockImplementationOnce((url, init) => {
+        expect(String(url)).toBe(listUrl);
+        expect(init?.method ?? "GET").toBe("GET");
+        return Promise.resolve(jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "word-count" ? { ...p, enabled: false } : p)) }));
+      });
 
     render(<Plugins />);
     const row = await screen.findByRole("listitem", { name: "Word Count" });
@@ -344,12 +373,23 @@ describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — redirecte
 
     const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(patchCall).toBeTruthy();
+    expect(String(patchCall![0])).toBe(patchUrl);
     expect(JSON.parse(String(patchCall![1].body))).toEqual({ enabled: false });
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent(/^…$/);
+    expect(screen.getByRole("listitem", { name: "Word Count" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolvePatch(jsonResponse({ plugin: { id: "word-count", version: "1.0.0", enabled: false, updatedAt: "now" }, changeSetId: "cs-1" }));
+    });
 
     await waitFor(() => {
       expect(screen.queryByRole("listitem", { name: "Word Count" })).not.toBeInTheDocument();
       expect(screen.getByText(/no plugins are enabled for this site/i)).toBeInTheDocument();
     });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[2]![0])).toBe(listUrl);
   });
 
   it("a non-2xx PATCH response shows an error, leaves the row on Installed unchanged, and returns the control to normal (re-clickable)", async () => {

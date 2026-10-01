@@ -353,12 +353,14 @@ describe("injected port — usePageEditor with no fetch stub", () => {
   }
 
   it("loads the seeded page with zero fetch calls", async () => {
-    const deps = fakeDeps({ page: HTML_PAGE, activeThemeTemplates: ["blog-post.html"] });
+    const deps = fakeDeps({ page: { ...HTML_PAGE, templateChoice: "blog-post.html" }, activeThemeTemplates: ["blog-post.html"] });
     const { result } = renderHook(() => usePageEditor("landing", deps));
 
     await waitFor(() => expect(result.current.page).not.toBeNull());
     expect(result.current.title).toBe(HTML_PAGE.title);
     expect(result.current.availableTemplates).toEqual(["blog-post.html"]);
+    expect(result.current.templateChoice).toBe("blog-post.html");
+    expect(result.current.dirty).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -369,6 +371,8 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
     act(() => {
       result.current.setTitle("Landing (via fake port)");
+      result.current.setSlug("new-slug");
+      result.current.setTemplateChoice("blog-post.html");
       result.current.setHtml("<p>edited</p>");
     });
     await act(async () => {
@@ -377,7 +381,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
     expect(deps.port.updatePageHtmlCalls).toEqual(["<p>edited</p>"]);
     expect(deps.port.updatePostCalls).toEqual([
-      expect.objectContaining({ title: "Landing (via fake port)" }),
+      expect.objectContaining({ title: "Landing (via fake port)", slug: "new-slug", templateChoice: "blog-post.html" }),
     ]);
     expect(result.current.message).toBe("en:Saved");
     expect(fetchMock).not.toHaveBeenCalled();
@@ -2011,12 +2015,13 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     const startingVersion = result.current.page!.version;
 
     act(() => {
-      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>", title: "Landing v2" });
+      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>", title: "Landing v2", templateChoice: "blog-post.html" });
       publishContentRefresh([PAGES_RESOURCE]);
     });
 
     await waitFor(() => expect(result.current.html).toBe("<p>new hero</p>"));
     expect(result.current.title).toBe("Landing v2");
+    expect(result.current.templateChoice).toBe("blog-post.html");
     expect(result.current.page!.version).toBe(startingVersion + 1);
     expect(result.current.dirty).toBe(false);
     expect(result.current.pendingExternalVersion).toBeNull();
@@ -2166,7 +2171,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
     act(() => result.current.setHtml("<p>mine</p>"));
     act(() => {
-      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>", templateChoice: "blog-post.html" });
       publishContentRefresh([PAGES_RESOURCE]);
     });
     await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
@@ -2176,6 +2181,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     });
 
     expect(result.current.html).toBe("<p>new hero</p>");
+    expect(result.current.templateChoice).toBe("blog-post.html");
     expect(result.current.dirty).toBe(false);
     expect(result.current.pendingExternalVersion).toBeNull();
     expect(deps.port.discardAutosaveCalled).toBe(true);
