@@ -4,6 +4,9 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
+import { InMemoryPostRepo } from "#src/features/post/index";
+import { buildSitemap, invalidateSitemapCache } from "#src/features/seo/sitemap";
+import type { VerifiedOrigin } from "#src/features/origin/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -74,10 +77,29 @@ test("post-sitemap-regenerate: forbidden 403s", async (t) => {
 });
 
 test("post-sitemap-regenerate: returns 202 on successful regeneration", async (t) => {
-  const app = buildApp();
+  const base = createRouteDeps();
+  await base.seoReady;
+  invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
+  t.after(() => invalidateSitemapCache({ workspaceId: WORKSPACE_ID }));
+  const original = {
+    id: "sitemap-canary", workspaceId: WORKSPACE_ID, title: "Canary", slug: "before-regeneration",
+    kind: "post" as const, status: "published" as const, bodyJson: { type: "doc", content: [] },
+    version: 1, updatedAt: "2026-09-01T00:00:00.000Z", seoExtJson: null,
+  };
+  const postRepo = new InMemoryPostRepo([original]);
+  const originRegistry = { ...base.originRegistry, canonicalOrigin: async () => ({ scheme: "https", host: "sitemap.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin) };
+  const sitemapDeps = { postRepo, settingsRepo: base.settingsRepo, media: base, originRegistry };
+  const before = [{ loc: "https://sitemap.example.com/before-regeneration", lastmod: original.updatedAt }];
+  assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID }), before);
+  await postRepo.save({ ...original, slug: "after-regeneration", updatedAt: "2026-09-30T00:00:00.000Z", version: 2 });
+  assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID }), before, "control: cache is stale before regeneration");
+  const app = buildApp({ postRepo, settingsRepo: base.settingsRepo, seoReady: base.seoReady, originRegistry });
   const { status, json } = await post(t, app);
   assert.equal(status, 202);
   assert.deepEqual(json, { data: { accepted: true } });
+  assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID }), [
+    { loc: "https://sitemap.example.com/after-regeneration", lastmod: "2026-09-30T00:00:00.000Z" },
+  ]);
 });
 
 test("post-sitemap-regenerate: unexpected authorization error returns 500", async (t) => {

@@ -4,6 +4,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
+import { setSeoSettings } from "#src/features/seo/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -70,13 +71,25 @@ test("get-settings: forbidden 403s", async (t) => {
 });
 
 test("get-settings: returns workspace seo settings (200)", async (t) => {
-  const app = buildApp();
+  const base = createRouteDeps();
+  await base.siteTitleReady; // Finish all boot-time settings writes before seeding this fixture.
+  const expected = {
+    titleTemplate: "%s | Stored site", defaultDescription: "Stored description",
+    defaultOgImage: "https://example.com/card.png", twitterSite: "@storedsite",
+    defaultRobots: { noindex: true, nofollow: true }, sitemapEnabled: false,
+    robotsRules: [{ userAgent: "CanaryBot", allow: ["/public"], disallow: ["/private"] }],
+  };
+  await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
+    authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo },
+    { workspaceId: WORKSPACE_ID, callerPrincipalId: "test-principal", patch: expected });
+  const app = buildApp({ settingsRepo: base.settingsRepo, seoReady: base.seoReady });
   const { status, json } = await get(t, app);
   assert.equal(status, 200);
   const body = json as { data?: { titleTemplate?: string; sitemapEnabled?: boolean } };
   assert.ok(body.data, "expected settings data");
   assert.ok(typeof body.data?.titleTemplate === "string");
   assert.ok(typeof body.data?.sitemapEnabled === "boolean");
+  assert.deepEqual(body.data, expected);
 });
 
 test("get-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) => {

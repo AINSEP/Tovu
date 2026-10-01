@@ -4,6 +4,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
+import { setSeoSettings } from "#src/features/seo/settings";
+import { registerAdminSeoGetSettingsRoute } from "../get-settings.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -44,6 +46,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     next();
   });
   registerAdminSeoPutSettingsRoute(app, deps);
+  registerAdminSeoGetSettingsRoute(app, deps);
   return app;
 }
 
@@ -82,13 +85,44 @@ test("put-settings: validation error 400s (SEO_SETTINGS_VALIDATION_ERROR)", asyn
 });
 
 test("put-settings: valid patch returns updated settings (200)", async (t) => {
-  const app = buildApp();
-  const { status, json } = await put(t, app, { titleTemplate: "%s | Custom Site", sitemapEnabled: false });
+  const base = createRouteDeps();
+  await base.siteTitleReady; // Finish all boot-time settings writes before seeding this fixture.
+  await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
+    authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo },
+    { workspaceId: WORKSPACE_ID, callerPrincipalId: "test-principal", patch: { twitterSite: "@untouched" } });
+  const app = buildApp({ settingsRepo: base.settingsRepo, seoReady: base.seoReady });
+  const patch = { titleTemplate: "%s | Custom Site", sitemapEnabled: false,
+    defaultRobots: { noindex: true, nofollow: true },
+    robotsRules: [{ userAgent: "CanaryBot", allow: ["/public"], disallow: ["/private"] }],
+    defaultDescription: "Canary description", defaultOgImage: "https://example.com/canary.png" };
+  const { status, json } = await put(t, app, patch);
   assert.equal(status, 200);
   const body = json as { data?: { titleTemplate?: string; sitemapEnabled?: boolean } };
   assert.ok(body.data, "expected data wrapper in response");
   assert.equal(body.data?.titleTemplate, "%s | Custom Site");
   assert.equal(body.data?.sitemapEnabled, false);
+  const baseUrl = await startTestServer(app, t);
+  const read = async () => {
+    const response = await fetch(`${baseUrl}${PATH}`);
+    assert.equal(response.status, 200);
+    return (await response.json() as { data: unknown }).data;
+  };
+  const expected = { ...patch, twitterSite: "@untouched" };
+  assert.deepEqual(body.data, expected);
+  assert.deepEqual(await read(), expected);
+  const cleared = await put(t, app, { defaultDescription: null, defaultOgImage: null, twitterSite: null });
+  assert.equal(cleared.status, 200);
+  const { defaultDescription, defaultOgImage, ...remaining } = patch;
+  assert.deepEqual(await read(), remaining);
+  for (const invalid of [
+    { titleTemplate: "%s | Should not persist", defaultRobots: { noindex: "yes", nofollow: true } },
+    { titleTemplate: "%s | Should not persist", robotsRules: [{ userAgent: "" }] },
+  ]) {
+    const rejected = await put(t, app, invalid);
+    assert.equal(rejected.status, 400);
+    assert.equal((rejected.json as { code: string }).code, "SEO_SETTINGS_VALIDATION_ERROR");
+    assert.deepEqual(await read(), remaining, "invalid patch must make no partial writes");
+  }
 });
 
 test("put-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) => {

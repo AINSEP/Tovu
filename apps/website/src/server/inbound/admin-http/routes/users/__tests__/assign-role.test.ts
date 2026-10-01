@@ -120,6 +120,24 @@ async function attachRoleManageOnlyPolicy(deps: UsersRouteDeps, principalId: str
   });
 }
 
+test("ASSIGN_ROLE route: owner grants viewer and persists the exact assignment", async (t) => {
+  const { app, deps } = await buildApp();
+  const targetId = "successful-role-target";
+  await seedBarePrincipal(deps, targetId);
+  const viewer = await deps.roleRepo.findByName({ workspaceId: WORKSPACE_ID, name: "viewer" });
+  assert.ok(viewer);
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}${urlFor(targetId)}`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ roleId: viewer.id }),
+  });
+  assert.equal(response.status, 201);
+  const body = await response.json() as { assignment: { id: string; workspaceId: string; principalId: string; roleId: string } };
+  assert.equal(typeof body.assignment.id, "string");
+  assert.ok(body.assignment.id);
+  assert.deepEqual(body.assignment, { id: body.assignment.id, workspaceId: WORKSPACE_ID, principalId: targetId, roleId: viewer.id });
+  assert.deepEqual(await deps.principalRoleRepo.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: targetId }), [body.assignment]);
+});
+
 test("ASSIGN_ROLE route: 404 when workspaceId does not match", async (t) => {
   const { app } = await buildApp();
   const baseUrl = await startTestServer(app, t);

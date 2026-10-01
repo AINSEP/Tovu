@@ -9,6 +9,10 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
+import { registerAdminUserListRoute } from "../list.js";
+import { registerAdminUserUpdateRoute } from "../update.js";
+import { registerAdminUserEnableRoute } from "../enable.js";
+import { registerAdminUserDisableRoute } from "../disable.js";
 import { registerAdminUserCreateRoute } from "../create.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createUser } from "@jini-ai/cms/identity";
@@ -103,7 +107,11 @@ test("CREATE_USER route: direct invoke fallback for nullish body (`parseUserCrea
 });
 
 test("CREATE_USER route: 201 on success, with email provided", async (t) => {
-  const { app } = await buildApp();
+  const { app, deps } = await buildApp();
+  registerAdminUserListRoute(app, deps);
+  registerAdminUserUpdateRoute(app, deps);
+  registerAdminUserEnableRoute(app, deps);
+  registerAdminUserDisableRoute(app, deps);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {
@@ -122,6 +130,39 @@ test("CREATE_USER route: 201 on success, with email provided", async (t) => {
   // creator lacks, since it inherits none at all (confirms no CREATE_USER escalation path).
   assert.deepEqual(body.user.roleIds, []);
   assert.deepEqual(body.user.policyIds, []);
+  const stored = await deps.userRepo.findByUsername({ workspaceId: WORKSPACE_ID, username: "newoperator" });
+  assert.ok(stored);
+  assert.equal(await deps.passwordHasher.verify(stored.passwordHash, "op3r4tor-p4ss!"), true);
+  assert.equal(await deps.passwordHasher.verify(stored.passwordHash, "wrong-password"), false);
+  const principal = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: stored.principalId });
+  assert.ok(principal);
+  const expected = {
+    principalId: principal.id, workspaceId: WORKSPACE_ID, username: "newoperator",
+    email: "newoperator@example.com", status: "active", createdAt: principal.createdAt,
+    roleIds: [], policyIds: [],
+  };
+  const assertPublicUser = (actual: unknown, expectedUser: unknown) => {
+    assert.deepEqual(actual, expectedUser);
+    assert.equal(Object.hasOwn(actual as object, "passwordHash"), false);
+    assert.equal(Object.hasOwn(actual as object, "password"), false);
+  };
+  assertPublicUser(body.user, expected);
+  const listed = await fetch(`${baseUrl}${URL_BASE}`);
+  assert.equal(listed.status, 200);
+  const users = await listed.json() as { users: Array<{ principalId: string }> };
+  assertPublicUser(users.users.find((user) => user.principalId === principal.id), expected);
+  const updated = await fetch(`${baseUrl}${URL_BASE}/${principal.id}`, {
+    method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "updated@example.com" }),
+  });
+  assert.equal(updated.status, 200);
+  const updatedExpected = { ...expected, email: "updated@example.com" };
+  assertPublicUser((await updated.json() as { user: unknown }).user, updatedExpected);
+  for (const [action, status] of [["disable", "disabled"], ["enable", "active"]]) {
+    const response = await fetch(`${baseUrl}${URL_BASE}/${principal.id}/${action}`, { method: "POST" });
+    assert.equal(response.status, 200, action);
+    assertPublicUser((await response.json() as { user: unknown }).user, { ...updatedExpected, status });
+  }
+
 });
 
 test("CREATE_USER route: 400 VALIDATION_ERROR when username is missing (real HTTP, email omitted)", async (t) => {
@@ -199,13 +240,24 @@ test("CREATE_USER route: 500 internal error when an unexpected error is thrown",
 });
 
 test("CREATE_USER route: 409 USERNAME_IN_TRASH when the conflicting existing user is in the Trash — OWNER DECISION 2026-09-24", async (t) => {
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async () => true });
+  const trashedIds = new Set<string>();
+  const queriedIds: string[] = [];
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async (principalId) => {
+    queriedIds.push(principalId);
+    return trashedIds.has(principalId);
+  } });
   const baseUrl = await startTestServer(app, t);
   const svcDeps = identityServiceDepsFrom(deps);
-  await createUser({
+  const conflicting = await createUser({
     deps: svcDeps,
     input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "trashedname", password: "trashedname-p4ssw0rd!" },
   });
+  trashedIds.add(conflicting.principal.id);
+  const unrelated = await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "unrelated-active", password: "unrelated-p4ssw0rd!" },
+  });
+
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {
     method: "POST",
@@ -216,4 +268,13 @@ test("CREATE_USER route: 409 USERNAME_IN_TRASH when the conflicting existing use
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "USERNAME_IN_TRASH");
   assert.equal(body.error, "a user with this username is in the Trash; restore or delete them permanently first");
+  assert.deepEqual(queriedIds, [conflicting.principal.id], "trash lookup must use the conflicting principal id");
+  const activeConflict = await fetch(`${baseUrl}${URL_BASE}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "unrelated-active", password: "someone-else-p4ssw0rd!" }),
+  });
+  assert.equal(activeConflict.status, 409);
+  assert.equal((await activeConflict.json() as { code: string }).code, "RESOURCE_CONFLICT");
+  assert.deepEqual(queriedIds, [conflicting.principal.id, unrelated.principal.id]);
+
 });

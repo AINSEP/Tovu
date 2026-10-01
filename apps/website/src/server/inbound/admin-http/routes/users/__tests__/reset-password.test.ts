@@ -11,7 +11,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserResetPasswordRoute } from "../reset-password.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createUser } from "@jini-ai/cms/identity";
+import { createSessionForPrincipal, createUser, validateSession } from "@jini-ai/cms/identity";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password`;
@@ -125,18 +125,21 @@ test("RESET_USER_PASSWORD route: 204 on success, revokes every active session, n
   const baseUrl = await startTestServer(app, t);
   const { principalId, originalHash } = await createTestUser(deps, ownerId, "resetroute");
 
-  // Seed two active sessions for the target, one already revoked.
-  const activeSessionId = deps.idGen.newId();
+  // Seed two unexpired target sessions, one already revoked, and an unrelated control.
   const alreadyRevokedSessionId = deps.idGen.newId();
   const nowIso = deps.clock.nowIso();
-  await deps.sessionRepo.save({
-    id: activeSessionId,
-    workspaceId: WORKSPACE_ID,
-    principalId,
-    tokenHash: "active-token-hash",
-    createdAt: nowIso,
-    expiresAt: nowIso,
-  });
+  const svcDeps = identityServiceDepsFrom(deps);
+  const active = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId } });
+  const secondActive = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId } });
+  const control = await createSessionForPrincipal({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, principalId: ownerId } });
+  const activeSessionId = active.session.id;
+  const secondActiveSessionId = secondActive.session.id;
+  const controlSessionId = control.session.id;
+  const expiresAt = control.session.expiresAt;
+  const newPassword = "  Brand-New-P4ssw0rd!  ";
+  for (const { rawToken } of [active, secondActive, control]) {
+    assert.ok(await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken } }), "fixture sessions must be usable before reset");
+  }
   await deps.sessionRepo.save({
     id: alreadyRevokedSessionId,
     workspaceId: WORKSPACE_ID,
@@ -150,7 +153,7 @@ test("RESET_USER_PASSWORD route: 204 on success, revokes every active session, n
   const res = await fetch(`${baseUrl}${urlFor(principalId)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ password: "brand-new-p4ssw0rd!" }),
+    body: JSON.stringify({ password: newPassword }),
   });
   assert.equal(res.status, 204);
   const rawBody = await res.text();
@@ -160,8 +163,24 @@ test("RESET_USER_PASSWORD route: 204 on success, revokes every active session, n
   assert.ok(updatedUser);
   assert.notEqual(updatedUser?.passwordHash, originalHash, "password hash must actually change");
 
+  assert.equal(await deps.passwordHasher.verify(updatedUser!.passwordHash, newPassword), true, "the exact supplied credential must work");
+  for (const wrongPassword of ["resetroute-p4ssw0rd!", newPassword.toLowerCase(), newPassword.trim()]) {
+    assert.equal(await deps.passwordHasher.verify(updatedUser!.passwordHash, wrongPassword), false);
+  }
+
   const activeSession = await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: activeSessionId });
   assert.ok(activeSession?.revokedAt, "previously active session must be revoked by a password reset (AC-29)");
+
+  const secondActiveSession = await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: secondActiveSessionId });
+  assert.ok(secondActiveSession?.revokedAt, "every unexpired target session must be revoked");
+  const controlSession = await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: controlSessionId });
+  assert.ok(controlSession);
+  assert.equal(controlSession.revokedAt, undefined, "another user's session must remain usable");
+  assert.equal(controlSession.expiresAt, expiresAt);
+  for (const { rawToken } of [active, secondActive]) {
+    assert.equal(await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken } }), null, "every target token must become unusable");
+  }
+  assert.equal((await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken: control.rawToken } }))?.principal.id, ownerId);
 
   const revokedSession = await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: alreadyRevokedSessionId });
   assert.equal(revokedSession?.revokedAt, nowIso, "an already-revoked session's revokedAt is left untouched");
@@ -291,9 +310,17 @@ test("RESET_USER_PASSWORD route: 500 internal error when an unexpected error is 
 });
 
 test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async () => true });
+  const trashedIds = new Set<string>();
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => trashedIds.has(id) });
   const baseUrl = await startTestServer(app, t);
-  const { principalId } = await createTestUser(deps, ownerId, "resettrashed");
+  const { principalId, originalHash } = await createTestUser(deps, ownerId, "resettrashed");
+  trashedIds.add(principalId);
+  const session = {
+    id: deps.idGen.newId(), workspaceId: WORKSPACE_ID, principalId,
+    tokenHash: "trashed-session-token-hash", createdAt: deps.clock.nowIso(),
+    expiresAt: new Date(Date.parse(deps.clock.nowIso()) + 60 * 60 * 1000).toISOString(),
+  };
+  await deps.sessionRepo.save(session);
 
   const res = await fetch(`${baseUrl}${urlFor(principalId)}`, {
     method: "POST",
@@ -304,4 +331,6 @@ test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently 
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "USER_IN_TRASH");
   assert.equal(body.error, "this user is in the Trash; restore them first");
+  assert.equal((await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId }))?.passwordHash, originalHash);
+  assert.deepEqual(await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: session.id }), session);
 });

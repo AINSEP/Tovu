@@ -131,6 +131,9 @@ test("LIST_USERS route: 200 returns only kind='user' principals with role/policy
     users: Array<{ principalId: string; username: string; roleIds: string[]; policyIds: string[] }>;
   };
   assert.ok(!body.users.some((u) => u.principalId === "system-principal-for-list-test"), "non-human principal must be filtered out");
+  for (const user of body.users) {
+    assert.ok(!Object.keys(user).some((key) => /password/i.test(key)), "listed users must omit credentials");
+  }
   const listed = body.users.find((u) => u.principalId === created.id);
   assert.ok(listed, "the newly created user must appear in the list");
   assert.equal(listed!.username, "listme");
@@ -202,3 +205,27 @@ test("LIST_USERS route: a trashed (disabled + indexed) user is dropped from the 
   assert.ok(!body.users.some((u) => u.principalId === trashed.id), "a trashed user must not be listed");
   assert.ok(body.users.some((u) => u.principalId === merelyDisabled.id), "a disabled-but-not-trashed user must still be listed");
 });
+
+for (const permission of ["user.manage", "member.manage"]) {
+  test(`LIST_USERS route: 200 for a caller holding only ${permission}`, async (t) => {
+    const callerId = `delegated-${permission}`;
+    const { app, deps } = await buildApp({}, callerId);
+    await deps.principalRepo.save({
+      id: callerId, workspaceId: WORKSPACE_ID, kind: "user", displayName: callerId,
+      status: "active", createdAt: deps.clock.nowIso(),
+    });
+    const policyId = `policy-${permission}`;
+    await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
+    await deps.policyPermissionRepo.save({
+      id: `pp-${permission}`, workspaceId: WORKSPACE_ID, policyId, permission, resourceType: null, constraintJson: null,
+    });
+    await deps.principalPolicyRepo.save({ id: `pa-${permission}`, workspaceId: WORKSPACE_ID, principalId: callerId, policyId });
+    for (const candidate of ["user.manage", "member.manage"]) {
+      assert.equal((await deps.authorize({ workspaceId: WORKSPACE_ID, principalId: callerId, permission: candidate })).allowed, candidate === permission);
+    }
+    const baseUrl = await startTestServer(app, t);
+    const res = await fetch(`${baseUrl}${URL_BASE}`);
+    assert.equal(res.status, 200);
+    assert.ok(((await res.json()) as { users: unknown[] }).users.length > 0);
+  });
+}
