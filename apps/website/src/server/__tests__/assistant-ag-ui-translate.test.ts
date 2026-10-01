@@ -133,6 +133,15 @@ test("translateAgentEventToAgUi — a thinking run opens REASONING_START once, a
     events.map((e) => e.type),
     ["REASONING_START", "REASONING_MESSAGE_START", "REASONING_MESSAGE_CONTENT"],
   );
+  const messageId = state.openReasoningMessageId;
+  assert.deepEqual(events, [
+    { type: "REASONING_START", messageId },
+    { type: "REASONING_MESSAGE_START", messageId, role: "reasoning" },
+    { type: "REASONING_MESSAGE_CONTENT", messageId, delta: "considering..." },
+  ]);
+  assert.deepEqual(translateAgentEventToAgUi({ kind: "thinking", text: "one more thought" }, state), [
+    { type: "REASONING_MESSAGE_CONTENT", messageId, delta: "one more thought" },
+  ]);
 });
 
 test("translateAgentEventToAgUi — tool_use fires START+ARGS+END back to back, args JSON-stringified", () => {
@@ -141,6 +150,11 @@ test("translateAgentEventToAgUi — tool_use fires START+ARGS+END back to back, 
 
   assert.deepEqual(events.map((e) => e.type), ["TOOL_CALL_START", "TOOL_CALL_ARGS", "TOOL_CALL_END"]);
   assert.equal((events[1] as { delta: string }).delta, JSON.stringify({ q: "posts" }));
+  assert.deepEqual(events, [
+    { type: "TOOL_CALL_START", toolCallId: "call-1", toolCallName: "search" },
+    { type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: '{"q":"posts"}' },
+    { type: "TOOL_CALL_END", toolCallId: "call-1" },
+  ]);
 });
 
 test("translateAgentEventToAgUi — tool_result maps toolUseId to toolCallId and mints a messageId", () => {
@@ -237,4 +251,18 @@ test("closeAgUiRun after a bare text run (no interruption) closes it via the run
 
   assert.deepEqual(closeAgUiRun(state), [{ type: "TEXT_MESSAGE_END", messageId }]);
   assert.equal(state.openTextMessageId, null);
+});
+
+test("closeAgUiRun closes open reasoning once and resets the message state", () => {
+  const state = createAgUiTranslationState();
+  translateAgentEventToAgUi({ kind: "thinking", text: "done thinking" }, state);
+  const messageId = state.openReasoningMessageId;
+  assert.ok(messageId);
+  assert.deepEqual(closeAgUiRun(state), [
+    { type: "REASONING_MESSAGE_END", messageId },
+    { type: "REASONING_END", messageId },
+  ]);
+  assert.equal(state.openReasoningMessageId, null);
+  assert.equal(state.openTextMessageId, null);
+  assert.deepEqual(closeAgUiRun(state), []);
 });

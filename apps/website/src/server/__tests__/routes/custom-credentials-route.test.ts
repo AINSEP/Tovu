@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { resolveCustomCredentialByLabel } from "../../../features/custom-credentials/index.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
@@ -119,10 +120,12 @@ test("custom-credentials: full CRUD round trip — create, list, update (blank c
   assert.equal(JSON.stringify(credential).includes("sk_secret_token"), false);
   assert.equal("token" in credential, false);
   assert.equal("sealed" in credential, false);
+  assert.deepEqual((await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: "name.com" }))?.connection, { token: "sk_secret_token" });
 
   const list = await (await fetch(base, { headers: { cookie } })).json();
   assert.equal(list.credentials.length, 1);
   assert.equal(list.credentials[0].id, credential.id);
+  assert.doesNotMatch(JSON.stringify(list), /sk_secret_token|"token"|"sealed"/);
 
   // Update: label only, connection OMITTED — must not require a token and must not disturb the
   // stored secret.
@@ -135,6 +138,8 @@ test("custom-credentials: full CRUD round trip — create, list, update (blank c
   const { credential: renamed } = await updated.json();
   assert.equal(renamed.label, "renamed");
   assert.equal(renamed.id, credential.id);
+  assert.equal(renamed.configured, true);
+  assert.deepEqual((await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: "renamed" }))?.connection, { token: "sk_secret_token" });
   assert.equal(renamed.baseUrl, "https://api.name.com"); // untouched by the label-only PUT
 
   const del = await fetch(`${base}/${credential.id}`, { method: "DELETE", headers: { cookie } });
@@ -163,6 +168,7 @@ test("custom-credentials: PUT can update `username` alone, and clear it with `nu
   assert.equal(created.status, 201);
   const { credential } = await created.json();
   assert.equal("username" in credential, false); // created with no username
+  assert.deepEqual((await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: "name.com" }))?.connection, { token: "sk_secret_token" });
 
   // username-only PUT — no `connection` in the body at all.
   const usernameOnly = await fetch(`${base}/${credential.id}`, {
@@ -173,6 +179,8 @@ test("custom-credentials: PUT can update `username` alone, and clear it with `nu
   assert.equal(usernameOnly.status, 200);
   const { credential: withUsername } = await usernameOnly.json();
   assert.equal(withUsername.username, "leonaburime@gmail.com");
+  assert.equal(withUsername.configured, true);
+  assert.deepEqual((await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: "name.com" }))?.connection, { token: "sk_secret_token", username: "leonaburime@gmail.com" });
   assert.equal(withUsername.baseUrl, "https://api.name.com"); // untouched
 
   // `username: null` clears it — again with no `connection` in the body.
@@ -184,6 +192,8 @@ test("custom-credentials: PUT can update `username` alone, and clear it with `nu
   assert.equal(cleared.status, 200);
   const { credential: withoutUsername } = await cleared.json();
   assert.equal("username" in withoutUsername, false);
+  assert.equal(withoutUsername.configured, true);
+  assert.deepEqual((await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: "name.com" }))?.connection, { token: "sk_secret_token" });
 
   // A blank string is rejected as VALIDATION, not accepted as a silent clear or no-op.
   const blank = await fetch(`${base}/${credential.id}`, {
@@ -280,4 +290,26 @@ test("custom-credentials: a duplicate label 409s with DUPLICATE_LABEL and never 
 
   const list = await (await fetch(base, { headers: { cookie } })).json();
   assert.equal(list.credentials.length, 1);
+});
+
+test("custom-credentials: renaming to another row's exact label 409s and leaves both rows unchanged", async (t) => {
+  const deps = { ...createRouteDeps() };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  const ids: string[] = [];
+  for (const label of ["first", "second"]) {
+    const res = await fetch(base, { method: "POST", headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ label, category: "general", baseUrl: "https://api.example.com", connection: { token: `token-${label}` } }) });
+    assert.equal(res.status, 201);
+    ids.push((await res.json()).credential.id);
+  }
+  const before = await deps.customCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  const res = await fetch(`${base}/${ids[1]}`, { method: "PUT", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ label: "first" }) });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json()).error, "DUPLICATE_LABEL");
+  assert.deepEqual(await deps.customCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }), before);
+  const list = await (await fetch(base, { headers: { cookie } })).json();
+  assert.deepEqual(list.credentials.map((row: { id: string; label: string }) => ({ id: row.id, label: row.label })), [
+    { id: ids[0], label: "first" }, { id: ids[1], label: "second" },
+  ]);
 });

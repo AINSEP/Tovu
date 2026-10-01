@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
+import type { OutboundEmail } from "#src/features/members/index";
 
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "../helpers/http-test-server.js";
 
@@ -155,6 +157,12 @@ test("a redirectPath is carried into the minted sign-in link", async (t) => {
   const { app, deps } = buildPublicApp();
   const baseUrl = await startTestServer(app, t);
 
+  const sent: OutboundEmail[] = [];
+  const send = deps.mailer.send.bind(deps.mailer);
+  deps.mailer.send = async (message, options) => {
+    sent.push(message);
+    return send(message, options);
+  };
   const originalLog = console.log;
   let capturedBody = "";
   console.log = (...args: unknown[]) => {
@@ -172,6 +180,23 @@ test("a redirectPath is carried into the minted sign-in link", async (t) => {
     console.log = originalLog;
   }
   assert.match(capturedBody, /&redirect=%2Fwelcome/);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to.email, "redirect-path@example.com");
+  const actionableLink = sent[0].text?.match(/(?:https?:\/\/\S+|\/auth\/magic\?\S+)/)?.[0];
+  assert.ok(actionableLink);
+  const link = new URL(actionableLink, baseUrl);
+  assert.equal(link.pathname, "/auth/magic");
+  assert.equal(link.searchParams.get("redirect"), "/welcome");
+  const rawToken = link.searchParams.get("token");
+  assert.ok(rawToken);
+  const storedToken = await deps.magicLinkRepo.findByTokenHash({
+    workspaceId: deps.workspaceId,
+    tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+  });
+  assert.ok(storedToken, "the actionable URL's token must identify a minted sign-in token");
+  const member = await deps.memberRepo.findByEmail({ workspaceId: deps.workspaceId, email: "redirect-path@example.com" });
+  assert.equal(storedToken.memberId, member?.id);
+  assert.equal(storedToken.purpose, "signin");
 });
 
 test("a mailer failure surfaces as a 500 internal error, past both rate-limit checks", async (t) => {
@@ -231,4 +256,21 @@ test("req.body ?? {}: an undefined body (impossible with express.json() mounted)
   await handler(req, res);
   assert.equal(capture.statusCode, 400);
   assert.match((capture.jsonBody as { error: string }).error, /is not a valid email address/);
+});
+
+
+test("MAGIC_LINK_PER_EMAIL shares one budget across case and whitespace variants", async (t) => {
+  const { app, deps } = buildPublicApp();
+  const baseUrl = await startTestServer(app, t);
+  const variants = ["Budget@Example.com", " budget@example.com ", "BUDGET@example.COM", "budget@example.com", "\tBudget@Example.com\n"];
+  for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
+    const res = await postSignIn(baseUrl, deps.workspaceId, variants[i % variants.length]);
+    assert.equal(res.status, 200);
+  }
+  const denied = await postSignIn(baseUrl, deps.workspaceId, " BUDGET@EXAMPLE.COM ");
+  assert.equal(denied.status, 429);
+  const body = await denied.json() as { code: string; error: string };
+  assert.equal(body.code, "RATE_LIMIT_EXCEEDED");
+  assert.equal(body.error, "too many sign-in requests for this email");
+  assert.equal((await postSignIn(baseUrl, deps.workspaceId, "different@example.com")).status, 200);
 });

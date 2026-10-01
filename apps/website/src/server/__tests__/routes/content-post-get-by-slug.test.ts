@@ -85,14 +85,21 @@ test("GET content post by slug: a workspace id that is not this site's is 404, b
 test("GET content post by slug: a published post is served with presentation settings", async (t) => {
   const { app, deps } = buildTestApp();
   const baseUrl = await startTestServer(app, t);
-  await deps.postRepo.save(makePost({ id: "p-published", slug: "public-hello", title: "Public Hello", status: "published" }));
+  const post = makePost({ id: "p-published", slug: "public-hello", title: "Public Hello", status: "published",
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Public article body" }] }] } });
+  await deps.postRepo.save(post);
+  const presentation = await deps.presentationRepo.findByWorkspaceId(deps.workspaceId);
+  assert.ok(presentation);
+  await deps.presentationRepo.save({ ...presentation, activeThemeId: "tovu-theme" });
 
   const res = await fetch(`${baseUrl}${contentUrl("public-hello")}`);
   const raw = await res.text();
   assert.equal(res.status, 200, raw);
-  const body = JSON.parse(raw) as { post: { title: string }; presentation: { activeThemeId: string } };
+  const body = JSON.parse(raw) as { post: { title: string; bodyJson: unknown }; presentation: { activeThemeId: string } };
   assert.equal(body.post.title, "Public Hello");
   assert.ok(body.presentation.activeThemeId.length > 0);
+  assert.equal(body.presentation.activeThemeId, "tovu-theme");
+  assert.deepEqual(body.post.bodyJson, post.bodyJson);
 });
 
 test("GET content post by slug: the 200 response sets Cache-Control: private, no-store -- BUG (2026-09-05 Gemini audit finding #7): this member-gated JSON route set no Cache-Control at all, so a reverse proxy/shared cache could legally cache and replay a member-only post's JSON to a later unauthenticated caller. Matches the convention `routes/site/pages.ts`'s CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE and `routes/site/media-rendition.ts`'s gated branch both already use.", async (t) => {
@@ -216,9 +223,41 @@ test("GET content post by slug: an entitled signed-in member CAN read a members-
   });
   const raw = await res.text();
   assert.equal(res.status, 200, raw);
-  const body = JSON.parse(raw) as { post: { title: string } };
+  const body = JSON.parse(raw) as { post: { title: string; bodyJson: unknown } };
   assert.equal(body.post.title, "Members Only Secret Title", "a signed-in member holding no tier at all must still read a members-only post");
+  assert.deepEqual(body.post.bodyJson, { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "MEMBERS_ONLY_SECRET_BODY_TEXT" }] }] });
 });
+
+for (const visibility of ["paid", "tiers"] as const) {
+  test(`GET content post by slug: ${visibility} content requires a valid entitled session`, async (t) => {
+    const expiredToken = "expired-member-token";
+    const { app, deps } = buildTestApp({ memberSessionRepo: new InMemoryMemberSessionRepo([
+      activeMemberSession(),
+      { ...activeMemberSession(), id: "expired-session", expiresAt: "2000-01-01T00:00:00.000Z", tokenHash: createHash("sha256").update(expiredToken).digest("hex") },
+    ]) });
+    const baseUrl = await startTestServer(app, t);
+    const post = makePost({ id: `p-${visibility}`, slug: `${visibility}-post`, title: "Tier Secret Title",
+      bodyJson: { type: "doc", content: [{ type: "text", text: "TIER_SECRET_BODY" }] },
+      memberAccessJson: JSON.stringify({ visibility, tierIds: ["gold"] }),
+    });
+    await deps.postRepo.save(post);
+    for (const token of [undefined, RAW_MEMBER_TOKEN, expiredToken, "unknown-token"]) {
+      const res = await fetch(`${baseUrl}${contentUrl(post.slug)}`, { headers: token ? { cookie: `tovu_member_session=${token}` } : {} });
+      const raw = await res.text();
+      assert.equal(res.status, 404, raw);
+      assert.doesNotMatch(raw, /Tier Secret Title|TIER_SECRET_BODY/);
+      assert.deepEqual(JSON.parse(raw), { error: `post '${post.slug}' was not found` });
+    }
+    const now = "2026-09-01T00:00:00.000Z";
+    await deps.memberTierRepo.save({ id: "gold", workspaceId: WORKSPACE_ID, name: "Gold", slug: "gold", type: "paid", status: "active", visibleInPortal: true, createdAt: now, updatedAt: now, version: 1 });
+    await deps.memberSubscriptionRepo.save({ id: "gold-sub", workspaceId: WORKSPACE_ID, memberId: activeMemberSession().memberId, tierId: "gold", status: "active", source: "comp", startedAt: now, createdAt: now, updatedAt: now, version: 1 });
+    const res = await fetch(`${baseUrl}${contentUrl(post.slug)}`, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.post.title, post.title);
+    assert.deepEqual(body.post.bodyJson, post.bodyJson);
+  });
+}
 
 test("GET content post by slug: req.params.slug is always populated by Express for a matched route (defensive ?? \"\" fallback is unreachable through real HTTP)", async () => {
   const { app } = buildTestApp();

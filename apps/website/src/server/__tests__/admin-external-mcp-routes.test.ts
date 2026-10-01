@@ -5,12 +5,13 @@ import express from "express";
 
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort } from "../../features/webhooks/index.js";
-import { readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store.js";
+import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store.js";
+import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../../assistant/external-mcp-roster-change.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
 import type { RouteDeps } from "../routes/types.js";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for the three external-MCP routes — real Express app, real session auth,
@@ -78,12 +79,40 @@ test("every route requires a session", async (t) => {
 });
 
 test("a workspace id that is not this site's is 404", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const otherBase = "/api/admin/v1/workspaces/not-this-site/mcp-servers";
 
   assert.equal((await req(baseUrl, otherBase, cookie)).status, 404);
   assert.equal((await req(baseUrl, `${otherBase}/github`, cookie, { method: "DELETE" })).status, 404);
+  assert.equal((await req(baseUrl, `${otherBase}/github`, cookie, { method: "PUT", body: JSON.stringify(validBody) })).status, 404);
+  assert.deepEqual(await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId), []);
+});
+
+test("a signed-in principal with no integrations grant is refused on every admin MCP route", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  assert.equal((await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify(validBody) })).status, 200);
+  const before = structuredClone(await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId));
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+  for (const { path, method, body } of [
+    { path: BASE, method: "GET" },
+    { path: `${BASE}/ungranted`, method: "PUT", body: JSON.stringify(validBody) },
+    { path: `${BASE}/github`, method: "PUT", body: JSON.stringify({ ...validBody, command: "untrusted-command" }) },
+    { path: `${BASE}/github`, method: "DELETE" },
+    { path: `${BASE}/github/probe`, method: "POST", body: "{}" },
+    { path: `${BASE}/github/oauth/connect`, method: "POST", body: "{}" },
+    { path: `${BASE}/github/oauth/device/poll`, method: "POST", body: "{}" },
+    { path: `${BASE}/github/oauth`, method: "DELETE" },
+    { path: `${BASE}/admissions`, method: "GET" },
+  ]) {
+    const response = await req(baseUrl, path, bareCookie, { method, ...(body ? { body } : {}) });
+    assert.equal(response.status, 403, `${method} ${path}: ${await response.clone().text()}`);
+    const denied = await response.json() as { code: string; details: { permission: string } };
+    assert.equal(denied.code, "FORBIDDEN");
+    assert.equal(denied.details.permission, "admin.integrations.manage");
+    assert.deepEqual(await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId), before, `${method} ${path} must not mutate the roster`);
+  }
 });
 
 test("a server survives a PUT then GET round trip, and the token never appears in a response", async (t) => {
@@ -251,11 +280,13 @@ const hostedOAuthBody = {
 };
 
 test("a hosted OAuth server can be created over the wire, and its client secret never comes back", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const put = await req(baseUrl, `${BASE}/higgsfield`, cookie, { method: "PUT", body: JSON.stringify(hostedOAuthBody) });
-  assert.equal(put.status, 200, await put.text().catch(() => ""));
+  const putText = await put.text();
+  assert.equal(put.status, 200, putText);
+  assert.equal(putText.includes(DUMMY_CLIENT_SECRET), false);
 
   const listText = await (await req(baseUrl, BASE, cookie)).text();
   assert.equal(listText.includes(DUMMY_CLIENT_SECRET), false, "the read response must not carry the client secret");
@@ -269,6 +300,10 @@ test("a hosted OAuth server can be created over the wire, and its client secret 
   assert.deepEqual(oauth.scopes, ["images:generate"]);
   // Configured but not yet authorized — the state the connect route exists to move it out of.
   assert.equal(oauth.status, "disconnected");
+  const record = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "higgsfield" });
+  assert.ok(record?.sealedOAuth, "the client secret must be stored sealed");
+  assert.equal(JSON.stringify(record).includes(DUMMY_CLIENT_SECRET), false);
+  assert.equal((await openExternalMcpOAuthPayload(deps.siteAssistantSecretSealer, record)).clientSecret, DUMMY_CLIENT_SECRET);
 });
 
 test("a hosted server saved without a URL is a 400 naming the url field, not a 500", async (t) => {
@@ -300,7 +335,7 @@ test("a plaintext non-loopback URL is refused — it would carry the bearer toke
 });
 
 test("a later PUT that omits the oauth block keeps the stored client id rather than clearing it", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await req(baseUrl, `${BASE}/higgsfield`, cookie, { method: "PUT", body: JSON.stringify(hostedOAuthBody) });
 
@@ -318,6 +353,9 @@ test("a later PUT that omits the oauth block keeps the stored client id rather t
   assert.equal(server.enabled, false);
   assert.equal(oauth.clientId, "client-abc");
   assert.equal(oauth.grant, "authorization_code");
+  const record = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "higgsfield" });
+  assert.ok(record?.sealedOAuth);
+  assert.equal((await openExternalMcpOAuthPayload(deps.siteAssistantSecretSealer, record)).clientSecret, DUMMY_CLIENT_SECRET);
 });
 
 // ---------------------------------------------------------------------------
@@ -325,8 +363,12 @@ test("a later PUT that omits the oauth block keeps the stored client id rather t
 // ---------------------------------------------------------------------------
 
 test("a write-authorized tool round-trips over the wire and its attribution names the saving principal", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const me = await req(baseUrl, "/api/admin/v1/auth/me", cookie);
+  assert.equal(me.status, 200);
+  const owner = await me.json() as { user: { id: string } };
 
   const put = await req(baseUrl, `${BASE}/github`, cookie, {
     method: "PUT",
@@ -340,11 +382,30 @@ test("a write-authorized tool round-trips over the wire and its attribution name
 
   const server = await fetchServer(baseUrl, cookie, "github");
   assert.deepEqual(server.writeAllowedToolNames, ["delete_repository"]);
-  // The dev-session owner authenticated this request — whichever principal id that resolves to, it
-  // must be a non-empty string naming SOMEONE, not left null the way a pre-existing row's would be.
   assert.equal(typeof server.writeGrantsUpdatedByPrincipalId, "string");
   assert.ok((server.writeGrantsUpdatedByPrincipalId as string).length > 0);
+  assert.equal(server.writeGrantsUpdatedByPrincipalId, owner.user.id);
   assert.equal(typeof server.writeGrantsUpdatedAt, "string");
+  const timestamp = server.writeGrantsUpdatedAt as string;
+  assert.equal(new Date(timestamp).toISOString(), timestamp);
+
+  const secondCookie = await loginAsBarePrincipal(deps, baseUrl);
+  const secondMe = await req(baseUrl, "/api/admin/v1/auth/me", secondCookie);
+  assert.equal(secondMe.status, 200);
+  const second = await secondMe.json() as { user: { id: string } };
+  assert.notEqual(second.user.id, owner.user.id);
+  const policyId = "second-mcp-integrations-policy";
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyPermissionRepo.save({ id: "second-mcp-integrations-permission", workspaceId: deps.workspaceId, policyId,
+    permission: "admin.integrations.manage", resourceType: null, constraintJson: null });
+  await deps.principalPolicyRepo.save({ id: "second-mcp-integrations-link", workspaceId: deps.workspaceId, principalId: second.user.id, policyId });
+  const secondPut = await req(baseUrl, `${BASE}/github`, secondCookie, {
+    method: "PUT", body: JSON.stringify({ ...validBody, env: undefined, writeAllowedToolNames: "search_repositories" }),
+  });
+  assert.equal(secondPut.status, 200, await secondPut.clone().text());
+  const updated = await fetchServer(baseUrl, cookie, "github");
+  assert.deepEqual(updated.writeAllowedToolNames, ["search_repositories"]);
+  assert.equal(updated.writeGrantsUpdatedByPrincipalId, second.user.id);
 });
 
 test("a write entry not in the allowlist is a 400 naming the writeAllowedToolNames field", async (t) => {
@@ -417,4 +478,30 @@ test("authMode is not silently demoted to static_env by a PUT that omits it", as
   const server = await fetchServer(baseUrl, cookie, "higgsfield");
   assert.equal(server.label, "Renamed");
   assert.equal(server.authMode, "oauth", "a rename must not demote an OAuth connection");
+});
+
+test("saving and toggling notify a roster consumer with the updated running configuration", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const snapshots: ReturnType<typeof readEnabledExternalMcpConfigs>[] = [];
+  onExternalMcpRosterChanged("route-test-observer", () => {
+    const snapshot = readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+    snapshots.push(snapshot);
+    return snapshot;
+  });
+  t.after(() => resetExternalMcpRosterChangeListenersForTests());
+  assert.equal((await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify(validBody) })).status, 200);
+  assert.equal(snapshots.length, 1, "a successful save must notify the runtime");
+  const saved = await snapshots[0]!;
+  assert.deepEqual(saved.failures, []);
+  assert.deepEqual(saved.configs.map((config) => config.serverId), ["github"]);
+  const target = saved.configs[0]!.target;
+  assert.equal(target.kind, "stdio");
+  assert.deepEqual(target.kind === "stdio" ? target.env : null, { GITHUB_TOKEN: DUMMY_TOKEN });
+
+  assert.equal((await req(baseUrl, `${BASE}/github`, cookie, {
+    method: "PUT", body: JSON.stringify({ ...validBody, env: undefined, enabled: false }),
+  })).status, 200);
+  assert.equal(snapshots.length, 2, "a toggle must notify the runtime too");
+  assert.deepEqual((await snapshots[1]!).configs, []);
 });

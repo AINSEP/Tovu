@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import type { MemberRecord } from "#src/features/members/index";
+import type { OutboundEmail, MemberRecord } from "#src/features/members/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";
@@ -116,6 +116,28 @@ test("T003: GET members list succeeds (200) for the seeded owner (wildcard grant
   assert.equal(res.status, 200);
   const body = (await res.json()) as { members: unknown[] };
   assert.deepEqual(body.members, []);
+
+  const nowIso = deps.clock.nowIso();
+  const members: MemberRecord[] = ["pending", "active", "disabled"].map((status, index) => ({
+    id: `list-member-${index}`,
+    workspaceId: deps.workspaceId,
+    email: `list-${status}@example.com`,
+    status: status as MemberRecord["status"],
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    version: 1,
+  }));
+  for (const member of members) await deps.memberRepo.save(member);
+  const listUrl = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/members`;
+  const all = await fetch(listUrl, { headers: { cookie: ownerCookie } });
+  assert.equal(all.status, 200);
+  assert.deepEqual(await all.json(), { members });
+  const first = await fetch(`${listUrl}?limit=2`, { headers: { cookie: ownerCookie } });
+  assert.equal(first.status, 200);
+  assert.deepEqual(await first.json(), { members: members.slice(0, 2) });
+  const next = await fetch(`${listUrl}?limit=2&afterId=${members[1].id}`, { headers: { cookie: ownerCookie } });
+  assert.equal(next.status, 200);
+  assert.deepEqual(await next.json(), { members: members.slice(2) });
 });
 
 test("T004: GET member-by-id denied 403 FORBIDDEN without member.manage", async (t) => {
@@ -171,6 +193,12 @@ test("T005: POST request-magic-link denied 403 FORBIDDEN without member.manage",
 
 test("T005: POST request-magic-link succeeds (200) for the seeded owner (wildcard grant) — no regression", async (t) => {
   const { app, deps } = buildTestApp();
+  const sent: OutboundEmail[] = [];
+  const send = deps.mailer.send.bind(deps.mailer);
+  deps.mailer.send = async (message, options) => {
+    sent.push(message);
+    return send(message, options);
+  };
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(
@@ -184,6 +212,13 @@ test("T005: POST request-magic-link succeeds (200) for the seeded owner (wildcar
   assert.equal(res.status, 200);
   const body = (await res.json()) as { delivered: true };
   assert.equal(body.delivered, true);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to.email, "someone@example.com");
+  const link = sent[0].text?.match(/(?:https?:\/\/\S+|\/auth\/magic\?\S+)/)?.[0];
+  assert.ok(link, "mail must contain an actionable sign-in link");
+  const url = new URL(link, baseUrl);
+  assert.equal(url.pathname, "/auth/magic");
+  assert.match(url.searchParams.get("token") ?? "", /^[a-f0-9]{64}$/);
 });
 
 test("POST request-magic-link with redirectPath succeeds (200)", async (t) => {
@@ -329,4 +364,31 @@ test("mismatched :workspaceId 404s before authorize() runs (list route), matchin
     headers: { cookie: bareCookie },
   });
   assert.equal(res.status, 404);
+});
+
+
+test("owner disable persists the disabled member and revokes an existing session", async (t) => {
+  const { app, deps } = buildTestApp();
+  const member = await seedMember(deps);
+  const session = {
+    id: "session-before-disable",
+    workspaceId: deps.workspaceId,
+    memberId: member.id,
+    tokenHash: "session-before-disable-hash",
+    createdAt: deps.clock.nowIso(),
+    expiresAt: "2099-01-01T00:00:00.000Z",
+  };
+  await deps.memberSessionRepo.save(session);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/members/${member.id}/disable`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 200);
+  const persisted = await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: member.id });
+  assert.equal(persisted?.status, "disabled");
+  assert.equal(persisted?.version, member.version + 1);
+  const revoked = await deps.memberSessionRepo.findByTokenHash({ workspaceId: deps.workspaceId, tokenHash: session.tokenHash });
+  assert.ok(revoked?.revokedAt, "the previously live session must be revoked");
+  assert.deepEqual(await res.json(), { member: persisted });
 });

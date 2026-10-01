@@ -44,6 +44,8 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
 
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
   const app = express();
   app.use(express.json());
   registerFormsSubmitRoute(app, {
@@ -51,8 +53,8 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
     submitForm: {
       definitionRepo,
       submissionRepo,
-      outbox: new InMemoryOutbox(),
-      bus: new InMemoryEventBus(),
+      outbox,
+      bus,
       clock,
       idGen,
       rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
@@ -63,7 +65,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;
-  return { server, app, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo, submissionRepo };
+  return { server, app, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo, submissionRepo, outbox, bus };
 }
 
 /** Stands in for a repo/DB failure none of `submitForm`'s three typed error classes model (e.g. the
@@ -142,9 +144,12 @@ test("POST /forms/:slug/submit: an invalid payload returns 400 FORMS_SUBMISSION_
 });
 
 test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the identical 201 accepted response", async (t) => {
-  const { server, baseUrl, definitionRepo } = await startTestApp();
+  const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus } = await startTestApp();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   await definitionRepo.create(makeDefinition());
+
+  let delivered = 0;
+  await bus.subscribe("form.submission.received", async () => { delivered++; });
 
   const res = await fetch(`${baseUrl}/forms/contact/submit`, {
     method: "POST",
@@ -154,6 +159,22 @@ test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the
   assert.equal(res.status, 201);
   const body = (await res.json()) as { status: string };
   assert.equal(body.status, "accepted");
+  assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items, []);
+  assert.equal(delivered, 0);
+  assert.deepEqual(await outbox.claimPending(20, NOW), []);
+
+  // The bot must not consume any of this IP/form's five real-submission allowances.
+  for (let i = 0; i < 5; i++) {
+    const accepted = await fetch(`${baseUrl}/forms/contact/submit`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: `Visitor ${i}` }),
+    });
+    assert.equal(accepted.status, 201, `real submission ${i + 1} after a bot`);
+    assert.deepEqual(await accepted.json(), { status: "accepted" });
+  }
+  const limited = await fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Sixth visitor" }),
+  });
+  assert.equal(limited.status, 429);
 });
 
 test("POST /forms/:slug/submit: AC-14 — the 6th submission in-window is rate-limited 429", async (t) => {

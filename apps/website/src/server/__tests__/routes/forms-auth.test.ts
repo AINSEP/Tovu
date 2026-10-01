@@ -172,11 +172,69 @@ test("admin forms routes: AC-23 — a principal lacking admin.forms.submissions.
   });
   const { data: definition } = (await createRes.json()) as { data: { id: string } };
 
+  const submission = { id: "sub-delete-auth", workspaceId: deps.workspaceId, formDefinitionId: definition.id,
+    data: { name: "Ada" }, sourceIp: "1.1.1.1", submittedAt: deps.clock.nowIso() };
+  await deps.formSubmissionRepo.create(submission);
+
   const bareCookie = await loginWithPermissions(deps, baseUrl, []);
 
   const deleteRes = await fetch(
-    `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${definition.id}/submissions/whatever`,
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${definition.id}/submissions/${submission.id}`,
     { method: "DELETE", headers: { cookie: bareCookie } }
   );
   assert.equal(deleteRes.status, 403);
+  assert.equal((await deleteRes.json()).details.permission, "admin.forms.submissions.delete");
+  const readCookie = await loginWithPermissions(deps, baseUrl, ["admin.forms.submissions.read"]);
+  const readOnlyDelete = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${definition.id}/submissions/${submission.id}`, {
+    method: "DELETE", headers: { cookie: readCookie },
+  });
+  assert.equal(readOnlyDelete.status, 403);
+  assert.equal((await readOnlyDelete.json()).details.permission, "admin.forms.submissions.delete");
+  assert.deepEqual(await deps.formSubmissionRepo.findById({ workspaceId: deps.workspaceId, id: submission.id }), submission);
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${definition.id}/submissions`, { headers: { cookie: ownerCookie } });
+  assert.equal(listRes.status, 200);
+  assert.deepEqual((await listRes.json()).data.map((row: { id: string }) => row.id), [submission.id]);
+
+  const deleteCookie = await loginWithPermissions(deps, baseUrl, ["admin.forms.submissions.delete"]);
+  const grantedRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${definition.id}/submissions/${submission.id}`, {
+    method: "DELETE", headers: { cookie: deleteCookie },
+  });
+  assert.equal(grantedRes.status, 204);
+  assert.equal(await deps.formSubmissionRepo.findById({ workspaceId: deps.workspaceId, id: submission.id }), null);
+  const afterRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${definition.id}/submissions`, { headers: { cookie: ownerCookie } });
+  assert.equal(afterRes.status, 200);
+  assert.deepEqual((await afterRes.json()).data, []);
+});
+
+test("admin forms routes: manage and submission-read permissions are separate on every route", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/forms`;
+  const createRes = await fetch(base, { method: "POST", headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ name: "Contact", slug: "matrix-contact", fields: [{ id: "name", label: "Name", type: "text", required: true }] }) });
+  assert.equal(createRes.status, 201);
+  const definition = (await createRes.json()).data;
+  await deps.formSubmissionRepo.create({ id: "matrix-sub", workspaceId: deps.workspaceId, formDefinitionId: definition.id,
+    data: { name: "Ada" }, sourceIp: "1.1.1.1", submittedAt: deps.clock.nowIso() });
+
+  const routes = [
+    { method: "GET", path: "", permission: "admin.forms.manage", status: 200 },
+    { method: "POST", path: "", permission: "admin.forms.manage", status: 201,
+      body: { name: "New", slug: "matrix-new", fields: [{ id: "name", label: "Name", type: "text", required: true }] } },
+    { method: "GET", path: `/${definition.id}`, permission: "admin.forms.manage", status: 200 },
+    { method: "PUT", path: `/${definition.id}`, permission: "admin.forms.manage", status: 200, body: { name: "Updated Contact" } },
+    { method: "GET", path: `/${definition.id}/submissions`, permission: "admin.forms.submissions.read", status: 200 },
+    { method: "GET", path: `/${definition.id}/submissions/matrix-sub`, permission: "admin.forms.submissions.read", status: 200 },
+  ];
+  for (const permission of ["admin.forms.manage", "admin.forms.submissions.read", "admin.forms.submissions.delete"]) {
+    const cookie = await loginWithPermissions(deps, baseUrl, [permission]);
+    for (const route of routes) {
+      const res = await fetch(`${base}${route.path}`, { method: route.method, headers: { "content-type": "application/json", cookie },
+        ...(route.body ? { body: JSON.stringify(route.body) } : {}) });
+      const body = await res.json();
+      assert.equal(res.status, permission === route.permission ? route.status : 403, `${permission}: ${route.method} ${route.path}`);
+      if (permission !== route.permission) assert.equal(body.details.permission, route.permission);
+      else if (route.path.endsWith("matrix-sub")) assert.deepEqual(body.data.data, { name: "Ada" });
+    }
+  }
 });

@@ -90,6 +90,12 @@ test("POST /_analytics/e accepts a clean beacon, returns 204, and stores a norma
   assert.equal(stored.length, 1);
   assert.equal(stored[0].path, "/blog/hello");
   assert.equal(stored[0].referrerHost, "google.com");
+  assert.equal(stored[0].deviceClass, "desktop");
+  assert.equal(stored[0].browserFamily, "chrome");
+  assert.equal(stored[0].osFamily, "windows");
+  assert.equal(Object.hasOwn(stored[0], "ip"), false);
+  assert.equal(Object.hasOwn(stored[0], "userAgent"), false);
+  assert.ok(!JSON.stringify(stored[0]).includes("Mozilla/5.0"));
 });
 
 test("POST /_analytics/e never leaks accept/reject: an unresolvable host still returns 204 with an empty body", async (t) => {
@@ -162,3 +168,50 @@ test("POST /_analytics/e rejects an array masquerading as eventProps rather than
   assert.equal(stored.length, 1);
   assert.equal(stored[0].eventProps, null);
 });
+
+for (const [signal, policy] of [["dnt", "honorDoNotTrack"], ["gpc", "honorGlobalPrivacyControl"]] as const) {
+  for (const honor of [true, false]) {
+    test(`POST /_analytics/e ${honor ? "honors" : "can disable honoring"} ${signal} at the HTTP boundary`, async (t) => {
+      const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ [policy]: honor })) });
+      const { server, baseUrl } = await startTestApp(deps);
+      t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+      const beacon = { host: "example.com", path: "/privacy-control", kind: "pageview" };
+      const control = await fetch(`${baseUrl}/_analytics/e`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(beacon),
+      });
+      assert.equal(control.status, 204);
+      assert.equal(await control.text(), "");
+      assert.equal(sink.all().length, 1, "the same beacon without opt-out must be accepted");
+      const optedOut = await fetch(`${baseUrl}/_analytics/e`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...beacon, [signal]: true }),
+      });
+      assert.equal(optedOut.status, 204);
+      assert.equal(await optedOut.text(), "");
+      assert.equal(sink.all().length, honor ? 1 : 2);
+    });
+  }
+}
+
+for (const failingDependency of ["resolver", "sink"] as const) {
+  test(`POST /_analytics/e conceals an unexpected ${failingDependency} failure behind an empty 204`, async (t) => {
+    let failureReached = false;
+    const fail = async () => {
+      failureReached = true;
+      throw new Error("private ingestion failure details");
+    };
+    const { deps, sink } = makeDeps(failingDependency === "resolver"
+      ? { resolveWorkspaceForHost: fail }
+      : {});
+    if (failingDependency === "sink") t.mock.method(sink, "accept", fail);
+    const { server, baseUrl } = await startTestApp(deps);
+    t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+    const res = await fetch(`${baseUrl}/_analytics/e`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ host: "example.com", path: "/failure-control", kind: "pageview" }),
+    });
+    assert.equal(failureReached, true, "the request must actually reach the throwing dependency");
+    assert.equal(res.status, 204);
+    assert.equal(await res.text(), "");
+    assert.equal(sink.all().length, 0);
+  });
+}

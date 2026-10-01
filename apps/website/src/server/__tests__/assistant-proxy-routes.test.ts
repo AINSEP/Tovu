@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
@@ -81,6 +81,16 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
           res.write(`id: chunk-2\ndata: {"kind":"second"}\n\n`);
           res.end();
         }, 200);
+        return;
+      }
+      if ((req.url ?? "").startsWith("/api/frontend-sessions/stream")) {
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        res.end('data: {"type":"attached","sessionId":"session-1","bindToken":"bind-1"}\n\n');
+        return;
+      }
+      if ((req.url ?? "") === "/api/frontend-sessions/session-1/responses") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end('{"settled":true}');
         return;
       }
       if ((req.url ?? "").includes("/events")) {
@@ -326,6 +336,49 @@ test("an MCP-UI tool call for an exchangeId the daemon owns falls through, and t
   assert.equal(recorded[0].url, MCP_UI_TOOL_CALLS_PATH);
 });
 
+test("frontend session streams, answers, and attachment deletion are session-gated and forwarded intact", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
+  const streamPath = "/api/frontend-sessions/stream?capability=page.navigate&capability=page.scroll_to";
+  const responseBody = { invocationId: "invoke-1", ok: true, output: { navigated: true } };
+  const deleteBody = { batchId: "batch-1", paths: ["a.txt"] };
+  const cases = [
+    { path: streamPath, method: "GET", body: undefined },
+    { path: "/api/frontend-sessions/session-1/responses", method: "POST", body: responseBody },
+    { path: "/api/attachments", method: "DELETE", body: deleteBody },
+  ];
+  for (const request of cases) {
+    const denied = await fetch(`${baseUrl}${request.path}`, {
+      method: request.method, headers: { "content-type": "application/json" },
+      ...(request.body ? { body: JSON.stringify(request.body) } : {}),
+    });
+    assert.equal(denied.status, 401);
+    await denied.text();
+  }
+  assert.equal(recorded.length, 0);
+  for (const [index, request] of cases.entries()) {
+    const res = await fetch(`${baseUrl}${request.path}`, {
+      method: request.method, headers: { cookie, "content-type": "application/json", "last-event-id": "frontend-cursor" },
+      ...(request.body ? { body: JSON.stringify(request.body) } : {}),
+    });
+    assert.equal(res.status, 200);
+    if (request.method === "GET") {
+      assert.equal(res.headers.get("content-type"), "text/event-stream");
+      assert.equal(await res.text(), 'data: {"type":"attached","sessionId":"session-1","bindToken":"bind-1"}\n\n');
+    } else {
+      assert.deepEqual(await res.json(), index === 1 ? { settled: true } : { runs: [{ id: "run-1" }] });
+    }
+    assert.equal(recorded.length, index + 1);
+    const upstream = recorded[index];
+    assert.equal(upstream.method, request.method);
+    assert.equal(upstream.url, request.path);
+    assert.equal(upstream.headers.authorization, `Bearer ${TOKEN}`);
+    assert.equal(upstream.headers[RUN_PRINCIPAL_HEADER], me.user.id);
+    assert.equal(upstream.headers["last-event-id"], "frontend-cursor");
+    if (request.body) assert.deepEqual(JSON.parse(upstream.body), request.body);
+  }
+});
+
 test("every proxied request carries the daemon bearer token", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
 
@@ -411,6 +464,10 @@ test("the attachment-upload proxy also asserts the session-verified principal, s
   });
 
   assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].method, "POST");
+  assert.equal(recorded[0].url, "/api/attachments?batch=batch-1&name=a.txt");
+  assert.equal(recorded[0].body, "file bytes");
+  assert.equal(recorded[0].headers["content-type"], "application/octet-stream");
   assert.equal(
     recorded[0].headers[RUN_PRINCIPAL_HEADER],
     me.user.id,
@@ -421,6 +478,7 @@ test("the attachment-upload proxy also asserts the session-verified principal, s
 test("the run-start body rewrite still stamps the session principal into contextRef alongside the new headers", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
 
+  const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
   await fetch(`${baseUrl}/api/runs`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json", "last-event-id": "cursor-3" },
@@ -433,8 +491,16 @@ test("the run-start body rewrite still stamps the session principal into context
   assert.equal(forwarded.agentId, "claude");
   assert.equal(contextRef.prompt, "make me a content type");
   assert.ok(contextRef.principalId.length > 0, "the daemon has no cookie of its own — the proxy must stamp the principal");
+  assert.equal(contextRef.principalId, me.user.id);
   assert.equal(recorded[0].headers.authorization, `Bearer ${TOKEN}`);
   assert.equal(recorded[0].headers["last-event-id"], "cursor-3", "header forwarding applies to every route, not just the SSE one");
+  await fetch(`${baseUrl}/api/runs`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ contextRef: JSON.stringify({ prompt: "keep this prompt", principalId: "forged-owner" }), agentId: "claude" }),
+  });
+  const forgedForwarded = JSON.parse(recorded[1].body);
+  assert.deepEqual(JSON.parse(forgedForwarded.contextRef), { prompt: "keep this prompt", principalId: me.user.id });
+  assert.equal(recorded[1].headers[RUN_PRINCIPAL_HEADER], me.user.id);
 });
 
 test("a known-failed daemon short-circuits every proxied route to an immediate 503, never reaching the daemon's port", async (t) => {
@@ -626,4 +692,33 @@ test("READ-ONLY BOUNDARY: no write verb is mounted on the tool catalog path — 
   assert.notEqual(put.status, 200);
   assert.notEqual(del.status, 200);
   assert.equal(recorded.length, 0, "a write verb against the tool-catalog path must never reach the daemon — enumeration only, per this route's own boundary");
+});
+
+test("a failed daemon spawn is reattempted by the proxy and later requests recover", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const { startAssistantDaemon, shutdownAssistantDaemon } = await import("../runtime/lifecycle/daemon-supervisor.js");
+  const children: EventEmitter[] = [];
+  startAssistantDaemon({ workspaceId: "workspace-local", siteDir: "/unused-test-site" }, {
+    registerProcessSignalHandlers: false,
+    spawnDaemonProcess: () => {
+      const child = Object.assign(new EventEmitter(), { kill: () => true });
+      children.push(child);
+      return child;
+    },
+  });
+  t.after(() => { shutdownAssistantDaemon(); clearAssistantDaemonFailure(); });
+  assert.equal(children.length, 1);
+  children[0].emit("error", new Error("controlled spawn failure"));
+
+  const failed = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
+  assert.equal(failed.status, 503, "recovery does not change this request's outcome");
+  await failed.text();
+  assert.equal(children.length, 2, "the proxy must call the supervisor and actually reattempt the spawn");
+  assert.equal(recorded.length, 0);
+
+  const recovered = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { runs: [{ id: "run-1" }] });
+  assert.equal(recorded.length, 1);
+  assert.equal(children.length, 2, "a healthy subsequent request needs no additional spawn");
 });

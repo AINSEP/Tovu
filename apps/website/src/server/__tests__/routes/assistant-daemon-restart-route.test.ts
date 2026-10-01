@@ -19,7 +19,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * correctly against its actual default-boot answer (never started this process boot → refused).
  */
 
-async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
+async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string, permissions: readonly string[] = []): Promise<string> {
   await deps.identityReady;
   const bareId = "bare-principal-assistant-daemon-restart";
   await deps.principalRepo.save({
@@ -37,6 +37,13 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
     passwordHash: await deps.passwordHasher.hash("bare-pw"),
   });
 
+  const policyId = "restart-policy";
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  for (const permission of permissions) {
+    await deps.policyPermissionRepo.save({ id: `restart-${permission}`, workspaceId: deps.workspaceId, policyId, permission, resourceType: null, constraintJson: null });
+  }
+  await deps.principalPolicyRepo.save({ id: "restart-policy-link", workspaceId: deps.workspaceId, principalId: bareId, policyId });
+
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -47,7 +54,8 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("assistant-daemon restart: an unauthorized principal (no grants) gets 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  let restarts = 0;
+  const deps: RouteDeps = { ...createRouteDeps(), restartAssistantDaemon: () => { restarts++; return { ok: true }; } };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t); // boots the server; cookie unused here
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -57,7 +65,30 @@ test("assistant-daemon restart: an unauthorized principal (no grants) gets 403",
     headers: { cookie },
   });
   assert.equal(res.status, 403);
+  assert.equal((await res.json()).details.permission, "system.write");
+  assert.equal(restarts, 0);
 });
+
+for (const permission of ["system.read", "system.write"]) {
+  test(`assistant-daemon restart: a ${permission}-only principal ${permission === "system.read" ? "is denied without restarting" : "can restart"}`, async (t) => {
+    let restarts = 0;
+    const deps: RouteDeps = { ...createRouteDeps(), restartAssistantDaemon: () => { restarts++; return { ok: true }; } };
+    const { baseUrl } = await bootAuthenticated(createApp(deps), t);
+    const cookie = await loginAsBarePrincipal(deps, baseUrl, [permission]);
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/assistant-daemon/restart`, {
+      method: "POST", headers: { cookie },
+    });
+    if (permission === "system.read") {
+      assert.equal(res.status, 403);
+      assert.equal((await res.json()).details.permission, "system.write");
+      assert.equal(restarts, 0);
+    } else {
+      assert.equal(res.status, 200);
+      assert.deepEqual(await res.json(), { ok: true });
+      assert.equal(restarts, 1);
+    }
+  });
+}
 
 test("assistant-daemon restart: a mismatched workspaceId in the URL 404s", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };

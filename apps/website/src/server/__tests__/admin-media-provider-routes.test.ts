@@ -5,11 +5,12 @@ import express from "express";
 
 import type { KeyringPort } from "../../features/webhooks/index.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { resolveMediaProviderCredential } from "../../features/media/provider-credential-store.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createMediaModule } from "../runtime/composition/modules/media.js";
 import type { RouteDeps } from "../routes/types.js";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for the 2 media-provider-credential routes (GET/PUT
@@ -64,6 +65,48 @@ test("both routes require a session — an unauthenticated caller never reaches 
 
   assert.equal((await get(baseUrl, PROVIDERS_PATH, "")).status, 401);
   assert.equal((await put(baseUrl, PROVIDERS_PATH, "", {})).status, 401);
+});
+
+test("bare and wrong-grant sessions cannot read or replace provider credentials", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  assert.equal((await put(baseUrl, PROVIDERS_PATH, cookie, { openai: { apiKey: "sk-original-4242" } })).status, 200);
+  const before = structuredClone(await deps.mediaProviderCredentialRepo.listByWorkspaceId(deps.workspaceId));
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+  const me = await get(baseUrl, "/api/admin/v1/auth/me", bareCookie);
+  assert.equal(me.status, 200);
+  const principal = await me.json() as { user: { id: string } };
+  const policyId = "media-provider-route-test-policy";
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.principalPolicyRepo.save({ id: "media-provider-route-test-link", workspaceId: deps.workspaceId, principalId: principal.user.id, policyId });
+
+  for (const grant of [null, "media.write", "media.read"]) {
+    if (grant) await deps.policyPermissionRepo.save({
+      id: `media-provider-route-${grant}`, workspaceId: deps.workspaceId, policyId,
+      permission: grant, resourceType: null, constraintJson: null,
+    });
+    const read = await get(baseUrl, PROVIDERS_PATH, bareCookie);
+    if (grant === "media.read") {
+      assert.equal(read.status, 200, "media.read permits reading markers");
+    } else {
+      assert.equal(read.status, 403, await read.clone().text());
+      const denied = await read.json() as { code: string; details: { permission: string } };
+      assert.equal(denied.code, "FORBIDDEN");
+      assert.equal(denied.details.permission, "media.read");
+    }
+    for (const body of [{ openai: { apiKey: "sk-attacker-9999" } }, {}]) {
+      const write = await put(baseUrl, PROVIDERS_PATH, bareCookie, body);
+      assert.equal(write.status, 403, await write.clone().text());
+      const denied = await write.json() as { code: string; details: { permission: string } };
+      assert.equal(denied.code, "FORBIDDEN");
+      assert.equal(denied.details.permission, "admin.integrations.manage");
+      assert.deepEqual(await deps.mediaProviderCredentialRepo.listByWorkspaceId(deps.workspaceId), before, "denied writes must neither replace nor wipe the credentials");
+    }
+  }
+  assert.equal((await resolveMediaProviderCredential(
+    { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+    { workspaceId: deps.workspaceId, providerId: "openai" },
+  ))?.apiKey, "sk-original-4242");
 });
 
 test("a workspace id that is not this site's is 404 on both routes", async (t) => {
@@ -121,7 +164,7 @@ test("omitting a provider from a later PUT deletes it, over the wire", async (t)
 });
 
 test("editing baseUrl without resending the key keeps the stored key", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   await put(baseUrl, PROVIDERS_PATH, cookie, { grok: { apiKey: "xai-keep-8888" } });
@@ -136,6 +179,10 @@ test("editing baseUrl without resending the key keeps the stored key", async (t)
   assert.equal(body.grok?.apiKeyConfigured, true);
   assert.equal(body.grok?.apiKeyTail, "8888");
   assert.equal(body.grok?.baseUrl, "https://api.x.ai/v1");
+  assert.deepEqual(await resolveMediaProviderCredential(
+    { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+    { workspaceId: deps.workspaceId, providerId: "grok" },
+  ), { apiKey: "xai-keep-8888", baseUrl: "https://api.x.ai/v1", model: null });
 });
 
 test("a UI-spelled provider id is rejected at the boundary with a 400", async (t) => {

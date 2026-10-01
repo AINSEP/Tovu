@@ -22,7 +22,7 @@ import {
   type IdentityRepos,
 } from "@jini-ai/cms/identity";
 
-import type { PagesHtmlDocumentStorePort } from "#src/features/pages/index";
+import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/features/pages/index";
 import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
@@ -88,7 +88,7 @@ interface Harness {
  * Boot the route alone, with `authorize` recorded and the store recording every method it is asked
  * for. `allow` decides the gate's answer.
  */
-async function harness(t: { after: (fn: () => Promise<void>) => void }, options: { allow: boolean }): Promise<Harness> {
+async function harness(t: { after: (fn: () => Promise<void>) => void }, options: { allow: boolean; concurrentEdit?: boolean }): Promise<Harness> {
   const authorizeCalls: Harness["authorizeCalls"] = [];
   const storeCalls: string[] = [];
   const storeScopes: Harness["storeScopes"] = [];
@@ -103,6 +103,7 @@ async function harness(t: { after: (fn: () => Promise<void>) => void }, options:
     },
     write: async () => {
       storeCalls.push("write");
+      if (options.concurrentEdit) throw new PageConcurrentEditError("page changed since read");
     },
   };
 
@@ -434,5 +435,14 @@ test("a real, seeded 'admin' principal in a pre-theme.edit (already-deployed) wo
   const response = await putHtml(baseUrl, { html: "<p>legitimate</p>" });
 
   assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+});
+
+
+test("PUT /pages/:id/html reports a concurrent store refusal as 409 without reporting a successful save", async (t) => {
+  const { baseUrl, storeCalls } = await harness(t, { allow: true, concurrentEdit: true });
+  const response = await putHtml(baseUrl, { html: "<p>stale edit</p>" });
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: "page changed since read", code: "CONCURRENT_EDIT" });
   assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
 });

@@ -430,7 +430,7 @@ test("REGRESSION: an html Page with no templateChoice renders through the static
   assert.ok(html.includes(POST_BODY_TEXT), "the page's own authored body must still reach the response");
 });
 
-test("a doc-format Page with no templateChoice DOES get the static page-shell auto-fallback — and that is not the terms-of-service regression", () => {
+test("a doc-format Page with no templateChoice DOES get the static page-shell auto-fallback — and that is not the terms-of-service regression", async (t) => {
   // INVERTED 2026-09-16. The previous version asserted `undefined` and justified it like this:
   // "Applying the fallback here too would re-open the terms-of-service-shaped regression this file's
   // own header describes, just through a page-shell.html door instead of blog-post.html."
@@ -454,6 +454,15 @@ test("a doc-format Page with no templateChoice DOES get the static page-shell au
     "page-shell.html",
     "a Page is born doc-format; it must reach its theme's own document without a save first"
   );
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "no-template-doc-page", kind: "page", bodyFormat: "doc" });
+  const baseUrl = await startTestServer(app, t);
+  const { status, html } = await getPage(baseUrl, "no-template-doc-page");
+  assert.equal(status, 200);
+  assert.ok(html.includes(PAGE_SHELL_DATA_THEME_MARKER));
+  assert.ok(html.includes(PAGE_SHELL_ASSET_MARKER));
+  assert.ok(html.includes(PAGE_SHELL_TPL_MARKER));
+  assert.ok(html.includes(POST_BODY_TEXT), "doc-format authored content must reach the HTTP response");
 });
 
 test("a static theme with no page-shell page keeps the pre-fix generic fallback for an untemplated html Page", async (t) => {

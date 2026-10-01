@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS } from "#src/features/publish-content/blob-staging";
 import { computeBlobStorageKey } from "#src/features/media/index";
 
 /**
@@ -47,6 +48,46 @@ async function loginAsOwner(baseUrl: string): Promise<string> {
   return loginAs(baseUrl, "admin", "tovu-dev");
 }
 
+/** Log in with exactly the requested grants, as in publish-content-blob-get.test.ts. */
+async function loginWithPermissions(
+  deps: ReturnType<typeof createRouteDeps>,
+  baseUrl: string,
+  args: { username: string; permissions: readonly string[] }
+): Promise<string> {
+  await deps.identityReady;
+  const principalId = `${args.username}-principal`;
+  await deps.principalRepo.save({
+    id: principalId,
+    workspaceId: WORKSPACE,
+    kind: "user",
+    displayName: args.username,
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId,
+    workspaceId: WORKSPACE,
+    username: args.username,
+    passwordHash: await deps.passwordHasher.hash("p4ssw0rd-not-secret!"),
+  });
+  if (args.permissions.length > 0) {
+    const policyId = `${args.username}-policy`;
+    await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
+    for (const [index, permission] of args.permissions.entries()) {
+      await deps.policyPermissionRepo.save({
+        id: `${policyId}-perm-${index}`,
+        workspaceId: WORKSPACE,
+        policyId,
+        permission,
+        resourceType: null,
+        constraintJson: null,
+      });
+    }
+    await deps.principalPolicyRepo.save({ id: `${policyId}-attachment`, workspaceId: WORKSPACE, principalId, policyId });
+  }
+  return loginAs(baseUrl, args.username, "p4ssw0rd-not-secret!");
+}
+
 function sha256Of(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
@@ -70,7 +111,7 @@ test("PUT .../blobs/:sha 404s when the URL workspace does not match this composi
 });
 
 test("PUT .../blobs/:sha is 401 without a credential and 403 for a principal lacking publish_content.apply", async (t) => {
-  const { server, baseUrl } = await startServer();
+  const { deps, server, baseUrl } = await startServer();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const anonymous = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${"a".repeat(64)}`, {
@@ -79,6 +120,32 @@ test("PUT .../blobs/:sha is 401 without a credential and 403 for a principal lac
     body: JSON.stringify({ dataBase64: "aGVsbG8=" }),
   });
   assert.equal(anonymous.status, 401);
+  const bytes = Buffer.from("forbidden blob bytes");
+  const sha = sha256OfBytes(bytes);
+  const storageKey = computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: sha });
+  for (const [username, permissions] of [["bare-blob-writer", []], ["read-only-blob-writer", ["publish_content.read"]]] as const) {
+    const cookie = await loginWithPermissions(deps, baseUrl, { username, permissions });
+    const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${sha}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ dataBase64: bytes.toString("base64") }),
+    });
+    assert.equal(denied.status, 403);
+    const body = await denied.json() as { code: string; details: { permission: string } };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "publish_content.apply");
+    assert.equal(await deps.blobStore.exists({ storageKey }), false);
+    const probe = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/probe`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ shas: [sha] }),
+    });
+    assert.equal(probe.status, 403);
+    const probeBody = await probe.json() as { code: string; details: { permission: string } };
+    assert.equal(probeBody.code, "FORBIDDEN");
+    assert.equal(probeBody.details.permission, "publish_content.apply");
+    assert.equal(await deps.blobStore.exists({ storageKey }), false);
+  }
 });
 
 test("PUT .../blobs/:sha writes real bytes once, then reports written:false on re-upload of the same sha (idempotent dedupe)", async (t) => {
@@ -212,7 +279,7 @@ test("POST .../blobs/probe SHORT-CIRCUITS an already-present sha (required Task 
 });
 
 test("POST .../blobs/probe 400s on a non-array / oversized / malformed shas payload", async (t) => {
-  const { server, baseUrl } = await startServer();
+  const { deps, server, baseUrl } = await startServer();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const cookie = await loginAsOwner(baseUrl);
@@ -230,4 +297,15 @@ test("POST .../blobs/probe 400s on a non-array / oversized / malformed shas payl
     body: JSON.stringify({ shas: ["not-a-valid-sha"] }),
   });
   assert.equal(malformed.status, 400);
+  let existenceChecks = 0;
+  const exists = deps.blobStore.exists.bind(deps.blobStore);
+  deps.blobStore.exists = async (input) => { existenceChecks++; return exists(input); };
+  const oversized = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/probe`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ shas: Array.from({ length: PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS + 1 }, (_, i) => sha256Of(`probe-${i}`)) }),
+  });
+  assert.equal(oversized.status, 400);
+  assert.deepEqual(await oversized.json(), { error: `at most ${PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS} shas are allowed per request` });
+  assert.equal(existenceChecks, 0, "reject oversized valid-hash payloads before probing storage");
 });

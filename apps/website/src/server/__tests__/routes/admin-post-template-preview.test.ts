@@ -14,7 +14,7 @@ import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.
 import type { RouteDeps } from "../../routes/types.js";
 import { buildWidgetInstanceFieldsJson } from "#src/features/widgets/entry-payload";
 import { WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
-import { bootAuthenticated, startTestServer } from "../helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
 
 /**
  * @file Integration coverage for the template-preview fix (2026-08-11) — `GET
@@ -464,6 +464,38 @@ test("401s without a session cookie", async (t) => {
 
   const res = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"));
   assert.equal(res.status, 401);
+});
+
+test("draft previews require content.read, allow read-only sessions, and conceal other workspaces", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "reader-only-draft", status: "draft" });
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "preview-no-grants" });
+  const readerCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "preview-reader" });
+  const policyId = "preview-content-read-only";
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyPermissionRepo.save({
+    id: "preview-read-grant", workspaceId: deps.workspaceId, policyId, permission: "content.read",
+    resourceType: null, constraintJson: null,
+  });
+  await deps.principalPolicyRepo.save({
+    id: "preview-reader-policy", workspaceId: deps.workspaceId, principalId: "bare-preview-reader", policyId,
+  });
+
+  for (const method of ["GET", "POST"]) {
+    const denied = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), { method, headers: { cookie: bareCookie } });
+    assert.equal(denied.status, 403);
+    assert.ok(!(await denied.text()).includes(POST_BODY_TEXT), "a denied preview must not disclose the draft body");
+
+    const allowed = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), { method, headers: { cookie: readerCookie } });
+    assert.equal(allowed.status, 200, "content.read alone must suffice to preview a draft");
+    assert.ok((await allowed.text()).includes(POST_BODY_TEXT));
+
+    const foreignUrl = previewUrl(baseUrl, post.id, "blog-post.html").replace(`/workspaces/${WORKSPACE_ID}/`, "/workspaces/foreign-workspace/");
+    const foreign = await fetch(foreignUrl, { method, headers: { cookie: readerCookie } });
+    assert.equal(foreign.status, 404);
+    assert.ok(!(await foreign.text()).includes(POST_BODY_TEXT));
+  }
 });
 
 test("404s for a post id that does not exist", async (t) => {

@@ -6,7 +6,7 @@ import express from "express";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
@@ -82,11 +82,15 @@ test("round-trips messages in position order", async (t) => {
     await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({}) })
   ).json()) as { conversation: { id: string } };
 
-  for (const [id, content] of [["m1", "first"], ["m2", "second"]] as const) {
+  const expected = [
+    { id: "zz-first", role: "user", content: "first", createdAt: 1_000 },
+    { id: "aa-second", role: "assistant", content: "second", createdAt: 1_000 },
+  ];
+  for (const { id, ...message } of expected) {
     const put = await api(baseUrl, cookie, `/${conversation.id}/messages/${id}`, {
       method: "PUT",
       // Identical createdAt on both: ordering must come from `position`, not the timestamp.
-      body: JSON.stringify({ role: "user", content, createdAt: 1_000 }),
+      body: JSON.stringify(message),
     });
     assert.equal(put.status, 200);
   }
@@ -94,7 +98,8 @@ test("round-trips messages in position order", async (t) => {
   const { messages } = (await (
     await api(baseUrl, cookie, `/${conversation.id}/messages`)
   ).json()) as { messages: { id: string; content: string }[] };
-  assert.deepEqual(messages.map((m) => m.id), ["m1", "m2"]);
+  assert.deepEqual(messages.map((m) => m.id), ["zz-first", "aa-second"]);
+  assert.deepEqual(messages, expected);
 });
 
 test("names an untitled conversation from its first user message", async (t) => {
@@ -224,7 +229,25 @@ test("404s rather than 403s on another principal's conversation id", async (t) =
   const { baseUrl, cookie } = await bootAuthenticated(buildApp(deps), t);
   const { conversation } = (await (
     await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ firstMessage: "private" }) })
-  ).json()) as { conversation: { id: string } };
+  ).json()) as { conversation: { id: string; title: string | null } };
+
+  const ownerMessage = { id: "private-message", role: "user", content: "owner secret", createdAt: 42 };
+  assert.equal((await api(baseUrl, cookie, `/${conversation.id}/messages/${ownerMessage.id}`, {
+    method: "PUT", body: JSON.stringify(ownerMessage),
+  })).status, 200);
+  const peerCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "chat-peer" });
+  assert.deepEqual(await (await api(baseUrl, peerCookie, "")).json(), { conversations: [] });
+  // Reads conceal a foreign id as an empty list; deletes are intentionally idempotent.
+  assert.deepEqual(await (await api(baseUrl, peerCookie, `/${conversation.id}/messages`)).json(), { messages: [] });
+  assert.equal((await api(baseUrl, peerCookie, `/${conversation.id}`, {
+    method: "PATCH", body: JSON.stringify({ title: "Stolen" }),
+  })).status, 404);
+  assert.equal((await api(baseUrl, peerCookie, `/${conversation.id}/messages/${ownerMessage.id}`, {
+    method: "PUT", body: JSON.stringify({ ...ownerMessage, content: "overwritten" }),
+  })).status, 404);
+  assert.equal((await api(baseUrl, peerCookie, `/${conversation.id}`, { method: "DELETE" })).status, 204);
+  const ownerMessages = await (await api(baseUrl, cookie, `/${conversation.id}/messages`)).json();
+  assert.deepEqual(ownerMessages, { messages: [ownerMessage] });
 
   // A different principal, obtained the same way any route would obtain one.
   const otherStore = deps.chatHistory({
@@ -243,6 +266,7 @@ test("404s rather than 403s on another principal's conversation id", async (t) =
   // The owner's copy must have survived the other principal's delete.
   const stillThere = (await (await api(baseUrl, cookie, "")).json()) as { conversations: unknown[] };
   assert.equal(stillThere.conversations.length, 1, "another user's DELETE removed the owner's conversation");
+  assert.equal((stillThere.conversations[0] as { title: string | null }).title, conversation.title, "a foreign rename must leave the owner's title intact");
 });
 
 test("rejects a rename with an empty title instead of erasing it", async (t) => {

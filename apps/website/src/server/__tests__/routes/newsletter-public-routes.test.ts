@@ -10,6 +10,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
+import type { MembersConsentCapability } from "#src/features/newsletter/ports";
 import { buildUnsubscribeLink } from "#src/features/newsletter/unsubscribe";
 
 /**
@@ -31,7 +32,7 @@ import { buildUnsubscribeLink } from "#src/features/newsletter/unsubscribe";
  * cannot produce.
  */
 
-function buildPublicApp(): { app: express.Express; deps: NewsletterRouteDeps } {
+function buildPublicApp(consentCapability?: MembersConsentCapability): { app: express.Express; deps: NewsletterRouteDeps } {
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
@@ -42,7 +43,7 @@ function buildPublicApp(): { app: express.Express; deps: NewsletterRouteDeps } {
     newsletterSubscriptionRepo: deps.newsletterSubscriptionRepo,
     newsletterKeyring: deps.newsletterKeyring,
     mailer: deps.mailer,
-    membersConsentCapability: deps.membersConsentCapability,
+    membersConsentCapability: consentCapability ?? deps.membersConsentCapability,
     originRegistry: deps.originRegistry,
     clock: deps.clock,
     idGen: deps.idGen,
@@ -102,7 +103,7 @@ test("UNSUBSCRIBE (GET): succeeds (200, HTML) with zero cookies sent and never s
   const { app, deps } = buildPublicApp();
   const baseUrl = await startTestServer(app, t);
   await deps.newsletterReady;
-  const { listId, subscriberId, consentRevisionId } = await seedConfirmedSubscription(deps);
+  const { listId, subscriberId, subscriptionId, consentRevisionId } = await seedConfirmedSubscription(deps);
 
   const url = await buildUnsubscribeLink({
     deps: {
@@ -124,16 +125,23 @@ test("UNSUBSCRIBE (GET): succeeds (200, HTML) with zero cookies sent and never s
   const body = await res.text();
   assert.match(body, /unsubscribed/i);
 
+  const persisted = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  assert.equal(persisted?.status, "unsubscribed");
+  assert.ok(persisted?.unsubscribedAt);
+  const later = new Date(Date.parse(persisted.unsubscribedAt) + 60_000).toISOString();
+  deps.clock.nowIso = () => later;
+
   const repeat = await fetch(`${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`);
   assert.equal(repeat.status, 200, "REQ-15/EC-03: a repeat click of an already-processed token is idempotent success");
   assert.equal(repeat.headers.get("set-cookie"), null);
+  assert.deepEqual(await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId }), persisted);
 });
 
 test("UNSUBSCRIBE (POST, RFC 8058 one-click): succeeds (200) with zero cookies sent and never sets one", async (t) => {
   const { app, deps } = buildPublicApp();
   const baseUrl = await startTestServer(app, t);
   await deps.newsletterReady;
-  const { listId, subscriberId, consentRevisionId } = await seedConfirmedSubscription(deps);
+  const { listId, subscriberId, subscriptionId, consentRevisionId } = await seedConfirmedSubscription(deps);
 
   const url = await buildUnsubscribeLink({
     deps: {
@@ -150,6 +158,16 @@ test("UNSUBSCRIBE (POST, RFC 8058 one-click): succeeds (200) with zero cookies s
   const res = await fetch(`${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" });
   assert.equal(res.status, 200, await res.clone().text());
   assert.equal(res.headers.get("set-cookie"), null, "one-click POST must never set a session cookie either");
+  const persisted = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  assert.equal(persisted?.status, "unsubscribed");
+  assert.ok(persisted?.unsubscribedAt);
+  const later = new Date(Date.parse(persisted.unsubscribedAt) + 60_000).toISOString();
+  deps.clock.nowIso = () => later;
+
+  const repeat = await fetch(`${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" });
+  assert.equal(repeat.status, 200);
+  assert.equal(repeat.headers.get("set-cookie"), null);
+  assert.deepEqual(await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId }), persisted);
 });
 
 test("UNSUBSCRIBE: an admin session cookie present on the request is neither required nor consulted — same outcome, no cookie echoed back", async (t) => {
@@ -277,4 +295,49 @@ test("both public routes are reachable directly at /newsletter/* — never under
 
   const underAdminGate = await fetch(`${baseUrl}/api/admin/newsletter/confirm?token=whatever`);
   assert.equal(underAdminGate.status, 404, "no route is registered under /api/admin for these public paths");
+});
+
+
+test("CONFIRM_SUBSCRIPTION: bound consent grants, consumes the token and persists subscription without cookies", async (t) => {
+  const requests: Parameters<MembersConsentCapability["request"]>[0][] = [];
+  const confirmations: Parameters<MembersConsentCapability["confirm"]>[0][] = [];
+  const capability: MembersConsentCapability = {
+    request: async (input) => { requests.push(input); return { requested: true }; },
+    confirm: async (input) => { confirmations.push(input); return { status: "granted", consentRevisionId: "confirmed-revision" }; },
+    revoke: async () => ({ status: "revoked" }),
+  };
+  const { app, deps } = buildPublicApp(capability);
+  const baseUrl = await startTestServer(app, t);
+  await deps.newsletterReady;
+  const { subscriptionId, subscriberId } = await seedConfirmedSubscription(deps);
+  const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  assert.ok(subscription);
+  await deps.newsletterSubscriptionRepo.save({ ...subscription, status: "pending", subscribedAt: null, consentRevisionIdAtSubscribe: null });
+  const now = deps.clock.nowIso();
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const tokenId = deps.idGen.newId();
+  await deps.newsletterConfirmationTokenRepo.save({
+    id: tokenId, workspaceId: deps.workspaceId, subscriptionId, tokenHash,
+    purpose: "newsletter_subscription_confirm", createdAt: now,
+    expiresAt: new Date(Date.parse(now) + 60_000).toISOString(), consumedAt: null,
+  });
+  const res = await fetch(`${baseUrl}/newsletter/confirm?token=${rawToken}`);
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.equal(res.headers.get("set-cookie"), null);
+  assert.match(res.headers.get("content-type") ?? "", /html/);
+  assert.deepEqual(requests, [{ workspaceId: deps.workspaceId, subscriberId,
+    evidence: { consentTextRef: "newsletter-subscription-confirm-v1", source: "admin", confirmTokenId: tokenId } }]);
+  assert.deepEqual(confirmations, [{ workspaceId: deps.workspaceId, subscriberId, confirmTokenId: tokenId }]);
+  const persisted = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  assert.equal(persisted?.status, "subscribed");
+  assert.equal(persisted?.consentRevisionIdAtSubscribe, "confirmed-revision");
+  assert.ok(persisted?.subscribedAt);
+  const token = await deps.newsletterConfirmationTokenRepo.findByTokenHash({ workspaceId: deps.workspaceId, tokenHash });
+  assert.ok(token?.consumedAt);
+  const replay = await fetch(`${baseUrl}/newsletter/confirm?token=${rawToken}`);
+  assert.equal(replay.status, 400);
+  assert.equal(replay.headers.get("set-cookie"), null);
+  assert.equal(confirmations.length, 1);
+  assert.deepEqual(await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId }), persisted);
 });

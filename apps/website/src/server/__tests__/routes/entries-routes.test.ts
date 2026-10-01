@@ -81,6 +81,7 @@ test("entries routes: create denied 403 FORBIDDEN without admin.collections.mana
   // Denies every permission from this point on — same technique taxonomy-routes.test.ts's own
   // equivalent 403 test uses, applied here to lock create.ts's pre-conversion 403 shape before
   // it moves to the shared authorizeOrRespond helper.
+  const authorize = deps.authorize;
   deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/entries`, {
@@ -93,6 +94,11 @@ test("entries routes: create denied 403 FORBIDDEN without admin.collections.mana
   assert.equal(body.code, "FORBIDDEN");
   assert.match(body.error, /^principal '.+' is not authorized for 'admin\.collections\.manage' \(test_denied\)$/);
   assert.deepEqual(body.details, { permission: "admin.collections.manage", reason: "test_denied" });
+  deps.authorize = authorize;
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
+  assert.equal(listRes.status, 200);
+  const listed = await listRes.json();
+  assert.deepEqual(listed.items.map((row: { id: string; title: string; status: string; version: number }) => ({ id: row.id, title: row.title, status: row.status, version: row.version })), []);
 });
 
 test("entries routes: create surfaces an authorize() failure as a 500 (INTERNAL_ERROR)", async (t) => {
@@ -115,15 +121,34 @@ test("entries routes: create surfaces an authorize() failure as a 500 (INTERNAL_
   assert.equal(body.error, "boom");
 });
 
-test("entries routes: create -> list -> update -> publish golden path (REQ-13/14/19/28)", async (t) => {
+test("entries routes: create requires type, slug, and title", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerRecipeType(baseUrl, cookie);
+  for (const missing of ["type", "slug", "title"]) {
+    const body: Record<string, string> = { type: "recipe", slug: "eggs", title: "Eggs" };
+    delete body[missing];
+    const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(body) });
+    assert.equal(res.status, 400, `missing ${missing}`);
+    assert.equal((await res.json()).code, "VALIDATION_ERROR");
+  }
+});
+
+test("entries routes: create -> list -> update -> publish golden path (REQ-13/14/19/28)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const typeRes = await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [{ name: "servings", kind: "integer", required: false, queryable: false }] }),
+  });
+  assert.equal(typeRes.status, 201);
+  const initialFields = { ext: { site: { servings: 2 } } };
+  const updatedFields = { ext: { site: { servings: 4 } } };
 
   const createRes = await fetch(`${baseUrl}/api/admin/v1/entries`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ type: "recipe", slug: "eggs", title: "Eggs" }),
+    body: JSON.stringify({ type: "recipe", slug: "eggs", title: "Eggs", fieldsJson: initialFields }),
   });
   assert.equal(createRes.status, 201);
   const created = (await createRes.json()) as { entry: { id: string; status: string; version: number } };
@@ -132,21 +157,27 @@ test("entries routes: create -> list -> update -> publish golden path (REQ-13/14
 
   const listRes = await fetch(`${baseUrl}/api/admin/v1/entries?type=recipe`, { headers: { cookie } });
   assert.equal(listRes.status, 200);
-  const listed = (await listRes.json()) as { items: Array<{ id: string }> };
+  const listed = (await listRes.json()) as { items: Array<{ id: string; fieldsJson: unknown }> };
   assert.deepEqual(
     listed.items.map((i) => i.id),
     [entryId]
   );
 
+  assert.deepEqual(listed.items[0].fieldsJson, initialFields);
+
   const updateRes = await fetch(`${baseUrl}/api/admin/v1/entries/${entryId}`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ title: "Scrambled Eggs", expectedVersion: 1 }),
+    body: JSON.stringify({ title: "Scrambled Eggs", fieldsJson: updatedFields, expectedVersion: 1 }),
   });
   assert.equal(updateRes.status, 200);
   const updated = (await updateRes.json()) as { entry: { title: string; version: number } };
   assert.equal(updated.entry.title, "Scrambled Eggs");
   assert.equal(updated.entry.version, 2);
+
+  const relistedRes = await fetch(`${baseUrl}/api/admin/v1/entries?type=recipe`, { headers: { cookie } });
+  assert.equal(relistedRes.status, 200);
+  assert.deepEqual((await relistedRes.json()).items[0].fieldsJson, updatedFields);
 
   const publishRes = await fetch(`${baseUrl}/api/admin/v1/entries/${entryId}/lifecycle`, {
     method: "POST",
@@ -157,6 +188,8 @@ test("entries routes: create -> list -> update -> publish golden path (REQ-13/14
   const published = (await publishRes.json()) as { entry: { status: string; publishedAt: string | null } };
   assert.equal(published.entry.status, "published");
   assert.ok(published.entry.publishedAt);
+  assert.equal(typeof published.entry.publishedAt, "string");
+  assert.equal(new Date(published.entry.publishedAt!).toISOString(), published.entry.publishedAt);
 });
 
 /**
@@ -308,6 +341,7 @@ test("entries routes: update denied 403 FORBIDDEN without admin.collections.mana
   await registerRecipeType(baseUrl, cookie);
   const entry = await createRecipeEntry(baseUrl, cookie);
 
+  const authorize = deps.authorize;
   deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
@@ -320,6 +354,11 @@ test("entries routes: update denied 403 FORBIDDEN without admin.collections.mana
   assert.equal(body.code, "FORBIDDEN");
   assert.match(body.error, /^principal '.+' is not authorized for 'admin\.collections\.manage' \(test_denied\)$/);
   assert.deepEqual(body.details, { permission: "admin.collections.manage", reason: "test_denied" });
+  deps.authorize = authorize;
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
+  assert.equal(listRes.status, 200);
+  const listed = await listRes.json();
+  assert.deepEqual(listed.items.map((row: { id: string; title: string; status: string; version: number }) => ({ id: row.id, title: row.title, status: row.status, version: row.version })), [{ id: entry.id, title: "Eggs", status: "draft", version: entry.version }]);
 });
 
 test("entries routes: update without a numeric expectedVersion is rejected 400 VALIDATION_ERROR", async (t) => {
@@ -439,7 +478,7 @@ test("entries routes: update's write-service chokepoint re-check no longer diver
   const entry = await createRecipeEntry(baseUrl, cookie);
 
   deps.authorize = async (params) =>
-    params.entityType ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
+    params.entityType === "entry" ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
 
   const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
     method: "PUT",
@@ -500,6 +539,7 @@ test("entries routes: lifecycle denied 403 FORBIDDEN without admin.collections.m
   await registerRecipeType(baseUrl, cookie);
   const entry = await createRecipeEntry(baseUrl, cookie);
 
+  const authorize = deps.authorize;
   deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
@@ -512,6 +552,11 @@ test("entries routes: lifecycle denied 403 FORBIDDEN without admin.collections.m
   assert.equal(body.code, "FORBIDDEN");
   assert.match(body.error, /^principal '.+' is not authorized for 'admin\.collections\.manage' \(test_denied\)$/);
   assert.deepEqual(body.details, { permission: "admin.collections.manage", reason: "test_denied" });
+  deps.authorize = authorize;
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
+  assert.equal(listRes.status, 200);
+  const listed = await listRes.json();
+  assert.deepEqual(listed.items.map((row: { id: string; title: string; status: string; version: number }) => ({ id: row.id, title: row.title, status: row.status, version: row.version })), [{ id: entry.id, title: "Eggs", status: "draft", version: entry.version }]);
 });
 
 test("entries routes: lifecycle with an unrecognized op is rejected 400 VALIDATION_ERROR", async (t) => {
@@ -605,7 +650,7 @@ test("entries routes: lifecycle's write-service chokepoint re-check no longer di
   const entry = await createRecipeEntry(baseUrl, cookie);
 
   deps.authorize = async (params) =>
-    params.entityType ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
+    params.entityType === "entry" ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
 
   const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
     method: "POST",
@@ -680,13 +725,28 @@ test("entries routes: list without a `type` filter returns every content type's 
   await registerRecipeType(baseUrl, cookie);
   const entry = await createRecipeEntry(baseUrl, cookie);
 
+  const typeRes = await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ key: "article", label: "Article", fields: [] }),
+  });
+  assert.equal(typeRes.status, 201);
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ type: "article", slug: "news", title: "News" }),
+  });
+  assert.equal(createRes.status, 201);
+  const article = (await createRes.json()).entry;
+
   const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
   assert.equal(res.status, 200);
   const listed = (await res.json()) as { items: Array<{ id: string }> };
   assert.deepEqual(
-    listed.items.map((i) => i.id),
-    [entry.id]
+    listed.items.map((i) => i.id).sort(),
+    [entry.id, article.id].sort()
   );
+  for (const [type, id] of [["recipe", entry.id], ["article", article.id]]) {
+    const filteredRes = await fetch(`${baseUrl}/api/admin/v1/entries?type=${type}`, { headers: { cookie } });
+    assert.equal(filteredRes.status, 200);
+    assert.deepEqual((await filteredRes.json()).items.map((row: { id: string }) => row.id), [id]);
+  }
 });
 
 test("entries routes: list surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
@@ -755,6 +815,11 @@ test("entries routes: republishing an already-published, unchanged entry succeed
     }
   });
 
+  const firstTime = deps.clock.nowIso();
+  const secondTime = new Date(Date.parse(firstTime) + 1000).toISOString();
+  let now = firstTime;
+  deps.clock.nowIso = () => now;
+
   const firstPublish = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
@@ -765,7 +830,9 @@ test("entries routes: republishing an already-published, unchanged entry succeed
   assert.equal(first.entry.status, "published");
   assert.equal(first.entry.version, 2);
   assert.ok(first.entry.publishedAt);
+  assert.equal(first.entry.publishedAt, firstTime);
 
+  now = secondTime;
   const secondPublish = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
@@ -782,6 +849,7 @@ test("entries routes: republishing an already-published, unchanged entry succeed
   assert.equal(second.entry.version, 3);
   assert.ok(second.entry.publishedAt);
   assert.ok(new Date(second.entry.publishedAt as string).getTime() >= new Date(first.entry.publishedAt as string).getTime());
+  assert.equal(second.entry.publishedAt, secondTime);
 
   // The redundant publish enqueued AND delivered its OWN outbox event rather than being skipped —
   // proves downstream propagation (SEO/search/webhook consumers, whenever wired) actually sees the
@@ -850,6 +918,31 @@ test("entries routes: an entry's content edit while it is already published is v
   const rowAfterRepublish = listedAfterRepublish.items.find((i) => i.id === created.entry.id);
   assert.equal(rowAfterRepublish?.title, "Scrambled Eggs", "republishing must not revert the edited content");
   assert.deepEqual(rowAfterRepublish?.bodyJson, after, "republishing must not revert the edited content");
+});
+
+test("entries routes: unpublishing a published entry persists the takedown and delivers entry.unpublished", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+  const publishRes = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(publishRes.status, 200);
+  const published = (await publishRes.json()).entry;
+  assert.equal(published.status, "published");
+  const delivered: Array<{ entryId?: string }> = [];
+  await deps.bus.subscribe("entry.unpublished", async (event) => { delivered.push(event.payload as { entryId?: string }); });
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ op: "unpublish", expectedVersion: published.version }),
+  });
+  assert.equal(res.status, 200);
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/entries?type=recipe`, { headers: { cookie } });
+  assert.equal(listRes.status, 200);
+  const persisted = (await listRes.json()).items.find((row: { id: string }) => row.id === entry.id);
+  assert.equal(persisted?.status, "unpublished");
+  assert.equal(persisted?.version, published.version + 1);
+  assert.deepEqual(delivered.map((event) => event.entryId), [entry.id]);
 });
 
 test("entries routes: unpublishing a draft entry that was never published succeeds — unpublish asserts 'not publicly visible', not a status-in-{published} FSM guard", async (t) => {

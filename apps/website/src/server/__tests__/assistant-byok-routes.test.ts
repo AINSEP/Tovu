@@ -16,7 +16,7 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../con
 import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";
 import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
-import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
+import { startStubProviderServer, type StubProviderReply, type StubProviderRequest } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
@@ -159,7 +159,7 @@ function sseBody(...lines: string[]): StubProviderReply {
  *  file's own established name. */
 async function stubProvider(
   t: import("node:test").TestContext,
-  respond: (callCount: number, requestBody: Record<string, unknown>) => StubProviderReply,
+  respond: (callCount: number, requestBody: Record<string, unknown>, request: StubProviderRequest) => StubProviderReply,
 ): Promise<string> {
   return startStubProviderServer(t, respond);
 }
@@ -316,7 +316,13 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  const providerUrl = await stubProvider(t, (callCount) => {
+  const expectedWorkspace = await deps.workspaceRepo.findById(deps.workspaceId);
+  assert.ok(expectedWorkspace);
+  let continuation: Record<string, unknown> | undefined;
+  const requests: StubProviderRequest[] = [];
+  const providerUrl = await stubProvider(t, (callCount, requestBody, request) => {
+    requests.push(request);
+    if (callCount === 2) continuation = requestBody;
     if (callCount === 1) {
       // First turn: the model reaches `content_read.workspace` (the collapsed `workspace_get`) the only way a BYOK turn now offers — through
       // the meta-tool set (`byok-tool-surface.ts`'s `META_TOOL_DESCRIPTORS`), which is what the
@@ -349,6 +355,7 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
   // test's own seeded workspace id, which only the real handler could have echoed back.
   const resultContent = String(toolResultFrame!.payload.content);
   assert.match(resultContent, new RegExp(deps.workspaceId));
+  assert.deepEqual(JSON.parse(resultContent), { workspace: expectedWorkspace });
 
   const textFrame = frames.find((f) => f.event === "agent" && f.payload.type === "text_delta");
   assert.ok(textFrame, "expected a text_delta event with the model's final reply");
@@ -356,6 +363,40 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
 
   const endFrame = frames.find((f) => f.event === "end");
   assert.ok(endFrame, "expected a terminal end frame");
+  assert.equal(requests.length, 2);
+  assert.ok(continuation, "the provider must receive the real tool result");
+  const resultBlocks = (continuation!.messages as Array<{ content: unknown }>).at(-1)!.content;
+  assert.deepEqual(resultBlocks, [{ type: "tool_result", tool_use_id: "toolu_1", content: resultContent }]);
+  for (const request of requests) {
+    assert.equal(request.method, "POST");
+    assert.equal(request.url, "/v1/messages");
+    assert.equal(request.headers["x-api-key"], BYOK_BODY.byok.apiKey);
+    assert.equal(request.headers["anthropic-version"], "2023-06-01");
+  }
+});
+
+test(`${BYOK_TURN_PATH} refuses a workspace mutation by a content.read-only session`, async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["content.read"]);
+  const before = await deps.workspaceRepo.findById(deps.workspaceId);
+  assert.ok(before);
+  const providerUrl = await stubProvider(t, (callCount) => callCount === 1
+    ? sseBody(messageStart(), toolUseBlock(0, "denied-call", "execute_delegated_tool", {
+      toolId: "workspace_update", input: { name: "Unauthorized rename" },
+    }), messageDelta("tool_use"), messageStop())
+    : sseBody(messageStart("msg_2"), textBlock(0, "Refused."), messageDelta("end_turn"), messageStop()));
+
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
+  assert.equal(res.status, 200);
+  const frames = parseSseFrames(await res.text());
+  const result = frames.find((f) => f.event === "agent" && f.payload.type === "tool_result");
+  assert.ok(result);
+  assert.equal(result.payload.toolUseId, "denied-call");
+  assert.equal(result.payload.isError, true);
+  assert.match(String(result.payload.content), /not authorized|forbidden|permission|denied/i);
+  assert.deepEqual(await deps.workspaceRepo.findById(deps.workspaceId), before);
 });
 
 test(`${BYOK_TURN_PATH} reports a provider error on its own SSE event name, not folded into 'agent'`, async (t) => {
@@ -536,8 +577,10 @@ test(`${BYOK_TURN_PATH} (openai protocol): a FAILED tool call folds isError into
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
+  const requests: StubProviderRequest[] = [];
   let secondRequestBody: Record<string, unknown> | undefined;
-  const providerUrl = await stubProvider(t, (callCount, requestBody) => {
+  const providerUrl = await stubProvider(t, (callCount, requestBody, request) => {
+    requests.push(request);
     if (callCount === 1) {
       // `workspace_update` with an EMPTY input — `updateWorkspace` itself throws
       // `WorkspaceValidationError` on an empty update (its own catalog entry's documented
@@ -587,6 +630,12 @@ test(`${BYOK_TURN_PATH} (openai protocol): a FAILED tool call folds isError into
   // never told anything went wrong — this assertion is what would have caught that class of bug.
   assert.ok(secondRequestBody, "expected a second request once the tool result was appended");
   assert.match(JSON.stringify(secondRequestBody), /\[tool error\]/);
+  assert.equal(requests.length, 2);
+  for (const request of requests) {
+    assert.equal(request.method, "POST");
+    assert.equal(request.url, "/v1/chat/completions");
+    assert.equal(request.headers.authorization, "Bearer sk-test-fake");
+  }
 });
 
 test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the OpenAI-compatible chat/completions wire shape`, async (t) => {
@@ -595,7 +644,13 @@ test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the Op
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  const providerUrl = await stubProvider(t, (callCount) => {
+  const expectedWorkspace = await deps.workspaceRepo.findById(deps.workspaceId);
+  assert.ok(expectedWorkspace);
+  let continuation: Record<string, unknown> | undefined;
+  const requests: StubProviderRequest[] = [];
+  const providerUrl = await stubProvider(t, (callCount, requestBody, request) => {
+    requests.push(request);
+    if (callCount === 2) continuation = requestBody;
     if (callCount === 1) {
       // Through the meta-tool set — see the Anthropic round-trip test's own note. Sent as two
       // argument fragments, which also keeps this test's coverage of the adapter's incremental
@@ -622,9 +677,22 @@ test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the Op
   assert.ok(toolResultFrame, "expected a tool_result event");
   assert.equal(toolResultFrame!.payload.isError, false);
   assert.match(String(toolResultFrame!.payload.content), new RegExp(deps.workspaceId));
+  const resultContent = String(toolResultFrame!.payload.content);
+  assert.deepEqual(JSON.parse(resultContent), { workspace: expectedWorkspace });
 
   const endFrame = frames.find((f) => f.event === "end");
   assert.ok(endFrame, "expected a terminal end frame");
+  assert.equal(requests.length, 2);
+  assert.ok(continuation, "the provider must receive the real tool result");
+  const messages = continuation!.messages as Array<Record<string, unknown>>;
+  assert.deepEqual(messages.find((m) => m.role === "tool"), { role: "tool", tool_call_id: "call_1", content: resultContent });
+  assert.equal(continuation!.model, undefined, "Azure selects the deployment in the URL");
+  for (const request of requests) {
+    assert.equal(request.method, "POST");
+    assert.equal(request.url, "/openai/deployments/gpt-4o-deployment/chat/completions?api-version=2024-10-21");
+    assert.equal(request.headers["api-key"], "azure-test-fake");
+    assert.equal(request.headers.authorization, undefined);
+  }
 });
 
 test(`${BYOK_TURN_PATH} (azure protocol): rejects with a clear error when no baseUrl is supplied, before any request`, async (t) => {
@@ -661,7 +729,13 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
     return chunk({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason, index: 0 }] });
   }
 
-  const providerUrl = await stubProvider(t, (callCount) => {
+  const expectedWorkspace = await deps.workspaceRepo.findById(deps.workspaceId);
+  assert.ok(expectedWorkspace);
+  let continuation: Record<string, unknown> | undefined;
+  const requests: StubProviderRequest[] = [];
+  const providerUrl = await stubProvider(t, (callCount, requestBody, request) => {
+    requests.push(request);
+    if (callCount === 2) continuation = requestBody;
     if (callCount === 1) {
       return sseBody(functionCallCandidate("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }, "call_1"), textCandidate("", "STOP"));
     }
@@ -679,9 +753,22 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
   assert.ok(toolResultFrame, "expected a tool_result event");
   assert.equal(toolResultFrame!.payload.isError, false);
   assert.match(String(toolResultFrame!.payload.content), new RegExp(deps.workspaceId));
+  const resultContent = String(toolResultFrame!.payload.content);
+  assert.deepEqual(JSON.parse(resultContent), { workspace: expectedWorkspace });
 
   const endFrame = frames.find((f) => f.event === "end");
   assert.ok(endFrame, "expected a terminal end frame");
+  assert.equal(requests.length, 2);
+  assert.ok(continuation, "the provider must receive the real tool result");
+  const contents = continuation!.contents as Array<{ parts: unknown[] }>;
+  assert.deepEqual(contents.at(-1)!.parts, [{ functionResponse: {
+    name: "execute_delegated_tool", id: "call_1", response: { content: resultContent, isError: false },
+  } }]);
+  for (const request of requests) {
+    assert.equal(request.method, "POST");
+    assert.equal(request.url, "/v1beta/models/gemini-flash-latest:streamGenerateContent?alt=sse");
+    assert.equal(request.headers["x-goog-api-key"], "google-test-fake");
+  }
 });
 
 /** Seeds one draft post and stubs the Anthropic turn that asks `content_post_delete` to delete it —
@@ -732,6 +819,8 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
+  const otherCookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
+
   const postId = `byok-park-redeem-confirm-${Date.now()}`;
   const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
 
@@ -759,6 +848,16 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
     const surfaceFrame = framesBeforeRedemption.find((f) => f.event === "agent" && f.payload.type === "mcp-ui")!;
     assert.equal(surfaceFrame.payload.toolUseId, "toolu_1", "the surface must correlate to the tool_use that raised it");
     const exchangeId = extractExchangeId(surfaceFrame.payload);
+
+    const foreignRedeem = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+      method: "POST",
+      headers: { cookie: otherCookie, "content-type": "application/json" },
+      body: JSON.stringify({ toolName: CONTENT_POST_DELETE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" } }),
+    });
+    assert.equal(foreignRedeem.status, 409);
+    assert.equal((await foreignRedeem.json()).reason, "binding-mismatch");
+    const beforeOwnerRedemption = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
+    assert.ok(beforeOwnerRedemption && !beforeOwnerRedemption.deletedAt);
 
     // The redemption call: a separate HTTP request, exactly the shape `McpUiSurfaceCard`'s "Delete
     // post" button issues, hitting the SAME endpoint the daemon-mode path uses.
@@ -790,6 +889,49 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
 
   const afterDelete = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
   assert.ok(afterDelete?.deletedAt, "the post must actually be deleted — this is a real effect, not a stubbed one");
+});
+
+test(`${BYOK_TURN_PATH}: disconnecting a parked delete aborts the tool, closes its exchange, and prevents deletion`, { timeout: 15_000 }, async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const store = createSurfaceExchangeStore({ idleTtlMs: 5_000, maxLifetimeMs: 5_000 });
+  const surface = createByokToolSurface(deps, { surfaceExchangeStore: store });
+  const execute = surface.executeMetaTool.bind(surface);
+  let toolSignal: AbortSignal | undefined;
+  let resolveFinished!: () => void;
+  const finished = new Promise<void>((resolve) => { resolveFinished = resolve; });
+  const observedSurface = {
+    ...surface,
+    executeMetaTool: async (...args: Parameters<ByokToolSurface["executeMetaTool"]>) => {
+      toolSignal = args[3];
+      try {
+        return await execute(...args);
+      } finally {
+        resolveFinished();
+      }
+    },
+  };
+  const { baseUrl } = await bootWithStubSurface(deps, observedSurface, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
+  const postId = "byok-disconnected-delete";
+  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
+  const reader = res.body!.getReader();
+  try {
+    const { frames } = await readSseFramesLive(reader, (f) => f.event === "agent" && f.payload.type === "mcp-ui");
+    assert.ok(frames.some((f) => f.payload.type === "mcp-ui"));
+    assert.equal(store.size(), 1);
+    assert.ok(toolSignal);
+    assert.equal(toolSignal.aborted, false);
+    await reader.cancel();
+    await finished;
+    assert.equal(toolSignal.aborted, true, "the HTTP close must abort the active tool");
+    assert.equal(store.size(), 0, "the abandoned exchange must be cleaned up");
+    const post = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
+    assert.ok(post && !post.deletedAt);
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
 });
 
 test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post untouched`, async (t) => {

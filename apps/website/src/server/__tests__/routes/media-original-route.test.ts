@@ -95,7 +95,7 @@ function originalUrl(baseUrl: string, mediaId: string): string {
 }
 
 test("media original route: happy path — a real PNG serves 200 with the sniffed content type and the exact uploaded bytes", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5]);
@@ -105,12 +105,22 @@ test("media original route: happy path — a real PNG serves 200 with the sniffe
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("content-type"), "image/png");
   assert.equal(res.headers.get("x-content-type-options"), "nosniff");
-  assert.ok(res.headers.get("content-security-policy"), "CSP header must be present");
+  assert.equal(res.headers.get("content-security-policy"), "default-src 'none'; sandbox");
   assert.equal(res.headers.get("cross-origin-resource-policy"), "same-origin");
   assert.equal(res.headers.get("accept-ranges"), "bytes");
   assert.equal(res.headers.get("content-disposition"), null, "a safe image type is not forced to download");
   const body = new Uint8Array(await res.arrayBuffer());
   assert.deepEqual(body, pngBytes);
+
+  const media = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: mediaId });
+  assert.ok(media?.slug);
+  assert.notEqual(media.slug, mediaId);
+  const bySlug = await fetch(originalUrl(baseUrl, media.slug), { headers: { cookie } });
+  assert.equal(bySlug.status, 200);
+  for (const header of ["content-type", "x-content-type-options", "content-security-policy", "cross-origin-resource-policy", "accept-ranges", "content-disposition", "cache-control"]) {
+    assert.equal(bySlug.headers.get(header), res.headers.get(header), header);
+  }
+  assert.deepEqual(new Uint8Array(await bySlug.arrayBuffer()), pngBytes);
 });
 
 test("media original route: sniffs each supported format from real bytes, independent of the declared upload contentType", async (t) => {
@@ -286,13 +296,20 @@ test("media original route: an unknown media id (but real workspace) 404s", asyn
 });
 
 test("media original route: an unknown workspace id in the URL 404s before any authorization check", async (t) => {
-  const { app } = buildTestApp();
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const { app, deps } = buildTestApp();
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+  let authorizationChecks = 0;
+  deps.authorize = async () => {
+    authorizationChecks++;
+    return { allowed: false, reason: "no_grant" };
+  };
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/nope/media/does-not-matter/original`, {
-    headers: { cookie },
+    headers: { cookie: bareCookie },
   });
   assert.equal(res.status, 404);
+  assert.equal(authorizationChecks, 0);
 });
 
 test("media original route: an authenticated principal with zero grants is denied 403 naming media.read, before any media/blob lookup runs", async (t) => {
@@ -300,6 +317,16 @@ test("media original route: an authenticated principal with zero grants is denie
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const mediaId = await uploadRawBytes(baseUrl, ownerCookie, { filename: "gated.png", bytes: PNG_BYTES });
 
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+
+  const res = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie: bareCookie } });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string; details: { permission: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details.permission, "media.read");
+});
+
+async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
   await deps.principalRepo.save({
     id: "bare-principal-media-original",
@@ -323,9 +350,5 @@ test("media original route: an authenticated principal with zero grants is denie
   assert.equal(login.status, 200);
   const bareCookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
 
-  const res = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie: bareCookie } });
-  assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string; details: { permission: string } };
-  assert.equal(body.code, "FORBIDDEN");
-  assert.equal(body.details.permission, "media.read");
-});
+  return bareCookie;
+}

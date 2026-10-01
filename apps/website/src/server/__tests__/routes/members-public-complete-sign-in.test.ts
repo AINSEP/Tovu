@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 
 import http from "node:http";
 
@@ -123,6 +124,12 @@ test("T016/INV-NEW-01: complete-sign-in sets ONLY tovu_member_session, never tov
 
   const body = (await res.json()) as { member: { id: string; email: string } };
   assert.equal(body.member.email, "cookie-isolation@example.com");
+  const rawSessionToken = decodeURIComponent(setCookie.split(";")[0].slice("tovu_member_session=".length));
+  const tokenHash = createHash("sha256").update(rawSessionToken).digest("hex");
+  const session = await deps.memberSessionRepo.findByTokenHash({ workspaceId: deps.workspaceId, tokenHash });
+  assert.ok(session, "the returned bearer cookie must resolve to a persisted session");
+  assert.equal(session.memberId, body.member.id);
+  assert.notEqual(rawSessionToken, session.tokenHash);
 });
 
 test("INV-NEW-01: a request carrying only a tovu_session (admin) cookie, no token, is rejected — the admin cookie has zero effect here", async (t) => {
