@@ -134,8 +134,8 @@ export interface AccessibilityEvidence {
   readonly images: readonly ImageEvidence[];
   readonly formControls: readonly FormControlEvidence[];
   readonly contrastSamples: readonly ContrastSampleEvidence[];
-  /** Names any category whose cap was reached, so a report can never read a truncated list as an
-   *  exhaustive one. */
+  /** Names any category whose cap was reached, plus omitted contrast samples
+   *  (`contrastSamples:unparsed-colour`), so an incomplete list cannot read as exhaustive. */
   readonly truncated: readonly string[];
 }
 

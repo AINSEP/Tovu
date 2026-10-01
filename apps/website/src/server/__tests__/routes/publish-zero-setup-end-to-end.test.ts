@@ -156,9 +156,9 @@ async function stop(server: Server): Promise<void> {
 }
 
 /** Everything one run of the flow needs, wired the way the composition root wires it. */
-async function scenario() {
+async function scenario(sourceWorkspaceId = "workspace-local") {
   const destinationDeps = createRouteDeps();
-  const sourceDeps = createRouteDeps();
+  const sourceDeps = { ...createRouteDeps(), workspaceId: sourceWorkspaceId };
 
   let live = await listen(createApp(destinationDeps));
   const httpClient = clientTo(() => live.port);
@@ -265,21 +265,33 @@ test("the address to confirm comes from the deploy config the repo already carri
 });
 
 test("connecting learns the destination's workspace instead of asking a human for it", async () => {
-  const s = await scenario();
+  const s = await scenario("workspace-source");
   try {
     const { connected, site } = await connectAndDeploy(s);
 
     // The one value the old flow made a person find and retype.
     assert.equal(connected.identity.workspaceId, s.destinationDeps.workspaceId);
+    assert.notEqual(s.sourceDeps.workspaceId, s.destinationDeps.workspaceId);
     assert.equal(site.remoteWorkspaceId, s.destinationDeps.workspaceId);
     assert.equal(site.hasCredential, false, "a connected destination stores no credential at all");
     assert.equal(site.masked, null);
 
     // What was written is a public document. Nothing in it can authenticate as this install.
     const written = await s.readGrantDocument();
+    const grants = JSON.parse(written) as Array<{ workspaceId: string }>;
+    assert.equal(grants.length, 1);
+    assert.equal(grants[0].workspaceId, s.destinationDeps.workspaceId);
     assert.match(written, /"publicKeys"/);
     assert.ok(!written.includes(SOURCE_ROOT_KEY), "the Site Token must never reach committed config");
     assert.ok(!/privateKey|secret|apiKey/i.test(written), written);
+    const [seed] = await s.sourceDeps.postRepo.list({ workspaceId: "workspace-local" });
+    assert.ok(seed);
+    await s.sourceDeps.postRepo.save({ ...seed, id: "different-workspace-post", workspaceId: s.sourceDeps.workspaceId,
+      slug: "different-workspace-post", title: "Across different workspaces", status: "published" });
+    await publishEverything(s, site);
+    const landed = await s.destinationDeps.postRepo.findById({ workspaceId: s.destinationDeps.workspaceId, id: "different-workspace-post" });
+    assert.equal(landed?.title, "Across different workspaces");
+    assert.equal(landed?.workspaceId, s.destinationDeps.workspaceId);
   } finally {
     await s.teardown();
   }

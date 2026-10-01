@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { getFsFilesAgentToolCatalog, FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID } from "../agent-tools.js";
 import { FS_ROOT_IDS, type FsRootId } from "../layout.js";
@@ -90,13 +91,37 @@ test("fs_read_file's schema requires both root and path; fs_list_files requires 
 // 2. Handler dispatch — permission gate.
 // ---------------------------------------------------------------------------
 
-test("a denied authorize() refuses the call before any filesystem read happens", async () => {
-  const deps = toolDeps({ authorize: async () => ({ allowed: false, reason: "no-grant" }) as never });
-  const registrations = buildFsFilesRegistrations(deps);
-  const handler = handlerFor(registrations, FS_READ_FILE_TOOL_ID);
+for (const toolId of [FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID]) {
+  test(`${toolId} refuses a denied principal before resolving readable fixture roots`, async () => {
+    const requests: unknown[] = [];
+    let resolutions = 0;
+    const { roots } = makeFixtureRoots();
+    const deps = toolDeps({
+      authorize: async (request) => {
+        requests.push(request);
+        return { allowed: false, reason: "no_grant" } as never;
+      },
+      resolveRoots: () => { resolutions++; return roots; },
+    });
+    await assert.rejects(
+      () => handlerFor(buildFsFilesRegistrations(deps), toolId)(toolContext({ root: "site", path: "agent-plugins/site-compliance/references/checklist.template.md" }, toolId)),
+      (error) => error instanceof ForbiddenError && error.permission === "content.read",
+    );
+    assert.equal(resolutions, 0);
+    assert.deepEqual(requests, [{ principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: "workspace-local", entityType: "fs-root", entityId: "site" }]);
+  });
 
-  await assert.rejects(() => handler(toolContext({ root: "site", path: "agent-plugins/x.txt" }, FS_READ_FILE_TOOL_ID)));
-});
+  test(`${toolId} forwards the full authorization context`, async () => {
+    const expected = { principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: "workspace-local", entityType: "fs-root", entityId: "site" };
+    const requests: unknown[] = [];
+    const deps = toolDeps({ authorize: async (request) => {
+      requests.push(request);
+      return { allowed: JSON.stringify(request) === JSON.stringify(expected), reason: "no_grant" } as never;
+    } });
+    await handlerFor(buildFsFilesRegistrations(deps), toolId)(toolContext({ root: "site", path: toolId === FS_LIST_FILES_TOOL_ID ? "agent-plugins" : "agent-plugins/site-compliance/references/checklist.template.md" }, toolId));
+    assert.deepEqual(requests, [expected]);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // 3. Handler dispatch — real reads through fs-files.ts.
@@ -109,7 +134,9 @@ test("fs_list_files lists a real fixture file through the injected resolveRoots 
 
   const result = (await handler(toolContext({ root: "site", path: "agent-plugins" }, FS_LIST_FILES_TOOL_ID))) as {
     files: string[];
+    truncated: boolean;
   };
+  assert.equal(result.truncated, false);
   assert.deepEqual(result.files, ["site-compliance/references/checklist.template.md"]);
 });
 
@@ -207,4 +234,19 @@ test("the denylist still fires inside the 'custom' root — an .env file is refu
     () => handlerFor(registrations, FS_READ_FILE_TOOL_ID)(toolContext({ root: "custom", path: ".env" }, FS_READ_FILE_TOOL_ID)),
     /denied filename pattern/,
   );
+});
+
+test("fs_list_files forwards truncation for a directory exceeding the file cap", async () => {
+  const { roots } = makeFixtureRoots();
+  const dir = path.join(roots.site, "capped");
+  fs.mkdirSync(dir);
+  try {
+    for (let i = 0; i < 2001; i++) fs.writeFileSync(path.join(dir, `${i}.txt`), "fixture");
+    const deps = toolDeps({ resolveRoots: () => roots });
+    const result = await handlerFor(buildFsFilesRegistrations(deps), FS_LIST_FILES_TOOL_ID)(toolContext({ root: "site", path: "capped" }, FS_LIST_FILES_TOOL_ID)) as { files: string[]; truncated: boolean };
+    assert.equal(result.files.length, 2000);
+    assert.equal(result.truncated, true);
+  } finally {
+    fs.rmSync(path.dirname(roots.site), { recursive: true, force: true });
+  }
 });

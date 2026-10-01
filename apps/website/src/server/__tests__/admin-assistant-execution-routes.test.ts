@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
+import { AGENT_DEFS } from "@jini-ai/agent-runtime";
 
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
@@ -150,8 +151,14 @@ test("detect-agents returns a data array (real, no-network local-CLI probe)", as
 
   const res = await post(baseUrl, DETECT_PATH, cookie, {});
   assert.equal(res.status, 200, await res.clone().text());
-  const body = (await res.json()) as { data: unknown[] };
+  const body = (await res.json()) as { data: { id: string; installed: boolean; label: string }[] };
   assert.ok(Array.isArray(body.data));
+  assert.deepEqual(body.data.map((agent) => agent.id).sort(), AGENT_DEFS.map((agent) => agent.id).sort());
+  assert.ok(body.data.length > 0);
+  for (const agent of body.data) {
+    assert.equal(typeof agent.installed, "boolean");
+    assert.equal(typeof agent.label, "string");
+  }
 });
 
 test("test-agent rejects a missing agentId with 400 before any PATH probe", async (t) => {
@@ -424,7 +431,25 @@ test("the stored key IS sent when the requested endpoint matches the one saved f
   // and a fix that quietly broke it would be indistinguishable here from one that held the boundary.
   assert.equal(provider.requests.length, 1);
   assert.equal(provider.requests[0]?.authorization, `Bearer ${STORED_KEY}`);
+  assert.deepEqual(await res.json(), { ok: true, models: ["captured-model"] });
 });
+
+for (const typedKey of [undefined, "sk-typed-by-the-operator"]) {
+  test(`test-connection sends the ${typedKey ? "typed" : "stored"} key to the matching endpoint`, async (t) => {
+    const { app, deps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const provider = await startCaptureServer(t);
+    await seedStoredCredential(deps, { baseUrl: provider.url });
+    const response = await post(baseUrl, TEST_CONNECTION_PATH, cookie, {
+      protocol: "openai", baseUrl: provider.url, model: "captured-model", useStoredCredential: true,
+      ...(typedKey ? { apiKey: typedKey } : {}),
+    });
+    assert.equal(response.status, 200, await response.clone().text());
+    assert.equal((await response.json() as { ok: boolean }).ok, true);
+    assert.equal(provider.requests.length, 1);
+    assert.equal(provider.requests[0].authorization, `Bearer ${typedKey ?? STORED_KEY}`);
+  });
+}
 
 test("a trailing-slash difference is the same endpoint, not a mismatch", async (t) => {
   const { app, deps } = buildTestApp();

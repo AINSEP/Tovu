@@ -13,7 +13,8 @@ import {
 } from "../errors.js";
 import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
 import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
-import type { ConfirmationDeps } from "../confirmation.js";
+import { consumeConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
+import type { OutboundEmail } from "#src/platform/mail/index";
 
 const WS = "ws-1";
 const NOW = "2026-07-13T00:00:00.000Z";
@@ -31,14 +32,15 @@ const subscriberDirectory: SubscriberDirectoryPort = {
   getContacts: async ({ subscriberIds }) => subscriberIds.map((id) => KNOWN_CONTACTS[id]).filter((c): c is SubscriberContact => !!c),
 };
 
-function makeDeps(): SubscriptionsDeps {
+function makeDeps(): SubscriptionsDeps & { sentEmails: OutboundEmail[] } {
   counter = 0;
+  const sentEmails: OutboundEmail[] = [];
   const confirmationDeps: ConfirmationDeps = {
     tokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
     subscriptionRepo: new InMemoryNewsletterSubscriptionRepo(),
     mailer: {
       capabilities: () => ({ driver: "console", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
-      send: async () => ({ ok: true as const, providerMessageId: "m1", acceptedAt: NOW }),
+      send: async (message) => { sentEmails.push(message); return { ok: true as const, providerMessageId: "m1", acceptedAt: NOW }; },
       sendBatch: async () => [],
     },
     consentCapability: null,
@@ -55,7 +57,7 @@ function makeDeps(): SubscriptionsDeps {
   const listRepo = new InMemoryNewsletterListRepo([
     { id: "list-1", workspaceId: WS, name: "Fixture list", slug: "fixture-list", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW },
   ]);
-  return { subscriptionRepo, listRepo, subscriberDirectory, confirmationDeps, clock, ids };
+  return { subscriptionRepo, listRepo, subscriberDirectory, confirmationDeps, clock, ids, sentEmails };
 }
 
 test("saveSubscription: resolves subscriberId via SubscriberDirectoryPort, creates a 'pending' subscription (AC-12)", async () => {
@@ -63,6 +65,19 @@ test("saveSubscription: resolves subscriberId via SubscriberDirectoryPort, creat
   const { subscription } = await saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1", source: "admin" } });
   assert.equal(subscription.status, "pending");
   assert.equal(subscription.subscriberId, "subscriber-1");
+  const tokens = await deps.confirmationDeps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: subscription.id });
+  assert.equal(tokens.length, 1);
+  assert.equal(deps.sentEmails.length, 1);
+  assert.equal(deps.sentEmails[0].to.email, KNOWN_CONTACTS["subscriber-1"].email);
+  const href = /<a href="([^"]+)"/.exec(deps.sentEmails[0].html ?? "");
+  assert.ok(href);
+  const url = new URL(href[1]);
+  assert.equal(url.origin + url.pathname, "https://acme.test/newsletter/confirm");
+  const rawToken = url.searchParams.get("token");
+  assert.ok(rawToken);
+  deps.confirmationDeps.consentCapability = { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "rev-1" }), revoke: async () => ({ status: "revoked" }) };
+  await consumeConfirmationToken({ deps: deps.confirmationDeps, input: { workspaceId: WS, rawToken } });
+  assert.equal((await deps.subscriptionRepo.findById({ workspaceId: WS, id: subscription.id }))?.status, "subscribed");
 });
 
 test("saveSubscription: a repeat call for the same subscriber+list reuses the EXISTING row (same id), never creates a duplicate", async () => {
@@ -105,6 +120,10 @@ test("importSubscriptions: an unknown listId rejects the WHOLE batch up front (4
 test("subscriberDirectory.getContacts: a null/omitted result for an unknown id among several is expected, not an error (EC-07)", async () => {
   const result = await subscriberDirectory.getContacts({ workspaceId: WS, subscriberIds: ["subscriber-1", "does-not-exist"] });
   assert.equal(result.length, 1, "unresolvable ids are silently omitted, not thrown");
+  const deps = makeDeps();
+  const imported = await importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: [{ subscriberId: "subscriber-1", source: "import" }, { subscriberId: "does-not-exist", source: "import" }] } });
+  assert.deepEqual(imported.created.map((row) => row.subscriberId), ["subscriber-1"]);
+  assert.deepEqual(imported.failed, [{ index: 1, code: "NEWSLETTER_SUBSCRIBER_NOT_FOUND", message: "subscriber does-not-exist was not found" }]);
 });
 
 test("importSubscriptions: routes every row through the IDENTICAL per-row path saveSubscription uses — a batch with one invalid id still creates the valid rows (AC-40/EC-08)", async () => {
@@ -125,6 +144,16 @@ test("importSubscriptions: routes every row through the IDENTICAL per-row path s
   assert.equal(result.failed.length, 1);
   assert.equal(result.failed[0]!.index, 1);
   assert.equal(result.failed[0]!.code, "NEWSLETTER_SUBSCRIBER_NOT_FOUND");
+  assert.deepEqual(result.created.map((row) => ({ subscriberId: row.subscriberId, source: row.source, status: row.status })), [
+    { subscriberId: "subscriber-1", source: "import", status: "pending" },
+    { subscriberId: "subscriber-2", source: "import", status: "pending" },
+  ]);
+  assert.deepEqual(deps.sentEmails.map((email) => email.to.email), ["a@a.test", "b@b.test"]);
+  for (const row of result.created) {
+    assert.deepEqual(await deps.subscriptionRepo.findById({ workspaceId: WS, id: row.id }), row);
+    const tokens = await deps.confirmationDeps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: row.id });
+    assert.equal(tokens.length, 1);
+  }
 });
 
 test("importSubscriptions: batch of 500 accepted, 501 rejected before any row is written (behavior.spec §4/§7)", async () => {
@@ -134,11 +163,14 @@ test("importSubscriptions: batch of 500 accepted, 501 rejected before any row is
   const result500 = await importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: batch500 } });
   assert.equal(result500.created.length + result500.failed.length, 500);
 
+  const fresh = makeDeps();
   const batch501 = Array.from({ length: 501 }, (_, i) => ({ subscriberId: `subscriber-${i}`, source: "import" as const }));
   await assert.rejects(
-    importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: batch501 } }),
+    importSubscriptions({ deps: fresh, input: { workspaceId: WS, listId: "list-1", subscribers: batch501 } }),
     NewsletterValidationError
   );
+  assert.deepEqual(await fresh.subscriptionRepo.list({ workspaceId: WS, listId: "list-1", limit: 1000 }), []);
+  assert.deepEqual(fresh.sentEmails, []);
 });
 
 test("importSubscriptions: an empty batch is rejected", async () => {
@@ -170,6 +202,8 @@ test("unsubscribeSubscription (REMOVE_SUBSCRIPTION): flips a subscribed row to '
   const { subscription } = await unsubscribeSubscription({ deps, input: { workspaceId: WS, id: "sub-1" } });
   assert.equal(subscription.status, "unsubscribed");
   assert.equal(subscription.unsubscribedAt, NOW);
+  assert.deepEqual(await subscriptionRepo.findById({ workspaceId: WS, id: "sub-1" }), subscription);
+  assert.equal(subscription.updatedAt, NOW);
 });
 
 test("unsubscribeSubscription: an unknown subscription id is rejected with NEWSLETTER_SUBSCRIPTION_NOT_FOUND", async () => {
@@ -223,6 +257,26 @@ test("unsubscribeSubscription: calls MembersConsentCapability.revoke() when a re
     updatedAt: NOW,
   });
 
-  await unsubscribeSubscription({ deps, input: { workspaceId: WS, id: "sub-1" } });
+  const { subscription } = await unsubscribeSubscription({ deps, input: { workspaceId: WS, id: "sub-1" } });
+  assert.equal(subscription.status, "unsubscribed");
+  assert.equal(subscription.unsubscribedAt, NOW);
+  assert.equal(subscription.updatedAt, NOW);
+  assert.deepEqual(await subscriptionRepo.findById({ workspaceId: WS, id: "sub-1" }), subscription);
   assert.equal(revokedFor, "subscriber-1");
+});
+
+test("importSubscriptions: a dependency failure is reported at its index and processing continues", async () => {
+  const deps = makeDeps();
+  deps.subscriberDirectory = {
+    ...subscriberDirectory,
+    getContact: async (input) => {
+      if (input.subscriberId === "broken") throw new Error("directory unavailable");
+      return subscriberDirectory.getContact(input);
+    },
+  };
+  const result = await importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: [{ subscriberId: "broken", source: "import" }, { subscriberId: "subscriber-2", source: "import" }] } });
+  assert.deepEqual(result.failed, [{ index: 0, code: "INTERNAL_ERROR", message: "directory unavailable" }]);
+  assert.deepEqual(result.created.map((row) => row.subscriberId), ["subscriber-2"]);
+  assert.deepEqual(await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1", limit: 10 }), result.created);
+  assert.deepEqual(deps.sentEmails.map((email) => email.to.email), ["b@b.test"]);
 });

@@ -87,13 +87,38 @@ describeEachDialect<SqlRedirectRepo>(
       const repo = makeRepo();
       await saveRule(repo, rule("lo", { fromPattern: "/p", priority: 1 }));
       await saveRule(repo, rule("hi", { fromPattern: "/p", priority: 9, override: true }));
-      await saveRule(repo, rule("gone", { fromPattern: "/q", status: "tombstoned" }));
+      await saveRule(repo, rule("gone", { fromPattern: "/q", status: "disabled" }));
       assert.equal((await repo.lookupExact({ workspaceId: WS, path: "/p", includeOverrideOnly: false }))?.id, "hi");
       await saveRule(repo, rule("plain", { fromPattern: "/z" }));
       assert.equal(await repo.lookupExact({ workspaceId: WS, path: "/z", includeOverrideOnly: true }), null);
       assert.equal(await repo.lookupExact({ workspaceId: WS, path: "/q", includeOverrideOnly: false }), null);
       assert.equal(await repo.lookupExact({ workspaceId: OTHER, path: "/p", includeOverrideOnly: false }), null);
     });
+
+    for (const matchType of ["exact", "prefix", "wildcard"] as const) {
+      test(`${matchType}: equal priority prefers newest timestamp, then smallest id`, async () => {
+        const repo = makeRepo();
+        const fromPattern = matchType === "wildcard" ? "/tie/*" : "/tie";
+        const older = rule("a-old", { matchType, fromPattern, priority: 7, updatedAt: "2026-01-01T00:00:00.000Z", toTarget: "/old" });
+        const newer = rule("z-new", { matchType, fromPattern, priority: 7, updatedAt: "2026-02-01T00:00:00.000Z", toTarget: "/new" });
+        const sameTimeSmallerId = rule("b-new", { ...newer, id: "b-new", toTarget: "/id-winner" });
+        // Insertion order and id order both favor the older row if recency is ignored.
+        await saveRule(repo, older);
+        await saveRule(repo, newer);
+        const selected = async () => matchType === "exact"
+          ? repo.lookupExact({ workspaceId: WS, path: "/tie", includeOverrideOnly: false })
+          : matchType === "prefix"
+            ? repo.lookupLongestPrefix({ workspaceId: WS, path: "/tie/nested", includeOverrideOnly: false })
+            : (await repo.listDynamic({ workspaceId: WS, includeOverrideOnly: false, limit: 1 }))[0];
+        const newest = await selected();
+        assert.equal(newest?.id, newer.id);
+        assert.equal(newest?.toTarget, newer.toTarget);
+        await saveRule(repo, sameTimeSmallerId);
+        const idWinner = await selected();
+        assert.equal(idWinner?.id, sameTimeSmallerId.id);
+        assert.equal(idWinner?.toTarget, sameTimeSmallerId.toTarget);
+      });
+    }
 
     test("lookupLongestPrefix picks the longest matching prefix; misses non-matches and other workspaces", async () => {
       const repo = makeRepo();
@@ -115,7 +140,7 @@ describeEachDialect<SqlRedirectRepo>(
       const repo = makeRepo();
       await saveRule(repo, rule("w1", { matchType: "wildcard", fromPattern: "/a/*" }));
       await saveRule(repo, rule("w2", { matchType: "wildcard", fromPattern: "/a/b/*", override: true }));
-      await saveRule(repo, rule("w3", { matchType: "wildcard", fromPattern: "/c/*", status: "tombstoned" }));
+      await saveRule(repo, rule("w3", { matchType: "wildcard", fromPattern: "/c/*", status: "disabled" }));
       await saveRule(repo, rule("e1"));
       const ids = async (limit: number, includeOverrideOnly = false) =>
         (await repo.listDynamic({ workspaceId: WS, includeOverrideOnly, limit })).map((r) => r.id);
@@ -129,12 +154,12 @@ describeEachDialect<SqlRedirectRepo>(
       const repo = makeRepo();
       await saveRule(repo, rule("m", { source: "manual" }));
       await saveRule(repo, rule("c", { source: "capture", matchType: "prefix" }));
-      await saveRule(repo, rule("t", { status: "tombstoned" }));
+      await saveRule(repo, rule("t", { status: "disabled" }));
       await saveRule(repo, rule("o", { workspaceId: OTHER }));
       const ids = async (filter: object) =>
         (await repo.list({ workspaceId: WS, ...filter })).map((r) => r.id).sort();
       assert.deepEqual(await ids({}), ["c", "m", "t"]);
-      assert.deepEqual(await ids({ status: "tombstoned" }), ["t"]);
+      assert.deepEqual(await ids({ status: "disabled" }), ["t"]);
       assert.deepEqual(await ids({ source: "capture" }), ["c"]);
       assert.deepEqual(await ids({ matchType: "prefix" }), ["c"]);
       assert.deepEqual(await repo.list({ workspaceId: "empty" }), []);
@@ -144,7 +169,7 @@ describeEachDialect<SqlRedirectRepo>(
       const repo = makeRepo();
       await saveRule(repo, rule("pre", { matchType: "prefix", fromPattern: "/same" }));
       await saveRule(repo, rule("ex", { fromPattern: "/same" }));
-      await saveRule(repo, rule("dead", { fromPattern: "/dead", status: "tombstoned" }));
+      await saveRule(repo, rule("dead", { fromPattern: "/dead", status: "disabled" }));
       assert.equal((await repo.findByFromPattern({ workspaceId: WS, fromPattern: "/same" }))?.id, "ex");
       assert.equal(await repo.findByFromPattern({ workspaceId: WS, fromPattern: "/dead" }), null);
       assert.equal(await repo.findByFromPattern({ workspaceId: OTHER, fromPattern: "/same" }), null);
@@ -154,9 +179,9 @@ describeEachDialect<SqlRedirectRepo>(
       const repo = makeRepo();
       const live = rule("t1");
       await saveRule(repo, live);
-      const dead = { ...live, status: "tombstoned" as const, version: 2 };
+      const dead = { ...live, status: "disabled" as const, version: 2 };
       await repo.tombstone({ workspaceId: WS, id: "t1", revision: revision(dead, 2, true) });
-      assert.equal((await repo.findById({ workspaceId: WS, id: "t1" }))?.status, "tombstoned");
+      assert.equal((await repo.findById({ workspaceId: WS, id: "t1" }))?.status, "disabled");
       const ledger = await repo.listRevisionsForTests("t1");
       assert.deepEqual(ledger.map((r) => r.tombstoned), [false, true]);
       await assert.rejects(

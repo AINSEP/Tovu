@@ -109,9 +109,19 @@ test("list-send-log: an existing campaign in the right workspace returns 200 wit
   const campaign = makeCampaign();
   await deps.newsletterCampaignRepo.saveCampaignRow(campaign);
 
+  const now = "2026-09-30T00:00:00.000Z";
+  const row = {
+    id: "send-1", workspaceId: WORKSPACE_ID, campaignId: campaign.id,
+    audienceSnapshotId: "snapshot-1", subscriberId: "subscriber-1", recipientEmail: "reader@example.com",
+    status: "delivered" as const, attempts: 1, idempotencyKey: "key-1", providerMessageId: "pm-1",
+    lastError: null, nextAttemptAt: null, createdAt: now, updatedAt: now,
+  };
+  await deps.newsletterSendRepo.save(row);
+  await deps.newsletterSendRepo.save({ ...row, id: "send-2", campaignId: "other-campaign", idempotencyKey: "key-2", recipientEmail: "other@example.com" });
+  await deps.newsletterSendRepo.save({ ...row, id: "send-3", workspaceId: "other-workspace", idempotencyKey: "key-3" });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}/sends`);
   assert.equal(res.status, 200, await res.clone().text());
   const body = (await res.json()) as { data: unknown[] };
-  assert.deepEqual(body.data, []);
+  assert.deepEqual(body.data, [row]);
 });

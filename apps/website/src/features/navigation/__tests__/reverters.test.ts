@@ -7,7 +7,7 @@ import type { PublishContentDeps } from "#src/features/publish-content/type-regi
 
 import { InMemoryMenuRepo, type MenuRepoPort, type NavLocationBindingRepoPort, type NavMenuEntry } from "../index.js";
 import { contributeMenusPublish } from "../publish-content.js";
-import { registerMenuReverters } from "../reverters.js";
+import { createMenuReverters, registerMenuReverters } from "../reverters.js";
 
 /**
  * @file R4 (`ADS-memory/.local-artifacts/plan-publish-repoint-menus-2026-09-24.md` §2.4/§3) —
@@ -63,8 +63,10 @@ function makeRepointDeps(menuRepo: MenuRepoPort): PublishContentDeps & { changeS
 }
 
 test("revertChangeSet undoes a repoint change set, restoring the prior entryRef", async () => {
+  const priorItems = [{ ...entryRefItem("item-1", "post-about"), label: "Company", attrs: { cssClass: "featured", description: "Company information" }, children: [{ id: "child", label: "Contact us", target: { kind: "url" as const, href: "/contact" }, attrs: { icon: "phone" }, children: undefined }] }];
+  const snapshot = structuredClone(priorItems);
   const menuRepo = new InMemoryMenuRepo([
-    menuRow({ id: "menu-header", ...menuState({ doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
+    menuRow({ id: "menu-header", ...menuState({ doc: { type: "menu", version: 1, items: priorItems } }) }),
   ]);
   const deps = makeRepointDeps(menuRepo);
   const handler = contributeMenusPublish().build(deps);
@@ -95,6 +97,7 @@ test("revertChangeSet undoes a repoint change set, restoring the prior entryRef"
 
   const reverted = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
   assert.equal((reverted?.doc.items[0]?.target as { entryId: string }).entryId, "post-about", "revert must restore the prior entryRef");
+  assert.deepEqual(reverted?.doc.items, snapshot, "undo restores labels, attributes and children exactly");
 });
 
 test("revertChangeSet refuses a repoint change set whose menu changed since — the standard conflict", async () => {
@@ -131,4 +134,14 @@ test("revertChangeSet refuses a repoint change set whose menu changed since — 
       }),
     (err: unknown) => err instanceof RevertConflictError
   );
+});
+
+test("menu reverter reports a deleted menu and refuses missing inverse payloads", async () => {
+  const menuRepo = new InMemoryMenuRepo();
+  const deps = makeRepointDeps(menuRepo);
+  const reverter = createMenuReverters({ menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox! }).update;
+  assert.equal(await reverter.currentVersion({ workspaceId: WORKSPACE_ID, entityId: "deleted" }), null);
+  const item = { id: "item", changeSetId: "change", entityType: "menu", entityId: "deleted", operation: "update" as const, position: 0 };
+  await assert.rejects(reverter.applyInverse({ workspaceId: WORKSPACE_ID, item }), { message: "menu reverter called without an inverse payload" });
+  await assert.rejects(reverter.applyInverse({ workspaceId: WORKSPACE_ID, item: { ...item, inversePayload: { items: [] } } }), { message: "menu 'deleted' was not found" });
 });

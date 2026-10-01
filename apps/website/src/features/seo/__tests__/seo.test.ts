@@ -7,7 +7,7 @@ import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinit
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin/index.js";
 import { SeoEntryNotFoundError } from "../errors.js";
 import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
-import { getEntryMeta } from "../seo.js";
+import { analyzeEntry, getEntryMeta } from "../seo.js";
 import { setEntrySeoOverrides } from "../write-service.js";
 
 /**
@@ -116,10 +116,11 @@ test("getEntryMeta: title is derived from titleTemplate applied to entry.title w
   assert.equal(meta.title, "Hello World — My Site");
 });
 
-test("getEntryMeta: title never resolves empty even when override/default/derived all appear absent", async () => {
+test("getEntryMeta: the default title template preserves a one-character entry title", async () => {
   const deps = await makeDeps([seedPost({ title: "X" })]);
   const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
   assert.ok(meta.title.length > 0);
+  assert.equal(meta.title, "X");
 });
 
 test("getEntryMeta: description — site default wins when no override (behavior.spec.md example)", async () => {
@@ -563,3 +564,47 @@ test("getEntryMeta: all openGraph and twitter field overrides are respected", as
   assert.equal(meta.jsonLd[0]!["name"], "Hello World");
 });
 
+
+
+test("getEntryMeta: an explicitly empty title override remains visible to SEO analysis", async () => {
+  const deps = await makeDeps([seedPost()]);
+  await setEntrySeoOverrides({ deps: { postRepo: deps.postRepo, authorize: alwaysAllow,
+    invalidateSitemapCache: () => {}, clock }, input: {
+    workspaceId: WORKSPACE, entryId: "post-1", callerPrincipalId: "caller-1", patch: { title: "" },
+  } });
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.title, "");
+  const analysis = await analyzeEntry(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.ok(analysis.issues.some((issue) => issue.code === "missing_title" && issue.field === "title"));
+});
+
+for (const kind of ["post", "page"] as const) {
+  for (const withSiteImage of [false, true]) {
+    test(`getEntryMeta: ${kind} social defaults with site image ${withSiteImage}`, async () => {
+      const deps = await makeDeps([seedPost({ kind })]);
+      if (withSiteImage) await setSeoSettings(deps.settingsDeps, {
+        workspaceId: WORKSPACE, callerPrincipalId: "caller-1",
+        patch: { defaultOgImage: "https://cdn.example/site-default.jpg", twitterSite: "@defaultsite" },
+      });
+      const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+      assert.deepEqual(meta.openGraph, {
+        title: "Hello World", description: "An excerpt body.", type: kind === "page" ? "website" : "article",
+        url: "/hello-world", image: withSiteImage ? "https://cdn.example/site-default.jpg" : undefined, siteName: undefined,
+      });
+      assert.deepEqual(meta.twitter, {
+        card: "summary_large_image", title: "Hello World", description: "An excerpt body.",
+        image: withSiteImage ? "https://cdn.example/site-default.jpg" : undefined, site: withSiteImage ? "@defaultsite" : undefined,
+      });
+      if (withSiteImage) {
+        await setEntrySeoOverrides({ deps: { postRepo: deps.postRepo, authorize: alwaysAllow,
+          invalidateSitemapCache: () => {}, clock }, input: {
+          workspaceId: WORKSPACE, entryId: "post-1", callerPrincipalId: "caller-1",
+          patch: { ogImage: "https://cdn.example/entry-og.jpg", twitterImage: "https://cdn.example/entry-twitter.jpg" },
+        } });
+        const overridden = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+        assert.equal(overridden.openGraph.image, "https://cdn.example/entry-og.jpg");
+        assert.equal(overridden.twitter.image, "https://cdn.example/entry-twitter.jpg");
+      }
+    });
+  }
+}

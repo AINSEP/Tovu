@@ -138,7 +138,7 @@ export async function freezeAudience(required: {
   const sendRows: SendRow[] = [];
   for (const subscription of subscribed) {
     const contact = contactBySubscriberId.get(subscription.subscriberId);
-    if (!contact) continue; // EC-07: unresolvable subscriber silently excluded, not an error.
+    if (!contact || !contact.emailDeliverable) continue; // Missing or undeliverable contacts are excluded.
     sendRows.push({
       id: deps.ids.newId(),
       workspaceId: input.workspaceId,
@@ -342,7 +342,7 @@ async function transitionAndSave(
 export async function sendTestCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string; testAddresses: readonly string[] };
-}): Promise<{ results: { email: string; outcome: "sent" | "failed"; error: string | null }[] }> {
+}): Promise<{ results: { email: string; outcome: "sent" | "failed"; error: string | null; errorCode?: string }[] }> {
   const { deps, input } = required;
   if (input.testAddresses.length < TEST_SEND_MIN || input.testAddresses.length > TEST_SEND_MAX) {
     throw new NewsletterValidationError(`test-send address count must be between ${TEST_SEND_MIN} and ${TEST_SEND_MAX}`, "testAddresses", "length");
@@ -355,7 +355,7 @@ export async function sendTestCampaign(required: {
     throw new NewsletterLaunchGateBlockedError("the Launch Readiness Gate is not satisfied for a test send", launchGateSnapshot.unmetPreconditions);
   }
 
-  const results: { email: string; outcome: "sent" | "failed"; error: string | null }[] = [];
+  const results: { email: string; outcome: "sent" | "failed"; error: string | null; errorCode?: string }[] = [];
   for (const email of input.testAddresses) {
     const result = await deps.mailer.send(
       {
@@ -368,7 +368,7 @@ export async function sendTestCampaign(required: {
       },
       { idempotencyKey: `newsletter:test:${campaign.id}:${email}:${deps.clock.nowIso()}`, workspaceId: input.workspaceId, sourceContext: { module: "newsletter", ref: campaign.id } }
     );
-    results.push(result.ok ? { email, outcome: "sent", error: null } : { email, outcome: "failed", error: result.message });
+    results.push(result.ok ? { email, outcome: "sent", error: null } : { email, outcome: "failed", error: result.message, errorCode: result.errorCode });
   }
   return { results };
 }

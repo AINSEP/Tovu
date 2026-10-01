@@ -61,11 +61,17 @@ function runContractSuite(adapterName: string, makeRepo: () => WebhookSubscripti
   test(`[${adapterName}] save updates an existing row in place`, async () => {
     const repo = makeRepo();
     await repo.insert(makeSubscription());
-    await repo.save(makeSubscription({ status: "paused", label: "Renamed" }));
+    const updated = makeSubscription({
+      status: "paused", label: "Renamed", targetUrl: "https://example.com/v2",
+      topics: ["post.*", "member.created"], secretVersion: 3, previousSecretVersion: 2,
+      updatedAt: "2026-07-10T01:00:00.000Z",
+    });
+    await repo.save(updated);
 
     const found = await repo.findById({ workspaceId: "workspace-1", id: "sub-1" });
     assert.equal(found?.status, "paused");
     assert.equal(found?.label, "Renamed");
+    assert.deepEqual(found, updated);
   });
 
   test(`[${adapterName}] listByWorkspace scopes strictly by workspace`, async () => {
@@ -87,6 +93,7 @@ function runContractSuite(adapterName: string, makeRepo: () => WebhookSubscripti
     await repo.insert(makeSubscription({ id: "sub-owner-wildcard", topics: ["*"] }));
     await repo.insert(makeSubscription({ id: "sub-non-matching", topics: ["member.created"] }));
     await repo.insert(makeSubscription({ id: "sub-paused", topics: ["*"], status: "paused" }));
+    await repo.insert(makeSubscription({ id: "sub-other-workspace", workspaceId: "workspace-2", topics: ["post.published"] }));
 
     const matches = await repo.findMatching({ workspaceId: "workspace-1", topic: "post.published" });
     const ids = matches.map((r) => r.id).sort();

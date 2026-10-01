@@ -52,9 +52,10 @@ test("begin builds an authorization URL carrying response_type, client_id, redir
   assert.equal(url.searchParams.get("code_verifier"), null);
 });
 
-test("begin contacts no third party — a dead provider cannot make starting a connection hang", async () => {
+test("begin contacts no third party — a dead provider cannot make starting a connection hang", async (t) => {
   const { pending, provider } = makeFlow();
   const http = createFetchDouble([{ throws: new Error("network down") }]);
+  t.mock.method(globalThis, "fetch", http.fetchFn);
 
   await beginAuthorizationCode({ provider, pending }, { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI });
 
@@ -80,6 +81,7 @@ test("complete sends the matching code_verifier, the stored redirect_uri, and no
   assert.equal(request.body.get("grant_type"), "authorization_code");
   assert.equal(request.body.get("code"), "auth-code-1");
   assert.equal(request.body.get("redirect_uri"), REDIRECT_URI);
+  assert.equal(request.body.get("client_id"), TEST_CLIENT.clientId);
   assert.equal(request.body.get("client_secret"), null);
   // The verifier that was sent must be the pre-image of the challenge the browser carried.
   const verifierSent = request.body.get("code_verifier") ?? "";
@@ -228,6 +230,33 @@ test("an unreachable token endpoint fails fast and is NOT retried", async () => 
   assert.equal(http.callCount(), 1);
 });
 
+test("a stalled exchange is aborted by the configured deadline without retrying", { timeout: 2000 }, async () => {
+  const { clock, pending, provider } = makeFlow();
+  const started = await beginAuthorizationCode({ provider, pending }, { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI });
+  let attempts = 0;
+  let signal: AbortSignal | undefined;
+  // AbortSignal.timeout uses an unref'ed timer; keep the process alive until the assertion settles.
+  const keepAlive = setTimeout(() => {}, 2000);
+  try {
+    const error = await assertOAuthRejects(
+      () => completeAuthorizationCode({ provider, pending, clock, fetchFn: async (_url, init) => {
+        attempts += 1;
+        assert.ok(init?.signal instanceof AbortSignal);
+        signal = init.signal;
+        return new Promise<Response>((_resolve, reject) => {
+          signal!.addEventListener("abort", () => reject(signal!.reason), { once: true });
+        });
+      } }, { ownerKey: "ws:higgs", client: TEST_CLIENT, params: { state: started.state, code: "c" }, timeoutMs: 20 }),
+      "OAUTH_PROVIDER_UNREACHABLE",
+    );
+    assert.equal(signal?.aborted, true);
+    assert.equal((error.cause as Error).name, "TimeoutError");
+    assert.equal(attempts, 1);
+  } finally {
+    clearTimeout(keepAlive);
+  }
+});
+
 test("a provider error body never leaks its description into the message", async () => {
   const { clock, pending, provider } = makeFlow();
   const started = await beginAuthorizationCode({ provider, pending }, { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI });
@@ -310,18 +339,58 @@ test("a provider that does not declare the authorization-code grant refuses to s
   assert.equal(error.message, "provider 'test-provider' does not support the authorization_code grant");
 });
 
-test("an extra authorization parameter cannot overwrite one Tovu owns", async () => {
-  const { pending, provider } = makeFlow();
+for (const parameter of ["response_type", "client_id", "redirect_uri", "scope", "state", "code_challenge", "code_challenge_method"]) {
+  test(`an extra authorization parameter cannot overwrite ${parameter}`, async () => {
+    const { pending, provider } = makeFlow();
 
-  const error = await assertOAuthRejects(
-    () =>
-      beginAuthorizationCode(
-        { provider, pending },
-        { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI, extraAuthorizationParams: { code_challenge: "attacker-chosen" } },
-      ),
+    const error = await assertOAuthRejects(
+      () =>
+        beginAuthorizationCode(
+          { provider, pending },
+          { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI, extraAuthorizationParams: { [parameter]: "attacker-chosen" } },
+        ),
+      "OAUTH_INVALID_REQUEST",
+    );
+    assert.equal(error.message, `'${parameter}' is set by Tovu and cannot be overridden for this provider`);
+  });
+}
+
+test("a state minted for a different provider is refused before any exchange", async () => {
+  const { clock, pending, provider } = makeFlow();
+  const started = await beginAuthorizationCode({ provider, pending }, { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI });
+  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  await assertOAuthRejects(
+    () => completeAuthorizationCode({ provider: { ...provider, providerId: "other-provider" }, pending, clock, fetchFn: http.fetchFn },
+      { ownerKey: "ws:higgs", client: TEST_CLIENT, params: { state: started.state, code: "c" } }),
+    "OAUTH_INVALID_STATE",
+  );
+  assert.equal(http.callCount(), 0);
+});
+
+test("PKCE-disabled providers omit challenge and verifier and honor a scope override", async () => {
+  const { clock, pending, provider } = makeFlow({ usesPkce: false });
+  const started = await beginAuthorizationCode({ provider, pending },
+    { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI, scopes: ["custom:read", "custom:write"] });
+  const url = new URL(started.authorizationUrl);
+  assert.equal(url.searchParams.get("code_challenge"), null);
+  assert.equal(url.searchParams.get("code_challenge_method"), null);
+  assert.equal(url.searchParams.get("scope"), "custom:read custom:write");
+  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  await completeAuthorizationCode({ provider, pending, clock, fetchFn: http.fetchFn },
+    { ownerKey: "ws:higgs", client: TEST_CLIENT, params: { state: started.state, code: "c" } });
+  assert.equal(http.requests[0].body.get("code_verifier"), null);
+});
+
+test("a callback with neither code nor error is refused without an exchange", async () => {
+  const { clock, pending, provider } = makeFlow();
+  const started = await beginAuthorizationCode({ provider, pending }, { ownerKey: "ws:higgs", client: TEST_CLIENT, redirectUri: REDIRECT_URI });
+  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  await assertOAuthRejects(
+    () => completeAuthorizationCode({ provider, pending, clock, fetchFn: http.fetchFn },
+      { ownerKey: "ws:higgs", client: TEST_CLIENT, params: { state: started.state } }),
     "OAUTH_INVALID_REQUEST",
   );
-  assert.equal(error.message, "'code_challenge' is set by Tovu and cannot be overridden for this provider");
+  assert.equal(http.callCount(), 0);
 });
 
 test("an extra authorization parameter the provider genuinely needs is carried through", async () => {

@@ -128,6 +128,9 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
   }
 
   async enqueue(record: WebhookDeliveryRecord): Promise<void> {
+    if ([...this.rows.values()].some((row) =>
+      row.workspaceId === record.workspaceId && row.subscriptionId === record.subscriptionId && row.eventId === record.eventId
+    )) return;
     this.rows.set(rowKey(record.workspaceId, record.id), record);
   }
 

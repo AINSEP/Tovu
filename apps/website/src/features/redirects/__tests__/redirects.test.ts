@@ -3,6 +3,9 @@ import test from "node:test";
 
 import { randomUUID } from "node:crypto";
 
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteRedirectRepo } from "../repo.sqlite.js";
+
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import { createTrashService, InMemoryTrashRepo, REDIRECT_ENTITY_TYPE, createRecordStoreTrashAdapter } from "#src/features/trash/index";
@@ -24,7 +27,7 @@ import {
   RedirectTargetNotAllowedError,
   RedirectValidationError,
 } from "../types.js";
-import type { RedirectRecord, RedirectStatus } from "../types.js";
+import type { CreateRedirectInput, RedirectRecord, RedirectStatus } from "../types.js";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
 /**
@@ -93,6 +96,8 @@ test("createRedirect writes a record + a same-tx revision (INV-01, AC-01)", asyn
   const revisions = repo.listRevisionsForTests(record.id);
   assert.equal(revisions.length, 1);
   assert.equal(revisions[0].seq, 1);
+  assert.deepEqual(revisions, [{ redirectId: record.id, workspaceId: WORKSPACE_ID, seq: 1,
+    state: record, tombstoned: false, actorId: ACTOR_ID, pluginId: undefined, recordedAt: record.createdAt }]);
 });
 
 test("createRedirect defaults override:false and priority:0 (behavior.spec.md §3)", async () => {
@@ -130,6 +135,7 @@ test("AC-27/INV-05: matchType 'regex' is always rejected with REDIRECT_VALIDATIO
       }),
     RedirectValidationError
   );
+  assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
 });
 
 test("createRedirect rejects a fromPattern outside the 1-2048 length bound", async () => {
@@ -149,6 +155,7 @@ test("createRedirect rejects a fromPattern outside the 1-2048 length bound", asy
       }),
     RedirectValidationError
   );
+  assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
 });
 
 test("createRedirect rejects a priority outside 0-1000 (not silently clamped)", async () => {
@@ -169,6 +176,7 @@ test("createRedirect rejects a priority outside 0-1000 (not silently clamped)", 
       }),
     RedirectValidationError
   );
+  assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
 });
 
 test("createRedirect accepts priority exactly 1000", async () => {
@@ -355,7 +363,7 @@ test("a duplicate fromPattern against a tombstoned (disabled) rule is allowed (n
 // createRedirect — one-hop collapse (AC-16) + cycle rejection (AC-17), INV-04
 // ---------------------------------------------------------------------------
 
-test("AC-16: creating B->C when A->B already exists collapses A's target to C at write time", async () => {
+test("AC-16: creating X->B collapses its target to C when B->C already exists", async () => {
   const deps = makeDeps();
   await createRedirect({
     deps,
@@ -505,13 +513,19 @@ test("updateRedirect applies a partial change and appends a new revision", async
 
   const { record: updated } = await updateRedirect({
     deps,
-    input: { workspaceId: WORKSPACE_ID, id: record.id, toTarget: "/c", actorId: ACTOR_ID },
+    input: { workspaceId: WORKSPACE_ID, id: record.id, toTarget: "/c", actorId: "updating-user", pluginId: "updating-plugin" },
   });
 
   assert.equal(updated.toTarget, "/c");
   assert.equal(updated.version, 2);
   const repo = deps.repo as InMemoryRedirectRepo;
   assert.equal(repo.listRevisionsForTests(record.id).length, 2);
+  assert.deepEqual(repo.listRevisionsForTests(record.id), [
+    { redirectId: record.id, workspaceId: WORKSPACE_ID, seq: 1, state: record, tombstoned: false,
+      actorId: ACTOR_ID, pluginId: undefined, recordedAt: record.createdAt },
+    { redirectId: record.id, workspaceId: WORKSPACE_ID, seq: 2, state: updated, tombstoned: false,
+      actorId: "updating-user", pluginId: "updating-plugin", recordedAt: updated.updatedAt },
+  ]);
 });
 
 test("updateRedirect on a nonexistent id throws RedirectNotFoundError", async () => {
@@ -650,9 +664,9 @@ test("AC-31: importRedirects processes each item independently; one invalid item
       workspaceId: WORKSPACE_ID,
       actorId: ACTOR_ID,
       rules: [
-        { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/import-1", toTarget: "/t1", statusCode: 301, actorId: ACTOR_ID },
+        { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/import-1", toTarget: "/t1", statusCode: 302, priority: 17, override: true, actorId: ACTOR_ID },
         { workspaceId: WORKSPACE_ID, matchType: "regex", fromPattern: "/bad", toTarget: "/t2", statusCode: 301, actorId: ACTOR_ID },
-        { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/import-2", toTarget: "/t3", statusCode: 301, actorId: ACTOR_ID },
+        { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/import-2", toTarget: "/t3", statusCode: 308, priority: 29, override: false, actorId: ACTOR_ID },
       ],
     },
   });
@@ -661,6 +675,12 @@ test("AC-31: importRedirects processes each item independently; one invalid item
   assert.equal(failed.length, 1);
   assert.equal(failed[0].index, 1);
   assert.equal(failed[0].code, "REDIRECT_VALIDATION_ERROR");
+  assert.deepEqual(created.map(({ fromPattern, toTarget, statusCode, priority, override, source, workspaceId, createdByPrincipal }) =>
+    ({ fromPattern, toTarget, statusCode, priority, override, source, workspaceId, createdByPrincipal })), [
+    { fromPattern: "/import-1", toTarget: "/t1", statusCode: 302, priority: 17, override: true, source: "import", workspaceId: WORKSPACE_ID, createdByPrincipal: ACTOR_ID },
+    { fromPattern: "/import-2", toTarget: "/t3", statusCode: 308, priority: 29, override: false, source: "import", workspaceId: WORKSPACE_ID, createdByPrincipal: ACTOR_ID },
+  ]);
+  assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), created);
 });
 
 test("EC-08: two items in the same batch with the same exact fromPattern — first succeeds, second fails with REDIRECT_CONFLICT", async () => {
@@ -681,6 +701,9 @@ test("EC-08: two items in the same batch with the same exact fromPattern — fir
   assert.equal(failed.length, 1);
   assert.equal(failed[0].index, 1);
   assert.equal(failed[0].code, "REDIRECT_CONFLICT");
+  assert.equal(created[0].fromPattern, "/dup-in-batch");
+  assert.equal(created[0].toTarget, "/t1");
+  assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), created);
 });
 
 // ---------------------------------------------------------------------------
@@ -817,3 +840,111 @@ test("S7(c): a rule merely toggled off (status:'disabled', no Trash row) stays f
   });
   assert.equal(updated.toTarget, "/x");
 });
+
+
+for (const [label, overrides] of [
+  ["status 200", { statusCode: 200 }], ["status 303", { statusCode: 303 }], ["status 404", { statusCode: 404 }],
+  ["empty target", { toTarget: "" }], ["oversized target", { toTarget: "/" + "x".repeat(2048) }],
+  ["negative priority", { priority: -1 }], ["fractional priority", { priority: 0.5 }],
+  ["empty pattern", { fromPattern: "" }],
+] as const) {
+  test(`createRedirect rejects ${label} before persisting anything`, async () => {
+    const deps = makeDeps();
+    await assert.rejects(() => createRedirect({ deps, input: {
+      workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/invalid", toTarget: "/target",
+      statusCode: 301, actorId: ACTOR_ID, ...overrides,
+    } as CreateRedirectInput }), RedirectValidationError);
+    assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
+    assert.deepEqual(await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z"), []);
+  });
+}
+
+test("AC-08: createRedirect rolls back the SQL row when revision insertion fails after the row write", async (t) => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  const repo = new SqliteRedirectRepo(db);
+  const deps: RedirectsWriteDeps = { ...makeDeps(), repo, db: repo, transaction: <T>(fn: () => Promise<T>) => repo.transaction(fn) };
+  let revisionReached = false;
+  deps.db = {
+    insertRedirect: (record) => repo.insertRedirect(record),
+    insertRevision: async (revision) => {
+      assert.ok(await repo.findById({ workspaceId: WORKSPACE_ID, id: revision.redirectId }), "the row write must precede the failure");
+      revisionReached = true;
+      throw new Error("revision insert failed");
+    },
+  };
+  await assert.rejects(() => createRedirect({ deps, input: {
+    workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/atomic", toTarget: "/target", statusCode: 301, actorId: ACTOR_ID,
+  } }), /revision insert failed/);
+  assert.equal(revisionReached, true);
+  assert.deepEqual(await repo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.deepEqual(await repo.listRevisionsForTests("redirect-1"), []);
+  assert.deepEqual(await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z"), []);
+});
+
+test("importRedirects rejects a 501-item batch before writing any rule", async () => {
+  const deps = makeDeps();
+  const rules = Array.from({ length: 501 }, (_, i): CreateRedirectInput => ({
+    workspaceId: WORKSPACE_ID, actorId: ACTOR_ID, matchType: "exact", fromPattern: `/batch-${i}`, toTarget: "/target", statusCode: 301,
+  }));
+  await assert.rejects(() => importRedirects({ deps, input: { workspaceId: WORKSPACE_ID, actorId: ACTOR_ID, rules } }), RedirectValidationError);
+  assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.deepEqual(await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z"), []);
+});
+
+test("create/update/tombstone enqueue their mutation envelopes once; repeated tombstone is a no-op", async () => {
+  const deps = makeDeps();
+  const { record } = await createRedirect({ deps, input: {
+    workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/events", toTarget: "/target", statusCode: 301, actorId: ACTOR_ID,
+  } });
+  await updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, toTarget: "/updated", actorId: ACTOR_ID } });
+  const { record: disabled } = await tombstoneRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, actorId: ACTOR_ID } });
+  const repo = deps.repo as InMemoryRedirectRepo;
+  const before = repo.listRevisionsForTests(record.id);
+  assert.deepEqual(await tombstoneRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, actorId: ACTOR_ID } }), { record: disabled });
+  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), disabled);
+  assert.deepEqual(repo.listRevisionsForTests(record.id), before);
+  const events = (await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).map((row) => row.event);
+  assert.deepEqual(events, ["created", "updated", "tombstoned"].map((change, index) => ({
+    id: `redirect-${index + 2}`, name: `redirect.${change}`, occurredAt: `2026-07-13T00:00:0${index * 2 + 1}.000Z`,
+    aggregateId: record.id, workspaceId: WORKSPACE_ID, actorId: ACTOR_ID,
+    payload: { workspaceId: WORKSPACE_ID, redirectId: record.id, change },
+  })));
+});
+
+for (const reason of ["not-found", "version-changed"] as const) {
+  test(`tombstoneRedirect preserves state when remove returns ${reason}`, async () => {
+    const deps = makeDeps();
+    const { record } = await createRedirect({ deps, input: {
+      workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/failed-remove", toTarget: "/target", statusCode: 301, actorId: ACTOR_ID,
+    } });
+    const repo = deps.repo as InMemoryRedirectRepo;
+    const before = repo.listRevisionsForTests(record.id);
+    deps.remove = async () => ({ ok: false, reason });
+    await assert.rejects(() => tombstoneRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, actorId: ACTOR_ID } }),
+      reason === "not-found" ? RedirectNotFoundError : RedirectConflictError);
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), record);
+    assert.deepEqual(repo.listRevisionsForTests(record.id), before);
+    assert.deepEqual((await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).map((row) => row.event.name), ["redirect.created"]);
+  });
+}
+
+for (const outcome of ["not-found", "version-changed", "adapter-unavailable"] as const) {
+  test(`updateRedirect preserves the trashed rule when restore returns ${outcome}`, async () => {
+    const deps = makeDepsWithRealTrash();
+    const { record } = await createRedirect({ deps, input: {
+      workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/failed-restore", toTarget: "/target", statusCode: 301, actorId: ACTOR_ID,
+    } });
+    await tombstoneRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, actorId: ACTOR_ID } });
+    const repo = deps.repo as InMemoryRedirectRepo;
+    const beforeRow = await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id });
+    const beforeRevisions = repo.listRevisionsForTests(record.id);
+    deps.restore = async () => outcome;
+    await assert.rejects(() => updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, id: record.id, status: "active", actorId: ACTOR_ID } }),
+      outcome === "not-found" ? RedirectNotFoundError : outcome === "version-changed" ? RedirectConflictError : /no Trash adapter/);
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), beforeRow);
+    assert.deepEqual(repo.listRevisionsForTests(record.id), beforeRevisions);
+    assert.equal(await deps.isInTrash({ workspaceId: WORKSPACE_ID, id: record.id }), true);
+    assert.deepEqual((await deps.outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).map((row) => row.event.name), ["redirect.created", "redirect.tombstoned"]);
+  });
+}

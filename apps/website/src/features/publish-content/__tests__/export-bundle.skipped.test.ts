@@ -93,3 +93,34 @@ test("collectSkippedEntities skips a handler with no listSkipped at all", async 
   });
   assert.deepEqual(skipped, []);
 });
+
+
+test("collectSkippedEntities checks each handler's permission with the calling principal and workspace", async () => {
+  const themeFiles = fakeHandler({ entityType: "theme-files", permission: "theme.set", async listSkipped() {
+    return [{ entityType: "theme-files", id: "static/x", label: "static/x", reason: "blocked" }];
+  } });
+  let deniedReads = 0;
+  const skill = fakeHandler({
+    entityType: "agent-skill", permission: "admin.skills.write",
+    async listSkipped() {
+      deniedReads += 1;
+      return [{ entityType: "agent-skill", id: "secret-skill", label: "secret-skill", reason: "blocked" }];
+    },
+  });
+  const requests: unknown[] = [];
+  const skipped = await collectSkippedEntities({
+    handlers: [themeFiles, skill],
+    authorize: async (request) => {
+      requests.push(request);
+      return { allowed: request.principalId === "p1" && request.workspaceId === "ws1" && request.permission === "theme.set" };
+    },
+    workspaceId: "ws1",
+    principalId: "p1",
+  });
+  assert.deepEqual(skipped, [{ entityType: "theme-files", id: "static/x", label: "static/x", reason: "blocked" }]);
+  assert.equal(deniedReads, 0);
+  assert.deepEqual(requests, [
+    { principalId: "p1", workspaceId: "ws1", permission: "theme.set" },
+    { principalId: "p1", workspaceId: "ws1", permission: "admin.skills.write" },
+  ]);
+});

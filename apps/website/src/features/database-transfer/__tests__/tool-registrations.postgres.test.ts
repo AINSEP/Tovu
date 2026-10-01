@@ -120,6 +120,14 @@ async function raiseCard(h: ReturnType<typeof harness>, planId: string) {
   return { pending, html: ui.resource.text, exchangeId };
 }
 
+function cardAction(html: string, action: "confirm" | "cancel") {
+  const match = html.match(/var PLAN = (.+);/);
+  assert.ok(match, "the card must carry its actual button actions");
+  const rendered = JSON.parse(match[1]!)[action];
+  assert.equal(rendered.toolName, "database_transfer_run");
+  return rendered.params as Record<string, unknown>;
+}
+
 async function tovuExists(): Promise<boolean> {
   return (await sql(FIXTURE_DB, "SELECT to_regnamespace('tovu') IS NOT NULL")) === "t";
 }
@@ -145,7 +153,7 @@ test("plan counts without writing; Copy on the card copies exactly the plan; the
   assert.match(html, /keeps running on its built-in storage/);
   assert.match(html, /A private area named (&quot;|")tovu(&quot;|")/);
   assert.equal(await tovuExists(), false, "nothing may be written before Copy");
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: { decision: "confirm" } });
+  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "confirm") });
   const result = await pending;
   assert.equal(result.copied, true, JSON.stringify(result));
   assert.equal(result.rowCount, 2);
@@ -163,8 +171,8 @@ test("Cancel writes nothing, and a used planId is gone", async (t) => {
   const h = harness(t);
   await typeDestination(h, { address: CONNECTION });
   const plan = await call(h.planTool, {});
-  const { pending, exchangeId } = await raiseCard(h, plan.planId as string);
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: { decision: "cancel" } });
+  const { pending, exchangeId, html } = await raiseCard(h, plan.planId as string);
+  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "cancel") });
   assert.deepEqual(await pending, { copied: false, cancelled: true });
   assert.equal(await tovuExists(), false);
   const reused = await call(h.runTool, { planId: plan.planId }, async () => undefined);
@@ -221,8 +229,8 @@ test("database_transfer_status reports the saved destination, this process's las
 
   await typeDestination(h, { address: CONNECTION });
   const plan = await call(h.planTool, {});
-  const { pending, exchangeId } = await raiseCard(h, plan.planId as string);
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: { decision: "confirm" } });
+  const { pending, exchangeId, html } = await raiseCard(h, plan.planId as string);
+  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "confirm") });
   assert.equal((await pending).copied, true);
 
   const status = await call(h.statusTool, {});

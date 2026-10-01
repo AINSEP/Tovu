@@ -43,20 +43,26 @@ function post(baseUrl: string, path: string, body: unknown): Promise<Response> {
 }
 
 test("test-agent: an authenticated CLI offering the requested model reports ok:true, via a mocked detectAgents() -- no real CLI on PATH required", async (t) => {
-  const detectAgents = t.mock.fn(async () => [
-    {
-      id: "mocked-cli",
-      name: "Mocked CLI",
-      bin: "mocked-cli",
-      versionArgs: ["--version"],
-      streamFormat: "text",
-      models: [{ id: "model-a", label: "Model A" }],
-      modelsSource: "fallback",
-      available: true,
-      authStatus: "ok",
-      version: "3.1.4",
-    },
-  ]);
+  let available = true;
+  let detectionFails = false;
+  let allowed = true;
+  const detectAgents = t.mock.fn(async () => {
+    if (detectionFails) throw new Error("probe failed");
+    return [
+      {
+        id: "mocked-cli",
+        name: "Mocked CLI",
+        bin: "mocked-cli",
+        versionArgs: ["--version"],
+        streamFormat: "text",
+        models: [{ id: "model-a", label: "Model A" }],
+        modelsSource: "fallback",
+        available,
+        authStatus: "ok",
+        version: "3.1.4",
+      },
+    ];
+  });
   // `namedExports` REPLACES the module's whole export set, not just the key(s) given -- so a bare
   // `{ detectAgents }` here breaks every OTHER consumer this process still needs
   // `@jini-ai/agent-runtime` for (`test-agent.ts`'s own import chain, through `#src/assistant/index`,
@@ -89,7 +95,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   };
   const deps: AssistantExecutionRouteDeps = {
     workspaceId: WORKSPACE_ID,
-    authorize: async () => ({ allowed: true, reason: "test-only: always allowed" }),
+    authorize: async () => ({ allowed, reason: "test-only permission" }),
     siteAssistantCredentialRepo: {
       findByWorkspaceId: unusedByThisRoute("siteAssistantCredentialRepo.findByWorkspaceId"),
       upsert: unusedByThisRoute("siteAssistantCredentialRepo.upsert"),
@@ -116,4 +122,27 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   // Proves the route reached the mock rather than a real PATH scan: exactly one call, with no args.
   assert.equal(detectAgents.mock.callCount(), 1);
   assert.deepEqual(detectAgents.mock.calls[0]?.arguments, []);
+
+  available = false;
+  const unavailable = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli", model: "model-a" });
+  assert.equal(unavailable.status, 200);
+  assert.deepEqual(await unavailable.json(), { ok: false, message: "'mocked-cli' was not found on this server's PATH." });
+
+  const unknown = await post(baseUrl, TEST_AGENT_PATH, { agentId: "unknown-cli" });
+  assert.equal(unknown.status, 200);
+  assert.deepEqual(await unknown.json(), { ok: false, message: "'unknown-cli' was not found on this server's PATH." });
+
+  const callsBeforeValidation = detectAgents.mock.callCount();
+  assert.equal((await post(baseUrl, TEST_AGENT_PATH, {})).status, 400);
+  allowed = false;
+  const denied = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli" });
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json()).details.permission, "admin.assistant.manage");
+  assert.equal(detectAgents.mock.callCount(), callsBeforeValidation);
+
+  allowed = true;
+  detectionFails = true;
+  const failed = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli" });
+  assert.equal(failed.status, 500);
+  assert.deepEqual(await failed.json(), { error: "internal error", code: "INTERNAL_ERROR" });
 });

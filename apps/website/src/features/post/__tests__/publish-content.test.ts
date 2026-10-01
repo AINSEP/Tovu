@@ -22,9 +22,10 @@ import { InMemoryChangeSetRepo, revertChangeSet } from "#src/contracts/core/comm
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { isTrashed, ROOT_SLUG, type PostRecord } from "../post.js";
+import { createPost, isTrashed, ROOT_SLUG, type PostRecord } from "../post.js";
 import { createPostRevertRegistry } from "../reverters.js";
 import { removeVia } from "./remove-post-double.js";
+import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { contentHash } from "#src/features/publish-content/content-hash";
 import type { RetireTarget } from "#src/features/publish-content/type-registry";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "../publish-content.js";
@@ -390,9 +391,36 @@ test("apply() 'applied' path: writes through updatePost with expectedVersion, ac
   const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(saved?.title, "New title from peer");
   assert.equal(saved?.createdByPrincipalId, "source-author-1", "update must never touch createdByPrincipalId (write-once)");
+  const [revision] = await deps.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: existing.id });
+  assert.equal(revision?.actorId, "operator-1");
+  assert.equal(revision?.seq, 4);
+  assert.deepEqual(revision?.stateJson, saved);
+  const [changeSet] = await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID });
+  assert.equal(changeSet?.actorId, "operator-1");
 });
 
-test("apply() 'applied' path: a stale expectedVersion rejects with PostVersionConflictError, never overwrites", async () => {
+test("apply() restores an existing destination forward when change-set recording fails", async () => {
+  const deps = makeApplyDeps([]);
+  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "post-1", title: "Original", slug: "original", status: "published", actorId: "original-author" } });
+  const prior = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
+  assert.ok(prior);
+  const failure = new Error("change-set store is down");
+  deps.changeSets.insert = async () => { throw failure; };
+  const handler = contributePostPublish().build(deps);
+  const source = makePost({ ...prior, title: "Failed import", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } });
+  await assert.rejects(() => handler.apply({ entity: packedFrom("post", source), expectedVersion: prior.version, principalId: "operator-1" }), error => error === failure);
+  const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id });
+  assert.deepEqual(restored, { ...prior, updatedAt: deps.clock.nowIso(), version: 3 });
+  const revisions = await deps.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: prior.id });
+  assert.deepEqual(revisions.map(row => [row.seq, row.op]), [[1, "create"], [2, "update"], [3, "restore"]]);
+  assert.deepEqual(revisions[2]?.stateJson, restored);
+  assert.equal(revisions[2]?.restoredFrom, revisions[0]?.id);
+  assert.equal(revisions[2]?.actorId, "operator-1");
+  assert.deepEqual((await deps.outbox.claimPending(10, deps.clock.nowIso())).map(row => row.event.name), ["entry.unpublished", "entry.published"]);
+  assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("apply() 'applied' path: a stale expectedVersion rejects with a typed apply conflict, never overwrites", async () => {
   const existing = makePost({ id: "post-1", version: 5, title: "Someone else's edit" });
   const deps = makeApplyDeps([existing]);
   const handler = contributePostPublish().build(deps);
@@ -400,7 +428,7 @@ test("apply() 'applied' path: a stale expectedVersion rejects with PostVersionCo
 
   await assert.rejects(
     () => handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1" }),
-    /was modified by another save|version/i
+    (error: unknown) => error instanceof PublishContentApplyRowError && error.rowOutcome === "conflict" && error.message === "post 'post-1' changed on the destination during apply: expected version 3, found version 5"
   );
   const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(saved?.title, "Someone else's edit", "a version conflict must never overwrite the destination");

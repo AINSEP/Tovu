@@ -270,19 +270,27 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
     return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
   }
 
-  /** Walks ancestors for the first non-transparent background, mirroring what a viewer actually
-   *  sees. Falls back to white — stated in the sample rather than silently assumed, because a page
-   *  whose real background comes from an image or gradient will produce a ratio computed against a
-   *  colour that is not really there. */
+  function composite(fg: [number, number, number, number], bg: [number, number, number, number]): [number, number, number, number] {
+    const alpha = fg[3];
+    return [fg[0] * alpha + bg[0] * (1 - alpha), fg[1] * alpha + bg[1] * (1 - alpha), fg[2] * alpha + bg[2] * (1 - alpha), 1];
+  }
+
+  /** Composite translucent backgrounds from the outermost ancestor onto a white fallback.
+   * Images and gradients remain outside this bounded colour-pair sample. */
   function effectiveBackground(element: Element): string {
+    const layers: Array<[number, number, number, number]> = [];
     let current: Element | null = element;
     while (current) {
-      const background = getComputedStyle(current).backgroundColor;
-      const parsed = parseColor(background);
-      if (parsed && parsed[3] > 0) return background;
+      const parsed = parseColor(getComputedStyle(current).backgroundColor);
+      if (parsed && parsed[3] > 0) {
+        layers.push(parsed);
+        if (parsed[3] === 1) break;
+      }
       current = current.parentElement;
     }
-    return "rgb(255, 255, 255)";
+    let background: [number, number, number, number] = [255, 255, 255, 1];
+    for (const layer of layers.reverse()) background = composite(layer, background);
+    return `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
   }
 
   const CONTRAST_CANDIDATE_SELECTOR = "p,li,a,button,h1,h2,h3,h4,h5,h6,label,span,td,th";
@@ -304,8 +312,15 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
     return !element.querySelector(CONTRAST_CANDIDATE_SELECTOR);
   }
 
-  function isRenderedVisible(style: CSSStyleDeclaration): boolean {
-    return style.visibility !== "hidden" && style.display !== "none";
+  function isRenderedVisible(element: Element, style: CSSStyleDeclaration): boolean {
+    if (style.visibility === "hidden" || style.display === "none") return false;
+    // display is not inherited: a hidden subtree's child can still compute display:block.
+    let ancestor = element.parentElement;
+    while (ancestor) {
+      if (getComputedStyle(ancestor).display === "none") return false;
+      ancestor = ancestor.parentElement;
+    }
+    return true;
   }
 
   /** Computes one contrast sample for an element already known to be sampleable and visible, or
@@ -333,9 +348,12 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
     const background = effectiveBackground(element);
     const fg = parseColor(foreground);
     const bg = parseColor(background);
-    if (!fg || !bg) return null;
+    if (!fg || !bg) {
+      truncated.push("contrastSamples:unparsed-colour");
+      return null;
+    }
 
-    const l1 = relativeLuminance(fg);
+    const l1 = relativeLuminance(composite(fg, bg));
     const l2 = relativeLuminance(bg);
     const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 
@@ -361,7 +379,7 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
       if (!hasOwnSampleableText(element)) continue;
 
       const style = getComputedStyle(element);
-      if (!isRenderedVisible(style)) continue;
+      if (!isRenderedVisible(element, style)) continue;
 
       const sample = contrastSampleFor(element, style);
       if (sample) out.push(sample);

@@ -18,7 +18,7 @@ import { buildCustomCredentialAad } from "#src/features/custom-credentials/aad";
 import { readSealedConnectionString, writeSealedConnectionString } from "../runtime/composition/storage-secret.js";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level coverage for `GET`/`POST .../reveal`/`POST .../generate` under
@@ -39,12 +39,23 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.j
  * `homedir()`-based in local/dev mode (the mode this test process runs in, `TOVU_RUNTIME_MODE`
  * unset) — with NO per-call override. Every test that exercises a real 200/201 response redirects
  * `HOME` to a throwaway temp dir first, so a passing test run never reads, creates, or touches the
- * operator's actual `~/.tovu/integrations-root-key.hex`. No test in this file ever asserts on or
- * logs a `hex` value; presence/absence and byte length are the only properties checked.
+ * operator's actual `~/.tovu/integrations-root-key.hex`. Reveal is compared with the generated
+ * fixture key so a correctly sized but unusable backup value cannot pass.
  */
 
 const WORKSPACE = "workspace-local";
 const BASE = `/api/admin/v1/workspaces/${WORKSPACE}/system/site-token`;
+
+test.beforeEach((t) => {
+  for (const name of ["TOVU_INTEGRATIONS_ROOT_KEY", "TOVU_SITE_KEY", "TOVU_RUNTIME_MODE"]) {
+    const original = process.env[name];
+    delete process.env[name];
+    t.after(() => {
+      if (original === undefined) delete process.env[name];
+      else process.env[name] = original;
+    });
+  }
+});
 
 /** The seeded built-in policies, by their seed names (mirrors `api-key-routes.test.ts`'s own). */
 async function builtinPolicyId(baseUrl: string, cookie: string, name: string): Promise<string> {
@@ -197,6 +208,8 @@ test("session callers keep working: GET, reveal, and generate all still succeed 
   assert.equal(revealedBody.active, true);
   assert.equal(revealedBody.hex?.length, 64, "32 raw bytes, hex-encoded — the ONE place this route family discloses the value");
   assert.equal(revealedBody.fingerprint, generatedBody.fingerprint, "reveal's fingerprint matches the key generate just wrote");
+  assert.equal(revealedBody.hex, readFileSync(generatedBody.keyFilePath, "utf8").trim());
+  assert.equal(fingerprintRootKeyHex(revealedBody.hex!), revealedBody.fingerprint);
 });
 
 test("generate's response never carries the raw key — only status/reveal-relevant metadata (sol finding 3-2)", async (t) => {
@@ -605,12 +618,28 @@ test("generate with no key anywhere and no sealed data → 201 'created', this s
   assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, body.fingerprint);
 });
 
-test("all three verbs stay 401 without a credential and 403 for a session lacking the permission", async (t) => {
+test("all six endpoints stay 401 anonymously and 403 for a content.read-only session", async (t) => {
+  isolateHomeDir(t);
   isolateSiteDir(t);
   const deps = createRouteDeps();
   assertSiteDirIsolated(deps);
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  const metadata = JSON.stringify({ siteId: "restricted-token-site" });
+  writeFileSync(metaPath, metadata);
+  const hex = randomBytes(32).toString("hex");
+  writePerSiteKey("restricted-token-site", hex);
+  await sealCredentialRow(deps.siteBinding.dir, "restricted-credential", hex);
+  const dbPath = path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME);
+  const dbBefore = readFileSync(dbPath);
+  const restricted = await loginAsBarePrincipal(deps, baseUrl, { username: "token-reader" });
+  const principal = await deps.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "token-reader" });
+  assert.ok(principal);
+  const policyId = "token-reader-policy";
+  await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.principalPolicyRepo.save({ id: "token-reader-link", workspaceId: WORKSPACE, principalId: principal.principalId, policyId });
+  await deps.policyPermissionRepo.save({ id: "token-reader-read", workspaceId: WORKSPACE, policyId, permission: "content.read", resourceType: null, constraintJson: null });
 
   for (const attempt of [
     { method: "GET" as const, url: BASE },
@@ -622,7 +651,61 @@ test("all three verbs stay 401 without a credential and 403 for a session lackin
   ]) {
     const anonymous = await fetch(`${baseUrl}${attempt.url}`, { method: attempt.method });
     assert.equal(anonymous.status, 401, `401 without a credential: ${attempt.method} ${attempt.url}`);
+    const denied = await fetch(`${baseUrl}${attempt.url}`, { method: attempt.method, headers: { cookie: restricted } });
+    assert.equal(denied.status, 403, `403 without token-management permission: ${attempt.method} ${attempt.url}`);
+    const body = await denied.json() as { code: string; details: { permission: string } };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "admin.security.tokens.manage");
   }
+  assert.equal(readFileSync(metaPath, "utf8"), metadata);
+  assert.equal(readFileSync(perSiteKeyPath("restricted-token-site"), "utf8"), hex);
+  assert.deepEqual(readFileSync(dbPath), dbBefore);
+});
+
+test("production generate creates and stamps the durable key, preserves it, and refuses invalid keys or sealed data", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const app = createApp(deps);
+  const volumeRoot = mkdtempSync(path.join(tmpdir(), "tovu-site-token-production-"));
+  t.after(() => rmSync(volumeRoot, { recursive: true, force: true }));
+  t.mock.method(process, "cwd", () => volumeRoot);
+  process.env.TOVU_RUNTIME_MODE = "production";
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  writeFileSync(metaPath, JSON.stringify({ siteId: "production-site", provenance: "preserved" }));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const generate = () => fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+  const created = await generate();
+  assert.equal(created.status, 201);
+  const body = await created.json() as { outcome: string; fingerprint: string; keyFilePath: string; runtimeMode: string };
+  assert.equal(body.outcome, "created");
+  assert.equal(body.runtimeMode, "production");
+  assert.equal(body.keyFilePath, path.join(volumeRoot, "sites", ".tovu", "integrations-root-key.hex"));
+  const keyBytes = readFileSync(body.keyFilePath, "utf8");
+  assert.equal(fingerprintRootKeyHex(keyBytes), body.fingerprint);
+  const stamp = readFileSync(metaPath, "utf8");
+  const meta = JSON.parse(stamp) as { siteKeyFingerprint: string; provenance: string };
+  assert.equal(meta.siteKeyFingerprint, body.fingerprint);
+  assert.equal(meta.provenance, "preserved");
+  const existing = await generate();
+  assert.equal(existing.status, 200);
+  assert.equal((await existing.json() as { outcome: string }).outcome, "already-active");
+  assert.equal(readFileSync(body.keyFilePath, "utf8"), keyBytes);
+  writeFileSync(body.keyFilePath, "not-a-key");
+  const invalid = await generate();
+  assert.equal(invalid.status, 409);
+  assert.equal((await invalid.json() as { error: string }).error, "KEY_INVALID");
+  assert.equal(readFileSync(body.keyFilePath, "utf8"), "not-a-key");
+  rmSync(body.keyFilePath);
+  await sealCredentialRow(deps.siteBinding.dir, "production-locked", randomBytes(32).toString("hex"));
+  const sealedBefore = readFileSync(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
+  const locked = await generate();
+  assert.equal(locked.status, 409);
+  assert.equal((await locked.json() as { error: string }).error, "KEY_DEPENDENT_DATA");
+  assert.equal(existsSync(body.keyFilePath), false);
+  assert.equal(readFileSync(metaPath, "utf8"), stamp);
+  assert.deepEqual(readFileSync(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME)), sealedBefore);
 });
 
 // ---------------------------------------------------------------------------
@@ -813,6 +896,17 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
   writeFileSync(metaPath, JSON.stringify({ siteId: "fresh-start-site", siteKeyFingerprint: fingerprintRootKeyHex(lostHex) }));
   await sealCredentialRow(deps.siteBinding.dir, "cred-locked", lostHex);
+  const backupPath = path.join(deps.siteBinding.dir, "before-start-fresh.db");
+  deps.dbOps.captureRestorePoint = async () => {
+    const source = new Database(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
+    try {
+      assert.deepEqual(source.prepare("SELECT id FROM custom_credential_sets").all(), [{ id: "cred-locked" }], "capture must run before discarding credentials");
+      await source.backup(backupPath);
+    } finally {
+      source.close();
+    }
+    return { artifactRef: backupPath, watermarkAtCapture: 0 };
+  };
   const now = new Date().toISOString();
   await deps.webhookSubscriptionRepo.insert({
     id: "wh-1" as never, workspaceId: WORKSPACE as never, ownerPrincipalId: "principal-1" as never, label: "Order sync", targetUrl: "https://hooks.example.test/orders",
@@ -851,7 +945,49 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   db.close();
   const restorePoints = await deps.restorePointsRepo.list();
   assert.ok(restorePoints.some((row) => row.id === body.restorePointId && row.trigger === "site-token-start-fresh"), "a restore point was saved first");
+  const point = restorePoints.find((row) => row.id === body.restorePointId);
+  assert.equal(point?.artifactRef, backupPath);
+  const backup = new Database(backupPath, { readonly: true });
+  try {
+    assert.deepEqual(backup.prepare("SELECT id FROM custom_credential_sets").all(), [{ id: "cred-locked" }], "the backup contains the credential removed from the live database");
+  } finally {
+    backup.close();
+  }
 
   const status = (await (await fetch(`${baseUrl}${BASE}`, { headers: { cookie } })).json()) as { state: string };
   assert.equal(status.state, "active");
 });
+
+for (const failure of ["unavailable", "capture-failed"] as const) {
+  test(`start fresh refuses to mutate credentials when a restore point is ${failure}`, async (t) => {
+    isolateHomeDir(t);
+    isolateSiteDir(t);
+    const deps = createRouteDeps();
+    assertSiteDirIsolated(deps);
+    const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+    const metadata = JSON.stringify({ siteId: "no-backup-site", siteKeyFingerprint: fingerprintRootKeyHex(randomBytes(32).toString("hex")) });
+    writeFileSync(metaPath, metadata);
+    await sealCredentialRow(deps.siteBinding.dir, "locked-without-backup", randomBytes(32).toString("hex"));
+    const dbPath = path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME);
+    const before = readFileSync(dbPath);
+    let captures = 0;
+    if (failure === "unavailable") {
+      deps.dbOps.getCapabilities = async () => ({ restorePoint: { costClass: "unavailable", kind: "external" } });
+    }
+    deps.dbOps.captureRestorePoint = async () => {
+      captures += 1;
+      throw new Error("backup-capture-private-detail");
+    };
+    const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+    const response = await postJson(baseUrl, `${BASE}/start-fresh`, cookie, { confirm: "START FRESH" });
+    assert.equal(response.status, failure === "unavailable" ? 409 : 500);
+    const text = await response.text();
+    if (failure === "unavailable") assert.equal((JSON.parse(text) as { error: string }).error, "RESTORE_POINT_UNAVAILABLE");
+    assert.ok(!text.includes("backup-capture-private-detail"));
+    assert.equal(captures, failure === "unavailable" ? 0 : 1);
+    assert.equal(readFileSync(metaPath, "utf8"), metadata);
+    assert.deepEqual(readFileSync(dbPath), before);
+    assert.equal(existsSync(perSiteKeyPath("no-backup-site")), false);
+    assert.deepEqual(await deps.restorePointsRepo.list(), []);
+  });
+}

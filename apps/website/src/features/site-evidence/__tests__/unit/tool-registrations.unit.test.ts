@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { UUID } from "@jini-ai/cms/core";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "../../agent-tools.js";
-import type { SiteEvidenceBrowserFactory } from "../../browser-port.js";
+import { SITE_EVIDENCE_LIMITS } from "../../collect-page-evidence.js";
+import type { ObservePageRequest, PageObservation, SiteEvidenceBrowserFactory } from "../../browser-port.js";
 import {
   buildSiteEvidenceRegistrations,
   readOptionalEvidenceArguments,
@@ -125,15 +127,26 @@ test("readOptionalEvidenceArguments's rejection is a ToolInputError (400), not a
 });
 
 test("the handler refuses a caller the authorizer denies", async () => {
+  const requests: unknown[] = [];
   const registrations = buildSiteEvidenceRegistrations(
     toolDeps({
-      authorize: async () => ({ allowed: false, reason: "nope" }) as never,
+      authorize: async (request) => {
+        requests.push(request);
+        return { allowed: request.permission === "content.write", reason: "read denied" } as never;
+      },
+      originRegistry: { ...originRegistry(), canonicalOrigin: async () => { assert.fail("origin lookup before authorization"); } },
+      siteEvidenceBrowser: async () => { assert.fail("browser opened before authorization"); },
     }),
   );
   const registration = registrations.find((entry) => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID);
   assert.ok(registration);
 
-  await assert.rejects(() => registration.handler(toolContext({ paths: ["/"] })));
+  await assert.rejects(() => registration.handler(toolContext({ paths: ["/"] })), (error: unknown) => {
+    assert.ok(error instanceof ForbiddenError);
+    assert.equal(error.message, `principal '${PRINCIPAL_ID}' is not authorized for 'content.read' (read denied)`);
+    return true;
+  });
+  assert.deepEqual(requests, [{ principalId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, permission: "content.read", entityType: "post", entityId: undefined }]);
 });
 
 test("the handler returns evidence-shaped data when the browser is unavailable, not an error", async () => {
@@ -156,4 +169,39 @@ test("a workspace with no verified origin returns an explicit 'cannot collect' p
   assert.equal(result.collected, false);
   assert.ok(String(result.reason).includes("cannot-determine"), "the model must be told the correct way to report this");
   assert.ok(String(result.reason).includes("no verified canonical origin"));
+});
+
+test("the available-browser handler forwards optional inputs, returns same-origin evidence and closes after refusals", async () => {
+  const requests: ObservePageRequest[] = [];
+  let closed = 0;
+  const observed: PageObservation = {
+    document: { httpStatus: 200, finalUrl: "https://example.test/ok", redirected: false, title: "Observed", lang: "en", headers: [], textExcerpt: "Canary text", textTruncated: false },
+    cookies: [], requests: [], notes: [],
+  };
+  const registration = buildSiteEvidenceRegistrations(toolDeps({
+    authorize: async (request) => ({ allowed: request.permission === "content.read" && request.principalId === PRINCIPAL_ID && request.workspaceId === WORKSPACE_ID }) as never,
+    siteEvidenceBrowser: async () => ({ available: true, browser: {
+      observe: async (request) => {
+        requests.push(request);
+        if (request.url.endsWith("/broken")) throw new Error("navigation failed");
+        return { ok: true, observation: request.url.endsWith("/away")
+          ? { ...observed, document: { ...observed.document, finalUrl: "https://other.test/private?secret=canary" } }
+          : observed };
+      },
+      close: async () => { closed += 1; },
+    } }),
+  })).find((entry) => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID)!;
+  const result = await registration.handler(toolContext({ paths: ["/ok", "/away", "/broken"], consentAcceptSelector: "  #accept  ", collectAccessibility: false })) as {
+    pages: unknown[]; skipped: { path: string; reason: string }[];
+  };
+  assert.deepEqual(requests, ["/ok", "/away", "/broken"].map((path) => ({
+    url: `https://example.test${path}`, originBaseUrl: "https://example.test", consentAcceptSelector: "#accept", collectAccessibility: false,
+    timeoutMs: SITE_EVIDENCE_LIMITS.maxPageLoadMs, maxTextExcerptChars: SITE_EVIDENCE_LIMITS.maxTextExcerptChars,
+    maxCookies: SITE_EVIDENCE_LIMITS.maxCookies, maxRequests: SITE_EVIDENCE_LIMITS.maxRequests,
+    maxAccessibilityNodesPerCategory: SITE_EVIDENCE_LIMITS.maxAccessibilityNodesPerCategory, maxContrastSamples: SITE_EVIDENCE_LIMITS.maxContrastSamples,
+  })));
+  assert.deepEqual(result.pages, [{ path: "/ok", url: "https://example.test/ok", observation: observed }]);
+  assert.deepEqual(result.skipped.map(({ path, reason }) => ({ path, reason })), [{ path: "/away", reason: "off-origin-redirect" }, { path: "/broken", reason: "navigation-failed" }]);
+  assert.equal(JSON.stringify(result).includes("secret=canary"), false);
+  assert.equal(closed, 1);
 });

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -188,11 +188,13 @@ test("the store is bounded — at the cap the oldest row is evicted, never the n
   const db = openContentDb(dbPath);
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const store = createSqlitePendingAuthorizationStore({ db, clock: createTestClock(), sealer, keyring, maxEntries: 3 });
+  const clock = createTestClock();
+  const store = createSqlitePendingAuthorizationStore({ db, clock, sealer, keyring, maxEntries: 3 });
 
   const minted: Array<Awaited<ReturnType<typeof store.put>>> = [];
   for (let index = 0; index < 4; index += 1) {
     minted.push(await store.put(samplePendingInput({ ownerKey: `ws-1:server-${index}` })));
+    clock.advance(1_000);
   }
 
   assert.equal(await store.size(), 3);
@@ -200,6 +202,10 @@ test("the store is bounded — at the cap the oldest row is evicted, never the n
   assert.ok(oldest && newest);
   await assert.rejects(() => store.take({ state: oldest.state, ownerKey: "ws-1:server-0" }));
   assert.equal((await store.take({ state: newest.state, ownerKey: "ws-1:server-3" })).ownerKey, "ws-1:server-3");
+  for (const index of [1, 2]) {
+    assert.equal((await store.take({ state: minted[index]!.state, ownerKey: `ws-1:server-${index}` })).ownerKey, `ws-1:server-${index}`);
+  }
+  assert.equal(await store.size(), 0);
 });
 
 test("the cap holds when two store instances sharing one content.db put concurrently, so eviction is atomic with the insert rather than a read-then-insert race", async () => {
@@ -288,17 +294,19 @@ test("THE FIX (device grant) — a device authorization begun through one store 
   const storeInProcessA = createSqliteDeviceAuthorizationStore({ db: dbProcessA, workspaceId, clock, sealer, keyring });
   const storeInProcessB = createSqliteDeviceAuthorizationStore({ db: dbProcessB, workspaceId, clock, sealer, keyring });
 
-  await storeInProcessA.put("higgsfield", {
+  const authorization = {
     deviceCode: "device-code-secret",
     userCode: "ABCD-1234",
     verificationUri: "https://provider.example.com/device",
     verificationUriComplete: "https://provider.example.com/device?user_code=ABCD-1234",
     expiresAt: "2026-09-10T12:10:00.000Z",
     intervalSeconds: 5,
-  });
+  };
+  await storeInProcessA.put("higgsfield", authorization);
 
   const readBack = await storeInProcessB.get("higgsfield");
   assert.ok(readBack);
+  assert.deepEqual(readBack, authorization);
   assert.equal(readBack.deviceCode, "device-code-secret");
   assert.equal(readBack.userCode, "ABCD-1234");
 
@@ -353,17 +361,19 @@ test("device store put() overwrites a connection's own previous attempt, matchin
     expiresAt: "2026-09-10T12:10:00.000Z",
     intervalSeconds: 5,
   });
-  await store.put("higgsfield", {
+  const updated = {
     deviceCode: "second-attempt",
     userCode: "BBBB-2222",
-    verificationUri: "https://provider.example.com/device",
-    verificationUriComplete: null,
+    verificationUri: "https://provider.example.com/device-v2",
+    verificationUriComplete: "https://provider.example.com/device-v2?user_code=BBBB-2222",
     expiresAt: "2026-09-10T12:20:00.000Z",
-    intervalSeconds: 5,
-  });
+    intervalSeconds: 10,
+  };
+  await store.put("higgsfield", updated);
 
   const readBack = await store.get("higgsfield");
   assert.ok(readBack);
+  assert.deepEqual(readBack, updated);
   assert.equal(readBack.deviceCode, "second-attempt");
   assert.equal(readBack.userCode, "BBBB-2222");
 
@@ -373,4 +383,60 @@ test("device store put() overwrites a connection's own previous attempt, matchin
     .all()
     .filter((candidate) => candidate.workspaceId === workspaceId && candidate.serverId === "higgsfield");
   assert.equal(rows.length, 1, "put() must overwrite the existing row, not accumulate a second one");
+});
+
+test("device get/delete isolate the same server id in two workspaces", async () => {
+  const db = openContentDb(":memory:");
+  const workspaceA = randomUUID();
+  const workspaceB = randomUUID();
+  insertWorkspace(db, workspaceA);
+  insertWorkspace(db, workspaceB);
+  const keyring = new InMemoryKeyring();
+  const deps = { db, clock: createTestClock(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const storeA = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceA });
+  const storeB = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceB });
+  const first = {
+    deviceCode: "workspace-a-device", userCode: "AAAA-1111",
+    verificationUri: "https://provider.example/device", verificationUriComplete: null,
+    expiresAt: "2026-09-10T12:10:00.000Z", intervalSeconds: 5,
+  };
+  const second = { ...first, deviceCode: "workspace-b-device", userCode: "BBBB-2222" };
+  await storeA.put("same-server", first);
+  assert.equal(await storeB.get("same-server"), undefined);
+  await storeB.put("same-server", second);
+  assert.deepEqual(await storeA.get("same-server"), first);
+  assert.deepEqual(await storeB.get("same-server"), second);
+  await storeA.delete("same-server");
+  assert.equal(await storeA.get("same-server"), undefined);
+  assert.deepEqual(await storeB.get("same-server"), second);
+});
+
+test("device ciphertext transplanted across workspace or server identity fails authentication", async () => {
+  const db = openContentDb(":memory:");
+  const workspaceA = randomUUID();
+  const workspaceB = randomUUID();
+  insertWorkspace(db, workspaceA);
+  insertWorkspace(db, workspaceB);
+  const keyring = new InMemoryKeyring();
+  const deps = { db, clock: createTestClock(), sealer: new AesGcmSecretSealer(keyring), keyring };
+  const storeA = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceA });
+  const storeB = createSqliteDeviceAuthorizationStore({ ...deps, workspaceId: workspaceB });
+  const authorization = {
+    deviceCode: "victim-device", userCode: "AAAA-1111",
+    verificationUri: "https://provider.example/device", verificationUriComplete: null,
+    expiresAt: "2026-09-10T12:10:00.000Z", intervalSeconds: 5,
+  };
+  await storeA.put("victim", authorization);
+  const victim = db.select().from(oauthDeviceAuthorizations).get();
+  assert.ok(victim);
+  for (const [store, workspaceId, serverId] of [
+    [storeA, workspaceA, "other-server"], [storeB, workspaceB, "victim"],
+  ] as const) {
+    await store.put(serverId, { ...authorization, deviceCode: "attacker-device" });
+    db.update(oauthDeviceAuthorizations).set({
+      sealedKeyId: victim.sealedKeyId, sealedCiphertext: victim.sealedCiphertext,
+      sealedNonce: victim.sealedNonce, sealedAlg: victim.sealedAlg,
+    }).where(and(eq(oauthDeviceAuthorizations.workspaceId, workspaceId), eq(oauthDeviceAuthorizations.serverId, serverId))).run();
+    await assert.rejects(() => store.get(serverId), /unable to authenticate data/);
+  }
 });

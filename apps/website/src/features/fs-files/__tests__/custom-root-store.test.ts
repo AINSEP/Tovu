@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -49,18 +51,29 @@ test("setting a real absolute directory makes it the current custom root, resolv
   assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), fs.realpathSync(dir));
 });
 
-test("setting does not read, list, or otherwise touch anything INSIDE the folder", () => {
+test("setting does not read, list, or otherwise touch anything INSIDE the folder", (t) => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
   const bigFile = path.join(dir, "huge.bin");
-  // A real file is created so a walk/read would have something to trip over, but this test never
-  // asserts on its content — only that `setCustomFsRoot` completes instantly regardless of size,
-  // which it would not if it ever read this file.
+  // A child file lets the filesystem spies observe any eager read or walk.
   fs.writeFileSync(bigFile, Buffer.alloc(1024));
+  const forbiddenAccesses: string[] = [];
+  const reads = ["readFileSync", "readdirSync", "opendirSync", "openSync", "statSync", "lstatSync"] as const;
+  for (const method of reads) {
+    const original = fs[method];
+    t.mock.method(fs, method, (...args: unknown[]) => {
+      const accessed = String(args[0]);
+      if (accessed.startsWith(`${dir}${path.sep}`) || ((method === "readdirSync" || method === "opendirSync") && accessed === dir)) forbiddenAccesses.push(`${method}:${accessed}`);
+      return Reflect.apply(original, fs, args);
+    });
+  }
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
   const before = Date.now();
   setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
   const elapsedMs = Date.now() - before;
   assert.ok(elapsedMs < 1000, `setCustomFsRoot took ${elapsedMs}ms — expected an O(1) stat, not a walk`);
+  assert.deepEqual(forbiddenAccesses, [], "setting a path must never enumerate the folder or read/stat its children");
 });
 
 test("a relative path is refused", () => {
@@ -112,11 +125,10 @@ test("a set folder survives a simulated restart — a fresh call against the sam
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
   setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
 
-  // Nothing in this module holds an in-memory cache to clear, so "restart" is simulated the only way
-  // that is actually meaningful here: calling the exported functions again with no state carried over
-  // except `siteDir` itself, exactly as a fresh process boot would after re-resolving the site
-  // directory. If this module ever grew an in-memory cache, this is the test that would catch it
-  // reading stale/cached data instead of the file on disk.
+  const moduleUrl = new URL("../custom-root-store.ts", import.meta.url).href;
+  const script = `import { getCustomFsRoot } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(getCustomFsRoot(process.argv[1], { siteDir: process.argv[2] })) ?? "null");`;
+  const persisted = execFileSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script, WORKSPACE_A, siteDir], { encoding: "utf8", timeout: 10000 });
+  assert.equal(JSON.parse(persisted), fs.realpathSync(dir), "a new process must load the persisted path without the setter's module state");
   assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), fs.realpathSync(dir));
 });
 
@@ -193,4 +205,22 @@ test("clearing one workspace's root leaves the other workspace's root untouched"
 
   assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
   assert.equal(getCustomFsRoot(WORKSPACE_B, { siteDir }), fs.realpathSync(dirB));
+});
+
+test("corrupt persistence degrades to an unset root without throwing", () => {
+  const siteDir = freshSiteDir();
+  fs.writeFileSync(path.join(siteDir, ".fs-custom-root.json"), "{garbage JSON");
+  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  assert.deepEqual(getCustomFsRootStatus(WORKSPACE_A, { siteDir }), { path: undefined, vanished: false });
+});
+
+test("a saved directory replaced by a file is reported as vanished", () => {
+  const siteDir = freshSiteDir();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
+  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
+  const realDir = fs.realpathSync(dir);
+  fs.rmSync(dir, { recursive: true });
+  fs.writeFileSync(dir, "now a file");
+  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  assert.deepEqual(getCustomFsRootStatus(WORKSPACE_A, { siteDir }), { path: undefined, vanished: true, vanishedPath: realDir });
 });

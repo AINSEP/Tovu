@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { InMemoryPostRepo, createPost, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
 
 /**
  * @file `post.ts`'s `BeforeSaveHookPort` integration seam — SPEC-005 REQ-05/06/11, C-014, W-003.
@@ -16,11 +16,7 @@ import { InMemoryPostRepo, updatePost, type PostRecord, type PostRepoPort } from
  * closure stands in for a real `BeforeSaveHookPort` implementation, isolating "does post.ts wire
  * the hook correctly" from "does hook-registry.ts compose plugins correctly."
  *
- * TDD-certified against the CURRENT `post.ts` (an existing, already-implemented file this dispatch
- * does not modify) — every test below that depends on the not-yet-added `beforeSaveHook`/`ext`
- * fields is currently RED because `post.ts` has no such field or call site yet, not because of a
- * thrown stub error. These assertions describe the contract the Programmer stage must satisfy
- * when it adds the optional `beforeSaveHook` dependency (tasks.md T020).
+ * Exercises the implemented hook call sites and persistence in the post domain.
  */
 
 function makeCounterRepo(inner: PostRepoPort) {
@@ -65,30 +61,36 @@ async function seedPost(repo: PostRepoPort, overrides: Partial<PostRecord> = {})
   return post;
 }
 
-test("AC-01/REQ-05/REQ-06 (currently RED — no hook call site exists in post.ts yet): updatePost merges the injected beforeSaveHook's returned ext patch onto the saved/returned post", async () => {
+test("AC-01/REQ-05/REQ-06: updatePost merges the injected beforeSaveHook's returned ext patch onto the saved/returned post", async () => {
   const memoryRepo = new InMemoryPostRepo();
-  await seedPost(memoryRepo);
+  const priorExt = { "word-count": { count: 5, prior: true }, "other-plugin": { retained: "yes" } };
+  await seedPost(memoryRepo, { ext: priorExt });
+  const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "new body" }] }] };
+  let receivedDraft: unknown;
 
   const post = await updatePost({
     deps: {
       repo: memoryRepo,
       clock,
       outbox,
-      // NOTE: `beforeSaveHook` is not yet a declared field on `UpdatePostDeps` — this is exactly
-      // the field Programmer's task T020 must add. Passed here as the certified target shape.
-      beforeSaveHook: async () => ({ "word-count": { count: 5 } }),
-    } as never,
-    input: { workspaceId: "ws-1", id: "post-1", title: "Hello", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "draft" },
+      beforeSaveHook: async (draft) => {
+        receivedDraft = draft;
+        return { "word-count": { count: JSON.stringify(draft.bodyJson).length } };
+      },
+    },
+    input: { workspaceId: "ws-1", id: "post-1", title: "New title", slug: "new-slug", bodyJson, status: "published" },
   });
 
   assert.deepEqual(
     (post.post as PostRecord & { ext?: unknown }).ext,
-    { "word-count": { count: 5 } },
+    { "word-count": { count: JSON.stringify(bodyJson).length }, "other-plugin": { retained: "yes" } },
     "the hook's returned patch must be merged onto the saved PostRecord's ext field (REQ-06/BR-06)"
   );
+  assert.deepEqual(receivedDraft, { id: "post-1", workspaceId: "ws-1", title: "New title", slug: "new-slug", status: "published", bodyJson, ext: priorExt });
+  assert.deepEqual(await memoryRepo.findById({ workspaceId: "ws-1", id: "post-1" }), post.post);
 });
 
-test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must prevent repo.save() from ever being called — no partial write (currently RED: without the T020 wiring, the hook is never even invoked, so this assertion currently fails the OTHER way — save() runs unconditionally)", async () => {
+test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must prevent repo.save() from ever being called — no partial write", async () => {
   const memoryRepo = new InMemoryPostRepo();
   await seedPost(memoryRepo);
   const { repo, counter } = makeCounterRepo(memoryRepo);
@@ -104,7 +106,8 @@ test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must
         },
       } as never,
       input: { workspaceId: "ws-1", id: "post-1", title: "Hello", slug: "hello", bodyJson: { type: "doc", content: [] }, status: "draft" },
-    })
+    }),
+    { message: "plugin hook failed" }
   );
 
   assert.equal(counter.saveCalls, 0, "repo.save() must never be called when the hook throws (BR-06/BR-07/EC-10, CIC U-004)");
@@ -112,7 +115,8 @@ test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must
 
 test("behavior.spec.md §10 / regression seam: updatePost with NO beforeSaveHook supplied behaves exactly as it does today (no-op default) — this must ALREADY pass, proving the optional dependency does not regress the zero-plugin path", async () => {
   const memoryRepo = new InMemoryPostRepo();
-  await seedPost(memoryRepo);
+  const priorExt = { "word-count": { count: 5 }, "other-plugin": { retained: true } };
+  await seedPost(memoryRepo, { ext: priorExt });
 
   const { post } = await updatePost({
     deps: { repo: memoryRepo, clock, outbox },
@@ -121,9 +125,11 @@ test("behavior.spec.md §10 / regression seam: updatePost with NO beforeSaveHook
 
   assert.equal(post.title, "Hello Again");
   assert.equal(post.version, 2);
+  assert.deepEqual(post.ext, priorExt);
+  assert.deepEqual((await memoryRepo.findById({ workspaceId: "ws-1", id: "post-1" }))?.ext, priorExt);
 });
 
-test("REQ-11/AC-14 (currently RED): an entry with no contributing plugin carries no ext object at all on its DTO-equivalent in-memory record", async () => {
+test("REQ-11/AC-14: an entry with no contributing plugin carries no ext object at all on its DTO-equivalent in-memory record", async () => {
   const memoryRepo = new InMemoryPostRepo();
   await seedPost(memoryRepo);
 
@@ -133,4 +139,19 @@ test("REQ-11/AC-14 (currently RED): an entry with no contributing plugin carries
   });
 
   assert.equal((post as PostRecord & { ext?: unknown }).ext, undefined);
+});
+
+
+test("createPost passes the new draft to its hook and persists the derived extension", async () => {
+  const repo = new InMemoryPostRepo();
+  const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "created body" }] }] };
+  const { post } = await createPost({
+    deps: { repo, clock, outbox, beforeSaveHook: async (draft) => {
+      assert.deepEqual(draft, { id: "created", workspaceId: "ws-1", title: "Created", slug: "created", status: "published", bodyJson, ext: {} });
+      return { "word-count": { count: JSON.stringify(draft.bodyJson).length } };
+    } },
+    input: { workspaceId: "ws-1", id: "created", title: "Created", slug: "created", bodyJson, status: "published" },
+  });
+  assert.deepEqual(post.ext, { "word-count": { count: JSON.stringify(bodyJson).length } });
+  assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: "created" }), post);
 });

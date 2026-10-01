@@ -9,6 +9,7 @@ import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
 
 /**
  * Registers a principal with a login but no role/policy grants at all — mirrors
@@ -121,6 +122,7 @@ async function seedRestorePoint(deps: RouteDeps): Promise<string> {
     costClass: "cheap",
     kind: "file-snapshot",
     watermarkAtCapture: 0,
+    artifactRef: "/snapshots/rp-1.db",
   });
   return "rp-1";
 }
@@ -129,6 +131,29 @@ test("recovery restore: plan -> confirm -> execute succeeds end-to-end and recor
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const restorePointId = await seedRestorePoint(deps);
+  await deps.restorePointsRepo.save({ restorePointId: "newer-point", idempotencyKey: "newer-point-key", trigger: "manual",
+    createdAt: "2026-07-15T00:05:00.000Z", createdBy: "user-1", artifactRef: "/snapshots/newer.db", watermarkAtCapture: 1 });
+  const restoreCalls: Array<{ artifactRef: string }> = [];
+  const restore = deps.dbOps.restoreFromArtifact.bind(deps.dbOps);
+  deps.dbOps.restoreFromArtifact = async (input) => {
+    restoreCalls.push(input);
+    return restore(input);
+  };
+  const append = deps.databaseLedgerRepo.append.bind(deps.databaseLedgerRepo);
+  deps.databaseLedgerRepo.append = async (row) => {
+    assert.deepEqual(restoreCalls, [{ artifactRef: "/snapshots/rp-1.db" }], "restore the confirmed artifact before recording success");
+    return append(row);
+  };
+  const migrations = new InMemoryMigrationRunsRepo();
+  migrations.setNonTerminal({ id: "interrupted-memory-migration", status: "DDL_IN_PROGRESS" });
+  const resolved: string[] = [];
+  const markResolved = migrations.markResolved.bind(migrations);
+  migrations.markResolved = async ({ id }) => {
+    resolved.push(id);
+    await markResolved({ id });
+  };
+  deps.migrationRunsRepo = migrations;
+  await deps.siteStatusRepo.set(deps.workspaceId, "BLOCKED_PENDING_RECOVERY");
 
   const planRes = await fetch(`${baseUrl}/api/admin/v1/recovery/restore/plan`, {
     method: "POST",
@@ -162,6 +187,10 @@ test("recovery restore: plan -> confirm -> execute succeeds end-to-end and recor
   assert.equal(ledger.items.length, 1);
   assert.equal(ledger.items[0].kind, "restore.executed");
   assert.equal(ledger.items[0].outcome, "success");
+  assert.deepEqual(restoreCalls, [{ artifactRef: "/snapshots/rp-1.db" }]);
+  assert.deepEqual(resolved, ["interrupted-memory-migration"]);
+  assert.equal(await deps.migrationRunsRepo.findNonTerminalForSite(deps.workspaceId), null);
+  assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "SERVING", "a restore that needs no restart must unblock the running process");
 });
 
 test("recovery restore: confirm without disclosureAcknowledged===true mints no token (INV-02)", async (t) => {

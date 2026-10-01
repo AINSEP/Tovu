@@ -11,7 +11,7 @@ import { newsletterCampaignRevisions, newsletterCampaigns } from "#src/platform/
 import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "../campaign-write-service.js";
 import { NewsletterCampaignNotEditableError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors.js";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "../repo.memory.js";
-import { SqliteNewsletterCampaignRepo, SqliteNewsletterListRepo } from "../repo.sqlite.js";
+import { SqliteNewsletterCampaignRepo } from "../repo.sqlite.js";
 import type { NewsletterCampaignRepoPort } from "../ports.js";
 import type { CampaignRecord, CampaignRevision, NewsletterListRow } from "../types.js";
 
@@ -25,7 +25,7 @@ const validFields = {
   preheader: null as string | null,
   fromName: "Acme",
   fromEmail: "hello@acme.test",
-  replyTo: "hello@acme.test",
+  replyTo: "replies@acme.test",
   listId: "list-1",
 };
 
@@ -42,12 +42,25 @@ test("saveCampaign: create + edit round-trip, revisionSeq increments", async () 
   assert.equal(created.campaign.status, "draft");
   assert.equal(created.revisionSeq, 1);
 
+  await deps.listRepo.save({ id: "list-2", workspaceId: WS, name: "VIP", slug: "vip", isDefault: false, status: "active", createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  const editedFields = { subject: "Updated", preheader: "New preview", fromName: "New sender", fromEmail: "sender@acme.test", replyTo: "support@acme.test", listId: "list-2" };
+  assert.equal(created.campaign.fromEmail, validFields.fromEmail);
+  assert.equal(created.campaign.replyTo, validFields.replyTo);
+  assert.deepEqual(await deps.campaignRepo.findById({ workspaceId: WS, id: created.campaign.id }), created.campaign);
+
   const edited = await saveCampaign({
     deps,
-    input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1", fields: { ...validFields, subject: "Updated" } },
+    input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-2", fields: editedFields },
   });
   assert.equal(edited.campaign.subject, "Updated");
   assert.equal(edited.revisionSeq, 2);
+  const expected = { ...created.campaign, ...editedFields, version: 2, updatedAt: clock.nowIso() };
+  assert.deepEqual(edited.campaign, expected);
+  assert.deepEqual(await deps.campaignRepo.findById({ workspaceId: WS, id: created.campaign.id }), expected);
+  assert.deepEqual(await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: created.campaign.id }), [
+    { workspaceId: WS, campaignId: created.campaign.id, seq: 1, state: created.campaign, actorId: "actor-1", recordedAt: clock.nowIso() },
+    { workspaceId: WS, campaignId: created.campaign.id, seq: 2, state: expected, actorId: "actor-2", recordedAt: clock.nowIso() },
+  ]);
 });
 
 test("saveCampaign: unknown listId is rejected (AC-11)", async () => {
@@ -132,12 +145,26 @@ test("cancelCampaign: draft and scheduled campaigns can be canceled", async () =
   const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
   const canceled = await cancelCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1" } });
   assert.equal(canceled.campaign.status, "canceled");
+  const second = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
+  await scheduleCampaign({ deps, input: { workspaceId: WS, id: second.campaign.id, actorId: "actor-1", scheduledAt: "2026-08-01T00:00:00.000Z" } });
+  const canceledScheduled = await cancelCampaign({ deps, input: { workspaceId: WS, id: second.campaign.id, actorId: "actor-2" } });
+  assert.equal(canceledScheduled.campaign.status, "canceled");
+  assert.deepEqual(await deps.campaignRepo.findById({ workspaceId: WS, id: second.campaign.id }), canceledScheduled.campaign);
+  const revisions = await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: second.campaign.id });
+  assert.equal(revisions.length, 3);
+  assert.deepEqual(revisions[2], { workspaceId: WS, campaignId: second.campaign.id, seq: 3, state: canceledScheduled.campaign, actorId: "actor-2", recordedAt: clock.nowIso() });
 });
 
 test("scheduleCampaign: scheduling an already-'scheduled' campaign again is a same-status no-op, rejected", async () => {
   const deps = makeMemoryDeps();
   const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
   await scheduleCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1", scheduledAt: "2026-08-01T00:00:00.000Z" } });
+  const stored = await deps.campaignRepo.findById({ workspaceId: WS, id: created.campaign.id });
+  assert.equal(stored?.status, "scheduled");
+  assert.equal(stored?.scheduledAt, "2026-08-01T00:00:00.000Z");
+  const revisions = await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: created.campaign.id });
+  assert.equal(revisions.length, 2);
+  assert.deepEqual(revisions[1], { workspaceId: WS, campaignId: created.campaign.id, seq: 2, state: stored, actorId: "actor-1", recordedAt: clock.nowIso() });
   // Now 'scheduled' -- scheduling again is not a permitted transition (schedule tier only does draft -> scheduled).
   await assert.rejects(
     scheduleCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1", scheduledAt: "2026-09-01T00:00:00.000Z" } }),
@@ -166,11 +193,14 @@ test("cancelCampaign: a campaign already 'sending' cannot be canceled (compose t
 test("scheduleCampaign: unknown listId at schedule time is rejected (AC-11)", async () => {
   const deps = makeMemoryDeps();
   const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
-  // Archive-equivalent: remove the list from the repo entirely to simulate "no longer resolvable".
-  (deps.listRepo as InMemoryNewsletterListRepo) as unknown as { findById: unknown };
-  await assert.doesNotReject(
-    scheduleCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1", scheduledAt: "2026-08-01T00:00:00.000Z" } })
+  const before = await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: created.campaign.id });
+  deps.listRepo = new InMemoryNewsletterListRepo();
+  await assert.rejects(
+    scheduleCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1", scheduledAt: "2026-08-01T00:00:00.000Z" } }),
+    NewsletterListNotFoundError
   );
+  assert.deepEqual(await deps.campaignRepo.findById({ workspaceId: WS, id: created.campaign.id }), created.campaign);
+  assert.deepEqual(await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: created.campaign.id }), before);
 });
 
 /* ------------------------------------------------------------------------------------------------
@@ -181,6 +211,7 @@ test("scheduleCampaign: unknown listId at schedule time is rejected (AC-11)", as
 /** Decorator that delegates every method to the real repo except `appendRevision`, which throws — used
  * to force a genuine mid-transaction SQL failure at the real adapter without a hand-rolled fault-injection seam. */
 class ThrowingAppendRevisionRepo implements NewsletterCampaignRepoPort {
+  readonly calls: string[] = [];
   constructor(private readonly real: NewsletterCampaignRepoPort) {}
   findById(required: { workspaceId: string; id: string }) {
     return this.real.findById(required);
@@ -188,10 +219,12 @@ class ThrowingAppendRevisionRepo implements NewsletterCampaignRepoPort {
   list(required: { workspaceId: string; afterId?: string; limit?: number }) {
     return this.real.list(required);
   }
-  saveCampaignRow(campaign: CampaignRecord) {
-    return this.real.saveCampaignRow(campaign);
+  async saveCampaignRow(campaign: CampaignRecord) {
+    await this.real.saveCampaignRow(campaign);
+    this.calls.push("saved");
   }
   async appendRevision(_revision: CampaignRevision): Promise<void> {
+    this.calls.push("appendRevision");
     throw new Error("forced mid-transaction failure (AC-08 test)");
   }
   listRevisions(required: { workspaceId: string; campaignId: string }) {
@@ -208,24 +241,20 @@ class ThrowingAppendRevisionRepo implements NewsletterCampaignRepoPort {
 test("saveCampaign: AC-08 — a forced mid-tx failure at the REAL SQLite adapter leaves zero campaign rows and zero revision rows (INV-01)", async () => {
   const db = openContentDb(":memory:");
   const realCampaignRepo = new SqliteNewsletterCampaignRepo(db);
-  const listRepo = new SqliteNewsletterListRepo(db);
-  // Seed the p_newsletter__lists table isn't needed here since listRepo only reads via raw SQL
-  // against a table that doesn't exist yet in this bare content.db — bypass validation by using the
-  // in-memory list repo alongside the real sqlite campaign repo (the chokepoint under test is the
-  // CAMPAIGN write path's transaction, not the list-lookup path).
   const memoryListRepo = new InMemoryNewsletterListRepo([
     { id: "list-1", workspaceId: WS, name: "All", slug: "all", isDefault: true, status: "active" as const, createdAt: clock.nowIso(), updatedAt: clock.nowIso() },
   ]);
-  void listRepo;
+  const throwingRepo = new ThrowingAppendRevisionRepo(realCampaignRepo);
 
   const deps: CampaignWriteServiceDeps = {
-    campaignRepo: new ThrowingAppendRevisionRepo(realCampaignRepo),
+    campaignRepo: throwingRepo,
     listRepo: memoryListRepo,
     clock,
     ids,
   };
 
-  await assert.rejects(saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } }));
+  await assert.rejects(saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } }), { message: "forced mid-transaction failure (AC-08 test)" });
+  assert.deepEqual(throwingRepo.calls, ["saved", "appendRevision"]);
 
   const campaignRows = db.select().from(newsletterCampaigns).all();
   const revisionRows = db.select().from(newsletterCampaignRevisions).all();

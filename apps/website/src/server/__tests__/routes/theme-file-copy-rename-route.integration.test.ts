@@ -113,6 +113,7 @@ test("copy duplicates a file under an auto-suffixed name, and it is visible with
   // On disk, byte-identical to the source.
   const onDisk = fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "about-1.html"), "utf8");
   assert.match(onDisk, /ABOUT-ORIGINAL/);
+  assert.deepEqual(fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "about-1.html")), fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "about.html")));
 
   // Reflected in the theme's `pages` map (populated by `reloadTheme`, not held from boot) without a
   // restart — the same invariant `theme-file-save-route.integration.test.ts` pins for PUT.
@@ -140,6 +141,8 @@ test("copying the same source twice increments the suffix instead of colliding",
   const second = (await (await copyOnce()).json()) as { path: string };
   assert.equal(first.path, "pages/about-1.html");
   assert.equal(second.path, "pages/about-2.html");
+  const original = fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "about.html"));
+  for (const copied of [first, second]) assert.deepEqual(fs.readFileSync(path.join(themesRoot, "static", "scratch", copied.path)), original);
 });
 
 /**
@@ -195,6 +198,7 @@ test("two concurrent copies of the same source both succeed with distinct, uncor
   for (const p of paths) {
     const onDisk = fs.readFileSync(path.join(themesRoot, "static", "scratch", ...p.split("/")), "utf8");
     assert.match(onDisk, /ABOUT-ORIGINAL/, `${p} must be intact, not a corrupted partial write`);
+    assert.deepEqual(fs.readFileSync(path.join(themesRoot, "static", "scratch", ...p.split("/"))), fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "about.html")));
   }
 });
 

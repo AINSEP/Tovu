@@ -75,14 +75,20 @@ function runMenuRepoContractSuite(adapterName: string, makeRepo: () => MenuRepoP
 
   test(`[${adapterName}] findBySlug finds a menu by its slug, scoped to the workspace`, async () => {
     const repo = makeRepo();
-    await repo.save(sampleMenu());
     await repo.save(sampleMenu({ id: "menu-2", workspaceId: "ws-2", slug: "primary-nav" }));
+    await repo.save(sampleMenu());
 
     const found = await repo.findBySlug({ workspaceId: "ws-1", slug: "primary-nav" });
     assert.equal(found?.id, "menu-1");
 
     const otherWorkspace = await repo.findBySlug({ workspaceId: "ws-1", slug: "not-here" });
     assert.equal(otherWorkspace, null);
+    assert.equal((await repo.findBySlug({ workspaceId: "ws-2", slug: "primary-nav" }))?.id, "menu-2");
+    assert.equal(await repo.findBySlug({ workspaceId: "ws-3", slug: "primary-nav" }), null);
+    assert.equal(await repo.findById({ workspaceId: "ws-1", id: "menu-2" }), null);
+    assert.equal(await repo.findById({ workspaceId: "ws-2", id: "menu-1" }), null);
+    await repo.save(sampleMenu({ id: "foreign-only", workspaceId: "ws-2", slug: "foreign-only" }));
+    assert.equal(await repo.findBySlug({ workspaceId: "ws-1", slug: "foreign-only" }), null);
   });
 
   test(`[${adapterName}] list returns only the requested workspace's menus`, async () => {
@@ -115,8 +121,16 @@ function runMenuRepoContractSuite(adapterName: string, makeRepo: () => MenuRepoP
   test(`[${adapterName}] remove deletes the row; a subsequent findById returns null`, async () => {
     const repo = makeRepo();
     await repo.save(sampleMenu());
+    const neighbor = sampleMenu({ id: "neighbor", slug: "neighbor", title: "Keep me", version: 4 });
+    const foreign = sampleMenu({ id: "foreign", workspaceId: "ws-2", slug: "foreign", title: "Other workspace" });
+    await repo.save(neighbor);
+    await repo.save(foreign);
     await repo.remove({ workspaceId: "ws-1", id: "menu-1" });
     assert.equal(await repo.findById({ workspaceId: "ws-1", id: "menu-1" }), null);
+    assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: neighbor.id }), neighbor);
+    assert.deepEqual(await repo.findById({ workspaceId: "ws-2", id: foreign.id }), foreign);
+    await repo.remove({ workspaceId: "ws-2", id: neighbor.id });
+    assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: neighbor.id }), neighbor);
   });
 }
 
@@ -192,8 +206,14 @@ function runBindingRepoContractSuite(adapterName: string, makeRepo: () => NavLoc
   test(`[${adapterName}] remove drops a single binding`, async () => {
     const repo = makeRepo();
     await repo.upsert({ workspaceId: "ws-1", locationKey: "primary", menuId: "menu-1", boundAt: NOW });
+    const neighbor = { workspaceId: "ws-1", locationKey: "footer", menuId: "menu-2", boundAt: NOW };
+    const foreign = { workspaceId: "ws-2", locationKey: "primary", menuId: "menu-3", boundAt: NOW };
+    await repo.upsert(neighbor);
+    await repo.upsert(foreign);
     await repo.remove({ workspaceId: "ws-1", locationKey: "primary" });
     assert.equal(await repo.findByLocation({ workspaceId: "ws-1", locationKey: "primary" }), null);
+    assert.deepEqual(await repo.findByLocation({ workspaceId: neighbor.workspaceId, locationKey: neighbor.locationKey }), neighbor);
+    assert.deepEqual(await repo.findByLocation({ workspaceId: foreign.workspaceId, locationKey: foreign.locationKey }), foreign);
   });
 
   test(`[${adapterName}] removeByMenu drops every binding for a menu`, async () => {
@@ -221,16 +241,19 @@ function runBindingRepoContractSuite(adapterName: string, makeRepo: () => NavLoc
 
     const ws1 = await repo.listByWorkspace({ workspaceId: "ws-1" });
     assert.equal(ws1.length, 2);
+    assert.deepEqual(ws1.sort((a, b) => a.locationKey.localeCompare(b.locationKey)), [...replacement].sort((a, b) => a.locationKey.localeCompare(b.locationKey)));
     assert.equal(ws1.some((r) => r.locationKey === "stale"), false, "the stale pre-rebuild row is gone");
 
     // Idempotent: running again with the same input produces the same result.
     await repo.rebuildForWorkspace({ workspaceId: "ws-1", bindings: replacement });
     const ws1Again = await repo.listByWorkspace({ workspaceId: "ws-1" });
     assert.equal(ws1Again.length, 2);
+    assert.deepEqual(ws1Again.sort((a, b) => a.locationKey.localeCompare(b.locationKey)), [...replacement].sort((a, b) => a.locationKey.localeCompare(b.locationKey)));
 
     // Other workspaces are untouched by the rebuild.
     const ws2 = await repo.listByWorkspace({ workspaceId: "ws-2" });
     assert.equal(ws2.length, 1);
+    assert.deepEqual(ws2, [{ workspaceId: "ws-2", locationKey: "untouched", menuId: "menu-x", boundAt: NOW }]);
   });
 
   test(`[${adapterName}] rebuildForWorkspace with an empty bindings list clears the workspace's index without leaving stale rows`, async () => {
@@ -272,3 +295,17 @@ for (const each of bindingDialects) test(`SqlNavLocationBindingRepo ${each.name}
   assert.equal(all.length, 1, "the DB-level UNIQUE(workspace_id, location_key) constraint allows only one row");
   assert.ok(["menu-a", "menu-b"].includes(all[0].menuId), "one of the two concurrent writers won");
 });
+
+for (const each of bindingDialects) {
+  test(`[SqlNavLocationBindingRepo ${each.name}] a failed rebuild rolls back the complete original index`, async () => {
+    const repo = each.make();
+    const original = [{ workspaceId: "ws-1", locationKey: "primary", menuId: "menu-original", boundAt: NOW }, { workspaceId: "ws-1", locationKey: "footer", menuId: "footer-original", boundAt: NOW }];
+    const foreign = { workspaceId: "ws-2", locationKey: "primary", menuId: "foreign", boundAt: NOW };
+    for (const binding of [...original, foreign]) await repo.upsert(binding);
+    const duplicate = { workspaceId: "ws-1", locationKey: "replacement", menuId: "replacement-menu", boundAt: NOW };
+    await assert.rejects(repo.rebuildForWorkspace({ workspaceId: "ws-1", bindings: [duplicate, duplicate] }));
+    const sort = (rows: typeof original) => rows.sort((a, b) => a.locationKey.localeCompare(b.locationKey));
+    assert.deepEqual(sort(await repo.listByWorkspace({ workspaceId: "ws-1" })), sort([...original]));
+    assert.deepEqual(await repo.listByWorkspace({ workspaceId: "ws-2" }), [foreign]);
+  });
+}

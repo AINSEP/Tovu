@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
@@ -66,16 +69,24 @@ function runContractSuite(
     const repo = makeRepo();
     await repo.enqueue(makeDelivery());
     // A second enqueue for the same (workspace, subscription, event) must not throw or duplicate.
-    await repo.enqueue(makeDelivery({ id: "delivery-1" }));
+    await repo.enqueue(makeDelivery({ id: "delivery-duplicate" }));
 
     const rows = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
     assert.equal(rows.length, 1);
+    assert.deepEqual(rows, [makeDelivery()]);
+    assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "delivery-duplicate" }), null);
   });
 
   test(`[${adapterName}] claimPending claims due rows, sets delivering, and increments attempts`, async () => {
     const repo = makeRepo();
     await repo.enqueue(makeDelivery());
-    await repo.enqueue(makeDelivery({ id: "delivery-future", nextAttemptAt: "2099-01-01T00:00:00.000Z" }));
+    const future = makeDelivery({ id: "delivery-future", eventId: "event-future", nextAttemptAt: "2099-01-01T00:00:00.000Z" });
+    await repo.enqueue(future);
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: future.id }), future);
+    assert.ok(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }));
+    for (const status of ["delivering", "delivered", "dead"] as const) {
+      await repo.enqueue(makeDelivery({ id: `delivery-${status}`, eventId: `event-${status}`, status }));
+    }
 
     const claimed = await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:01.000Z" });
     assert.deepEqual(
@@ -84,6 +95,9 @@ function runContractSuite(
     );
     assert.equal(claimed[0].status, "delivering");
     assert.equal(claimed[0].attempts, 1);
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery({ status: "delivering", attempts: 1 }));
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: future.id }), future);
+    assert.deepEqual(await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:01.000Z" }), []);
   });
 
   test(`[${adapterName}] claimPending orders multiple due rows oldest-nextAttemptAt-first`, async () => {
@@ -119,6 +133,25 @@ function runContractSuite(
     );
   });
 
+  test(`[${adapterName}] claimPending respects batchSize and leaves the rest claimable`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+    await repo.enqueue(makeDelivery({ id: "delivery-2", eventId: "event-2", nextAttemptAt: "2026-07-10T00:00:01.000Z" }));
+    const input = { batchSize: 1, nowIso: "2026-07-10T00:00:02.000Z" };
+    assert.deepEqual((await repo.claimPending(input)).map((row) => row.id), ["delivery-1"]);
+    assert.deepEqual((await repo.claimPending(input)).map((row) => row.id), ["delivery-2"]);
+    assert.deepEqual(await repo.claimPending(input), []);
+  });
+
+  test(`[${adapterName}] markDelivered and markFailed refuse another workspace's row`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+    await repo.markDelivered({ workspaceId: "workspace-2", id: "delivery-1", responseStatus: 200, deliveredAtIso: "2026-07-10T00:05:00.000Z" });
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery());
+    await repo.markFailed({ workspaceId: "workspace-2", id: "delivery-1", error: "wrong workspace", responseStatus: 500, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:10:00.000Z", deadAtIso: "2026-07-10T00:11:00.000Z" });
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery());
+  });
+
   test(`[${adapterName}] markDelivered clears lastError and stamps deliveredAt`, async () => {
     const repo = makeRepo();
     await repo.enqueue(makeDelivery({ lastError: "prior failure" }));
@@ -151,6 +184,10 @@ function runContractSuite(
     let found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
     assert.equal(found?.status, "pending");
     assert.equal(found?.lastError, "timeout");
+    assert.equal(found?.lastResponseStatus, null);
+    assert.equal(found?.nextAttemptAt, "2026-07-10T00:10:00.000Z");
+    assert.deepEqual(await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:09:59.999Z" }), []);
+    assert.deepEqual((await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:10:00.000Z" })).map((row) => row.id), ["delivery-1"]);
 
     await repo.markFailed({
       workspaceId: "workspace-1",
@@ -164,6 +201,8 @@ function runContractSuite(
     found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
     assert.equal(found?.status, "dead");
     assert.equal(found?.deadAt, "2026-07-10T00:11:00.000Z");
+    assert.equal(found?.lastResponseStatus, 500);
+    assert.equal(found?.nextAttemptAt, "2026-07-10T00:10:00.000Z");
   });
 
   test(`[${adapterName}] markFailed on a non-existent row is a silent no-op`, async () => {
@@ -217,11 +256,16 @@ function runContractSuite(
   test(`[${adapterName}] listBySubscription scopes by workspace + subscription and respects limit`, async () => {
     const repo = makeRepo();
     await repo.enqueue(makeDelivery({ id: "d-1" }));
-    await repo.enqueue(makeDelivery({ id: "d-2" }));
+    await repo.enqueue(makeDelivery({ id: "d-2", eventId: "event-other" }));
     await repo.enqueue(makeDelivery({ id: "d-3", subscriptionId: "sub-2", eventId: "event-2" }));
+    await repo.enqueue(makeDelivery({ id: "d-4", workspaceId: "workspace-2", eventId: "event-3" }));
+
+    const all = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
+    assert.deepEqual(all.map((row) => row.id).sort(), ["d-1", "d-2"]);
 
     const rows = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 1 });
     assert.equal(rows.length, 1);
+    assert.ok(["d-1", "d-2"].includes(rows[0]!.id));
   });
 
   test(`[${adapterName}] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)`, async () => {
@@ -267,18 +311,22 @@ test("ADR-046 fold-in item 5 (GAP-05/GAP-12): SqliteWebhookDeliveryRepo.enqueue(
 });
 
 test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlying db reads persisted rows (restart simulation)", async () => {
-  const db = openContentDb(":memory:");
-  const first = new SqliteWebhookDeliveryRepo(db);
-  await first.enqueue(makeDelivery());
-  await first.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
-
-  // Simulates a process restart: a brand-new repo instance, same db handle (in real use, the
-  // same on-disk content.db file reopened).
-  const rehydrated = new SqliteWebhookDeliveryRepo(db);
-  const found = await rehydrated.findById({ workspaceId: "workspace-1", id: "delivery-1" });
-  assert.deepEqual(found, makeDelivery());
-  const envelope = await rehydrated.find({ deliveryId: "delivery-1" });
-  assert.deepEqual(envelope, makeEnvelope());
+  const dir = mkdtempSync(join(tmpdir(), "tovu-deliveries-restart-"));
+  const dbPath = join(dir, "content.db");
+  try {
+    const writer = openContentDb(dbPath);
+    try {
+      const first = new SqliteWebhookDeliveryRepo(writer);
+      await first.enqueue(makeDelivery());
+      await first.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
+    } finally { writer.$client.close(); }
+    const reader = openContentDb(dbPath);
+    try {
+      const rehydrated = new SqliteWebhookDeliveryRepo(reader);
+      assert.deepEqual(await rehydrated.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery());
+      assert.deepEqual(await rehydrated.find({ deliveryId: "delivery-1" }), makeEnvelope());
+    } finally { reader.$client.close(); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 /**

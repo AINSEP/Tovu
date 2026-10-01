@@ -763,7 +763,10 @@ async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outp
       continue;
     }
 
-    const outcome = await fetchOneAsset(url, outFile, baseUrl, outputDir);
+    const outcome = await fetchOneAsset(url, outFile, baseUrl, outputDir).catch((error: unknown) => ({
+      ok: false as const,
+      failure: { url, reason: `GET ${url} failed: ${error instanceof Error ? error.message : String(error)}` },
+    }));
     if (!outcome.ok) {
       failed.push(outcome.failure);
       continue;
@@ -872,7 +875,9 @@ async function writeAllRoutes(
   const assetUrls = new Set<string>();
 
   for (const route of routes) {
-    const outcome = await writeRoute(route, baseUrl, outputDir, basePath);
+    const outcome: RouteWriteOutcome = await writeRoute(route, baseUrl, outputDir, basePath).catch((error: unknown) => ({
+      failed: { path: route.path, kind: route.kind, reason: `GET ${baseUrl}${route.path} failed: ${error instanceof Error ? error.message : String(error)}` },
+    }));
     if (outcome.succeeded) succeeded.push(outcome.succeeded);
     if (outcome.failed) failed.push(outcome.failed);
     if (outcome.html) {

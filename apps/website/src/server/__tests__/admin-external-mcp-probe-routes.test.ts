@@ -10,6 +10,9 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
 import type { ExternalMcpProbeRouteDeps, ExternalMcpProbeSessionFactory } from "../inbound/admin-http/routes/external-mcp/probe.js";
+import { registerAdminExternalMcpProbeRoute } from "../inbound/admin-http/routes/external-mcp/probe.js";
+import { createRateLimiter, type RateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
+import { FEDERATED_CONNECTION_DEFAULTS } from "../../assistant/mcp-federation/config.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 
@@ -55,6 +58,7 @@ function scriptedSession(options: {
 interface BuildOptions {
   connect?: ExternalMcpProbeSessionFactory;
   externalMcpOAuth?: ExternalMcpOAuthService;
+  limiter?: RateLimiter;
 }
 
 function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps: RouteDeps } {
@@ -68,6 +72,7 @@ function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps:
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
+  if (options.limiter) registerAdminExternalMcpProbeRoute(app, probeDeps, options.limiter);
   createExternalMcpModule(deps).registerRoutes?.(app);
   return { app, deps };
 }
@@ -231,8 +236,10 @@ test("a connect/list failure is a 502, and the session is still closed", async (
 test("a successful probe describes every advertised tool, admitted or not, with the WRITES/DESTRUCTIVE/silent badges", async (t) => {
   let closed = false;
   let seenSpec: McpHttpLaunchSpec | null = null;
-  const connect: ExternalMcpProbeSessionFactory = async (spec) => {
+  let seenTimeout: number | undefined;
+  const connect: ExternalMcpProbeSessionFactory = async (spec, timeout) => {
     seenSpec = spec;
+    seenTimeout = timeout;
     return scriptedSession({
       tools: [
         { name: "generate_image", description: "Makes an image.", inputSchema: {}, annotations: { readOnlyHint: false } },
@@ -260,6 +267,7 @@ test("a successful probe describes every advertised tool, admitted or not, with 
   assert.equal(typeof body.probedAt, "string");
   assert.equal(closed, true, "the session must be closed after a successful probe too");
   assert.equal(seenSpec?.url, "https://mcp.example.com/mcp");
+  assert.equal(seenTimeout, FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs);
 
   const byName = Object.fromEntries(body.tools.map((entry) => [entry.remoteName, entry]));
   assert.equal(byName.generate_image?.writeDeclared, true);
@@ -317,15 +325,29 @@ test("INV-006: the response carries no secret — not the OAuth bearer token, no
   assert.equal(raw.includes("authorization"), false, "no header name/value pair may appear in the probe response");
 });
 
-test("the probe rate limiter sits in front of the guard", async (t) => {
+test("an unauthenticated probe is refused by the session gate", async (t) => {
   const { app } = buildTestApp();
   const baseUrl = await startTestServer(app, t);
 
-  // No session at all — an unauthenticated caller still consumes the limiter's budget, matching
-  // `oauth.ts`'s own "rate limiting sits in front of the guard" ordering. Not exhausting the limiter
-  // here (that would make this test slow/flaky against the real profile's window); this only proves
-  // a request without a session still gets the ordinary 401 rather than a 500 from the limiter
-  // running before `req.params`/`res.locals` are ready.
+  // requireAdminSession runs before this route's limiter and permission guard.
   const response = await req(baseUrl, `${BASE}/anything/probe`, "", { method: "POST" });
   assert.equal(response.status, 401);
+});
+
+test("an exhausted probe budget returns 429 and Retry-After without another connection", async (t) => {
+  let connects = 0;
+  const limiter = createRateLimiter({ profile: { max: 1, burst: 0, windowSeconds: 60 }, clock: { nowIso: () => "2026-08-25T12:00:00.000Z" } });
+  const { app, deps } = buildTestApp({ limiter, connect: async () => {
+    connects += 1;
+    return scriptedSession({ tools: [] });
+  } });
+  await saveHttp(deps, "limited");
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  assert.equal((await req(baseUrl, `${BASE}/limited/probe`, cookie, { method: "POST" })).status, 200);
+  assert.equal(connects, 1);
+  const denied = await req(baseUrl, `${BASE}/limited/probe`, cookie, { method: "POST" });
+  assert.equal(denied.status, 429);
+  assert.equal(denied.headers.get("retry-after"), "60");
+  assert.deepEqual(await denied.json(), { error: "too many probe attempts", code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 60 } });
+  assert.equal(connects, 1);
 });

@@ -544,9 +544,10 @@ test("a landmark's accessibleName is computed the same way as everywhere else", 
 });
 
 test("landmarks beyond the per-category cap are truncated and reported", () => {
-  const result = collect((doc) => doc.body!.append(el("nav"), el("header")), { maxNodesPerCategory: 1 });
+  const result = collect((doc) => doc.body!.append(el("nav", { id: "first" }), el("header", { id: "second" })), { maxNodesPerCategory: 1 });
   assert.equal(result.accessibility.landmarks.length, 1);
-  assert.ok(result.accessibility.truncated.includes("landmarks"));
+  assert.deepEqual(result.accessibility.landmarks.map((item) => item.selector), ["#first"]);
+  assert.deepEqual(result.accessibility.truncated, ["landmarks"]);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -584,9 +585,10 @@ test("role=heading with aria-level='0' is skipped, just like a genuinely absent 
 });
 
 test("headings beyond the per-category cap are truncated and reported", () => {
-  const result = collect((doc) => doc.body!.append(el("h1"), el("h2")), { maxNodesPerCategory: 1 });
+  const result = collect((doc) => doc.body!.append(el("h1", { id: "first", text: "First" }), el("h2", { id: "second", text: "Second" })), { maxNodesPerCategory: 1 });
   assert.equal(result.accessibility.headings.length, 1);
-  assert.ok(result.accessibility.truncated.includes("headings"));
+  assert.deepEqual(result.accessibility.headings, [{ level: 1, selector: "#first", text: "First" }]);
+  assert.deepEqual(result.accessibility.truncated, ["headings"]);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -690,6 +692,9 @@ test("an rgba() foreground with an explicit alpha is parsed via the 4-component 
   sample.style.color = "rgba(20, 30, 40, 0.8)";
   const result = collect((doc) => doc.body!.append(sample));
   assert.equal(result.accessibility.contrastSamples.length, 1);
+  assert.equal(result.accessibility.contrastSamples[0]?.foreground, "rgba(20, 30, 40, 0.8)");
+  assert.equal(result.accessibility.contrastSamples[0]?.background, "rgb(255, 255, 255)");
+  assert.equal(result.accessibility.contrastSamples[0]?.ratio, 8.86);
 });
 
 test("a 3-component rgb() foreground defaults its alpha via the else branch", () => {
@@ -697,6 +702,8 @@ test("a 3-component rgb() foreground defaults its alpha via the else branch", ()
   sample.style.color = "rgb(20, 30, 40)";
   const result = collect((doc) => doc.body!.append(sample));
   assert.equal(result.accessibility.contrastSamples.length, 1);
+  assert.equal(result.accessibility.contrastSamples[0]?.foreground, "rgb(20, 30, 40)");
+  assert.equal(result.accessibility.contrastSamples[0]?.ratio, 16.85);
 });
 
 test("effectiveBackground walks past transparent ancestors (both parseable-but-transparent and default) to an opaque one", () => {
@@ -764,6 +771,7 @@ test("a computed colour the browser expresses outside rgb()/rgba() syntax cannot
   sample.style.color = "oklch(0.5 0.1 200)";
   const result = collect((doc) => doc.body!.append(sample));
   assert.equal(result.accessibility.contrastSamples.length, 0);
+  assert.deepEqual(result.accessibility.truncated, ["contrastSamples:unparsed-colour"]);
 });
 
 test("a partially-specified rgb() value (some but not all of r/g/b present) is also rejected", () => {
@@ -790,9 +798,48 @@ test("a syntactically rgb()-shaped but empty colour value is also rejected, and 
 
 test("the contrast sample cap truncates independently of the shared per-category cap, and is reported", () => {
   const result = collect(
-    (doc) => doc.body!.append(el("span", { text: "One" }), el("span", { text: "Two" }), el("span", { text: "Three" })),
+    (doc) => doc.body!.append(el("span", { id: "first", text: "One" }), el("span", { id: "second", text: "Two" }), el("span", { id: "third", text: "Three" })),
     { maxContrastSamples: 1 },
   );
   assert.equal(result.accessibility.contrastSamples.length, 1);
-  assert.ok(result.accessibility.truncated.includes("contrastSamples"));
+  assert.deepEqual(result.accessibility.contrastSamples.map((item) => item.selector), ["#first"]);
+  assert.deepEqual(result.accessibility.truncated, ["contrastSamples"]);
+});
+
+// Independently tabulated sRGB/WCAG contrast ratios against white, rounded to two decimals.
+for (const [foreground, ratio] of [
+  ["rgb(255, 0, 0)", 4],
+  ["rgb(0, 255, 0)", 1.37],
+  ["rgb(0, 0, 255)", 8.59],
+  ["rgb(119, 119, 119)", 4.48],
+  ["rgb(118, 118, 118)", 4.54],
+] as const) {
+  test(`${foreground} on white has contrast ${ratio}`, () => {
+    const sample = el("span", { text: "Coloured text" });
+    sample.style.color = foreground;
+    const result = collect((doc) => doc.body!.append(sample));
+    assert.equal(result.accessibility.contrastSamples[0]?.ratio, ratio);
+  });
+}
+
+test("a translucent ancestor background is composited over its opaque ancestor", () => {
+  const ancestor = el("div");
+  ancestor.style.backgroundColor = "rgb(255, 255, 255)";
+  const parent = el("div");
+  parent.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+  parent.append(el("span", { text: "Black text" }));
+  ancestor.append(parent);
+  const result = collect((doc) => doc.body!.append(ancestor));
+  assert.equal(result.accessibility.contrastSamples[0]?.background, "rgb(127.5, 127.5, 127.5)");
+  assert.equal(result.accessibility.contrastSamples[0]?.ratio, 5.28);
+});
+
+test("a child computing display:block beneath display:none is excluded", () => {
+  const parent = el("div");
+  parent.style.display = "none";
+  const hidden = el("span", { id: "hidden-child", text: "Invisible text" });
+  hidden.style.display = "block";
+  parent.append(hidden);
+  const result = collect((doc) => doc.body!.append(parent, el("span", { id: "visible", text: "Visible" })));
+  assert.deepEqual(result.accessibility.contrastSamples.map((sample) => sample.selector), ["#visible"]);
 });

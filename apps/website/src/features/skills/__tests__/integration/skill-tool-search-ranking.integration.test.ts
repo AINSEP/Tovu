@@ -151,6 +151,10 @@ test("the skill tool IS present in registry.list() and describable by exact id â
 
     const described = catalog.describe("skill_incident_response");
     assert.ok(described, "skill_incident_response must be describable via the real FTS-backed catalog");
+    assert.equal(described.id, "skill_incident_response");
+    assert.equal(described.source, "skill");
+    assert.equal(described.description, "Use when handling production incidents, defining severity and escalation, writing runbooks, or facilitating blameless post-mortems and SLO-driven follow-up.");
+    assert.deepEqual(described.inputSchema, { type: "object", additionalProperties: false, required: [], properties: {} });
   });
 });
 
@@ -179,13 +183,16 @@ test("CRUX: realistic operator queries against the full real catalog (~150 nativ
       logHits(query, hits);
       const rank = hits.findIndex((hit) => hit.id === SKILL_TOOL_ID);
       if (rank === -1 || rank > 2) everyQueryRankedTop3 = false;
+      // These three name capabilities explicitly promised in the installed skill's description.
+      // Conversational phrasings with vocabulary absent from that contract remain diagnostic.
+      if (["production incident response", "blameless post-mortem", "severity classification and escalation"].includes(query)) {
+        assert.ok(rank >= 0 && rank < 3, `${query}: the described capability must rank in the top 3 (got ${rank < 0 ? "missing" : rank + 1})`);
+      }
     }
     console.log(`\n[skill-tool-search-ranking] skill tool ranked top-3 for every query: ${everyQueryRankedTop3}`);
 
-    // The one load-bearing assertion: at least one plausible operator phrasing surfaces the skill
-    // tool in the top 10 â€” the same window a model actually sees from `search_tools`. If this fails,
-    // that is this feature's real, honest result (see the console output above), not a bug in the
-    // test.
+    // Preserve the broad discoverability check alongside the explicit capability ranks above:
+    // top 10 is the window a model actually sees from `search_tools`.
     const anyQueryFoundItInTop10 = queries.some((query) => catalog.search(query, 10).some((hit) => hit.id === SKILL_TOOL_ID));
     assert.ok(
       anyQueryFoundItInTop10,

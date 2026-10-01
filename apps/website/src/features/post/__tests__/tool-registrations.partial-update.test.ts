@@ -64,7 +64,7 @@ function call(registration: ToolRegistration, input: unknown) {
   return registration.handler(ctx);
 }
 
-async function seedPost(postRepo: InMemoryPostRepo) {
+async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, unknown> = {}) {
   await postRepo.save({
     id: "p1",
     workspaceId: WORKSPACE_ID,
@@ -75,6 +75,7 @@ async function seedPost(postRepo: InMemoryPostRepo) {
     kind: "post",
     updatedAt: NOW,
     version: 1,
+    ...overrides,
   } as never);
 }
 
@@ -90,7 +91,8 @@ async function storedPost(postRepo: InMemoryPostRepo) {
 
 test("content_post_update: a title-only patch changes ONLY title — slug/bodyJson/status stay the stored values", async () => {
   const { deps, postRepo } = fakeRouteDeps();
-  await seedPost(postRepo);
+  const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Existing published body" }] }] };
+  await seedPost(postRepo, { bodyJson, status: "published" });
   const registrations = registrationsFor(deps);
 
   const result = (await call(tool(registrations, "content_post_update"), {
@@ -101,14 +103,14 @@ test("content_post_update: a title-only patch changes ONLY title — slug/bodyJs
 
   assert.equal(result.post.title, "New Title");
   assert.equal(result.post.slug, "original-slug");
-  assert.deepEqual(result.post.bodyJson, EMPTY_DOC);
-  assert.equal(result.post.status, "draft");
+  assert.deepEqual(result.post.bodyJson, bodyJson);
+  assert.equal(result.post.status, "published");
 
   const after = await storedPost(postRepo);
   assert.equal(after.title, "New Title");
   assert.equal(after.slug, "original-slug");
-  assert.deepEqual(after.bodyJson, EMPTY_DOC);
-  assert.equal(after.status, "draft");
+  assert.deepEqual(after.bodyJson, bodyJson);
+  assert.equal(after.status, "published");
   assert.equal(after.version, 2);
 });
 

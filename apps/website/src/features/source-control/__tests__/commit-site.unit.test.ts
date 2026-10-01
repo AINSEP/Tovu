@@ -15,6 +15,8 @@ import { createSourceControlCredential } from "../store.js";
 import { buildSourceControlCredentialAad } from "../aad.js";
 import {
   commitSiteToSourceControl,
+  previewCommitExport,
+  type CommitSiteInput,
   toCommitFile,
   validateCommitTarget,
   commitExportDir,
@@ -22,6 +24,7 @@ import {
   type SourceControlCommitAdapter,
   type SourceControlCommitResult,
 } from "../commit-site.js";
+import type { ExportReport } from "#src/features/site-export/index";
 import { githubValidateTarget } from "./fixtures/github-from-source.js";
 
 const github = await githubValidateTarget();
@@ -119,8 +122,12 @@ test("validateCommitTarget accepts a well-formed target", () => {
 test("validateCommitTarget rejects an invalid owner, repo, branch, or commit message", () => {
   assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, github), "invalid GitHub owner 'not valid!!'");
   assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, github), "invalid GitHub repo '..'");
-  assert.match(validateCommitTarget({ owner: "octo", repo: "my-site", branch: "not a branch", commitMessage: "x" }) ?? "", /invalid branch name/);
-  assert.match(validateCommitTarget({ owner: "octo", repo: "my-site", commitMessage: "" }) ?? "", /commitMessage must be/);
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch: "not a branch", commitMessage: "x" }), "invalid branch name 'not a branch'");
+  for (const branch of ["topic@{1}", "topic\tname", "x".repeat(251)]) {
+    assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch, commitMessage: "x" }), `invalid branch name '${branch.slice(0, 60)}'`);
+  }
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch: "release/2", commitMessage: "x" }), null);
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", commitMessage: "" }), "commitMessage must be 1-500 characters");
 });
 
 /**
@@ -172,6 +179,9 @@ test("validateCommitTarget rejects a commit message one character over the 500-c
 
 test("toCommitFile normalizes to forward slashes and drops no field static-publish's DeployFile has that this feature doesn't need", () => {
   assert.deepEqual(toCommitFile({ outputFile: "about/index.html", data: "<html></html>" }), { path: "about/index.html", data: "<html></html>" });
+  // path.join supplies backslashes on Windows, where this assertion detects an unchanged outputFile.
+  const data = Buffer.from([0, 128, 255]);
+  assert.deepEqual(toCommitFile({ outputFile: path.join("theme-assets", "fixture", "image.png"), data }), { path: "theme-assets/fixture/image.png", data });
 });
 
 // ---------------------------------------------------------------------------
@@ -180,6 +190,9 @@ test("toCommitFile normalizes to forward slashes and drops no field static-publi
 
 test("commitSiteToSourceControl: an invalid target is rejected before credentials or the git adapter are ever touched", async () => {
   const deps = testRouteDeps();
+  const reads: unknown[] = [];
+  deps.sourceControlCredentialSetRepo.findDefaultByProvider = async (...args) => { reads.push(args); assert.fail("credentials read for invalid input"); };
+  deps.exportSiteBound = async () => { assert.fail("export started for invalid input"); };
   const result = await commitSiteToSourceControl(
     { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter(), validateTarget: github },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
@@ -188,10 +201,12 @@ test("commitSiteToSourceControl: an invalid target is rejected before credential
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "INVALID_CONFIG");
   assert.match(result.message, /invalid GitHub owner/);
+  assert.deepEqual(reads, []);
 });
 
 test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDENTIALS_CONFIGURED, before any export or commit attempt", async () => {
   const deps = testRouteDeps();
+  deps.exportSiteBound = async () => { assert.fail("export before missing credential refusal"); };
   const result = await commitSiteToSourceControl(
     { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
@@ -310,6 +325,9 @@ test("commitSiteToSourceControl: a credential repo throwing a non-Error value st
 
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {
   const deps = await withGithubCredential(testRouteDeps());
+  const originalExport = deps.exportSiteBound;
+  let exported: ExportReport | undefined;
+  deps.exportSiteBound = async (options) => { exported = await originalExport(options); return exported; };
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
     { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
@@ -323,6 +341,11 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   assert.equal(result.branch, "main");
   assert.equal(result.commitSha, "abc123");
   assert.ok(captured.files && captured.files.length > 0, "the real export must produce at least one file");
+  assert.ok(exported);
+  assert.ok(exported.assets.succeeded.some((asset) => asset.outputFile === path.join("theme-assets", "tovu-starter", "css", "theme.css")));
+  assert.ok(captured.files.some((file) => file.path === "index.html"));
+  assert.deepEqual(captured.files, [...exported.routes.succeeded, ...exported.assets.succeeded].map((entry) => ({ path: entry.outputFile.split(path.sep).join("/"), data: entry.data })));
+  for (const file of captured.files) assert.equal(path.isAbsolute(file.path), false);
   for (const file of captured.files ?? []) {
     assert.ok(!file.path.includes("\\"), `file path '${file.path}' must be forward-slash normalized`);
   }
@@ -556,4 +579,74 @@ test("commitSiteToSourceControl: two concurrent commits both still succeed with 
   assert.ok(capturedA.files && capturedA.files.length > 0, "run A's git adapter must have received a non-empty file set");
   assert.ok(capturedB.files && capturedB.files.length > 0, "run B's git adapter must have received a non-empty file set");
   assert.equal(capturedA.files!.length, capturedB.files!.length, "both concurrent runs against the identical fixture must produce the SAME file count");
+});
+
+function controlledReport(outputDir: string, label = "canary"): ExportReport {
+  return {
+    outputDir,
+    routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: `<html>${label} é</html>` }], failed: [] },
+    assets: { succeeded: [{ url: "/theme-assets/fixture/image.png", outputFile: path.join("theme-assets", "fixture", "image.png"), data: Buffer.from([0, 128, 255]) }], failed: [] },
+    skippedManifestEntries: [], unreferencedThemeFiles: [],
+  };
+}
+
+function controlledInput(deps: RouteDeps, exportSiteBound: CommitSiteInput["exportSiteBound"]): CommitSiteInput {
+  return { workspaceId: deps.workspaceId, sourceControlExportRootDir: exportDir, idGen: deps.idGen, exportSiteBound, owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit" };
+}
+
+test("previewCommitExport: counts UTF-8 route bytes and binary assets, sorts and caps paths at 50", async () => {
+  const deps = testRouteDeps();
+  const expectedPaths = Array.from({ length: 55 }, (_, index) => `page-${String(index).padStart(2, "0")}/index.html`);
+  const input = controlledInput(deps, async ({ outputDir }) => {
+    const report = controlledReport(outputDir);
+    report.routes.succeeded = expectedPaths.slice().reverse().map((outputFile) => ({ path: `/${outputFile}`, kind: "post", outputFile, data: "é" }));
+    return report;
+  });
+  assert.deepEqual(await previewCommitExport(input), { ok: true, fileCount: 56, totalBytes: 55 * 2 + 3, paths: [...expectedPaths, "theme-assets/fixture/image.png"].sort().slice(0, 50) });
+  let exports = 0;
+  const invalid = { ...input, owner: "invalid owner", exportSiteBound: async () => { exports += 1; assert.fail("invalid preview exported"); } };
+  assert.deepEqual(await previewCommitExport(invalid), { ok: false, code: "INVALID_CONFIG", message: "invalid owner 'invalid owner'" });
+  assert.equal(exports, 0);
+  assert.deepEqual(await previewCommitExport({ ...input, exportSiteBound: async () => { throw new Error("preview canary"); } }), { ok: false, code: "EXPORT_FAILED", message: "export failed before committing could start: preview canary" });
+});
+
+test("commitSiteToSourceControl: one failed route blocks all adapter work", async () => {
+  const deps = await withGithubCredential(testRouteDeps());
+  const result = await commitSiteToSourceControl(
+    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    controlledInput(deps, async ({ outputDir }) => {
+      const report = controlledReport(outputDir);
+      report.routes.failed = [{ path: "/missing", kind: "post", reason: "expected 200, got 500" }];
+      return report;
+    }),
+  );
+  assert.deepEqual(result, { ok: false, code: "EXPORT_FAILED", message: "refused to commit: 1 route(s) failed to export (first: '/missing' — expected 200, got 500)" });
+});
+
+test("commitSiteToSourceControl: overlapping exports use distinct run directories and preserve each run's route and asset bytes", async () => {
+  const deps = await withGithubCredential(testRouteDeps());
+  const directories: string[] = [];
+  let release!: () => void;
+  const overlap = new Promise<void>((resolve) => { release = resolve; });
+  const captured = [{ files: null, input: null }, { files: null, input: null }] as Array<{ files: readonly CommitFile[] | null; input: unknown }>;
+  const results = await Promise.all(["run-a", "run-b"].map((runId, index) => commitSiteToSourceControl(
+    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "release/2", branchCreated: true, commitSha: runId, commitUrl: `https://example.test/${runId}`, filesChanged: 2, filesDeleted: 0 }, captured[index]!) },
+    { ...controlledInput(deps, async ({ outputDir, clean }) => {
+      directories.push(outputDir);
+      assert.equal(clean, true);
+      if (directories.length === 2) release();
+      await overlap;
+      const report = controlledReport(outputDir, runId);
+      report.assets.succeeded[0]!.data = Buffer.from(runId);
+      return report;
+    }), idGen: { newId: () => runId } },
+  )));
+  assert.deepEqual(results.map((result) => result.ok), [true, true]);
+  assert.deepEqual(directories.sort(), [commitExportDir(exportDir, "run-a"), commitExportDir(exportDir, "run-b")].sort());
+  assert.notEqual(directories[0], directories[1]);
+  for (const [index, runId] of ["run-a", "run-b"].entries()) {
+    assert.deepEqual(captured[index]!.input, { token: "ghp_fake_token_never_real", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit", files: [
+      { path: "index.html", data: `<html>${runId} é</html>` }, { path: "theme-assets/fixture/image.png", data: Buffer.from(runId) },
+    ] });
+  }
 });

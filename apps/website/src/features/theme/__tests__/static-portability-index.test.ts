@@ -283,7 +283,16 @@ test("generateStaticPortabilityIndex writes the generated file to disk, and alwa
   assert.deepEqual(result, { status: "written", path: path.join(dir, "index.html") });
   assert.equal(fs.existsSync(path.join(dir, "index.html")), true);
 
+  const firstHtml = fs.readFileSync(path.join(dir, "index.html"), "utf8");
+  assert.equal(firstHtml, buildStaticPortabilityIndex(loadFixture(dir)));
+  assert.ok(firstHtml.includes("Static footer copy"));
+  fs.writeFileSync(path.join(dir, "render/partials/footer.html"), "<footer>Updated footer copy</footer>", "utf8");
   const second = generateStaticPortabilityIndex({ themeDir: dir, id: "fixture-static" });
+  const secondHtml = fs.readFileSync(path.join(dir, "index.html"), "utf8");
+  assert.equal(secondHtml, buildStaticPortabilityIndex(loadFixture(dir)));
+  assert.ok(secondHtml.includes("Updated footer copy"));
+  assert.ok(!secondHtml.includes("Static footer copy"));
+  assert.notEqual(secondHtml, firstHtml);
   assert.equal(second.status, "written", "generated output is never left stale — every call is a full regenerate, matching the preview/ precedent");
 });
 

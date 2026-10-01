@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 /**
  * @file Pins the boot-step order around the composition root now that `createSiteRouteDeps` is
@@ -55,6 +57,36 @@ test("index.ts main(): the content.db schema guard and site key run before the c
   const compose = indexOfAnchor(main, "await createSiteRouteDeps(defaultContentDbPath(),");
   assert.ok(guard < siteKey, "the schema guard must run before the site-key step");
   assert.ok(siteKey < compose, "the site key must be resolved before createSiteRouteDeps reads it");
+});
+
+test("index.ts main(): a refusing schema guard stops a disk boot before site-key preparation or store opening", async () => {
+  // Execute the actual main function with its boot ports isolated. Stop at the guard so no
+  // server, process handler, environment mutation or database can be opened by this test.
+  const main = functionBody(readCode("index.ts"), "async function main(");
+  const compiled = ts.transpileModule(main, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const calls: string[] = [];
+  const refusal = new Error("schema too new");
+  const opened = new Error("store opened past a refusing guard");
+  const boot = runInNewContext(`${compiled}\nmain()`, {
+    useMemory: false,
+    installUnhandledRejectionGuard: () => {},
+    ensureAgentDaemonToken: () => {},
+    registerPluginSdkResolver: () => {},
+    runProductionReadinessGateOrExit: async () => {},
+    warnIfNoRootKeyAtBoot: () => {},
+    defaultContentDbPath: () => "/isolated/content.db",
+    guardContentDbSchemaOrExit: async (dbPath: string) => {
+      calls.push("schema");
+      assert.equal(dbPath, "/isolated/content.db");
+      throw refusal;
+    },
+    siteDir: () => "/isolated",
+    findSiteKeyDependentData: () => {},
+    ensureSiteKeyForBoot: async () => { calls.push("site-key"); },
+    createSiteRouteDeps: async () => { calls.push("store"); throw opened; },
+  });
+  await assert.rejects(boot, (error: unknown) => error === refusal);
+  assert.deepEqual(calls, ["schema"]);
 });
 
 test("createSiteRouteDeps: storage choice, then hydration, then the store open (the recovering site opener), then the chat sweep", () => {

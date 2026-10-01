@@ -37,6 +37,7 @@ async function seed(kernel: ContentKernel): Promise<void> {
         created_at: "2026-09-02T00:00:00.000Z",
       })
       .execute();
+    await db.insertInto("deployment_targets").values({ id: "tgt-other", workspace_id: OTHER, environment_id: "env-other", provider_id: "github", label: "Other target", config_json: '{"repo":"private"}', enabled: 0, created_at: "2026-09-04T00:00:00.000Z" }).execute();
     await db
       .insertInto("releases")
       .values([
@@ -62,6 +63,7 @@ async function seed(kernel: ContentKernel): Promise<void> {
         },
       ])
       .execute();
+    await db.insertInto("releases").values({ id: "rel-other", workspace_id: OTHER, label: "Private release", source_kind: "git-revision", source_repo_url: "https://private.example/repo", source_commit_sha: "other-sha", created_by_principal_id: "p2", created_at: "2026-09-04T00:00:00.000Z" }).execute();
     await db
       .insertInto("deployment_runs")
       .values({
@@ -78,6 +80,7 @@ async function seed(kernel: ContentKernel): Promise<void> {
         requested_at: "2026-09-03T00:00:00.000Z",
       })
       .execute();
+    await db.insertInto("deployment_runs").values({ id: "run-other", workspace_id: OTHER, provider_id: "github", target_id: "tgt-other", environment_id: "env-other", release_id: "rel-other", status: "queued", provider_run_ref: "other-ref", reconciliation: "poll", requested_by_principal_id: "p2", requested_at: "2026-09-04T00:00:00.000Z" }).execute();
   });
 }
 
@@ -112,7 +115,9 @@ describeEachDialect(
       ]);
       const runs = await repo.listRuns({ workspaceId: WS });
       assert.deepEqual(runs.map((r) => [r.id, r.status, r.releaseId, r.startedAtIso]), [["run-1", "succeeded", "rel-git", null]]);
-      assert.deepEqual(await repo.listRuns({ workspaceId: OTHER }), []);
+      assert.deepEqual((await repo.listRuns({ workspaceId: OTHER })).map((r) => r.id), ["run-other"]);
+      assert.deepEqual((await repo.listTargets({ workspaceId: OTHER })).map((r) => r.id), ["tgt-other"]);
+      assert.deepEqual((await repo.listReleases({ workspaceId: OTHER })).map((r) => r.id), ["rel-other"]);
       assert.deepEqual((await repo.listEnvironments({ workspaceId: OTHER })).map((e) => e.id), ["env-other"]);
     });
   }

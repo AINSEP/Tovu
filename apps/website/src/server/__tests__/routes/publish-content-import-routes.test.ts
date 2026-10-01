@@ -8,6 +8,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { confirm as gatewayConfirm, ForbiddenError } from "#src/contracts/core/gated-mutations/gateway";
 import { buildGatewayDeps, buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { entityKey } from "#src/features/publish-content/planner";
+import { loginAsBarePrincipal } from "../helpers/http-test-server.js";
 
 /**
  * @file Task 7 of the publish-content (Publish Content) feature —
@@ -90,35 +91,61 @@ async function planAndConfirm(baseUrl: string, cookie: string, bundleId: string)
   return confirmationToken;
 }
 
-test("publish-content import: plan -> confirm -> execute reaches the Task 8 seam and captures a restore point first", async (t) => {
+test("publish-content import: plan -> confirm -> execute reaches the Task 8 seam and captures a restore point first", { timeout: 10_000 }, async (t) => {
   const { deps, server, baseUrl } = await startServer();
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  let releaseSave: () => void = () => {};
+  t.after(() => { releaseSave(); return new Promise<void>((resolve) => server.close(() => resolve())); });
   const cookie = await loginAsOwner(baseUrl);
+  const { bundleId, postId } = await stagePostBundle(baseUrl, cookie, "Round trip post");
+  const owner = await deps.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "admin" });
+  assert.ok(owner);
 
   // A fake Task 8 apply port, so this test proves the WIRING (restore point captured, apply seam
   // reached with the right report) rather than Task 8's own not-yet-built apply loop.
-  const savedRestorePoints: unknown[] = [];
+  const savedRestorePoints: Parameters<typeof deps.restorePointsRepo.save>[0][] = [];
   const originalSave = deps.restorePointsRepo.save.bind(deps.restorePointsRepo);
+  let announceSave!: () => void;
+  const saveStarted = new Promise<void>((resolve) => { announceSave = resolve; });
+  const saveAllowed = new Promise<void>((resolve) => { releaseSave = resolve; });
   deps.restorePointsRepo.save = async (row) => {
+    announceSave();
+    await saveAllowed;
+    await originalSave(row);
     savedRestorePoints.push(row);
-    return originalSave(row);
   };
   let appliedReportRows = -1;
   deps.publishContentApplyPort = {
-    applyReport: async ({ report }) => {
+    applyReport: async ({ report, bundleId: appliedBundleId, principalId, restorePointId }) => {
+      assert.equal(appliedBundleId, bundleId);
+      assert.equal(principalId, owner.principalId);
+      assert.equal(savedRestorePoints.length, 1);
+      assert.equal(savedRestorePoints[0].restorePointId, restorePointId);
+      assert.deepEqual(await deps.restorePointsRepo.findByIdempotencyKey(restorePointId), { restorePointId, idempotencyKey: restorePointId });
+      assert.ok((await deps.restorePointsRepo.list()).some((row) => row.id === restorePointId), "apply requires a durably saved restore point");
+      const row = report.rows.find((row) => row.entityType === "post" && row.entityId === postId);
+      assert.ok(row);
+      assert.equal(row.outcome, "unchanged");
+      assert.equal(row.writes, false);
       appliedReportRows = report.rows.length;
       return { runId: "fake-run-1", changeSetIds: ["fake-change-set-1"] };
     },
   };
 
-  const { bundleId } = await stagePostBundle(baseUrl, cookie, "Round trip post");
   const confirmationToken = await planAndConfirm(baseUrl, cookie, bundleId);
 
-  const executeRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/execute`, {
+  const executing = fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/execute`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ bundleId, confirmationToken }),
   });
+  await saveStarted;
+  try {
+    assert.equal(appliedReportRows, -1, "apply cannot begin while restore-point persistence is pending");
+    assert.deepEqual(savedRestorePoints, []);
+  } finally {
+    releaseSave();
+  }
+  const executeRes = await executing;
   const executed = await expectJson<{ restorePointId: string; runId: string; changeSetIds: string[] }>(executeRes, 200);
   assert.ok(executed.restorePointId, "executeMutation must capture and return a restore point id");
   assert.equal(executed.runId, "fake-run-1");
@@ -362,4 +389,72 @@ test("gated-mutations gateway: an agent principal can never confirm a publish-co
       }),
     (err: unknown) => err instanceof ForbiddenError && err.reasonCode === "AGENT_CANNOT_CONFIRM"
   );
+});
+
+test("publish-content import: grantless sessions cannot plan and read-only sessions cannot confirm or execute writes", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const ownerCookie = await loginAsOwner(baseUrl);
+  const { bundleId, postId } = await stagePostBundle(baseUrl, ownerCookie, "Permission protected post");
+  const before = await deps.postRepo.findById({ workspaceId: WORKSPACE, id: postId });
+  const api = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content`;
+  const planned = await expectJson<{ planId: string; planHash: string }>(await fetch(`${api}/import/plan`, {
+    method: "POST", headers: { "content-type": "application/json", cookie: ownerCookie }, body: JSON.stringify({ bundleId }),
+  }), 200);
+  const confirmationToken = await planAndConfirm(baseUrl, ownerCookie, bundleId);
+  let applyCalls = 0;
+  deps.publishContentApplyPort = { applyReport: async () => { applyCalls++; return { runId: "denied-run", changeSetIds: [] }; } };
+  for (const username of ["no-import-grants", "read-only-import"]) {
+    const cookie = await loginAsBarePrincipal(deps, baseUrl, { username });
+    if (username === "read-only-import") {
+      const policyId = "read-only-import-policy";
+      await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE, name: policyId, isBuiltin: false, isFrozen: false });
+      await deps.policyPermissionRepo.save({ id: "read-only-import-grant", workspaceId: WORKSPACE, policyId, permission: "publish_content.read", resourceType: null, constraintJson: null });
+      await deps.principalPolicyRepo.save({ id: "read-only-import-link", workspaceId: WORKSPACE, principalId: `bare-${username}`, policyId });
+    }
+    for (const [path, body] of [
+      ["plan", { bundleId }],
+      ["confirm", { planId: planned.planId, planHash: planned.planHash }],
+      ["execute", { bundleId, confirmationToken }],
+    ] as const) {
+      const denied = await fetch(`${api}/import/${path}`, {
+        method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(body),
+      });
+      const canReadPlan = username === "read-only-import" && path === "plan";
+      const response = await expectJson<{ code: string }>(denied, canReadPlan ? 200 : 403);
+      if (!canReadPlan) assert.equal(response.code, "NOT_AUTHORIZED", `${username}: ${path}`);
+    }
+  }
+  assert.equal(applyCalls, 0);
+  assert.deepEqual(await deps.postRepo.findById({ workspaceId: WORKSPACE, id: postId }), before);
+});
+
+test("publish-content run status returns persisted progress, isolates workspaces and requires publish_content.read", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+  const startedAt = deps.clock.nowIso();
+  const record = {
+    id: "status-run", workspaceId: WORKSPACE, direction: "import" as const, peerPrincipalId: "peer-1", peerLabel: "Peer",
+    phase: "applied" as const, restorePointId: "restore-status", changeSetIdsJson: '["change-status"]', actorId: "operator-1",
+    startedAt, finishedAt: startedAt, reportJson: null, itemsJson: "[]",
+  };
+  await deps.publishContentRunRepo.save(record);
+  await deps.publishContentRunRepo.save({ ...record, id: "foreign-run", workspaceId: "foreign-workspace" });
+  const url = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/runs`;
+  const response = await fetch(`${url}/status-run`, { headers: { cookie } });
+  assert.deepEqual(await expectJson(response, 200), {
+    id: record.id, workspaceId: WORKSPACE, direction: "import", phase: "applied", restorePointId: "restore-status", actorId: "operator-1",
+    startedAt, finishedAt: startedAt, changeSetIds: ["change-status"], retiredChangeSetIds: [], report: null, items: [],
+  });
+  for (const id of ["missing-run", "foreign-run"]) {
+    const missing = await fetch(`${url}/${id}`, { headers: { cookie } });
+    assert.deepEqual(await expectJson(missing, 404), { error: "publish-content run was not found", code: "RUN_NOT_FOUND" });
+  }
+  assert.equal((await fetch(`${baseUrl}/api/admin/v1/workspaces/foreign-workspace/publish-content/runs/foreign-run`, { headers: { cookie } })).status, 404);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "bare-run-status" });
+  const denied = await fetch(`${url}/status-run`, { headers: { cookie: bareCookie } });
+  const refusal = await expectJson<{ code: string; details: { permission: string } }>(denied, 403);
+  assert.equal(refusal.code, "FORBIDDEN");
+  assert.equal(refusal.details.permission, "publish_content.read");
 });

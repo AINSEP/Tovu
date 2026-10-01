@@ -56,3 +56,60 @@ test("taxonomy_unassign_terms: a non-array 'termIds' is a ToolInputError (400), 
     },
   );
 });
+
+for (const id of ["taxonomy_assign_terms", "taxonomy_unassign_terms"]) {
+  test(`${id}: malformed fields fail before authorization or writes`, async () => {
+    const deps = createRouteDeps();
+    deps.authorize = async () => { assert.fail("invalid input must not authorize"); };
+    const registration = buildTaxonomyRegistrations(deps).find((r) => r.descriptor.id === id)!;
+    for (const input of [
+      { contentType: "post", contentId: "post-home", termIds: ["a", 5] },
+      { contentType: "post", termIds: ["a"] },
+      { contentType: 5, contentId: "post-home", termIds: ["a"] },
+    ]) {
+      await assert.rejects(() => registration.handler(ctxWithInput(input)), (error: unknown) => {
+        assert.ok(error instanceof ToolInputError);
+        return true;
+      });
+    }
+  });
+}
+
+test("assignment handlers persist changes and permission refusals preserve those changes", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  await deps.settingsReady;
+  let deniedPermission: string | undefined;
+  const permissions: string[] = [];
+  deps.authorize = async (request) => {
+    assert.equal(request.principalId, "p1");
+    assert.equal(request.workspaceId, deps.workspaceId);
+    permissions.push(request.permission);
+    return { allowed: request.permission !== deniedPermission, reason: "fixture grant" };
+  };
+  const registrations = buildTaxonomyRegistrations(deps);
+  const call = (id: string, input: unknown) => registrations.find((r) => r.descriptor.id === id)!.handler(ctxWithInput(input));
+  const { taxonomy } = await call("taxonomy_create_taxonomy", { name: "Handler taxonomy", hierarchical: false }) as { taxonomy: { id: string } };
+  const { term } = await call("taxonomy_create_term", { taxonomyId: taxonomy.id, name: "Handler term" }) as { term: { id: string } };
+  const target = { contentType: "post", contentId: "post-home" };
+  const input = { ...target, termIds: [term.id] };
+  const assignedIds = async () => (await deps.entryTermRepo.listForContent(target)).map((row) => row.termId);
+  assert.deepEqual(await assignedIds(), []);
+  permissions.length = 0;
+  assert.deepEqual(await call("taxonomy_assign_terms", input), { ...target, assignedTermIds: [term.id] });
+  assert.deepEqual(await assignedIds(), [term.id]);
+  assert.deepEqual(permissions, ["content.write", "admin.taxonomy.manage"]);
+  for (const permission of ["content.write", "admin.taxonomy.manage"]) {
+    deniedPermission = permission;
+    await assert.rejects(() => call("taxonomy_unassign_terms", input), /not authorized/);
+    assert.deepEqual(await assignedIds(), [term.id]);
+  }
+  deniedPermission = undefined;
+  assert.deepEqual(await call("taxonomy_unassign_terms", input), { ...target, unassignedTermIds: [term.id] });
+  assert.deepEqual(await assignedIds(), []);
+  for (const permission of ["content.write", "admin.taxonomy.manage"]) {
+    deniedPermission = permission;
+    await assert.rejects(() => call("taxonomy_assign_terms", input), /not authorized/);
+    assert.deepEqual(await assignedIds(), []);
+  }
+});

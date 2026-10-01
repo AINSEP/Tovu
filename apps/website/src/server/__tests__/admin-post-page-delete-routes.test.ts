@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import type { RouteDeps } from "../routes/types.js";
-import { extractRouteHandler, createCapturingResponse } from "./helpers/http-test-server.js";
+import { extractRouteHandler, createCapturingResponse, loginAsBarePrincipal } from "./helpers/http-test-server.js";
 
 /**
  * @file The human-facing half of the delete feature: `DELETE /posts/:postId` and
@@ -181,7 +181,22 @@ test("DELETE post: an unknown id 404s, and an unknown workspace 404s", async (t)
 test("DELETE post: requires an admin session", async (t) => {
   const { baseUrl } = await startServer(t);
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/post-home`, { method: "DELETE" });
-  assert.equal(response.status === 401 || response.status === 403, true, `expected an auth rejection, got ${response.status}`);
+  assert.equal(response.status, 401);
+  assert.equal((await response.json() as { code: string }).code, "UNAUTHENTICATED");
+});
+
+test("DELETE post denies a signed-in principal without content.write and preserves the post", async (t) => {
+  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const { id } = await createRow(baseUrl, cookie, "posts", { title: "Restricted Post", status: "published" });
+  const before = await deps.postRepo.findById({ workspaceId: WS, id });
+  const restricted = await loginAsBarePrincipal(deps, baseUrl);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${id}`, { method: "DELETE", headers: { cookie: restricted } });
+  assert.equal(response.status, 403);
+  const body = await response.json() as { code: string; details: { permission: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details.permission, "content.write");
+  assert.deepEqual(await deps.postRepo.findById({ workspaceId: WS, id }), before);
+  assert.equal((await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${id}`, { headers: { cookie } })).status, 200);
 });
 
 test("DELETE page: trashes a page and removes it from the pages list", async (t) => {
@@ -295,6 +310,14 @@ test("DELETE page: denies 403 FORBIDDEN when authorize() rejects content.write",
 test("DELETE page: a change-set record failure AFTER the mutation applied is rolled back (the page is NOT left trashed) and surfaces as a 500", async (t) => {
   const { baseUrl, cookie, deps } = await startServerWithDeps(t);
   const { id } = await createRow(baseUrl, cookie, "pages", { title: "Rollback Target", status: "published" });
+  const prior = await deps.postRepo.findById({ workspaceId: WS, id });
+  assert.ok(prior);
+  const statusEvents: string[] = [];
+  const originalEnqueue = deps.outbox.enqueue.bind(deps.outbox);
+  deps.outbox.enqueue = async (event) => {
+    if (event.name.startsWith("entry.")) statusEvents.push(event.name);
+    await originalEnqueue(event);
+  };
 
   const originalInsert = deps.changeSets.insert.bind(deps.changeSets);
   deps.changeSets.insert = async () => {
@@ -306,6 +329,7 @@ test("DELETE page: a change-set record failure AFTER the mutation applied is rol
     assert.deepEqual(await response.json(), { error: "internal error" });
   } finally {
     deps.changeSets.insert = originalInsert;
+    deps.outbox.enqueue = originalEnqueue;
   }
 
   // INV-01 (no mutation without a record): the compensating rollback must have restored the page,
@@ -314,6 +338,21 @@ test("DELETE page: a change-set record failure AFTER the mutation applied is rol
   assert.equal(afterRollback.status, 200, "a failed change-set record must roll the delete back, not leave the page trashed");
   const restored = (await afterRollback.json()) as { post: { status: string } };
   assert.equal(restored.post.status, "published", "the rollback must restore the exact pre-delete row");
+  const current = await deps.postRepo.findById({ workspaceId: WS, id });
+  assert.ok(current);
+  for (const field of ["title", "slug", "status", "bodyFormat", "bodyHtml", "bodyJson", "deletedAt"] as const) {
+    assert.deepEqual(current[field], prior[field], `${field} survives the rollback`);
+  }
+  const trash = await deps.trash.list({ workspaceId: WS, now: deps.clock.nowIso(), limit: 100 });
+  assert.equal(trash.items.some((item) => item.entityId === id), false, "a restored page must not remain in the Trash index");
+  const revisions = await deps.postRepo.listRevisions({ workspaceId: WS, postId: id });
+  assert.equal(revisions.filter((revision) => revision.seq > current.version).length, 0);
+  const latest = revisions.at(-1);
+  assert.ok(latest);
+  assert.equal(latest.seq, current.version);
+  assert.equal(latest.stateJson.title, current.title);
+  assert.equal(latest.stateJson.status, current.status);
+  assert.deepEqual(statusEvents, ["entry.unpublished", "entry.published"], "the restored published page must compensate the delete's visibility event");
 });
 
 test("DELETE page: req.params.pageId is always populated by Express for a matched route (defensive ?? \"\" fallback is unreachable through real HTTP)", async () => {

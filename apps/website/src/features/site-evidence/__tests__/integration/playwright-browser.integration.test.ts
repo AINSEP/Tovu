@@ -43,6 +43,7 @@ const PAGE_HTML = `<!doctype html>
       <button type="submit" id="go">Subscribe</button>
     </form>
   </main>
+  <div style="display:none"><span id="hidden-descendant">invisible text</span></div>
   <footer><p>footer</p></footer>
   <script>
     document.cookie = "tracker_id=SUPERSECRETVALUE; path=/";
@@ -154,6 +155,7 @@ test("observes real rendered evidence from a real page", { skip }, async () => {
     assert.equal(unlabelled?.labelSource, "none");
     assert.ok(unlabelled?.selector && unlabelled.selector.length > 0, "every finding needs a citable selector");
 
+    assert.ok(!accessibility.contrastSamples.some((sample) => sample.selector === "#hidden-descendant"));
     assert.ok(accessibility.contrastSamples.some((sample) => sample.ratio < 4.5), "the low-contrast paragraph must be sampled");
   } finally {
     server.close();

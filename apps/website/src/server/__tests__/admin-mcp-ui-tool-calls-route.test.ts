@@ -212,8 +212,7 @@ test("a browser-supplied principal header is overwritten, never trusted", async 
  * not hold still reaches the daemon, which owns every Local-CLI run's exchanges.
  */
 async function bootWithStore(t: import("node:test").TestContext) {
-  const { origin } = { origin: process.env.JINI_AGENT_DAEMON_URL };
-  assert.ok(origin, "the stand-in daemon must already be running");
+  await harness();
   const { createRouteDeps } = await import("../runtime/composition/app.js");
   const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
   const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
@@ -274,6 +273,47 @@ test("a typed answer is delivered to a locally-parked exchange without a daemon 
     params: { __typedAnswer: "take15-cut-v3 should be the video" },
   });
   assert.equal(recorded.length, forwardedBefore, "a locally-parked question must not cost a daemon round trip");
+});
+
+test("an explicit confirmation exchange ID delivers locally without calling the daemon", async (t) => {
+  const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
+  const principalId = await authedPrincipalId(baseUrl, cookie);
+  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId }, async () => undefined);
+  const waiting = exchange.receive();
+  const before = recorded.length;
+  const params = { __exchangeId: exchange.id, decision: "confirm" };
+  const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "content_post_delete", params }),
+  });
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), { delivered: true });
+  assert.deepEqual(await waiting, { status: "received", params });
+  assert.equal(recorded.length, before);
+});
+
+test("a caller cannot answer another principal's local confirmation", async (t) => {
+  const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
+  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "another-admin" }, async () => undefined);
+  const waiting = exchange.receive();
+  const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "content_post_delete", params: { __exchangeId: exchange.id, decision: "confirm" } }),
+  });
+  assert.equal(response.status, 409);
+  assert.equal((await response.json() as { reason: string }).reason, "binding-mismatch");
+  assert.equal(await Promise.race([waiting, Promise.resolve("pending")]), "pending");
+  assert.equal(recorded.length, 0);
+});
+
+test("A2UI actions require a session without contacting the daemon", async (t) => {
+  const { baseUrl } = await bootWithStore(t);
+  const response = await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ exchangeId: "daemon-ex", message: { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: "daemon-ex", path: "/", message: "x" } } }),
+  });
+  assert.equal(response.status, 401);
+  assert.equal(recorded.length, 0);
 });
 
 test("a typed answer this process holds no exchange for still reaches the daemon", async (t) => {
@@ -340,10 +380,11 @@ test("BYOK: an A2UI post cannot answer or cancel a locally-held MCP-UI confirmat
 
 test("BYOK: an A2UI post for an exchange this process does not hold still reaches the daemon", async (t) => {
   const { baseUrl, cookie } = await bootWithStore(t);
+  const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
   const forwardedBefore = recorded.length;
   const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: "daemon-ex", path: "/", message: "x" } };
 
-  await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {
+  const response = await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ exchangeId: "daemon-ex", message }),
@@ -351,4 +392,9 @@ test("BYOK: an A2UI post for an exchange this process does not hold still reache
 
   assert.equal(recorded.length, forwardedBefore + 1);
   assert.equal(recorded.at(-1)!.url, A2UI_ACTIONS_PATH);
+  assert.equal(recorded.at(-1)!.method, "POST");
+  assert.deepEqual(JSON.parse(recorded.at(-1)!.body), { exchangeId: "daemon-ex", message });
+  assert.equal(recorded.at(-1)!.headers[RUN_PRINCIPAL_HEADER], me.user.id);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { deleted: true, cancelled: false });
 });

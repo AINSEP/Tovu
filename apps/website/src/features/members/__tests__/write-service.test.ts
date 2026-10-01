@@ -32,6 +32,7 @@ import {
   MemberNotFoundError,
   MemberValidationError,
 } from "../types.js";
+import { DefaultMemberAccessResolver } from "../access-resolver.js";
 import type { MembersWriteServiceDeps } from "../ports.js";
 
 const WORKSPACE_ID = "ws-1";
@@ -120,7 +121,7 @@ function extractRawToken(linkText: string): string {
 }
 
 test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest and activates a pending member", async () => {
-  const { deps, sent } = makeDeps();
+  const { deps, sent, clock } = makeDeps();
 
   const requestResult = await requestSignInLink({
     deps,
@@ -128,12 +129,15 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
   });
   assert.deepEqual(requestResult, { delivered: true });
   assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0].message.to, { email: "jane@example.com" });
+  assert.equal(sent[0].message.workspaceId, WORKSPACE_ID);
 
   const pendingMember = await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "jane@example.com" });
   assert.ok(pendingMember, "requestSignInLink should pre-create a pending member");
   assert.equal(pendingMember!.status, "pending");
 
   const rawToken = extractRawToken(sent[0].message.text!);
+  assert.deepEqual(sent[0].opts, { idempotencyKey: `members:signin:${hashToken(rawToken)}`, workspaceId: WORKSPACE_ID, sourceContext: { module: "members" }, purpose: "transactional", lane: "interactive" });
   assert.notEqual(rawToken, hashToken(rawToken), "the log must carry the raw token, not its hash");
 
   const storedTokenRecord = await deps.magicLinks.findByTokenHash({
@@ -151,6 +155,9 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
   assert.equal(completeResult.member.status, "active");
   assert.ok(completeResult.member.emailVerifiedAt);
   assert.equal(completeResult.member.id, pendingMember!.id);
+  assert.equal(completeResult.member.emailVerifiedAt, clock.nowIso());
+  assert.equal(completeResult.member.version, pendingMember!.version + 1);
+  assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: pendingMember!.id }), completeResult.member);
 
   assert.ok(completeResult.rawSessionToken, "completeSignIn must surface the raw session token for the cookie");
   assert.notEqual(
@@ -165,6 +172,13 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
     tokenHash: hashToken(completeResult.rawSessionToken),
   });
   assert.ok(storedSession, "the session must be persisted and discoverable by its token hash");
+  assert.equal(storedSession.expiresAt, "2026-08-09T00:00:00.000Z", "member sessions last exactly 30 days");
+  assert.deepEqual(storedSession, completeResult.session);
+  const resolver = new DefaultMemberAccessResolver(deps);
+  const context = { workspaceId: WORKSPACE_ID, sessionToken: completeResult.rawSessionToken };
+  assert.deepEqual(await resolver.resolveContext({ ...context, nowIso: clock.nowIso() }), { isAuthenticated: true, memberId: pendingMember!.id, activeTierIds: [], isPaid: false });
+  assert.equal((await resolver.resolveContext({ ...context, nowIso: "2026-08-08T23:59:59.999Z" })).isAuthenticated, true);
+  assert.equal((await resolver.resolveContext({ ...context, nowIso: storedSession.expiresAt })).isAuthenticated, false);
 });
 
 test("completeSignIn rejects an expired magic-link token", async () => {
@@ -214,13 +228,14 @@ test("completeSignIn rejects a token whose member was disabled AFTER the link wa
 });
 
 test("completeSignIn a SECOND time for an already-active member: status stays 'active' (not re-derived), emailVerifiedAt is NOT overwritten", async () => {
-  const { deps, sent } = makeDeps();
+  const { deps, sent, clock } = makeDeps();
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "returning@example.com" } });
   const firstToken = extractRawToken(sent[0].message.text!);
   const first = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: firstToken } });
   assert.equal(first.member.status, "active");
   const firstVerifiedAt = first.member.emailVerifiedAt;
 
+  clock.set("2026-07-11T00:00:00.000Z");
   // A second sign-in request/complete for the SAME already-active member.
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "returning@example.com" } });
   const secondToken = extractRawToken(sent[1].message.text!);
@@ -228,6 +243,9 @@ test("completeSignIn a SECOND time for an already-active member: status stays 'a
 
   assert.equal(second.member.status, "active", "an already-active member stays active (ternary false branch)");
   assert.equal(second.member.emailVerifiedAt, firstVerifiedAt, "emailVerifiedAt must not be overwritten once already set (?? branch)");
+  const persisted = await deps.members.findById({ workspaceId: WORKSPACE_ID, id: first.member.id });
+  assert.equal(persisted?.emailVerifiedAt, firstVerifiedAt);
+  assert.equal(persisted?.updatedAt, clock.nowIso());
 });
 
 test("completeSignIn rejects an unknown token", async () => {
@@ -365,7 +383,7 @@ test("T013: the origin-fallback path logs one warning-level line carrying worksp
 });
 
 test("disableMember is disable-only (idempotent, never hard-deleted) and revokes live sessions", async () => {
-  const { deps } = makeDeps();
+  const { deps, sent } = makeDeps();
   const member = {
     id: "member-1",
     workspaceId: WORKSPACE_ID,
@@ -400,6 +418,10 @@ test("disableMember is disable-only (idempotent, never hard-deleted) and revokes
   assert.equal(secondResult.member.id, "member-1");
 
   const stillThere = await deps.members.findById({ workspaceId: WORKSPACE_ID, id: "member-1" });
+  assert.equal(stillThere?.status, "disabled");
+  assert.deepEqual(stillThere, firstResult.member);
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: member.email } });
+  assert.equal(sent.length, 0);
   assert.ok(stillThere, "a disabled member row must still exist (disable-only, never hard-delete)");
 });
 
@@ -449,6 +471,7 @@ test("updateProfile rejects a blank name and a missing member", async () => {
   });
   assert.equal(result.member.name, "Jane Doe");
   assert.equal(result.member.version, 2);
+  assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: "member-2" }), result.member);
 });
 
 test("updateProfile: a note-only update (name omitted) trims the note and leaves the existing name untouched", async () => {
@@ -471,6 +494,8 @@ test("updateProfile: a note-only update (name omitted) trims the note and leaves
   });
   assert.equal(result.member.name, "Original Name", "name must be left untouched when omitted");
   assert.equal(result.member.note, "VIP customer", "note must be trimmed");
+  assert.equal(result.member.version, 2);
+  assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: member.id }), result.member);
 });
 
 test("compSubscription rejects an archived tier and a duplicate active subscription", async () => {
@@ -512,6 +537,9 @@ test("compSubscription rejects an archived tier and a duplicate active subscript
     MemberValidationError
   );
 
+  await assert.rejects(() => compSubscription({ deps, input: { workspaceId: WORKSPACE_ID, memberId: "no-member", tierId: activeTier.id } }), (error) => error instanceof MemberNotFoundError && error.message === "member 'no-member' was not found");
+  await assert.rejects(() => compSubscription({ deps, input: { workspaceId: WORKSPACE_ID, memberId: member.id, tierId: "no-tier" } }), (error) => error instanceof MemberNotFoundError && error.message === "tier 'no-tier' was not found");
+
   const result = await compSubscription({
     deps,
     input: { workspaceId: WORKSPACE_ID, memberId: "member-3", tierId: "tier-active" },
@@ -525,6 +553,10 @@ test("compSubscription rejects an archived tier and a duplicate active subscript
     () => compSubscription({ deps, input: { workspaceId: WORKSPACE_ID, memberId: "member-3", tierId: "tier-active" } }),
     MemberConflictError
   );
+  await setSubscriptionStatus({ deps, input: { workspaceId: WORKSPACE_ID, subscriptionId: result.subscription.id, status: "canceled" } });
+  const recomp = await compSubscription({ deps, input: { workspaceId: WORKSPACE_ID, memberId: member.id, tierId: activeTier.id } });
+  assert.notEqual(recomp.subscription.id, result.subscription.id);
+  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: member.id, nowIso: deps.clock.nowIso() }), [recomp.subscription]);
 });
 
 test("setSubscriptionStatus updates status, stamps canceledAt on cancel, and rejects unknown ids/values", async () => {
@@ -549,6 +581,9 @@ test("setSubscriptionStatus updates status, stamps canceledAt on cancel, and rej
   });
   assert.equal(result.subscription.status, "canceled");
   assert.ok(result.subscription.canceledAt);
+  assert.equal(result.subscription.canceledAt, deps.clock.nowIso());
+  assert.deepEqual(await deps.subscriptions.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }), result.subscription);
+  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: subscription.memberId, nowIso: deps.clock.nowIso() }), []);
 
   await assert.rejects(
     () =>
@@ -597,4 +632,6 @@ test("setSubscriptionStatus: a non-'canceled' transition leaves canceledAt untou
   assert.equal(result.subscription.status, "expired");
   assert.equal(result.subscription.externalRef, "ext-ref-1");
   assert.equal(result.subscription.canceledAt, undefined, "canceledAt must stay untouched for a non-'canceled' transition");
+  assert.deepEqual(await deps.subscriptions.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }), result.subscription);
+  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: subscription.memberId, nowIso: deps.clock.nowIso() }), []);
 });

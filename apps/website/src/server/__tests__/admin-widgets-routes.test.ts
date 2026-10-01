@@ -341,7 +341,7 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   });
   const hostCreated = await createEntry({
     deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
-    input: { actorId: "system", workspaceId: deps.workspaceId, type: "article", slug: "route-test-host", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [] } },
+    input: { actorId: "system", workspaceId: deps.workspaceId, type: "article", slug: "route-test-host", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this paragraph" }] }] } },
   });
   if (!hostCreated.ok) throw hostCreated.error;
   const hostId = hostCreated.value.entry.id;
@@ -384,7 +384,9 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   assert.equal(reorderRes.status, 200, await reorderRes.clone().text());
   // Reorder mints fresh placementIds (`reorderEmbedSlots`), so the remove below must use one from
   // the reordered body — `inserted.placementId` is stale from here on.
-  const reordered = (await reorderRes.json()) as { entry: { bodyJson: { content: Array<{ type: string; attrs?: { placementId: string } }> } } };
+  const reordered = (await reorderRes.json()) as { entry: { bodyJson: { content: Array<{ type: string; attrs?: { placementId: string; widgetEntryId: string } }> } } };
+  assert.deepEqual(reordered.entry.bodyJson.content.filter((n) => n.type === "widgetEmbed").map((n) => n.attrs?.widgetEntryId), [w2.id, w1.id]);
+  assert.deepEqual((await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: hostId }))?.bodyJson, reordered.entry.bodyJson);
   const currentPlacementId = reordered.entry.bodyJson.content.find((n) => n.type === "widgetEmbed")?.attrs?.placementId;
   assert.ok(currentPlacementId);
 
@@ -433,6 +435,12 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   assert.equal(removeRes.status, 200, await removeRes.clone().text());
   const removed = (await removeRes.json()) as { entry: { version: number } };
   assert.equal(removed.entry.version, 5);
+  const stored = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: hostId });
+  assert.deepEqual(stored?.bodyJson, {
+    ...reordered.entry.bodyJson,
+    content: reordered.entry.bodyJson.content.filter((n) => n.attrs?.placementId !== currentPlacementId),
+  });
+  assert.ok(await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: w2.id }), "removing a placement keeps its widget instance");
 });
 
 /**
@@ -484,6 +492,8 @@ test("admin widgets embeds: insert -> remove -> reorder against a REAL post host
   assert.equal(insertRes.status, 201, await insertRes.clone().text());
   const inserted = (await insertRes.json()) as { entry: { version: number }; placementId: string };
   assert.equal(inserted.entry.version, 2);
+  const insertedPost = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: postId });
+  assert.deepEqual(insertedPost?.bodyJson, { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: inserted.placementId, widgetEntryId: widget.id } }] });
 
   const removeRes = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds/${inserted.placementId}`, {
     method: "DELETE",
@@ -491,6 +501,7 @@ test("admin widgets embeds: insert -> remove -> reorder against a REAL post host
     body: JSON.stringify({ baseVersion: 2 }),
   });
   assert.equal(removeRes.status, 200, await removeRes.clone().text());
+  assert.deepEqual((await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: postId }))?.bodyJson, { type: "doc", content: [] });
 
   const insertRes2 = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds`, {
     method: "POST",
@@ -500,12 +511,56 @@ test("admin widgets embeds: insert -> remove -> reorder against a REAL post host
   assert.equal(insertRes2.status, 201, await insertRes2.clone().text());
   const inserted2 = (await insertRes2.json()) as { entry: { version: number } };
 
+  const secondWidgetRes = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Second post widget", config: { body: "two" } }),
+  });
+  const { widget: secondWidget } = (await secondWidgetRes.json()) as { widget: { id: string } };
+  const insertRes3 = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: inserted2.entry.version, widgetEntryId: secondWidget.id }),
+  });
+  assert.equal(insertRes3.status, 201);
+  const inserted3 = (await insertRes3.json()) as { entry: { version: number } };
   const reorderRes = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ baseVersion: inserted2.entry.version, orderedWidgetEntryIds: [widget.id] }),
+    body: JSON.stringify({ baseVersion: inserted3.entry.version, orderedWidgetEntryIds: [secondWidget.id, widget.id] }),
   });
   assert.equal(reorderRes.status, 200, await reorderRes.clone().text());
+  const reordered = (await reorderRes.json()) as { entry: { bodyJson: { content: Array<{ attrs: { widgetEntryId: string } }> } } };
+  assert.deepEqual(reordered.entry.bodyJson.content.map((n) => n.attrs.widgetEntryId), [secondWidget.id, widget.id]);
+  assert.deepEqual((await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: postId }))?.bodyJson, reordered.entry.bodyJson);
+});
+
+test("admin widgets embeds: failed change-set recording restores a mutated post forward", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const prior = seedRouteHostPost({ bodyJson: { type: "doc", content: [{ type: "paragraph", content: [] }] } });
+  await deps.postRepo.save(prior as never);
+  const created = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Rollback widget", config: { body: "hi" } }),
+  });
+  const { widget } = (await created.json()) as { widget: { id: string } };
+  let mutatedVersion = 0;
+  let mutatedBody: unknown;
+  deps.changeSets.insert = async () => {
+    const mutated = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id });
+    mutatedVersion = mutated?.version ?? 0;
+    mutatedBody = mutated?.bodyJson;
+    throw new Error("injected change-set failure");
+  };
+  const result = await fetch(`${baseUrl}${BASE}/entries/${prior.id}/widget-embeds`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 1, widgetEntryId: widget.id }),
+  });
+  assert.equal(result.status, 500);
+  assert.equal(mutatedVersion, 2);
+  assert.notDeepEqual(mutatedBody, prior.bodyJson, "failure occurs after the mutation");
+  const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id });
+  assert.deepEqual(restored?.bodyJson, prior.bodyJson);
+  assert.equal(restored?.version, 3, "compensation advances OCC instead of rewinding the version");
 });
 
 test("admin widgets embeds: unknown host is 404 WIDGETS_EMBED_HOST_NOT_FOUND, not the stale WIDGETS_INSTANCE_NOT_FOUND code", async (t) => {
@@ -606,6 +661,9 @@ test("admin widgets agent tools: widgets.place with an embed target against a RE
   const placed = (await placeRes.json()) as { tool: string; result: { entry: { version: number } } };
   assert.equal(placed.tool, "widgets.place");
   assert.equal(placed.result.entry.version, 2);
+  const stored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: postId });
+  const content = (stored?.bodyJson as { content: Array<{ type: string; attrs: { widgetEntryId: string } }> }).content;
+  assert.deepEqual(content.map((n) => ({ type: n.type, widgetEntryId: n.attrs.widgetEntryId })), [{ type: "widgetEmbed", widgetEntryId: widget.id }]);
 });
 
 test("admin widgets agent tools: widgets.create places a new instance in one call, widgets.place references an existing one, widgets.diagnose reports where-used, distinct from each other (REQ-35/AC-25)", async (t) => {
@@ -670,7 +728,8 @@ test("admin widgets agent tools: widgets.create places a new instance in one cal
   assert.equal(allWidgets.length, 2);
 
   const regionAfterPlaceRes = await fetch(`${baseUrl}${BASE}/widgets/regions/sidebar`, { headers: { cookie } });
-  const { placements } = (await regionAfterPlaceRes.json()) as { placements: Array<{ widgetTitle: string }> };
+  const { placements } = (await regionAfterPlaceRes.json()) as { placements: Array<{ widgetTitle: string; widgetEntryId: string }> };
+  assert.deepEqual(placements.map((p) => p.widgetEntryId), [createdByTool.widget.id, reused.id]);
   assert.equal(placements.length, 2, "both the widgets.create-placed and widgets.place-placed instances must be in the region");
 });
 

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 
 /**
@@ -38,7 +39,7 @@ function makeStaticThemeDir(
   return dir;
 }
 
-test("the real static/basic theme loads valid with its pages, partials, light tokens and css", () => {
+test("the real static/tovu-theme loads valid with its pages, partials, light tokens and css", () => {
   const theme = loadTheme({
     themeDir: path.join(STATIC_THEMES_DIR, "tovu-theme"),
     id: "tovu-theme",
@@ -53,6 +54,13 @@ test("the real static/basic theme loads valid with its pages, partials, light to
   assert.deepEqual(Object.keys(theme.partials).sort(), ["footer", "footer-minimal", "nav"]);
   assert.ok(Object.keys(theme.tokensLight).length > 0, "tokens.light.json is read for this tier");
   assert.ok(theme.css.length > 0, "static css comes from css/styles.css, not a root styles.css");
+  const dir = path.join(STATIC_THEMES_DIR, "tovu-theme");
+  assert.equal(theme.css, fs.readFileSync(path.join(dir, "css/theme.css"), "utf8"));
+  const light = JSON.parse(fs.readFileSync(path.join(dir, "tokens.light.json"), "utf8"));
+  assert.deepEqual(theme.tokensLight, light);
+  const html = renderStaticPage({ theme, pageId: "index" }) ?? "";
+  const lightCss = /:root\[data-theme="light"\] \{([^}]*)\}/.exec(html)?.[1] ?? "";
+  for (const [key, value] of Object.entries(light)) assert.ok(lightCss.includes(`${key}: ${value};`));
 });
 
 test("a static theme is exempt from the home+entry template requirement", () => {
@@ -172,7 +180,7 @@ test("a templates entry whose file DOES carry a content marker loads valid", () 
   assert.equal(theme.status, "valid");
 });
 
-test("two templates entries are each checked independently — one bad entry does not hide the other's error", () => {
+test("two invalid templates entries are each checked independently — one bad entry does not hide the other's error", () => {
   const dir = makeStaticThemeDir(
     {
       "pages/index.html": "<html></html>",
@@ -180,11 +188,12 @@ test("two templates entries are each checked independently — one bad entry doe
       "pages/slotless.html": "<html><body><p>No content slot here</p></body></html>",
     },
     "static",
-    { templates: ["blog-post.html", "slotless.html"] }
+    { templates: ["missing.html", "blog-post.html", "slotless.html"] }
   );
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
   assert.equal(theme.status, "invalid");
+  assert.ok(theme.errors.includes("theme.json templates entry 'missing.html' has no matching pages/missing.html file"));
   assert.ok(theme.errors.includes('pages/slotless.html is declared in theme.json templates but has no {"type":"content"} marker'));
 });
 

@@ -35,6 +35,8 @@ test("a v2-shaped templated theme (render/pages/*.liquid, css/theme.css) loads a
   assert.deepEqual(theme.errors, []);
   assert.ok(theme.liquidTemplates.home);
   assert.ok(theme.liquidTemplates.entry);
+  assert.equal(theme.liquidTemplates.home, "{{ site.title }}");
+  assert.equal(theme.liquidTemplates.entry, "{{ post.title }}");
   assert.equal(theme.css, "body { margin: 0; }");
 });
 
@@ -80,6 +82,7 @@ test("a v2-shaped static theme (render/pages/, render/partials/, css/theme.css) 
   assert.equal(theme.status, "valid");
   assert.deepEqual(theme.errors, []);
   assert.ok(theme.pages.index);
+  assert.equal(theme.pages.index, `<div data-embed-config='{"type":"partial","id":"nav"}'></div>`);
   assert.equal(theme.partials.nav, "<nav>real nav</nav>");
   assert.equal(theme.css, "body { margin: 0; }");
 });

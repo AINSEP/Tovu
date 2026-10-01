@@ -77,6 +77,7 @@ test("saveList: renaming a list's own slug back to its own current value is not 
   const { list } = await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
   const renamed = await saveList({ deps, input: { workspaceId: WS, id: list.id, name: "VIPs Renamed", slug: "vips" } });
   assert.equal(renamed.list.name, "VIPs Renamed");
+  assert.deepEqual(await deps.listRepo.findById({ workspaceId: WS, id: list.id }), { ...list, name: "VIPs Renamed", updatedAt: clock.nowIso() });
 });
 
 test("archiveList: the default list rejects archive with NEWSLETTER_DEFAULT_LIST_PROTECTED (AC-10)", async () => {
@@ -93,6 +94,9 @@ test("archiveList: a non-default list archives successfully", async () => {
   const { list } = await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
   const archived = await archiveList({ deps, input: { workspaceId: WS, id: list.id } });
   assert.equal(archived.list.status, "archived");
+  const expected = { ...list, status: "archived", updatedAt: clock.nowIso() };
+  assert.deepEqual(await deps.listRepo.findById({ workspaceId: WS, id: list.id }), expected);
+  assert.deepEqual(await deps.listRepo.list({ workspaceId: WS }), [expected]);
 });
 
 test("archiveList: unknown list id is rejected", async () => {

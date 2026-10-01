@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -92,7 +93,7 @@ function fakeRouteDeps() {
     mediaContentTypeStore,
     transformDefinitionRepo,
   };
-  return { deps: deps as unknown as RouteDeps, mediaContentTypeStore, mediaRepo };
+  return { deps: deps as unknown as RouteDeps, mediaContentTypeStore, mediaRepo, assetBlobRepo, blobStore };
 }
 
 /** Finds the real, already-wired `media_upload_asset` registration — the same handler this bridge
@@ -144,10 +145,11 @@ describe("resolveChatAttachmentBytes", () => {
   });
 
   test("does not mask an unrelated store failure as a ToolInputError", async () => {
-    const store: ChatAttachmentLookup = { resolveForRun: async () => { throw new Error("disk exploded"); } };
+    const failure = new Error("disk exploded");
+    const store: ChatAttachmentLookup = { resolveForRun: async () => { throw failure; } };
     await assert.rejects(
       resolveChatAttachmentBytes({ store, readFile: async () => AVIF_BYTES }, { ref: "attachment:x", runId: "run-1" }),
-      /disk exploded/,
+      (error) => error === failure && !(error instanceof ToolInputError),
     );
   });
 });
@@ -170,7 +172,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
 
   test("promotes a real AVIF chat attachment into the media library, recording image/avif — not video/mp4 — via the SAME gate media_upload_asset uses", async () => {
     await withRealStore(async (store) => {
-      const { deps, mediaContentTypeStore } = fakeRouteDeps();
+      const { deps, mediaContentTypeStore, mediaRepo, assetBlobRepo, blobStore } = fakeRouteDeps();
       const batchDirectory = await store.createBatchDirectory("batch-e2e-1");
       const filePath = resolve(batchDirectory, "raw-upload-name.bin");
       await writeFile(filePath, AVIF_BYTES, { mode: 0o600 });
@@ -182,7 +184,18 @@ describe("media_promote_chat_attachment (end to end)", () => {
         readFile: (p) => readFile(p) as unknown as Promise<Uint8Array>,
       });
 
-      const out = (await tool.handler(executionContext({ attachmentRef: registered.path }))) as { media: { sha256: string } };
+      assert.match(registered.path, /^attachment:/, "the real store returns an opaque reference");
+      const out = (await tool.handler(executionContext({ attachmentRef: registered.path, filename: "editorial-cover.avif", alt: "A mountain at sunrise", caption: "Summer cover", credit: "Jane Photographer" }))) as { media: { id: string; sha256: string } };
+      const row = await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: out.media.id });
+      assert.ok(row);
+      assert.equal(row.title, "editorial-cover");
+      assert.equal(row.alt, "A mountain at sunrise");
+      assert.equal(row.caption, "Summer cover");
+      assert.equal(row.credit, "Jane Photographer");
+      assert.equal(out.media.sha256, createHash("sha256").update(AVIF_BYTES).digest("hex"));
+      const blob = await assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: out.media.sha256 });
+      assert.ok(blob);
+      assert.deepEqual(Buffer.from(await blobStore.get({ storageKey: blob.storageKey })), AVIF_BYTES);
 
       const recorded = await mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [out.media.sha256] });
       assert.equal(recorded.get(out.media.sha256), "image/avif", "must record the SNIFFED type, exactly what media_upload_asset itself records");
@@ -191,7 +204,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
 
   test("promotes a real, non-image (video/mp4) chat attachment through the SAME path — the bridge is generic over content type, not AVIF-specific", async () => {
     await withRealStore(async (store) => {
-      const { deps, mediaContentTypeStore } = fakeRouteDeps();
+      const { deps, mediaContentTypeStore, mediaRepo, assetBlobRepo, blobStore } = fakeRouteDeps();
       const batchDirectory = await store.createBatchDirectory("batch-e2e-video");
       const filePath = resolve(batchDirectory, "raw-upload-name.bin");
       await writeFile(filePath, MP4_BYTES, { mode: 0o600 });
@@ -206,6 +219,10 @@ describe("media_promote_chat_attachment (end to end)", () => {
       const out = (await tool.handler(executionContext({ attachmentRef: registered.path }))) as { media: { sha256: string; title: string } };
 
       assert.equal(out.media.title, "clip");
+      assert.equal(out.media.sha256, createHash("sha256").update(MP4_BYTES).digest("hex"));
+      const blob = await assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: out.media.sha256 });
+      assert.ok(blob);
+      assert.deepEqual(Buffer.from(await blobStore.get({ storageKey: blob.storageKey })), MP4_BYTES);
       const recorded = await mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [out.media.sha256] });
       assert.equal(recorded.get(out.media.sha256), "video/mp4", "a non-image attachment must be sniffed and recorded on its own merits, with no image-specific branching in the bridge");
     });
@@ -234,7 +251,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
 
   test("refuses to promote an attachment a DIFFERENT run already claimed — the authorization scoping this bridge adds", async () => {
     await withRealStore(async (store) => {
-      const { deps } = fakeRouteDeps();
+      const { deps, mediaRepo } = fakeRouteDeps();
       const batchDirectory = await store.createBatchDirectory("batch-e2e-3");
       const filePath = resolve(batchDirectory, "other.bin");
       await writeFile(filePath, AVIF_BYTES, { mode: 0o600 });
@@ -252,6 +269,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
         tool.handler(executionContext({ attachmentRef: registered.path }, "run-stranger")),
         ToolInputError,
       );
+      assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
     });
   });
 

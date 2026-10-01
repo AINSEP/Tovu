@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { ToolInputError } from "@jini-ai/core";
 import { createToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
@@ -66,6 +67,17 @@ test("site inspection: the catalog wires in full, with a published schema and a 
       (registration.descriptor.description ?? "").length > 200,
       `${registration.descriptor.id}'s description must tell the model when NOT to call it, not just what it does`,
     );
+    const schema = registration.descriptor.inputSchema as { type: string; additionalProperties: boolean; required?: string[]; properties: Record<string, unknown> };
+    const expected = {
+      site_get_profile: { properties: ["pageLimit", "sections"], required: [] },
+      site_describe_capabilities: { properties: ["sections"], required: [] },
+      fetch_published_page: { properties: ["maxBytes", "path"], required: ["path"] },
+    }[registration.descriptor.id]!;
+    assert.equal(schema.type, "object");
+    assert.equal(schema.additionalProperties, false);
+    assert.deepEqual(Object.keys(schema.properties).sort(), expected.properties);
+    assert.deepEqual(schema.required ?? [], expected.required);
+    assert.match(registration.descriptor.description ?? "", /Do NOT call/);
     assert.ok(siteInspectionDerivedRisk.has(registration.descriptor.id));
   }
 });
@@ -197,12 +209,15 @@ test("site_get_profile: a canary in a sealed credential store never appears in t
 test("fetch_published_page: enforces its own permission before doing any work", async () => {
   const deps: RouteDeps = createRouteDeps();
   await deps.identityReady;
+  let constructed = 0;
+  deps.createSiteApp = () => { constructed += 1; assert.fail("unauthorized app construction"); };
   const handler = registrationFor(buildSiteInspectionRegistrations(deps), "fetch_published_page").handler;
 
   await assert.rejects(
     () => handler(ctxFor("principal-with-no-grants", { path: "/" })),
     (err: unknown) => err instanceof Error && /not authorized for 'content.read'/.test(err.message),
   );
+  assert.equal(constructed, 0);
 });
 
 test("fetch_published_page: refuses an off-site path even for a fully granted principal", async () => {
@@ -211,10 +226,20 @@ test("fetch_published_page: refuses an off-site path even for a fully granted pr
   const handler = registrationFor(buildSiteInspectionRegistrations(deps), "fetch_published_page").handler;
   const owner = await deps.ownerPrincipalId;
 
-  for (const candidate of ["https://evil.example/x", "//evil.example/x", "/a/../../etc/passwd", "/api/admin/v1/x"]) {
+  for (const [candidate, message] of [
+    ["https://evil.example/x", "path must start with '/' — this tool fetches a route on THIS site and never accepts a full URL or a remote host. Got 'https://evil.example/x'."],
+    ["//evil.example/x", "path must not start with '//' — a protocol-relative path resolves to a different host, which this tool never fetches."],
+    ["/a/../../etc/passwd", "path must not contain a '..' segment (encoded or not): '/a/../../etc/passwd'."],
+    ["/api/admin/v1/x", "path must not target '/api' — that is the authenticated admin/API surface, not a published page."],
+  ]) {
     await assert.rejects(
       () => handler(ctxFor(owner, { path: candidate })),
-      (err: unknown) => err instanceof Error && /path/.test(err.message),
+      (err: unknown) => {
+        assert.ok(err instanceof ToolInputError);
+        const schema = registrationFor(buildSiteInspectionRegistrations(deps), "fetch_published_page").descriptor.inputSchema;
+        assert.equal(err.message, `${message}. Fix the input and retry — this will not resolve on retry without an input change. Schema for 'fetch_published_page': ${JSON.stringify(schema)}`);
+        return true;
+      },
       `should refuse '${candidate}'`,
     );
   }
@@ -232,19 +257,28 @@ test("fetch_published_page: renders a real route of this site through the real c
     headers: Record<string, string>;
     cookies: unknown[];
     body: string;
+    bodyBytes: number;
+    truncated: boolean;
   };
 
   assert.equal(result.path, "/");
   assert.equal(typeof result.status, "number");
   assert.ok(result.status >= 200 && result.status < 500, `unexpected status ${result.status}`);
+  assert.equal(result.status, 200);
+  assert.match(result.body, /<!doctype html>/i);
+  assert.ok(result.body.includes("This is your home page."));
   assert.ok(typeof result.body === "string");
   assert.ok(Array.isArray(result.cookies));
   assert.equal(result.headers["set-cookie"], undefined, "raw set-cookie must never survive into the result");
+  const limited = await handler(ctxFor(await deps.ownerPrincipalId, { path: "/", maxBytes: 64 })) as typeof result;
+  assert.equal(limited.status, 200);
+  assert.equal(limited.bodyBytes, 64);
+  assert.equal(limited.truncated, true);
+  assert.equal(limited.body, Buffer.from(result.body).subarray(0, 64).toString("utf8"));
 });
 
-/** `PublishedPagePathError` is exported so a caller can branch on it; assert it is the class the
- *  handler actually surfaces rather than a bare Error someone could not distinguish. */
-test("fetch_published_page: a refused path really is a PublishedPagePathError under the decoration", async () => {
+/** The collector preserves its path error; the handler decorates shape rejections as ToolInputError. */
+test("fetch_published_page: preserves the collector path error and surfaces the decorated handler contract", async () => {
   const deps: RouteDeps = createRouteDeps();
   await deps.identityReady;
   await assert.rejects(
@@ -254,6 +288,14 @@ test("fetch_published_page: a refused path really is a PublishedPagePathError un
     },
     PublishedPagePathError,
   );
+  const handler = registrationFor(buildSiteInspectionRegistrations(deps), "fetch_published_page").handler;
+  const awaitOwner = await deps.ownerPrincipalId;
+  await assert.rejects(() => handler(ctxFor(awaitOwner, { path: "//evil.example" })), (error: unknown) => {
+    assert.ok(error instanceof ToolInputError);
+    assert.equal(error instanceof PublishedPagePathError, false, "shape errors are decorated as ToolInputError");
+    assert.match(error.message, /^path must not start with '\/\/' — a protocol-relative path resolves to a different host, which this tool never fetches\.\. Fix the input and retry/);
+    return true;
+  });
 });
 
 /** This domain's registrations over a real composition root, wired to a real registry the way both

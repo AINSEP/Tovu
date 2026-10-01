@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, verify } from "node:crypto";
 import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
@@ -27,13 +27,14 @@ class FakeHttpClient implements HttpClientPort {
 
   async send(request: HttpRequest): Promise<HttpResponse> {
     this.calls.push(request);
-    const response = this.responses[Math.min(this.cursor, this.responses.length - 1)];
+    const response = this.responses[this.cursor];
+    assert.ok(response, `unexpected request: ${request.method} ${request.url}`);
     this.cursor += 1;
     return response;
   }
 }
 
-const { privateKey } = generateKeyPairSync("rsa", {
+const { privateKey, publicKey } = generateKeyPairSync("rsa", {
   modulusLength: 2048,
   publicKeyEncoding: { type: "spki", format: "pem" },
   privateKeyEncoding: { type: "pkcs8", format: "pem" },
@@ -68,7 +69,8 @@ class ScriptedHttpClient implements HttpClientPort {
 
   async send(request: HttpRequest): Promise<HttpResponse> {
     this.calls.push(request);
-    const step = this.steps[Math.min(this.cursor, this.steps.length - 1)];
+    const step = this.steps[this.cursor];
+    assert.ok(step, `unexpected request: ${request.method} ${request.url}`);
     this.cursor += 1;
     if (typeof step === "function") return step();
     return step;
@@ -127,6 +129,35 @@ test("startRun mints a token, creates a deployment, and returns a callback-recon
   assert.equal(createBody.ref, "a".repeat(40));
   assert.equal(createBody.environment, "production");
   assert.equal(createBody.production_environment, true);
+  assert.deepEqual(createBody, { ref: "a".repeat(40), environment: "production", description: "Tovu deployment of release release-1", auto_merge: false, required_contexts: [], transient_environment: false, production_environment: true });
+  const mint = http.calls[0]!;
+  assert.equal(mint.method, "POST");
+  assert.deepEqual(JSON.parse(String(mint.body)), { permissions: { deployments: "write" } });
+  assert.match(mint.headers!.authorization!, /^Bearer /);
+  const jwt = mint.headers!.authorization!.slice("Bearer ".length);
+  const parts = jwt.split(".");
+  assert.equal(parts.length, 3);
+  assert.deepEqual(JSON.parse(Buffer.from(parts[0]!, "base64url").toString()), { alg: "RS256", typ: "JWT" });
+  const claims = JSON.parse(Buffer.from(parts[1]!, "base64url").toString());
+  const now = Date.parse("2026-08-12T19:00:00Z") / 1000;
+  assert.deepEqual(claims, { iss: "1", iat: now - 60, exp: now + 9 * 60 });
+  assert.ok(claims.exp - claims.iat <= 600);
+  assert.equal(verify("RSA-SHA256", Buffer.from(`${parts[0]}.${parts[1]}`), publicKey, Buffer.from(parts[2]!, "base64url")), true);
+  assert.equal(http.calls[1]!.method, "POST");
+  assert.equal(http.calls[1]!.headers!.authorization, "Bearer ghs_opaque");
+  for (const request of http.calls) {
+    assert.equal(request.headers!.accept, "application/vnd.github+json");
+    assert.equal(request.headers!["content-type"], "application/json");
+    assert.equal(request.headers!["x-github-api-version"], "2022-11-28");
+  }
+});
+
+test("startRun marks staging as non-production and preserves the deployment policy fields", async () => {
+  const http = new FakeHttpClient([jsonResponse(201, { token: "staging-token" }), jsonResponse(201, { id: 92 })]);
+  const result = await createGitHubDeploymentProvider().startRun({ target: makeTarget({ environmentName: "staging" }), release: makeRelease() }, makeContext(http));
+  assert.equal(result.ok, true);
+  assert.equal(http.calls.length, 2);
+  assert.deepEqual(JSON.parse(String(http.calls[1]!.body)), { ref: "a".repeat(40), environment: "staging", description: "Tovu deployment of release release-1", auto_merge: false, required_contexts: [], transient_environment: false, production_environment: false });
 });
 
 test("startRun rejects an external-artifact release (the honesty constraint)", async () => {
@@ -163,8 +194,13 @@ test("origin pinning: every outbound call stays under https://api.github.com eve
   ]);
   const provider = createGitHubDeploymentProvider();
 
-  const target = makeTarget({ owner: "acme", repo: "../../app/installations/1" });
-  await provider.startRun({ target, release: makeRelease() }, makeContext(http));
+  const target = makeTarget({ owner: "../../hostile-owner", repo: "../../app/installations/1" });
+  const ctx = makeContext(http);
+  ctx.credentials = { ...ctx.credentials, installationId: "../../hostile-installation" };
+  await provider.startRun({ target, release: makeRelease() }, ctx);
+  assert.equal(http.calls.length, 2);
+  assert.equal(http.calls[0]!.url, "https://api.github.com/app/installations/..%2F..%2Fhostile-installation/access_tokens");
+  assert.equal(http.calls[1]!.url, "https://api.github.com/repos/..%2F..%2Fhostile-owner/..%2F..%2Fapp%2Finstallations%2F1/deployments");
 
   for (const call of http.calls) {
     assert.equal(new URL(call.url).origin, "https://api.github.com");
@@ -174,7 +210,7 @@ test("origin pinning: every outbound call stays under https://api.github.com eve
   // into an actual path traversal outside /repos/acme/. encodeURIComponent leaves literal "."
   // untouched, which is fine: the danger is unencoded "/", not the dots themselves, and there is
   // exactly one "/" between "acme" and the encoded segment below.
-  assert.match(http.calls[1].url, /\/repos\/acme\/\.\.%2F\.\.%2Fapp%2Finstallations%2F1\/deployments$/);
+  assert.match(http.calls[1].url, /\/repos\/\.\.%2F\.\.%2Fhostile-owner\/\.\.%2F\.\.%2Fapp%2Finstallations%2F1\/deployments$/);
 });
 
 test("sendPinned refuses any request whose resolved origin is not https://api.github.com", async () => {
@@ -205,15 +241,24 @@ test("pollRun takes the status with the greatest id, not statuses[0] (GitHub doc
   assert.equal(result.ok, true);
   assert.equal(result.ok && result.update.status, "succeeded");
   assert.equal(result.ok && result.update.providerStatusId, "3");
+  assert.equal(http.calls.length, 2);
+  assert.equal(http.calls[1]!.url, "https://api.github.com/repos/acme/site/deployments/42/statuses?per_page=100");
+  assert.equal(http.calls[1]!.method, "GET");
+  assert.equal(http.calls[1]!.headers!.authorization, "Bearer ghs_opaque");
+  assert.equal(http.calls[1]!.headers!.accept, "application/vnd.github+json");
 });
 
 test("pollRun returns queued when GitHub has not reported any status yet", async () => {
   const http = new FakeHttpClient([jsonResponse(201, { token: "ghs_opaque" }), jsonResponse(200, [])]);
   const provider = createGitHubDeploymentProvider();
 
-  const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(http));
+  const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "73" }, makeContext(http));
 
   assert.deepEqual(result, { ok: true, update: { status: "queued", providerStatusId: null, message: null } });
+  assert.equal(http.calls.length, 2);
+  assert.equal(http.calls[1]!.method, "GET");
+  assert.equal(http.calls[1]!.url, "https://api.github.com/repos/acme/site/deployments/73/statuses?per_page=100");
+  assert.equal(http.calls[1]!.headers!.authorization, "Bearer ghs_opaque");
 });
 
 test("mapGitHubDeploymentStatus covers the real seven-value state enum explicitly", () => {
@@ -228,6 +273,7 @@ test("mapGitHubDeploymentStatus covers the real seven-value state enum explicitl
   ];
   for (const [state, expected] of cases) {
     assert.equal(mapGitHubDeploymentStatus({ id: 1, state }).status, expected, `state '${state}'`);
+    assert.deepEqual(mapGitHubDeploymentStatus({ id: 23, state, description: "Deployment detail" }), { status: expected, providerStatusId: "23", message: "Deployment detail" });
   }
 });
 
@@ -295,7 +341,7 @@ test("startRun and pollRun report INVALID_TARGET_CONFIG for each missing or malf
 });
 
 test("pollRun reports INVALID_TARGET_CONFIG for a providerRunRef that is not a positive github deployment id", async () => {
-  for (const bad of ["0", "-1", "abc", "1.5", "", "007"]) {
+  for (const bad of ["0", "-1", "abc", "1.5", "", "007", "../../hostile/run"]) {
     const http = new FakeHttpClient([jsonResponse(200, {})]);
     const provider = createGitHubDeploymentProvider();
 
@@ -516,4 +562,11 @@ test("mapGitHubDeploymentStatus truncates a status description to 500 characters
   const long = "x".repeat(600);
   const result = mapGitHubDeploymentStatus({ id: 7, state: "success", description: long });
   assert.equal(result.message, "x".repeat(500));
+});
+
+test("mapGitHubDeploymentStatus reports absent and non-string descriptions as null", () => {
+  for (const description of [undefined, null, 123]) {
+    // @ts-expect-error — the provider can return malformed descriptions at runtime
+    assert.equal(mapGitHubDeploymentStatus({ id: 7, state: "success", description }).message, null);
+  }
 });

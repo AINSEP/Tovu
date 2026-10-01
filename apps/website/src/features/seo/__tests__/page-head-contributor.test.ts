@@ -6,7 +6,8 @@ import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import type { HeadElement, PageHeadContext } from "../types.js";
-import { ensureSeoSettingDefinitions } from "../settings.js";
+import { SeoEntryNotFoundError } from "../errors.js";
+import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
 import { createSeoPageHeadHook } from "../page-head-contributor.js";
 
 /**
@@ -66,6 +67,7 @@ async function makeDeps(posts: PostRecord[]) {
   return {
     postRepo,
     settingsRepo,
+    settingsDeps,
     media: {
       mediaRepo: new InMemoryMediaRepo([]),
       assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
@@ -94,7 +96,13 @@ function baseCtx(entryId: string): PageHeadContext {
 }
 
 test("seoPageHeadHook: maps SeoMeta into HeadElement[] per the fixed priority bands", async () => {
-  const deps = await makeDeps([seedPost()]);
+  const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({
+    title: "SEO title", description: "SEO description", canonical: "https://canonical.example/article",
+    noindex: true, nofollow: false, ogTitle: "OG title", ogDescription: "OG description",
+    ogImage: "https://images.example/og.jpg", twitterTitle: "Twitter title", twitterDescription: "Twitter description",
+    twitterCard: "summary", twitterImage: "https://images.example/twitter.jpg",
+  }) })]);
+  await setSeoSettings(deps.settingsDeps, { workspaceId: WORKSPACE, callerPrincipalId: "caller-1", patch: { twitterSite: "@example" } });
   const hook = createSeoPageHeadHook(deps);
   const elements = await hook.handle(baseCtx("post-1"));
 
@@ -128,6 +136,24 @@ test("seoPageHeadHook: maps SeoMeta into HeadElement[] per the fixed priority ba
   const jsonld = elements.filter((e) => e.kind === "jsonld");
   assert.ok(jsonld.length > 0);
   assert.ok(jsonld.every((e) => e.priority === 900));
+  assert.deepEqual(elements, [
+    { kind: "title", text: "SEO title", priority: 100 },
+    { kind: "meta", name: "description", content: "SEO description", priority: 110 },
+    { kind: "link", rel: "canonical", href: "https://canonical.example/article", priority: 120 },
+    { kind: "link", rel: "alternate", type: "application/rss+xml", title: "Example Site", href: "/feed.xml", priority: 125 },
+    { kind: "meta", name: "robots", content: "noindex,follow", priority: 130 },
+    { kind: "og", property: "og:title", content: "OG title", priority: 140 },
+    { kind: "og", property: "og:type", content: "article", priority: 141 },
+    { kind: "og", property: "og:url", content: "https://canonical.example/article", priority: 142 },
+    { kind: "og", property: "og:image", content: "https://images.example/og.jpg", priority: 143 },
+    { kind: "og", property: "og:description", content: "OG description", priority: 144 },
+    { kind: "meta", name: "twitter:card", content: "summary", priority: 150 },
+    { kind: "meta", name: "twitter:title", content: "Twitter title", priority: 151 },
+    { kind: "meta", name: "twitter:description", content: "Twitter description", priority: 152 },
+    { kind: "meta", name: "twitter:image", content: "https://images.example/twitter.jpg", priority: 153 },
+    { kind: "meta", name: "twitter:site", content: "@example", priority: 154 },
+    { kind: "jsonld", data: { "@context": "https://schema.org", "@type": "Article", headline: "SEO title", description: "SEO description" }, priority: 900 },
+  ]);
 });
 
 test("seoPageHeadHook: a post-kind entry with no schemaType override emits @type: Article (AC-13)", async () => {
@@ -164,6 +190,17 @@ test("seoPageHeadHook: an ancestor chain in context is included as a BreadcrumbL
   const jsonldEntries = elements.filter((e) => e.kind === "jsonld") as Array<Extract<HeadElement, { kind: "jsonld" }>>;
   const breadcrumb = jsonldEntries.find((e) => e.data["@type"] === "BreadcrumbList");
   assert.ok(breadcrumb);
+  assert.deepEqual(breadcrumb.data, { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 2, name: "Blog", item: "/blog" },
+    ],
+  });
+  for (const ancestors of [undefined, []]) {
+    ctx.entry!.ancestors = ancestors;
+    const without = await hook.handle(ctx);
+    assert.equal(without.some((e) => e.kind === "jsonld" && e.data["@type"] === "BreadcrumbList"), false);
+  }
 });
 
 test("seoPageHeadHook: never throws for a normal case", async () => {
@@ -182,6 +219,11 @@ test("seoPageHeadHook: a home/entry-less context still emits site-level tags", a
     siteTitle: "Example Site",
   });
   assert.ok(elements.some((e) => e.kind === "title"));
+  assert.deepEqual(elements, [
+    { kind: "title", text: "Example Site", priority: 100 },
+    { kind: "link", rel: "canonical", href: "/", priority: 120 },
+    { kind: "link", rel: "alternate", type: "application/rss+xml", title: "Example Site", href: "/feed.xml", priority: 125 },
+  ]);
 });
 
 test("seoPageHeadHook: every page, with or without an entry, advertises the RSS feed for auto-discovery", async () => {
@@ -193,3 +235,22 @@ test("seoPageHeadHook: every page, with or without an entry, advertises the RSS 
   const onHome = await hook.handle({ workspaceId: WORKSPACE, route: "/", canonicalUrl: "/", siteTitle: "Example Site" });
   assert.deepEqual(onHome.find((e) => e.kind === "link" && e.rel === "alternate"), expected);
 });
+
+
+test("seoPageHeadHook: a missing entry rejects with the typed entry-not-found error", async () => {
+  const deps = await makeDeps([]);
+  await assert.rejects(() => createSeoPageHeadHook(deps).handle(baseCtx("missing")), SeoEntryNotFoundError);
+});
+
+for (const [noindex, nofollow, content] of [
+  [false, false, "index,follow"], [false, true, "index,nofollow"],
+  [true, false, "noindex,follow"], [true, true, "noindex,nofollow"],
+] as const) {
+  test(`seoPageHeadHook: explicit robots overrides emit ${content}`, async () => {
+    const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({ noindex, nofollow }) })]);
+    const elements = await createSeoPageHeadHook(deps).handle(baseCtx("post-1"));
+    assert.deepEqual(elements.find((e) => e.kind === "meta" && e.name === "robots"), {
+      kind: "meta", name: "robots", content, priority: 130,
+    });
+  });
+}

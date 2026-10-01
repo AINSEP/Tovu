@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
+import { createHash } from "node:crypto";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import {
@@ -10,7 +11,8 @@ import {
   resetPublishContentContributorsForTests,
 } from "#src/features/publish-content/type-registry";
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
-import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
+import { uploadMedia } from "#src/features/media/index";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import type { PublishContentContributor, PackedEntity } from "#src/features/publish-content/type-registry";
 
@@ -103,7 +105,7 @@ async function createPost(baseUrl: string, cookie: string, title: string) {
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/posts`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] } }),
   });
   const raw = await res.text();
   assert.equal(res.status, 201, `creating a post fixture failed: ${raw}`);
@@ -114,7 +116,7 @@ async function createPage(baseUrl: string, cookie: string, title: string) {
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/pages`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] } }),
   });
   const raw = await res.text();
   assert.equal(res.status, 201, `creating a page fixture failed: ${raw}`);
@@ -125,7 +127,7 @@ interface ExportBundle {
   artifactFormatVersion: number;
   hashVersion: number;
   sourceLabel: string;
-  entities: Array<{ entityType: string; id: string; schemaVersion: number; contentHash: string; hashVersion: number; requiredBlobs: string[] }>;
+  entities: Array<{ entityType: string; id: string; schemaVersion: number; contentHash: string; hashVersion: number; requiredBlobs: string[]; state: Record<string, unknown> }>;
   blobManifest: string[];
 }
 
@@ -162,6 +164,7 @@ test("GET .../publish-content/export streams registered post/page entities for a
 
   const ownerCookie = await loginAsOwner(baseUrl);
   const post = await createPost(baseUrl, ownerCookie, "Export me — post");
+  const otherPost = await createPost(baseUrl, ownerCookie, "Export me — another post");
   const page = await createPage(baseUrl, ownerCookie, "Export me — page");
 
   const cookie = await loginWithPermissions(deps, baseUrl, {
@@ -180,12 +183,60 @@ test("GET .../publish-content/export streams registered post/page entities for a
   const byId = new Map(bundle.entities.map((entity) => [entity.id, entity]));
   assert.equal(byId.get(post.id)?.entityType, "post");
   assert.equal(byId.get(page.id)?.entityType, "page");
+  for (const [row, title] of [[post, "Export me — post"], [otherPost, "Export me — another post"], [page, "Export me — page"]] as const) {
+    const entity = byId.get(row.id);
+    assert.ok(entity);
+    assert.equal(entity.state.title, title);
+    assert.equal(entity.state.slug, row.slug);
+    assert.deepEqual(entity.state.bodyJson, { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] });
+    assert.equal(entity.contentHash, contentHash(entity.entityType, {
+      title, slug: row.slug, kind: row.id === page.id ? "page" : "post", status: "draft",
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] },
+      bodyFormat: "doc", bodyHtml: null, seoExtJson: null, templateChoice: null,
+      overridesThemePage: null, memberAccessJson: null,
+    }));
+  }
+  assert.notEqual(byId.get(post.id)?.contentHash, byId.get(page.id)?.contentHash);
+  assert.notEqual(byId.get(post.id)?.contentHash, byId.get(otherPost.id)?.contentHash);
   for (const entity of bundle.entities) {
     assert.ok(["post", "page"].includes(entity.entityType), `unexpected entityType in bundle: ${entity.entityType}`);
     assert.equal(entity.schemaVersion, 2);
     assert.equal(entity.hashVersion, CONTENT_HASH_VERSION);
     assert.equal(typeof entity.contentHash, "string");
   }
+});
+
+test("GET .../publish-content/export includes deduplicated required blobs with downloadable original bytes", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+  const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const sha = createHash("sha256").update(bytes).digest("hex");
+  const mediaIds: string[] = [];
+  for (const filename of ["export-one.png", "export-two.png"]) {
+    const { media } = await uploadMedia({
+      deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+        renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+      input: { workspaceId: WORKSPACE, bytes, filename, contentType: "image/png", createdByPrincipal: "export-test" },
+    });
+    mediaIds.push(media.id);
+  }
+  const { status, raw } = await fetchExport(baseUrl, cookie);
+  assert.equal(status, 200, raw);
+  const bundle = JSON.parse(raw) as ExportBundle;
+  for (const id of mediaIds) {
+    const entity = bundle.entities.find((row) => row.entityType === "media" && row.id === id);
+    assert.ok(entity);
+    assert.deepEqual(entity.requiredBlobs, [sha]);
+  }
+  assert.deepEqual(bundle.blobManifest, [sha]);
+  const download = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${sha}`, { headers: { cookie } });
+  assert.equal(download.status, 200);
+  const body = await download.json() as { sha256: string; dataBase64: string };
+  const downloaded = Buffer.from(body.dataBase64, "base64");
+  assert.equal(body.sha256, sha);
+  assert.deepEqual(new Uint8Array(downloaded), bytes);
+  assert.equal(createHash("sha256").update(downloaded).digest("hex"), sha);
 });
 
 test("GET .../publish-content/export omits a type the principal lacks — 200 with entities: [], never a 500", async (t) => {

@@ -67,18 +67,11 @@ test("AC-32 / INV-07: readRows never returns a sensitive column's value in any r
   assert.equal(result.rows[0].username, "ada");
 });
 
-test("INV-07 (property): sensitive columns are stripped regardless of which permission tier context is passed through", async () => {
-  const tiers = ["viewer", "editor", "owner", "superadmin"] as const;
-  for (const tier of tiers) {
-    const result = await readRows({
-      table: usersTable,
-      limit: 10,
-      fetch: async () => ({
-        rows: [{ id: "u-1", passwordHash: `leak-for-${tier}` }],
-        nextCursor: null,
-      }),
-    });
-    assert.ok(!("passwordHash" in result.rows[0]), `tier ${tier} must not see the sensitive column either`);
+test("INV-07 (property): redaction follows column sensitivity rather than hard-coded names", async () => {
+  for (const mask of [0, 1, 2, 3]) {
+    const columns = ["customToken", "ordinaryLookingName"].map((name, index) => ({ name, sensitive: Boolean(mask & (1 << index)) }));
+    const result = await readRows({ table: { name: "custom", columns }, fetch: async () => ({ rows: [{ customToken: "a", ordinaryLookingName: "b" }], nextCursor: null }) });
+    for (const column of columns) assert.equal(column.name in result.rows[0]!, !column.sensitive);
   }
 });
 
@@ -87,13 +80,22 @@ test("EC-05 / AC-32: a where-clause referencing a sensitive column is silently o
     table: usersTable,
     where: { column: "passwordHash", op: "eq", value: "guess" },
     limit: 10,
-    fetch: async () => ({ rows: [{ id: "u-1", passwordHash: "irrelevant" }], nextCursor: null }),
+    fetch: async (params) => {
+      assert.equal(params.where, undefined, "a sensitive predicate must not reach the reader");
+      return { rows: params.where ? [] : [{ id: "u-1", passwordHash: "irrelevant" }], nextCursor: null };
+    },
   });
 
   assert.ok(!("passwordHash" in result.rows[0]));
 });
 
 test("AC-34 / REQ-26: readRows accepts a bounded predicate (column/op/value) but rejects raw SQL text", async () => {
+  const where = { column: "username", op: "eq" as const, value: "ada" };
+  const result = await readRows({ table: usersTable, where, orderBy: "username", cursor: "page-1", limit: 10, fetch: async (params) => {
+    assert.deepEqual(params, { where, orderBy: "username", cursor: "page-1", limit: 10 });
+    return { rows: [{ username: "ada" }], nextCursor: "page-2" };
+  } });
+  assert.deepEqual(result, { rows: [{ username: "ada" }], nextCursor: "page-2" });
   await assert.rejects(
     readRows({
       table: usersTable,

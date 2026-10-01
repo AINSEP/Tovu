@@ -75,6 +75,12 @@ export function createHookRegistry(): HookRegistry {
         if (!keep) return { keep: false, reason: "recipient.filter suppressed this recipient" };
       }
 
+      // EC-01: live subscription status is mandatory, including with an empty registry.
+      // Custom filters may further restrict the audience, but cannot re-enable an unsubscribe.
+      if (required.recipientFilterContext.status !== "subscribed") {
+        return { keep: false, reason: `subscription is '${required.recipientFilterContext.status}'` };
+      }
+
       // Step 2: beforeSend — only reached for a row that passed step 1.
       let message = required.message;
       for (const hook of beforeSendHooks) {

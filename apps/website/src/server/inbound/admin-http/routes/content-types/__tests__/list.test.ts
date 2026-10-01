@@ -9,17 +9,17 @@ import type { ContentTypesRouteDeps } from "../deps.js";
 
 function buildApp(depsOverrides: Partial<ContentTypesRouteDeps> = {}): express.Express {
   const fakeRepo = {
-    listByWorkspace: async ({ workspaceId }: { workspaceId: string }) => [
+    listByWorkspace: async ({ workspaceId }: { workspaceId: string }) => workspaceId === "ws-1" ? [
       {
         id: "ct-1",
-        workspaceId,
+        workspaceId: "ws-1",
         key: "post",
         name: "Post",
         status: "active",
         fields: [],
         version: 1,
       },
-    ],
+    ] : [],
   };
 
   const deps: ContentTypesRouteDeps = {
@@ -55,6 +55,7 @@ test("list: returns 200 with content types when authorized", async (t) => {
   assert.equal(body.items.length, 1);
   assert.equal(body.items[0].id, "ct-1");
   assert.equal(body.items[0].key, "post");
+  assert.equal(body.items[0].workspaceId, "ws-1");
 });
 
 test("list: returns 403 when principal is not authorized for admin.collections.read", async (t) => {

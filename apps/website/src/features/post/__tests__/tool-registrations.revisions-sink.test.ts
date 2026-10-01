@@ -122,3 +122,38 @@ test("content_post_update appends a chained post_revisions row, proving the ledg
   assert.equal(revisions[0].delegatedByWorkspaceId, WORKSPACE_ID);
   assert.equal(revisions[0].delegatedById, PRINCIPAL_ID);
 });
+
+for (const operation of ["create", "update"] as const) {
+  test(`content_post_${operation}: a failed revision append rolls back the row and records no change set`, async (t) => {
+    const { deps, postRepo } = fakeRouteDeps();
+    const registrations = registrationsFor(deps);
+    const createTool = tool(registrations, "content_post_create");
+    let id = "id-1";
+    if (operation === "update") {
+      const created = await call(createTool, { kind: "post", title: "Original" }) as { post: { id: string } };
+      id = created.post.id;
+    }
+    const before = await postRepo.findById({ workspaceId: WORKSPACE_ID, id });
+    const beforeRevisions = await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: id });
+    const beforeChanges = await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID });
+    const failure = new Error("revision append failed");
+    const append = t.mock.method(postRepo, "appendRevision", async () => { throw failure; });
+    await assert.rejects(() => call(tool(registrations, `content_post_${operation}`), operation === "create" ? { kind: "post", title: "Failed create" } : { id, kind: "post", title: "Failed update" }), error => error === failure);
+    assert.equal(append.mock.calls.length, 1);
+    assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id }), before);
+    assert.deepEqual(await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: id }), beforeRevisions);
+    assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), beforeChanges);
+    assert.deepEqual(await deps.outbox.claimPending(10, NOW), []);
+  });
+}
+
+test("content_post_create: a failed change-set record removes the created row and its revision", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  const failure = new Error("change-set recording failed");
+  deps.changeSets.insert = async () => { throw failure; };
+  await assert.rejects(() => call(tool(registrationsFor(deps), "content_post_create"), { kind: "post", title: "Failed create", slug: "failed-create" }), error => error === failure);
+  assert.deepEqual(await postRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.equal(await postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "failed-create" }), null);
+  assert.deepEqual(await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: "id-1" }), []);
+  assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+});

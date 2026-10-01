@@ -6,7 +6,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/index.js";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
@@ -58,6 +58,18 @@ type EventsBehavior =
   | "delayed-then-normal";
 let startRunBehavior: StartRunBehavior = "ok";
 let eventsBehavior: EventsBehavior = "normal";
+let expectedPrincipalId = "";
+let runCanceled = false;
+function requestGate() {
+  let arrive!: () => void;
+  let release!: () => void;
+  const arrived = new Promise<void>((resolve) => { arrive = resolve; });
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  return { arrive, release, arrived, released };
+}
+let startGate: ReturnType<typeof requestGate> | null = null;
+let subscribeGate: ReturnType<typeof requestGate> | null = null;
+let clientCloseGate: ReturnType<typeof requestGate> | null = null;
 
 // Real daemon frames are the FULL `RunProtocolEventWire` envelope
 // (`{runId, eventId, opaqueCursor, protocolVersion, ts, kind, payload, durability}` —
@@ -159,20 +171,17 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
 
       if (req.method === "POST" && req.url === "/api/runs") {
         if (startRunBehavior === "http-failure") {
-          res.writeHead(500, { "content-type": "application/json" });
+          res.writeHead(429, { "content-type": "application/json" });
           res.end(JSON.stringify({ error: "daemon rejected the run" }));
           return;
         }
         if (startRunBehavior === "delayed-ok") {
-          // Holds the response open long enough for a test to abort the CLIENT-facing request
-          // while the server is still inside its own `await startDaemonRun(...)` — proving the
-          // orphan-cancellation window that exists BEFORE a `daemonRunId` is even known. The
-          // request is still recorded above (before this branch), so the run's existence is
-          // observable even though this client never sees the reply.
-          setTimeout(() => {
+          const gate = startGate!;
+          gate.arrive();
+          void gate.released.then(() => {
             res.writeHead(200, { "content-type": "application/json" });
             res.end(JSON.stringify({ run: { id: "daemon-run-1" } }));
-          }, 200);
+          });
           return;
         }
         res.writeHead(200, { "content-type": "application/json" });
@@ -186,15 +195,19 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
           return;
         }
         if (eventsBehavior === "delayed-then-normal") {
-          // Holds the subscribe response open so a test can abort while the server is inside its
-          // own `await subscribeToDaemonEvents(...)` — strictly after the daemon run already
-          // exists, but strictly before any SSE frame (or even response headers) reaches the
-          // client. Distinct from "stays-open-until-aborted", which aborts only after a frame has
-          // already been read.
-          setTimeout(() => EVENTS_SCRIPTS.normal(req, res), 200);
+          const gate = subscribeGate!;
+          gate.arrive();
+          void gate.released.then(() => EVENTS_SCRIPTS.normal(req, res));
           return;
         }
         EVENTS_SCRIPTS[eventsBehavior](req, res);
+        return;
+      }
+      if (req.method === "POST" && req.url === "/api/runs/daemon-run-1/cancel") {
+        const authorized = req.headers.authorization === `Bearer ${TOKEN}` && req.headers[RUN_PRINCIPAL_HEADER] === expectedPrincipalId;
+        runCanceled = authorized;
+        res.writeHead(authorized ? 200 : 403, { "content-type": "application/json" });
+        res.end(JSON.stringify({ canceled: authorized }));
         return;
       }
       res.writeHead(404, { "content-type": "application/json" });
@@ -236,6 +249,10 @@ function harness() {
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
+        app.use("/api/admin/v1/assistant/ag-ui-run", (_req, res, next) => {
+          res.on("close", () => clientCloseGate?.arrive());
+          next();
+        });
         createAssistantAgUiModule(deps).registerRoutes?.(app);
         return app;
       },
@@ -251,6 +268,12 @@ async function bootAgUi(t: import("node:test").TestContext) {
   eventsBehavior = "normal";
   const baseUrl = await startTestServer(buildApp(), t);
   const cookie = await loginAsOwner(baseUrl);
+  const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
+  expectedPrincipalId = me.user.id;
+  runCanceled = false;
+  startGate = null;
+  subscribeGate = null;
+  clientCloseGate = null;
   return { baseUrl, cookie };
 }
 
@@ -301,6 +324,7 @@ test("starting a run stamps the session principal into contextRef, same as the L
   const contextRef = JSON.parse(startBody.contextRef) as { prompt: string; principalId: string };
   assert.match(contextRef.prompt, /find my posts/);
   assert.ok(contextRef.principalId.length > 0, "a real session-verified principal id must be stamped");
+  assert.equal(contextRef.principalId, expectedPrincipalId);
 });
 
 test("full round trip: daemon frames -> real AG-UI SSE events, including the interruption sequence", async (t) => {
@@ -343,6 +367,8 @@ test("full round trip: daemon frames -> real AG-UI SSE events, including the int
   const starts = events.filter((e) => e.type === "TEXT_MESSAGE_START");
   assert.equal(starts.length, 2);
   assert.notEqual(starts[0]?.messageId, starts[1]?.messageId);
+  assert.deepEqual(starts.map((start) => events.filter((e) => e.type === "TEXT_MESSAGE_CONTENT" && e.messageId === start.messageId).map((e) => e.delta).join("")), ["Let me check that.", "Found 3 posts."]);
+  assert.deepEqual(JSON.parse(String(events.find((e) => e.type === "TOOL_CALL_ARGS")?.delta)), { q: "posts" });
 
   // Tool call correlation survives the round trip intact.
   const toolStart = events.find((e) => e.type === "TOOL_CALL_START");
@@ -411,6 +437,8 @@ test("history longer than 40 messages is truncated to the trailing 40 before rea
   assert.doesNotMatch(contextRef.prompt, /message-4\n/);
   assert.match(contextRef.prompt, /message-5/);
   assert.match(contextRef.prompt, /message-44/);
+  const expected = Array.from({ length: 40 }, (_, i) => `## ${i === 39 ? "user" : "assistant"}\nmessage-${i + 5}`).join("\n\n");
+  assert.equal(contextRef.prompt, expected);
 });
 
 test("omitted threadId/runId are minted server-side; an explicit forwardedProps.agentId is forwarded to the daemon", async (t) => {
@@ -478,7 +506,7 @@ test("a non-ok daemon response to POST /api/runs surfaces as DAEMON_START_FAILED
     body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
   });
 
-  assert.equal(res.status, 500);
+  assert.equal(res.status, 429);
   const payload = (await res.json()) as { code: string };
   assert.equal(payload.code, "DAEMON_START_FAILED");
   assert.ok(!recorded.some((r) => (r.url ?? "").includes("/events")), "the events endpoint must never be reached after a start failure");
@@ -676,6 +704,8 @@ test("Stop (the client aborting mid-stream) calls the daemon's own /cancel endpo
   const cancelCall = await waitForRecordedCancelCall("daemon-run-1");
   assert.ok(cancelCall, `expected a POST /api/runs/daemon-run-1/cancel call; recorded requests: ${JSON.stringify(recorded.map((r) => `${r.method} ${r.url}`))}`);
   assert.equal(cancelCall?.headers.authorization, `Bearer ${TOKEN}`, "the cancel call must carry the same daemon bearer token every other proxied call does");
+  assert.equal(cancelCall?.headers[RUN_PRINCIPAL_HEADER], expectedPrincipalId);
+  assert.equal(runCanceled, true, "the daemon accepted cancellation as the run owner");
 });
 
 /**
@@ -687,9 +717,12 @@ test("Stop (the client aborting mid-stream) calls the daemon's own /cancel endpo
  * registered yet to hear `"close"`, and by the time registration happened the daemon run already
  * existed with no listener left to catch a `"close"` that had already fired.
  */
-test("abort while the daemon run is still starting still cancels it once it exists", async (t) => {
+test("abort while the daemon run is still starting still cancels it once it exists", { timeout: 5_000 }, async (t) => {
   const { baseUrl, cookie } = await bootAgUi(t);
-  startRunBehavior = "delayed-ok"; // holds POST /api/runs open past when the abort below fires
+  startRunBehavior = "delayed-ok";
+  startGate = requestGate();
+  clientCloseGate = requestGate();
+  t.after(() => startGate?.release());
 
   const controller = new AbortController();
   const fetchPromise = fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
@@ -698,10 +731,11 @@ test("abort while the daemon run is still starting still cancels it once it exis
     body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
     signal: controller.signal,
   });
-  // 30ms is well inside the mock daemon's 200ms `delayed-ok` hold, so the abort below always lands
-  // while the server is still awaiting the daemon's run-start response.
-  setTimeout(() => controller.abort(), 30);
+  await startGate.arrived;
+  controller.abort();
   await assert.rejects(fetchPromise, "the client's own fetch must observe the abort");
+  await clientCloseGate.arrived;
+  startGate.release();
 
   const cancelCall = await waitForRecordedCancelCall("daemon-run-1");
   assert.ok(
@@ -716,9 +750,12 @@ test("abort while the daemon run is still starting still cancels it once it exis
  * exists but strictly before any SSE frame (or even response headers) reaches this client. Distinct
  * from the "Stop" test above, which aborts only after a frame has already been read.
  */
-test("abort while waiting to subscribe to the daemon's event stream still cancels the run", async (t) => {
+test("abort while waiting to subscribe to the daemon's event stream still cancels the run", { timeout: 5_000 }, async (t) => {
   const { baseUrl, cookie } = await bootAgUi(t);
-  eventsBehavior = "delayed-then-normal"; // startRunBehavior stays "ok": the run itself starts immediately
+  eventsBehavior = "delayed-then-normal";
+  subscribeGate = requestGate();
+  clientCloseGate = requestGate();
+  t.after(() => subscribeGate?.release());
 
   const controller = new AbortController();
   const fetchPromise = fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
@@ -727,8 +764,11 @@ test("abort while waiting to subscribe to the daemon's event stream still cancel
     body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
     signal: controller.signal,
   });
-  setTimeout(() => controller.abort(), 30);
+  await subscribeGate.arrived;
+  controller.abort();
   await assert.rejects(fetchPromise, "the client's own fetch must observe the abort");
+  await clientCloseGate.arrived;
+  subscribeGate.release();
 
   const cancelCall = await waitForRecordedCancelCall("daemon-run-1");
   assert.ok(

@@ -37,7 +37,11 @@ test("FS_ROOT_DESCRIPTORS has one entry per FS_ROOT_IDS id, none blank", () => {
 });
 
 test("resolveFsRoots resolves repo and site exactly as before custom existed", () => {
-  const roots = resolveFsRoots();
+  const siteDir = freshSiteDir();
+  const roots = resolveFsRoots({ cwd: siteDir, env: { TOVU_SITE_DIR: siteDir } });
+  assert.equal(roots.repo, path.resolve(import.meta.dirname, "../../../../../.."));
+  assert.equal(roots.site, siteDir);
+  assert.notEqual(roots.repo, roots.site);
   assert.equal(typeof roots.repo, "string");
   assert.ok(roots.repo.length > 0);
   assert.equal(typeof roots.site, "string");

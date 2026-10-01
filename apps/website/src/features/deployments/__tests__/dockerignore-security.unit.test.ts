@@ -19,9 +19,8 @@ import test from "node:test";
  *     `docker build` (`DOCKER_BUILDKIT=0`, or a pre-23 Docker), which has no notion of the
  *     per-Dockerfile convention at all and falls back to this file alone.
  *
- * Both are exercised through a small dockerignore-pattern matcher (gitignore-style: bare names
- * match at any depth, a `/` in the pattern anchors it to the context root, `!` negates, last match
- * wins) rather than grepping the file text for a line — a substring match would pass even if the
+ * Both are exercised through a small matcher for the patterns used here (root-anchored:
+ * only `**` crosses directories, `!` negates, last match wins) rather than grepping the file text for a line — a substring match would pass even if the
  * pattern were spelled in a way that doesn't actually match the real path (e.g. missing the
  * leading `sites/` a `content.db` fixture needs), which is exactly the kind of green-but-wrong test
  * this repo's own coverage discipline calls out.
@@ -59,18 +58,17 @@ function parseDockerignore(path: string): IgnorePattern[] {
 }
 
 function patternToRegex(pattern: string): RegExp {
-  const anchoredByLeadingSlash = pattern.startsWith("/");
-  let body = pattern.replace(/^\//, "").replace(/\/$/, "");
-  const anchored = anchoredByLeadingSlash || body.includes("/");
+  const body = pattern.replace(/^\//, "").replace(/\/$/, "");
 
   let escaped = body.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  escaped = escaped.replace(/\*\*\//g, "\u0000DOUBLESTARSLASH\u0000");
   escaped = escaped.replace(/\*\*/g, "\u0000DOUBLESTAR\u0000");
   escaped = escaped.replace(/\*/g, "[^/]*");
+  escaped = escaped.replace(/\u0000DOUBLESTARSLASH\u0000/g, "(?:.*/)?");
   escaped = escaped.replace(/\u0000DOUBLESTAR\u0000/g, ".*");
 
-  const prefix = anchored ? "^" : "(^|.*/)";
   // Matches the pattern itself, or anything nested under it (directory-style exclusion).
-  return new RegExp(`${prefix}${escaped}($|/.*$)`);
+  return new RegExp(`^${escaped}($|/.*$)`);
 }
 
 function isIgnored(patterns: IgnorePattern[], targetPath: string): boolean {
@@ -89,6 +87,8 @@ const MUST_BE_IGNORED = [
   ".certs/localhost-key.pem",
   ".certs.disabled/localhost.pem",
   "apps/admin/.certs.disabled/localhost-key.pem",
+  "server.pem",
+  "server.key",
   "some/nested/path/server.pem",
   "some/nested/path/server.key",
   "chat.db",
@@ -141,3 +141,11 @@ for (const [label, relativePath] of [
     }
   });
 }
+
+test("Docker bare patterns match from the context root; globstar also reaches nested files", () => {
+  assert.equal(patternToRegex("*.pem").test("server.pem"), true);
+  assert.equal(patternToRegex("*.pem").test("nested/server.pem"), false);
+  assert.equal(patternToRegex("**/*.pem").test("server.pem"), true);
+  assert.equal(patternToRegex("**/*.pem").test("nested/server.pem"), true);
+  assert.equal(patternToRegex("node_modules").test("apps/site/node_modules/pkg"), false);
+});

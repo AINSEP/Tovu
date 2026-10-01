@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Server } from "node:http";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -217,6 +218,13 @@ test("exportSite: the exporter's own temporary server is bound to 127.0.0.1, not
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
   const base = createRouteDeps();
+  const boundAddresses: string[] = [];
+  const address = Server.prototype.address;
+  t.mock.method(Server.prototype, "address", function (this: Server) {
+    const result = address.call(this);
+    if (result && typeof result === "object") boundAddresses.push(result.address);
+    return result;
+  });
   const recordedLocalAddresses: string[] = [];
   base.createSiteApp = () => {
     const wrapper = express();
@@ -230,6 +238,8 @@ test("exportSite: the exporter's own temporary server is bound to 127.0.0.1, not
 
   await exportSite({ routeDeps: base, outputDir });
 
+  assert.ok(boundAddresses.length > 0);
+  assert.deepEqual([...new Set(boundAddresses)], ["127.0.0.1"], "inspect the listener bind, which differs from the accepted socket address");
   assert.ok(recordedLocalAddresses.length > 0, "the crawl must have made at least one request for this assertion to mean anything");
   for (const addr of recordedLocalAddresses) {
     assert.equal(addr, "127.0.0.1", "every request the export crawl makes must land on a listener bound to 127.0.0.1, not an every-interface bind");
@@ -347,6 +357,9 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
 
   const home = readFileSync(path.join(outputDir, "index.html"), "utf8");
   assert.match(home, /<!doctype html>/i, "home is a full HTML document, not a fragment");
+  for (const file of ["index.html", "welcome/index.html", "404.html"]) {
+    assert.match(readFileSync(path.join(outputDir, file), "utf8"), /<meta name="referrer" content="strict-origin-when-cross-origin">/, file);
+  }
 });
 
 test("exportSite: every succeeded route/asset carries its own bytes and content-type as data, matching what's on disk", async (t) => {
@@ -390,7 +403,11 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   const currentPresentation = await routeDeps.presentationRepo.findByWorkspaceId(routeDeps.workspaceId);
   await routeDeps.presentationRepo.save({ ...currentPresentation!, activeThemeId: "tovu-theme" });
 
+  routeDeps.themes = routeDeps.themes.map((theme) => theme.manifest.id === "tovu-theme"
+    ? { ...theme, manifest: { ...theme.manifest, publishedPages: ["docs"] } } : theme);
   const report = await exportSite({ routeDeps, outputDir });
+  assert.ok(report.routes.succeeded.some((route) => route.path === "/docs" && route.kind === "theme-page"));
+  assert.equal(report.unreferencedThemeFiles.includes("render/pages/docs.html"), false, "a published ordinary theme page was rendered");
 
   // A content-embedding template shell (route-manifest.ts's own file header): never its own route,
   // never linked from any rendered page — genuinely unreferenced, not a false positive. `basic` is
@@ -825,6 +842,7 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   assert.equal(redirectSucceeded.contentType, "text/html; charset=utf-8", "an exporter-authored stub has no real response header to read, so this is a fixed value");
 
   const stub = readFileSync(path.join(outputDir, "old-page", "index.html"), "utf8");
+  assert.match(stub, /<meta name="referrer" content="strict-origin-when-cross-origin">/);
   assert.equal(stub, redirectSucceeded.data, "the succeeded entry's data must match the bytes actually written");
   assert.match(stub, /<meta http-equiv="refresh" content="0; url=\/welcome\?ref=export&amp;utm_source=redirect-test">/, "the redirect target must be HTML-escaped (& -> &amp;) into the meta refresh");
   assert.match(stub, /<link rel="canonical" href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
@@ -854,7 +872,8 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
  * crashed-404-page test's own fetch-interception technique) — the
  * `redirectTarget` this exporter then trusts verbatim as the manifest's hint.
  */
-test("exportSite: a redirect stub never embeds a javascript:-scheme target unescaped into an href/url= sink", async (t) => {
+for (const target of ["javascript:alert(document.cookie)", "data:text/html,unsafe", "vbscript:msgbox(1)"]) {
+test(`exportSite: a redirect stub safely renders ${target}`, async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
@@ -865,7 +884,7 @@ test("exportSite: a redirect stub never embeds a javascript:-scheme target unesc
     workspaceId: base.workspaceId,
     matchType: "exact",
     fromPattern: "/xss-fallback-probe",
-    toTarget: "javascript:alert(document.cookie)",
+    toTarget: target,
     statusCode: 301,
     status: "active",
     override: false,
@@ -906,12 +925,14 @@ test("exportSite: a redirect stub never embeds a javascript:-scheme target unesc
     if (!succeeded) throw new Error(`expected /xss-fallback-probe in routes.succeeded: ${JSON.stringify(report.routes.failed)}`);
 
     const stub = readFileSync(path.join(outputDir, "xss-fallback-probe", "index.html"), "utf8");
+    assert.equal(stub, `<!doctype html><html lang="en"><head><meta name="referrer" content="strict-origin-when-cross-origin"><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=#"><link rel="canonical" href="#"><title>Redirecting…</title></head><body>Redirecting to <a href="#">${target}</a>.</body></html>\n`);
     assert.doesNotMatch(stub, /url=javascript:/i, "a javascript: target must never reach the meta-refresh url=");
     assert.doesNotMatch(stub, /href="javascript:/i, "a javascript: target must never reach a raw href attribute");
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
+}
 
 test("exportSite: a prefix redirect rule shadowing the 404 probe's own path makes the probe fetch return <400, reported as a route failure", async (t) => {
   const outputDir = makeTmpOutputDir();
@@ -1224,4 +1245,65 @@ function makeEmptyReport(): ExportReport {
     skippedManifestEntries: [],
     unreferencedThemeFiles: [],
   };
+}
+
+test("exportSite: base-path rewrites script/image src and both attribute quote styles exactly", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const deps = createRouteDeps();
+  deps.createSiteApp = () => {
+    const app = express();
+    app.get("/about", (_req, res) => res.type("html").send(`<html><head></head><body><script src="/scripts/app.js"></script><img src='/images/photo.png'><a href='/welcome'>Welcome</a><img src="/my-repo/already.png"><img src="https://other.test/x.png"></body></html>`));
+    app.use(createApp(deps));
+    return app;
+  };
+  const report = await exportSite({ routeDeps: deps, outputDir, basePath: "my-repo" });
+  const html = readFileSync(path.join(outputDir, "about/index.html"), "utf8");
+  assert.deepEqual([...html.matchAll(/\b(href|src)=(["'])(.*?)\2/g)].map((match) => [match[1], match[3]]), [
+    ["src", "/my-repo/scripts/app.js"], ["src", "/my-repo/images/photo.png"], ["href", "/my-repo/welcome"],
+    ["src", "/my-repo/already.png"], ["src", "https://other.test/x.png"],
+  ]);
+  for (const route of report.routes.succeeded.filter((route) => /^text\/html/.test(route.contentType ?? ""))) {
+    assert.doesNotMatch(route.data, /\bsrc=(["'])\/(?!my-repo(?:\/|["']))/, route.path);
+  }
+});
+
+for (const boundary of ["network", "body"] as const) {
+  test(`exportSite: ${boundary} failures are isolated to affected routes/assets and close the server`, async (t) => {
+    const outputDir = makeTmpOutputDir();
+    t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+    const deps = createRouteDeps();
+    const now = new Date().toISOString();
+    const rule: RedirectRecord = { id: "transport-redirect", workspaceId: deps.workspaceId, matchType: "exact", fromPattern: "/transport-redirect", toTarget: "/welcome", statusCode: 301, status: "active", override: false, priority: 0, source: "manual", createdByPrincipal: "system", createdAt: now, updatedAt: now, version: 1 };
+    await deps.redirectRepo.save({ record: rule, revision: { redirectId: rule.id, workspaceId: rule.workspaceId, seq: 1, state: rule, tombstoned: false, actorId: "system", recordedAt: now } });
+    // A controlled transport fixture also works where the test runner cannot bind sockets.
+    // The response streams are real Web Streams; only the ephemeral listener is substituted.
+    t.mock.method(Server.prototype, "listen", function (this: Server) { queueMicrotask(() => this.emit("listening")); return this; });
+    t.mock.method(Server.prototype, "address", () => ({ address: "127.0.0.1", family: "IPv4", port: 43210 }));
+    const close = t.mock.method(Server.prototype, "close", function (this: Server, callback: () => void) { callback(); return this; });
+    t.mock.method(Server.prototype, "closeAllConnections", () => {});
+    let baseUrl = "";
+    t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      baseUrl = url.origin;
+      if (url.pathname === "/") return new Response('<html><head></head><body><img src="/agent-icons/transport.bin"><img src="/agent-icons/good.bin"></body></html>', { headers: { "content-type": "text/html" } });
+      if (url.pathname === "/agent-icons/good.bin") return new Response(new Uint8Array([1, 2, 3]));
+      if (["/welcome", "/tovu-export-404-check", "/agent-icons/transport.bin", ...(boundary === "network" ? ["/transport-redirect"] : [])].includes(url.pathname)) {
+        if (boundary === "network") throw new TypeError("transport canary");
+        return new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array([42])); controller.error(new Error("body canary")); } }), { status: url.pathname === "/tovu-export-404-check" ? 404 : 200 });
+      }
+      if (url.pathname === "/transport-redirect") return new Response(null, { status: 301, headers: { location: "/welcome" } });
+      return new Response("<html><head></head><body>unrelated route</body></html>", { status: url.pathname === "/tovu-export-404-check" ? 404 : 200, headers: { "content-type": "text/html" } });
+    });
+    const report = await exportSite({ routeDeps: deps, outputDir });
+    assert.deepEqual(report.routes.failed.map((route) => route.path).sort(), ["/welcome", "/tovu-export-404-check", ...(boundary === "network" ? ["/transport-redirect"] : [])].sort());
+    for (const failure of report.routes.failed) assert.match(failure.reason, boundary === "network" ? /transport canary/ : /body canary/);
+    assert.deepEqual(report.assets.failed.map((asset) => asset.url), ["/agent-icons/transport.bin"]);
+    assert.match(report.assets.failed[0]!.reason, boundary === "network" ? /transport canary/ : /body canary/);
+    assert.ok(report.routes.succeeded.some((route) => route.path === "/about"));
+    assert.deepEqual(report.assets.succeeded.find((asset) => asset.url === "/agent-icons/good.bin")?.data, Buffer.from([1, 2, 3]));
+    for (const file of ["welcome/index.html", "404.html", "agent-icons/transport.bin", ...(boundary === "network" ? ["transport-redirect/index.html"] : [])]) assert.equal(existsSync(path.join(outputDir, file)), false, file);
+    assert.equal(baseUrl, "http://127.0.0.1:43210");
+    assert.equal(close.mock.calls.length, 1, "the temporary server must close even when body reading fails");
+  });
 }

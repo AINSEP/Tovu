@@ -36,6 +36,7 @@ function makeStaticThemeDir(files: Record<string, string>, manifestExtra: Record
 
 const PAGES = {
   "pages/index.html": "<html></html>",
+  "pages/404.html": "<html><body>Missing page</body></html>",
   "pages/about.html": "<html></html>",
   "pages/pricing.html": "<html></html>",
   "pages/page-shell.html": '<div data-embed-config=\'{"type":"content"}\'></div>',
@@ -51,6 +52,8 @@ test("OFF BY DEFAULT (2026-08-30 owner correction, retroactive): no publishedPag
   // Unaffected by the absent publishedPages list — these were never routable in the first place,
   // and stay live regardless of any recorded decision.
   assert.equal(isStandaloneThemePage(theme, "index"), false);
+  assert.equal(isStandaloneThemePage(theme, "404"), false);
+  assert.equal(isPublishableThemePageCandidate(theme, "404"), false);
   assert.equal(isStandaloneThemePage(theme, "page-shell"), false);
 });
 
@@ -73,11 +76,13 @@ test("publishedPages present but empty: every page is off", () => {
 test("publishedPages can never resurrect index, 404, or a declared template shell", () => {
   const dir = makeStaticThemeDir(PAGES, {
     templates: ["page-shell.html"],
-    publishedPages: ["index", "page-shell", "about"],
+    publishedPages: ["index", "404", "page-shell", "about"],
   });
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
   assert.equal(isStandaloneThemePage(theme, "index"), false);
+  assert.equal(isStandaloneThemePage(theme, "404"), false);
+  assert.equal(isPublishableThemePageCandidate(theme, "404"), false);
   assert.equal(isStandaloneThemePage(theme, "page-shell"), false);
   assert.equal(isStandaloneThemePage(theme, "about"), true);
 });
@@ -91,6 +96,7 @@ test("isPublishableThemePageCandidate: eligibility is independent of the recorde
   assert.equal(isPublishableThemePageCandidate(theme, "pricing"), true);
   // Never eligible at all, decision or not.
   assert.equal(isPublishableThemePageCandidate(theme, "index"), false);
+  assert.equal(isPublishableThemePageCandidate(theme, "404"), false);
   assert.equal(isPublishableThemePageCandidate(theme, "page-shell"), false);
   assert.equal(isPublishableThemePageCandidate(theme, "does-not-exist"), false);
 });

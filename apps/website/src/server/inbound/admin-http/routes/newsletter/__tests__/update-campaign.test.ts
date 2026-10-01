@@ -176,16 +176,17 @@ test("update-campaign: unknown campaign id -> 404 NEWSLETTER_CAMPAIGN_NOT_FOUND"
   assert.equal((json as { code?: string }).code, "NEWSLETTER_CAMPAIGN_NOT_FOUND");
 });
 
-test("update-campaign: patching every field at once fills the TRUE side of each of the 6 per-field ternaries, plus a valid bodyJson object", async (t) => {
+test("update-campaign: patches all six string fields; bodyJson is accepted for validation only (document storage is unsupported)", async (t) => {
   const { app, deps } = buildApp();
   const campaign = await seedCampaign(deps, { id: "full-patch-camp" });
+  await deps.newsletterListRepo.save(makeList({ id: "list-2", slug: "second-list" }));
   const { status, json } = await patch(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}`, {
     subject: "New subject",
     preheader: "New preheader",
     fromName: "New Sender",
     fromEmail: "new-sender@example.com",
     replyTo: "new-reply@example.com",
-    listId: "list-1",
+    listId: "list-2",
     bodyJson: { type: "doc", content: [] },
   });
   assert.equal(status, 200, JSON.stringify(json));
@@ -195,6 +196,9 @@ test("update-campaign: patching every field at once fills the TRUE side of each 
   assert.equal(body.data.fromName, "New Sender");
   assert.equal(body.data.fromEmail, "new-sender@example.com");
   assert.equal(body.data.replyTo, "new-reply@example.com");
+  assert.equal(body.data.listId, "list-2");
+  const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id });
+  assert.deepEqual(stored, body.data);
 });
 
 // -------------------------------------------------------------------------------------------

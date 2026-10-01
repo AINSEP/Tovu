@@ -3,6 +3,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+
+import { registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
@@ -117,6 +120,54 @@ async function raiseDialog(executeTool: ToolRegistration, input: Record<string, 
   const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const exchangeId = exchangeIdFromSurface(emitted[0]);
   return { pending, html, exchangeId };
+}
+
+/** Execute the emitted action script over its button ids; route the resulting call through
+ * the real MCP-UI callback handler. The DOM and trusted browser event are the test seam. */
+async function clickDialogAction(html: string, action: "confirm" | "cancel", surfaceExchanges: SurfaceExchangeStore): Promise<void> {
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)?.[1];
+  assert.ok(script);
+  const apiName = /var api = window\.(\w+)/.exec(script)?.[1];
+  assert.ok(apiName);
+  const buttons = [...html.matchAll(/data-mcpui-action="([^"]+)"/g)].map((match) => ({
+    id: match[1]!, disabled: false,
+    listeners: new Map<string, (event: unknown) => void>(),
+    getAttribute(name: string) { return name === "data-mcpui-action" ? this.id : null; },
+    addEventListener(name: string, fn: (event: unknown) => void) { this.listeners.set(name, fn); },
+  }));
+  let route!: (req: unknown, res: unknown) => Promise<void>;
+  registerMcpUiToolCallsRoute({ post: (_path: string, handler: typeof route) => { route = handler; } } as never, {
+    surfaceExchanges, toolExecutor: { execute: async () => { assert.fail("an exchange answer must not execute a fresh tool"); } } as never,
+  });
+  const routed: Promise<void>[] = [];
+  let time = 0;
+  const api = {
+    callTool: (toolName: string, params: Record<string, unknown>) => {
+      const response = { statusCode: 0, status(code: number) { this.statusCode = code; return this; }, json(body: unknown) { assert.equal(this.statusCode, 202); assert.deepEqual(body, { delivered: true }); } };
+      const pending = route({ get: () => PRINCIPAL_ID, body: { toolName, params } }, response);
+      routed.push(pending);
+      return pending;
+    },
+    requestTeardown: () => {},
+  };
+  runInNewContext(script, {
+    window: { [apiName]: api }, performance: { now: () => time },
+    document: { visibilityState: "visible", getElementById: () => ({ textContent: "", setAttribute: () => {} }),
+      querySelectorAll: (selector: string) => selector === "[data-mcpui-action]" ? buttons : [], addEventListener: () => {} },
+    setTimeout: () => 1, clearTimeout: () => {},
+  });
+  time = 1500; // Complete the confirmation surface's dwell without a wall-clock sleep.
+  const button = buttons.find((candidate) => candidate.id === action);
+  assert.ok(button);
+  const click = button.listeners.get("click");
+  assert.ok(click);
+  click({ isTrusted: true, currentTarget: button });
+  assert.equal(routed.length, 1, "the actual emitted action must issue one callback");
+  await routed[0];
+}
+
+function dialogDetails(html: string): Record<string, string> {
+  return Object.fromEntries([...html.matchAll(/<dt>([^<]+)<\/dt><dd>([^<]*)<\/dd>/g)].map((match) => [match[1], match[2]!.replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&")]));
 }
 
 const FAKE_SUCCESS: SourceControlCommitResult = { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 0 };
@@ -341,10 +392,11 @@ test("the dialog names the repository, branch, and commit message, so consent is
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
-  const { html, exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "my-site", branch: "main", commitMessage: "content update" });
+  const { html, exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "my-site", branch: "release/2", commitMessage: "content update for release 2" });
   assert.match(html, /octo\/my-site/);
-  assert.match(html, /main/);
+  assert.match(html, /release\/2/);
   assert.match(html, /content update/);
+  assert.deepEqual(dialogDetails(html), { Repository: "octo/my-site", Branch: "release/2", "Commit message": "content update for release 2" });
 
   surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
   await pending;
@@ -356,8 +408,9 @@ test("cancel: nothing is committed, the git adapter is never called", async () =
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  const { html, exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
+  assert.equal(dialogDetails(html).Branch, "repository's default branch");
+  await clickDialogAction(html, "cancel", surfaceExchanges);
 
   const result = (await pending) as { committed: boolean; cancelled: boolean };
   assert.equal(result.committed, false);
@@ -449,13 +502,17 @@ test("abandoned: aborting the run's signal closes the exchange and resolves the 
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   const controller = new AbortController();
-  const pending = call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => undefined, signal: controller.signal });
-  await new Promise((resolve) => setImmediate(resolve));
+  let emitted!: () => void;
+  const dialogEmitted = new Promise<void>((resolve) => { emitted = resolve; });
+  const pending = call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => { emitted(); }, signal: controller.signal });
+  await dialogEmitted;
+  assert.equal(surfaceExchanges.size(), 1, "abort must exercise an already-open exchange");
   controller.abort();
 
   const result = (await pending) as { committed: boolean; cancelled: boolean; reason: string };
   assert.equal(result.committed, false);
   assert.equal(result.reason, "abandoned");
+  assert.equal(surfaceExchanges.size(), 0);
 });
 
 test("re-calling the tool while a dialog is pending opens a SEPARATE dialog — it does not answer the first one", async () => {
@@ -480,22 +537,34 @@ test("re-calling the tool while a dialog is pending opens a SEPARATE dialog — 
 // ---------------------------------------------------------------------------
 
 test("confirm: a successful commit reports committed:true with every field from the adapter's result", async () => {
-  const { deps } = fakeDeps({ gitAdapter: fakeGitAdapter(FAKE_SUCCESS) });
+  const success = { ...FAKE_SUCCESS, branch: "release/2", branchCreated: true, filesDeleted: 3, divergedPaths: ["kept-custom.html"] };
+  const requests: unknown[] = [];
+  const { deps } = fakeDeps({ gitAdapter: { commit: async (input) => { requests.push(input); return success; } } });
+  deps.exportSiteBound = async ({ outputDir }) => ({ outputDir,
+    routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<html>commit canary</html>" }], failed: [] },
+    assets: { succeeded: [{ url: "/image.png", outputFile: "image.png", data: Buffer.from([0, 128, 255]) }], failed: [] },
+    skippedManifestEntries: [], unreferencedThemeFiles: [],
+  });
   await seedGithubCredential(deps);
   const surfaceExchanges = createSurfaceExchangeStore();
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
-  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" });
-  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const { html, exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "content update" });
+  await clickDialogAction(html, "confirm", surfaceExchanges);
 
   const result = (await pending) as { committed: boolean; owner: string; repo: string; branch: string; commitSha: string; filesChanged: number; filesDeleted: number };
   assert.equal(result.committed, true);
   assert.equal(result.owner, "octo");
   assert.equal(result.repo, "demo");
-  assert.equal(result.branch, "main");
+  assert.equal(result.branch, "release/2");
   assert.equal(result.commitSha, "abc123");
   assert.equal(result.filesChanged, 2);
-  assert.equal(result.filesDeleted, 0);
+  assert.equal(result.filesDeleted, 3);
+  assert.deepEqual(result, { committed: true, owner: "octo", repo: "demo", branch: "release/2", branchCreated: true, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 3, divergedPaths: ["kept-custom.html"] });
+  assert.deepEqual(requests, [{ token: "ghp_fake_token_never_real", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "content update", files: [
+    { path: "index.html", data: "<html>commit canary</html>" }, { path: "image.png", data: Buffer.from([0, 128, 255]) },
+  ] }]);
+  assert.equal(surfaceExchanges.size(), 0);
 });
 
 test("confirm: a DIVERGED_BRANCH result from the adapter is surfaced distinctly, never overwritten silently", async () => {

@@ -189,6 +189,23 @@ test("trashUser: a caller holding the built-in 'admin' role (not owner) may tras
   assert.equal((await f.identity.repos.principals.findById({ workspaceId: f.workspaceId, id: targetId }))?.status, "disabled");
 });
 
+test("trashUser: a non-built-in role named admin cannot trash a user", async () => {
+  const f = await setup("ws-custom-admin");
+  const callerId = await createBareUser(f, "custom-admin-holder");
+  await makeBuiltinAdmin(f, callerId);
+  const admin = await f.identity.repos.roles.findByName({ workspaceId: f.workspaceId, name: "admin" });
+  assert.ok(admin);
+  await f.identity.repos.roles.save({ ...admin, isBuiltin: false });
+  const targetId = await createBareUser(f, "target");
+  const before = await f.identity.repos.principals.findById({ workspaceId: f.workspaceId, id: targetId });
+  await assert.rejects(
+    trashUser({ deps: f.deps, input: { workspaceId: f.workspaceId, callerPrincipalId: callerId, principalId: targetId, seededOwnerPrincipalId: f.ownerPrincipalId } }),
+    (error) => error instanceof IdentityForbiddenError,
+  );
+  assert.deepEqual(await f.identity.repos.principals.findById({ workspaceId: f.workspaceId, id: targetId }), before);
+  assert.deepEqual((await f.trash.list({ workspaceId: f.workspaceId, now: NOW, limit: 50 })).items, []);
+});
+
 test("trashUser: an unknown target is refused with the exact IdentityNotFoundError text", async () => {
   const f = await setup("ws-not-found");
 
@@ -312,6 +329,12 @@ test("trashUser: after trashing owner B, trashing owner C (the last active one b
 test("trashUser: happy path disables the principal, revokes sessions, keeps roles, and indexes it for the Trash", async () => {
   const f = await setup("ws-happy");
   const targetId = await createBareUser(f, "departing");
+  await makeBuiltinAdmin(f, targetId);
+  const rolesBefore = await f.identity.repos.principalRoles.listByPrincipalId({ workspaceId: f.workspaceId, principalId: targetId });
+  const neighborId = await createBareUser(f, "staying");
+  f.db.$client.prepare(`INSERT INTO sessions (id, workspace_id, principal_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run("neighbor-session", f.workspaceId, neighborId, "neighbor-hash", NOW, NOW);
+  const neighborBefore = f.db.$client.prepare(`SELECT * FROM sessions WHERE id = ?`).get("neighbor-session");
   f.db.$client
     .prepare(`INSERT INTO sessions (id, workspace_id, principal_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)`)
     .run("sess-1", f.workspaceId, targetId, "hash-1", NOW, NOW);
@@ -326,10 +349,14 @@ test("trashUser: happy path disables the principal, revokes sessions, keeps role
   assert.equal(target?.status, "disabled");
   const sessionCount = (f.db.$client.prepare(`SELECT COUNT(*) AS n FROM sessions WHERE principal_id = ?`).get(targetId) as { n: number }).n;
   assert.equal(sessionCount, 0);
+  assert.deepEqual(f.db.$client.prepare(`SELECT * FROM sessions WHERE id = ?`).get("neighbor-session"), neighborBefore);
+  assert.deepEqual(await f.identity.repos.principalRoles.listByPrincipalId({ workspaceId: f.workspaceId, principalId: targetId }), rolesBefore);
   // Not hard-deleted — the row (and the freshly-created username) still exists, reserved while trashed.
   assert.notEqual(await f.identity.repos.users.findByUsername({ workspaceId: f.workspaceId, username: "departing" }), null);
   const trashPage = await f.trash.list({ workspaceId: f.workspaceId, now: NOW, limit: 50 });
   assert.ok(trashPage.items.some((item) => item.entityId === targetId));
+  assert.equal(await f.trash.restore({ workspaceId: f.workspaceId, entityType: USER_ENTITY_TYPE, entityId: targetId, at: NOW }), "restored");
+  assert.deepEqual(await f.identity.repos.principalRoles.listByPrincipalId({ workspaceId: f.workspaceId, principalId: targetId }), rolesBefore);
 });
 
 test("trashUser: a DISABLED owner-`*` user can be trashed while another active owner exists", async () => {
@@ -375,10 +402,15 @@ test("trashUser: trashing an already-trashed user is an idempotent no-op — one
   const targetId = await createBareUser(f, "departing");
 
   const first = await trashUser({ deps: f.deps, input: { workspaceId: f.workspaceId, callerPrincipalId: f.ownerPrincipalId, principalId: targetId, seededOwnerPrincipalId: f.ownerPrincipalId } });
+  const firstPage = await f.trash.list({ workspaceId: f.workspaceId, now: NOW, limit: 50 });
+  assert.equal(firstPage.items.find((item) => item.entityId === targetId)?.priorMarker, "active");
   const second = await trashUser({ deps: f.deps, input: { workspaceId: f.workspaceId, callerPrincipalId: f.ownerPrincipalId, principalId: targetId, seededOwnerPrincipalId: f.ownerPrincipalId } });
 
   assert.equal(first.ok, true);
   assert.equal(second.ok, true);
   const trashPage = await f.trash.list({ workspaceId: f.workspaceId, now: NOW, limit: 50 });
   assert.equal(trashPage.items.filter((item) => item.entityId === targetId).length, 1);
+  assert.deepEqual(trashPage.items, firstPage.items, "repeated trash preserves the original index row and prior marker");
+  assert.equal(await f.trash.restore({ workspaceId: f.workspaceId, entityType: USER_ENTITY_TYPE, entityId: targetId, at: NOW }), "restored");
+  assert.equal((await f.identity.repos.principals.findById({ workspaceId: f.workspaceId, id: targetId }))?.status, "active");
 });

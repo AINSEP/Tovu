@@ -153,3 +153,18 @@ test("content_post_create returns publicUrl: null for the default draft status",
 
   assert.equal(result.post.publicUrl, null);
 });
+
+for (const slug of ["/", "about-us"]) {
+  test(`published page '${slug}' has the exact public URL through create, get, and list`, async () => {
+    const { deps, postRepo } = fakeRouteDeps();
+    const registrations = registrationsFor(deps);
+    const created = await call(tool(registrations, "content_post_create"), { kind: "page", title: "Page", slug, status: "published" }) as { post: { id: string; publicUrl: string | null } };
+    const expected = slug === "/" ? "/" : "/about-us";
+    assert.equal(created.post.publicUrl, expected);
+    const fetched = await call(tool(registrations, "content_post_get"), { id: created.post.id, kind: "page" }) as { post: { publicUrl: string | null } };
+    assert.equal(fetched.post.publicUrl, expected);
+    const listed = await call(tool(registrations, "content_post_list"), { kind: "page" }) as { posts: { id: string; publicUrl: string | null }[] };
+    assert.deepEqual(listed.posts.map(row => [row.id, row.publicUrl]), [[created.post.id, expected]]);
+    assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: created.post.id }))?.slug, slug);
+  });
+}

@@ -113,7 +113,7 @@ function items(...entries: Array<Partial<StaticMenuItem> & { label: string }>): 
  * (`variant: "tree"`) needs a child to prove it actually nested one. */
 function sentinelMenus(theme: DiscoveredTheme): Record<string, StaticMenuItem[]> {
   const menus: Record<string, StaticMenuItem[]> = {};
-  for (const id of scanMenuEmbedIds(theme)) {
+  for (const id of expectedMenuIds(theme)) {
     const children = id.includes("docs") ? items({ label: "Sentinel Child", href: "#sentinel-child" }) : [];
     menus[id] = items({ label: `Sentinel ${id}`, href: `/sentinel-${id}`, isCurrent: true, children });
   }
@@ -138,15 +138,65 @@ function resolvedElementFor(html: string, marker: EmbedMarker): string {
   return end === -1 ? "" : html.slice(start, end + closeTag.length);
 }
 
-/** The visible text of every `<a>` in `html`, in document order. `rewritePageLinks` (a pre-existing,
- * unrelated pipeline stage) rewrites an `href="foo.html"` VALUE but never touches an anchor's inner
- * text, so this is stable across the whole render pipeline unless a real substitution happened — the
- * one signal narrow enough to prove "unresolved means untouched" without also tripping on a correct,
- * unrelated href rewrite (the now-removed `gracious-timing` theme's own footer fallback linked to
- * sibling pages by filename, which get rewritten to real routes whether or not the marker around
- * them ever resolves — the same shape can recur in any theme's own fallback markup). */
-function anchorTexts(html: string): string[] {
-  return [...html.matchAll(/<a[^>]*>([^<]*)<\/a>/g)].map((m) => m[1]).sort();
+/** Anchor destinations and labels, preserving document order. */
+function anchors(html: string): Array<{ href: string; label: string }> {
+  return [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({
+    href: /href="([^"]*)"/.exec(m[1])?.[1] ?? "",
+    label: m[2].replace(/<[^>]*>/g, ""),
+  }));
+}
+
+function expectedFallbackAnchors(html: string): ReturnType<typeof anchors> {
+  return anchors(html).map((a) => ({ ...a, href: /^[a-z0-9-]+\.html$/.test(a.href)
+    ? (a.href === "index.html" ? "/" : `/${a.href.slice(0, -5)}`) : a.href }));
+}
+
+/** Read the raw attributes independently of the production menu-discovery function. */
+function expectedMenuIds(theme: DiscoveredTheme): string[] {
+  const ids = new Set<string>();
+  for (const [, source] of menuMarkerSources(theme)) {
+    const visible = source.replace(/<!--[\s\S]*?-->/g, "");
+    for (const match of visible.matchAll(/data-embed-config='([^']*)'/g)) {
+      const config = JSON.parse(match[1]);
+      if (config.type === "menu" && typeof config.id === "string") ids.add(config.id);
+    }
+  }
+  return [...ids];
+}
+
+/** Give repeated, otherwise identical markers separate locators without changing their config. */
+function identifyMarkerOccurrences(source: string): string {
+  return source.replace(/(<[a-z][a-z0-9-]*)([^>]*data-embed-config=)/g,
+    (_whole, tag, attrs, offset) => `${tag} data-canary-occurrence="${offset}"${attrs}`);
+}
+
+function assertMenuAnchors(html: string, marker: EmbedMarker): void {
+  const expected = [{ href: `/sentinel-${marker.id}`, label: `Sentinel ${marker.id}` }];
+  if (marker.config.variant === "tree" && marker.id?.includes("docs")) {
+    expected.push({ href: "#sentinel-child", label: "Sentinel Child" });
+  }
+  assert.deepEqual(anchors(resolvedElementFor(html, marker)), expected, `menu ${marker.id}: occurrence must resolve`);
+}
+
+/** Compare with rendering the requested partial in isolation, bypassing slot selection. */
+function assertPartialContents(theme: DiscoveredTheme, source: string, full: string, menus: Record<string, StaticMenuItem[]>): number {
+  let count = 0;
+  for (const marker of scanEmbedMarkers(source).markers) {
+    if (marker.type !== "partial" || marker.id === undefined) continue;
+    const descriptor = theme.manifest.slots?.[marker.id];
+    assert.ok(descriptor, `shipped partial ${marker.id} must have a declared slot`);
+    const variant = marker.config.variant;
+    const file = typeof variant === "string"
+      ? descriptor.variants?.[variant] ?? `${descriptor.source.replace(/\.html$/, "")}-${variant}.html`
+      : descriptor.source;
+    const partial = theme.partials[file.replace(/\.html$/, "")];
+    assert.ok(partial, `requested partial ${file} must exist`);
+    const expected = renderStaticPage({ theme, pageId: "sweep-partial", htmlOverride: partial, menus }) as string;
+    const withoutCurrent = (html: string) => html.replace(/ aria-current="page"/g, "").trim();
+    assert.ok(withoutCurrent(full).includes(withoutCurrent(expected)), `selected ${file} must appear in assembled output`);
+    count++;
+  }
+  return count;
 }
 
 /** `variant: "tree"` is opt-in PER MARKER (`static-render.ts`'s `injectMenuEmbeds` doc) — every
@@ -188,9 +238,8 @@ function menuMarkerSources(theme: DiscoveredTheme): ReadonlyArray<readonly [stri
  * unrelated, pre-existing pipeline stage) legitimately rewrites a bare `href="foo.html"` to
  * `href="/foo"` INSIDE a marker's own authored fallback content too, resolved or not — the
  * now-removed `gracious-timing` theme's own footer fallback did exactly this, so requiring
- * byte-identical survival fails on a correct, unrelated rewrite. Anchor TEXT is the narrower, accurate invariant: untouched
- * by that rewrite, so unchanged text proves nothing here substituted real content, without hardcoding
- * what "unsubstituted" fabricated content might look like.
+ * byte-identical survival fails on a correct, unrelated rewrite. Compare the fallback anchors in
+ * document order, with their expected route destinations after that rewrite.
  */
 function assertHeldBackOrResolved(required: {
   marker: EmbedMarker;
@@ -202,15 +251,15 @@ function assertHeldBackOrResolved(required: {
   const { marker, heldBack, partial, mixedResolved, label } = required;
   if (marker.id === heldBack) {
     assert.deepEqual(
-      anchorTexts(resolvedElementFor(mixedResolved, marker)),
-      anchorTexts(marker.whole),
-      `${label}: menu "${heldBack}" (deliberately unresolved, e.g. a deleted menu) must keep its authored fallback text, not substitute anything`
+      anchors(resolvedElementFor(mixedResolved, marker)),
+      expectedFallbackAnchors(marker.whole),
+      `${label}: menu "${heldBack}" (deliberately unresolved, e.g. a deleted menu) must keep its authored fallback labels, destinations, and order`
     );
     return;
   }
   if (marker.id !== undefined && marker.id in partial) {
     assert.ok(
-      mixedResolved.includes(`/sentinel-${marker.id}`),
+      resolvedElementFor(mixedResolved, marker).includes(`/sentinel-${marker.id}`),
       `${label}: menu "${marker.id}" must still resolve while a sibling menu is unresolved`
     );
   }
@@ -228,6 +277,10 @@ const STATIC_THEME_IDS = fs
   .filter((entry) => fs.statSync(path.join(STATIC_THEMES_DIR, entry)).isDirectory())
   .filter((entry) => fs.existsSync(path.join(STATIC_THEMES_DIR, entry, "theme.json")));
 
+test("canary: discovery includes the shipped tovu-theme", () => {
+  assert.ok(STATIC_THEME_IDS.includes("tovu-theme"));
+});
+
 for (const themeId of STATIC_THEME_IDS) {
   test(`canary: ${themeId} — every page renders and carries no retired embed attribute`, () => {
     const theme = readTheme(themeId);
@@ -235,22 +288,37 @@ for (const themeId of STATIC_THEME_IDS) {
       const html = renderStaticPage({ theme, pageId, menus: {} });
       assert.notEqual(html, null, `${themeId}/${pageId}: renderStaticPage must resolve a page it just loaded from its own pages/`);
       assertNoRetiredMarkers(html as string, `${themeId}/${pageId}`);
+      const source = theme.pages[pageId];
+      const main = /<main\b[^>]*>([\s\S]*?)<\/main>/.exec(source)?.[1];
+      const renderedMain = /<main\b[^>]*>([\s\S]*?)<\/main>/.exec(html as string)?.[1];
+      assert.ok(main !== undefined && renderedMain !== undefined, `${themeId}/${pageId}: main survives`);
+      let authored = main;
+      for (const marker of scanEmbedMarkers(main).markers) authored = authored.replace(marker.whole, "");
+      const text = (value: string) => value.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+      for (const element of authored.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<(h[1-6]|p)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+        const copy = text(element[2]);
+        if (copy) assert.ok(text(renderedMain).includes(copy), `${themeId}/${pageId}: authored main copy survives: ${copy}`);
+      }
     }
   });
 
   test(`canary: ${themeId} — every menu marker resolves to real data, tree opt-in honored`, () => {
     const theme = readTheme(themeId);
     const menus = sentinelMenus(theme);
-    for (const [sourceId, source] of menuMarkerSources(theme)) {
+    assert.deepEqual([...scanMenuEmbedIds(theme)].sort(), expectedMenuIds(theme).sort());
+    assert.ok(Object.keys(menus).length > 0, "shipped themes contain menus");
+    for (const [sourceId, rawSource] of menuMarkerSources(theme)) {
+      const source = identifyMarkerOccurrences(rawSource);
       const resolved = renderStaticPage({ theme, pageId: "sweep-synthetic", htmlOverride: source, menus }) as string;
       assertNoRetiredMarkers(resolved, `${themeId}/${sourceId}`);
       for (const marker of scanEmbedMarkers(source).markers) {
         if (marker.type !== "menu" || marker.id === undefined || !(marker.id in menus)) continue;
         assert.ok(
-          resolved.includes(`/sentinel-${marker.id}`),
+          resolvedElementFor(resolved, marker).includes(`/sentinel-${marker.id}`),
           `${themeId}/${sourceId}: menu marker "${marker.id}" did not resolve to its supplied data`
         );
         assertTreeOptIn(resolved, marker, `${themeId}/${sourceId}`);
+        assertMenuAnchors(resolved, marker);
       }
     }
   });
@@ -263,7 +331,8 @@ for (const themeId of STATIC_THEME_IDS) {
     const full = sentinelMenus(theme);
     const partial = Object.fromEntries(rest.map((id) => [id, full[id]]));
 
-    for (const [sourceId, source] of menuMarkerSources(theme)) {
+    for (const [sourceId, rawSource] of menuMarkerSources(theme)) {
+      const source = identifyMarkerOccurrences(rawSource);
       const mixedResolved = renderStaticPage({ theme, pageId: "sweep-synthetic", htmlOverride: source, menus: partial }) as string;
       for (const marker of scanEmbedMarkers(source).markers) {
         if (marker.type !== "menu" || marker.id === undefined) continue;
@@ -274,8 +343,10 @@ for (const themeId of STATIC_THEME_IDS) {
 
   test(`canary: ${themeId} — every declared partial slot marker is substituted, never left as raw marker markup`, () => {
     const theme = readTheme(themeId);
+    let asserted = 0;
     for (const [pageId, source] of Object.entries(theme.pages)) {
       const resolvedOnce = renderStaticPage({ theme, pageId, menus: {} }) as string;
+      asserted += assertPartialContents(theme, source, resolvedOnce, {});
       for (const marker of scanEmbedMarkers(source).markers) {
         if (marker.type !== "partial" || marker.id === undefined) continue;
         if (theme.manifest.slots?.[marker.id] === undefined) continue; // undeclared slot: fallback is the correct, tested-elsewhere outcome
@@ -285,6 +356,7 @@ for (const themeId of STATIC_THEME_IDS) {
         );
       }
     }
+    assert.ok(asserted > 0, "shipped nav/footer slots must be exercised");
   });
 
   // 2026-08-11 unification: `postTemplate` collapsed into `templates` (one array, shared by Posts
@@ -312,9 +384,15 @@ for (const themeId of STATIC_THEME_IDS) {
 
       assert.ok(!full.includes("widget-placeholder"), `${themeId}/${choice}: no marker may render as an empty widget placeholder`);
       assert.ok(
-        full.includes("Sweep Sentinel Post") || full.includes("Sweep Sentinel Body"),
+        full.includes("Sweep Sentinel Body"),
         `${themeId}/${choice}: the resolved entity must render into the template's slot`
       );
+      for (const marker of scanEmbedMarkers(resolution.html).markers) {
+        if (marker.type === "content") {
+          assert.equal(full.includes("Sweep Sentinel Post"), marker.config.header !== false, "title honors header setting");
+        }
+      }
+      assert.ok(assertPartialContents(theme, resolution.html, full, menus) > 0, "template chrome must resolve");
       assert.ok(!full.includes('"type":"content"'), `${themeId}/${choice}: the content marker itself must not leak into the output`);
       assertNoRetiredMarkers(full, `${themeId}/${choice}`);
 

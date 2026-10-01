@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import express from "express";
@@ -49,9 +50,11 @@ interface ScriptStep {
   readonly throws?: Error;
 }
 
-function scriptedFetch(script: readonly ScriptStep[]): OAuthFetch {
+function scriptedFetch(script: readonly ScriptStep[]) {
   let calls = 0;
-  return (async (): Promise<Response> => {
+  const requests: { url: string; init: RequestInit | undefined }[] = [];
+  const fetchFn: OAuthFetch = async (url, init): Promise<Response> => {
+    requests.push({ url: String(url), init });
     const step = script[Math.min(calls, script.length - 1)] ?? {};
     calls += 1;
     if (step.throws) throw step.throws;
@@ -59,11 +62,13 @@ function scriptedFetch(script: readonly ScriptStep[]): OAuthFetch {
       status: step.status ?? 200,
       headers: { "content-type": "application/json" },
     });
-  }) as OAuthFetch;
+  };
+  return { fetchFn, requests };
 }
 
 async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string } = {}) {
   const base = createRouteDeps();
+  const http = scriptedFetch(options.script ?? []);
   const oauthDeps = {
     workspaceId: base.workspaceId,
     repo: base.externalMcpServerRepo,
@@ -72,7 +77,7 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
     clock: base.clock,
     pending: createPendingAuthorizationStore({ clock: base.clock }),
     devices: createDeviceAuthorizationStore(),
-    fetchFn: scriptedFetch(options.script ?? []),
+    fetchFn: http.fetchFn,
     lookupProvider: () => PROVIDER,
   };
   const deps: RouteDeps = { ...base, externalMcpOAuth: createExternalMcpOAuthService(oauthDeps) };
@@ -110,7 +115,7 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
   createExternalMcpModule(deps).registerRoutes?.(app);
-  return { app, deps };
+  return { app, deps, http };
 }
 
 function req(baseUrl: string, path: string, cookie: string, init: RequestInit = {}): Promise<Response> {
@@ -151,6 +156,13 @@ test("connect returns a redirect URL carrying PKCE, and no secret", async (t) =>
   const url = new URL(body.auth.authorizationUrl);
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.ok(url.searchParams.get("code_challenge"));
+  assert.match(url.searchParams.get("state") ?? "", /^[A-Za-z0-9_-]{32}$/);
+  const again = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
+  assert.equal(again.status, 200);
+  const second = await again.json() as { auth: { authorizationUrl: string } };
+  const secondUrl = new URL(second.auth.authorizationUrl);
+  assert.notEqual(secondUrl.searchParams.get("state"), url.searchParams.get("state"));
+  assert.notEqual(secondUrl.searchParams.get("code_challenge"), url.searchParams.get("code_challenge"));
   assert.equal(url.searchParams.get("code_verifier"), null, "the verifier must never reach the browser");
   assert.equal(
     url.searchParams.get("redirect_uri"),
@@ -161,7 +173,7 @@ test("connect returns a redirect URL carrying PKCE, and no secret", async (t) =>
 });
 
 test("a full handshake connects, and no response anywhere carries a token or the client secret", async (t) => {
-  const { app } = await buildTestApp({
+  const { app, http } = await buildTestApp({
     script: [{ json: { access_token: "at-wire", refresh_token: "rt-wire", expires_in: 3600 } }],
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -176,6 +188,20 @@ test("a full handshake connects, and no response anywhere carries a token or the
   const html = await callback.text();
   assert.equal(callback.status, 200);
   assert.match(html, /Connected/);
+  assert.equal(http.requests.length, 1);
+  const exchange = http.requests[0];
+  assert.equal(exchange.url, PROVIDER.tokenEndpoint);
+  assert.equal(exchange.init?.method, "POST");
+  const form = new URLSearchParams(String(exchange.init?.body));
+  const authorization = new URL(auth.authorizationUrl);
+  assert.equal(form.get("grant_type"), "authorization_code");
+  assert.equal(form.get("code"), "auth-code");
+  assert.equal(form.get("redirect_uri"), authorization.searchParams.get("redirect_uri"));
+  assert.equal(form.get("client_id"), "tovu-client");
+  assert.equal(form.get("client_secret"), null, "the provider declares a public client");
+  const verifier = form.get("code_verifier") ?? "";
+  assert.match(verifier, /^[A-Za-z0-9._~-]{43,128}$/);
+  assert.equal(createHash("sha256").update(verifier, "ascii").digest("base64url"), authorization.searchParams.get("code_challenge"));
   assert.ok(!html.includes("at-wire"));
   assert.ok(!html.includes(state), "nothing from the request may be interpolated into the page");
 
@@ -258,6 +284,8 @@ test("the device grant returns a user code over the wire and keeps the device co
         },
       },
       { status: 400, json: { error: "authorization_pending" } },
+      { status: 400, json: { error: "slow_down", interval: 10 } },
+      { json: { access_token: "device-access-token", refresh_token: "device-refresh-token", expires_in: 3600 } },
     ],
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -272,6 +300,48 @@ test("the device grant returns a user code over the wire and keeps the device co
   const poll = await req(baseUrl, `${BASE}/oauth/device/poll`, cookie, { method: "POST", body: "{}" });
   assert.equal(poll.status, 200);
   assert.deepEqual(await poll.json(), { status: "pending", retryAfterSeconds: 5 });
+  const slower = await req(baseUrl, `${BASE}/oauth/device/poll`, cookie, { method: "POST", body: "{}" });
+  assert.equal(slower.status, 200);
+  assert.deepEqual(await slower.json(), { status: "pending", retryAfterSeconds: 10 });
+  const completed = await req(baseUrl, `${BASE}/oauth/device/poll`, cookie, { method: "POST", body: "{}" });
+  assert.equal(completed.status, 200);
+  assert.deepEqual(await completed.json(), { status: "connected" });
+  const list = await (await req(baseUrl, `/api/admin/v1/workspaces/${WORKSPACE_ID}/mcp-servers`, cookie)).text();
+  assert.ok(list.includes('"status":"connected"'));
+  assert.ok(list.includes('"hasStoredToken":true'));
+  assert.ok(!list.includes("device-access-token"));
+  assert.ok(!list.includes("device-refresh-token"));
+});
+
+for (const [providerError, code] of [["access_denied", "OAUTH_ACCESS_DENIED"], ["expired_token", "OAUTH_EXPIRED_TOKEN"]]) {
+  test(`a device poll returning ${providerError} is terminal at the HTTP boundary`, async (t) => {
+    const { app } = await buildTestApp({ grant: "device_code", script: [
+      { json: { device_code: "device-secret", user_code: "CODE", verification_uri: "https://auth.example.com/activate", expires_in: 900 } },
+      { status: 400, json: { error: providerError } },
+    ] });
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    assert.equal((await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" })).status, 200);
+    const poll = await req(baseUrl, `${BASE}/oauth/device/poll`, cookie, { method: "POST", body: "{}" });
+    assert.equal(poll.status, 400);
+    const body = await poll.json() as { code: string; details: { retryable: boolean } };
+    assert.equal(body.code, code);
+    assert.equal(body.details.retryable, false);
+    const list = await (await req(baseUrl, `/api/admin/v1/workspaces/${WORKSPACE_ID}/mcp-servers`, cookie)).text();
+    assert.ok(list.includes('"status":"disconnected"'));
+    assert.ok(list.includes('"hasStoredToken":false'));
+  });
+}
+
+test("a declined authorization callback renders failure and performs no exchange", async (t) => {
+  const { app, http } = await buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
+  const body = await connect.json() as { auth: { authorizationUrl: string } };
+  const state = new URL(body.auth.authorizationUrl).searchParams.get("state")!;
+  const callback = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&error=access_denied`);
+  assert.equal(callback.status, 400);
+  assert.match(await callback.text(), /Couldn’t finish connecting/);
+  assert.deepEqual(http.requests, []);
 });
 
 test("a workspace id that is not this site's is 404 on every OAuth route", async (t) => {
@@ -329,7 +399,11 @@ test("disconnect clears the authorization but keeps the server row", async (t) =
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const { auth } = (await connect.json()) as { auth: { authorizationUrl: string } };
   const state = new URL(auth.authorizationUrl).searchParams.get("state") ?? "";
-  await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`);
+  const callback = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`);
+  assert.equal(callback.status, 200);
+  const before = await (await req(baseUrl, `/api/admin/v1/workspaces/${WORKSPACE_ID}/mcp-servers`, cookie)).text();
+  assert.ok(before.includes('"status":"connected"'));
+  assert.ok(before.includes('"hasStoredToken":true'));
 
   const response = await req(baseUrl, `${BASE}/oauth`, cookie, { method: "DELETE" });
 

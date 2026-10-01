@@ -56,8 +56,9 @@ function makeCampaign(overrides: Partial<CampaignRecord> = {}): CampaignRecord {
  *  Launch Readiness Gate's precondition (d) is met — the default `ConsoleMailerAdapter` this repo's
  *  hermetic `createRouteDeps()` wires is deliberately NOT production-capable (see `deps.ts`'s
  *  `toSendPipelineDeps` doc), so a real test-send success path needs this override. */
-function makeMailer(sendImpl?: (email: string) => { ok: true; providerMessageId: string; acceptedAt: string } | { ok: false; retryable: boolean; errorCode: string; message: string }): MailerPort & { sentTo: string[] } {
+function makeMailer(sendImpl?: (email: string) => { ok: true; providerMessageId: string; acceptedAt: string } | { ok: false; retryable: boolean; errorCode: string; message: string }): MailerPort & { sentTo: string[]; calls: Parameters<MailerPort["send"]>[] } {
   const sentTo: string[] = [];
+  const calls: Parameters<MailerPort["send"]>[] = [];
   return {
     capabilities: () => ({
       driver: "smtp",
@@ -66,7 +67,8 @@ function makeMailer(sendImpl?: (email: string) => { ok: true; providerMessageId:
       maxBatchSize: 100,
       supportsAttachments: false,
     }),
-    async send(message) {
+    async send(message, options) {
+      calls.push([message, options]);
       sentTo.push(message.to.email);
       if (sendImpl) return sendImpl(message.to.email);
       return { ok: true, providerMessageId: `pm-${sentTo.length}`, acceptedAt: new Date().toISOString() };
@@ -75,7 +77,8 @@ function makeMailer(sendImpl?: (email: string) => { ok: true; providerMessageId:
       return [];
     },
     sentTo,
-  } as MailerPort & { sentTo: string[] };
+    calls,
+  } as MailerPort & { sentTo: string[]; calls: Parameters<MailerPort["send"]>[] };
 }
 
 function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): {
@@ -198,8 +201,16 @@ test("send-test-campaign: the Launch Readiness Gate's mailer precondition still 
 
 test("send-test-campaign: a real send only reaches the given testAddresses -- no send-ledger or audience-snapshot rows are created (AC-26)", async (t) => {
   const mailer = makeMailer();
-  const { app, deps } = buildApp({ mailer });
+  const base = createRouteDeps();
+  const { app, deps } = buildApp({ mailer, newsletterSubscriberDirectory: base.newsletterSubscriberDirectory });
+  const sentAt = "2026-09-30T00:00:00.000Z";
+  deps.clock.nowIso = () => sentAt;
   await deps.newsletterCampaignRepo.saveCampaignRow(makeCampaign());
+  await base.memberRepo.save({
+    id: "subscriber-real-1", workspaceId: WORKSPACE_ID, email: "real-subscriber@example.com",
+    status: "active", emailVerifiedAt: sentAt, createdAt: sentAt, updatedAt: sentAt, version: 1,
+  });
+  assert.equal((await deps.newsletterSubscriberDirectory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: "subscriber-real-1" }))?.email, "real-subscriber@example.com");
   // A real subscriber exists on the campaign's list -- proving the test send does NOT reach them.
   const now = new Date().toISOString();
   await deps.newsletterSubscriptionRepo.save({
@@ -230,6 +241,12 @@ test("send-test-campaign: a real send only reaches the given testAddresses -- no
   // The mailer double only ever saw the two test addresses -- the real subscriber's address was
   // never even constructed, let alone sent to.
   assert.deepEqual(mailer.sentTo, ["tester1@test.com", "tester2@test.com"]);
+  assert.deepEqual(mailer.calls, ["tester1@test.com", "tester2@test.com"].map((email) => [
+    { workspaceId: WORKSPACE_ID, to: { email }, from: { email: "newsletter@acme.test", name: "Acme" },
+      replyTo: { email: "help@acme.test" }, subject: "[TEST] Summer Newsletter", text: "Check out what's new" },
+    { workspaceId: WORKSPACE_ID, idempotencyKey: `newsletter:test:camp-1:${email}:${sentAt}`,
+      sourceContext: { module: "newsletter", ref: "camp-1" } },
+  ]));
 
   const sendRows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: WORKSPACE_ID, campaignId: "camp-1", limit: 100 });
   assert.deepEqual(sendRows, []);
@@ -254,13 +271,13 @@ test("send-test-campaign: a per-address mailer failure is reported with ok:false
   const body = json as { data: { results: Array<{ address: string; ok: boolean; errorCode: string | null }> } };
   assert.deepEqual(body.data.results, [
     { address: "good@test.com", ok: true, errorCode: null },
-    { address: "bad@test.com", ok: false, errorCode: "rejected by provider" },
+    { address: "bad@test.com", ok: false, errorCode: "invalid_recipient", message: "rejected by provider" },
   ]);
 });
 
-test("send-test-campaign: a failed send with no provider message still yields a non-null errorCode (defensive '?? null' fallback, not reachable through the real MailerPort contract)", async (t) => {
+test("send-test-campaign: a failed send with no provider message retains the provider code with a null diagnostic message (non-compliant MailerPort double)", async (t) => {
   // `MailerPort.send()`'s failure shape always carries a `message: string` (see `platform/mail`'s
-  // port contract) -- this route's `r.error ?? null` guards a value that can never actually be
+  // port contract) -- this route's diagnostic `r.error ?? null` guards a value that can never actually be
   // nullish through any real adapter. Exercised directly with a non-compliant double, the same
   // "keep the defensive fallback, exercise it deliberately" convention this repo already uses for
   // `req.params.x ?? ""`.
@@ -273,7 +290,7 @@ test("send-test-campaign: a failed send with no provider message still yields a 
   });
   assert.equal(status, 200);
   const body = json as { data: { results: Array<{ address: string; ok: boolean; errorCode: string | null }> } };
-  assert.deepEqual(body.data.results, [{ address: "a@test.com", ok: false, errorCode: null }]);
+  assert.deepEqual(body.data.results, [{ address: "a@test.com", ok: false, errorCode: "unknown", message: null }]);
 });
 
 test("send-test-campaign: undefined workspaceId fallback via direct handler invocation", async () => {
@@ -289,4 +306,16 @@ test("send-test-campaign: undefined workspaceId fallback via direct handler invo
   await handler(req, res);
   assert.equal(capture.statusCode, 404);
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
+test("send-test-campaign: the response exposes the provider error code separately from its message", async () => {
+  const mailer = makeMailer(() => ({ ok: false, retryable: false, errorCode: "invalid_recipient", message: "rejected by provider" }));
+  const { app, deps } = buildApp({ mailer });
+  await deps.newsletterCampaignRepo.saveCampaignRow(makeCampaign());
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send-test");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "test-principal" };
+  await handler({ params: { workspaceId: WORKSPACE_ID, id: "camp-1" }, body: { testAddresses: ["bad@test.com"] } }, res);
+  assert.equal(capture.statusCode, 200);
+  assert.deepEqual(capture.jsonBody, { data: { results: [{ address: "bad@test.com", ok: false, errorCode: "invalid_recipient", message: "rejected by provider" }] } });
 });

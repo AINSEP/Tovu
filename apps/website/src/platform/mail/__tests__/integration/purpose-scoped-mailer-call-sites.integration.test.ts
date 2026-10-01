@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { registerFormNotifySubscriber } from "#src/features/forms/notify-subscriber";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
+import { requestSignInLink } from "#src/features/members/write-service";
+import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
+import type { MailerPort, MailerSendOptions, MailerSendResult } from "../../ports.js";
 
 /**
  * @file SPEC-022 W-003/W-004 — real call-site characterization (INV-06, AC-16/17).
@@ -61,4 +68,54 @@ test("INV-06 characterization: members' send call site still awaits deps.mailer.
     /await\s+deps\.mailer\.send\(/.test(MEMBERS_WRITE_SERVICE),
     "the synchronous, result-unobserved send pattern (the interactive lane's defining characteristic, per the ADR-046 debate's finding) must be preserved, not replaced with queueing/deferral logic"
   );
+});
+
+test("real call sites use distinct lanes through the production gate and sign-in waits for send completion", async (t) => {
+  const now = "2026-09-30T00:00:00.000Z";
+  const options: MailerSendOptions[] = [];
+  let releaseSend!: () => void;
+  const pendingSend = new Promise<void>((resolve) => { releaseSend = resolve; });
+  const providerSends: string[] = [];
+  const success: MailerSendResult = { ok: true, providerMessageId: "msg-1", acceptedAt: now };
+  const inner: MailerPort = {
+    capabilities: () => ({ driver: "recording", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
+    send: async (message) => { providerSends.push(message.to.email); await pendingSend; return success; },
+    sendBatch: async () => { throw new Error("these call sites must use send"); },
+  };
+  const gate = wrapMailerWithPurposeGate({ inner, mode: "production", durableOutboxReady: () => false });
+  const mailer: MailerPort = { ...gate, send: async (message, opts) => { options.push(opts); return gate.send(message, opts); } };
+  let completed = false;
+  let id = 0;
+  const signIn = requestSignInLink({ deps: {
+    clock: { nowIso: () => now }, ids: { newId: () => `id-${++id}` },
+    members: new InMemoryMemberRepo(), tiers: new InMemoryMemberTierRepo(),
+    subscriptions: new InMemoryMemberSubscriptionRepo(), sessions: new InMemoryMemberSessionRepo(),
+    magicLinks: new InMemoryMagicLinkTokenRepo(), mailer,
+  }, input: { workspaceId: "ws-1", email: "member@example.com" } }).then((result) => { completed = true; return result; });
+  try {
+    // Drain the call site's asynchronous repo operations without advancing any wall-clock timer.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(providerSends, ["member@example.com"]);
+    assert.equal(options[0]?.lane, "interactive");
+    assert.equal(completed, false, "the request must remain pending while the provider send is pending");
+  } finally { releaseSend(); }
+  assert.deepEqual(await signIn, { delivered: true });
+  assert.equal(completed, true);
+
+  const bus = new InMemoryEventBus();
+  const formDefinitionRepo = new InMemoryFormDefinitionRepo();
+  const formSubmissionRepo = new InMemoryFormSubmissionRepo();
+  await formDefinitionRepo.create({
+    id: "form-1", workspaceId: "ws-1", name: "Contact", slug: "contact", fields: [],
+    notify: { enabled: true, recipients: ["ops@example.com"] }, status: "active", createdAt: now, updatedAt: now,
+  });
+  await formSubmissionRepo.create({ id: "submission-1", workspaceId: "ws-1", formDefinitionId: "form-1", data: { name: "Ada" }, sourceIp: "127.0.0.1", submittedAt: now });
+  await registerFormNotifySubscriber({ bus, mailer, formDefinitionRepo, formSubmissionRepo });
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args));
+  await bus.publish({ id: "event-1", name: "form.submission.received", workspaceId: "ws-1", occurredAt: now, payload: { workspaceId: "ws-1", formDefinitionId: "form-1", submissionId: "submission-1" } });
+  assert.deepEqual(options.map((opts) => opts.lane), ["interactive", "notification"]);
+  assert.deepEqual(providerSends, ["member@example.com"], "notification mail must be refused without a durable path");
+  assert.equal(warnings.length, 1);
+  assert.match(String(warnings[0]![1]), /MAILER_SEND_REFUSED_NO_DURABLE_PATH/);
 });

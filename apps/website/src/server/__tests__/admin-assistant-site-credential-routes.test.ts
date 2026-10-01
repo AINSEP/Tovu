@@ -3,7 +3,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
+import { resolveSiteAssistantApiKey } from "../../assistant/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
@@ -93,7 +94,7 @@ test("GET on a never-configured workspace returns isSet:false with no key materi
 });
 
 test("PUT with an apiKey sets it and the response never contains the plaintext key", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "AIzaSyLIVE-EXAMPLE-KEY-7777" });
@@ -104,6 +105,44 @@ test("PUT with an apiKey sets it and the response never contains the plaintext k
   const body = (await res.json()) as { data: { isSet: boolean; masked: string | null } };
   assert.equal(body.data.isSet, true);
   assert.equal(body.data.masked, "••••7777");
+  const resolve = () => resolveSiteAssistantApiKey({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId });
+  assert.equal((await resolve())?.apiKey, "AIzaSyLIVE-EXAMPLE-KEY-7777");
+  assert.equal((await put(baseUrl, CREDENTIAL_PATH, cookie, { model: "gemini-flash-latest" })).status, 200);
+  assert.equal((await resolve())?.apiKey, "AIzaSyLIVE-EXAMPLE-KEY-7777");
+});
+
+test("GET, PUT and DELETE deny a signed-in caller with no assistant grant and preserve the usable key", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  assert.equal((await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "preserved-key-1234" })).status, 200);
+  const restricted = await loginAsBarePrincipal(deps, baseUrl);
+  for (const response of [
+    await get(baseUrl, CREDENTIAL_PATH, restricted),
+    await put(baseUrl, CREDENTIAL_PATH, restricted, { apiKey: "replacement-key" }),
+    await del(baseUrl, CREDENTIAL_PATH, restricted),
+  ]) {
+    assert.equal(response.status, 403);
+    const body = await response.json() as { code: string; details: { permission: string } };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "admin.assistant.manage");
+  }
+  const resolved = await resolveSiteAssistantApiKey({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId });
+  assert.equal(resolved?.apiKey, "preserved-key-1234");
+});
+
+test("GET reports stored metadata even when the keyring can no longer open the key", async (t) => {
+  const original = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(original.app, t);
+  assert.equal((await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "stored-key-4321" })).status, 200);
+  const keyring = new BrokenKeyring();
+  const { app } = buildTestApp({ ...original.deps, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring) });
+  const secondUrl = await startTestServer(app, t);
+  const response = await get(secondUrl, CREDENTIAL_PATH, cookie);
+  assert.equal(response.status, 200);
+  const body = await response.json() as { data: { isSet: boolean; masked: string } };
+  assert.equal(body.data.isSet, true);
+  assert.equal(body.data.masked, "••••4321");
+  assert.ok(!JSON.stringify(body).includes("stored-key-4321"));
 });
 
 test("PUT with an empty apiKey is a 400 validation error, and GET afterward still shows not-set", async (t) => {

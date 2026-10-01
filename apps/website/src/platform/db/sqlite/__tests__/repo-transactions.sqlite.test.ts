@@ -131,13 +131,29 @@ test("media: save and remove survive another caller's rollback", async () => {
 
 test("user purge: the deletes and the audit event survive another caller's rollback", async () => {
   const db = openSeededDb();
+  for (const id of ["principal-1", "principal-neighbor"]) {
+    db.$client.prepare("INSERT INTO principals (id, workspace_id, kind, display_name, status, created_at) VALUES (?, ?, 'user', ?, 'active', ?)").run(id, WORKSPACE, id, NOW);
+    db.$client.prepare("INSERT INTO identity_users (principal_id, workspace_id, username, password_hash) VALUES (?, ?, ?, 'hash')").run(id, WORKSPACE, id);
+    db.$client.prepare("INSERT INTO sessions (id, workspace_id, principal_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)").run(`session-${id}`, WORKSPACE, id, `token-${id}`, NOW, NOW);
+  }
+  const snapshot = (principalId: string) => ({
+    principal: db.$client.prepare("SELECT * FROM principals WHERE id = ?").all(principalId),
+    user: db.$client.prepare("SELECT * FROM identity_users WHERE principal_id = ?").all(principalId),
+    sessions: db.$client.prepare("SELECT * FROM sessions WHERE principal_id = ?").all(principalId),
+  });
+  const neighborBefore = snapshot("principal-neighbor");
   const purge = new SqliteUserPurge(db);
-  await writeDuringOthersRollback(db, () =>
+  const removed = await writeDuringOthersRollback(db, () =>
     purge.purgeUser({
       workspaceId: WORKSPACE,
       principalId: "principal-1",
       buildEvent: (removed) => ({ id: "evt-purge", name: "identity.user.purged", occurredAt: NOW, workspaceId: WORKSPACE, payload: { removed } }),
     })
   );
-  assert.deepEqual((await new SqliteOutboxAdapter(db).claimPending(10, NOW)).map((record) => record.id), ["evt-purge"]);
+  assert.deepEqual(removed, { roles: 0, policies: 0, sessions: 1, apiKeys: 0, userSettings: 0 });
+  assert.deepEqual(snapshot("principal-1"), { principal: [], user: [], sessions: [] });
+  assert.deepEqual(snapshot("principal-neighbor"), neighborBefore);
+  const events = await new SqliteOutboxAdapter(db).claimPending(10, NOW);
+  assert.deepEqual(events.map((record) => record.id), ["evt-purge"]);
+  assert.deepEqual(events[0]!.event.payload, { removed });
 });

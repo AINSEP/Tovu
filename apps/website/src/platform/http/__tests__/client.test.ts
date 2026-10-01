@@ -1,10 +1,22 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 
-import { classifyAddress, createHttpClient } from "../client.js";
 import { EgressRefusedError } from "../errors.js";
 import type { EgressPolicy, HttpRequest, HttpResponse, PinnedPeer } from "../ports.js";
 import type { HttpTransportAdapter } from "../ports.js";
+
+const dnsFailure = Object.assign(new Error("fixture DNS lookup failed"), { code: "ENOTFOUND" });
+mock.module("node:dns/promises", { namedExports: {
+  lookup: async (hostname: string, options: unknown) => {
+    assert.deepEqual(options, { all: true, verbatim: true });
+    if (hostname === "nonexistent-host.invalid") throw dnsFailure;
+    if (hostname === "localhost") return [{ address: "127.0.0.1", family: 4 }];
+    if (hostname === "mixed.example") return [{ address: "8.8.8.8", family: 4 }, { address: "10.0.0.1", family: 4 }];
+    assert.equal(hostname, "example.com", "unexpected DNS lookup in this hermetic suite");
+    return [{ address: "93.184.216.34", family: 4 }];
+  },
+} });
+const { classifyAddress, createHttpClient } = await import("../client.js");
 
 function makePolicy(overrides: Partial<EgressPolicy> = {}): EgressPolicy {
   return {
@@ -45,6 +57,74 @@ class ScriptedTransport implements HttpTransportAdapter {
     return response;
   }
 }
+
+test("a mixed public/private DNS answer refuses the entire target before transport", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+  await assert.rejects(() => client.send(makeRequest({ url: "https://mixed.example/" })), {
+    name: "EgressRefusedError", message: "egress to 'mixed.example' (10.0.0.1) rejected: resolved address is private",
+  });
+  assert.equal(transport.calls.length, 0);
+});
+
+for (const [url, port] of [["https://example.com/", 443], ["http://example.com/", 80], ["https://example.com:8443/", 8443]] as const) {
+  test(`pins the correct port and authority for ${url}`, async () => {
+    const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+    const client = createHttpClient({ transport, policy: makePolicy({ allowedSchemes: ["http", "https"] }) });
+    await client.send(makeRequest({ url }));
+    assert.deepEqual(transport.calls[0]!.peer, { ip: "93.184.216.34", port, authority: new URL(url).host, tlsServerName: "example.com" });
+  });
+}
+
+for (const [target, sameOrigin] of [["https://example.com:8443/next", false], ["http://example.com/next", false], ["https://example.com/next", true]] as const) {
+  test(`redirect to ${target} ${sameOrigin ? "keeps" : "strips"} same-host credentials`, async () => {
+    const transport = new ScriptedTransport([
+      { status: 302, headers: { location: target }, bodyText: "" },
+      { status: 200, headers: {}, bodyText: "final" },
+    ]);
+    const client = createHttpClient({ transport, policy: makePolicy({ allowedSchemes: ["https", "http"] }) });
+    const headers = { Authorization: "Bearer secret", Cookie: "session=secret", "X-Kept": "yes" };
+    await client.send(makeRequest({ headers }));
+    assert.equal(transport.calls.length, 2);
+    const sent = transport.calls[1]!.req.headers;
+    assert.equal(sent.Authorization, sameOrigin ? headers.Authorization : undefined);
+    assert.equal(sent.Cookie, sameOrigin ? headers.Cookie : undefined);
+    assert.equal(sent["X-Kept"], "yes");
+  });
+}
+
+test("a repeated redirect stops after the positive redirect budget", async () => {
+  const transport = new ScriptedTransport([{ status: 302, headers: { location: "/loop" }, bodyText: "" }]);
+  const original = transport.requestPinned.bind(transport);
+  transport.requestPinned = async (req, peer) => {
+    assert.ok(transport.calls.length < 4, "the redirect counter must advance on every hop");
+    return original(req, peer);
+  };
+  const client = createHttpClient({ transport, policy: makePolicy({ maxRedirects: 3 }) });
+  assert.equal((await client.send(makeRequest())).status, 302);
+  assert.equal(transport.calls.length, 4);
+});
+
+for (const [location, resolved] of [["/next", "https://example.com/next"], ["../x", "https://example.com/x"]]) {
+  test(`resolves relative Location ${location} against the current URL`, async () => {
+    const transport = new ScriptedTransport([
+      { status: 302, headers: { location }, bodyText: "" },
+      { status: 200, headers: {}, bodyText: "final" },
+    ]);
+    const client = createHttpClient({ transport, policy: makePolicy() });
+    const response = await client.send(makeRequest({ url: "https://example.com/dir/start" }));
+    assert.equal(transport.calls.length, 2);
+    assert.equal(transport.calls[1]!.req.url, resolved);
+    assert.equal(response.finalUrl, resolved);
+  });
+}
+
+test("a caller's shorter timeout stays below the policy ceiling", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy({ connectTimeoutMs: 500 }) });
+  await client.send(makeRequest({ timeoutMs: 100 }));
+  assert.equal(transport.calls[0]!.req.timeoutMs, 100);
+});
 
 test("classifyAddress: private/loopback/link-local/metadata/public per address family", () => {
   assert.equal(classifyAddress("10.1.2.3"), "private");
@@ -210,7 +290,7 @@ test("rejects a private/loopback/link-local target pre-connect for each address 
 });
 
 test("an address refusal keeps the resolved address in `message` but never in `callerSafeMessage`", async () => {
-  // `localhost` resolves offline through the hosts file and is not an IP literal, so the host the
+  // `localhost` resolves through the scripted resolver and is not an IP literal, so the host the
   // request named and the address it resolved to are different strings. A caller shown the address
   // could map internal DNS one request at a time — see `errors.ts`.
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
@@ -331,6 +411,10 @@ test("devHostAllowlist permits an otherwise-private target for that exact host",
   const response = await client.send(makeRequest({ url: "https://127.0.0.1/" }));
   assert.equal(response.bodyText, "ok");
   assert.equal(transport.calls.length, 1);
+  for (const url of ["https://10.0.0.1/", "https://169.254.169.254/"]) {
+    await assert.rejects(() => client.send(makeRequest({ url })), EgressRefusedError);
+  }
+  assert.equal(transport.calls.length, 1, "non-allowlisted private hosts never reach the transport");
 });
 
 test("devHostAllowlist matches an IPv6-literal target by its unbracketed form (the bracket is a URL-syntax artifact, not part of the host)", async () => {
@@ -376,13 +460,16 @@ test("a cross-origin redirect to an allowed host strips Authorization/Cookie bef
   const response = await client.send(
     makeRequest({
       url: "https://example.com/",
-      headers: { Authorization: "Bearer secret", "X-Kept": "yes" },
+      headers: { Authorization: "Bearer secret", AUTHORIZATION: "Bearer uppercase", Cookie: "session=secret", cookie: "other=secret", "X-Kept": "yes" },
     })
   );
 
   assert.equal(response.bodyText, "final");
   assert.equal(transport.calls.length, 2);
   assert.equal(transport.calls[1].req.headers.Authorization, undefined);
+  assert.equal(transport.calls[1].req.headers.AUTHORIZATION, undefined);
+  assert.equal(transport.calls[1].req.headers.Cookie, undefined);
+  assert.equal(transport.calls[1].req.headers.cookie, undefined);
   assert.equal(transport.calls[1].req.headers["X-Kept"], "yes");
 });
 
@@ -654,14 +741,13 @@ test("a DNS failure is NOT an EgressRefusedError — the type must mean 'this pr
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  // `.invalid` is reserved by RFC 2606 and never resolves, so this is a genuine lookup failure and
-  // not a policy decision. A type that swallowed this too would let a real outage be reported to a
-  // model as "supply a different URL", which is the inverse of the bug being fixed.
+  // The resolver throws a scripted lookup failure, rather than consulting the host's DNS.
   const error = await client.send(makeRequest({ url: "https://nonexistent-host.invalid/" })).then(
     () => null,
     (e: unknown) => e
   );
 
   assert.ok(error instanceof Error);
+  assert.equal(error, dnsFailure);
   assert.equal(error instanceof EgressRefusedError, false, `a DNS failure must not be typed as a refusal (got ${(error as Error).message})`);
 });

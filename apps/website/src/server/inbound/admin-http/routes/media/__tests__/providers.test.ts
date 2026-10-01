@@ -132,12 +132,24 @@ test("put-providers: non-object body 400s", async (t) => {
 });
 
 test("put-providers: valid apiKey saves and never echoes the key back (200)", async (t) => {
-  const app = buildApp();
+  const base = createRouteDeps();
+  const app = buildApp({ mediaProviderCredentialRepo: base.mediaProviderCredentialRepo });
   const { status, json } = await put(t, app, { openai: { apiKey: "sk-secret-value", baseUrl: "https://api.openai.com/v1" } });
   assert.equal(status, 200, JSON.stringify(json));
   const body = json as { openai?: { apiKey?: string; keyTail?: string } };
   assert.ok(body.openai);
   assert.equal(body.openai?.apiKey, undefined, "key material must never be echoed back");
+  const expected = { openai: { baseUrl: "https://api.openai.com/v1", apiKeyConfigured: true, apiKeyTail: "alue" } };
+  assert.deepEqual(json, expected);
+  const fetched = await get(t, app);
+  assert.equal(fetched.status, 200);
+  assert.deepEqual(fetched.json, expected);
+  const [stored] = await base.mediaProviderCredentialRepo.listByWorkspaceId(WORKSPACE_ID);
+  assert.ok(stored?.sealed);
+  for (const response of [json, fetched.json]) {
+    assert.equal(JSON.stringify(response).includes("sk-secret-value"), false);
+    assert.equal(JSON.stringify(response).includes(JSON.stringify(stored.sealed)), false);
+  }
 });
 
 test("put-providers: omitting a previously-configured provider deletes it (whole-set semantics)", async (t) => {

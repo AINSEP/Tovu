@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import test from "node:test";
 
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { renderTemplateBranchIfEligible } from "#src/server/inbound/public-http/routes/site/pages";
+import type { PostRecord } from "#src/features/post/index";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 
 /**
- * @file Canaries for the unified template render pipeline, against the REAL `basic` theme on disk.
+ * @file Canaries for the unified template render pipeline, against the REAL `tovu-theme` theme on disk.
  *
  * Replaces `post-template-render.canary.test.ts` + `page-template-render.canary.test.ts` (2026-08-11
  * unification). The headline property these canaries exist to prove is the one the whole unification
@@ -18,12 +22,12 @@ import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
  *
  * Kept as a canary against the real, on-disk theme (not a hand-authored fixture) for the same reason
  * the predecessors were: a fixture only ever proves the code understands markup its own author wrote
- * in the same spelling. `basic`'s `theme.json`/`blog-post.html`/`blog-sidebar-template.html`/
+ * in the same spelling. `tovu-theme`'s `theme.json`/`blog-post.html`/`blog-sidebar-template.html`/
  * `page-shell.html` are read directly off disk, so a canary failure means the render pipeline (or the
  * theme's own migration to the unified marker) is wrong, never the test's fixture.
  *
- * Pure and I/O-free beyond reading theme files: menus and the "resolved entity" arrive as pre-built
- * data, exactly as the route layer supplies them, so no DB or server is involved. The recursive
+ * The small stage canaries below are I/O-free beyond reading theme files: menus and the "resolved entity" arrive as pre-built
+ * data, exactly as the route layer supplies them. The final production canary uses real DB ports. The recursive
  * `"html"`-format content-splice pre-pass (guard 3) is NOT exercised here — it needs a real
  * `postRepo`/`RouteDeps`-shaped I/O and is covered directly by `pages/__tests__/
  * resolve-html-format-content-markers.test.ts` instead.
@@ -35,16 +39,16 @@ function read(relative: string): string {
   return fs.readFileSync(path.join(THEME_DIR, relative), "utf8");
 }
 
-/** The real `basic` theme, assembled from its own files the way `loadTheme` assembles it — pages and
+/** The real `tovu-theme` theme, assembled from its own files the way `loadTheme` assembles it — pages and
  * partials keyed by filename stem, manifest straight off `theme.json`. Built here rather than via
  * `loadTheme` so a canary failure can only ever mean the render pipeline changed, never the loader.
  *
  * apiVersion-branched (2026-08-18, matching `theme-pages-render.canary.test.ts`'s own `readTheme()`
  * fix, commit `7095d7de`) the same way `theme.ts`'s `pagesDirName`/`partialsDir` are: v1 keeps `pages/`
- * and root-level `nav.html`/`footer*.html`; v2 nests both under `render/`. `basic` migrated to v2
+ * and root-level `nav.html`/`footer*.html`; v2 nests both under `render/`. `tovu-theme` migrated to v2
  * (`render/pages/`, `render/partials/`) after this helper was first written, so the hardcoded v1 paths
  * broke for good rather than being staging-directory flakiness — the same trap, same fix shape. */
-function basicTheme(): DiscoveredTheme {
+function tovuTheme(): DiscoveredTheme {
   const manifest = JSON.parse(read("theme.json")) as DiscoveredTheme["manifest"];
   const isV2 = (manifest as { apiVersion?: number }).apiVersion === 2;
   const pagesDirName = isV2 ? "render/pages" : "pages";
@@ -73,6 +77,22 @@ function basicTheme(): DiscoveredTheme {
     status: "valid",
     errors: [],
   } as unknown as DiscoveredTheme;
+}
+
+/** Select roles from declarations, accepting both the legacy and migrated filenames. */
+function templateFor(theme: DiscoveredTheme, role: "post" | "sidebar" | "page"): string {
+  const patterns = {
+    post: /^(?:blog-post|posts-default)(?:\.html)?$/,
+    sidebar: /^(?:blog-sidebar-template|posts-sidebar)(?:\.html)?$/,
+    page: /^(?:page-shell|pages-default)(?:\.html)?$/,
+  };
+  const choice = theme.manifest.templates?.find((name) => patterns[role].test(name));
+  assert.ok(choice, `the real theme must declare a ${role} template`);
+  return choice;
+}
+
+function pageFor(theme: DiscoveredTheme, role: "post" | "sidebar" | "page"): string {
+  return theme.pages[templateFor(theme, role).replace(/\.html$/, "")];
 }
 
 function items(...entries: Array<Partial<StaticMenuItem> & { label: string }>): StaticMenuItem[] {
@@ -118,7 +138,7 @@ function renderThroughTemplate(
 }
 
 test("canary: every template in the real theme's templates array is still recognized as having a content slot", () => {
-  const theme = basicTheme();
+  const theme = tovuTheme();
   for (const choice of theme.manifest.templates ?? []) {
     const resolution = resolveTemplate({ theme, templateChoice: choice });
     assert.equal(
@@ -126,19 +146,21 @@ test("canary: every template in the real theme's templates array is still recogn
       "template",
       `${choice} must resolve to a template — a miss here sends every row referencing it to the diagnostic page at HTTP 200`
     );
+    assert.equal(resolution.kind === "template" ? resolution.pageId : undefined, choice.replace(/\.html$/, ""));
+    assert.equal(resolution.kind === "template" ? resolution.html : undefined, theme.pages[choice.replace(/\.html$/, "")]);
   }
 });
 
 test("canary: an unset templateChoice falls back to the theme's first template, never the diagnostic page", () => {
-  const resolution = resolveTemplate({ theme: basicTheme(), templateChoice: null });
+  const resolution = resolveTemplate({ theme: tovuTheme(), templateChoice: null });
   assert.equal(resolution.kind, "template");
 });
 
 test("canary: the page-embed stage leaves theme-owned markers untouched", () => {
   // The whole bug in one assertion: `partial` and `menu` belong to a LATER stage. Substituting
   // anything over them here — placeholder included — deletes the nav, sidebar, and footer.
-  const theme = basicTheme();
-  const template = injectCurrentEntityContentId(theme.pages["blog-sidebar-template"], ENTITY_ID);
+  const theme = tovuTheme();
+  const template = injectCurrentEntityContentId(pageFor(theme, "sidebar"), ENTITY_ID);
   const out = renderHtmlPageBody(template, undefined);
 
   assert.ok(out.includes(`'{"type":"partial","id":"nav"`), "the nav partial marker must survive this stage");
@@ -154,7 +176,7 @@ test("canary: an OWNED marker with nothing resolved still degrades to the REQ-28
   // The other half of the ownership rule. `content` IS this stage's, so an unresolvable one must not
   // be left as raw marker markup for a visitor to see — the two halves fail in opposite directions
   // and a check for only one of them would pass against a stage that substitutes nothing at all.
-  const out = renderHtmlPageBody(injectCurrentEntityContentId(basicTheme().pages["blog-post"], ENTITY_ID), undefined);
+  const out = renderHtmlPageBody(injectCurrentEntityContentId(pageFor(tovuTheme(), "post"), ENTITY_ID), undefined);
   assert.ok(out.includes("widget-placeholder"), "an unresolved content embed must degrade to the placeholder");
   assert.ok(!out.includes('"type":"content"'), "and must not leave its own marker markup in the output");
 });
@@ -165,7 +187,7 @@ test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tr
   // doc. A hand-built `menus` map keyed by the OLD `docs-themes-menu` literal would no longer match
   // that marker at all, so this fixture's key has to track the template's real marker id, not name
   // a specific stored menu.
-  const html = renderThroughTemplate(basicTheme(), "blog-sidebar-template.html", "Theme Authoring", {
+  const html = renderThroughTemplate(tovuTheme(), templateFor(tovuTheme(), "sidebar"), "Theme Authoring", {
     "menu-header-nav": items({ label: "About", href: "/about" }),
     "docs-current-page-sidebar": items({
       label: "Menus",
@@ -181,10 +203,13 @@ test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tr
   assert.ok(html.includes("<footer"), "the footer partial must be spliced in");
   assert.ok(html.includes("<h1>Theme Authoring</h1>"), "the resolved entity must render into the template's slot");
   assert.ok(html.includes('<h2 id="menus">Menus</h2>'), "including its body, with the slugified anchor id");
+  assert.ok(html.includes('<ul class="menu-list depth-0"><li class="menu-item depth-0 has-children is-current"><a href="#menus" aria-current="page">Menus</a><ul class="menu-list depth-1"><li class="menu-item depth-1"><a href="#menu-embeds">Menu embeds</a></li></ul></li></ul>'));
+  assert.ok(!html.includes("No docs menu bound yet"));
+  assert.ok(html.includes("© 2026 Tovu. All rights reserved."));
 });
 
 test("canary: a PAGE-style template (page-shell.html) renders through the SAME pipeline, with its own title substituted", () => {
-  const html = renderThroughTemplate(basicTheme(), "page-shell.html", "Terms of Service", {
+  const html = renderThroughTemplate(tovuTheme(), templateFor(tovuTheme(), "page"), "Terms of Service", {
     "menu-header-nav": items({ label: "About", href: "/about" }),
   });
 
@@ -209,9 +234,9 @@ test("canary: a Post and a Page resolve to DIFFERENT templates by explicit choic
   // real entity title through the identical `injectPageTitle` call — the assertion below changed from
   // "kept its own fixed title" to "substitutes", which is the exact property this test's own docstring
   // says it exists to prove.
-  const theme = basicTheme();
-  const postHtml = renderThroughTemplate(theme, "blog-post.html", "A Post", {});
-  const pageHtml = renderThroughTemplate(theme, "page-shell.html", "A Page", {});
+  const theme = tovuTheme();
+  const postHtml = renderThroughTemplate(theme, templateFor(theme, "post"), "A Post", {});
+  const pageHtml = renderThroughTemplate(theme, templateFor(theme, "page"), "A Page", {});
 
   assert.ok(postHtml.includes("<title>A Post</title>"), "blog-post.html now substitutes the real title, same as page-shell.html");
   assert.ok(pageHtml.includes("<title>A Page</title>"), "page-shell.html substitutes the real title");
@@ -221,8 +246,37 @@ test("canary: a Post and a Page resolve to DIFFERENT templates by explicit choic
 test("canary: an unresolved menu keeps the theme's authored fallback rather than blanking", () => {
   // Passing NO menus is the deleted-menu / wrong-workspace / authoring-typo case. An active theme
   // must render as it did before menus existed, never an empty nav.
-  const html = renderThroughTemplate(basicTheme(), "blog-sidebar-template.html", "Theme Authoring", {});
+  const html = renderThroughTemplate(tovuTheme(), templateFor(tovuTheme(), "sidebar"), "Theme Authoring", {});
   assert.ok(html.includes("No docs menu bound yet"), "the authored fallback content must survive");
   assert.ok(html.includes('<nav class="docs-nav"'), "and the marker element itself must survive with it");
   assert.ok(html.includes('aria-label="Documentation"'), "including its authored accessible name");
+});
+
+test("canary: real Post and Page records render their selected templates through the production entry point", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  await deps.settingsReady;
+  const theme = tovuTheme();
+  const rendered: Record<string, string> = {};
+  for (const kind of ["post", "page"] as const) {
+    const record = {
+      id: randomUUID(), workspaceId: deps.workspaceId, kind,
+      slug: `production-canary-${kind}`, title: `Production ${kind}`,
+      status: "published", bodyFormat: "doc", bodyHtml: null,
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: `Distinct ${kind} body` }] }] },
+      templateChoice: templateFor(theme, kind), updatedAt: new Date().toISOString(), version: 1,
+    } as PostRecord;
+    await deps.postRepo.save(record);
+    const html = await renderTemplateBranchIfEligible(deps, theme, record, {}, false);
+    assert.ok(html);
+    assert.ok(html.includes(`<title>Production ${kind}</title>`));
+    assert.ok(html.includes(`<h1>Production ${kind}</h1>`));
+    assert.ok(html.includes(`Distinct ${kind} body`));
+    assert.ok(!html.includes("widget-placeholder"));
+    assert.ok(html.includes('<nav class="main-nav"'));
+    assert.ok(html.includes("© 2026 Tovu. All rights reserved."));
+    rendered[kind] = html;
+  }
+  assert.ok(rendered.post.includes('<article class="post-detail wrap"'));
+  assert.ok(rendered.page.includes('<article class="wrap post-detail"'));
 });

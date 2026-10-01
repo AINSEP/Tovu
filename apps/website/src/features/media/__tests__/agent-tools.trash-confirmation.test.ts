@@ -47,14 +47,14 @@ const TRASH_TOOL_ID = "media_trash_asset";
 
 const ONE_PIXEL_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
-function makeDeps(options: { allow?: boolean; mediaRepo?: InMemoryMediaRepo } = {}): MediaToolDeps &
+function makeDeps(options: { allow?: boolean; allowedPermissions?: string[]; mediaRepo?: InMemoryMediaRepo } = {}): MediaToolDeps &
   MediaPublicUrlDeps &
   MediaTrashToolDeps & { removed: RecordedMediaRemoval[] } {
   let counter = 0;
-  const authorize =
-    options.allow === false
-      ? async () => ({ allowed: false, reason: "insufficient_permission" as const })
-      : async () => ({ allowed: true, reason: "matched" as const });
+  const authorize: MediaToolDeps["authorize"] = async (request) =>
+    options.allow === false || (options.allowedPermissions && !options.allowedPermissions.includes(request.permission))
+      ? { allowed: false, reason: "insufficient_permission" as const }
+      : { allowed: true, reason: "matched" as const };
   const mediaRepo = options.mediaRepo ?? new InMemoryMediaRepo();
   const { removeMedia, removed } = makeRemoveMediaDouble(mediaRepo);
   return {
@@ -106,9 +106,9 @@ function exchangeIdFromSurface(surface: unknown): string {
   return match[1]!;
 }
 
-async function raiseDialog(trashTool: ToolRegistration, mediaId: string) {
+async function raiseDialog(trashTool: ToolRegistration, mediaId: string, signal?: AbortSignal) {
   const emitted: unknown[] = [];
-  const pending = call(trashTool, { input: { mediaId }, emitSurface: async (s) => void emitted.push(s) });
+  const pending = call(trashTool, { input: { mediaId }, signal, emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const ui = (emitted[0] as { payload: { resource: { type: string; resource: { mimeType: string; text: string } } } }).payload.resource;
@@ -159,11 +159,16 @@ test("the dialog names the title and slug, so consent is informed", async () => 
   const deps = makeDeps();
   const surfaceExchanges = createSurfaceExchangeStore();
   const asset = await seedMediaAsset(deps, surfaceExchanges, { filename: "sidebar-banner.png" });
+  const row = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
+  assert.ok(row);
+  await deps.mediaRepo.save({ ...row, title: "Summer campaign artwork", slug: "sidebar-banner" });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   const { ui, exchangeId, pending } = await raiseDialog(trashTool, asset.id);
 
   assert.match(ui.resource.text, /sidebar-banner/i);
+  assert.match(ui.resource.text, /<dt>Title<\/dt><dd>Summer campaign artwork<\/dd>/);
+  assert.match(ui.resource.text, /<dt>Slug<\/dt><dd>sidebar-banner<\/dd>/);
   assert.match(ui.resource.text, /moved to the trash/i);
 
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
@@ -180,8 +185,14 @@ test("confirm: the human's click trashes the asset and the SAME call reports it 
   const asset = await seedMediaAsset(deps, surfaceExchanges);
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
-  const { exchangeId, pending } = await raiseDialog(trashTool, asset.id);
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const { ui, exchangeId, pending } = await raiseDialog(trashTool, asset.id);
+  const match = ui.resource.text.match(/var PLAN = (.*);/);
+  assert.ok(match, "the emitted button action plan must exist");
+  const action = JSON.parse(match[1]).confirm as { toolName: string; params: Record<string, unknown> };
+  assert.equal(action.toolName, TRASH_TOOL_ID);
+  assert.equal(action.params[SURFACE_EXCHANGE_ID_PARAM], exchangeId);
+  assert.equal(action.params.decision, "confirm");
+  const delivered = surfaceExchanges.deliver({ exchangeId: action.params[SURFACE_EXCHANGE_ID_PARAM] as string, toolId: action.toolName, principalId: PRINCIPAL_ID, params: action.params });
   assert.deepEqual(delivered, { ok: true });
 
   const result = (await pending) as { trashed: boolean; cancelled: boolean; media: { status: string } };
@@ -207,13 +218,18 @@ test("confirm: the trash goes through the injected removeMedia, with a post-conf
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   const { exchangeId, pending } = await raiseDialog(trashTool, asset.id);
+  const before = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
+  assert.ok(before);
+  const edited = { ...before, version: before.version + 1, title: "Edited while open", slug: "edited-slug" };
+  await deps.mediaRepo.save(edited);
   surfaceExchanges.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
   await pending;
 
   assert.equal(deps.removed.length, 1, "the agent trash path never reached removeMedia — it is unwired");
   assert.equal(deps.removed[0].id, asset.id);
-  assert.equal(deps.removed[0].display.title, asset.title);
-  assert.equal(deps.removed[0].display.subtitle, asset.slug);
+  assert.equal(deps.removed[0].display.title, edited.title);
+  assert.equal(deps.removed[0].display.subtitle, edited.slug);
+  assert.equal(deps.removed[0].expectedVersion, edited.version);
   const current = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
   assert.equal(deps.removed[0].expectedVersion, (current?.version ?? 0) - 1, "the CAS must use the version read at confirm time");
 });
@@ -301,17 +317,20 @@ test("media.delete is checked before any dialog is raised, and a denied principa
   const seedDeps = makeDeps();
   const seedSurfaces = createSurfaceExchangeStore();
   const asset = await seedMediaAsset(seedDeps, seedSurfaces);
-  const deps = makeDeps({ allow: false, mediaRepo: seedDeps.mediaRepo });
+  const deps = makeDeps({ allowedPermissions: ["media.upload", "media.read"], mediaRepo: seedDeps.mediaRepo });
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
+  let emissions = 0;
   await assert.rejects(
-    () => call(trashTool, { input: { mediaId: asset.id } }),
+    () => call(trashTool, { input: { mediaId: asset.id }, emitSurface: async () => { emissions++; } }),
     (error: unknown) => {
       assert.ok(error instanceof ForbiddenError, `expected ForbiddenError, got ${String(error)}`);
+      assert.equal(error.permission, "media.delete");
       return true;
     },
   );
+  assert.equal(emissions, 0);
   assert.equal(surfaceExchanges.size(), 0, "a denied principal must never get a dialog opened for them");
 
   const row = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
@@ -325,4 +344,60 @@ test("a nonexistent media id is refused before any dialog is raised", async () =
 
   await assert.rejects(() => call(trashTool, { input: { mediaId: "nope" } }), /was not found/);
   assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("aborting a parked confirmation reports abandonment and rejects a late confirm", async () => {
+  const deps = makeDeps();
+  const surfaces = createSurfaceExchangeStore();
+  const asset = await seedMediaAsset(deps, surfaces);
+  const before = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
+  const controller = new AbortController();
+  const { pending, exchangeId } = await raiseDialog(tool(buildRegistrations(deps, surfaces), TRASH_TOOL_ID), asset.id, controller.signal);
+  controller.abort();
+  const result = await pending as { trashed: boolean; cancelled: boolean; reason: string; note: string };
+  assert.equal(result.trashed, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.reason, "abandoned");
+  assert.equal(result.note, "The confirmation dialog was closed because the run ended. Nothing was trashed.");
+  assert.equal(surfaces.size(), 0);
+  assert.deepEqual(surfaces.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }), { ok: false, reason: "unknown-or-closed" });
+  assert.equal(deps.removed.length, 0);
+  assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id }), before);
+});
+
+for (const reason of ["not-found", "version-changed"] as const) {
+  test(`confirmation refuses removeMedia's ${reason} result without trashing`, async () => {
+    const deps = makeDeps();
+    const surfaces = createSurfaceExchangeStore();
+    const asset = await seedMediaAsset(deps, surfaces);
+    const before = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id });
+    deps.removeMedia = async () => ({ ok: false, reason });
+    const { pending, exchangeId } = await raiseDialog(tool(buildRegistrations(deps, surfaces), TRASH_TOOL_ID), asset.id);
+    const rejection = assert.rejects(pending, { message: reason === "not-found" ? `media asset '${asset.id}' was not found` : `media asset '${asset.id}' changed while the confirmation was open — nothing was trashed` });
+    surfaces.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+    await rejection;
+    assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id }), before);
+  });
+}
+
+test("confirmation refuses an asset deleted while the dialog was open", async () => {
+  const deps = makeDeps();
+  const surfaces = createSurfaceExchangeStore();
+  const asset = await seedMediaAsset(deps, surfaces);
+  const { pending, exchangeId } = await raiseDialog(tool(buildRegistrations(deps, surfaces), TRASH_TOOL_ID), asset.id);
+  await deps.mediaRepo.remove({ workspaceId: WORKSPACE_ID, id: asset.id });
+  const rejection = assert.rejects(pending, { message: `media asset '${asset.id}' was not found` });
+  surfaces.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  await rejection;
+  assert.equal(deps.removed.length, 0);
+});
+
+test("a principal holding only media.delete can confirm trash", async () => {
+  const seed = makeDeps();
+  const surfaces = createSurfaceExchangeStore();
+  const asset = await seedMediaAsset(seed, surfaces);
+  const deps = makeDeps({ mediaRepo: seed.mediaRepo, allowedPermissions: ["media.delete"] });
+  const { pending, exchangeId } = await raiseDialog(tool(buildRegistrations(deps, surfaces), TRASH_TOOL_ID), asset.id);
+  surfaces.deliver({ exchangeId, toolId: TRASH_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  assert.equal((await pending as { trashed: boolean }).trashed, true);
 });

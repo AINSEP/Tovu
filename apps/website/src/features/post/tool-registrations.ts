@@ -762,6 +762,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 },
               }),
             captureEntityVersion: (r) => r.post.version,
+            // A failed record must undo the create, including its revision and reserved slug.
+            rollback: () => routeDeps.postRepo.hardDelete({ workspaceId: routeDeps.workspaceId, id: postId }),
           },
         });
 

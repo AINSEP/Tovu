@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { confirm, ForbiddenError, type GatedMutationHooks, type GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
+import { confirm, execute, ForbiddenError, type GatedMutationHooks, type GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
+import { InMemoryTokenStore } from "#src/contracts/core/gated-mutations/token";
 import type { ConfirmationTokenRecord, TokenStorePort } from "#src/contracts/core/gated-mutations/token";
 import { buildConfirmOnlyHooks, resolveActorClassIdentity } from "#src/contracts/core/gated-mutations/composition";
 import { gatedPrincipalKindFor, type AuthCredentialKind } from "../dev-auth.js";
@@ -104,4 +105,24 @@ test("a publish_key's actor-class identity is itself, so only the confirming ins
     await resolveActorClassIdentity({ principalId: "pub:install-b", principalKind: "publish_key" }),
     "pub:install-a"
   );
+  const tokens = new InMemoryTokenStore();
+  const deps = { ...makeGatewayDeps(true).deps, tokens };
+  let applied = 0;
+  const ceremony = {
+    ...hooks(),
+    computePlan: async () => ({ planHash: "installation-bound-plan", details: {} }),
+    executeMutation: async () => { applied++; return { applied: true }; },
+  };
+  const record = await confirm({ deps, principalId: "pub:install-a", principalKind: "publish_key", hooks: ceremony,
+    planId: "plan-1", planHash: "installation-bound-plan" });
+  await assert.rejects(
+    execute({ deps, principalId: "pub:install-b", principalKind: "publish_key", hooks: ceremony, confirmationToken: record.confirmationToken }),
+    (error: unknown) => error instanceof ForbiddenError && error.reasonCode === "ACTOR_CLASS_MISMATCH"
+  );
+  assert.equal(applied, 0);
+  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "minted");
+  assert.deepEqual(await execute({ deps, principalId: "pub:install-a", principalKind: "publish_key", hooks: ceremony,
+    confirmationToken: record.confirmationToken }), { applied: true });
+  assert.equal(applied, 1);
+  assert.equal((await tokens.findByToken(record.confirmationToken))?.status, "redeemed");
 });

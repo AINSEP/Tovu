@@ -50,7 +50,7 @@ test("a theme.json with only the legacy activeAttr string still wires aria-curre
       },
     },
     {
-      "nav.html": '<nav class="main-nav"><a href="pricing.html" data-nav-id="pricing">Pricing</a></nav>',
+      "nav.html": '<nav class="main-nav"><a href="index.html" data-nav-id="index">Home</a><a href="pricing.html" data-nav-id="pricing">Pricing</a></nav>',
       "footer.html": "<footer>legacy theme footer</footer>",
       "pages/index.html": [
         "<html><body>",
@@ -76,6 +76,8 @@ test("a theme.json with only the legacy activeAttr string still wires aria-curre
 
   const html = renderStaticPage({ theme, pageId: "index" });
   assert.ok(html?.includes('data-nav-id="pricing" aria-current="page"'), "the legacy spelling still wires aria-current");
+  assert.equal((html?.match(/aria-current="page"/g) ?? []).length, 1);
+  assert.ok(html?.includes('data-nav-id="index">Home</a>'));
   assert.ok(html?.includes("legacy theme footer"), "the footer slot still resolves");
 });
 
@@ -92,7 +94,7 @@ test("a theme.json with the current honorsCurrentPage boolean wires aria-current
       },
     },
     {
-      "nav.html": '<nav><a href="docs.html" data-nav-id="docs">Docs</a></nav>',
+      "nav.html": '<nav><a href="index.html" data-nav-id="index">Home</a><a href="docs.html" data-nav-id="docs">Docs</a><a href="pricing.html" data-nav-id="pricing">Pricing</a></nav>',
       "pages/index.html":
         '<html><body><div data-embed-config=\'{"type":"partial","id":"nav","current":"docs"}\'></div></body></html>',
     }
@@ -101,6 +103,9 @@ test("a theme.json with the current honorsCurrentPage boolean wires aria-current
   const theme = loadTheme({ themeDir: dir, id: "t2", source: "site" });
   const html = renderStaticPage({ theme, pageId: "index" });
   assert.ok(html?.includes('data-nav-id="docs" aria-current="page"'));
+  assert.equal((html?.match(/aria-current="page"/g) ?? []).length, 1);
+  assert.ok(html?.includes('data-nav-id="index">Home</a>'));
+  assert.ok(html?.includes('data-nav-id="pricing">Pricing</a>'));
 });
 
 test("honorsCurrentPage: false behaves the same as absent — no aria-current wiring even with a current key", () => {
@@ -116,7 +121,7 @@ test("honorsCurrentPage: false behaves the same as absent — no aria-current wi
       },
     },
     {
-      "nav.html": '<nav><a href="docs.html" data-nav-id="docs">Docs</a></nav>',
+      "nav.html": '<nav><a href="index.html" data-nav-id="index">Home</a><a href="docs.html" data-nav-id="docs">Docs</a><a href="pricing.html" data-nav-id="pricing">Pricing</a></nav>',
       "pages/index.html":
         '<html><body><div data-embed-config=\'{"type":"partial","id":"nav","current":"docs"}\'></div></body></html>',
     }

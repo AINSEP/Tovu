@@ -1,16 +1,13 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import test from "node:test";
 
 import type { MailerSendOptions, OutboundEmail } from "../../index.js";
-import { SmtpMailerAdapter, type SmtpMailPayload, type SmtpTransport } from "../smtp.nodemailer.js";
+import { createNodemailerSmtpTransport, SmtpMailerAdapter, type SmtpMailPayload, type SmtpTransport } from "../smtp.nodemailer.js";
 
 /**
  * @file `SmtpMailerAdapter` — exercised against a fake `SmtpTransport`, NEVER a real SMTP socket
- * (`createNodemailerSmtpTransport`, the one function that touches the real `nodemailer` package,
- * is intentionally NOT exercised here — see this file's header on `smtp.nodemailer.ts` for why it
- * is kept to a single, thin, untested-by-design wrapper: there is nothing left to unit-test once
- * the real transport call is mocked out, and a live SMTP send is explicitly out of bounds for this
- * suite).
+ * The factory is exercised at nodemailer's createTransport boundary, without opening a socket.
  */
 
 class FakeSmtpTransport implements SmtpTransport {
@@ -56,6 +53,44 @@ test("capabilities reports the smtp driver shape", () => {
     maxBatchSize: 1,
     supportsAttachments: true,
   });
+});
+
+test("createNodemailerSmtpTransport maps configuration and forwards the complete payload", async (t) => {
+  const nodemailer = createRequire(import.meta.url)("nodemailer") as typeof import("nodemailer");
+  const configurations: unknown[] = [];
+  const payloads: SmtpMailPayload[] = [];
+  t.mock.method(nodemailer, "createTransport", (configuration: unknown) => {
+    configurations.push(configuration);
+    return { sendMail: async (mail: SmtpMailPayload) => {
+      payloads.push(mail);
+      return { messageId: "factory-message-id", accepted: ["to@example.com"] };
+    } };
+  });
+  const payload: SmtpMailPayload = {
+    from: { name: "Fixture", address: "from@example.com" }, to: { address: "to@example.com" },
+    subject: "Factory delivery", html: "<p>Hello</p>", headers: { "X-Fixture": "yes" },
+  };
+  for (const secure of [false, true]) {
+    const config = { host: "smtp.example.com", port: secure ? 465 : 587, secure, auth: { user: "fixture-user", pass: "fixture-password" }, timeoutMs: 3210 };
+    const transport = createNodemailerSmtpTransport(config);
+    assert.deepEqual(configurations.at(-1), {
+      host: config.host, port: config.port, secure, auth: config.auth, connectionTimeout: 3210,
+    });
+    assert.deepEqual(await transport.sendMail(payload), { messageId: "factory-message-id" });
+    assert.deepEqual(payloads.at(-1), payload);
+  }
+  assert.equal(configurations.length, 2);
+  assert.equal(payloads.length, 2);
+});
+
+test("send() forwards HTML-only content, headers and a named recipient without inventing text", async () => {
+  const transport = new FakeSmtpTransport();
+  const adapter = new SmtpMailerAdapter(transport);
+  await adapter.send(makeMessage({ text: undefined, html: "<p>Sign in <a href='/auth'>here</a></p>", headers: { "X-Fixture": "yes" }, to: { email: "ada@example.com", name: "Ada" } }), SEND_OPTIONS);
+  assert.deepEqual(transport.calls, [{
+    from: { name: "Tovu", address: "no-reply@tovu.local" }, to: { name: "Ada", address: "ada@example.com" },
+    subject: "Your sign-in link", html: "<p>Sign in <a href='/auth'>here</a></p>", headers: { "X-Fixture": "yes" },
+  }]);
 });
 
 test("send() maps addresses to nodemailer's {name,address} object form and returns the provider messageId", async () => {
@@ -202,7 +237,8 @@ test("sendBatch() loops send() once per message, preserving result[i] <-> messag
     },
     () => ({ messageId: "ok-3" }),
   ]);
-  const adapter = new SmtpMailerAdapter(transport);
+  const acceptedAt = "2026-08-31T00:00:00.000Z";
+  const adapter = new SmtpMailerAdapter(transport, { clock: { nowIso: () => acceptedAt } });
   const messages = [
     makeMessage({ to: { email: "one@example.com" } }),
     makeMessage({ to: { email: "two@example.com" } }),
@@ -214,6 +250,11 @@ test("sendBatch() loops send() once per message, preserving result[i] <-> messag
   assert.equal(results[0].ok, true);
   assert.equal(results[1].ok, false);
   assert.equal(results[2].ok, true);
+  assert.deepEqual(results, [
+    { ok: true, providerMessageId: "ok-1", acceptedAt },
+    { ok: false, retryable: false, errorCode: "SMTP_550", message: "550 rejected" },
+    { ok: true, providerMessageId: "ok-3", acceptedAt },
+  ]);
   assert.equal(transport.calls.length, 3);
   assert.equal(transport.calls[0].to.address, "one@example.com");
   assert.equal(transport.calls[2].to.address, "three@example.com");

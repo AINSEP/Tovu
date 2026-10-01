@@ -11,6 +11,7 @@ import { PUBLISH_TRUST_GRANT_VERSION } from "#src/features/publish-trust/grant";
 import { derivePublishSigningKey } from "#src/features/publish-trust/keys";
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/provisioning";
 import type { KeyringPort } from "#src/features/webhooks/index";
+import { loginAsOwner } from "../helpers/http-test-server.js";
 
 /**
  * @file The publishing gate, over real HTTP, through the real app.
@@ -235,12 +236,20 @@ test("a valid publish token cannot reach an ordinary content.write route", async
   const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
   try {
     const token = await tokenFor(baseUrl);
+    const cookie = await loginAsOwner(baseUrl);
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/posts`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ title: "hostile", slug: "hostile" }),
     });
     assert.equal(res.status, 401, await res.text());
+    const mixed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/posts`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}`, cookie },
+      body: JSON.stringify({ title: "hostile", slug: "hostile" }),
+    });
+    assert.equal(mixed.status, 401);
+    assert.deepEqual(await mixed.json(), { error: "unauthenticated", code: "UNAUTHENTICATED" });
   } finally {
     await stop(server);
   }
@@ -251,10 +260,16 @@ test("a valid publish token cannot reach an admin route outside the publishing s
   const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
   try {
     const token = await tokenFor(baseUrl);
+    const cookie = await loginAsOwner(baseUrl);
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/peers`, {
       headers: { authorization: `Bearer ${token}` },
     });
     assert.equal(res.status, 401, await res.text());
+    const mixed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/peers`, {
+      headers: { authorization: `Bearer ${token}`, cookie },
+    });
+    assert.equal(mixed.status, 401);
+    assert.deepEqual(await mixed.json(), { error: "unauthenticated", code: "UNAUTHENTICATED" });
   } finally {
     await stop(server);
   }
@@ -309,20 +324,17 @@ test("a publish-trust route with NO token resolves to no credential", async () =
 test("dropping the grant revokes publishing within one session, not at the end of one", async () => {
   const key = await sourceKey();
   const first = await startServer(grantDocument(key.publicKeyB64u));
-  let token: string;
   try {
-    token = await tokenFor(first.baseUrl);
+    const token = await tokenFor(first.baseUrl);
     assert.equal((await probe(first.baseUrl, token)).status, 200);
+    process.env[PUBLISH_TRUST_ENV_VAR] = "";
+    const revoked = await probe(first.baseUrl, token);
+    assert.equal(revoked.status, 401);
+    assert.deepEqual(await revoked.json(), { error: "unauthenticated", code: "UNAUTHENTICATED" });
+    process.env[PUBLISH_TRUST_ENV_VAR] = grantDocument(key.publicKeyB64u);
+    assert.equal((await probe(first.baseUrl, token)).status, 200, "the same token and keyring still work when its live grant is restored");
   } finally {
     await stop(first.server);
-  }
-
-  // The same still-unexpired token, against an install whose operator emptied the kill switch.
-  const revoked = await startServer("");
-  try {
-    assert.equal((await probe(revoked.baseUrl, token)).status, 401);
-  } finally {
-    await stop(revoked.server);
     delete process.env[PUBLISH_TRUST_ENV_VAR];
   }
 });

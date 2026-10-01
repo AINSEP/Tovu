@@ -87,8 +87,9 @@ test("a raw DELETE on a workspace holding a setting_values_user row is rejected 
   assert.equal(db.select().from(workspaces).where(eq(workspaces.id, "ws-fk-2")).all().length, 1);
 });
 
-test("PURGE_REQUIRED is resolved by running the purge service first: after purgeTenantSettings clears a workspace's rows, the raw DELETE succeeds", async () => {
+test("PURGE_REQUIRED is resolved by running the purge service first: after purgeTenantSettings clears a workspace's rows, the raw DELETE succeeds", async (t) => {
   const db = openTestDb();
+  t.after(() => db.$client.close());
   seedWorkspace(db, "ws-fk-3");
   db.insert(settingValuesWorkspace)
     .values({
@@ -104,6 +105,12 @@ test("PURGE_REQUIRED is resolved by running the purge service first: after purge
     })
     .run();
 
+  db.insert(settingValuesUser).values({
+    settingId: "setting-user-fk-3", workspaceId: "ws-fk-3", principalId: "p-3",
+    valueJson: JSON.stringify("user value"), state: "set", defVersion: 2, seq: 1,
+    updatedBy: "original-actor", updatedAt: NOW, originPluginId: null,
+  }).run();
+
   // Blocked before the purge runs.
   assert.throws(() => {
     db.delete(workspaces).where(eq(workspaces.id, "ws-fk-3")).run();
@@ -116,7 +123,16 @@ test("PURGE_REQUIRED is resolved by running the purge service first: after purge
     deps: { repo, clock, authorize: alwaysAllow },
     input: { workspaceId: "ws-fk-3", callerPrincipalId: "actor-1" },
   });
-  assert.equal(result.purgedCount, 1);
+  assert.equal(result.purgedCount, 2);
+  assert.deepEqual(await repo.listWorkspaceValues({ workspaceId: "ws-fk-3" }), []);
+  assert.deepEqual(await repo.listUserValuesByWorkspace({ workspaceId: "ws-fk-3" }), []);
+  const workspaceRevisions = await repo.listRevisions({ settingId: "setting-fk-3" });
+  const userRevisions = await repo.listRevisions({ settingId: "setting-user-fk-3" });
+  const common = { entityKind: "value", workspaceId: "ws-fk-3", op: "purge", beforeJson: null,
+    afterJson: null, actor: "actor-1", originPluginId: null, changeSetId: null, createdAt: NOW };
+  // Purge deliberately redacts values; the ledger retains identity and attribution.
+  assert.deepEqual(workspaceRevisions, [{ ...common, seq: 1, settingId: "setting-fk-3", scope: "workspace", principalId: null, defVersion: 1 }]);
+  assert.deepEqual(userRevisions, [{ ...common, seq: 2, settingId: "setting-user-fk-3", scope: "user", principalId: "p-3", defVersion: 2 }]);
 
   // No more referencing rows — the raw delete now succeeds.
   db.delete(workspaces).where(eq(workspaces.id, "ws-fk-3")).run();

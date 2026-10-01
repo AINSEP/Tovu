@@ -257,3 +257,52 @@ test("isAllowedEgressTarget rejects the same bypass strings as redirects", async
   assert.equal(await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "https://good.com@evil.com"), false);
   assert.equal(await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "//evil.com"), false);
 });
+
+test("redirect and egress require matching effective ports for canonical and dev origins", async () => {
+  const canonical = makeRegistry();
+  const dev = new OriginRegistry({ repo: new InMemoryOriginSettingRepo([{
+    workspaceId: WORKSPACE,
+    origin: { scheme: "http", host: "localhost", port: 3000, verifiedAt: "2026-07-10T00:00:00.000Z", source: "dev-capability" },
+  }]) });
+  const custom = new OriginRegistry({ repo: new InMemoryOriginSettingRepo([{
+    workspaceId: WORKSPACE,
+    origin: { scheme: "https", host: "good.com", port: 8443, verifiedAt: "2026-07-10T00:00:00.000Z", source: "workspace-setting" },
+  }]) });
+  for (const oracle of ["isAllowedRedirectTarget", "isAllowedEgressTarget"] as const) {
+    assert.equal(await canonical[oracle]({ workspaceId: WORKSPACE }, "https://good.com:443/path"), true);
+    assert.equal(await canonical[oracle]({ workspaceId: WORKSPACE }, "https://good.com:8443/path"), false);
+    assert.equal(await custom[oracle]({ workspaceId: WORKSPACE }, "https://good.com:8443/path"), true);
+    assert.equal(await custom[oracle]({ workspaceId: WORKSPACE }, "https://good.com/path"), false);
+    assert.equal(await dev[oracle]({ workspaceId: WORKSPACE }, "http://localhost:3000/path"), true);
+    assert.equal(await dev[oracle]({ workspaceId: WORKSPACE }, "http://localhost:3001/path"), false);
+  }
+});
+
+test("redirect and egress allowlists require exact hosts, rejecting suffix and substring confusables", async () => {
+  const registry = makeRegistry({ redirectAllowlist: ["partner.com"], egressAllowlist: ["api.example.com"] });
+  for (const [oracle, host] of [
+    ["isAllowedRedirectTarget", "partner.com"],
+    ["isAllowedEgressTarget", "api.example.com"],
+  ] as const) {
+    assert.equal(await registry[oracle]({ workspaceId: WORKSPACE }, `https://${host}`), true);
+    for (const candidate of [`evil${host}`, `sub.${host}`, `${host}.evil.com`]) {
+      assert.equal(await registry[oracle]({ workspaceId: WORKSPACE }, `https://${candidate}`), false, candidate);
+    }
+  }
+});
+
+test("redirect and egress fail closed when their allowlist lookup rejects", async () => {
+  const repo = new InMemoryOriginSettingRepo([{
+    workspaceId: WORKSPACE,
+    origin: { scheme: "https", host: "good.com", verifiedAt: "2026-07-10T00:00:00.000Z", source: "workspace-setting" },
+  }]);
+  let redirectLookups = 0;
+  let egressLookups = 0;
+  repo.findRedirectAllowlist = async () => { redirectLookups++; throw new Error("redirect lookup failed"); };
+  repo.findEgressAllowlist = async () => { egressLookups++; throw new Error("egress lookup failed"); };
+  const registry = new OriginRegistry({ repo });
+  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://partner.com"), false);
+  assert.equal(await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "https://api.example.com"), false);
+  assert.equal(redirectLookups, 1);
+  assert.equal(egressLookups, 1);
+});

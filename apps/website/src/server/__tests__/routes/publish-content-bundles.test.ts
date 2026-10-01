@@ -8,6 +8,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { loadActiveBundle } from "#src/features/publish-content/bundle-staging";
+import { loginAsBarePrincipal } from "../helpers/http-test-server.js";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -90,6 +91,26 @@ test("POST .../publish-content/bundles is 401 without a credential", async (t) =
     body: JSON.stringify(validBundleBody()),
   });
   assert.equal(res.status, 401);
+});
+
+test("POST .../publish-content/bundles refuses a signed-in principal without publish_content.apply before staging", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsBarePrincipal(deps, baseUrl, { username: "bare-bundle" });
+  let saves = 0;
+  const save = deps.publishContentBundleRepo.save.bind(deps.publishContentBundleRepo);
+  deps.publishContentBundleRepo.save = async (row) => { saves++; await save(row); };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify(validBundleBody()),
+  });
+  assert.equal(res.status, 403);
+  const body = await res.json() as { code: string; details: { permission: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details.permission, "publish_content.apply");
+  assert.equal(saves, 0);
 });
 
 test("POST .../publish-content/bundles stages a bundle and returns {bundleId, expiresAt} in the future", async (t) => {

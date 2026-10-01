@@ -15,6 +15,21 @@ import { createFetchDouble, createTestClock, TEST_CLIENT } from "./helpers.js";
 
 const TOKEN_ENDPOINT = "https://auth.example.com/token";
 
+for (const authMethod of ["none", "client_secret_post", "client_secret_basic"] as const) {
+  test(`token requests authenticate using ${authMethod}`, async () => {
+    const http = createFetchDouble([{ json: { access_token: "at" } }]);
+    const client = { clientId: "id: /+", clientSecret: "secret: /+", authMethod };
+    await requestOAuthToken({ clock: createTestClock(), fetchFn: http.fetchFn },
+      { tokenEndpoint: TOKEN_ENDPOINT, client, params: { grant_type: "authorization_code", code: "c" } });
+    const request = http.requests[0];
+    assert.equal(request.body.get("client_id"), authMethod === "client_secret_basic" ? null : client.clientId);
+    assert.equal(request.body.get("client_secret"), authMethod === "client_secret_post" ? client.clientSecret : null);
+    // Literal fixture pins URL encoding before the id/secret pair is base64 encoded.
+    assert.equal(request.headers.authorization, authMethod === "client_secret_basic"
+      ? `Basic ${Buffer.from("id%3A%20%2F%2B:secret%3A%20%2F%2B").toString("base64")}` : undefined);
+  });
+}
+
 test("a missing token_type defaults to Bearer", async () => {
   const clock = createTestClock();
   const http = createFetchDouble([{ json: { access_token: "at" } }]);

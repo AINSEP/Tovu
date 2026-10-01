@@ -40,7 +40,7 @@ export const registerAdminNewsletterSendTestCampaignRoute: RouteRegistrar = (app
         input: { workspaceId: deps.workspaceId, campaignId: String(req.params.id), testAddresses: body.testAddresses },
       });
       res.status(200).json({
-        data: { results: results.map((r) => ({ address: r.email, ok: r.outcome === "sent", errorCode: r.outcome === "sent" ? null : (r.error ?? null) })) },
+        data: { results: results.map((r) => ({ address: r.email, ok: r.outcome === "sent", errorCode: r.outcome === "sent" ? null : (r.errorCode ?? null), ...(r.outcome === "failed" ? { message: r.error ?? null } : {}) })) },
       });
     } catch (err) {
       mapNewsletterErrorToResponse(err, res);

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { parse, type DefaultTreeAdapterMap } from "parse5";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
@@ -12,6 +13,7 @@ import {
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { createPost } from "../post.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 import { removeVia } from "./remove-post-double.js";
 
@@ -137,6 +139,33 @@ function exchangeIdFromSurface(surface: unknown): string {
   return match[1]!;
 }
 
+function htmlElements(ui: UIResource, tag: string): DefaultTreeAdapterMap["element"][] {
+  const found: DefaultTreeAdapterMap["element"][] = [];
+  function visit(node: DefaultTreeAdapterMap["node"]) {
+    if ("tagName" in node && node.tagName === tag) found.push(node);
+    if ("childNodes" in node) node.childNodes.forEach(visit);
+  }
+  visit(parse(ui.resource.text));
+  return found;
+}
+
+function htmlText(node: DefaultTreeAdapterMap["node"]): string {
+  if ("value" in node) return node.value;
+  return "childNodes" in node ? node.childNodes.map(htmlText).join("") : "";
+}
+
+/** Deliver the action plan actually embedded for the rendered button, including its tool/id. */
+function deliverAction(store: SurfaceExchangeStore, ui: UIResource, action: "confirm" | "cancel") {
+  assert.ok(htmlElements(ui, "button").some(node => node.attrs.some(attr => attr.name === "data-mcpui-action" && attr.value === action)));
+  const plan = ui.resource.text.match(/var PLAN = (\{[^\n]+\});/);
+  assert.ok(plan, "the dialog must carry the buttons' submission plan");
+  const step = JSON.parse(plan[1]!)[action] as { toolName: string; params: Record<string, unknown> };
+  assert.ok(step);
+  const exchangeId = step.params[SURFACE_EXCHANGE_ID_PARAM];
+  assert.equal(typeof exchangeId, "string");
+  return store.deliver({ exchangeId: exchangeId as string, toolId: step.toolName, principalId: PRINCIPAL_ID, params: step.params });
+}
+
 /** Raises the dialog and returns everything a test needs to answer it. */
 async function raiseDialog(deleteTool: ToolRegistration, input: Record<string, unknown> = { id: "p1", kind: "post" }) {
   const emitted: unknown[] = [];
@@ -190,12 +219,24 @@ test("the dialog names exactly what is about to be deleted, so the consent is in
 
   const { ui, exchangeId, pending } = await raiseDialog(deleteTool);
 
-  assert.match(ui.resource.text, /Quarterly Report/);
-  assert.match(ui.resource.text, /quarterly-report/);
-  assert.match(ui.resource.text, /published/);
+  const details = htmlElements(ui, "dl").find(node => node.attrs.some(attr => attr.value === "mcpui-details"));
+  assert.ok(details);
+  assert.deepEqual(details.childNodes.filter(node => "tagName" in node).map(htmlText), ["Title", "Quarterly Report", "Slug", "quarterly-report", "Status", "published"]);
+  assert.deepEqual(htmlElements(ui, "p").filter(node => node.attrs.some(attr => attr.value === "mcpui-warning")).map(htmlText), ["This post is currently published. Deleting it removes it from the public site immediately."]);
   assert.match(ui.resource.text, /moved to the trash/i, "the human must be told it is recoverable");
 
   surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
+});
+
+test("a draft's dialog reports draft status and has no published warning", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { status: "draft" });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { ui, pending } = await raiseDialog(tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete"));
+  assert.deepEqual(htmlElements(ui, "dd").map(htmlText), ["My Article", "my-article", "draft"]);
+  assert.deepEqual(htmlElements(ui, "p").filter(node => node.attrs.some(attr => attr.value === "mcpui-warning")), []);
+  assert.deepEqual(deliverAction(surfaceExchanges, ui, "cancel"), { ok: true });
   await pending;
 });
 
@@ -313,13 +354,8 @@ test("confirm: the human's click performs the soft delete and the SAME call repo
   const seen: string[] = [];
   await bus.subscribe("entry.unpublished", (event: { name?: string }) => seen.push(event.name ?? "entry.unpublished"));
 
-  const { exchangeId, pending } = await raiseDialog(deleteTool);
-  const delivered = surfaceExchanges.deliver({
-    exchangeId,
-    toolId: "content_post_delete",
-    principalId: PRINCIPAL_ID,
-    params: { decision: "confirm" },
-  });
+  const { ui, pending } = await raiseDialog(deleteTool);
+  const delivered = deliverAction(surfaceExchanges, ui, "confirm");
   assert.deepEqual(delivered, { ok: true });
 
   const result = await pending;
@@ -345,8 +381,8 @@ test("cancel: nothing is deleted, and the SAME call reports the cancellation", a
   const surfaceExchanges = createSurfaceExchangeStore();
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const { exchangeId, pending } = await raiseDialog(deleteTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  const { ui, pending } = await raiseDialog(deleteTool);
+  assert.deepEqual(deliverAction(surfaceExchanges, ui, "cancel"), { ok: true });
 
   assert.deepEqual(await pending, {
     deleted: false,
@@ -587,3 +623,37 @@ test("a permission revoked between the dialog opening and the click still refuse
   await assert.rejects(() => pending, /is not authorized/);
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
 });
+
+for (const operation of ["update", "delete"] as const) {
+  test(`${operation}: a failed change-set record restores the post with forward history and compensating events`, async () => {
+    const { deps, postRepo, changeSets, outbox } = fakeRouteDeps();
+    const forgotten: unknown[] = [];
+    deps.forgetRemovedPost = async (request) => { forgotten.push(request); };
+    await createPost({ deps: { repo: postRepo, clock: deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "p1", title: "Original", slug: "original", status: "published", bodyJson: EMPTY_DOC } });
+    const prior = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
+    assert.ok(prior);
+    const failure = new Error("change-set recording failed");
+    changeSets.insert = async () => { throw failure; };
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const registrations = buildRegistrations(deps, surfaceExchanges);
+    if (operation === "update") {
+      await assert.rejects(() => call(tool(registrations, "content_post_update"), { input: { id: "p1", kind: "post", title: "Failed edit", status: "draft" } }), error => error === failure);
+    } else {
+      const { ui, pending } = await raiseDialog(tool(registrations, "content_post_delete"));
+      const rejected = assert.rejects(() => pending, error => error === failure);
+      assert.deepEqual(deliverAction(surfaceExchanges, ui, "confirm"), { ok: true });
+      await rejected;
+    }
+    const restored = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
+    assert.deepEqual(restored, { ...prior, version: 3, updatedAt: NOW });
+    assert.deepEqual(await postRepo.list({ workspaceId: WORKSPACE_ID }), [restored]);
+    const revisions = await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: "p1" });
+    assert.deepEqual(revisions.map(row => [row.seq, row.op]), [[1, "create"], [2, operation], [3, "restore"]]);
+    assert.deepEqual(revisions[2]?.stateJson, restored);
+    assert.equal(revisions[2]?.restoredFrom, revisions[0]?.id);
+    assert.equal(revisions[2]?.actorId, PRINCIPAL_ID);
+    assert.deepEqual(forgotten, operation === "delete" ? [{ workspaceId: WORKSPACE_ID, id: "p1" }] : []);
+    assert.deepEqual((await outbox.claimPending(10, NOW)).map(row => row.event.name), ["entry.unpublished", "entry.published"]);
+    assert.deepEqual(await changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  });
+}

@@ -11,7 +11,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { registerAdminSeoGetEntryRoute } from "../../inbound/admin-http/routes/seo/get-entry.js";
 import { registerAdminSeoPutEntryRoute } from "../../inbound/admin-http/routes/seo/put-entry.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { startTestServer, loginAsOwner } from "../helpers/http-test-server.js";
+import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
 // drove this 8-core box to load average 135 and the sandboxed renders below failed with
@@ -54,6 +54,19 @@ test("T042: GET entry-meta without admin.seo.manage is denied 403", async (t) =>
   // No login at all -> requireAdminSession itself rejects (401), proving the route is gated end to end.
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${post!.id}`);
   assert.equal(res.status, 401);
+  const cookie = await loginAsBarePrincipal(deps, baseUrl, { username: "bare-seo-meta" });
+  const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${post!.id}`, { headers: { cookie } });
+  assert.equal(denied.status, 403);
+  const refusal = await denied.json() as { code: string; details: { permission: string; reason: string } };
+  assert.equal(refusal.code, "FORBIDDEN");
+  assert.deepEqual(refusal.details, { permission: "admin.seo.manage", reason: "no_grant" });
+  const policyId = "seo-meta-only";
+  await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyPermissionRepo.save({ id: "seo-meta-grant", workspaceId: WORKSPACE_ID, policyId, permission: "admin.seo.manage", resourceType: null, constraintJson: null });
+  await deps.principalPolicyRepo.save({ id: "seo-meta-link", workspaceId: WORKSPACE_ID, principalId: "bare-bare-seo-meta", policyId });
+  const allowed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${post!.id}`, { headers: { cookie } });
+  assert.equal(allowed.status, 200);
+  assert.ok((await allowed.json() as { data: unknown }).data);
 });
 
 test("T042: GET/PUT entry-meta round trip via the real chokepoint", async (t) => {
@@ -89,11 +102,16 @@ test("T040/T041: /sitemap.xml and /robots.txt are reachable through the real run
   const sitemap = await fetch(`${baseUrl}/sitemap.xml`);
   assert.equal(sitemap.status, 200);
   assert.match(sitemap.headers.get("content-type") ?? "", /xml/);
-  assert.match(await sitemap.text(), /<urlset/);
+  const sitemapBody = await sitemap.text();
+  assert.match(sitemapBody, /<urlset/);
+  assert.ok(sitemapBody.includes("<loc>http://localhost:3000/how-themes-work</loc>"));
 
   const robots = await fetch(`${baseUrl}/robots.txt`);
   assert.equal(robots.status, 200);
   assert.match(robots.headers.get("content-type") ?? "", /text\/plain/);
+  const robotsBody = await robots.text();
+  assert.match(robotsBody, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
+  assert.doesNotMatch(robotsBody, /^Disallow:\s*\/\s*$/m);
 });
 
 test("GET /llms.txt is reachable through the real running app, unauthenticated, and lists every published, indexable seeded page with an absolute URL (2026-09-04 rewrite: derived from computeIndexableEntries, not a hand-curated list)", async (t) => {
@@ -126,6 +144,13 @@ test("T045: the real home-page render includes SEO's folded <title> tag, not jus
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
   await deps.seoReady;
+  await deps.siteTitleReady;
+  const cookie = await loginAsOwner(baseUrl);
+  const settings = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/value`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ namespace: "core.site", key: "title", scope: "workspace", workspaceId: WORKSPACE_ID, valueJson: "Home SEO fold proof" }),
+  });
+  assert.equal(settings.status, 200, await settings.text());
 
   const home = await fetch(`${baseUrl}/`);
   assert.equal(home.status, 200);
@@ -137,6 +162,8 @@ test("T045: the real home-page render includes SEO's folded <title> tag, not jus
   // see that helper's doc).
   assert.equal(countRealTitleTags(html), 1);
   assert.match(html, /<link rel="canonical"/);
+  assert.match(html, /<title>Home SEO fold proof<\/title>/);
+  assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/"/);
 });
 
 /**

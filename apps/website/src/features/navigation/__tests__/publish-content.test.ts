@@ -125,13 +125,19 @@ test("apply() creates a new menu under the SOURCE id (never mints its own, unlik
 
 test("apply() updates an existing destination row under OCC, re-resolved by its own id", async () => {
   const menuRepo = new InMemoryMenuRepo([
-    { id: "menu-header-nav", workspaceId: WORKSPACE_ID, ...menuState({ slug: "header-nav" }), updatedAt: "2026-01-01T00:00:00.000Z", version: 3 },
+    { id: "menu-header-nav", workspaceId: WORKSPACE_ID, ...menuState({ slug: "header-nav", locations: ["primary", "stale", "reassigned"] }), updatedAt: "2026-01-01T00:00:00.000Z", version: 3 },
   ] as NavMenuEntry[]);
-  const bindingRepo = new InMemoryNavLocationBindingRepo();
-  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo }));
+  const other = { workspaceId: WORKSPACE_ID, locationKey: "reassigned", menuId: "menu-other", boundAt: "2026-01-01T00:00:00.000Z" };
+  const unrelated = { ...other, locationKey: "sidebar" };
+  const bindingRepo = new InMemoryNavLocationBindingRepo([
+    { ...other, locationKey: "primary", menuId: "menu-header-nav" },
+    { ...other, locationKey: "stale", menuId: "menu-header-nav" }, other, unrelated,
+  ]);
+  const outbox = new InMemoryOutbox();
+  const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox }));
 
   const { changeSetId } = await handler.apply({
-    entity: packedEntity("menu-header-nav", menuState({ slug: "header-nav", title: "New Title" })),
+    entity: packedEntity("menu-header-nav", menuState({ slug: "header-nav", title: "New Title", locations: ["primary"] })),
     expectedVersion: 3,
     principalId: "operator-1",
     idempotencyKey: "idem-2",
@@ -141,6 +147,15 @@ test("apply() updates an existing destination row under OCC, re-resolved by its 
   const landed = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header-nav" });
   assert.equal(landed?.title, "New Title");
   assert.equal(landed?.version, 4);
+  assert.equal(await bindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "stale" }), null);
+  assert.equal((await bindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "primary" }))?.menuId, "menu-header-nav");
+  assert.deepEqual(await bindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "reassigned" }), other);
+  assert.deepEqual(await bindingRepo.findByLocation({ workspaceId: WORKSPACE_ID, locationKey: "sidebar" }), unrelated);
+  const events = (await outbox.claimPending(10, "2026-09-24T00:00:00.000Z")).map((row) => row.event);
+  assert.deepEqual(events.map(({ name, aggregateId, workspaceId, payload }) => ({ name, aggregateId, workspaceId, payload })), [
+    { name: "navigation.menu.updated", aggregateId: "menu-header-nav", workspaceId: WORKSPACE_ID, payload: { menuId: "menu-header-nav", slug: "header-nav" } },
+    { name: "navigation.location.assigned", aggregateId: "menu-header-nav", workspaceId: WORKSPACE_ID, payload: { locationKey: "primary", menuId: "menu-header-nav" } },
+  ]);
 });
 
 test("apply() rebinds a location away from whatever destination menu previously held it (displacement)", async () => {
@@ -150,8 +165,9 @@ test("apply() rebinds a location away from whatever destination menu previously 
   const bindingRepo = new InMemoryNavLocationBindingRepo([
     { workspaceId: WORKSPACE_ID, locationKey: "primary", menuId: "menu-old-header", boundAt: "2026-01-01T00:00:00.000Z" },
   ]);
+  const outbox = new InMemoryOutbox();
   const handler = contributeMenusPublish().build(
-    makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, idGen: { newId: () => "evt-1" } })
+    makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox, idGen: { newId: () => "evt-1" } })
   );
 
   await handler.apply({
@@ -167,6 +183,12 @@ test("apply() rebinds a location away from whatever destination menu previously 
   const displaced = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-old-header" });
   assert.deepEqual(displaced?.locations, [], "the displaced menu must lose the location from its own locations field");
   assert.equal(displaced?.version, 2);
+  const events = (await outbox.claimPending(10, "2026-09-24T00:00:00.000Z")).map((row) => row.event);
+  assert.deepEqual(events.map(({ name, aggregateId, workspaceId, payload }) => ({ name, aggregateId, workspaceId, payload })), [
+    { name: "navigation.menu.created", aggregateId: "menu-header-nav", workspaceId: WORKSPACE_ID, payload: { menuId: "menu-header-nav", slug: "header-nav" } },
+    { name: "navigation.location.unassigned", aggregateId: "menu-old-header", workspaceId: WORKSPACE_ID, payload: { locationKey: "primary", menuId: "menu-old-header" } },
+    { name: "navigation.location.assigned", aggregateId: "menu-header-nav", workspaceId: WORKSPACE_ID, payload: { locationKey: "primary", menuId: "menu-header-nav" } },
+  ]);
 });
 
 test("apply() accepts a doc item whose entryRef target does not exist at the destination — no precheck on refs", async () => {
@@ -381,6 +403,12 @@ test("repointReferences() rewrites a live menu's entryRef and records one revert
   assert.equal(recorded?.items[0]?.entityType, "menu");
   assert.equal(recorded?.items[0]?.operation, "update");
   assert.deepEqual(recorded?.items[0]?.inversePayload, { items: [entryRefItem("item-1", "post-about")] });
+  const events = await deps.outbox!.claimPending(10, "2026-09-24T00:00:00.000Z");
+  const updates = events.filter((row) => row.event.name === "navigation.menu.updated").map((row) => row.event);
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].workspaceId, WORKSPACE_ID);
+  assert.equal(updates[0].aggregateId, "menu-header");
+  assert.deepEqual(updates[0].payload, { menuId: "menu-header", slug: "primary-nav" });
 });
 
 test("repointReferences() leaves a menu named in skipIds untouched", async () => {
@@ -494,4 +522,43 @@ test("repointReferences() puts the prior tree back when the change-set record fa
     priorItems,
     "an unrecorded repoint must be rolled back, never left live and unrevertible"
   );
+});
+
+test("repointReferences continues after a denied menu and repairs the next menu", async () => {
+  const denied = menuRow({ id: "menu-a", slug: "a", doc: { type: "menu", version: 1, items: [entryRefItem("a", "old")] } });
+  const allowed = menuRow({ id: "menu-b", slug: "b", doc: { type: "menu", version: 1, items: [entryRefItem("b", "old")] } });
+  const repo = new InMemoryMenuRepo([denied, allowed]);
+  let checks = 0;
+  const deps = makeRepointDeps({ menuRepo: repo, authorize: async () => ({ allowed: ++checks > 1, reason: "test" }) });
+  const result = await contributeMenusPublish().build(deps).repointReferences!({ replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
+  assert.equal(checks, 2);
+  assert.equal(result.notUpdated.length, 1);
+  assert.equal(result.linksUpdated, 1);
+  assert.equal(result.changeSetIds.length, 1);
+  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: denied.id }), denied);
+  assert.deepEqual((await repo.findById({ workspaceId: WORKSPACE_ID, id: allowed.id }))?.doc.items, [{ ...entryRefItem("b", "new"), children: undefined }]);
+  const recorded = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: result.changeSetIds[0] });
+  assert.equal(recorded?.items[0].entityId, allowed.id);
+});
+
+test("repointReferences retries a single conflict from fresh state, preserving the concurrent edit", async () => {
+  const initial = menuRow({ id: "menu-race", doc: { type: "menu", version: 1, items: [entryRefItem("a", "old")] } });
+  const repo = new InMemoryMenuRepo([initial]);
+  const read = repo.findById.bind(repo);
+  let reads = 0;
+  repo.findById = async (request) => {
+    if (++reads === 2) await repo.save({ ...initial, version: 2, title: "Concurrent title", doc: { ...initial.doc, items: [{ ...entryRefItem("a", "old"), label: "Concurrent label" }, { id: "added", label: "Contact", target: { kind: "url", href: "/contact" } }] } });
+    return read(request);
+  };
+  const deps = makeRepointDeps({ menuRepo: repo });
+  const result = await contributeMenusPublish().build(deps).repointReferences!({ replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "operator-1", runId: "run-1" });
+  assert.equal(result.linksUpdated, 1);
+  assert.deepEqual(result.notUpdated, []);
+  assert.equal(result.changeSetIds.length, 1);
+  const landed = await read({ workspaceId: WORKSPACE_ID, id: initial.id });
+  assert.equal(landed?.title, "Concurrent title");
+  assert.equal(landed?.version, 3);
+  assert.deepEqual(landed?.doc.items, [{ ...entryRefItem("a", "new"), label: "Concurrent label", children: undefined }, { id: "added", label: "Contact", target: { kind: "url", href: "/contact" }, children: undefined }]);
+  const recorded = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: result.changeSetIds[0] });
+  assert.deepEqual(recorded?.items[0].inversePayload, { items: [{ ...entryRefItem("a", "old"), label: "Concurrent label" }, { id: "added", label: "Contact", target: { kind: "url", href: "/contact" } }] });
 });

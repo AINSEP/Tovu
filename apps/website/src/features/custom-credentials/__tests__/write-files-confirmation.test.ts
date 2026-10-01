@@ -163,6 +163,14 @@ function exchangeIdFromSurface(surface: unknown): string {
   return match[1]!;
 }
 
+function actionFromDialog(ui: UIResource, action: "confirm" | "cancel") {
+  const match = ui.resource.text.match(/var PLAN = (.+);/);
+  assert.ok(match, "the rendered dialog must include its button actions");
+  const plan = JSON.parse(match[1]!);
+  assert.equal(plan[action].toolName, TOOL_ID);
+  return plan[action].params as Record<string, unknown>;
+}
+
 async function raiseDialog(writeTool: ToolRegistration, input: unknown = VALID_INPUT) {
   const emitted: unknown[] = [];
   const pending = call(writeTool, { input, emitSurface: async (s) => void emitted.push(s) });
@@ -276,7 +284,7 @@ test("an ordinary file (no workflow path) never renders the workflow warning", a
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { ui, exchangeId, pending } = await raiseDialog(writeTool);
-  assert.doesNotMatch(ui.resource.text, /WORKFLOW FILE/);
+  assert.doesNotMatch(ui.resource.text, /WORKFLOW/i);
 
   surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
   await pending;
@@ -407,11 +415,21 @@ test("confirm: the human's click performs the real write (blob, tree, commit, re
   const surfaceExchanges = createSurfaceExchangeStore();
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { pending, exchangeId } = await raiseDialog(writeTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const { pending, exchangeId, ui } = await raiseDialog(writeTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: actionFromDialog(ui, "confirm") });
   const result = await pending;
 
   assert.deepEqual(result, { executed: true, commitSha: "new-commit-sha", commitUrl: "https://github.com/octo/demo/commit/new-commit-sha", filesWritten: 1 });
+  assert.equal(httpClient.calls.length, 7);
+  for (const request of httpClient.calls) assert.equal(request.headers?.Authorization, "Bearer github-secret-token");
+  const [blob, tree, commit, ref] = httpClient.calls.slice(3);
+  const blobBody = JSON.parse(blob!.body!);
+  assert.equal(blob!.method, "POST");
+  assert.equal(blobBody.encoding, "base64");
+  assert.equal(Buffer.from(blobBody.content, "base64").toString("utf8"), VALID_INPUT.files[0]!.content);
+  assert.deepEqual(JSON.parse(tree!.body!), { base_tree: "base-tree-sha", tree: [{ path: "fly.toml", mode: "100644", type: "blob", sha: "blob-sha" }] });
+  assert.deepEqual(JSON.parse(commit!.body!), { message: VALID_INPUT.commitMessage, tree: "new-tree-sha", parents: ["parent-sha"] });
+  assert.deepEqual(JSON.parse(ref!.body!), { sha: "new-commit-sha" });
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/blobs")));
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/trees")));
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/commits")));
@@ -424,9 +442,9 @@ test("decline: no blob/tree/commit/ref call is ever made, and the tool reports c
   const surfaceExchanges = createSurfaceExchangeStore();
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { pending, exchangeId } = await raiseDialog(writeTool);
+  const { pending, exchangeId, ui } = await raiseDialog(writeTool);
   const callsBeforeDecision = httpClient.calls.length;
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: actionFromDialog(ui, "cancel") });
   const result = await pending;
 
   assert.deepEqual(result, { executed: false, cancelled: true });
@@ -511,12 +529,16 @@ test("a caller-fixable validation refusal arrives as a ToolInputError carrying t
 });
 
 test("a branch that does not exist is refused before any dialog", async () => {
-  const { deps, writeDeps } = fakeRouteDeps({ httpSteps: [{ match: /\/git\/ref\/heads\/main$/, status: 404, json: {} }] });
+  const { deps, writeDeps, httpClient } = fakeRouteDeps({ httpSteps: [{ match: /\/git\/ref\/heads\/main$/, status: 404, json: {} }] });
   await seedGithub(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore();
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  await assert.rejects(() => call(writeTool));
+  const emitted: unknown[] = [];
+  await assert.rejects(() => call(writeTool, { emitSurface: async (surface) => void emitted.push(surface) }), /branch 'main' does not exist in octo\/demo/);
+  assert.equal(httpClient.calls.length, 1);
+  assert.match(httpClient.calls[0]!.url, /\/git\/ref\/heads\/main$/);
+  assert.deepEqual(emitted, []);
   assert.equal(surfaceExchanges.size(), 0);
 });
 

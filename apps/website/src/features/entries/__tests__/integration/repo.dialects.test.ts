@@ -57,14 +57,16 @@ async function createPublished(params: {
   type?: string;
   fields?: ContentTypeFieldDef[];
   siteFields: Record<string, unknown>;
+  workspaceId?: string;
 }): Promise<EntryRecord> {
   const type = params.type ?? "recipe";
-  const deps = depsFor(params.repo, params.idSeed, "ws-1", type, params.fields ?? RECIPE_FIELDS);
+  const workspaceId = params.workspaceId ?? "ws-1";
+  const deps = depsFor(params.repo, params.idSeed, workspaceId, type, params.fields ?? RECIPE_FIELDS);
   const created = await createEntry({
     deps,
     input: {
       actorId: "user-1",
-      workspaceId: "ws-1",
+      workspaceId,
       type,
       slug: params.slug,
       title: params.title ?? params.slug,
@@ -75,7 +77,7 @@ async function createPublished(params: {
   if (!created.ok) throw new Error("unreachable");
   const published = await publishEntry({
     deps,
-    input: { actorId: "user-1", workspaceId: "ws-1", id: created.value.entry.id, expectedVersion: created.value.entry.version },
+    input: { actorId: "user-1", workspaceId, id: created.value.entry.id, expectedVersion: created.value.entry.version },
   });
   assert.equal(published.ok, true, `publishEntry failed for "${params.slug}"`);
   if (!published.ok) throw new Error("unreachable");
@@ -243,9 +245,31 @@ describeEachDialect<Fixture>(
       assert.equal(byUpdated.length, 5);
     });
 
+    test("listPublishedForDisplay: built-in sort columns and directions choose exact conflicting orders", async () => {
+      const { repo } = make();
+      const rows = [
+        { id: "r-c", title: "Alpha", publishedAt: "2026-09-22T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z" },
+        { id: "r-a", title: "Middle", publishedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-23T00:00:00.000Z" },
+        { id: "r-b", title: "Zulu", publishedAt: "2026-09-23T00:00:00.000Z", updatedAt: "2026-09-22T00:00:00.000Z" },
+      ];
+      for (const row of rows) {
+        const entry = await createPublished({ repo, idSeed: row.id, slug: row.id, title: row.title, siteFields: {} });
+        await repo.save({ ...entry, publishedAt: row.publishedAt, updatedAt: row.updatedAt });
+      }
+      for (const [by, asc] of [["title", ["r-c", "r-a", "r-b"]], ["published", ["r-c", "r-b", "r-a"]], ["updated", ["r-b", "r-a", "r-c"]]] as const) {
+        for (const dir of ["asc", "desc"] as const) {
+          const result = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: listQuery({ sort: { by, dir } }) });
+          assert.deepEqual(result.map((row) => row.id), dir === "asc" ? [...asc] : [...asc].reverse(), `${by} ${dir}`);
+        }
+      }
+      const limited = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: listQuery({ sort: { by: "published", dir: "desc" }, limit: 2 }) });
+      assert.deepEqual(limited.map((row) => row.id), ["r-a", "r-b"]);
+    });
+
     test("listPublishedForDisplay: excludes drafts, trashed rows and other content types", async () => {
       const { repo, kernel } = make();
       const live = await createPublished({ repo, idSeed: "recipe-live", slug: "live-recipe", siteFields: {} });
+      await createPublished({ repo, workspaceId: "ws-2", idSeed: "recipe-other", slug: "other-workspace", siteFields: {} });
       await createEntry({
         deps: depsFor(repo, "recipe-draft", "ws-1", "recipe", RECIPE_FIELDS),
         input: { actorId: "user-1", workspaceId: "ws-1", type: "recipe", slug: "draft-recipe", title: "Draft", fieldsJson: { ext: { site: {} } } },
@@ -255,6 +279,7 @@ describeEachDialect<Fixture>(
       await createPublished({ repo, idSeed: "article-live", slug: "live-article", type: "article", fields: [], siteFields: {} });
       const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: listQuery({}) });
       assert.deepEqual(slugs(rows), [live.slug]);
+      assert.deepEqual(slugs(await repo.listPublishedForDisplay({ workspaceId: "ws-2", query: listQuery({}) })), ["other-workspace"]);
     });
 
     test("listPublishedForDisplay: a where value binds as a parameter — an apostrophe round-trips", async () => {

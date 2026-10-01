@@ -181,6 +181,9 @@ test("listPublishedForDisplay (memory twin): limit bounds the result count", asy
 
 test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and rows of other content types", async () => {
   const repo = new TrashAwareInMemoryEntryRepo();
+  await createPublishedEntry({ repo, workspaceId: "ws-2", type: "recipe", contentTypeFields: RECIPE_FIELDS, idSeed: "recipe-other", slug: "other-workspace", title: "Other workspace", siteFields: {} });
+  const otherRows = await repo.listPublishedForDisplay({ workspaceId: "ws-2", query: { type: "recipe", where: [], sort: { by: "title", dir: "asc" }, limit: 10 } });
+  assert.deepEqual(otherRows.map((row) => row.slug), ["other-workspace"]);
 
   const published = await createPublishedEntry({
     repo,

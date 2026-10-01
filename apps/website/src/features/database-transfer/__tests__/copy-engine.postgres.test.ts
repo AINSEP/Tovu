@@ -112,8 +112,8 @@ async function copyInto(schema: string, site: string): Promise<CopyResult> {
 
 test.before(async () => {
   migratedBase = await buildMigratedBase();
-  await recreateDatabase(FIXTURE_DB);
 });
+test.beforeEach(() => recreateDatabase(FIXTURE_DB));
 test.after(() => dropDatabase(FIXTURE_DB));
 
 test("the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys", async () => {
@@ -144,6 +144,8 @@ test("the first site's copy lands in `tovu` with the same row count as SQLite fo
 });
 
 test("a re-copy replaces the site's own copy and never appends", async () => {
+  const initial = await copyAs(SITE, "original");
+  assert.ok(initial.result.ok, JSON.stringify(initial.result));
   const { schema, result } = await copyAs(SITE, "2026-09-27T13:00:00.000Z");
   assert.ok(result.ok, JSON.stringify(result));
   assert.equal(schema, "tovu");
@@ -152,6 +154,8 @@ test("a re-copy replaces the site's own copy and never appends", async () => {
 });
 
 test("cross-site wipe regression: a copy aimed at a schema holding ANOTHER site's copy is refused inside the transaction", async () => {
+  const initial = await copyAs(SITE, "original");
+  assert.ok(initial.result.ok, JSON.stringify(initial.result));
   const refused = await copyInto("tovu", "intruder-site");
   assert.deepEqual(refused, {
     ok: false,
@@ -163,6 +167,8 @@ test("cross-site wipe regression: a copy aimed at a schema holding ANOTHER site'
 });
 
 test("a schema someone else made (no marker) is refused and left untouched, and a new site is given its own schema instead", async () => {
+  const initial = await copyAs(SITE, "original");
+  assert.ok(initial.result.ok, JSON.stringify(initial.result));
   await sql(FIXTURE_DB, `CREATE SCHEMA tovu_someone; CREATE TABLE tovu_someone.theirs (v text); INSERT INTO tovu_someone.theirs VALUES ('keep me');`);
   const refused = await copyInto("tovu_someone", "someone");
   assert.equal(!refused.ok && refused.code, "TARGET_NOT_OURS");
@@ -175,6 +181,8 @@ test("a schema someone else made (no marker) is refused and left untouched, and 
 });
 
 test("two sites share one database: the second gets `tovu_<site>`, each re-copy replaces only its own, and a site keeps its schema after `tovu` frees up", async () => {
+  const initial = await copyAs(SITE, "original");
+  assert.ok(initial.result.ok, JSON.stringify(initial.result));
   const b = await copyAs("other-site", "2026-09-27T14:00:00.000Z");
   assert.ok(b.result.ok, JSON.stringify(b.result));
   assert.equal(b.schema, "tovu_other_site");
@@ -208,6 +216,34 @@ test("a row Postgres rejects rolls the whole copy back and names only the table"
   assert.equal(await sql(FIXTURE_DB, `SELECT to_regnamespace('${schema}') IS NULL`), "t", "nothing may be left behind");
 });
 
+test("a count mismatch or rejected replacement preserves the earlier rows and marker", async () => {
+  const original = await copyAs(SITE, "original");
+  assert.ok(original.result.ok, JSON.stringify(original.result));
+  await sql(FIXTURE_DB, "UPDATE tovu.menus SET title = 'original sentinel' WHERE id = 'menu-1'");
+  const replacement = fixtureSnapshot();
+  const source = openSqliteSnapshotSource(replacement);
+  const tables = collectTransferTables();
+  try {
+    const counts = countSourceRows(source, tables).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
+    const result = await runCopy({ source, target: TARGET(), tables, counts, schema: "tovu", marker: { site: SITE, snapshotAt: "replacement" } });
+    assert.equal(!result.ok && result.code, "COUNT_MISMATCH");
+    assert.match(!result.ok ? result.message : "", /menus/);
+  } finally {
+    source.close();
+  }
+  assert.equal(await sql(FIXTURE_DB, "SELECT title FROM tovu.menus WHERE id = 'menu-1'"), "original sentinel");
+  assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), "original");
+
+  const invalid = fixtureSnapshot((c) => {
+    c.prepare("INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES ('bad', 'ws', 'bad', 'bad', 'draft', 'not json', '[]', 'x', 1)").run();
+  });
+  const refused = await copyAs(SITE, "rejected", invalid);
+  assert.equal(!refused.result.ok && refused.result.code, "COPY_FAILED");
+  assert.equal(await count("menus", "tovu"), 2);
+  assert.equal(await sql(FIXTURE_DB, "SELECT title FROM tovu.menus WHERE id = 'menu-1'"), "original sentinel");
+  assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), "original");
+});
+
 test("a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied", async () => {
   const c = migratedDb();
   let bytes: Buffer;
@@ -220,6 +256,14 @@ test("a setting marked secret stays behind (values at every scope and its histor
     const value = c.prepare("INSERT INTO setting_values_global (setting_id, value_json, def_version, seq, updated_by, updated_at) VALUES (?, ?, 1, 1, 'p', 'x')");
     value.run("set-secret", JSON.stringify("SECRET-SETTING-VALUE"));
     value.run("set-plain", JSON.stringify("My site"));
+    c.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES ('scope-ws', 'Scope', 'scope', 'x')").run();
+    for (const scope of ["workspace", "user"]) {
+      const extraColumns = scope === "user" ? ", principal_id" : "";
+      const extraValues = scope === "user" ? ", 'scope-user'" : "";
+      const scopedValue = c.prepare(`INSERT INTO setting_values_${scope} (setting_id, workspace_id${extraColumns}, value_json, def_version, seq, updated_by, updated_at) VALUES (?, 'scope-ws'${extraValues}, ?, 1, 1, 'p', 'x')`);
+      scopedValue.run("set-secret", JSON.stringify(`SECRET-${scope}`));
+      scopedValue.run("set-plain", JSON.stringify(`Plain ${scope}`));
+    }
     c.prepare(
       "INSERT INTO setting_revisions (entity_kind, setting_id, scope, op, before_json, after_json, def_version, actor, created_at) VALUES ('value', 'set-secret', 'global', 'set', NULL, ?, 1, 'p', 'x')"
     ).run(JSON.stringify("SECRET-SETTING-VALUE"));
@@ -231,14 +275,20 @@ test("a setting marked secret stays behind (values at every scope and its histor
   const counts = countSourceRows(source, collectTransferTables());
   assert.equal(counts.find((entry) => entry.table.name === "setting_values_global")?.rows, 1);
   assert.equal(counts.find((entry) => entry.table.name === "setting_revisions")?.rows, 0);
+  for (const scope of ["workspace", "user"]) assert.equal(counts.find((entry) => entry.table.name === `setting_values_${scope}`)?.rows, 1);
   assert.deepEqual(countPartialExclusions(source).filter((entry) => entry.rows > 0), [
     { table: "setting_values_global", rows: 1, reason: "settings marked secret, and their history, are not copied" },
+    { table: "setting_values_workspace", rows: 1, reason: "settings marked secret, and their history, are not copied" },
+    { table: "setting_values_user", rows: 1, reason: "settings marked secret, and their history, are not copied" },
     { table: "setting_revisions", rows: 1, reason: "settings marked secret, and their history, are not copied" },
   ]);
   source.close();
   const { schema, result } = await copyAs("settings-site", "x", bytes);
   assert.ok(result.ok, JSON.stringify(result));
   assert.equal(await sql(FIXTURE_DB, `SELECT setting_id FROM "${schema}".setting_values_global`), "set-plain");
+  for (const scope of ["workspace", "user"]) {
+    assert.equal(await sql(FIXTURE_DB, `SELECT setting_id || ' ' || (value_json #>> '{}') FROM "${schema}".setting_values_${scope}`), `set-plain Plain ${scope}`);
+  }
   assert.equal(await count("setting_revisions", schema), 0);
   assert.equal(await count("setting_definitions", schema), 2, "definitions are not secret; only their values are");
 });

@@ -4,7 +4,8 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
+import { loginAsBarePrincipal } from "./helpers/http-test-server.js";
 
 /**
  * @file SPEC-047 — `PUT /pages/:pageId/html`, the write path a bespoke-HTML Page is authored
@@ -21,7 +22,14 @@ import { createApp } from "../runtime/composition/app.js";
 const WS = "workspace-local";
 
 async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
-  const server = createServer(createApp());
+  const originalPassword = process.env.TOVU_ADMIN_PASSWORD;
+  delete process.env.TOVU_ADMIN_PASSWORD;
+  t.after(async () => {
+    if (originalPassword === undefined) delete process.env.TOVU_ADMIN_PASSWORD;
+    else process.env.TOVU_ADMIN_PASSWORD = originalPassword;
+  });
+  const deps = createRouteDeps();
+  const server = createServer(createApp(deps));
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -37,7 +45,7 @@ async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
   assert.equal(login.status, 200);
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
 
-  return { baseUrl, cookie };
+  return { baseUrl, cookie, deps };
 }
 
 async function createRow(baseUrl: string, cookie: string, surface: "posts" | "pages", title: string) {
@@ -72,6 +80,35 @@ test("PUT /pages/:id/html converts a doc-format Page to html on the first write 
   assert.equal(post.bodyFormat, "html", "the first write must birth the html row");
   assert.equal(post.bodyHtml, generated);
   assert.equal(post.bodyJson, null, "the discriminated response must not carry both bodies");
+  const readback = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${pageId}`, { headers: { cookie } });
+  assert.equal(readback.status, 200);
+  const saved = await readback.json() as { post: { bodyFormat: string; bodyHtml: string } };
+  assert.equal(saved.post.bodyFormat, "html");
+  assert.equal(saved.post.bodyHtml, generated);
+});
+
+test("HTML writes require pages.edit_html even when the caller holds content.write", async (t) => {
+  const { baseUrl, cookie, deps } = await startServer(t);
+  const pageId = await createRow(baseUrl, cookie, "pages", "Restricted HTML");
+  const before = await deps.postRepo.findById({ workspaceId: WS, id: pageId });
+  const restricted = await loginAsBarePrincipal(deps, baseUrl, { username: "html-editor" });
+  const principal = await deps.userRepo.findByUsername({ workspaceId: WS, username: "html-editor" });
+  assert.ok(principal);
+  const policyId = "html-editor-policy";
+  await deps.policyRepo.save({ id: policyId, workspaceId: WS, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.principalPolicyRepo.save({ id: "html-editor-link", workspaceId: WS, principalId: principal.principalId, policyId });
+  await deps.policyPermissionRepo.save({ id: "html-editor-write", workspaceId: WS, policyId, permission: "content.write", resourceType: null, constraintJson: null });
+  assert.equal((await deps.authorize({ principalId: principal.principalId, workspaceId: WS, permission: "content.write" })).allowed, true);
+  const anonymous = await putHtml(baseUrl, "", pageId, "<script>attack()</script>");
+  assert.equal(anonymous.status, 401);
+  const denied = await putHtml(baseUrl, restricted, pageId, "<script>attack()</script>");
+  assert.equal(denied.status, 403);
+  const error = JSON.parse(denied.body) as { code: string; details: { permission: string } };
+  assert.equal(error.code, "FORBIDDEN");
+  assert.equal(error.details.permission, "pages.edit_html");
+  assert.deepEqual(await deps.postRepo.findById({ workspaceId: WS, id: pageId }), before);
+  await deps.policyPermissionRepo.save({ id: "html-editor-html", workspaceId: WS, policyId, permission: "pages.edit_html", resourceType: null, constraintJson: null });
+  assert.equal((await putHtml(baseUrl, restricted, pageId, "<p>permitted</p>")).status, 200);
 });
 
 test("PUT /pages/:id/html is repeatable — a second write replaces the body without re-seeding the skeleton", async (t) => {
@@ -132,4 +169,6 @@ test("PUT /pages/:id/html 404s for an id that does not exist, and 400s a non-str
     body: JSON.stringify({ html: { not: "a string" } }),
   });
   assert.equal(response.status, 400);
+  const oversized = await putHtml(baseUrl, cookie, pageId, "x".repeat(2 * 1024 * 1024));
+  assert.equal(oversized.status, 413);
 });

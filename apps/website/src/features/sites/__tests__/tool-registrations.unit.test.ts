@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { ForbiddenError } from "@jini-ai/cms/core";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { DuplicateSiteResult, SiteListEntry } from "#src/platform/site-dir/index";
@@ -138,9 +139,11 @@ test("sites_duplicate_site: displayName is optional — omitting it passes undef
   const { routeDeps, duplicateSiteCalls } = fakeDeps();
   const handler = registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler;
 
-  await handler(ctxFor({ sourceName: "source-site", targetName: "new-client" }));
+  const result = await handler(ctxFor({ sourceName: "source-site", targetName: "new-client" }));
 
   assert.equal(duplicateSiteCalls[0]?.name, undefined);
+  assert.deepEqual(duplicateSiteCalls, [{ sourceDir: "/tmp/fake-cwd/sites/source-site", targetDir: "/tmp/fake-cwd/sites/new-client", name: undefined }]);
+  assert.deepEqual(result, { name: "new-client", dir: "/tmp/fake-cwd/sites/new-client", siteId: "new-site-id-1234", sourceName: "source-site" });
 });
 
 test("sites_duplicate_site: refuses when site switching is disabled, without ever calling duplicateSite or authorize", async () => {
@@ -185,9 +188,15 @@ test("sites_duplicate_site: refuses when siteBinding.switcherCompatible is false
 
 test("sites_duplicate_site: refuses when the caller lacks system.write, without ever calling duplicateSite", async () => {
   const { routeDeps, duplicateSiteCalls } = fakeDeps({ allow: false });
+  const requests: unknown[] = [];
+  routeDeps.authorize = async (request) => {
+    requests.push(request);
+    return { allowed: request.permission === "content.read", reason: "read-only principal" };
+  };
   const handler = registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler;
 
-  await assert.rejects(() => handler(ctxFor({ sourceName: "source-site", targetName: "new-client" })));
+  await assert.rejects(() => handler(ctxFor({ sourceName: "source-site", targetName: "new-client" })), (error: unknown) => { assert.ok(error instanceof ForbiddenError); assert.equal(error.message, `principal '${PRINCIPAL_ID}' is not authorized for 'system.write' (read-only principal)`); return true; });
+  assert.deepEqual(requests, [{ principalId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, permission: "system.write", entityType: "site-registry", entityId: undefined }]);
   assert.equal(duplicateSiteCalls.length, 0);
 });
 
