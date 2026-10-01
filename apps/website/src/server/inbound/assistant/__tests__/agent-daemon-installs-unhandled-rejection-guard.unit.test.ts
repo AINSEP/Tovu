@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
+import { daemonSource } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof that `agent-daemon-server.ts` — a separate OS process from Tovu's main server,
@@ -62,4 +64,12 @@ test("agent-daemon-server.ts calls installUnhandledRejectionGuard() unconditiona
   const routeDepsIndex = DAEMON_ENTRY_SOURCE.indexOf("createAgentDaemonRouteDeps({ env: process.env })");
   assert.ok(routeDepsIndex > -1, "this test's own anchor (the routeDeps line) must still exist verbatim — update the anchor if that line's shape changes");
   assert.ok(routeDepsIndex > callIndex, "the guard must be installed before this process's first real I/O (opening its own SQLite connection), not after");
+  const guardStatement = daemonSource.statements.find((statement) =>
+    ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) &&
+    ts.isIdentifier(statement.expression.expression) &&
+    statement.expression.expression.text === "installUnhandledRejectionGuard" &&
+    statement.expression.arguments.length === 0,
+  );
+  assert.ok(guardStatement, "the guard call must be a module-level expression statement, never a nested or commented call");
+  assert.ok(guardStatement.getStart(daemonSource) < routeDepsIndex, "the top-level call must precede opening the database");
 });

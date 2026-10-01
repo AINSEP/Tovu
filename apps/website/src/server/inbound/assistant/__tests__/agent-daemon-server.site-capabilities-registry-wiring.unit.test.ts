@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
+import { createToolRegistry } from "@jini-ai/core";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
+import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
+import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof that the agent daemon hands `site_describe_capabilities` a reader over its OWN
@@ -44,4 +51,33 @@ describe("site_describe_capabilities registry wiring in the agent daemon", () =>
       "the registry the reader closes over must be the daemon's one module-scope registry, declared before the call",
     );
   });
+});
+
+test("the daemon's actual catalog reader exposes a tool registered after composition", async () => {
+  installFirstPartyToolContributors();
+  const routeDeps = createRouteDeps();
+  await routeDeps.identityReady;
+  const ownerId = await routeDeps.ownerPrincipalId;
+  const registry = createToolRegistry();
+  const registrations = evaluateDaemonExpression<ReturnType<typeof buildAssistantToolRegistrations>>(
+    daemonInitializer("assistantRegistrations"),
+    { routeDeps, registry, listToolCatalogEntries, buildAssistantToolRegistrations,
+      magicLinkPerEmailLimiter: {}, surfaceExchanges: createSurfaceExchangeStore() },
+  );
+  for (const registration of registrations) registry.register(registration);
+  registry.register({
+    descriptor: { id: "audit_distinctive_late_tool", description: "Distinctive late registration" },
+    policy: { authorize: () => "allow" }, handler: async () => ({}),
+  });
+  const registration = registrations.find((entry) => entry.descriptor.id === "site_describe_capabilities");
+  assert.ok(registration);
+  const result = await registration.handler({
+    executionId: "audit-capabilities", principal: { id: ownerId }, run: { id: "audit-run" },
+    input: { sections: ["tools"] }, signal: new AbortController().signal,
+  }) as { sections: { tools: { status: string; data: { total: number; domains: Array<{ tools: Array<{ id: string }> }> } } } };
+  const tools = result.sections.tools;
+  assert.equal(tools.status, "ok");
+  const ids = tools.data.domains.flatMap((domain) => domain.tools.map((tool) => tool.id));
+  assert.ok(ids.includes("audit_distinctive_late_tool"));
+  assert.deepEqual([...ids].sort(), registry.list().map((tool) => tool.id).sort());
 });

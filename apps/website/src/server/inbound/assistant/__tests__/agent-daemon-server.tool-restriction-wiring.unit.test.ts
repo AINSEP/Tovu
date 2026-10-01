@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
+import { getAgentDef } from "@jini-ai/agent-runtime";
+import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES } from "../assistant-system-overlay.js";
+import { captureDaemonRun } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof for Finding 2 of SEC-assistant-env-isolation-2026-09-07: reads the SOURCE of
@@ -69,4 +72,31 @@ describe("Finding 2 wiring — the spawned assistant's tool grant is actually re
       "the agentExecutor.run() call must pass settingSources: ASSISTANT_SETTING_SOURCES — without it the operator's personal CLI hooks and plugins run inside every assistant turn",
     );
   });
+});
+
+test("onStarted hands the executor the enforced tool restrictions", async () => {
+  const input = await captureDaemonRun({ prompt: "Review this page" });
+  assert.deepEqual(input.disallowedTools, ASSISTANT_DISALLOWED_TOOLS);
+  assert.deepEqual(input.settingSources, ASSISTANT_SETTING_SOURCES);
+});
+
+test("onStarted forwards the exact search hook settings through to Claude launch arguments", async () => {
+  const input = await captureDaemonRun({ prompt: "Find a page" }, { hookPresent: true });
+  assert.ok(input.settings);
+  assert.deepEqual(JSON.parse(input.settings), {
+    hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [
+      { type: "command", command: "/home/daemon-test/.claude/hooks/no-system-search", timeout: 5 },
+    ] }] },
+  });
+  const def = getAgentDef("claude");
+  assert.ok(def);
+  const args = def.buildArgs(input.prompt, [], [], input);
+  const settingsIndex = args.indexOf("--settings");
+  assert.ok(settingsIndex >= 0);
+  assert.equal(args[settingsIndex + 1], input.settings);
+});
+
+test("onStarted omits hook settings when the hook file is absent", async () => {
+  const input = await captureDaemonRun({ prompt: "Find a page" });
+  assert.equal(Object.hasOwn(input, "settings"), false);
 });
