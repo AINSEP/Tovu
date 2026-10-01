@@ -37,6 +37,7 @@
     "check:idle-motion": "node --import tsx development/scripts/check-idle-motion.ts",
     "test:idle-cpu": "node development/scripts/measure-idle-cpu.mjs",
     "test:visual": "playwright test --config=development/playwright.config.ts",
+    "test:visual:regression": "playwright test --config=development/playwright.visual-regression.config.ts",
     "test:e2e:agent-plugin-chip": "playwright test --config=development/playwright.composer-agent-plugin-chip.config.ts",
     "test:e2e:agent-plugin-chip:watch": "TOVU_E2E_SLOWMO=250 playwright test --config=development/playwright.composer-agent-plugin-chip.config.ts --headed",
     "test:e2e:capability-discovery": "playwright test --config=development/playwright.capability-discovery.config.ts",
